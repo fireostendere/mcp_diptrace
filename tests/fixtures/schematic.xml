@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Source Type="DipTrace-Schematic" Version="5.3.0.1" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary" Version="5.3.0.1" Units="mm" />
+  <Schematic>
+    <SheetSettings>
+      <ActiveSheet>0</ActiveSheet>
+      <Sheets>
+        <Sheet>
+          <Id>0</Id>
+          <Name>Main</Name>
+          <Type>Normal</Type>
+        </Sheet>
+      </Sheets>
+    </SheetSettings>
+    <NetClasses>
+      <NetClass Id="0" UpdateId="0" Type="Normal">
+        <Name>Default</Name>
+      </NetClass>
+    </NetClasses>
+    <ERC CheckPinType="Y" CheckNotConnected="Y" CheckSinglePin="Y" CheckShort="Y" CheckPinSuperimpose="Y">
+      <VCCTemplate>V*</VCCTemplate>
+      <GNDTemplate>GND*</GNDTemplate>
+    </ERC>
+    <Components>
+      <Part Id="0" UpdateId="100" ComponentStyle="CompType0" ComponentPart="0" PartNumber="0" Sheet="0" X="10" Y="20" Locked="N" Selected="N">
+        <RefDes>R1</RefDes>
+        <PartRefDes>1</PartRefDes>
+        <PartName>Part 1</PartName>
+        <Value>10k</Value>
+        <Name>RES_0603</Name>
+        <AddFields>
+          <AddField Type="Text">
+            <Name>Manufacturer</Name>
+            <Text>Example Parts</Text>
+          </AddField>
+        </AddFields>
+        <Pins>
+          <Pin NetId="0" NotConnected="N" />
+          <Pin NetId="1" NotConnected="N" />
+        </Pins>
+      </Part>
+      <Part Id="1" UpdateId="101" ComponentStyle="CompType1" ComponentPart="0" PartNumber="0" Sheet="0" X="30" Y="20" Locked="N" Selected="N">
+        <RefDes>U1</RefDes>
+        <PartRefDes>A</PartRefDes>
+        <PartName>Power</PartName>
+        <Value>MCU</Value>
+        <Name>TEST_MCU</Name>
+        <Pins>
+          <Pin NetId="0" NotConnected="N" />
+          <Pin NetId="-1" NotConnected="N" />
+          <Pin NetId="-1" NotConnected="Y" />
+        </Pins>
+      </Part>
+      <Part Id="2" UpdateId="102" ComponentStyle="CompType1" ComponentPart="1" PartNumber="1" Sheet="0" X="40" Y="20" Locked="N" Selected="N">
+        <RefDes>U1</RefDes>
+        <PartRefDes>B</PartRefDes>
+        <PartName>GPIO</PartName>
+        <Value>MCU</Value>
+        <Name>TEST_MCU</Name>
+        <Pins>
+          <Pin NetId="1" NotConnected="N" />
+        </Pins>
+      </Part>
+    </Components>
+    <Nets>
+      <Net Id="0" NetClass="0" Locked="N" Enabled="Y">
+        <Name>VCC</Name>
+        <Pins>
+          <Item Part="0" Pin="0" />
+          <Item Part="1" Pin="0" />
+        </Pins>
+        <Wires />
+      </Net>
+      <Net Id="1" NetClass="0" Locked="N" Enabled="Y">
+        <Name>SIGNAL</Name>
+        <Pins>
+          <Item Part="0" Pin="1" />
+          <Item Part="2" Pin="0" />
+        </Pins>
+        <Wires />
+      </Net>
+    </Nets>
+    <DifferentialPairs />
+    <Buses />
+  </Schematic>
+</Source>

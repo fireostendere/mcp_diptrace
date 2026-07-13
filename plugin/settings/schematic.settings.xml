@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Source Type="DipTrace_Schematic_Plugin" Name="DipTrace MCP Bridge" ExeFile="diptrace_mcp_bridge.exe">
+  <Settings>
+    <ExpMode>All</ExpMode>
+    <ImpMode>All</ImpMode>
+    <Comp>All</Comp>
+    <Net>All</Net>
+    <Shape>All</Shape>
+    <Table>All</Table>
+    <Bus>All</Bus>
+    <BusConnectors>All</BusConnectors>
+    <Dim>All</Dim>
+    <Diff>All</Diff>
+    <Patterns>Yes</Patterns>
+    <Stamp>Yes</Stamp>
+  </Settings>
+</Source>

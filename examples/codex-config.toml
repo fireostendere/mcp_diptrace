@@ -1,0 +1,6 @@
+[mcp_servers.diptrace]
+command = "C:\\path\\to\\mcp_diptrace\\.venv\\Scripts\\diptrace-mcp.exe"
+cwd = "C:\\path\\to\\mcp_diptrace"
+
+[mcp_servers.diptrace.env]
+DIPTRACE_MCP_WORKSPACE = "C:\\Users\\you\\Documents\\DipTrace"

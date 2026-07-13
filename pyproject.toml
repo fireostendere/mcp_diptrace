@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "diptrace-mcp"
+version = "0.1.0"
+description = "Model Context Protocol server and live XML bridge for DipTrace"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "DipTrace MCP contributors" }]
+dependencies = [
+  "mcp>=1.28.1,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4,<9",
+  "ruff>=0.12,<1",
+]
+bridge = [
+  "pyinstaller>=6.14,<7",
+]
+
+[project.scripts]
+diptrace-mcp = "diptrace_mcp.server:main"
+diptrace-mcp-bridge = "diptrace_mcp.bridge:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/diptrace_mcp"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
