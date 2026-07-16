@@ -11,10 +11,19 @@ requires-python = ">=3.10"
 authors = [{ name = "DipTrace MCP contributors" }]
 dependencies = [
   "mcp>=1.28.1,<2",
+  "pydantic>=2.11,<3",
 ]
 
 [project.optional-dependencies]
+geometry = [
+  "shapely>=2.0,<3",
+]
+preview = []
+routing = []
+simulation = []
 dev = [
+  "hypothesis>=6.135,<7",
+  "mypy>=1.16,<2",
   "pytest>=8.4,<9",
   "ruff>=0.12,<1",
 ]
@@ -40,3 +49,9 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+packages = ["diptrace_mcp"]
+warn_unreachable = true
