@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Library Type="DipTrace-ComponentLibrary" Name="Test Components" Hint="Synthetic golden fixture" Version="4.3.0.1" Units="mm">
+  <Library Type="DipTrace-PatternLibrary" Version="4.3.0.1" Units="mm">
+    <PadStyles>
+      <PadStyle Name="SMD_0603" Type="Surface" Side="Top"><MainStack Shape="Rectangle" Width="0.9" Height="0.95" XOff="0" YOff="0" /></PadStyle>
+    </PadStyles>
+    <Patterns>
+      <Pattern PatternStyle="PatType0" RefDes="R" Mounting="SMD" Width="3.2" Height="1.6" Orientation="0" Type="Free">
+        <Name>R_0603</Name><Name_Unique>R_0603_GOLDEN</Name_Unique><DefPad Style="SMD_0603" />
+        <Pads>
+          <Pad Id="0" Style="SMD_0603" X="-0.8" Y="0" Angle="0" Locked="N" Side="Top"><Number>1</Number></Pad>
+          <Pad Id="1" Style="SMD_0603" X="0.8" Y="0" Angle="0" Locked="N" Side="Top"><Number>2</Number></Pad>
+        </Pads>
+      </Pattern>
+    </Patterns>
+  </Library>
+  <Components>
+    <Component>
+      <Part RefDes="R" PartType="Normal" ShowNumbers="Common" Type="Free" Int1="0" Int2="0" Width="2" Height="1" LockTypeChange="N" SubFolderIndex="0">
+        <Name>RES_0603</Name>
+        <Value>10k</Value>
+        <Origin X="0" Y="0" />
+        <Datasheet>https://example.invalid/resistor.pdf</Datasheet>
+        <Manufacturer>Fixture Inc</Manufacturer>
+        <Pins>
+          <Pin Id="0" X="-1" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="0" PadId="0" Length="0.5" ShowName="Y"><Name>A</Name><PadNumber>1</PadNumber></Pin>
+          <Pin Id="1" X="1" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="1" Length="0.5" ShowName="Y"><Name>B</Name><PadNumber>2</PadNumber></Pin>
+        </Pins>
+        <AddFields><AddField Type="Text"><Name>MPN</Name><Text>RC0603-GOLDEN</Text></AddField></AddFields>
+        <Pattern Style="PatType0" />
+        <FutureComponentData Preserve="Y" />
+      </Part>
+    </Component>
+  </Components>
+</Library>

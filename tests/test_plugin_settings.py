@@ -1,6 +1,10 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import pytest
+
+from diptrace_mcp.config import Settings
+
 
 def test_plugin_settings_match_official_structure() -> None:
     root = Path(__file__).parents[1] / "plugin" / "settings"
@@ -13,3 +17,28 @@ def test_plugin_settings_match_official_structure() -> None:
     assert pcb.findtext("./Settings/ImpMode") == "All"
     assert schematic.get("Type") == "DipTrace_Schematic_Plugin"
     assert schematic.findtext("./Settings/Patterns") == "Yes"
+
+
+def test_installer_prefers_current_diptrace_directory() -> None:
+    script = (
+        Path(__file__).parents[1] / "plugin" / "install_plugin.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert 'Join-Path $env:ProgramFiles "DipTrace5"' in script
+    assert script.index('Join-Path $env:ProgramFiles "DipTrace5"') < script.index(
+        'Join-Path $env:ProgramFiles "DipTrace"'
+    )
+    assert "Pass -DipTraceDir explicitly" in script
+
+
+def test_wsl_state_directory_detection_is_case_insensitive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DIPTRACE_MCP_WORKSPACE", "/mnt/c/users/Alice/Documents")
+    monkeypatch.delenv("DIPTRACE_MCP_STATE_DIR", raising=False)
+
+    settings = Settings.from_env()
+
+    assert settings.state_dir == Path(
+        "/mnt/c/Users/Alice/AppData/Local/DipTraceMCP"
+    )

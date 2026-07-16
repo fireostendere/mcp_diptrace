@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm" />
+  <Library Type="DipTrace-PatternLibrary" Version="4.3.0.3" Units="mm" />
+  <Board>
+    <BoardOutline Locked="N" Selected="N">
+      <Points>
+        <Point X="0" Y="0" />
+        <Point X="20" Y="0" />
+        <Point X="20" Y="10" />
+        <Point X="0" Y="10" />
+      </Points>
+    </BoardOutline>
+    <CopperLayers>
+      <Lay Id="0" Type="Signal"><Name>Top</Name></Lay>
+      <Lay Id="1" Type="Plane"><Name>Bottom</Name></Lay>
+    </CopperLayers>
+    <LayerStackName>2 Layer Controlled</LayerStackName>
+    <LayerStackItems>
+      <LayerStackItem Lay="0">
+        <Material Type="Conductor" VariableThickness="N" Thickness="0.035" Constant="0" TraceWidth="0.2"><Name>Copper 1 oz</Name></Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="-1">
+        <Material Type="Dielectric" VariableThickness="N" Thickness="0.18" Constant="4.1" TraceWidth="0"><Name>Fixture dielectric</Name></Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="1">
+        <Material Type="Plane" VariableThickness="N" Thickness="0.035" Constant="0" TraceWidth="0.2"><Name>Copper 1 oz</Name></Material>
+      </LayerStackItem>
+    </LayerStackItems>
+    <ViaStyles>
+      <ViaStyle Id="0" Diameter="0.6" Hole="0.3"><Name>Default</Name></ViaStyle>
+    </ViaStyles>
+    <NetClasses>
+      <NetClass Id="0" Type="Differential Pair" AllLayers="Y" CheckLength="Y" AllVias="Y" PerformDRC="Y" Phase="2" Phase_ErrorLength="0.1" LengthDelta="0.25" FixedLength="10" MaxUncoupledLength="1" Tolerance="0.25">
+        <Name>USB_DP</Name>
+        <LayProperties>
+          <LayProperty Width="0.2" MinWidth="0.18" MaxWidth="0.22" Clearance="0.2" Neck_Width="0.15" Neck_DifClearance="0.12" Neck_MaxLength="1" DifClearance="0.15"><LayerName>Top</LayerName></LayProperty>
+        </LayProperties>
+      </NetClass>
+    </NetClasses>
+    <Components>
+      <Component Id="0" PatternStyle="Connector" X="1" Y="1" Side="Top" Locked="N"><RefDes>J1</RefDes><Name>USB</Name><Value>USB</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component>
+      <Component Id="1" PatternStyle="Controller" X="11" Y="1" Side="Top" Locked="N"><RefDes>U1</RefDes><Name>MCU</Name><Value>MCU</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component>
+    </Components>
+    <Nets>
+      <Net Id="0" NetClass="0" Locked="N"><Name>USB_D+</Name><Pads><Item Comp="0" Pad="0" /><Item Comp="1" Pad="0" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="0" SubObject1="0" Connected2="Pad" Object2="1" SubObject2="0"><Points><Point Id="0" X="1" Y="2" /><Point Id="1" X="11" Y="2" Lay="0" Width="0.2" Arc="N" ViaStyle="-1" /></Points></Trace></Traces></Net>
+      <Net Id="1" NetClass="0" Locked="N"><Name>USB_D-</Name><Pads><Item Comp="0" Pad="1" /><Item Comp="1" Pad="1" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="0" SubObject1="1" Connected2="Pad" Object2="1" SubObject2="1"><Points><Point Id="0" X="1" Y="2.35" /><Point Id="1" X="10.8" Y="2.35" Lay="0" Width="0.2" Arc="N" ViaStyle="-1" /></Points></Trace></Traces></Net>
+      <Net Id="2" NetClass="0" Locked="N"><Name>GND</Name><Pads /><Traces /></Net>
+    </Nets>
+    <DifferentialPairs>
+      <DifferentialPair Id="0" NetClass="0" PosNet="0" NegNet="1" RouteMode="Dont Route" AutoPadPoints="N" CustomColor="N" TraceColor="0">
+        <Name>USB_D</Name>
+        <PadPoints>
+          <PadPoint Id="0" PosComp="0" PosPad="0" NegComp="0" NegPad="1" />
+          <PadPoint Id="1" PosComp="1" PosPad="0" NegComp="1" NegPad="1" />
+        </PadPoints>
+        <Segments>
+          <Segment PosTrace="0" NegTrace="0" StartPoint="0" EndPoint="1" StartSegment="-1" EndSegment="-1">
+            <CenterPoints>
+              <CenterPoint X="1" Y="2.175" Lay="0" ViaStyle="-1" Type="Paired" Necked="N" Selected="N" PhaseError="N"><PosPoints><PosPoint X="0" Y="-0.175" Lay="0" ViaStyle="-1" Necked="N" Arc="N" /></PosPoints><NegPoints><NegPoint X="0" Y="0.175" Lay="0" ViaStyle="-1" Necked="N" Arc="N" /></NegPoints></CenterPoint>
+              <CenterPoint X="10.8" Y="2.175" Lay="0" ViaStyle="-1" Type="Paired" Necked="N" Selected="N" PhaseError="N"><PosPoints><PosPoint X="0" Y="-0.175" Lay="0" ViaStyle="-1" Necked="N" Arc="N" /></PosPoints><NegPoints><NegPoint X="0" Y="0.175" Lay="0" ViaStyle="-1" Necked="N" Arc="N" /></NegPoints></CenterPoint>
+            </CenterPoints>
+          </Segment>
+        </Segments>
+      </DifferentialPair>
+    </DifferentialPairs>
+    <CopperPours>
+      <CopperPour Id="0" NetId="2" Lay="1" Priority="0" Poured="Y" Type="Solid" Clearance="0.2" UseNetClearance="N" BoardClearance="0.2" MinimumArea="1" RegionsDone="Y" Locked="N" Selected="N"><Points><Point X="0.2" Y="0.2" /><Point X="19.8" Y="0.2" /><Point X="19.8" Y="9.8" /><Point X="0.2" Y="9.8" /></Points></CopperPour>
+    </CopperPours>
+    <FutureStackupExtension Preserve="Y" />
+  </Board>
+</Source>
