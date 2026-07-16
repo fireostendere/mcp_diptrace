@@ -28,7 +28,7 @@ class BridgeController:
         return sha256_bytes(self.working_path.read_bytes())
 
     def is_modified(self) -> bool:
-        return self.current_sha256() != self.metadata["original_sha256"]
+        return self.current_sha256() != str(self.metadata["original_sha256"])
 
     def finish(self, action: SessionAction, expected_sha256: str | None = None) -> dict[str, Any]:
         if self.finished:
@@ -54,7 +54,8 @@ def _show_fatal(message: str) -> None:
         try:
             import ctypes
 
-            ctypes.windll.user32.MessageBoxW(0, message, "DipTrace MCP Bridge", 0x10)
+            ctypes_api: Any = ctypes
+            ctypes_api.windll.user32.MessageBoxW(0, message, "DipTrace MCP Bridge", 0x10)
             return
         except Exception:
             pass
@@ -85,17 +86,18 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
     buttons = tk.Frame(frame)
     buttons.pack(fill="x", pady=(16, 0))
 
-    def finish(action: SessionAction, expected_sha256: str | None = None) -> None:
+    def finish(action: SessionAction, expected_sha256: str | None = None) -> bool:
         if controller.finished:
-            return
+            return True
         try:
             controller.finish(action, expected_sha256)
         except Exception as exc:
             controller.reject_request(str(exc))
             status.set(f"Cannot finish session: {exc}")
-            return
+            return False
         status.set("Changes were sent to DipTrace." if action == "apply" else "Session cancelled.")
         root.after(500, root.destroy)
+        return True
 
     tk.Button(
         buttons,
@@ -136,8 +138,8 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
                 if action not in {"apply", "cancel"}:
                     controller.reject_request(f"Unknown finish action: {action}")
                 else:
-                    finish(action, request.get("expected_sha256"))
-                    return
+                    if finish(action, request.get("expected_sha256")):
+                        return
         except Exception as exc:
             status.set(f"Bridge error: {exc}")
         root.after(350, poll)
