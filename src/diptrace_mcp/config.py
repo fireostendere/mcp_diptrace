@@ -2,13 +2,28 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal, cast
 
 from .errors import ConfigurationError, PathAccessError
 
 _WINDOWS_PATH = re.compile(r"^([A-Za-z]):[\\/](.*)$")
-_WSL_USER_PATH = re.compile(r"^/mnt/([A-Za-z])/Users/([^/]+)(?:/|$)")
+_WSL_USER_PATH = re.compile(
+    r"^/mnt/([A-Za-z])/Users/([^/]+)(?:/|$)",
+    re.IGNORECASE,
+)
+PolicyProfile = Literal[
+    "read_only", "review", "interactive_edit", "automation", "manufacturing"
+]
+_POLICY_PROFILES = {
+    "read_only",
+    "review",
+    "interactive_edit",
+    "automation",
+    "manufacturing",
+}
 
 
 def platform_path(value: str | os.PathLike[str]) -> Path:
@@ -65,6 +80,14 @@ def _positive_int(name: str, default: int) -> int:
     return value
 
 
+def _policy_profile() -> PolicyProfile:
+    value = os.environ.get("DIPTRACE_MCP_POLICY", "interactive_edit")
+    if value not in _POLICY_PROFILES:
+        choices = ", ".join(sorted(_POLICY_PROFILES))
+        raise ConfigurationError(f"DIPTRACE_MCP_POLICY must be one of: {choices}")
+    return cast(PolicyProfile, value)
+
+
 def _is_within(path: Path, root: Path) -> bool:
     try:
         path.relative_to(root)
@@ -80,6 +103,11 @@ class Settings:
     state_dir: Path
     max_document_bytes: int = 128 * 1024 * 1024
     max_scan_files: int = 500
+    freerouting_executable: Path | None = None
+    java_executable: Path | None = None
+    external_timeout_seconds: int = 3600
+    max_external_log_bytes: int = 4 * 1024 * 1024
+    active_policy: PolicyProfile = "interactive_edit"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -95,6 +123,11 @@ class Settings:
                 if item.strip()
             )
         unique_roots = tuple(dict.fromkeys(roots))
+        freerouting_raw = os.environ.get("DIPTRACE_MCP_FREEROUTING")
+        freerouting = platform_path(freerouting_raw).resolve() if freerouting_raw else None
+        java_raw = os.environ.get("DIPTRACE_MCP_JAVA")
+        java_found = java_raw or shutil.which("java")
+        java = platform_path(java_found).resolve() if java_found else None
         return cls(
             workspace=workspace,
             allowed_roots=unique_roots,
@@ -103,6 +136,15 @@ class Settings:
                 "DIPTRACE_MCP_MAX_DOCUMENT_BYTES", 128 * 1024 * 1024
             ),
             max_scan_files=_positive_int("DIPTRACE_MCP_MAX_SCAN_FILES", 500),
+            freerouting_executable=freerouting,
+            java_executable=java,
+            external_timeout_seconds=_positive_int(
+                "DIPTRACE_MCP_EXTERNAL_TIMEOUT", 3600
+            ),
+            max_external_log_bytes=_positive_int(
+                "DIPTRACE_MCP_MAX_EXTERNAL_LOG_BYTES", 4 * 1024 * 1024
+            ),
+            active_policy=_policy_profile(),
         )
 
     def resolve_allowed_path(
@@ -127,4 +169,11 @@ class Settings:
             "state_dir": str(self.state_dir),
             "max_document_bytes": self.max_document_bytes,
             "max_scan_files": self.max_scan_files,
+            "freerouting_executable": (
+                str(self.freerouting_executable) if self.freerouting_executable else None
+            ),
+            "java_executable": str(self.java_executable) if self.java_executable else None,
+            "external_timeout_seconds": self.external_timeout_seconds,
+            "max_external_log_bytes": self.max_external_log_bytes,
+            "active_policy": self.active_policy,
         }

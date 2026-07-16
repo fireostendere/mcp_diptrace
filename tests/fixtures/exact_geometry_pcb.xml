@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm" />
+  <Library Type="DipTrace-PatternLibrary" Version="4.3.0.3" Units="mm">
+    <PadStyles>
+      <PadStyle Name="RECT" Type="Surface" Side="Top">
+        <MainStack Shape="Rectangle" Width="2" Height="0.8" XOff="0" YOff="0" />
+        <MaskPaste TopMask="Common" BotMask="Common" TopPaste="Common" BotPaste="Common" />
+      </PadStyle>
+    </PadStyles>
+    <Patterns>
+      <Pattern PatternStyle="OnePad" RefDes="X" Mounting="SMD" Width="2" Height="0.8" Orientation="0" Type="Free">
+        <Name>ONE_RECT_PAD</Name><DefPad Style="RECT" />
+        <Pads><Pad Id="0" Style="RECT" X="0" Y="0" Angle="0" Locked="N" Side="Top"><Number>1</Number></Pad></Pads>
+      </Pattern>
+    </Patterns>
+  </Library>
+  <Board>
+    <BoardOutline Locked="N" Selected="N"><Points><Point X="0" Y="0" /><Point X="20" Y="0" /><Point X="20" Y="10" /><Point X="0" Y="10" /></Points></BoardOutline>
+    <Settings><Routing TraceWidth="0.25" TraceClearance="0.2" ViaSize="0.6" ViaHole="0.3" /></Settings>
+    <CopperLayers><Lay Id="0" Type="Signal"><Name>Top</Name></Lay><Lay Id="1" Type="Signal"><Name>Bottom</Name></Lay></CopperLayers>
+    <ViaStyles><ViaStyle Id="0" Diameter="0.6" Hole="0.3"><Name>Default</Name></ViaStyle></ViaStyles>
+    <NetClasses><NetClass Id="0" Type="Normal" AllLayers="Y" CheckLength="N" AllVias="Y" PerformDRC="Y"><Name>Default</Name><LayProperties><LayProperty Width="0.25" MinWidth="0.15" MaxWidth="1" Clearance="0.2"><LayerName>Top</LayerName></LayProperty></LayProperties></NetClass></NetClasses>
+    <DRC CheckClearance="Y"><LayClearances><LayClearance Lay="0" TraceToTrace="0.2" TraceToPad="0.2" /></LayClearances></DRC>
+    <Components>
+      <Component Id="0" PatternStyle="OnePad" X="2" Y="5" Angle="0" Side="Top" Locked="N"><RefDes>J1</RefDes><Name>ENDPOINT</Name><Value>A</Value><Pads><Pad Id="0" Number="1" /></Pads></Component>
+      <Component Id="1" PatternStyle="OnePad" X="18" Y="5" Angle="0" Side="Top" Locked="N"><RefDes>J2</RefDes><Name>ENDPOINT</Name><Value>B</Value><Pads><Pad Id="0" Number="1" /></Pads></Component>
+      <Component Id="2" PatternStyle="OnePad" X="10" Y="5" Angle="0.7853981633974483" Side="Top" Locked="N"><RefDes>TP1</RefDes><Name>OBSTACLE</Name><Value>PAD</Value><Pads><Pad Id="0" Number="1" /></Pads></Component>
+    </Components>
+    <Nets>
+      <Net Id="0" NetClass="0" Locked="N"><Name>ROUTE</Name><Pads><Item Comp="0" Pad="0" /><Item Comp="1" Pad="0" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="0" SubObject1="0" Connected2="Pad" Object2="1" SubObject2="0" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="2" Y="5" /><Point Id="1" X="18" Y="5" Lay="0" Width="0.25" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net>
+      <Net Id="1" NetClass="0" Locked="N"><Name>OBSTACLE</Name><Pads><Item Comp="2" Pad="0" /></Pads><Traces /></Net>
+    </Nets>
+    <DifferentialPairs />
+  </Board>
+</Source>

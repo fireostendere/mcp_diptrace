@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Literal
@@ -17,6 +18,9 @@ from .xml_document import (
 
 SessionAction = Literal["apply", "cancel"]
 
+_JSON_READ_ATTEMPTS = 8
+_JSON_READ_RETRY_SECONDS = 0.025
+
 
 def _atomic_write_json(path: Path, value: dict[str, Any]) -> None:
     data = json.dumps(value, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
@@ -24,10 +28,17 @@ def _atomic_write_json(path: Path, value: dict[str, Any]) -> None:
 
 
 def _read_json(path: Path) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise SessionError(f"Cannot read session state: {path}") from exc
+    last_error: OSError | json.JSONDecodeError | None = None
+    for attempt in range(_JSON_READ_ATTEMPTS):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+            break
+        except (OSError, json.JSONDecodeError) as exc:
+            last_error = exc
+            if attempt + 1 < _JSON_READ_ATTEMPTS:
+                time.sleep(_JSON_READ_RETRY_SECONDS)
+    else:
+        raise SessionError(f"Cannot read session state: {path}") from last_error
     if not isinstance(value, dict):
         raise SessionError(f"Session state must be a JSON object: {path}")
     return value
@@ -143,12 +154,14 @@ class SessionStore:
             "requested_at": utc_now(),
             "expected_sha256": sha256_bytes(working),
         }
-        _atomic_write_json(self.control_path(session_id), request)
+        # Publish control.json last: the Windows bridge treats it as a commit marker.
+        # Publishing it first races the metadata replace on shared WSL/Windows paths.
         self.update_metadata(
             session_id,
             finish_requested=action,
             finish_requested_at=request["requested_at"],
         )
+        _atomic_write_json(self.control_path(session_id), request)
         return {"session_id": session_id, **request}
 
     def read_finish_request(self, session_id: str) -> dict[str, Any] | None:

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Source Type="DipTrace-Schematic" Version="5.3.0.1" Units="mm">
-  <Library Type="DipTrace-ComponentLibrary" Version="5.3.0.1" Units="mm" />
+<Source Type="DipTrace-Schematic" Version="4.3.0.3" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm" />
   <Schematic>
     <SheetSettings>
       <ActiveSheet>0</ActiveSheet>

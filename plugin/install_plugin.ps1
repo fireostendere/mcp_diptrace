@@ -1,5 +1,5 @@
 param(
-    [string]$DipTraceDir = "C:\Program Files\DipTrace",
+    [string]$DipTraceDir,
     [ValidateSet("PCB", "Schematic", "Both")]
     [string]$Mode = "Both",
     [string]$BridgeExe,
@@ -10,6 +10,19 @@ $ErrorActionPreference = "Stop"
 $PluginDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $BridgeExe) {
     $BridgeExe = Join-Path $PluginDir "dist\diptrace_mcp_bridge.exe"
+}
+
+if (-not $DipTraceDir) {
+    $InstallCandidates = @(
+        (Join-Path $env:ProgramFiles "DipTrace5"),
+        (Join-Path $env:ProgramFiles "DipTrace")
+    )
+    $DipTraceDir = $InstallCandidates |
+        Where-Object { Test-Path $_ -PathType Container } |
+        Select-Object -First 1
+    if (-not $DipTraceDir) {
+        throw "DipTrace installation not found. Pass -DipTraceDir explicitly."
+    }
 }
 
 if (-not (Test-Path $DipTraceDir -PathType Container)) {
