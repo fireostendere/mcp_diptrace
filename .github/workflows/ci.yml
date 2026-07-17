@@ -22,12 +22,18 @@ jobs:
             python: "3.12"
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out source
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
-      - run: python -m pip install -e ".[dev]"
-      - run: python -m pytest -q
-      - run: python -m ruff check src tests benchmarks
-      - run: python -m mypy --no-incremental src/diptrace_mcp
+      - name: Install test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Run tests
+        run: python -m pytest -q
+      - name: Run Ruff
+        run: python -m ruff check --no-cache src tests benchmarks scripts
+      - name: Run Mypy
+        run: python -m mypy --no-incremental src/diptrace_mcp

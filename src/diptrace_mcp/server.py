@@ -6,7 +6,6 @@ import os
 from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
-
 from pydantic import BaseModel, Field
 
 from .config import Settings
