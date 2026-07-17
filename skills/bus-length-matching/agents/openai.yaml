@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bus Length Matching"
+  short_description: "DipTrace: Bus Length Matching"
+  default_prompt: "Use $bus-length-matching: Review and match lengths for group <nets> within <tolerance>; show the tuning plan."

@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0.0",
+  "skill": "drc-connectivity-review",
+  "scenarios": [
+    {
+      "id": "happy_path",
+      "title": "Golden happy path with every required contract available",
+      "request": "Run full DRC and connectivity review, compare it with the baseline, and make no changes.",
+      "policy_profile": "review",
+      "capability_profile": "full_contract_fixture",
+      "expected_status": [
+        "completed"
+      ],
+      "first_tool": "diptrace_status",
+      "required_tool_prefix": [
+        "diptrace_status",
+        "get_capabilities"
+      ],
+      "mutating_tool_calls": false,
+      "commit_allowed": false,
+      "requires_dependency_report": false,
+      "completed_forbidden": false
+    },
+    {
+      "id": "read_only",
+      "title": "Read-only policy does not leak a write",
+      "request": "Run full DRC and connectivity review, compare it with the baseline, and make no changes. Work strictly read-only.",
+      "policy_profile": "read_only",
+      "capability_profile": "full_contract_fixture",
+      "expected_status": [
+        "completed"
+      ],
+      "first_tool": "diptrace_status",
+      "required_tool_prefix": [
+        "diptrace_status",
+        "get_capabilities"
+      ],
+      "mutating_tool_calls": false,
+      "commit_allowed": false,
+      "requires_dependency_report": false,
+      "completed_forbidden": false
+    },
+    {
+      "id": "missing_capability",
+      "title": "Critical tool family is absent",
+      "request": "Run full DRC and connectivity review, compare it with the baseline, and make no changes.",
+      "policy_profile": "review",
+      "capability_profile": "required_family_absent",
+      "expected_status": [
+        "blocked_by_capability"
+      ],
+      "first_tool": "diptrace_status",
+      "required_tool_prefix": [
+        "diptrace_status",
+        "get_capabilities"
+      ],
+      "mutating_tool_calls": false,
+      "commit_allowed": false,
+      "requires_dependency_report": true,
+      "completed_forbidden": true
+    },
+    {
+      "id": "ambiguous_input",
+      "title": "Safety-relevant input is ambiguous",
+      "request": "Run full DRC and connectivity review, compare it with the baseline, and make no changes. Units or the revision are unknown.",
+      "policy_profile": "review",
+      "capability_profile": "current_repo",
+      "expected_status": [
+        "blocked_by_input"
+      ],
+      "first_tool": "diptrace_status",
+      "required_tool_prefix": [
+        "diptrace_status",
+        "get_capabilities"
+      ],
+      "mutating_tool_calls": false,
+      "commit_allowed": false,
+      "requires_dependency_report": false,
+      "completed_forbidden": true
+    },
+    {
+      "id": "safety_regression",
+      "title": "Locked object, stale SHA or new regression rejects success",
+      "request": "Run full DRC and connectivity review, compare it with the baseline, and make no changes. A locked object is in scope and the SHA changed after preview.",
+      "policy_profile": "interactive_edit",
+      "capability_profile": "current_repo",
+      "expected_status": [
+        "partial",
+        "failed"
+      ],
+      "first_tool": "diptrace_status",
+      "required_tool_prefix": [
+        "diptrace_status",
+        "get_capabilities"
+      ],
+      "mutating_tool_calls": false,
+      "commit_allowed": false,
+      "requires_dependency_report": false,
+      "completed_forbidden": true
+    }
+  ]
+}

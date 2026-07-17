@@ -1,0 +1,4 @@
+interface:
+  display_name: "Multi-Agent PCB Coordinator"
+  short_description: "DipTrace: Multi-Agent PCB Coordinator"
+  default_prompt: "Use $multi-agent-pcb-coordinator: Partition task <goal> among PCB agents and assign scopes and quality gates."

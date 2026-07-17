@@ -1,0 +1,4 @@
+interface:
+  display_name: "Schematic-to-PCB Consistency"
+  short_description: "DipTrace: Schematic-to-PCB Consistency"
+  default_prompt: "Use $schematic-pcb-consistency: Compare the schematic and PCB for RefDes, nets, values, patterns, and pin-to-pad mapping; prepare an ECO without committing."

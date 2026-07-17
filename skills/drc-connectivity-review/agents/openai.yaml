@@ -1,0 +1,4 @@
+interface:
+  display_name: "DRC and Connectivity Review"
+  short_description: "DipTrace: DRC and Connectivity Review"
+  default_prompt: "Use $drc-connectivity-review: Run full DRC and connectivity review, compare it with the baseline, and make no changes."

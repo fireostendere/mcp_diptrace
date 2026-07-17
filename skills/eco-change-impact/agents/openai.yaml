@@ -1,0 +1,4 @@
+interface:
+  display_name: "ECO Change Impact Analysis"
+  short_description: "DipTrace: ECO Change Impact Analysis"
+  default_prompt: "Use $eco-change-impact: Prepare an ECO for <change>, showing its impact graph and semantic plan without committing."

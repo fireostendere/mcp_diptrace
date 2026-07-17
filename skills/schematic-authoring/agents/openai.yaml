@@ -1,0 +1,4 @@
+interface:
+  display_name: "Schematic Authoring"
+  short_description: "DipTrace: Schematic Authoring"
+  default_prompt: "Use $schematic-authoring: Implement schematic block <name>; produce a plan and preview, run ERC, and commit only after explicit confirmation."

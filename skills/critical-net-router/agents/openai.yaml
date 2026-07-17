@@ -1,0 +1,4 @@
+interface:
+  display_name: "Critical Net Router"
+  short_description: "DipTrace: Critical Net Router"
+  default_prompt: "Use $critical-net-router: Plan a route for critical net <net> within <region/layers>; show alternatives without committing."

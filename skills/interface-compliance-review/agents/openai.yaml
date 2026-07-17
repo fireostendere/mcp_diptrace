@@ -1,0 +1,4 @@
+interface:
+  display_name: "Interface Compliance Review"
+  short_description: "DipTrace: Interface Compliance Review"
+  default_prompt: "Use $interface-compliance-review: Review interface <type/revision> across the schematic and PCB, including protection, routing, and return path."

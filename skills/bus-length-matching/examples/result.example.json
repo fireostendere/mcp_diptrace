@@ -1,0 +1,135 @@
+{
+  "status": "partial",
+  "summary": "Representative honest degradation result for the current capability profile.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "net group",
+      "verified": false,
+      "confidence": 0.5
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [],
+  "transactions": [],
+  "resources": [],
+  "skipped_checks": [
+    {
+      "check_id": "plan_length_tuning",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": false
+    },
+    {
+      "check_id": "apply_length_tuning",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": false
+    }
+  ],
+  "confidence": {
+    "overall": 0.5,
+    "basis": "mixed",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [
+    {
+      "action_id": "action-001",
+      "description": "Provide the dependency contract before resuming the blocked stage.",
+      "owner": "MCP maintainer",
+      "blocking": false,
+      "requires_user_confirmation": false,
+      "depends_on": [
+        "routing-analysis-tuning-v1",
+        "routing-analysis-tuning-v1"
+      ]
+    }
+  ],
+  "dependency_report": [
+    {
+      "capability": "plan_length_tuning",
+      "contract_id": "routing-analysis-tuning-v1",
+      "reason": "Use only when document capabilities allow it.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "missing"
+    },
+    {
+      "capability": "apply_length_tuning",
+      "contract_id": "routing-analysis-tuning-v1",
+      "reason": "Use only when document capabilities allow it.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "missing"
+    }
+  ],
+  "acceptance_evidence": [
+    {
+      "criterion": "topology is correct",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "meanders do not create excessive coupling",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "length and skew deltas are measured",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    }
+  ],
+  "deliverables": {
+    "length_report": {
+      "name": "length report",
+      "status": "partial",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "route_and_tuning_plan": {
+      "name": "route and tuning plan",
+      "status": "partial",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "final_skew_metrics": {
+      "name": "final skew metrics",
+      "status": "partial",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "violations": {
+      "name": "violations",
+      "status": "partial",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    }
+  }
+}

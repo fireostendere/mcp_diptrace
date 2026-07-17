@@ -1,0 +1,220 @@
+{
+  "status": "completed",
+  "summary": "Representative fixture result with all mandatory evidence.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "PCB Design Brief",
+      "verified": true,
+      "confidence": 1.0
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [
+    {
+      "change_id": "change-001",
+      "scope": "fixture:explicit-scope",
+      "operation_kind": "typed_semantic_preview",
+      "target_ids": [
+        "fixture-object-001"
+      ],
+      "locked_target_ids": [],
+      "rationale": "Representative validated preview for the requested dry-run scope.",
+      "risk": "low",
+      "requires_confirmation": true,
+      "preview_uri": "diptrace://transaction/example-tx/preview.json",
+      "post_checks": [
+        "get_design_rules",
+        "run_drc",
+        "run_connectivity_check"
+      ]
+    }
+  ],
+  "transactions": [
+    {
+      "txid": "example-tx",
+      "state": "validated",
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "preview_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "committed_sha256": null,
+      "preview_uri": "diptrace://transaction/example-tx/preview.json",
+      "validation": "Preview reparsed; affected regression checks passed.",
+      "post_checks": [
+        "get_design_rules",
+        "run_drc",
+        "run_connectivity_check"
+      ],
+      "rollback": "Rollback the uncommitted transaction; source remains unchanged."
+    }
+  ],
+  "resources": [
+    {
+      "uri": "diptrace://transaction/example-tx/preview.json",
+      "mime_type": "application/json",
+      "purpose": "Validated semantic transaction preview.",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  ],
+  "skipped_checks": [],
+  "confidence": {
+    "overall": 1.0,
+    "basis": "deterministic",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [
+    {
+      "action_id": "action-001",
+      "description": "Commit only if the user explicitly approves this validated preview.",
+      "owner": "user",
+      "blocking": false,
+      "requires_user_confirmation": true,
+      "depends_on": [
+        "example-tx"
+      ]
+    }
+  ],
+  "dependency_report": [],
+  "acceptance_evidence": [
+    {
+      "criterion": "units are normalized",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "constraints_manifest-001",
+        "rule_gap_report-001",
+        "rule_update_plan-001",
+        "verification_matrix-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "every rule has a source",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "constraints_manifest-001",
+        "rule_gap_report-001",
+        "rule_update_plan-001",
+        "verification_matrix-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "conflicts are detected before commit",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "constraints_manifest-001",
+        "rule_gap_report-001",
+        "rule_update_plan-001",
+        "verification_matrix-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    }
+  ],
+  "deliverables": {
+    "constraints_manifest": {
+      "name": "constraints manifest",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "constraints_manifest-001",
+          "label": "constraints manifest",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "constraints_manifest-001"
+      ]
+    },
+    "rule_gap_report": {
+      "name": "rule gap report",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "rule_gap_report-001",
+          "label": "rule gap report",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "rule_gap_report-001"
+      ]
+    },
+    "rule_update_plan": {
+      "name": "rule update plan",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "rule_update_plan-001",
+          "label": "rule update plan",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "rule_update_plan-001"
+      ]
+    },
+    "verification_matrix": {
+      "name": "verification matrix",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "verification_matrix-001",
+          "label": "verification matrix",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "verification_matrix-001"
+      ]
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.0.0",
+  "aliases": {
+    "get_rules": {
+      "runtime_tool": "get_design_rules",
+      "note": "Exact runtime name for project design rules."
+    },
+    "assign_pattern": {
+      "runtime_tool": "set_component_pattern",
+      "note": "Only valid for the supported embedded PCB component-pattern operation; it is not general schematic pattern authoring."
+    },
+    "validate_diff_pair": {
+      "runtime_tool": "validate_differential_pair",
+      "note": "Exact runtime name for differential-pair validation."
+    },
+    "analyze_controlled_impedance_nets": {
+      "runtime_tool": "analyze_controlled_impedance",
+      "note": "Preliminary analytical microstrip review only; not a field solver."
+    }
+  },
+  "missing": {
+    "execute_agent_fixture": "agent-eval-runtime-v1",
+    "analyze_power_tree": "power-tree-v1",
+    "create_or_update_component": "library-mutation-v1",
+    "create_or_update_pattern": "library-mutation-v1",
+    "attach_pattern_to_component": "library-mutation-v1",
+    "compare_library_revisions": "semantic-compare-v1",
+    "add_wire": "schematic-authoring-v1",
+    "add_net_label": "schematic-authoring-v1",
+    "set_stackup": "board-structure-write-v1",
+    "set_keepout": "board-structure-write-v1",
+    "measure_geometry": "geometry-query-v1",
+    "get_component_neighborhood": "geometry-query-v1",
+    "analyze_decoupling": "domain-analyzer-v1",
+    "analyze_reset_and_boot": "domain-analyzer-v1",
+    "analyze_programming_interface": "domain-analyzer-v1",
+    "analyze_interface": "domain-analyzer-v1",
+    "analyze_routing_congestion": "routing-analysis-tuning-v1",
+    "suggest_routing_order": "routing-analysis-tuning-v1",
+    "find_route_corridors": "routing-analysis-tuning-v1",
+    "update_copper_pour": "copper-geometry-write-v1",
+    "tune_diff_pair": "routing-analysis-tuning-v1",
+    "plan_length_tuning": "routing-analysis-tuning-v1",
+    "apply_length_tuning": "routing-analysis-tuning-v1",
+    "compare_routing_before_after": "semantic-compare-v1",
+    "optimize_routes": "routing-analysis-tuning-v1",
+    "legalize_routes": "routing-analysis-tuning-v1",
+    "rebuild_pour_geometry": "copper-geometry-write-v1",
+    "compare_review_reports": "semantic-compare-v1",
+    "export_si_geometry": "solver-adapter-v1",
+    "run_external_solver": "solver-adapter-v1",
+    "analyze_panelization": "panelization-v1",
+    "plan_panelization": "panelization-v1",
+    "apply_panelization_plan": "panelization-v1",
+    "add_fiducials": "panelization-v1",
+    "add_tooling_holes": "panelization-v1"
+  },
+  "limitations": {
+    "calculate_impedance": "Verified analytical microstrip estimate only; distinguish it from field-solver or fabricator results.",
+    "run_thermal_review": "Metadata and heuristic review profile, not CFD or thermal simulation.",
+    "export_fabrication_outputs": "Creates a generic review manifest, not Gerber, NC Drill, ODB++, IPC-2581 or a fabrication ZIP.",
+    "export_assembly_outputs": "Creates generic BOM and placement artifacts; vendor CPL transforms are not guaranteed.",
+    "route_net": "Bounded local 45-degree router without push-and-shove.",
+    "route_diff_pair": "Bounded coupled route; no independent post-route tuning engine.",
+    "generate_placement_candidates": "Bounded local candidates, not global placement.",
+    "get_findings": "Requires a report_id returned by a review; use the document findings resource for aggregate history.",
+    "get_job_status": "Requires a jobid and cannot discover a job implicitly."
+  },
+  "context_overrides": {
+    "schematic-authoring": {
+      "assign_pattern": {
+        "state": "incompatible",
+        "contract": "schematic-authoring-v1",
+        "note": "set_component_pattern is not a verified general schematic authoring operation."
+      }
+    },
+    "return-stitching-via-planner": {
+      "add_via": {
+        "state": "incompatible",
+        "contract": "stitching-via-write-v1",
+        "note": "The current add_via primitive inserts a via on an existing trace and cannot safely create a standalone net-assigned stitching via."
+      }
+    },
+    "fabrication-package-generator": {
+      "export_fabrication_outputs": {
+        "state": "incompatible",
+        "contract": "native-export-v1",
+        "note": "The existing tool returns a generic manifest, not the requested native fabrication package."
+      },
+      "run_manufacturing_review": {
+        "state": "conditional",
+        "contract": "profile-adapter-v1",
+        "note": "The existing review is generic; a versioned fabricator profile remains a separate dependency."
+      }
+    },
+    "assembly-package-generator": {
+      "export_assembly_outputs": {
+        "state": "conditional",
+        "contract": "native-export-v1",
+        "note": "Use only for generic artifacts; block a vendor-ready CPL claim without a verified transform adapter."
+      },
+      "run_assembly_review": {
+        "state": "conditional",
+        "contract": "profile-adapter-v1",
+        "note": "The existing review is generic; a versioned assembler process profile remains a separate dependency."
+      }
+    },
+    "dfm-review": {
+      "run_manufacturing_geometry_check": {
+        "state": "conditional",
+        "contract": "profile-adapter-v1",
+        "note": "Use the generic geometry check only as a bounded baseline, not as a versioned fabricator profile."
+      },
+      "export_fabrication_outputs": {
+        "state": "conditional",
+        "contract": "native-export-v1",
+        "note": "Generic manifest inspection is available; native-file generation and verification are separate dependencies."
+      }
+    },
+    "dfa-review": {
+      "run_assembly_review": {
+        "state": "conditional",
+        "contract": "profile-adapter-v1",
+        "note": "Use the generic review only as a bounded baseline, not as a versioned assembler process profile."
+      }
+    },
+    "component-selection": {
+      "set_component_fields": {
+        "state": "conditional",
+        "contract": "profile-adapter-v1",
+        "note": "Do not mutate component fields in the default read-only selection workflow; sourcing data needs a timestamped adapter."
+      }
+    }
+  }
+}

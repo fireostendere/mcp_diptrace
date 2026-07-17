@@ -1,0 +1,158 @@
+{
+  "status": "blocked_by_capability",
+  "summary": "Representative honest degradation result for the current capability profile.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "architecture",
+      "verified": false,
+      "confidence": 0.5
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [],
+  "transactions": [],
+  "resources": [],
+  "skipped_checks": [
+    {
+      "check_id": "add_wire",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": true
+    },
+    {
+      "check_id": "add_net_label",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": true
+    },
+    {
+      "check_id": "assign_pattern",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": true
+    }
+  ],
+  "confidence": {
+    "overall": 0.0,
+    "basis": "insufficient",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [
+    {
+      "action_id": "action-001",
+      "description": "Provide the dependency contract before resuming the blocked stage.",
+      "owner": "MCP maintainer",
+      "blocking": true,
+      "requires_user_confirmation": false,
+      "depends_on": [
+        "schematic-authoring-v1",
+        "schematic-authoring-v1",
+        "schematic-authoring-v1"
+      ]
+    }
+  ],
+  "dependency_report": [
+    {
+      "capability": "add_wire",
+      "contract_id": "schematic-authoring-v1",
+      "reason": "Use only when document capabilities allow it.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "missing"
+    },
+    {
+      "capability": "add_net_label",
+      "contract_id": "schematic-authoring-v1",
+      "reason": "Use only when document capabilities allow it.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "missing"
+    },
+    {
+      "capability": "assign_pattern",
+      "contract_id": "schematic-authoring-v1",
+      "reason": "Only valid for the supported embedded PCB component-pattern operation; it is not general schematic pattern authoring. set_component_pattern is not a verified general schematic authoring operation.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "incompatible"
+    }
+  ],
+  "acceptance_evidence": [
+    {
+      "criterion": "there are no accidental unnamed nets",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "power pins are handled explicitly",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "every block passes localized ERC",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "the schematic remains readable",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    }
+  ],
+  "deliverables": {
+    "updated_schematic": {
+      "name": "updated schematic",
+      "status": "unavailable",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "sheet_map": {
+      "name": "sheet map",
+      "status": "unavailable",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "connectivity_report": {
+      "name": "connectivity report",
+      "status": "unavailable",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "unresolved_decisions": {
+      "name": "unresolved decisions",
+      "status": "unavailable",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fabrication Package Generator"
+  short_description: "DipTrace: Fabrication Package Generator"
+  default_prompt: "Use $fabrication-package-generator: Generate and verify a fabrication package for profile <fabricator>, including a complete manifest."

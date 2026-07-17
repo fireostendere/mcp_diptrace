@@ -1,0 +1,4 @@
+interface:
+  display_name: "Component Selection and Preliminary BOM"
+  short_description: "DipTrace: Component Selection and Preliminary BOM"
+  default_prompt: "Use $component-selection: Select components for <block>, compare alternatives, and produce preliminary BOM candidates with risks without changing the schematic."

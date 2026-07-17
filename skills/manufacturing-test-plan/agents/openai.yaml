@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manufacturing Test Plan"
+  short_description: "DipTrace: Manufacturing Test Plan"
+  default_prompt: "Use $manufacturing-test-plan: Develop a production test plan for volume <N> and fixture capabilities <capabilities>."

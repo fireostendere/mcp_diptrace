@@ -1,0 +1,4 @@
+interface:
+  display_name: "External Autorouter Orchestrator"
+  short_description: "DipTrace: External Autorouter Orchestrator"
+  default_prompt: "Use $external-autorouter-orchestrator: Run Freerouting for <scope> with budget <time>; import only into preview and compare metrics."

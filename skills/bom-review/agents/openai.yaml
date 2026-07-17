@@ -1,0 +1,4 @@
+interface:
+  display_name: "BOM Review"
+  short_description: "DipTrace: BOM Review workflow"
+  default_prompt: "Use $bom-review: Review the BOM for required fields, variants, DNP state, and package/MPN consistency."

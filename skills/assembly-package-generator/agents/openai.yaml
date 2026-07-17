@@ -1,0 +1,4 @@
+interface:
+  display_name: "Assembly Package Generator"
+  short_description: "DipTrace: Assembly Package Generator"
+  default_prompt: "Use $assembly-package-generator: Generate an assembly package for variant <name> and assembler profile <assembler>, including CPL verification."

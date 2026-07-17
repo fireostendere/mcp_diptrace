@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reset, Boot, and Programming Review"
+  short_description: "DipTrace: Reset, Boot, and Programming Review"
+  default_prompt: "Use $reset-boot-programming-review: Review reset, boot straps, and programming/debug access for <MCU/SoC> in the schematic and PCB."

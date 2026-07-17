@@ -1,0 +1,4 @@
+interface:
+  display_name: "Failure Analysis and Rework Planning"
+  short_description: "DipTrace: Failure Analysis and Rework Planning"
+  default_prompt: "Use $failure-analysis-rework: Analyze failure <symptoms/measurements>, rank hypotheses, and produce diagnostic and rework plans."

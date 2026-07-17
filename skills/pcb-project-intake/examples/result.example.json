@@ -1,0 +1,205 @@
+{
+  "status": "completed",
+  "summary": "Representative fixture result with all mandatory evidence.",
+  "document_identity": {
+    "document_id": "fixture-input-bundle",
+    "path": null,
+    "kind": "pre_design",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "product and functional description",
+      "verified": true,
+      "confidence": 1.0
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [],
+  "transactions": [],
+  "resources": [],
+  "skipped_checks": [],
+  "confidence": {
+    "overall": 1.0,
+    "basis": "deterministic",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [],
+  "dependency_report": [],
+  "acceptance_evidence": [
+    {
+      "criterion": "every requirement is verifiable",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "pcb_design_brief-001",
+        "REQ-001",
+        "assumptions_and_unresolved_questions-001",
+        "acceptance_criteria-001",
+        "risk_register-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "assumptions are explicitly marked",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "pcb_design_brief-001",
+        "REQ-001",
+        "assumptions_and_unresolved_questions-001",
+        "acceptance_criteria-001",
+        "risk_register-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "unknowns block only dependent stages",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "pcb_design_brief-001",
+        "REQ-001",
+        "assumptions_and_unresolved_questions-001",
+        "acceptance_criteria-001",
+        "risk_register-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    }
+  ],
+  "deliverables": {
+    "pcb_design_brief": {
+      "name": "PCB Design Brief",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "pcb_design_brief-001",
+          "label": "PCB Design Brief",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "pcb_design_brief-001"
+      ]
+    },
+    "requirements_manifest": {
+      "name": "requirements manifest",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "REQ-001",
+          "label": "The device shall satisfy the fixture requirement.",
+          "attributes": [
+            {
+              "name": "priority",
+              "value": "P0",
+              "unit": null,
+              "source_id": "input-001"
+            },
+            {
+              "name": "source",
+              "value": "fixture:happy_path",
+              "unit": null,
+              "source_id": "input-001"
+            },
+            {
+              "name": "verification_method",
+              "value": "Verify against the named acceptance fixture.",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "REQ-001"
+      ]
+    },
+    "assumptions_and_unresolved_questions": {
+      "name": "assumptions and unresolved questions",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "assumptions_and_unresolved_questions-001",
+          "label": "assumptions and unresolved questions",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "assumptions_and_unresolved_questions-001"
+      ]
+    },
+    "acceptance_criteria": {
+      "name": "acceptance criteria",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "acceptance_criteria-001",
+          "label": "acceptance criteria",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "acceptance_criteria-001"
+      ]
+    },
+    "risk_register": {
+      "name": "risk register",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "risk_register-001",
+          "label": "risk register",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "risk_register-001"
+      ]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Library Symbol and Footprint Creation"
+  short_description: "DipTrace: Library Symbol and Footprint Creation"
+  default_prompt: "Use $library-item-creator: Create a symbol and footprint for <MPN> from its datasheet; show extracted evidence and previews before any write."

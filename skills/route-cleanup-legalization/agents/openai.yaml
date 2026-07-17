@@ -1,0 +1,4 @@
+interface:
+  display_name: "Route Cleanup and Legalization"
+  short_description: "DipTrace: Route Cleanup and Legalization"
+  default_prompt: "Use $route-cleanup-legalization: Clean routes in <nets/region>, reducing unnecessary vias and bends without changing connectivity."

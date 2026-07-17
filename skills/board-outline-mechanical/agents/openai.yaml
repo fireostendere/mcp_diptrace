@@ -1,0 +1,4 @@
+interface:
+  display_name: "Board Outline and Mechanical Constraints"
+  short_description: "DipTrace: Board Outline and Mechanical Constraints"
+  default_prompt: "Use $board-outline-mechanical: Validate or plan the board outline from mechanical data <description>, including keepouts and a preview."

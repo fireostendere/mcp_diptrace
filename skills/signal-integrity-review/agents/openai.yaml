@@ -1,0 +1,4 @@
+interface:
+  display_name: "Signal Integrity Review"
+  short_description: "DipTrace: Signal Integrity Review"
+  default_prompt: "Use $signal-integrity-review: Run an SI review of critical nets <list>, including stubs, crosstalk risk, and return paths."

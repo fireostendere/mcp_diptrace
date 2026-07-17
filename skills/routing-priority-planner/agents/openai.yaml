@@ -1,0 +1,4 @@
+interface:
+  display_name: "Routing Priority Planner"
+  short_description: "DipTrace: Routing Priority Planner"
+  default_prompt: "Use $routing-priority-planner: Plan the routing order for the active board and group nets into batches without routing them."

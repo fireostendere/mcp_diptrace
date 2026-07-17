@@ -1,0 +1,4 @@
+interface:
+  display_name: "Power Routing"
+  short_description: "DipTrace: Power Routing workflow"
+  default_prompt: "Use $power-routing: Plan power routing for rail <net> at <A> with <drop/temp> targets; start with a dry-run."

@@ -1,0 +1,167 @@
+{
+  "status": "completed",
+  "summary": "Representative fixture result with all mandatory evidence.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "schematic and PCB BOM",
+      "verified": true,
+      "confidence": 1.0
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [],
+  "transactions": [],
+  "resources": [],
+  "skipped_checks": [],
+  "confidence": {
+    "overall": 1.0,
+    "basis": "deterministic",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [],
+  "dependency_report": [],
+  "acceptance_evidence": [
+    {
+      "criterion": "all RefDes are accounted for",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "clean_bom-001",
+        "bom_findings-001",
+        "variant_matrix-001",
+        "substitution_warnings-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "substitutions are checked parametrically",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "clean_bom-001",
+        "bom_findings-001",
+        "variant_matrix-001",
+        "substitution_warnings-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "variant logic is reproducible",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "clean_bom-001",
+        "bom_findings-001",
+        "variant_matrix-001",
+        "substitution_warnings-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    }
+  ],
+  "deliverables": {
+    "clean_bom": {
+      "name": "clean BOM",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "clean_bom-001",
+          "label": "clean BOM",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "clean_bom-001"
+      ]
+    },
+    "bom_findings": {
+      "name": "BOM findings",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "bom_findings-001",
+          "label": "BOM findings",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "bom_findings-001"
+      ]
+    },
+    "variant_matrix": {
+      "name": "variant matrix",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "variant_matrix-001",
+          "label": "variant matrix",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "variant_matrix-001"
+      ]
+    },
+    "substitution_warnings": {
+      "name": "substitution warnings",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "substitution_warnings-001",
+          "label": "substitution warnings",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "substitution_warnings-001"
+      ]
+    }
+  }
+}

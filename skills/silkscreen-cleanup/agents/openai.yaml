@@ -1,0 +1,4 @@
+interface:
+  display_name: "Silkscreen Cleanup"
+  short_description: "DipTrace: Silkscreen Cleanup"
+  default_prompt: "Use $silkscreen-cleanup: Clean silkscreen on <Top/Bottom/all>, preserve locked labels, and show a preview."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Board Bring-Up Plan"
+  short_description: "DipTrace: Board Bring-Up Plan"
+  default_prompt: "Use $bringup-plan: Create a bring-up plan for the current board using lab equipment <list>."

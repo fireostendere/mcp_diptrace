@@ -1,0 +1,4 @@
+interface:
+  display_name: "Return and Stitching Via Planner"
+  short_description: "DipTrace: Return and Stitching Via Planner"
+  default_prompt: "Use $return-stitching-via-planner: Find candidate return and stitching vias for <region/nets> and prepare a guarded plan."
