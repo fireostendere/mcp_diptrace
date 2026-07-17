@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0.0",
+  "skill": "system-architecture-partitioning",
+  "evals": [
+    {
+      "id": "tool_selection",
+      "scenario": "happy_path",
+      "assertions": [
+        {
+          "kind": "first_tool",
+          "equals": "diptrace_status"
+        },
+        {
+          "kind": "required_tool_prefix",
+          "equals": [
+            "diptrace_status",
+            "get_capabilities"
+          ]
+        },
+        {
+          "kind": "callable_tools_registered",
+          "equals": [
+            "diptrace_status",
+            "get_capabilities",
+            "get_connectivity_graph",
+            "get_document_info",
+            "get_schematic_model",
+            "query_objects"
+          ]
+        },
+        {
+          "kind": "never_call_target_names",
+          "equals": [
+            "analyze_power_tree"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "graceful_degradation",
+      "scenario": "missing_capability",
+      "assertions": [
+        {
+          "kind": "status",
+          "equals": "blocked_by_capability"
+        },
+        {
+          "kind": "dependency_report_required",
+          "equals": true
+        },
+        {
+          "kind": "false_success_forbidden",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "write_policy",
+      "scenario": "read_only",
+      "assertions": [
+        {
+          "kind": "mutating_tool_calls",
+          "equals": false
+        },
+        {
+          "kind": "commit",
+          "equals": false
+        },
+        {
+          "kind": "transactions_empty",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "preview_and_post_checks",
+      "scenario": "happy_path",
+      "assertions": [
+        {
+          "kind": "write_order",
+          "equals": [
+            "no_design_write"
+          ]
+        },
+        {
+          "kind": "minimal_post_checks",
+          "equals": []
+        },
+        {
+          "kind": "document_check_matrix",
+          "equals": {
+            "schematic": [
+              "run_erc",
+              "run_connectivity_check"
+            ],
+            "pcb": [
+              "run_drc",
+              "run_connectivity_check"
+            ],
+            "mixed": [
+              "run_erc",
+              "run_drc",
+              "run_connectivity_check"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "scope_and_locks",
+      "scenario": "safety_regression",
+      "assertions": [
+        {
+          "kind": "changed_ids_subset_scope",
+          "equals": true
+        },
+        {
+          "kind": "changed_ids_disjoint_locked",
+          "equals": true
+        },
+        {
+          "kind": "stale_sha_commit",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "output_validation",
+      "scenario": "happy_path",
+      "assertions": [
+        {
+          "kind": "json_schema",
+          "equals": "schemas/result.schema.json"
+        },
+        {
+          "kind": "additional_properties",
+          "equals": false
+        },
+        {
+          "kind": "resource_uri_for_large_output",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "no_false_success",
+      "scenario": "safety_regression",
+      "assertions": [
+        {
+          "kind": "completed_on_regression",
+          "equals": false
+        },
+        {
+          "kind": "completed_with_mandatory_skip",
+          "equals": false
+        },
+        {
+          "kind": "rollback_evidence_on_failed_postcheck",
+          "equals": true
+        }
+      ]
+    }
+  ]
+}

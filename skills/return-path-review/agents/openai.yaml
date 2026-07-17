@@ -1,0 +1,4 @@
+interface:
+  display_name: "Return Path Review"
+  short_description: "DipTrace: Return Path Review"
+  default_prompt: "Use $return-path-review: Run a return-path review for <nets/classes>, identifying split crossings and poor transitions."

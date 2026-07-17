@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stackup and Impedance Planner"
+  short_description: "DipTrace: Stackup and Impedance Planner"
+  default_prompt: "Use $stackup-impedance-planner: Plan a stackup for <requirements>, calculate widths and gaps, and prepare rule updates without committing."

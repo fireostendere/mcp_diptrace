@@ -1,0 +1,4 @@
+interface:
+  display_name: "Analog and RF Placement"
+  short_description: "DipTrace: Analog and RF Placement"
+  default_prompt: "Use $analog-rf-placement: Review and optimize placement for analog/RF block <description>."

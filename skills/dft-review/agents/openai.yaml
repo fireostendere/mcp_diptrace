@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design for Test Review"
+  short_description: "DipTrace: Design for Test Review"
+  default_prompt: "Use $dft-review: Run a DFT review for strategy <description> and prepare a plan for missing testpoints."

@@ -1,0 +1,193 @@
+{
+  "status": "completed",
+  "summary": "Representative fixture result with all mandatory evidence.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "release candidate",
+      "verified": true,
+      "confidence": 1.0
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [],
+  "transactions": [],
+  "resources": [],
+  "skipped_checks": [],
+  "confidence": {
+    "overall": 1.0,
+    "basis": "deterministic",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [],
+  "dependency_report": [],
+  "acceptance_evidence": [
+    {
+      "criterion": "PASS is forbidden when a mandatory check is unknown",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "release-decision-001",
+        "release_blockers-001",
+        "waiver_register-001",
+        "release_manifest-001",
+        "revision_summary-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "every waiver has a rationale",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "release-decision-001",
+        "release_blockers-001",
+        "waiver_register-001",
+        "release_manifest-001",
+        "revision_summary-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "the decision is reproducible",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "release-decision-001",
+        "release_blockers-001",
+        "waiver_register-001",
+        "release_manifest-001",
+        "revision_summary-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    }
+  ],
+  "deliverables": {
+    "release_decision": {
+      "name": "release decision",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "release-decision-001",
+          "label": "Evidence-based release gate decision",
+          "attributes": [
+            {
+              "name": "decision",
+              "value": "PASS",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "release-decision-001"
+      ]
+    },
+    "release_blockers": {
+      "name": "release blockers",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "release_blockers-001",
+          "label": "release blockers",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "release_blockers-001"
+      ]
+    },
+    "waiver_register": {
+      "name": "waiver register",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "waiver_register-001",
+          "label": "waiver register",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "waiver_register-001"
+      ]
+    },
+    "release_manifest": {
+      "name": "release manifest",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "release_manifest-001",
+          "label": "release manifest",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "release_manifest-001"
+      ]
+    },
+    "revision_summary": {
+      "name": "revision summary",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "revision_summary-001",
+          "label": "revision summary",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "revision_summary-001"
+      ]
+    }
+  }
+}

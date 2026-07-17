@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0.0",
+  "contracts": {
+    "power-tree-v1": {
+      "purpose": "Deterministic directed power graph and rail-budget analysis.",
+      "inputs": ["document_id and source_sha256", "rail and pin-role provenance", "operating modes", "load-current ranges", "sequencing constraints"],
+      "outputs": ["typed sources, rails and consumers", "directed edges", "per-mode current and power ranges", "unknowns and confidence", "resource URI for the complete graph"],
+      "invariants": ["never infer an unknown power-pin role", "preserve units and source references", "do not return pass while a mandatory consumer current is unknown"],
+      "failure_status": "blocked_by_capability"
+    },
+    "geometry-query-v1": {
+      "purpose": "Exact typed board-geometry measurement and neighborhood queries.",
+      "inputs": ["document_id and source_sha256", "stable-id selectors", "measurement kind", "layers", "units and coordinate frame"],
+      "outputs": ["matched stable IDs", "exact coordinates or bounds", "measured value and units", "geometry backend and tolerance", "confidence and resource URI"],
+      "invariants": ["no hidden unit conversion", "report the coordinate datum", "distinguish exact geometry from bbox proxy"],
+      "failure_status": "blocked_by_capability"
+    },
+    "library-mutation-v1": {
+      "purpose": "Typed creation and update of DipTrace component and pattern library items.",
+      "inputs": ["library identity and SHA-256", "datasheet revision and provenance", "typed symbol or pattern operations", "pin-to-pad map", "scope and locks"],
+      "outputs": ["semantic transaction", "symbol and pattern previews", "pin-pad validation", "round-trip validation", "committed SHA and rollback token"],
+      "invariants": ["no guessed pins or dimensions", "preview before commit", "atomic mapping update", "reparse and validate after commit"],
+      "failure_status": "blocked_by_capability"
+    },
+    "schematic-authoring-v1": {
+      "purpose": "Typed schematic wire, label, bus and hierarchy mutation with verified round-trip.",
+      "inputs": ["document identity and SHA-256", "sheet and block scope", "typed connectivity operations", "explicit no-connect intent", "locked objects"],
+      "outputs": ["semantic transaction", "connectivity delta", "schematic preview", "localized ERC result", "committed SHA and rollback token"],
+      "invariants": ["no raw XML synthesis", "no unnamed accidental nets", "preview and localized ERC before commit", "connectivity cannot silently change outside scope"],
+      "failure_status": "blocked_by_capability"
+    },
+    "board-structure-write-v1": {
+      "purpose": "Typed stackup, outline, cutout, hole and keepout mutation.",
+      "inputs": ["document identity and SHA-256", "coordinate datum", "typed geometry operations", "layer and material provenance", "scope and locks"],
+      "outputs": ["semantic transaction", "dimensioned overlay preview", "containment and clearance validation", "stackup validation", "rollback token"],
+      "invariants": ["no inferred material values", "no hidden scaling", "preserve locked geometry", "DRC after preview and commit"],
+      "failure_status": "blocked_by_capability"
+    },
+    "domain-analyzer-v1": {
+      "purpose": "Deterministic interface, decoupling, reset, boot and programming analyzers driven by versioned profiles and datasheet facts.",
+      "inputs": ["document identity and SHA-256", "profile or datasheet revision", "typed component and net roles", "operating modes", "explicit unknowns"],
+      "outputs": ["profile version", "object-linked findings", "checked and skipped rules", "confidence", "resource URI"],
+      "invariants": ["datasheet facts outrank generic heuristics", "profile version is mandatory", "never claim certification or complete coverage from heuristics"],
+      "failure_status": "blocked_by_capability"
+    },
+    "routing-analysis-tuning-v1": {
+      "purpose": "Deterministic congestion, corridor, ordering, tuning, optimization and route-legalization engine.",
+      "inputs": ["document identity and SHA-256", "net and region scope", "rules and stackup", "objective weights", "deterministic seed", "locked and protected routes"],
+      "outputs": ["ranked bounded plans", "before and after metrics", "typed route transaction", "DRC and connectivity delta", "rollback token"],
+      "invariants": ["do not modify protected routes", "preserve endpoints", "reject critical-constraint regression", "preview before commit"],
+      "failure_status": "blocked_by_capability"
+    },
+    "copper-geometry-write-v1": {
+      "purpose": "Authoritative copper-pour update, priority handling and refill.",
+      "inputs": ["document identity and SHA-256", "pour stable IDs and nets", "typed boundary and rule changes", "stackup", "refill engine version"],
+      "outputs": ["refilled authoritative geometry", "island and neck metrics", "semantic transaction", "DRC and connectivity delta", "rollback token"],
+      "invariants": ["boundary-only approximation is not final refill", "net assignment is explicit", "post-refill review is mandatory"],
+      "failure_status": "blocked_by_capability"
+    },
+    "stitching-via-write-v1": {
+      "purpose": "Standalone net-assigned return, stitching and fence via placement.",
+      "inputs": ["document identity and SHA-256", "candidate coordinates", "net and layer span", "via style", "clearance and spacing rules"],
+      "outputs": ["typed via transaction", "net and plane connectivity evidence", "clearance preview", "return-path delta", "rollback token"],
+      "invariants": ["via net must be explicit", "never repurpose a trace-only via primitive", "DRC and connectivity checks are mandatory"],
+      "failure_status": "blocked_by_capability"
+    },
+    "semantic-compare-v1": {
+      "purpose": "Stable-ID semantic comparison of revisions, reports, routes and libraries.",
+      "inputs": ["base and candidate identities with SHA-256", "comparison profile", "stable-ID policy", "waiver set"],
+      "outputs": ["added, removed and changed objects", "new, resolved, changed and waived findings", "metric deltas", "regression classification", "resource URI"],
+      "invariants": ["XML ordering is ignored", "fixes and regressions are separate", "ambiguous identity mapping blocks dependent conclusions"],
+      "failure_status": "blocked_by_capability"
+    },
+    "solver-adapter-v1": {
+      "purpose": "Typed external SI, PI, impedance or thermal solver execution.",
+      "inputs": ["solver adapter and version", "bounded exported geometry", "material and boundary-condition provenance", "analysis profile", "time and resource budget"],
+      "outputs": ["typed job ID", "logs and artifacts", "solver result with units", "model limitations", "resource URIs"],
+      "invariants": ["fixed typed argv and shell=false", "no solver claim without an actual result", "analytical estimates remain distinct"],
+      "failure_status": "blocked_by_capability"
+    },
+    "native-export-v1": {
+      "purpose": "Native fabrication or assembler-specific output generation and independent verification.",
+      "inputs": ["release identity and SHA-256", "versioned manufacturer profile", "layer and transform mapping", "variant", "output scope"],
+      "outputs": ["bounded output bundle", "file-purpose manifest", "SHA-256 per artifact", "independent parser or renderer report", "resource URIs"],
+      "invariants": ["generic manifest is not a native package", "no stale revision files", "origin and bottom-side transforms are documented"],
+      "failure_status": "blocked_by_capability"
+    },
+    "panelization-v1": {
+      "purpose": "Typed panel geometry, breakaway, fiducial and tooling-hole planning and mutation.",
+      "inputs": ["board and panel identities", "versioned fabrication and assembly profile", "breakaway method", "orientation constraints", "scope and SHA-256"],
+      "outputs": ["ranked panel plans", "utilization metrics", "dimensioned preview", "semantic transaction", "manufacturing and assembly validation"],
+      "invariants": ["respect component and copper edge clearance", "preview before commit", "breakaway safety and orientation are explicit"],
+      "failure_status": "blocked_by_capability"
+    },
+    "profile-adapter-v1": {
+      "purpose": "Versioned sourcing, interface, fabricator or assembler profile adapter.",
+      "inputs": ["profile ID and immutable version", "source and effective date", "normalized requirements", "requested operation"],
+      "outputs": ["resolved rules or candidates", "provenance", "unsupported fields", "confidence", "resource URI"],
+      "invariants": ["never mix profiles", "availability and lifecycle data require a timestamp", "unsupported facts stay unknown"],
+      "failure_status": "blocked_by_capability"
+    },
+    "agent-eval-runtime-v1": {
+      "purpose": "Isolated multi-agent and skill-evaluation runtime with conflict-safe scopes.",
+      "inputs": ["skill package identity", "fixture bundle and capability profile", "agent roles", "scope and risk policy", "deterministic seed"],
+      "outputs": ["structured traces", "tool-call sequence", "transaction ledger", "precision and recall metrics", "regression comparison"],
+      "invariants": ["fixtures are isolated", "parallel write scopes do not overlap", "high-risk work gets independent review", "all committed fixture writes are rolled back"],
+      "failure_status": "blocked_by_capability"
+    }
+  }
+}

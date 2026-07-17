@@ -1,0 +1,4 @@
+interface:
+  display_name: "High-Speed Component Placement"
+  short_description: "DipTrace: High-Speed Component Placement"
+  default_prompt: "Use $high-speed-placement: Optimize placement for interface <type/nets>, including the PHY, connector, ESD, and termination components."

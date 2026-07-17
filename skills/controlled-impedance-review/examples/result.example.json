@@ -1,0 +1,167 @@
+{
+  "status": "completed",
+  "summary": "Representative fixture result with all mandatory evidence.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "stackup",
+      "verified": true,
+      "confidence": 1.0
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [],
+  "transactions": [],
+  "resources": [],
+  "skipped_checks": [],
+  "confidence": {
+    "overall": 1.0,
+    "basis": "deterministic",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [],
+  "dependency_report": [],
+  "acceptance_evidence": [
+    {
+      "criterion": "the model and method are stated",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "impedance_report-001",
+        "segment_estimates-001",
+        "target_deltas-001",
+        "solver_required_list-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "missing inputs are not invented",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "impedance_report-001",
+        "segment_estimates-001",
+        "target_deltas-001",
+        "solver_required_list-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "analytical and solver results remain distinct",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "impedance_report-001",
+        "segment_estimates-001",
+        "target_deltas-001",
+        "solver_required_list-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    }
+  ],
+  "deliverables": {
+    "impedance_report": {
+      "name": "impedance report",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "impedance_report-001",
+          "label": "impedance report",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "impedance_report-001"
+      ]
+    },
+    "segment_estimates": {
+      "name": "segment estimates",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "segment_estimates-001",
+          "label": "segment estimates",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "segment_estimates-001"
+      ]
+    },
+    "target_deltas": {
+      "name": "target deltas",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "target_deltas-001",
+          "label": "target deltas",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "target_deltas-001"
+      ]
+    },
+    "solver_required_list": {
+      "name": "solver-required list",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "solver_required_list-001",
+          "label": "solver-required list",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "solver_required_list-001"
+      ]
+    }
+  }
+}

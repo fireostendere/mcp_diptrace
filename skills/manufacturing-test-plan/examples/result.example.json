@@ -1,0 +1,167 @@
+{
+  "status": "completed",
+  "summary": "Representative fixture result with all mandatory evidence.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "test requirements",
+      "verified": true,
+      "confidence": 1.0
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [],
+  "transactions": [],
+  "resources": [],
+  "skipped_checks": [],
+  "confidence": {
+    "overall": 1.0,
+    "basis": "deterministic",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [],
+  "dependency_report": [],
+  "acceptance_evidence": [
+    {
+      "criterion": "every test traces to a requirement or fault",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "production_test_specification-001",
+        "fixture_map-001",
+        "coverage_matrix-001",
+        "limits_and_log_schema-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "limits have a source",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "production_test_specification-001",
+        "fixture_map-001",
+        "coverage_matrix-001",
+        "limits_and_log_schema-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "unachievable coverage is explicit",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "production_test_specification-001",
+        "fixture_map-001",
+        "coverage_matrix-001",
+        "limits_and_log_schema-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    }
+  ],
+  "deliverables": {
+    "production_test_specification": {
+      "name": "production test specification",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "production_test_specification-001",
+          "label": "production test specification",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "production_test_specification-001"
+      ]
+    },
+    "fixture_map": {
+      "name": "fixture map",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "fixture_map-001",
+          "label": "fixture map",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "fixture_map-001"
+      ]
+    },
+    "coverage_matrix": {
+      "name": "coverage matrix",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "coverage_matrix-001",
+          "label": "coverage matrix",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "coverage_matrix-001"
+      ]
+    },
+    "limits_and_log_schema": {
+      "name": "limits and log schema",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "limits_and_log_schema-001",
+          "label": "limits and log schema",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "limits_and_log_schema-001"
+      ]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Power Integrity Review"
+  short_description: "DipTrace: Power Integrity Review"
+  default_prompt: "Use $power-integrity-review: Run a PI/PDN review of rails <nets>, including decoupling, planes, and vias."

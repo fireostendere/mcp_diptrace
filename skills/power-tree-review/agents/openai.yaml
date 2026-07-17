@@ -1,0 +1,4 @@
+interface:
+  display_name: "Power Tree Review"
+  short_description: "DipTrace: Power Tree Review"
+  default_prompt: "Use $power-tree-review: Build and review the project power tree, calculate rail budgets, and derive layout constraints."

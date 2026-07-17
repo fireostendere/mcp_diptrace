@@ -27,8 +27,15 @@ plugin/
   settings/            official DipTrace plug-in settings structure
   build_bridge.ps1     PyInstaller build
   install_plugin.ps1
+scripts/
+  generate_pcb_skills.py  reproducible PCB skill-package generator
+skills/
+  catalog.json         authoritative workflow inventory
+  capability-map.json  runtime aliases, limitations, and unavailable contracts
+  */SKILL.md            generated English agent workflows
 tests/
   fixtures/            minimal PCB and Schematic XML
+  test_skill_packages.py  executable skill contract and eval-data checks
 ```
 
 ## Environment
@@ -49,8 +56,9 @@ py -3.12 -m venv .venv
 ## Checks
 
 ```bash
-pytest
-ruff check .
+python scripts/generate_pcb_skills.py --check
+pytest -q
+ruff check --no-cache src tests benchmarks scripts
 python -m compileall -q src tests
 python scripts/mcp_smoke.py
 mypy --no-incremental src/diptrace_mcp
@@ -66,6 +74,8 @@ python scripts/mcp_smoke.py --transport stdio
 
 Tests do not require an installed DipTrace application and operate on XML fixtures. The
 real MCP SDK and Pydantic v2 are used; shadow compatibility shims are prohibited.
+Package-local files under `skills/*/evals/` are declarative test data consumed by
+`tests/test_skill_packages.py`; they are not a second executable test suite.
 
 ## Local Run
 

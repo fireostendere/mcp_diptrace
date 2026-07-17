@@ -1,0 +1,143 @@
+{
+  "status": "partial",
+  "summary": "Representative honest degradation result for the current capability profile.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "release PCB",
+      "verified": false,
+      "confidence": 0.5
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [],
+  "transactions": [],
+  "resources": [],
+  "skipped_checks": [
+    {
+      "check_id": "export_assembly_outputs",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": false
+    },
+    {
+      "check_id": "run_assembly_review",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": false
+    }
+  ],
+  "confidence": {
+    "overall": 0.5,
+    "basis": "mixed",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [
+    {
+      "action_id": "action-001",
+      "description": "Provide the dependency contract before resuming the blocked stage.",
+      "owner": "MCP maintainer",
+      "blocking": false,
+      "requires_user_confirmation": false,
+      "depends_on": [
+        "native-export-v1",
+        "profile-adapter-v1"
+      ]
+    }
+  ],
+  "dependency_report": [
+    {
+      "capability": "export_assembly_outputs",
+      "contract_id": "native-export-v1",
+      "reason": "Creates generic BOM and placement artifacts; vendor CPL transforms are not guaranteed. Use only for generic artifacts; block a vendor-ready CPL claim without a verified transform adapter.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "conditional"
+    },
+    {
+      "capability": "run_assembly_review",
+      "contract_id": "profile-adapter-v1",
+      "reason": "The existing review is generic; a versioned assembler process profile remains a separate dependency.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "conditional"
+    }
+  ],
+  "acceptance_evidence": [
+    {
+      "criterion": "the rotation convention is documented",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "top and bottom transforms are verified",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "DNP items are excluded correctly",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    }
+  ],
+  "deliverables": {
+    "assembly_zip": {
+      "name": "assembly ZIP",
+      "status": "partial",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "bom_and_cpl": {
+      "name": "BOM and CPL",
+      "status": "partial",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "assembly_drawings": {
+      "name": "assembly drawings",
+      "status": "partial",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "variant_instructions": {
+      "name": "variant instructions",
+      "status": "partial",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "assembly_manifest": {
+      "name": "assembly manifest",
+      "status": "partial",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    }
+  }
+}

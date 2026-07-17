@@ -1,0 +1,4 @@
+interface:
+  display_name: "Panelization"
+  short_description: "DipTrace: Panelization workflow"
+  default_prompt: "Use $panelization: Plan a panel for <size/method/fabricator>, showing ranked arrangements and utilization."

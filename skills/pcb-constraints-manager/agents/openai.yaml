@@ -1,0 +1,4 @@
+interface:
+  display_name: "PCB Constraint Manager"
+  short_description: "DipTrace: PCB Constraint Manager"
+  default_prompt: "Use $pcb-constraints-manager: Normalize the project constraints, compare them with current DipTrace rules, and prepare a dry-run correction plan."

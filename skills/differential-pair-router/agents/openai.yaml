@@ -1,0 +1,4 @@
+interface:
+  display_name: "Differential Pair Router"
+  short_description: "DipTrace: Differential Pair Router"
+  default_prompt: "Use $differential-pair-router: Plan a differential-pair route for <P>/<N> under constraints <parameters>; produce a plan and preview first."

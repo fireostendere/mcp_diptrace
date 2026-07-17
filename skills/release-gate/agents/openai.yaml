@@ -1,0 +1,4 @@
+interface:
+  display_name: "Final Release Gate"
+  short_description: "DipTrace: Final Release Gate"
+  default_prompt: "Use $release-gate: Run the release gate for the current revision under profile <profile> without fixing anything."

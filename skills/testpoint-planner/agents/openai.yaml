@@ -1,0 +1,4 @@
+interface:
+  display_name: "Testpoint Planner"
+  short_description: "DipTrace: Testpoint Planner"
+  default_prompt: "Use $testpoint-planner: Plan testpoints for <coverage> on side <side> with probe constraints <parameters>."

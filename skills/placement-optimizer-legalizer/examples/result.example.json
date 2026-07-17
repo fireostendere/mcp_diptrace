@@ -1,0 +1,222 @@
+{
+  "status": "completed",
+  "summary": "Representative fixture result with all mandatory evidence.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "target selector or region",
+      "verified": true,
+      "confidence": 1.0
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [
+    {
+      "change_id": "change-001",
+      "scope": "fixture:explicit-scope",
+      "operation_kind": "typed_semantic_preview",
+      "target_ids": [
+        "fixture-object-001"
+      ],
+      "locked_target_ids": [],
+      "rationale": "Representative validated preview for the requested dry-run scope.",
+      "risk": "low",
+      "requires_confirmation": true,
+      "preview_uri": "diptrace://transaction/example-tx/preview.json",
+      "post_checks": [
+        "analyze_placement",
+        "run_component_clearance_check",
+        "run_drc",
+        "run_connectivity_check"
+      ]
+    }
+  ],
+  "transactions": [
+    {
+      "txid": "example-tx",
+      "state": "validated",
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "preview_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "committed_sha256": null,
+      "preview_uri": "diptrace://transaction/example-tx/preview.json",
+      "validation": "Preview reparsed; affected regression checks passed.",
+      "post_checks": [
+        "analyze_placement",
+        "run_component_clearance_check",
+        "run_drc",
+        "run_connectivity_check"
+      ],
+      "rollback": "Rollback the uncommitted transaction; source remains unchanged."
+    }
+  ],
+  "resources": [
+    {
+      "uri": "diptrace://transaction/example-tx/preview.json",
+      "mime_type": "application/json",
+      "purpose": "Validated semantic transaction preview.",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  ],
+  "skipped_checks": [],
+  "confidence": {
+    "overall": 1.0,
+    "basis": "deterministic",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [
+    {
+      "action_id": "action-001",
+      "description": "Commit only if the user explicitly approves this validated preview.",
+      "owner": "user",
+      "blocking": false,
+      "requires_user_confirmation": true,
+      "depends_on": [
+        "example-tx"
+      ]
+    }
+  ],
+  "dependency_report": [],
+  "acceptance_evidence": [
+    {
+      "criterion": "scope is preserved",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "ranked_variants-001",
+        "before_and_after_metrics-001",
+        "legal_transaction-001",
+        "preview-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "locked objects remain unchanged",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "ranked_variants-001",
+        "before_and_after_metrics-001",
+        "legal_transaction-001",
+        "preview-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    },
+    {
+      "criterion": "variants use comparable metrics",
+      "status": "passed",
+      "evidence_ids": [
+        "input-001",
+        "ranked_variants-001",
+        "before_and_after_metrics-001",
+        "legal_transaction-001",
+        "preview-001"
+      ],
+      "rationale": "Verified by the representative fixture."
+    }
+  ],
+  "deliverables": {
+    "ranked_variants": {
+      "name": "ranked variants",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "ranked_variants-001",
+          "label": "ranked variants",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "ranked_variants-001"
+      ]
+    },
+    "before_and_after_metrics": {
+      "name": "before and after metrics",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "before_and_after_metrics-001",
+          "label": "before and after metrics",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "before_and_after_metrics-001"
+      ]
+    },
+    "legal_transaction": {
+      "name": "legal transaction",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "legal_transaction-001",
+          "label": "legal transaction",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "legal_transaction-001"
+      ]
+    },
+    "preview": {
+      "name": "preview",
+      "status": "available",
+      "summary": "Available in the representative fixture.",
+      "resource_uri": null,
+      "entries": [
+        {
+          "id": "preview-001",
+          "label": "preview",
+          "attributes": [
+            {
+              "name": "verification_status",
+              "value": "verified",
+              "unit": null,
+              "source_id": "fixture:happy_path"
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "preview-001"
+      ]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Placement Optimizer and Legalizer"
+  short_description: "DipTrace: Placement Optimizer and Legalizer"
+  default_prompt: "Use $placement-optimizer-legalizer: Optimize placement <selector> in <region> using weights <parameters>; show three ranked variants."

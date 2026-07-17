@@ -212,6 +212,7 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Сервер читае
 - [Security and policy](docs/SECURITY_AND_POLICY.md)
 - [Testing and benchmarks](docs/TESTING.md)
 - [Skill contracts](docs/SKILL_CONTRACTS.md)
+- [Англоязычный каталог PCB skills](skills/README.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Разработка](docs/DEVELOPMENT.md)
 - [Основной README на английском](README.md)
@@ -225,7 +226,8 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Сервер читае
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install -e '.[dev]'
-pytest
-ruff check .
-mypy src/diptrace_mcp
+python scripts/generate_pcb_skills.py --check
+python -m pytest -q
+python -m ruff check --no-cache src tests benchmarks scripts
+python -m mypy --no-incremental src/diptrace_mcp
 ```

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import time
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import pytest
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import DocumentError, Sha256MismatchError
+from diptrace_mcp.external_adapters import FreeroutingAdapter
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.specctra import (
     dsn_export_limitations,
@@ -18,6 +20,28 @@ from diptrace_mcp.specctra import (
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+class _PythonMockFreeroutingAdapter(FreeroutingAdapter):
+    """Execute the fixture script explicitly so the subprocess test is portable."""
+
+    def command(
+        self,
+        input_path: Path,
+        output_path: Path,
+        *,
+        max_passes: int,
+        threads: int,
+        ignore_net_classes: list[str],
+    ) -> list[str]:
+        command = super().command(
+            input_path,
+            output_path,
+            max_passes=max_passes,
+            threads=threads,
+            ignore_net_classes=ignore_net_classes,
+        )
+        return [sys.executable, *command]
 
 
 def _embedded_board_bytes() -> bytes:
@@ -62,7 +86,7 @@ def _service(
     state_dir: Path,
     executable: Path | None = None,
 ) -> DipTraceService:
-    return DipTraceService(
+    service = DipTraceService(
         Settings(
             workspace=workspace,
             allowed_roots=(workspace,),
@@ -75,6 +99,9 @@ def _service(
             max_external_log_bytes=4096,
         )
     )
+    if executable is not None:
+        service.external_jobs.freerouting = _PythonMockFreeroutingAdapter(service.settings)
+    return service
 
 
 def _wait_for_job(service: DipTraceService, jobid: str, timeout: float = 5.0) -> str:

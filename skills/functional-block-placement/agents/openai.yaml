@@ -1,0 +1,4 @@
+interface:
+  display_name: "Functional Block Placement"
+  short_description: "DipTrace: Functional Block Placement"
+  default_prompt: "Use $functional-block-placement: Plan floorplacement for block <RefDes> in region <region>; show ranked variants and score breakdowns."

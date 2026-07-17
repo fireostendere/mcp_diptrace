@@ -227,6 +227,7 @@ adapters.
 - [Security and policy](docs/SECURITY_AND_POLICY.md)
 - [Testing and benchmarks](docs/TESTING.md)
 - [Skill contracts](docs/SKILL_CONTRACTS.md)
+- [English PCB skill catalog](skills/README.md)
 - [Development](docs/DEVELOPMENT.md)
 - [Roadmap and actual status](docs/ROADMAP.md)
 - [Russian README](README_RU.md)
@@ -237,8 +238,9 @@ adapters.
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install -e '.[dev,geometry]'
+python scripts/generate_pcb_skills.py --check
 python -m pytest -q
-python -m ruff check src tests benchmarks
+python -m ruff check --no-cache src tests benchmarks scripts
 python -m mypy --no-incremental src/diptrace_mcp
 ```
 

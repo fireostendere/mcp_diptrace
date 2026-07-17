@@ -1,0 +1,4 @@
+interface:
+  display_name: "End-to-End PCB Design Orchestrator"
+  short_description: "DipTrace: End-to-End PCB Design Orchestrator"
+  default_prompt: "Use $pcb-design-orchestrator: Assess the project state and plan the required PCB skills through release without applying changes."

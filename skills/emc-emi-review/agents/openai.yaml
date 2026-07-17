@@ -1,0 +1,4 @@
+interface:
+  display_name: "EMC/EMI Pre-Compliance Review"
+  short_description: "DipTrace: EMC/EMI Pre-Compliance Review"
+  default_prompt: "Use $emc-emi-review: Run an EMC/EMI pre-compliance review focused on <standard/subsystems>."

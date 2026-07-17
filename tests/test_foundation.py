@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
@@ -12,7 +13,6 @@ from diptrace_mcp.operations import MoveComponentsOperation, SetComponentValueOp
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.xml_document import DipTraceDocument, XmlEdit, sha256_bytes
-from pydantic import ValidationError
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

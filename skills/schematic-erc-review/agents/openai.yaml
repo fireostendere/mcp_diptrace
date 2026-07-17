@@ -1,0 +1,4 @@
+interface:
+  display_name: "Schematic ERC and Engineering Review"
+  short_description: "DipTrace: Schematic ERC and Engineering Review"
+  default_prompt: "Use $schematic-erc-review: Run full ERC and an engineering review of the active schematic without changing it."

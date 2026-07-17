@@ -1,0 +1,4 @@
+interface:
+  display_name: "PCB Skill Evaluator"
+  short_description: "DipTrace: PCB Skill Evaluator"
+  default_prompt: "Use $pcb-skill-evaluator: Evaluate skill <slug> against fixture suite <suite> for accuracy, safety, determinism, and regression behavior."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Thermal Review"
+  short_description: "DipTrace: Thermal Review workflow"
+  default_prompt: "Use $thermal-review: Run a thermal review of <RefDes/region> under conditions <description>."

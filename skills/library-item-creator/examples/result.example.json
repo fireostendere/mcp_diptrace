@@ -1,0 +1,166 @@
+{
+  "status": "blocked_by_capability",
+  "summary": "Representative honest degradation result for the current capability profile.",
+  "document_identity": {
+    "document_id": "example-document",
+    "path": "fixtures/example.xml",
+    "kind": "pcb",
+    "revision": "fixture-r1",
+    "session_id": null,
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "inputs_used": [
+    {
+      "input_id": "input-001",
+      "kind": "user_statement",
+      "source": "fixture:happy_path",
+      "value_summary": "datasheet and revision",
+      "verified": false,
+      "confidence": 0.5
+    }
+  ],
+  "assumptions": [],
+  "findings": [],
+  "planned_changes": [],
+  "transactions": [],
+  "resources": [],
+  "skipped_checks": [
+    {
+      "check_id": "create_or_update_component",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": true
+    },
+    {
+      "check_id": "create_or_update_pattern",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": true
+    },
+    {
+      "check_id": "attach_pattern_to_component",
+      "reason": "No compatible current runtime capability for this fixture profile.",
+      "impact": "Dependent evidence is unavailable.",
+      "mandatory": true
+    }
+  ],
+  "confidence": {
+    "overall": 0.0,
+    "basis": "insufficient",
+    "rationale": "Fixture evidence and capability gaps are represented explicitly."
+  },
+  "next_actions": [
+    {
+      "action_id": "action-001",
+      "description": "Provide the dependency contract before resuming the blocked stage.",
+      "owner": "MCP maintainer",
+      "blocking": true,
+      "requires_user_confirmation": false,
+      "depends_on": [
+        "library-mutation-v1",
+        "library-mutation-v1",
+        "library-mutation-v1"
+      ]
+    }
+  ],
+  "dependency_report": [
+    {
+      "capability": "create_or_update_component",
+      "contract_id": "library-mutation-v1",
+      "reason": "Use only when document capabilities allow it.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "missing"
+    },
+    {
+      "capability": "create_or_update_pattern",
+      "contract_id": "library-mutation-v1",
+      "reason": "Use only when document capabilities allow it.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "missing"
+    },
+    {
+      "capability": "attach_pattern_to_component",
+      "contract_id": "library-mutation-v1",
+      "reason": "Use only when document capabilities allow it.",
+      "impact": "The dependent stage cannot be represented as a verified MCP result.",
+      "dependent_stages": [
+        "requested dependent stage"
+      ],
+      "state": "missing"
+    }
+  ],
+  "acceptance_evidence": [
+    {
+      "criterion": "pins and pads are source-verified",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "origin and orientation are defined",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "silkscreen does not overlap mask openings",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    },
+    {
+      "criterion": "round-trip validation passes",
+      "status": "not_checked",
+      "evidence_ids": [],
+      "rationale": "Dependent evidence is unavailable in this capability profile."
+    }
+  ],
+  "deliverables": {
+    "library_component": {
+      "name": "library component",
+      "status": "unavailable",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "library_pattern": {
+      "name": "library pattern",
+      "status": "unavailable",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "pin_pad_report": {
+      "name": "pin-pad report",
+      "status": "unavailable",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "dimension_provenance": {
+      "name": "dimension provenance",
+      "status": "unavailable",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    },
+    "preview": {
+      "name": "preview",
+      "status": "unavailable",
+      "summary": "Limited by the declared dependency report.",
+      "resource_uri": null,
+      "entries": [],
+      "evidence_ids": []
+    }
+  }
+}

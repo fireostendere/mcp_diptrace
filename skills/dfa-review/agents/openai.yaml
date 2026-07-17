@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design for Assembly Review"
+  short_description: "DipTrace: Design for Assembly Review"
+  default_prompt: "Use $dfa-review: Run a DFA review for process <SMT/THT/mixed> and assembler profile <assembler>."

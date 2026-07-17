@@ -1,0 +1,4 @@
+interface:
+  display_name: "PCB Project Requirements Intake"
+  short_description: "DipTrace: PCB Project Requirements Intake"
+  default_prompt: "Use $pcb-project-intake: Analyze the device requirements <description>; produce a PCB Design Brief, constraints, risks, and open questions without changing the design."

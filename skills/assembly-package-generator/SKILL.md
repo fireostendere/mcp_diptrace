@@ -1,0 +1,158 @@
+---
+name: assembly-package-generator
+description: "Orchestrate DipTrace MCP for Assembly Package Generator: Generate BOM, CPL or pick-and-place, assembly drawings, and variant instructions with verified transforms. Use when the user requests this workflow for a DipTrace schematic, PCB, library, review, or explicitly bounded project scope. Start with capability discovery; never simulate unavailable tools or write without a guarded preview."
+---
+
+# Assembly Package Generator
+
+## Purpose
+
+Generate BOM, CPL or pick-and-place, assembly drawings, and variant instructions with verified transforms.
+
+Priority: `P0`. Declared maturity: `requires a native export adapter`. Treat maturity as planning metadata, not runtime proof of availability.
+
+## Applicability
+
+Use this skill for the complete workflow described by the trigger, for a bounded subsystem, or to resume an interrupted run from current document state. It may consume an offline DipTrace XML document or the active live document. Resolve every file/session explicitly; never guess which revision is active.
+
+Required inputs:
+
+- release PCB
+- BOM
+- variants
+- assembler profile
+- origin and rotation rules
+
+## Do not use
+
+- Do not use it as a substitute for missing datasheets, manufacturer profiles, lab measurements, certification or solver evidence.
+- Do not edit raw XML, reimplement parsing, DRC, geometry, placement, routing, impedance or transaction logic inside the skill.
+- Do not claim global or solver-backed results from bounded or heuristic MCP checks.
+- Do not operate outside the explicit document, selector, region, layer, variant and revision scope.
+
+## Capability discovery
+
+The first two MCP calls must be ordered and sequential: `diptrace_status`, then `get_capabilities`. Do not reverse or parallelize them. When a document is known, read its exact identity and SHA-256 with `get_document_info`, then call `get_capabilities` again with that exact path so document-specific policy, adapters and feature limits replace the generic report. Use the client runtime tool inventory as the callable-name source of truth.
+
+| Target contract | Callable runtime tool | State | Required handling |
+| --- | --- | --- | --- |
+| `diptrace_status` | `diptrace_status` | `exact` | Use only when document capabilities allow it. |
+| `get_capabilities` | `get_capabilities` | `exact` | Use only when document capabilities allow it. |
+| `get_document_info` | `get_document_info` | `exact` | Use only when document capabilities allow it. |
+| `export_assembly_outputs` | `export_assembly_outputs` | `conditional` | Use the runtime tool only for its bounded subset. For the full request use `native-export-v1`. |
+| `export_bom` | `export_bom` | `exact` | Use only when document capabilities allow it. |
+| `run_assembly_review` | `run_assembly_review` | `conditional` | Use the runtime tool only for its bounded subset. For the full request use `profile-adapter-v1`. |
+| `get_board_model` | `get_board_model` | `exact` | Use only when document capabilities allow it. |
+
+Names in the Target contract column are conceptual contracts. Only a non-empty name in the Callable runtime tool column may be invoked. Re-resolve at every run; the table documents this repository revision but does not override runtime discovery.
+
+## Workflow
+
+0. Record the request, allowed scope and policy profile. Call `diptrace_status`, then `get_capabilities`.
+1. Read the exact document with `get_document_info` and the required domain model; record revision/session and source SHA-256 before any semantic operation. For a genuinely pre-design task with no document, hash the normalized input bundle and set applicability to `pre_design`; never invent a document SHA.
+2. Separate user facts, document facts, external facts and assumptions. For write-capable work, preserve the mandatory dry-run → preview → validation → expected-SHA commit → applicable ERC/DRC/connectivity → stop/rollback order from the write policy.
+3. Check BOM and placement.
+4. Define origin and rotation conventions.
+5. Export CPL only through a confirmed adapter.
+6. Create drawings.
+7. Apply DNP and variant rules.
+8. Verify sample coordinates, sides, and rotations.
+9. Create a manifest.
+10. Validate the result against `schemas/result.schema.json`; store large graphs, models, previews and reports as resource URIs.
+11. Evaluate every acceptance criterion and emit evidence or an explicit skipped check.
+
+## Findings
+
+Every finding must carry severity, confidence, rationale, suggested action and an object locator. The locator contains exact RefDes, nets, stable object IDs, layers and coordinates when those exist. For pre-design work, keep those arrays empty and set locator applicability to `pre_design`; never invent an object or coordinate.
+
+Separate deterministic MCP findings from engineering heuristics. Preserve explicit no-connects, DNP, waivers and user constraints. A waiver is not suppression: retain the underlying finding and link the waiver ID. Set `blocks_completion` only when the finding prevents completion of the requested workflow or mandatory evidence collection; an open design-critical finding may coexist with a completed review report.
+
+## Stop conditions
+
+- Return `blocked_by_input` when an ambiguous or missing fact can change topology, safety, ratings, pin mapping, units, coordinate datum, scope or acceptance. Continue independent stages only.
+- Return `blocked_by_capability` when the requested dependent stage has no compatible runtime tool or adapter. Include contract ID, inputs, outputs, invariants and affected stages.
+- Return `partial` when independent deliverables are valid but optional or dependent checks remain unavailable. List every skipped check and its impact.
+- Return `failed` for an actual tool, validation, SHA, commit or rollback failure. Do not convert an exception into a successful narrative.
+- Never return `completed` with a missing mandatory check, unresolved critical/error regression, stale SHA, failed post-check, ambiguous identity or unverified requested output.
+
+## Write policy
+
+This skill may create bounded output artifacts but must not mutate the source design.
+
+1. Call `diptrace_status`, then `get_capabilities`; read the exact document and capture its source SHA-256 before export.
+2. Define the exact revision, variant, profile and output scope.
+3. Run only the supported exporter and inspect every returned resource URI.
+4. Run the applicable minimal checks: `run_assembly_review`, `run_silkscreen_check`, `get_bom`, `get_board_model`.
+5. Record file purpose and SHA-256 for each artifact. Do not reuse a stale output directory.
+6. Never label a generic manifest as a native manufacturing package. If the requested adapter is absent, return `blocked_by_capability` with the exact dependency contract.
+
+Artifact generation does not authorize a design commit. Any later design change requires the full semantic transaction pipeline.
+
+## Dependency contracts
+
+### `native-export-v1`
+
+Native fabrication or assembler-specific output generation and independent verification.
+
+Required inputs: release identity and SHA-256; versioned manufacturer profile; layer and transform mapping; variant; output scope.
+
+Required outputs: bounded output bundle; file-purpose manifest; SHA-256 per artifact; independent parser or renderer report; resource URIs.
+
+Invariants: generic manifest is not a native package; no stale revision files; origin and bottom-side transforms are documented.
+
+### `profile-adapter-v1`
+
+Versioned sourcing, interface, fabricator or assembler profile adapter.
+
+Required inputs: profile ID and immutable version; source and effective date; normalized requirements; requested operation.
+
+Required outputs: resolved rules or candidates; provenance; unsupported fields; confidence; resource URI.
+
+Invariants: never mix profiles; availability and lifecycle data require a timestamp; unsupported facts stay unknown.
+
+The canonical machine-readable contracts are in `../dependency-contracts.json`. A dependency report is a request for an MCP/runtime extension, not permission to implement a brittle parser, geometry approximation or raw XML patch in this skill.
+
+## Outputs
+
+- `assembly ZIP`
+- `BOM and CPL`
+- `assembly drawings`
+- `variant instructions`
+- `assembly manifest`
+
+Return the required common fields: `status`, `summary`, `document_identity`, `inputs_used`, `assumptions`, `findings`, `planned_changes`, `transactions`, `resources`, `skipped_checks`, `confidence` and `next_actions`. Also return `dependency_report`, `acceptance_evidence` and all skill-specific `deliverables`.
+
+Status semantics:
+
+- `completed`: the requested scope and every mandatory acceptance check have evidence.
+- `partial`: valid independent work exists, with precise limitations.
+- `blocked_by_capability`: an exact dependency contract blocks the requested stage.
+- `blocked_by_input`: a named missing or ambiguous input blocks the requested stage.
+- `failed`: execution or validation failed and success was not claimed.
+
+`completed` describes execution of the requested workflow, not approval of the design. In particular, `release-gate` carries the independent `PASS|BLOCKED` decision in its release-decision deliverable.
+
+## Acceptance criteria
+
+- The rotation convention is documented.
+- Top and bottom transforms are verified.
+- DNP items are excluded correctly.
+
+## Failure modes
+
+- Capability advertised globally but disabled for the selected document: trust document discovery and degrade explicitly.
+- Tool name exists but semantics are weaker than the target contract: use only the documented subset and never upgrade the claim.
+- Large output is truncated: return a bounded summary plus resource URI.
+- Source changes after analysis or preview: stop on SHA mismatch and rebuild the plan from the new source.
+- Locked object, keepout, waiver, DNP or explicit no-connect conflicts with the plan: preserve it and return the conflict.
+- External adapter, profile or solver is absent or unversioned: block the dependent result; do not synthesize a substitute.
+
+## Examples and evals
+
+- `examples/result.example.json` is a schema-valid representative result.
+- `evals/scenarios.json` defines the happy path, read-only policy, missing capability, ambiguous input and safety/regression cases.
+- `evals/assertions.json` defines tool selection, graceful degradation, write gating, scope/locks, output validation, post-check and false-success assertions.
+
+Runtime prompt example:
+
+> Generate an assembly package for variant <name> and assembler profile <assembler>, including CPL verification.

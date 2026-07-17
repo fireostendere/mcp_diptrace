@@ -1,0 +1,4 @@
+interface:
+  display_name: "System Architecture and Functional Partitioning"
+  short_description: "DipTrace: System Architecture and Functional Partitioning"
+  default_prompt: "Use $system-architecture-partitioning: Use the Design Brief to define hardware architecture, the power tree, interfaces, and critical nets without editing the project."

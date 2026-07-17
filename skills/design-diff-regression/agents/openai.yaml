@@ -1,0 +1,4 @@
+interface:
+  display_name: "Semantic Design Diff and Regression Review"
+  short_description: "DipTrace: Semantic Design Diff and Regression Review"
+  default_prompt: "Use $design-diff-regression: Compare revisions <base> and <candidate>, producing a semantic diff and regression report."

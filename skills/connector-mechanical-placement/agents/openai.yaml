@@ -1,0 +1,4 @@
+interface:
+  display_name: "Connector and Mechanical Placement"
+  short_description: "DipTrace: Connector and Mechanical Placement"
+  default_prompt: "Use $connector-mechanical-placement: Place connectors <RefDes> at the supplied mechanical coordinates and verify access and routing corridors."

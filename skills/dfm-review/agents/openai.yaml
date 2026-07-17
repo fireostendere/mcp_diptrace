@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design for Manufacturing Review"
+  short_description: "DipTrace: Design for Manufacturing Review"
+  default_prompt: "Use $dfm-review: Run a DFM review against fabricator profile <fabricator> and identify release blockers."

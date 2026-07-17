@@ -1,0 +1,4 @@
+interface:
+  display_name: "Decoupling Network Planner"
+  short_description: "DipTrace: Decoupling Network Planner"
+  default_prompt: "Use $decoupling-network-planner: Review decoupling for <IC/rail>, produce a capacitor-to-pin plan, and assess physical placement."

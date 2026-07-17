@@ -1,0 +1,4 @@
+interface:
+  display_name: "Controlled Impedance Review"
+  short_description: "DipTrace: Controlled Impedance Review"
+  default_prompt: "Use $controlled-impedance-review: Run a controlled-impedance review for <nets/classes> against the current stackup."

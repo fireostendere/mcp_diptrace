@@ -1,0 +1,4 @@
+interface:
+  display_name: "Copper Pour and Plane Manager"
+  short_description: "DipTrace: Copper Pour and Plane Manager"
+  default_prompt: "Use $copper-pour-plane-manager: Review pours and planes, identify islands and necks, and prepare a dry-run change plan."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Power Stage Placement"
+  short_description: "DipTrace: Power Stage Placement"
+  default_prompt: "Use $power-stage-placement: Optimize placement of power stage <RefDes/nets>, minimize loop proxies, and derive routing constraints."

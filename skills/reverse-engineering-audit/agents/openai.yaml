@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reverse-Engineering Audit"
+  short_description: "DipTrace: Reverse-Engineering Audit"
+  default_prompt: "Use $reverse-engineering-audit: Audit the existing design and reconstruct architecture, power tree, interfaces, and explicit unknowns."

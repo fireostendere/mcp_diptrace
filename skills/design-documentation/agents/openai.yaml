@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design Documentation Generator"
+  short_description: "DipTrace: Design Documentation Generator"
+  default_prompt: "Use $design-documentation: Generate documentation for the current revision covering architecture, power, interfaces, stackup, BOM, bring-up, and open issues."

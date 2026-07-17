@@ -3,8 +3,9 @@
 ## Gates
 
 ```bash
+python scripts/generate_pcb_skills.py --check
 pytest -q
-ruff check src tests benchmarks
+ruff check --no-cache src tests benchmarks scripts
 mypy --no-incremental src/diptrace_mcp
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 ```
@@ -30,6 +31,13 @@ Freerouting, or network access.
 - stackup, length/skew/differential-pair analysis, and single/coupled impedance golden cases;
 - return path and pour boundaries, BOM, and schematic/PCB comparison;
 - generic exports, CSV-injection protection, and MCP tool/resource/prompt contracts.
+- all 57 English PCB skill packages, strict result schemas and examples, actual MCP tool
+  mappings, dependency contracts, write-order guards, and false-success rejection.
+
+`tests/test_skill_packages.py` is the only executable skill test suite. The
+`skills/*/evals/scenarios.json` and `skills/*/evals/assertions.json` files are generated
+behavioral fixtures consumed by that suite. `scripts/generate_pcb_skills.py --check`
+separately rejects package drift from the catalog and capability maps.
 
 ## Benchmarks
 
