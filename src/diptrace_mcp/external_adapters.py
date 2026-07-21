@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -157,7 +158,11 @@ class NgSpiceAdapter:
             return NgSpiceProbe(
                 False, str(executable), "Configured ngspice executable does not exist."
             )
-        if os.name != "nt" and not os.access(executable, os.X_OK):
+        if (
+            executable.suffix.casefold() != ".py"
+            and os.name != "nt"
+            and not os.access(executable, os.X_OK)
+        ):
             return NgSpiceProbe(False, str(executable), "Configured executable is not executable.")
         return NgSpiceProbe(True, str(executable), None)
 
@@ -167,7 +172,12 @@ class NgSpiceAdapter:
             raise ExternalToolUnavailableError(
                 probe.reason or "ngspice is unavailable", details=probe.as_dict()
             )
-        return [probe.executable, "-b", str(netlist_path)]
+        prefix = (
+            [sys.executable, probe.executable]
+            if Path(probe.executable).suffix.casefold() == ".py"
+            else [probe.executable]
+        )
+        return [*prefix, "-b", str(netlist_path)]
 
 
 _DATA_ROWS = re.compile(r"No\.\s*of\s*Data\s*Rows\s*:\s*(\d+)", re.IGNORECASE)

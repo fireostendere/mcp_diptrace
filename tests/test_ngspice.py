@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import os
-import stat
+import sys
 import time
 from pathlib import Path
 
@@ -48,23 +47,13 @@ def _service(
 
 
 def _fake_ngspice(tmp_path: Path, *, fail: bool = False) -> Path:
-    if os.name == "nt":
-        script = tmp_path / "fake_ngspice.cmd"
-        if fail:
-            script.write_bytes(
-                b"@echo off\r\necho Error: simulated failure\r\nexit /b 1\r\n"
-            )
-        else:
-            script.write_bytes(
-                b"@echo off\r\necho No. of Data Rows : 42\r\nexit /b 0\r\n"
-            )
-        return script
-    script = tmp_path / "fake_ngspice.sh"
+    script = tmp_path / "fake_ngspice.py"
     if fail:
-        script.write_text("#!/bin/sh\necho 'Error: simulated failure'\nexit 1\n")
+        script.write_text(
+            "print('Error: simulated failure')\nraise SystemExit(1)\n"
+        )
     else:
-        script.write_text("#!/bin/sh\necho 'No. of Data Rows : 42'\nexit 0\n")
-    script.chmod(script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        script.write_text("print('No. of Data Rows : 42')\n")
     return script
 
 
@@ -113,8 +102,8 @@ def test_run_ngspice_simulation_completes_with_typed_result(tmp_path: Path) -> N
     record = _wait_for_job(service, jobid)
     assert record["status"] == "completed"
     assert record["result"]["data_rows"] == [42]
-    assert record["command"][:1] == [str(executable)]
-    assert record["command"][1] == "-b"
+    assert record["command"][:2] == [sys.executable, str(executable)]
+    assert record["command"][2] == "-b"
 
 
 def test_run_ngspice_simulation_reports_solver_errors(tmp_path: Path) -> None:
