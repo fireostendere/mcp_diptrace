@@ -26,18 +26,6 @@
   "resources": [],
   "skipped_checks": [
     {
-      "check_id": "add_wire",
-      "reason": "No compatible current runtime capability for this fixture profile.",
-      "impact": "Dependent evidence is unavailable.",
-      "mandatory": true
-    },
-    {
-      "check_id": "add_net_label",
-      "reason": "No compatible current runtime capability for this fixture profile.",
-      "impact": "Dependent evidence is unavailable.",
-      "mandatory": true
-    },
-    {
       "check_id": "assign_pattern",
       "reason": "No compatible current runtime capability for this fixture profile.",
       "impact": "Dependent evidence is unavailable.",
@@ -57,33 +45,11 @@
       "blocking": true,
       "requires_user_confirmation": false,
       "depends_on": [
-        "schematic-authoring-v1",
-        "schematic-authoring-v1",
         "schematic-authoring-v1"
       ]
     }
   ],
   "dependency_report": [
-    {
-      "capability": "add_wire",
-      "contract_id": "schematic-authoring-v1",
-      "reason": "Use only when document capabilities allow it.",
-      "impact": "The dependent stage cannot be represented as a verified MCP result.",
-      "dependent_stages": [
-        "requested dependent stage"
-      ],
-      "state": "missing"
-    },
-    {
-      "capability": "add_net_label",
-      "contract_id": "schematic-authoring-v1",
-      "reason": "Use only when document capabilities allow it.",
-      "impact": "The dependent stage cannot be represented as a verified MCP result.",
-      "dependent_stages": [
-        "requested dependent stage"
-      ],
-      "state": "missing"
-    },
     {
       "capability": "assign_pattern",
       "contract_id": "schematic-authoring-v1",

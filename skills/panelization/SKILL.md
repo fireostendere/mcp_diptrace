@@ -41,7 +41,7 @@ The first two MCP calls must be ordered and sequential: `diptrace_status`, then 
 | `get_document_info` | `get_document_info` | `exact` | Use only when document capabilities allow it. |
 | `analyze_panelization` | — | `missing` | Do not call the target name. Use dependency contract `panelization-v1`; block only dependent stages. |
 | `plan_panelization` | — | `missing` | Do not call the target name. Use dependency contract `panelization-v1`; block only dependent stages. |
-| `apply_panelization_plan` | — | `missing` | Do not call the target name. Use dependency contract `panelization-v1`; block only dependent stages. |
+| `apply_panelization_plan` | `set_panelization` | `alias` | Applies official DipTrace panel parameters directly; there is no separate plan-apply split. |
 | `add_fiducials` | — | `missing` | Do not call the target name. Use dependency contract `panelization-v1`; block only dependent stages. |
 | `add_tooling_holes` | — | `missing` | Do not call the target name. Use dependency contract `panelization-v1`; block only dependent stages. |
 | `begin_transaction` | `begin_transaction` | `exact` | Use only when document capabilities allow it. |

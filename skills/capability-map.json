@@ -16,6 +16,10 @@
     "analyze_controlled_impedance_nets": {
       "runtime_tool": "analyze_controlled_impedance",
       "note": "Preliminary analytical microstrip review only; not a field solver."
+    },
+    "apply_panelization_plan": {
+      "runtime_tool": "set_panelization",
+      "note": "Applies official DipTrace panel parameters directly; there is no separate plan-apply split."
     }
   },
   "missing": {
@@ -25,8 +29,6 @@
     "create_or_update_pattern": "library-mutation-v1",
     "attach_pattern_to_component": "library-mutation-v1",
     "compare_library_revisions": "semantic-compare-v1",
-    "add_wire": "schematic-authoring-v1",
-    "add_net_label": "schematic-authoring-v1",
     "set_stackup": "board-structure-write-v1",
     "set_keepout": "board-structure-write-v1",
     "measure_geometry": "geometry-query-v1",
@@ -51,7 +53,6 @@
     "run_external_solver": "solver-adapter-v1",
     "analyze_panelization": "panelization-v1",
     "plan_panelization": "panelization-v1",
-    "apply_panelization_plan": "panelization-v1",
     "add_fiducials": "panelization-v1",
     "add_tooling_holes": "panelization-v1"
   },
@@ -63,6 +64,7 @@
     "route_net": "Bounded local 45-degree router without push-and-shove.",
     "route_diff_pair": "Bounded coupled route; no independent post-route tuning engine.",
     "generate_placement_candidates": "Bounded local candidates, not global placement.",
+    "sync_schematic_to_pcb": "Additive synchronization only; multi-part components need explicit pin-to-pad mappings and extra PCB objects/traces are preserved.",
     "get_findings": "Requires a report_id returned by a review; use the document findings resource for aggregate history.",
     "get_job_status": "Requires a jobid and cannot discover a job implicitly."
   },
