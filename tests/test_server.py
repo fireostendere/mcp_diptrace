@@ -39,6 +39,7 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert "plan_component_placement" in tool_names
             assert "score_placement" in tool_names
             assert "apply_component_placement_plan" in tool_names
+            assert "sync_schematic_to_pcb" in tool_names
             assert "add_trace" in tool_names
             assert "replace_trace" in tool_names
             assert "delete_trace" in tool_names

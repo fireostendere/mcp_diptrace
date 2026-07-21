@@ -136,18 +136,37 @@ def _coupled_microstrip_quasi_static(
     )
 
 
+def _stripline_quasi_static(values: ImpedanceInput) -> tuple[float, float]:
+    # IPC-2141 centered symmetric stripline. For this structure
+    # ``dielectric_height_mm`` is the total plane-to-plane separation B
+    # (B = 2H + T, trace centered between the two reference planes).
+    separation = values.dielectric_height_mm
+    width = values.width_mm
+    thickness = values.copper_thickness_mm
+    er = values.dielectric_constant
+    impedance = 60.0 / math.sqrt(er) * math.log(
+        1.9 * separation / (0.8 * width + thickness)
+    )
+    return impedance, er
+
+
 def _estimate(values: ImpedanceInput) -> tuple[float, float]:
     if values.structure == "microstrip":
         return _microstrip_quasi_static(values)
     if values.structure == "differential_microstrip":
         impedance, effective_er, _modal = _coupled_microstrip_quasi_static(values)
         return impedance, effective_er
+    if values.structure == "symmetric_stripline":
+        return _stripline_quasi_static(values)
     raise CapabilityUnavailableError(
-        "A verified symmetric-stripline implementation is not enabled; use an external "
-        "field solver.",
+        "The requested structure is not implemented.",
         details={
             "structure": values.structure,
-            "implemented_structures": ["microstrip", "differential_microstrip"],
+            "implemented_structures": [
+                "microstrip",
+                "differential_microstrip",
+                "symmetric_stripline",
+            ],
         },
     )
 
@@ -181,7 +200,45 @@ def calculate_impedance(values: ImpedanceInput) -> ImpedanceResult:
     normalized_width = values.width_mm / values.dielectric_height_mm
     warnings: list[str] = []
     modal: dict[str, float] = {}
-    if values.structure == "differential_microstrip":
+    if values.structure == "symmetric_stripline":
+        separation = values.dielectric_height_mm
+        free_height = separation - values.copper_thickness_mm
+        width_ratio = values.width_mm / free_height if free_height > 0 else math.inf
+        thickness_ratio = (
+            values.copper_thickness_mm / free_height if free_height > 0 else math.inf
+        )
+        within_validity = width_ratio < 0.35 and thickness_ratio < 0.25
+        if free_height <= 0:
+            warnings.append(
+                "Copper thickness meets or exceeds the plane-to-plane separation."
+            )
+        elif not within_validity:
+            warnings.append(
+                "Geometry is outside the published IPC-2141 stripline range "
+                "(W/(B-T) < 0.35 and T/(B-T) < 0.25)."
+            )
+        method = "IPC-2141 centered symmetric stripline (closed-form)"
+        validity: dict[str, Any] = {
+            "plane_to_plane_separation_mm": separation,
+            "width_over_free_height": width_ratio,
+            "thickness_over_free_height": thickness_ratio,
+            "published_range": {
+                "max_width_over_free_height": 0.35,
+                "max_thickness_over_free_height": 0.25,
+            },
+            "inside_published_range": within_validity,
+            "height_semantics": (
+                "dielectric_height_mm is the total plane-to-plane separation B = 2H + T"
+            ),
+        }
+        assumptions = [
+            "Trace is centered between two continuous ideal reference planes.",
+            "Homogeneous isotropic dielectric fills the entire plane separation.",
+            "Closed-form IPC-2141 estimate; typical accuracy is a few percent inside the "
+            "published range, not a field-solver result.",
+            "No solder mask, roughness, etch trapezoid or frequency dispersion.",
+        ]
+    elif values.structure == "differential_microstrip":
         assert values.gap_mm is not None
         normalized_gap = values.gap_mm / values.dielectric_height_mm
         within_validity = 0.1 <= normalized_width <= 10.0 and normalized_gap >= 0.01
@@ -196,7 +253,7 @@ def calculate_impedance(values: ImpedanceInput) -> ImpedanceResult:
                 "implementation."
             )
         method = "Hammerstad-Jensen quasi-static parallel coupled microstrip (zero thickness)"
-        validity: dict[str, Any] = {
+        validity = {
             "normalized_width": normalized_width,
             "normalized_gap": normalized_gap,
             "published_range": {
@@ -331,13 +388,52 @@ def synthesize_microstrip_width(
     }
 
 
+def _dielectric_run(
+    stackup: StackupModel, start: int, direction: int
+) -> tuple[list[Any], int]:
+    """Collect consecutive dielectric layers from ``start`` towards a reference."""
+
+    dielectric_layers: list[Any] = []
+    cursor = start
+    while 0 <= cursor < len(stackup.layers):
+        candidate = stackup.layers[cursor]
+        if candidate.material.material_type == "dielectric":
+            dielectric_layers.append(candidate)
+            cursor += direction
+            continue
+        if candidate.material.material_type in {"conductor", "plane"}:
+            break
+        cursor += direction
+    return dielectric_layers, cursor
+
+
+def _uniform_dielectric(
+    layers: list[Any],
+) -> tuple[float, float] | None:
+    """Total thickness and Dk when the dielectric run is fully specified."""
+
+    constants = {
+        item.material.dielectric_constant
+        for item in layers
+        if item.material.dielectric_constant is not None
+    }
+    if len(constants) != 1 or any(item.material.thickness_mm is None for item in layers):
+        return None
+    return (
+        sum(item.material.thickness_mm or 0.0 for item in layers),
+        next(iter(constants)),
+    )
+
+
 def analyze_stackup(stackup: StackupModel) -> dict[str, Any]:
     candidates: list[dict[str, Any]] = []
+    stripline_candidates: list[dict[str, Any]] = []
     limitations: list[str] = []
     if stackup.source == "missing":
         return {
             "stackup": stackup.model_dump(mode="json"),
             "microstrip_candidates": [],
+            "stripline_candidates": [],
             "limitations": ["LayerStackItems are missing."],
         }
     for index, layer in enumerate(stackup.layers):
@@ -349,52 +445,83 @@ def analyze_stackup(stackup: StackupModel) -> dict[str, Any]:
         if index == len(stackup.layers) - 1:
             directions.append(-1)
         if not directions:
-            limitations.append(
-                f"{layer.layer_name or layer.layer_id}: internal stripline needs a verified "
-                "stripline model or field solver."
-            )
+            below, below_cursor = _dielectric_run(stackup, index - 1, -1)
+            above, above_cursor = _dielectric_run(stackup, index + 1, 1)
+            below_ref = 0 <= below_cursor < len(stackup.layers)
+            above_ref = 0 <= above_cursor < len(stackup.layers)
+            below_uniform = _uniform_dielectric(below)
+            above_uniform = _uniform_dielectric(above)
+            if (
+                below
+                and above
+                and below_ref
+                and above_ref
+                and below_uniform is not None
+                and above_uniform is not None
+                and below_uniform[1] == above_uniform[1]
+            ):
+                below_height, _ = below_uniform
+                above_height, dielectric_constant = above_uniform
+                reference_below = stackup.layers[below_cursor]
+                reference_above = stackup.layers[above_cursor]
+                plane_confidence = (
+                    "high"
+                    if {
+                        reference_below.material.material_type,
+                        reference_above.material.material_type,
+                    }
+                    == {"plane"}
+                    else "low"
+                )
+                stripline_candidates.append(
+                    {
+                        "signal_layer": layer.layer_name or layer.layer_id,
+                        "reference_layers": [
+                            reference_below.layer_name or reference_below.layer_id,
+                            reference_above.layer_name or reference_above.layer_id,
+                        ],
+                        "copper_thickness_mm": layer.material.thickness_mm,
+                        "plane_to_plane_separation_mm": below_height + above_height,
+                        "off_center_mm": abs(above_height - below_height) / 2.0,
+                        "dielectric_constant": dielectric_constant,
+                        "reference_plane_confidence": plane_confidence,
+                        "height_semantics": (
+                            "plane_to_plane_separation_mm feeds dielectric_height_mm "
+                            "for symmetric_stripline"
+                        ),
+                        "preliminary_only": True,
+                    }
+                )
+            else:
+                limitations.append(
+                    f"{layer.layer_name or layer.layer_id}: internal stripline needs "
+                    "symmetric dielectrics with known thickness/Dk on both sides."
+                )
             continue
         for direction in directions:
-            dielectric_layers: list[Any] = []
-            cursor = index + direction
-            while 0 <= cursor < len(stackup.layers):
-                candidate = stackup.layers[cursor]
-                if candidate.material.material_type == "dielectric":
-                    dielectric_layers.append(candidate)
-                    cursor += direction
-                    continue
-                if candidate.material.material_type in {"conductor", "plane"}:
-                    break
-                cursor += direction
+            dielectric_layers, cursor = _dielectric_run(stackup, index + direction, direction)
             if not dielectric_layers or not (0 <= cursor < len(stackup.layers)):
                 limitations.append(
                     f"{layer.layer_name or layer.layer_id}: no dielectric/reference layer "
                     "sequence is available."
                 )
                 continue
-            dielectric_constants = {
-                item.material.dielectric_constant
-                for item in dielectric_layers
-                if item.material.dielectric_constant is not None
-            }
-            if len(dielectric_constants) != 1 or any(
-                item.material.thickness_mm is None for item in dielectric_layers
-            ):
+            uniform = _uniform_dielectric(dielectric_layers)
+            if uniform is None:
                 limitations.append(
                     f"{layer.layer_name or layer.layer_id}: dielectric thickness/Dk is "
                     "missing or heterogeneous."
                 )
                 continue
+            dielectric_height, dielectric_constant = uniform
             reference = stackup.layers[cursor]
             candidates.append(
                 {
                     "signal_layer": layer.layer_name or layer.layer_id,
                     "reference_layer": reference.layer_name or reference.layer_id,
                     "copper_thickness_mm": layer.material.thickness_mm,
-                    "dielectric_height_mm": sum(
-                        item.material.thickness_mm or 0.0 for item in dielectric_layers
-                    ),
-                    "dielectric_constant": next(iter(dielectric_constants)),
+                    "dielectric_height_mm": dielectric_height,
+                    "dielectric_constant": dielectric_constant,
                     "reference_plane_confidence": (
                         "high" if reference.material.material_type == "plane" else "low"
                     ),
@@ -404,5 +531,6 @@ def analyze_stackup(stackup: StackupModel) -> dict[str, Any]:
     return {
         "stackup": stackup.model_dump(mode="json"),
         "microstrip_candidates": candidates,
+        "stripline_candidates": stripline_candidates,
         "limitations": limitations,
     }

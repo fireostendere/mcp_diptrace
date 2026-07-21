@@ -378,6 +378,192 @@ class SetViaStyleOperation(SelectorOperation):
     via_style: str = Field(min_length=1, max_length=256)
 
 
+class AddSheetOperation(SemanticOperation):
+    kind: Literal["add_sheet"] = "add_sheet"
+    name: str = Field(min_length=1, max_length=256)
+    sheet_type: Literal["Normal", "Hierarchy Block"] = "Normal"
+
+
+class PlacePartOperation(SemanticOperation):
+    kind: Literal["place_part"] = "place_part"
+    component_style: str = Field(min_length=1, max_length=1_000)
+    refdes: str = Field(min_length=1, max_length=256)
+    name: str | None = Field(default=None, max_length=1_000)
+    value: str = Field(default="", max_length=4_096)
+    x: float = Field(allow_inf_nan=False)
+    y: float = Field(allow_inf_nan=False)
+    sheet: int = Field(default=0, ge=0)
+    pin_count: int = Field(ge=0, le=10_000)
+    angle_deg: float = Field(default=0.0, allow_inf_nan=False)
+    component_part: int = Field(default=0, ge=0)
+    part_number: int = Field(default=0, ge=0)
+    part_refdes: str | None = Field(default=None, max_length=256)
+    part_name: str | None = Field(default=None, max_length=1_000)
+    allow_shared_refdes: bool = False
+
+
+class PcbSyncComponent(StrictModel):
+    refdes: str = Field(min_length=1, max_length=256)
+    name: str = Field(default="", max_length=1_000)
+    value: str = Field(default="", max_length=4_096)
+    pattern_style: str = Field(min_length=1, max_length=1_000)
+    x: float = Field(allow_inf_nan=False)
+    y: float = Field(allow_inf_nan=False)
+    side: Literal["Top", "Bottom"] = "Top"
+    pad_numbers: list[str] = Field(min_length=1, max_length=10_000)
+    fields: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("pad_numbers")
+    @classmethod
+    def validate_pad_numbers(cls, values: list[str]) -> list[str]:
+        normalized = [value.strip() for value in values]
+        if any(not value for value in normalized):
+            raise ValueError("PCB pad numbers cannot be empty")
+        if len({value.casefold() for value in normalized}) != len(normalized):
+            raise ValueError("PCB pad numbers must be unique within a component")
+        return normalized
+
+
+class PcbSyncEndpoint(StrictModel):
+    refdes: str = Field(min_length=1, max_length=256)
+    pad_number: str = Field(min_length=1, max_length=256)
+
+
+class PcbSyncNet(StrictModel):
+    name: str = Field(min_length=1, max_length=1_000)
+    endpoints: list[PcbSyncEndpoint] = Field(min_length=1, max_length=100_000)
+
+
+class SyncSchematicToPcbOperation(SemanticOperation):
+    kind: Literal["sync_schematic_to_pcb"] = "sync_schematic_to_pcb"
+    schematic_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    components: list[PcbSyncComponent] = Field(min_length=1, max_length=10_000)
+    nets: list[PcbSyncNet] = Field(default_factory=list, max_length=100_000)
+    pattern_xml: list[str] = Field(default_factory=list, max_length=10_000)
+    pad_style_xml: list[str] = Field(default_factory=list, max_length=10_000)
+    update_existing_properties: bool = True
+    create_ratlines: bool = True
+    allow_reconnect: bool = False
+
+    @model_validator(mode="after")
+    def validate_unique_names(self) -> SyncSchematicToPcbOperation:
+        refdes = [item.refdes.casefold() for item in self.components]
+        if len(set(refdes)) != len(refdes):
+            raise ValueError("sync components must have unique RefDes values")
+        nets = [item.name.casefold() for item in self.nets]
+        if len(set(nets)) != len(nets):
+            raise ValueError("sync nets must have unique names")
+        definitions = [*self.pattern_xml, *self.pad_style_xml]
+        if sum(len(item) for item in definitions) > 64 * 1024 * 1024:
+            raise ValueError("embedded pattern definitions exceed 64 MiB")
+        if any(
+            "<!doctype" in item.casefold() or "<!entity" in item.casefold()
+            for item in definitions
+        ):
+            raise ValueError("DTD and ENTITY declarations are forbidden in pattern definitions")
+        return self
+
+
+class PinEndpoint(StrictModel):
+    refdes: str | None = Field(default=None, min_length=1, max_length=256)
+    part_id: str | None = Field(default=None, min_length=1, max_length=512)
+    pin: int = Field(ge=0, le=100_000)
+
+    @model_validator(mode="after")
+    def require_single_reference(self) -> PinEndpoint:
+        if (self.refdes is None) == (self.part_id is None):
+            raise ValueError("exactly one of refdes or part_id is required")
+        return self
+
+
+class ConnectPinsOperation(SemanticOperation):
+    kind: Literal["connect_pins"] = "connect_pins"
+    net: str = Field(min_length=1, max_length=1_000)
+    pins: list[PinEndpoint] = Field(min_length=1, max_length=10_000)
+    allow_reconnect: bool = False
+
+
+class DisconnectPinsOperation(SelectorOperation):
+    kind: Literal["disconnect_pins"] = "disconnect_pins"
+
+
+class WireEndpoint(StrictModel):
+    type: Literal["Pin", "Wire", "Free"]
+    refdes: str | None = Field(default=None, min_length=1, max_length=256)
+    part_id: str | None = Field(default=None, min_length=1, max_length=512)
+    pin: int | None = Field(default=None, ge=0, le=100_000)
+    wire_id: str | None = Field(default=None, min_length=1, max_length=512)
+    point_index: int | None = Field(default=None, ge=0, le=100_000)
+
+    @model_validator(mode="after")
+    def validate_reference(self) -> WireEndpoint:
+        if self.type == "Pin":
+            if (self.refdes is None) == (self.part_id is None):
+                raise ValueError("a Pin endpoint requires exactly one of refdes or part_id")
+            if self.pin is None:
+                raise ValueError("a Pin endpoint requires a pin index")
+        elif self.type == "Wire":
+            if self.wire_id is None:
+                raise ValueError("a Wire endpoint requires wire_id")
+        return self
+
+
+class WirePathPoint(StrictModel):
+    x: float = Field(allow_inf_nan=False)
+    y: float = Field(allow_inf_nan=False)
+
+
+class AddWireOperation(SemanticOperation):
+    kind: Literal["add_wire"] = "add_wire"
+    net: str = Field(min_length=1, max_length=1_000)
+    sheet: int = Field(default=0, ge=0)
+    points: list[WirePathPoint] = Field(min_length=2, max_length=10_000)
+    start: WireEndpoint
+    end: WireEndpoint
+    hidden_power: bool = False
+
+
+class DeleteWireOperation(SelectorOperation):
+    kind: Literal["delete_wire"] = "delete_wire"
+
+
+class AddNetLabelOperation(SemanticOperation):
+    kind: Literal["add_net_label"] = "add_net_label"
+    net: str = Field(min_length=1, max_length=1_000)
+    x: float = Field(allow_inf_nan=False)
+    y: float = Field(allow_inf_nan=False)
+    sheet: int = Field(default=0, ge=0)
+    text: str | None = Field(default=None, min_length=1, max_length=1_000)
+    font_size: int = Field(default=10, ge=1, le=1_000)
+
+
+class SetPanelizationOperation(SemanticOperation):
+    kind: Literal["set_panelization"] = "set_panelization"
+    panel_type: Literal["V-Scoring", "Tab Routing"] = "V-Scoring"
+    columns: int = Field(default=2, ge=1, le=100)
+    rows: int = Field(default=1, ge=1, le=100)
+    column_spacing: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
+    row_spacing: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
+    rail_left: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
+    rail_right: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
+    rail_top: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
+    rail_bottom: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
+    tab_width: float = Field(default=13.5, gt=0.0, le=500.0, allow_inf_nan=False)
+    tab_radius: float = Field(default=3.6, ge=0.0, le=100.0, allow_inf_nan=False)
+    tab_step: float = Field(default=225.0, gt=0.0, le=10_000.0, allow_inf_nan=False)
+    hole_diameter: float = Field(default=2.4, gt=0.0, le=100.0, allow_inf_nan=False)
+    hole_step: float = Field(default=3.6, gt=0.0, le=1_000.0, allow_inf_nan=False)
+    hole_inset: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
+    hole_keepout: float = Field(default=3.0, ge=0.0, le=500.0, allow_inf_nan=False)
+    combined_radius: float = Field(default=1.5, ge=0.0, le=100.0, allow_inf_nan=False)
+    keep_material: bool = False
+    border_tabs: Literal[0, 1, 2] = 0
+
+
+class ClearPanelizationOperation(SemanticOperation):
+    kind: Literal["clear_panelization"] = "clear_panelization"
+
+
 _OPERATION_TYPES: dict[str, type[SemanticOperation]] = {
     "move_components": MoveComponentsOperation,
     "rotate_components": RotateComponentsOperation,
@@ -408,6 +594,16 @@ _OPERATION_TYPES: dict[str, type[SemanticOperation]] = {
     "move_via": MoveViaOperation,
     "delete_via": DeleteViaOperation,
     "set_via_style": SetViaStyleOperation,
+    "add_sheet": AddSheetOperation,
+    "place_part": PlacePartOperation,
+    "sync_schematic_to_pcb": SyncSchematicToPcbOperation,
+    "connect_pins": ConnectPinsOperation,
+    "disconnect_pins": DisconnectPinsOperation,
+    "add_wire": AddWireOperation,
+    "delete_wire": DeleteWireOperation,
+    "add_net_label": AddNetLabelOperation,
+    "set_panelization": SetPanelizationOperation,
+    "clear_panelization": ClearPanelizationOperation,
 }
 
 

@@ -126,11 +126,73 @@ class FreeroutingAdapter:
         return command
 
 
+@dataclass(frozen=True, slots=True)
+class NgSpiceProbe:
+    available: bool
+    executable: str | None
+    reason: str | None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "available": self.available,
+            "executable": self.executable,
+            "reason": self.reason,
+            "cli_contract": "ngspice -b input.cir (batch mode, log on stdout)",
+        }
+
+
+class NgSpiceAdapter:
+    """Bounded ngspice batch adapter for user-supplied netlists."""
+
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+
+    def probe(self) -> NgSpiceProbe:
+        executable = self.settings.ngspice_executable
+        if executable is None:
+            return NgSpiceProbe(
+                False, None, "DIPTRACE_MCP_NGSPICE is not configured and ngspice is not on PATH."
+            )
+        if not executable.is_file():
+            return NgSpiceProbe(
+                False, str(executable), "Configured ngspice executable does not exist."
+            )
+        if os.name != "nt" and not os.access(executable, os.X_OK):
+            return NgSpiceProbe(False, str(executable), "Configured executable is not executable.")
+        return NgSpiceProbe(True, str(executable), None)
+
+    def command(self, netlist_path: Path) -> list[str]:
+        probe = self.probe()
+        if not probe.available or probe.executable is None:
+            raise ExternalToolUnavailableError(
+                probe.reason or "ngspice is unavailable", details=probe.as_dict()
+            )
+        return [probe.executable, "-b", str(netlist_path)]
+
+
+_DATA_ROWS = re.compile(r"No\.\s*of\s*Data\s*Rows\s*:\s*(\d+)", re.IGNORECASE)
+_NGSPICE_ERROR = re.compile(r"^\s*(?:Error|Fatal error).*$", re.IGNORECASE | re.MULTILINE)
+
+
+def parse_ngspice_log(log: bytes, *, max_errors: int = 50) -> dict[str, Any]:
+    """Extract a typed summary from an ngspice batch log."""
+
+    text = log.decode("utf-8", errors="replace")
+    data_rows = [int(value) for value in _DATA_ROWS.findall(text)]
+    errors = [line.strip() for line in _NGSPICE_ERROR.findall(text)][:max_errors]
+    return {
+        "data_rows": data_rows,
+        "error_lines": errors,
+        "log_size_bytes": len(log),
+    }
+
+
 class ExternalJobManager:
     def __init__(self, settings: Settings, store: JobStore) -> None:
         self.settings = settings
         self.store = store
         self.freerouting = FreeroutingAdapter(settings)
+        self.ngspice = NgSpiceAdapter(settings)
         self._processes: dict[str, subprocess.Popen[bytes]] = {}
         self._cancel: dict[str, threading.Event] = {}
         self._lock = threading.RLock()
@@ -236,6 +298,66 @@ class ExternalJobManager:
         thread = threading.Thread(
             target=self._run,
             args=(record.jobid, command, output_path, timeout, cancel),
+            name=f"diptrace-{record.jobid}",
+            daemon=True,
+        )
+        thread.start()
+        return record
+
+    def start_ngspice(
+        self,
+        info: DocumentInfo | None,
+        target_path: Path | None,
+        netlist: bytes,
+        *,
+        timeout_seconds: int | None,
+    ) -> JobRecord:
+        probe = self.ngspice.probe()
+        if not probe.available:
+            raise ExternalToolUnavailableError(
+                probe.reason or "ngspice is unavailable", details=probe.as_dict()
+            )
+        if not netlist.strip():
+            raise ExternalToolFailedError("The ngspice netlist is empty")
+        timeout = timeout_seconds or self.settings.external_timeout_seconds
+        if not 1 <= timeout <= self.settings.external_timeout_seconds:
+            raise ExternalToolFailedError(
+                f"timeout_seconds must be between 1 and {self.settings.external_timeout_seconds}"
+            )
+        record = self.store.create(
+            job_type="ngspice",
+            document_id=info.document_id if info is not None else None,
+            source_sha256=info.sha256 if info is not None else None,
+            target_path=target_path,
+        )
+        input_path = self.store.store_artifact(record.jobid, "input.cir", netlist)
+        command = self.ngspice.command(input_path)
+        manifest = {
+            "adapter": "ngspice",
+            "document_id": info.document_id if info is not None else None,
+            "source_sha256": info.sha256 if info is not None else None,
+            "netlist_sha256": sha256_bytes(netlist),
+            "options": {"timeout_seconds": timeout},
+        }
+        self.store.store_artifact(
+            record.jobid,
+            "manifest.json",
+            json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
+        )
+        record = self.store.update(
+            record.jobid,
+            command=command,
+            artifacts={
+                "netlist": f"diptrace://job/{record.jobid}/input.cir",
+                "manifest": f"diptrace://job/{record.jobid}/manifest.json",
+            },
+        )
+        cancel = threading.Event()
+        with self._lock:
+            self._cancel[record.jobid] = cancel
+        thread = threading.Thread(
+            target=self._run_ngspice,
+            args=(record.jobid, command, timeout, cancel),
             name=f"diptrace-{record.jobid}",
             daemon=True,
         )
@@ -362,6 +484,114 @@ class ExternalJobManager:
                 completed_at=utc_now(),
                 error=ExternalToolFailedError(
                     f"Could not execute Freerouting: {exc}", jobid=jobid
+                ).payload.as_dict(),
+            )
+        finally:
+            with self._lock:
+                self._processes.pop(jobid, None)
+                self._cancel.pop(jobid, None)
+
+    def _run_ngspice(
+        self,
+        jobid: str,
+        command: list[str],
+        timeout: int,
+        cancel: threading.Event,
+    ) -> None:
+        started = time.monotonic()
+        log_path = self.store.artifact_path(jobid, "log.txt")
+        self.store.update(
+            jobid,
+            status="running",
+            phase="external_execution",
+            progress=0.05,
+            started_at=utc_now(),
+        )
+        allowed_env = {
+            key: value
+            for key, value in os.environ.items()
+            if key in {"PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP"}
+        }
+        try:
+            with log_path.open("wb") as log:
+                process = subprocess.Popen(
+                    command,
+                    cwd=self.store.job_dir(jobid),
+                    stdin=subprocess.DEVNULL,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    shell=False,
+                    env=allowed_env,
+                )
+                with self._lock:
+                    self._processes[jobid] = process
+                while process.poll() is None:
+                    elapsed = time.monotonic() - started
+                    if cancel.is_set():
+                        process.terminate()
+                        try:
+                            process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                        raise JobCancelledError("ngspice job was cancelled", jobid=jobid)
+                    if elapsed > timeout:
+                        process.kill()
+                        raise JobTimeoutError(
+                            f"ngspice exceeded {timeout} seconds", jobid=jobid
+                        )
+                    self.store.update(jobid, elapsed_seconds=elapsed, progress=0.1)
+                    time.sleep(0.1)
+                return_code = process.returncode
+            elapsed = time.monotonic() - started
+            self._bound_log(log_path)
+            log_bytes = log_path.read_bytes() if log_path.is_file() else b""
+            summary = parse_ngspice_log(log_bytes)
+            if return_code != 0 or summary["error_lines"]:
+                raise ExternalToolFailedError(
+                    "ngspice reported a simulation failure",
+                    details={
+                        "return_code": return_code,
+                        "error_lines": summary["error_lines"],
+                    },
+                    jobid=jobid,
+                )
+            self.store.update(
+                jobid,
+                status="completed",
+                phase="completed",
+                progress=1.0,
+                elapsed_seconds=elapsed,
+                completed_at=utc_now(),
+                artifacts={
+                    **self.store.read(jobid).artifacts,
+                    "log": f"diptrace://job/{jobid}/log",
+                },
+                result={
+                    "return_code": return_code,
+                    **summary,
+                    "resources": job_resources(jobid),
+                },
+            )
+        except (JobCancelledError, JobTimeoutError, ExternalToolFailedError) as exc:
+            self._bound_log(log_path)
+            status = "cancelled" if isinstance(exc, JobCancelledError) else "failed"
+            self.store.update(
+                jobid,
+                status=status,
+                phase=status,
+                elapsed_seconds=time.monotonic() - started,
+                completed_at=utc_now(),
+                error=exc.payload.as_dict(),
+            )
+        except OSError as exc:
+            self.store.update(
+                jobid,
+                status="failed",
+                phase="failed",
+                elapsed_seconds=time.monotonic() - started,
+                completed_at=utc_now(),
+                error=ExternalToolFailedError(
+                    f"Could not execute ngspice: {exc}", jobid=jobid
                 ).payload.as_dict(),
             )
         finally:

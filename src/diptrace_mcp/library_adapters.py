@@ -56,6 +56,14 @@ def _center_bbox(x: float, y: float, width: float, height: float) -> BBox:
     return BBox(x - width / 2.0, y - height / 2.0, x + width / 2.0, y + height / 2.0)
 
 
+def _point_elements(element: ET.Element) -> list[ET.Element]:
+    """Return points used by both documented and observed DipTrace exports."""
+    points = element.find("./Points")
+    if points is None:
+        return []
+    return [item for item in points if item.tag in {"Point", "Item"}]
+
+
 def _pad_geometry(
     style: LibraryPadStyle | None,
     x: float,
@@ -178,6 +186,8 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
             height = to_mm(_number(main, "Height"), units)
         hole = element.get("Hole")
         hole_height = element.get("HoleH")
+        hole_width_mm = to_mm(float(hole), units) if hole else None
+        hole_height_mm = to_mm(float(hole_height), units) if hole_height else None
         mask = element.find("./MaskPaste")
         polygon_points = (
             [
@@ -185,7 +195,7 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
                     "x": to_mm(_number(point, "X"), units),
                     "y": to_mm(_number(point, "Y"), units),
                 }
-                for point in main.findall("./Points/Item")
+                for point in _point_elements(main)
             ]
             if main is not None
             else []
@@ -223,8 +233,18 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
                 ),
                 polygon_points=polygon_points,
                 hole_type=element.get("HoleType"),
-                hole_width=to_mm(float(hole), units) if hole else None,
-                hole_height=to_mm(float(hole_height), units) if hole_height else None,
+                # Observed 5.2 design caches use negative drill values as a
+                # sentinel on unused/generated styles, not physical geometry.
+                hole_width=(
+                    hole_width_mm
+                    if hole_width_mm is not None and hole_width_mm >= 0
+                    else None
+                ),
+                hole_height=(
+                    hole_height_mm
+                    if hole_height_mm is not None and hole_height_mm >= 0
+                    else None
+                ),
                 mask_paste=dict(mask.attrib) if mask is not None else {},
                 mask_paste_segments=segments,
                 custom_swell=(
@@ -249,7 +269,7 @@ def _pattern_bbox(
 ) -> dict[str, float] | None:
     boxes = [BBox(**pad.bbox) for pad in pads if pad.bbox is not None]
     for shape in pattern.findall("./Shapes/Shape"):
-        points = shape.findall("./Points/Item")
+        points = _point_elements(shape)
         coordinates = [
             Point(to_mm(_number(point, "X"), units), to_mm(_number(point, "Y"), units))
             for point in points
@@ -328,7 +348,7 @@ def _patterns(
                         "x": to_mm(_number(point, "X"), document.units),
                         "y": to_mm(_number(point, "Y"), document.units),
                     }
-                    for point in shape.findall("./Points/Item")
+                    for point in _point_elements(shape)
                 ],
                 "lines": [item.text or "" for item in shape.findall("./Lines/Item")],
             }
@@ -483,7 +503,7 @@ def get_embedded_pattern_model(document: DipTraceDocument) -> LibraryModel | Non
     pattern_root = next(
         (
             item
-            for item in document.root.findall("./Library")
+            for item in document.root.iter("Library")
             if item.find("./Patterns") is not None or item.find("./PadStyles") is not None
         ),
         None,

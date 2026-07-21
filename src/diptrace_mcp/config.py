@@ -105,6 +105,7 @@ class Settings:
     max_scan_files: int = 500
     freerouting_executable: Path | None = None
     java_executable: Path | None = None
+    ngspice_executable: Path | None = None
     external_timeout_seconds: int = 3600
     max_external_log_bytes: int = 4 * 1024 * 1024
     active_policy: PolicyProfile = "interactive_edit"
@@ -128,6 +129,9 @@ class Settings:
         java_raw = os.environ.get("DIPTRACE_MCP_JAVA")
         java_found = java_raw or shutil.which("java")
         java = platform_path(java_found).resolve() if java_found else None
+        ngspice_raw = os.environ.get("DIPTRACE_MCP_NGSPICE")
+        ngspice_found = ngspice_raw or shutil.which("ngspice")
+        ngspice = platform_path(ngspice_found).resolve() if ngspice_found else None
         return cls(
             workspace=workspace,
             allowed_roots=unique_roots,
@@ -138,6 +142,7 @@ class Settings:
             max_scan_files=_positive_int("DIPTRACE_MCP_MAX_SCAN_FILES", 500),
             freerouting_executable=freerouting,
             java_executable=java,
+            ngspice_executable=ngspice,
             external_timeout_seconds=_positive_int(
                 "DIPTRACE_MCP_EXTERNAL_TIMEOUT", 3600
             ),
@@ -173,6 +178,9 @@ class Settings:
                 str(self.freerouting_executable) if self.freerouting_executable else None
             ),
             "java_executable": str(self.java_executable) if self.java_executable else None,
+            "ngspice_executable": (
+                str(self.ngspice_executable) if self.ngspice_executable else None
+            ),
             "external_timeout_seconds": self.external_timeout_seconds,
             "max_external_log_bytes": self.max_external_log_bytes,
             "active_policy": self.active_policy,

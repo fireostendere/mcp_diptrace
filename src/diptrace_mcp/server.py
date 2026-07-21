@@ -192,6 +192,35 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         return service.compare_schematic_to_pcb(schematic_path, pcb_path)
 
     @mcp.tool()
+    def sync_schematic_to_pcb(
+        schematic_path: str,
+        pcb_path: str,
+        component_mappings: list[dict[str, Any]] | None = None,
+        placement: dict[str, Any] | None = None,
+        pattern_library_paths: list[str] | None = None,
+        update_existing_properties: bool = True,
+        create_ratlines: bool = True,
+        allow_reconnect: bool = False,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Additively synchronize schematic components, nets and ratlines into a PCB."""
+        return service.sync_schematic_to_pcb(
+            schematic_path,
+            pcb_path,
+            component_mappings=component_mappings,
+            placement=placement,
+            pattern_library_paths=pattern_library_paths,
+            update_existing_properties=update_existing_properties,
+            create_ratlines=create_ratlines,
+            allow_reconnect=allow_reconnect,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+        )
+
+    @mcp.tool()
     def export_bom(
         path: str | None = None, include_dnp: bool = True
     ) -> dict[str, Any]:
@@ -314,6 +343,28 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         """Preview edits, or write them with the preview SHA-256, match guards and backups."""
         operations = [XmlEdit(**edit.model_dump()) for edit in edits]
         return service.apply_edits(operations, path, dry_run, expected_sha256)
+
+    @mcp.tool()
+    def create_schematic_document(
+        path: str,
+        sheets: list[str] | None = None,
+        units: str = "mm",
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
+        """Create a new DipTrace Schematic XML document inside the workspace."""
+        return service.create_document(
+            "schematic", path, sheets=sheets, units=units, overwrite=overwrite
+        )
+
+    @mcp.tool()
+    def create_pcb_document(
+        path: str,
+        pcb: dict[str, Any] | None = None,
+        units: str = "mm",
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
+        """Create a new DipTrace PCB XML document (outline, layers, stackup, rules)."""
+        return service.create_document("pcb", path, pcb=pcb, units=units, overwrite=overwrite)
 
     @mcp.tool()
     def begin_transaction(
@@ -758,6 +809,155 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         return service.rename_net(
             selector, new_name, path, dry_run, expected_sha256, txid
         )
+
+    @mcp.tool()
+    def add_sheet(
+        name: str,
+        sheet_type: str = "Normal",
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Add a new sheet to a schematic document."""
+        return service.add_sheet(name, sheet_type, path, dry_run, expected_sha256, txid)
+
+    @mcp.tool()
+    def place_part(
+        component_style: str,
+        refdes: str,
+        x: float,
+        y: float,
+        pin_count: int,
+        name: str | None = None,
+        value: str = "",
+        sheet: int = 0,
+        angle_deg: float = 0.0,
+        component_part: int = 0,
+        part_number: int = 0,
+        part_refdes: str | None = None,
+        part_name: str | None = None,
+        allow_shared_refdes: bool = False,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Place a new schematic part referencing a library ComponentStyle."""
+        return service.place_part(
+            component_style,
+            refdes,
+            x,
+            y,
+            pin_count=pin_count,
+            name=name,
+            value=value,
+            sheet=sheet,
+            angle_deg=angle_deg,
+            component_part=component_part,
+            part_number=part_number,
+            part_refdes=part_refdes,
+            part_name=part_name,
+            allow_shared_refdes=allow_shared_refdes,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+        )
+
+    @mcp.tool()
+    def connect_pins(
+        net: str,
+        pins: list[dict[str, Any]],
+        allow_reconnect: bool = False,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Connect part pins to a net; the net is created when missing."""
+        return service.connect_pins(
+            net, pins, allow_reconnect, path, dry_run, expected_sha256, txid
+        )
+
+    @mcp.tool()
+    def disconnect_pins(
+        selector: dict[str, Any] | None = None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Disconnect selected schematic pins from their nets."""
+        return service.disconnect_pins(selector, path, dry_run, expected_sha256, txid)
+
+    @mcp.tool()
+    def add_wire(
+        net: str,
+        points: list[dict[str, Any]],
+        start: dict[str, Any],
+        end: dict[str, Any],
+        sheet: int = 0,
+        hidden_power: bool = False,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Add a wire to a schematic net (official Wire/Points XML structure)."""
+        return service.add_wire(
+            net, points, start, end, sheet, hidden_power, path, dry_run, expected_sha256, txid
+        )
+
+    @mcp.tool()
+    def delete_wire(
+        selector: dict[str, Any] | None = None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Delete selected schematic wires without touching net connectivity."""
+        return service.delete_wire(selector, path, dry_run, expected_sha256, txid)
+
+    @mcp.tool()
+    def add_net_label(
+        net: str,
+        x: float,
+        y: float,
+        sheet: int = 0,
+        text: str | None = None,
+        font_size: int = 10,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Add a net-bound text label shape to a schematic sheet."""
+        return service.add_net_label(
+            net, x, y, sheet, text, font_size, path, dry_run, expected_sha256, txid
+        )
+
+    @mcp.tool()
+    def set_panelization(
+        panel: dict[str, Any],
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Set official DipTrace panelization parameters on a PCB document."""
+        return service.set_panelization(panel, path, dry_run, expected_sha256, txid)
+
+    @mcp.tool()
+    def clear_panelization(
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Remove panelization settings from a PCB document."""
+        return service.clear_panelization(path, dry_run, expected_sha256, txid)
 
     @mcp.tool()
     def update_net_class_rules(
@@ -1570,6 +1770,27 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         )
 
     @mcp.tool()
+    def route_connections(
+        connections: list[dict[str, Any]],
+        ripup_retry: bool = True,
+        max_ripup_attempts: int = 4,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Route multiple connections sequentially with bounded rip-up/retry."""
+        return service.route_connections(
+            connections,
+            ripup_retry=ripup_retry,
+            max_ripup_attempts=max_ripup_attempts,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+        )
+
+    @mcp.tool()
     def route_diff_pair(
         pair: str,
         layer: str,
@@ -1738,6 +1959,21 @@ def create_server(settings: Settings | None = None) -> FastMCP:
             dry_run=dry_run,
             expected_sha256=expected_sha256,
             txid=txid,
+        )
+
+    @mcp.tool()
+    def run_ngspice_simulation(
+        netlist: str | None = None,
+        netlist_path: str | None = None,
+        path: str | None = None,
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Run a user-supplied ngspice netlist in batch mode (requires DIPTRACE_MCP_NGSPICE)."""
+        return service.run_ngspice_simulation(
+            netlist=netlist,
+            netlist_path=netlist_path,
+            path=path,
+            timeout_seconds=timeout_seconds,
         )
 
     @mcp.tool()
@@ -2184,6 +2420,17 @@ def create_server(settings: Settings | None = None) -> FastMCP:
             "model decides whether differences are intentional. Stop before edits on ambiguous "
             "pin-to-pad "
             "mapping or source SHA changes."
+        )
+
+    @mcp.prompt()
+    def synchronize_schematic_to_pcb(schematic_path: str, pcb_path: str) -> str:
+        return (
+            f"Synchronize schematic={schematic_path} into PCB={pcb_path}. First call "
+            "compare_schematic_to_pcb and inspect component libraries. Supply explicit "
+            "pattern_style and multi-part pin_map entries wherever XML evidence is missing. "
+            "Call sync_schematic_to_pcb with dry_run=true, inspect the XML/SVG preview and "
+            "commit with the returned source SHA only after pin-to-pad mapping is complete. "
+            "Then legalize placement and rerun connectivity and DRC."
         )
 
     return mcp

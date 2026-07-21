@@ -124,3 +124,87 @@ def test_pcb_embedded_pattern_library_drives_exact_pad_geometry() -> None:
     assert all(item.bbox is not None for item in r1_pads)
     assert all(item.geometry_source == "embedded-pattern-library" for item in r1_pads)
     assert r1.geometry_source == "embedded-pattern-library"
+
+
+def test_nested_52_pattern_cache_and_legacy_testpoint_are_normalized() -> None:
+    document = DipTraceDocument.from_bytes(
+        FIXTURES / "nested-cache-pcb.xml",
+        b"""<?xml version="1.0" encoding="UTF-8"?>
+<Source Type="DipTrace-PCB" Version="5.2.0.4" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary" Version="5.2.0.4" Units="mm">
+    <Library Type="DipTrace-PatternLibrary" Version="5.2.0.4" Units="mm">
+      <PadStyles>
+        <PadStyle Name="Unused" Type="Through" HoleType="Round" Hole="-0.3333">
+          <MainStack Shape="Ellipse" Width="0" Height="0" />
+        </PadStyle>
+        <PadStyle Name="SMD" Type="Surface" Side="Top">
+          <MainStack Shape="Polygon" Width="1" Height="1">
+            <Points>
+              <Point X="-0.5" Y="-0.5"/><Point X="0.5" Y="-0.5"/>
+              <Point X="0.5" Y="0.5"/><Point X="-0.5" Y="0.5"/>
+            </Points>
+          </MainStack>
+        </PadStyle>
+      </PadStyles>
+      <Patterns>
+        <Pattern PatternStyle="Connector" Width="10" Height="4">
+          <Name>CONNECTOR</Name><DefPad Style="SMD"/>
+          <Pads><Pad Id="1" X="0" Y="0"><Number>1</Number></Pad></Pads>
+          <Shapes><Shape Type="Polygon" Layer="Top Courtyard">
+            <Points>
+              <Point X="-5" Y="-2"/><Point X="5" Y="-2"/>
+              <Point X="5" Y="2"/><Point X="-5" Y="2"/>
+            </Points>
+          </Shape></Shapes>
+        </Pattern>
+        <Pattern PatternStyle="Probe" Width="1.86" Height="1.86">
+          <Name>TP_1.00MM</Name><DefPad Style="SMD"/>
+          <Pads><Pad Id="1" X="0" Y="0"><Number>TP</Number></Pad></Pads>
+          <Shapes><Shape Type="Obround" Layer="Top Courtyard">
+            <Points><Point X="-0.93" Y="0.93"/><Point X="0.93" Y="-0.93"/></Points>
+          </Shape></Shapes>
+        </Pattern>
+      </Patterns>
+    </Library>
+  </Library>
+  <Board>
+    <BoardOutline><Points>
+      <Point X="0" Y="0"/><Point X="20" Y="0"/>
+      <Point X="20" Y="20"/><Point X="0" Y="20"/>
+    </Points></BoardOutline>
+    <Components>
+      <Component Id="1" PatternStyle="Connector" X="10" Y="10" Side="Top">
+        <RefDes>J1</RefDes><Name>CONNECTOR</Name><Pads><Pad Id="1" NetId="0"/></Pads>
+      </Component>
+      <Component Id="2" PatternStyle="Probe" X="15" Y="10" Side="Top">
+        <RefDes>TP_SIGNAL</RefDes><Name>TP_1.00MM</Name><Pads><Pad Id="1" NetId="0"/></Pads>
+      </Component>
+    </Components>
+    <Nets><Net Id="0"><Name>SIGNAL</Name><Pads>
+      <Item Comp="1" Pad="1"/><Item Comp="2" Pad="1"/>
+    </Pads></Net></Nets>
+  </Board>
+</Source>""",
+    )
+
+    snapshot = build_snapshot(document)
+
+    assert snapshot.board is not None
+    assert len(snapshot.board.patterns) == 2
+    assert len(snapshot.board.pad_styles) == 2
+    assert snapshot.board.pad_styles[0].hole_width is None
+    connector = next(item for item in snapshot.board.components if item.refdes == "J1")
+    assert connector.bbox == {"min_x": 5.0, "min_y": 8.0, "max_x": 15.0, "max_y": 12.0}
+    assert connector.geometry_source == "embedded-pattern-library"
+    assert [item.refdes for item in snapshot.board.testpoints] == ["TP_SIGNAL"]
+    testpoint = snapshot.board.testpoints[0]
+    assert testpoint.bbox == {
+        "min_x": 14.07,
+        "min_y": 9.07,
+        "max_x": 15.93,
+        "max_y": 10.93,
+    }
+    polygon_pad = snapshot.board.patterns[0].pads[0]
+    assert polygon_pad.geometry is not None
+    assert polygon_pad.geometry.kind == "polygon"
+    assert len(polygon_pad.geometry.points) == 4
