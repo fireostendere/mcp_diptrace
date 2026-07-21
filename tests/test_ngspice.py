@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import stat
 import time
 from pathlib import Path
@@ -47,6 +48,17 @@ def _service(
 
 
 def _fake_ngspice(tmp_path: Path, *, fail: bool = False) -> Path:
+    if os.name == "nt":
+        script = tmp_path / "fake_ngspice.cmd"
+        if fail:
+            script.write_bytes(
+                b"@echo off\r\necho Error: simulated failure\r\nexit /b 1\r\n"
+            )
+        else:
+            script.write_bytes(
+                b"@echo off\r\necho No. of Data Rows : 42\r\nexit /b 0\r\n"
+            )
+        return script
     script = tmp_path / "fake_ngspice.sh"
     if fail:
         script.write_text("#!/bin/sh\necho 'Error: simulated failure'\nexit 1\n")
