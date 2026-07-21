@@ -12,6 +12,10 @@ XML element identity is stored separately in `DocumentSnapshot.elements`.
   patterns, rules, stackup, differential pairs, ratlines, texts, and test points.
 - `ViaStyleModel`: normalized diameter/hole, `Lay1`/`Lay2`, inclusive layer span,
   provenance (`explicit`/`unspecified`/`invalid`), and original XML attributes.
+- A routed physical via is a trace point with a valid `ViaStyle` **and** an actual
+  change between the incoming and outgoing `Lay`. `ViaStyle` on a same-layer point
+  is preserved as trace metadata but is not normalized as a via. Standalone/static
+  vias are normalized from `Components/Component[@Type='Via']`.
 - `SchematicModel`: sheets, parts, pins, nets, wires, buses, ports, labels, and ERC data.
 - `LibraryModel`: components, pins, patterns, pad styles, pads, holes, shapes, and 3D references.
 - `ConnectivityGraph`: logical net membership, owner connected components, endpoint
@@ -38,4 +42,7 @@ unknown sections are preserved.
 - A bounding box may be an estimate when the XML does not contain body or courtyard geometry.
 - A copper pour contains its boundary, not the final refilled copper geometry.
 - Cross-document pin-to-pad mapping uses explicitly documented assumptions.
+- `via_count` is the number of normalized physical vias on a net, while
+  `layer_transition_count` counts only routed layer changes; standalone static vias
+  may increase the former without increasing the latter.
 - Hierarchy and library mutation are not exposed without verified writer fixtures.
