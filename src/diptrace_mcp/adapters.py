@@ -204,10 +204,12 @@ def _component_records(
             datasheet = _text(component, "Datasheet")
             additional_fields = _additional_fields(component)
             component_type = component.get("Type", "LibraryComponent")
-            is_testpoint = component_type == "Pad" and (
-                refdes.upper().startswith("TP") or name == "MCP_TESTPOINT"
-            )
-            first_pad = component.find("./Pads/Pad")
+            component_pads = component.findall("./Pads/Pad")
+            first_pad = component_pads[0] if component_pads else None
+            is_testpoint = (
+                component_type == "Pad"
+                and (refdes.upper().startswith("TP") or name == "MCP_TESTPOINT")
+            ) or (refdes.upper().startswith("TP") and len(component_pads) == 1)
             testpoint_net_id = (
                 first_pad.get("NetId")
                 if is_testpoint and first_pad is not None and first_pad.get("NetId") != "-1"
@@ -732,9 +734,9 @@ def _net_records(
                 relationships={"net": [stable], "vias": []},
             )
             records.append(trace_record)
-            for point_index, point_element in enumerate(trace.findall("./Points/Point")):
+            for point_index, point_element in enumerate(point_elements):
                 via_style = point_element.get("ViaStyle", "-1")
-                if via_style in {"", "-1"}:
+                if not _trace_point_is_physical_via(point_elements, point_index):
                     continue
                 point = points[point_index]
                 via_stable = stable_id(
@@ -778,6 +780,7 @@ def _net_records(
                         geometry_source="xml-trace-point",
                         confidence=0.8,
                         attributes={
+                            "representation": "trace_layer_transition",
                             "via_style": via_style,
                             "diameter_mm": diameter,
                             "hole_mm": hole,
@@ -828,6 +831,106 @@ def _net_records(
     return records
 
 
+def _static_via_records(
+    document: DipTraceDocument,
+    normalized_via_styles: list[ViaStyleModel],
+    net_records: list[ObjectRecord],
+) -> list[ObjectRecord]:
+    """Normalize standalone DipTrace ``Component Type=\"Via\"`` objects.
+
+    DipTrace stores routed layer transitions on trace points, but standalone/static
+    vias live in the component table.  They are physical vias even though they are
+    not associated with a trace layer transition.
+    """
+    if document.kind != "pcb":
+        return []
+    nets_by_xml = {
+        item.xml_id: item for item in net_records if item.kind == "net" and item.xml_id
+    }
+    styles_by_id = {style.id: style for style in normalized_via_styles}
+    records: list[ObjectRecord] = []
+    for component in document.container.findall("./Components/Component"):
+        if component.get("Type") != "Via":
+            continue
+        xml_id = component.get("Id", "")
+        refdes = _text(component, "RefDes")
+        pads = component.findall("./Pads/Pad")
+        net_ids = {
+            pad.get("NetId", "")
+            for pad in pads
+            if pad.get("NetId") not in {None, "", "-1"}
+        }
+        net_id = next(iter(net_ids)) if len(net_ids) == 1 else None
+        net = nets_by_xml.get(net_id) if net_id is not None else None
+        style_id = component.get("ViaStyle", "-1")
+        style = styles_by_id.get(style_id)
+        diameter = style.diameter_mm if style is not None else None
+        hole = style.hole_mm if style is not None else None
+        x = _float_attr_mm(document, component, "X")
+        y = _float_attr_mm(document, component, "Y")
+        position = Point(x, y) if x is not None and y is not None else None
+        via_stable = stable_id(
+            "via",
+            document.source_type,
+            "static-component",
+            *_xml_identity(xml_id, refdes),
+        )
+        warnings = []
+        if len(net_ids) > 1:
+            warnings.append("Static via pads reference more than one net.")
+        record = ObjectRecord(
+            stable_id=via_stable,
+            kind="via",
+            label=refdes or f"static-via-{xml_id}",
+            refdes=refdes or None,
+            xml_id=xml_id or None,
+            net_id=net_id,
+            net_name=net.name if net is not None else None,
+            layer=(
+                f"{style.layer_start_id}:{style.layer_end_id}"
+                if style is not None and style.span_source == "explicit"
+                else "multilayer"
+            ),
+            locked=_bool_attr(component, "Locked"),
+            selected=_bool_attr(component, "Selected"),
+            position=position.as_dict() if position is not None else None,
+            bbox=(
+                point_bbox(position, (diameter or 0.0) / 2.0).as_dict()
+                if position is not None
+                else None
+            ),
+            geometry=(
+                GeometryShape(
+                    kind="circle",
+                    center=position.as_dict(),
+                    width=diameter,
+                    height=diameter,
+                )
+                if position is not None and diameter is not None and diameter > 0.0
+                else None
+            ),
+            geometry_source="xml-static-via-component",
+            confidence=1.0,
+            attributes={
+                "representation": "static_component",
+                "via_style": style_id,
+                "diameter_mm": diameter,
+                "hole_mm": hole,
+                "layer_start_id": style.layer_start_id if style is not None else None,
+                "layer_end_id": style.layer_end_id if style is not None else None,
+                "span_layer_ids": style.span_layer_ids if style is not None else [],
+                "span_source": style.span_source if style is not None else "invalid",
+                **dict(component.attrib),
+            },
+            relationships={"net": [net.stable_id] if net is not None else []},
+            warnings=warnings,
+        )
+        records.append(record)
+        if net is not None:
+            net.relationships.setdefault("vias", []).append(via_stable)
+    return records
+
+
 def _enrich_endpoint_connectivity(records: list[ObjectRecord]) -> None:
     records_by_id = {record.stable_id: record for record in records}
     for net in records:
@@ -849,6 +952,29 @@ def _trace_layer(trace: ET.Element) -> str | None:
         if layer is not None:
             return layer
     return trace.get("Layer")
+
+
+def _trace_point_is_physical_via(points: list[ET.Element], index: int) -> bool:
+    """Return true only for a styled trace point that changes the active layer.
+
+    Real DipTrace exports may retain ``ViaStyle`` on same-layer routing points.
+    Treating that metadata alone as a via creates false via counts and false
+    differential-pair via-balance failures.  Segment parameters are stored on the
+    second point, so the transition is from ``points[index].Lay`` to the following
+    point's ``Lay``.
+    """
+    if index <= 0 or index + 1 >= len(points):
+        return False
+    point = points[index]
+    if point.get("ViaStyle", "-1") in {"", "-1"}:
+        return False
+    incoming_layer = point.get("Lay")
+    outgoing_layer = points[index + 1].get("Lay")
+    return (
+        incoming_layer is not None
+        and outgoing_layer is not None
+        and incoming_layer != outgoing_layer
+    )
 
 
 def point_bbox(point: Point, radius: float) -> BBox:
@@ -1585,15 +1711,23 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
     via_styles = _board_via_styles(document)
     component_records, component_map, component_refdes_map = _component_records(document)
     net_records = _net_records(document, component_map, via_styles)
-    _enrich_endpoint_connectivity([*component_records, *net_records])
+    static_via_records = _static_via_records(document, via_styles, net_records)
+    _enrich_endpoint_connectivity([*component_records, *net_records, *static_via_records])
     shape_records = _board_shape_records(document)
     pour_records = _board_copper_pour_records(document)
     objects: dict[str, ObjectRecord] = {}
     elements: dict[str, ET.Element] = {}
-    for record in component_records + net_records + shape_records + pour_records:
+    for record in (
+        component_records + net_records + static_via_records + shape_records + pour_records
+    ):
         objects[record.stable_id] = record
     # Populate XML element mapping after the object tables are built so callers can resolve edits.
     if document.kind == "pcb":
+        static_vias_by_xml = {
+            record.xml_id: record.stable_id
+            for record in static_via_records
+            if record.xml_id is not None
+        }
         for component in document.container.findall("./Components/Component"):
             xml_id = component.get("Id", "")
             refdes = _text(component, "RefDes")
@@ -1621,6 +1755,9 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
                                 surface,
                             )
                             elements[text_stable] = settings
+            static_via_stable = static_vias_by_xml.get(xml_id)
+            if static_via_stable is not None:
+                elements[static_via_stable] = component
         for net in document.container.findall("./Nets/Net"):
             net_xml_id = net.get("Id", "")
             net_name = _text(net, "Name")
@@ -1638,8 +1775,9 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
                     *_xml_identity(trace.get("Id", ""), str(trace_index)),
                 )
                 elements[trace_stable] = trace
-                for point_index, point in enumerate(trace.findall("./Points/Point")):
-                    if point.get("ViaStyle", "-1") in {"", "-1"}:
+                point_elements = trace.findall("./Points/Point")
+                for point_index, point in enumerate(point_elements):
+                    if not _trace_point_is_physical_via(point_elements, point_index):
                         continue
                     via_stable = stable_id(
                         "via",
@@ -1679,12 +1817,23 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
         board = BoardModel(
             document_id=document_id,
             outline=_board_outline(document),
-            components=[record for record in component_records if record.kind == "component"],
-            pads=[record for record in component_records if record.kind == "pad"],
+            components=[
+                record
+                for record in component_records
+                if record.kind == "component" and record.attributes.get("type") != "Via"
+            ],
+            pads=[
+                record
+                for record in component_records
+                if record.kind == "pad"
+                and objects.get(record.parent_id or "") is not None
+                and objects[record.parent_id or ""].attributes.get("type") != "Via"
+            ],
             holes=[record for record in component_records if record.kind == "hole"],
             nets=[record for record in net_records if record.kind == "net"],
             traces=[record for record in net_records if record.kind == "trace"],
-            vias=[record for record in net_records if record.kind == "via"],
+            vias=[record for record in net_records if record.kind == "via"]
+            + static_via_records,
             copper_pours=pour_records,
             keepouts=[record for record in shape_records if record.kind == "keepout"],
             layers=_board_layers(document),
@@ -1722,6 +1871,7 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
                     pin_id = f"{xml_id}:{pin_index}"
                     pin_stable = _pin_stable_id(document, stable, pin_id)
                     elements[pin_stable] = pin
+        wire_records: list[ObjectRecord] = []
         for net in document.container.findall("./Nets/Net"):
             net_xml_id = net.get("Id", "")
             net_name = _text(net, "Name")
@@ -1731,6 +1881,45 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
                 *_xml_identity(net_xml_id, net_name),
             )
             elements[net_stable] = net
+            for wire_index, wire in enumerate(net.findall("./Wires/Wire")):
+                wire_stable = stable_id(
+                    "wire",
+                    document.source_type,
+                    net_stable,
+                    *_xml_identity(wire.get("Id", ""), str(wire_index)),
+                )
+                elements[wire_stable] = wire
+                wire_points = [
+                    Point(
+                        _float_attr_mm(document, point, "X") or 0.0,
+                        _float_attr_mm(document, point, "Y") or 0.0,
+                    )
+                    for point in wire.findall("./Points/Point")
+                ]
+                wire_records.append(
+                    ObjectRecord(
+                        stable_id=wire_stable,
+                        kind="wire",
+                        label=f"{net_name or net_xml_id} wire {wire.get('Id', str(wire_index))}",
+                        xml_id=wire.get("Id") or None,
+                        net_id=net_xml_id or None,
+                        net_name=net_name or None,
+                        locked=_bool_attr(wire, "Locked"),
+                        selected=_bool_attr(wire, "Selected"),
+                        bbox=(
+                            BBox.from_points(wire_points).as_dict() if wire_points else None
+                        ),
+                        attributes={
+                            "sheet": wire.get("Sheet", ""),
+                            "point_count": len(wire_points),
+                            **dict(wire.attrib),
+                        },
+                        relationships={"net": [net_stable]},
+                        geometry_source="xml-wire-points",
+                        confidence=1.0,
+                    )
+                )
+        objects.update({record.stable_id: record for record in wire_records})
         board = None
         schematic = SchematicModel(
             document_id=document_id,
@@ -1738,6 +1927,7 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
             parts=[record for record in component_records if record.kind == "part"],
             pins=[record for record in component_records if record.kind == "pin"],
             nets=[record for record in net_records if record.kind == "net"],
+            wires=wire_records,
             buses=_schematic_buses(document),
             differential_pairs=_schematic_differential_pairs(document),
             erc=_schematic_erc(document),
@@ -1823,6 +2013,7 @@ def _compatibility_for(document: DipTraceDocument) -> dict[str, Any]:
                 "net_name_and_net_class_rules",
                 "testpoints",
                 "traces_and_vias",
+                "panelization",
                 "xml_edits",
             ],
             "limitations": [
@@ -1874,11 +2065,17 @@ def _compatibility_for(document: DipTraceDocument) -> dict[str, Any]:
                 "component_rotation_lock_properties",
                 "pin_no_connect",
                 "net_name",
+                "sheets",
+                "parts",
+                "pin_net_connectivity",
+                "wires",
+                "net_labels",
                 "xml_edits",
             ],
             "limitations": [
                 "connectivity is limited to structures present in exported XML",
-                "wire/label creation and deletion are not implemented",
+                "placed parts reference library ComponentStyle entries resolved by "
+                "DipTrace on import",
             ],
             "roundtrip": "partial",
         }
@@ -2337,6 +2534,7 @@ def capability_report(
             "differential_pair_analysis": snapshot.board is not None,
             "analytical_microstrip_impedance": True,
             "analytical_differential_microstrip_impedance": True,
+            "analytical_symmetric_stripline_impedance": True,
             "local_45_degree_routing": snapshot.board is not None,
             "multilayer_local_routing": bool(
                 board is not None and len(board.layers) > 1 and routable_via_style
@@ -2349,6 +2547,10 @@ def capability_report(
         },
         write_capabilities={
             "apply_xml_edits": True,
+            "document_creation": True,
+            "schematic_authoring": snapshot.schematic is not None,
+            "schematic_to_pcb_sync": True,
+            "panelization": snapshot.board is not None,
             "move_components": snapshot.board is not None or snapshot.schematic is not None,
             "rotate_components": snapshot.board is not None or snapshot.schematic is not None,
             "set_component_side": snapshot.board is not None,
@@ -2381,12 +2583,13 @@ def capability_report(
         },
         experimental_capabilities={
             "push_and_shove_routing": False,
+            "rip_up_retry_routing": snapshot.board is not None,
             "automatic_via_routing": routable_via_style,
             "coupled_diff_pair_routing": bool(
                 snapshot.board is not None and snapshot.board.differential_pairs
             ),
             "global_placement": False,
-            "symmetric_stripline_impedance": False,
+            "symmetric_stripline_impedance": True,
             "differential_impedance": True,
             "return_path_heuristics": snapshot.board is not None,
         },
@@ -2395,7 +2598,12 @@ def capability_report(
                 "available": False,
                 "implemented": True,
                 "reason": "Runtime availability requires DIPTRACE_MCP_FREEROUTING.",
-            }
+            },
+            "ngspice": {
+                "available": False,
+                "implemented": True,
+                "reason": "Runtime availability requires DIPTRACE_MCP_NGSPICE or ngspice on PATH.",
+            },
         },
         geometry_backend=backend_report(),
         preview_formats=["svg", "json", "diff"],
@@ -2436,14 +2644,12 @@ def capability_report(
                 "message": "Only deterministic bounded local placement is implemented.",
             },
             {
-                "feature": "symmetric_stripline_impedance",
-                "code": "solver_required",
-                "message": "Only verified analytical microstrip impedance is enabled.",
-            },
-            {
                 "feature": "push_and_shove_routing",
                 "code": "capability_unavailable",
-                "message": "The local router is bounded 45-degree A* without push-and-shove.",
+                "message": (
+                    "The local router is bounded 45-degree A*; rip-up/retry is "
+                    "available via route_connections, push-and-shove is not implemented."
+                ),
             },
             {
                 "feature": "native_manufacturing_outputs",
@@ -2451,24 +2657,18 @@ def capability_report(
                 "message": "Gerber, NC drill, ODB++ and IPC-2581 generation is unavailable.",
             },
             {
-                "feature": "schematic_wire_edits",
-                "code": "capability_unavailable",
-                "message": "Wire and label mutation lacks a verified round-trip fixture.",
-            },
-            {
                 "feature": "library_mutation",
                 "code": "capability_unavailable",
                 "message": "Component and pattern libraries are read/validate only.",
             },
             {
-                "feature": "panelization",
-                "code": "capability_unavailable",
-                "message": "No confirmed panel-object XML semantics are available.",
-            },
-            {
                 "feature": "external_si_pi_solver",
                 "code": "external_tool_unavailable",
-                "message": "No verified solver adapter is configured or implemented.",
+                "message": (
+                    "The ngspice batch adapter is implemented for user-supplied "
+                    "netlists; configure DIPTRACE_MCP_NGSPICE to enable it. openEMS "
+                    "and FastHenry adapters remain unregistered."
+                ),
             },
         ],
         registered_checks=registry.ids(),
@@ -2488,6 +2688,7 @@ def capability_report(
                 "prepare_assembly_export",
                 "review_bom",
                 "compare_schematic_and_pcb",
+                "synchronize_schematic_to_pcb",
             )
         ],
     )

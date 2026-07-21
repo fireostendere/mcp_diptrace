@@ -70,6 +70,7 @@ def get_capabilities(
                 "differential_pair_analysis": True,
                 "analytical_microstrip_impedance": True,
                 "analytical_differential_microstrip_impedance": True,
+                "analytical_symmetric_stripline_impedance": True,
                 "local_45_degree_routing": True,
                 "multilayer_local_routing": True,
                 "coupled_diff_pair_routing": True,
@@ -79,6 +80,10 @@ def get_capabilities(
             write_capabilities={
                 "apply_xml_edits": True,
                 "transactions": True,
+                "document_creation": True,
+                "schematic_authoring": True,
+                "schematic_to_pcb_sync": True,
+                "panelization": True,
                 "move_components": True,
                 "rotate_components": True,
                 "set_component_side": True,
@@ -108,10 +113,11 @@ def get_capabilities(
             experimental_capabilities={
                 "global_placement": False,
                 "push_and_shove_routing": False,
+                "rip_up_retry_routing": True,
                 "automatic_via_routing": True,
                 "coupled_diff_pair_routing": True,
                 "testpoint_candidate_accessibility": True,
-                "symmetric_stripline_impedance": False,
+                "symmetric_stripline_impedance": True,
                 "differential_impedance": True,
                 "return_path_heuristics": True,
             },
@@ -120,7 +126,14 @@ def get_capabilities(
                     "available": False,
                     "implemented": True,
                     "reason": "Runtime availability requires DIPTRACE_MCP_FREEROUTING.",
-                }
+                },
+                "ngspice": {
+                    "available": False,
+                    "implemented": True,
+                    "reason": (
+                        "Runtime availability requires DIPTRACE_MCP_NGSPICE or ngspice on PATH."
+                    ),
+                },
             },
             geometry_backend=backend_report(),
             preview_formats=["svg", "json", "diff"],
@@ -145,12 +158,10 @@ def get_capabilities(
                 {
                     "feature": "push_and_shove_routing",
                     "code": "capability_unavailable",
-                    "message": "The local router is bounded 45-degree A* without push-and-shove.",
-                },
-                {
-                    "feature": "symmetric_stripline_impedance",
-                    "code": "solver_required",
-                    "message": "Only verified analytical microstrip impedance is enabled.",
+                    "message": (
+                        "The local router is bounded 45-degree A*; rip-up/retry is "
+                        "available via route_connections, push-and-shove is not implemented."
+                    ),
                 },
                 {
                     "feature": "native_manufacturing_outputs",
@@ -158,24 +169,18 @@ def get_capabilities(
                     "message": "Gerber, NC drill, ODB++ and IPC-2581 generation is unavailable.",
                 },
                 {
-                    "feature": "schematic_wire_edits",
-                    "code": "capability_unavailable",
-                    "message": "Wire and label mutation lacks a verified round-trip fixture.",
-                },
-                {
                     "feature": "library_mutation",
                     "code": "capability_unavailable",
                     "message": "Component and pattern libraries are read/validate only.",
                 },
                 {
-                    "feature": "panelization",
-                    "code": "capability_unavailable",
-                    "message": "No confirmed panel-object XML semantics are available.",
-                },
-                {
                     "feature": "external_si_pi_solver",
                     "code": "external_tool_unavailable",
-                    "message": "No verified solver adapter is configured or implemented.",
+                    "message": (
+                        "The ngspice batch adapter is implemented for user-supplied "
+                        "netlists; configure DIPTRACE_MCP_NGSPICE to enable it. openEMS "
+                        "and FastHenry adapters remain unregistered."
+                    ),
                 },
             ],
             registered_checks=registry.ids(),
@@ -195,6 +200,7 @@ def get_capabilities(
                     "prepare_assembly_export",
                     "review_bom",
                     "compare_schematic_and_pcb",
+                    "synchronize_schematic_to_pcb",
                 )
             ],
         )

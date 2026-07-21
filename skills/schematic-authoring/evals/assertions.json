@@ -20,6 +20,8 @@
         {
           "kind": "callable_tools_registered",
           "equals": [
+            "add_net_label",
+            "add_wire",
             "begin_transaction",
             "commit_transaction",
             "diptrace_status",
@@ -40,8 +42,6 @@
         {
           "kind": "never_call_target_names",
           "equals": [
-            "add_net_label",
-            "add_wire",
             "assign_pattern"
           ]
         }

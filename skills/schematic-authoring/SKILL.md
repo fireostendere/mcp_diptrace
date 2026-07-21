@@ -41,8 +41,8 @@ The first two MCP calls must be ordered and sequential: `diptrace_status`, then 
 | `get_schematic_model` | `get_schematic_model` | `exact` | Use only when document capabilities allow it. |
 | `set_component_value` | `set_component_value` | `exact` | Use only when document capabilities allow it. |
 | `set_component_fields` | `set_component_fields` | `exact` | Use only when document capabilities allow it. |
-| `add_wire` | — | `missing` | Do not call the target name. Use dependency contract `schematic-authoring-v1`; block only dependent stages. |
-| `add_net_label` | — | `missing` | Do not call the target name. Use dependency contract `schematic-authoring-v1`; block only dependent stages. |
+| `add_wire` | `add_wire` | `exact` | Use only when document capabilities allow it. |
+| `add_net_label` | `add_net_label` | `exact` | Use only when document capabilities allow it. |
 | `assign_pattern` | — | `incompatible` | Do not call the target name. Use dependency contract `schematic-authoring-v1`; block only dependent stages. |
 | `run_erc` | `run_erc` | `exact` | Use only when document capabilities allow it. |
 | `begin_transaction` | `begin_transaction` | `exact` | Use only when document capabilities allow it. |

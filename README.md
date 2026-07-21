@@ -14,6 +14,16 @@ contains two cooperating components:
 
 - runtime capability discovery through `get_capabilities`, including precise
   unavailability reasons;
+- project scaffolding: brand-new schematic and PCB XML documents with sheets, outline,
+  layers, stackup, via styles, net classes, and DRC (`create_schematic_document`,
+  `create_pcb_document`);
+- schematic authoring: sheets, part placement by library `ComponentStyle`, pin/net
+  connectivity, official `Wire`/`Points` wires, and net labels (`add_sheet`, `place_part`,
+  `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label`);
+- additive schematic-to-PCB synchronization of RefDes/value/fields, footprint references,
+  pin-to-pad connectivity, nets, and ratlines, with verified pattern-library subtree copying;
+- official DipTrace panelization parameters (`Panel`, V-Scoring / Tab Routing) through
+  `set_panelization` and `clear_panelization`;
 - normalized PCB, schematic, Component Library, and Pattern Library domain models;
 - stable object references, structured selectors, connectivity graphs, and spatial
   queries;
@@ -31,10 +41,13 @@ contains two cooperating components:
 - deterministic silkscreen and bounded local placement planners;
 - explicit trace/via operations, bounded multi-layer 45-degree A*, and symmetric via
   insertion;
+- sequential multi-net routing with bounded rip-up/retry (`route_connections`);
 - atomic coupled differential-pair routing from a centerline;
 - bounded DSN export, Freerouting jobs, and guarded SES inspection/import;
 - stackup, net length/skew, differential-pair geometry, return-path heuristics, and
-  preliminary single-ended/differential microstrip impedance;
+  preliminary analytical impedance: Hammerstad-Jensen microstrip (single and
+  differential) plus IPC-2141 centered symmetric stripline;
+- ngspice batch adapter for user-supplied netlists with typed log results;
 - BOM, DFM/DFA/DFT, thermal-metadata, assembly, and design-comparison reviews;
 - generic BOM, fabrication-review, and assembly-review manifests;
 - policy profiles: `read_only`, `review`, `interactive_edit`, `automation`, and
@@ -197,17 +210,22 @@ adapters.
 - DipTrace synchronously waits while a live plug-in session is active.
 - One live session is supported at a time.
 - A language model still needs visual review, ERC/DRC, and engineering judgment.
-- The local router does not implement push-and-shove, rip-up/retry, free-angle routing,
-  or dynamic neck-down.
+- The local router does not implement push-and-shove, free-angle routing, or dynamic
+  neck-down; bounded rip-up/retry is available via `route_connections`.
 - Automatic via routing requires a confirmed `Lay1`/`Lay2` span on multilayer boards.
 - The coupled router requires compatible endpoint spacing/orientation and does not
   synthesize arbitrary uncoupled escapes.
-- Impedance output is a preliminary analytical microstrip estimate, not a field-solver
-  or full-wave result.
+- Impedance output is a preliminary analytical estimate (Hammerstad-Jensen microstrip and
+  IPC-2141 centered symmetric stripline), not a field-solver or full-wave result.
+- `place_part` references a library `ComponentStyle` by name; DipTrace resolves symbol
+  graphics and pin mapping from its own libraries on import.
+- The ngspice adapter runs user-supplied netlists in batch mode and does not generate
+  netlists from a design; openEMS and FastHenry adapters remain unregistered.
 - Copper-pour boundaries are not authoritative refill geometry.
 - Generic fabrication manifests do not contain Gerber or NC Drill output.
-- Schematic wire writers, library mutation, panelization, and unverified solvers remain
-  unavailable.
+- Library mutation and unverified frequency-dependent solvers remain unavailable.
+- Schematic-to-PCB sync preserves extra PCB objects and existing traces; multi-part parts need
+  explicit `part_id + pin -> pad_number` mappings, and initial grid placement needs legalization.
 - The locally built unsigned bridge may require Windows Defender/SmartScreen approval.
 
 ## Documentation

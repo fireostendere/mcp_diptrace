@@ -10,10 +10,18 @@ logs. DSN and SES artifacts are tied to the source SHA.
 
 ## Solver Adapters
 
-ngspice, LTspice, openEMS, FastHenry, and a generic user CLI are not registered. A
-production adapter must provide typed input, a fixed command contract, a capability and
-version probe, a license note, isolated artifacts, timeout and cancellation support, and
-a tested parser. The core does not execute arbitrary commands and does not return fake
+The ngspice adapter is implemented for user-supplied netlists. It is enabled through
+`DIPTRACE_MCP_NGSPICE` or an `ngspice` executable on `PATH`, and runs batch mode
+(`ngspice -b input.cir`) with a fixed argument vector, `shell=false`, a sanitized
+environment, an isolated job directory, a timeout, cancellation, bounded logs, and a
+typed log summary (data-row counts and error lines). The adapter never generates
+netlists from a design and never fabricates simulation results: an unavailable
+executable ends in `external_tool_unavailable`.
+
+LTspice, openEMS, FastHenry, and a generic user CLI are not registered. A production
+adapter must provide typed input, a fixed command contract, a capability and version
+probe, a license note, isolated artifacts, timeout and cancellation support, and a
+tested parser. The core does not execute arbitrary commands and does not return fake
 simulation results.
 
 ## Dependency Evaluation

@@ -261,7 +261,9 @@ def test_via_insert_move_style_and_delete_roundtrip() -> None:
     snapshot = build_snapshot(inserted.document)
     assert snapshot.board is not None
     via = next(item for item in snapshot.board.vias if item.position == {"x": 12.5, "y": 10.0})
-    assert len(snapshot.board.vias) == 2
+    # The inserted transition makes the old ViaStyle point same-layer metadata, so only
+    # one physical via remains until the inserted transition is deleted.
+    assert len(snapshot.board.vias) == 1
 
     moved = apply_semantic_operations(
         inserted.document,

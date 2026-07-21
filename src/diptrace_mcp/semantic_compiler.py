@@ -24,12 +24,20 @@ from .geometry import (
     to_mm,
 )
 from .operations import (
+    AddNetLabelOperation,
+    AddSheetOperation,
     AddTestpointOperation,
+    AddWireOperation,
     AssignNetsToClassOperation,
+    ClearPanelizationOperation,
+    ConnectPinsOperation,
+    DeleteWireOperation,
+    DisconnectPinsOperation,
     GroupComponentsOperation,
     MoveBoardTextsOperation,
     MoveComponentsOperation,
     MoveTestpointsOperation,
+    PlacePartOperation,
     RemoveTestpointsOperation,
     RenameNetOperation,
     RotateBoardTextsOperation,
@@ -40,11 +48,14 @@ from .operations import (
     SetComponentPropertiesOperation,
     SetComponentSideOperation,
     SetComponentValueOperation,
+    SetPanelizationOperation,
     SetPinNoConnectOperation,
     SetTextStyleOperation,
     SetTextVisibilityOperation,
+    SyncSchematicToPcbOperation,
     UngroupComponentsOperation,
     UpdateNetClassRulesOperation,
+    WireEndpoint,
 )
 from .routing_compiler import (
     ROUTING_OPERATION_TYPES,
@@ -167,6 +178,46 @@ def apply_semantic_operations(
             )
         elif isinstance(operation, RemoveTestpointsOperation):
             preview, patches = _apply_remove_testpoints(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, AddSheetOperation):
+            preview, patches = _apply_add_sheet(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, PlacePartOperation):
+            preview, patches = _apply_place_part(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, SyncSchematicToPcbOperation):
+            preview, patches = _apply_sync_schematic_to_pcb(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, ConnectPinsOperation):
+            preview, patches = _apply_connect_pins(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, DisconnectPinsOperation):
+            preview, patches = _apply_disconnect_pins(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, AddWireOperation):
+            preview, patches = _apply_add_wire(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, DeleteWireOperation):
+            preview, patches = _apply_delete_wire(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, AddNetLabelOperation):
+            preview, patches = _apply_add_net_label(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, SetPanelizationOperation):
+            preview, patches = _apply_set_panelization(
+                index, working, snapshot, operation, changed_ids
+            )
+        elif isinstance(operation, ClearPanelizationOperation):
+            preview, patches = _apply_clear_panelization(
                 index, working, snapshot, operation, changed_ids
             )
         elif isinstance(operation, ROUTING_OPERATION_TYPES):
@@ -1321,3 +1372,1124 @@ def _operation_preview(
         "after": after,
         "source_sha256": document.sha256,
     }
+
+
+# ---------------------------------------------------------------------------
+# Schematic authoring and panelization handlers
+# ---------------------------------------------------------------------------
+
+
+def _require_schematic(document: DipTraceDocument, feature: str) -> None:
+    if document.kind != "schematic":
+        raise CapabilityUnavailableError(f"{feature} requires a schematic document")
+
+
+def _require_pcb(document: DipTraceDocument, feature: str) -> None:
+    if document.kind != "pcb":
+        raise CapabilityUnavailableError(f"{feature} requires a PCB document")
+
+
+def _sheet_ids(document: DipTraceDocument) -> list[str]:
+    return [
+        sheet_id
+        for sheet in document.container.findall("./SheetSettings/Sheets/Sheet")
+        if (sheet_id := sheet.findtext("./Id")) is not None
+    ]
+
+
+def _require_sheet(document: DipTraceDocument, sheet: int) -> None:
+    if str(sheet) not in _sheet_ids(document):
+        raise ObjectNotFoundError(f"Sheet was not found: {sheet}")
+
+
+def _apply_sync_schematic_to_pcb(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: SyncSchematicToPcbOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_pcb(document, "sync_schematic_to_pcb")
+    patch_count = 0
+    before: list[dict[str, Any]] = []
+    after: list[dict[str, Any]] = []
+
+    pattern_library = document.root.find("./Library[@Type='DipTrace-PatternLibrary']")
+    if pattern_library is None:
+        pattern_library = ET.Element(
+            "Library",
+            {
+                "Type": "DipTrace-PatternLibrary",
+                "Version": document.version,
+                "Units": document.units,
+            },
+        )
+        document.root.insert(0, pattern_library)
+        patch_count += 1
+    patterns = pattern_library.find("./Patterns")
+    if patterns is None:
+        patterns = ET.SubElement(pattern_library, "Patterns")
+        patch_count += 1
+    pad_styles = pattern_library.find("./PadStyles")
+    if pad_styles is None:
+        pad_styles = ET.Element("PadStyles")
+        pattern_library.insert(0, pad_styles)
+        patch_count += 1
+    existing_pattern_styles = {
+        (item.get("PatternStyle") or item.get("Style") or "").casefold()
+        for item in patterns.findall("./Pattern")
+    }
+    existing_pad_styles = {
+        (item.get("Name") or "").casefold() for item in pad_styles.findall("./PadStyle")
+    }
+    for raw in operation.pad_style_xml:
+        element = ET.fromstring(raw)
+        if element.tag != "PadStyle" or not element.get("Name"):
+            raise EditError("Schematic sync contains an invalid PadStyle definition")
+        key = str(element.get("Name")).casefold()
+        if key not in existing_pad_styles:
+            pad_styles.append(element)
+            existing_pad_styles.add(key)
+            patch_count += 1
+    for raw in operation.pattern_xml:
+        element = ET.fromstring(raw)
+        style = element.get("PatternStyle") or element.get("Style")
+        if element.tag != "Pattern" or not style:
+            raise EditError("Schematic sync contains an invalid Pattern definition")
+        key = style.casefold()
+        if key not in existing_pattern_styles:
+            patterns.append(element)
+            existing_pattern_styles.add(key)
+            patch_count += 1
+
+    components = document.container.find("./Components")
+    if components is None:
+        components = ET.SubElement(document.container, "Components")
+        patch_count += 1
+    existing_components: dict[str, ET.Element] = {}
+    for existing_component in components.findall("./Component"):
+        refdes = (existing_component.findtext("./RefDes") or "").strip()
+        if not refdes:
+            continue
+        key = refdes.casefold()
+        if key in existing_components:
+            raise AmbiguousSelectorError(f"PCB contains duplicate RefDes: {refdes}")
+        existing_components[key] = existing_component
+    next_component_id = int(_next_numeric_id(components.findall("./Component")))
+    update_ids = [
+        int(value)
+        for item in components.findall("./Component")
+        if (value := item.get("UpdateId", "")).lstrip("-").isdigit()
+    ]
+    next_update_id = max(update_ids, default=99) + 1
+    component_by_refdes: dict[str, ET.Element] = {}
+
+    for spec in operation.components:
+        key = spec.refdes.casefold()
+        target_component = existing_components.get(key)
+        if target_component is None:
+            component_id = str(next_component_id)
+            next_component_id += 1
+            target_component = ET.SubElement(
+                components,
+                "Component",
+                {
+                    "Id": component_id,
+                    "UpdateId": str(next_update_id),
+                    "PatternStyle": spec.pattern_style,
+                    "X": f"{from_mm(spec.x, document.units):.9g}",
+                    "Y": f"{from_mm(spec.y, document.units):.9g}",
+                    "Side": spec.side,
+                    "Locked": "N",
+                    "Selected": "N",
+                },
+            )
+            next_update_id += 1
+            ET.SubElement(target_component, "RefDes").text = spec.refdes
+            ET.SubElement(target_component, "Name").text = spec.name
+            ET.SubElement(target_component, "Value").text = spec.value
+            _, field_patches = _set_additional_fields(target_component, spec.fields)
+            component_pads = ET.SubElement(target_component, "Pads")
+            for pad_index, number in enumerate(spec.pad_numbers):
+                ET.SubElement(
+                    component_pads,
+                    "Pad",
+                    {"Id": str(pad_index), "Number": number},
+                )
+            stable = stable_id(
+                "component", document.source_type, f"xml:{component_id}"
+            )
+            changed_ids.append(stable)
+            after.append(
+                {
+                    "id": stable,
+                    "refdes": spec.refdes,
+                    "action": "created",
+                    "pattern_style": spec.pattern_style,
+                    "pad_count": len(spec.pad_numbers),
+                }
+            )
+            patch_count += 1 + field_patches
+        else:
+            stable = _element_stable_id(
+                snapshot,
+                target_component,
+                stable_id(
+                    "component",
+                    document.source_type,
+                    f"xml:{target_component.get('Id', '')}",
+                ),
+            )
+            before.append(
+                {
+                    "id": stable,
+                    "refdes": spec.refdes,
+                    "name": target_component.findtext("./Name") or "",
+                    "value": target_component.findtext("./Value") or "",
+                }
+            )
+            current_pattern = target_component.get("PatternStyle", "")
+            if current_pattern.casefold() != spec.pattern_style.casefold():
+                raise EditError(
+                    f"Existing PCB component {spec.refdes} uses pattern {current_pattern!r}, "
+                    f"not {spec.pattern_style!r}"
+                )
+            pads = target_component.findall("./Pads/Pad")
+            available_numbers = {
+                (pad.get("Number") or pad.get("Id") or "").casefold() for pad in pads
+            }
+            missing_numbers = [
+                number
+                for number in spec.pad_numbers
+                if number.casefold() not in available_numbers
+            ]
+            if missing_numbers:
+                raise EditError(
+                    f"Existing PCB component {spec.refdes} lacks mapped pads",
+                    details={"missing_pad_numbers": missing_numbers},
+                )
+            component_patches = 0
+            if operation.update_existing_properties:
+                for tag, value in (("Name", spec.name), ("Value", spec.value)):
+                    child = target_component.find(f"./{tag}")
+                    if child is None:
+                        child = ET.SubElement(target_component, tag)
+                    if (child.text or "") != value:
+                        child.text = value
+                        component_patches += 1
+                _, field_patches = _set_additional_fields(target_component, spec.fields)
+                component_patches += field_patches
+            if component_patches:
+                changed_ids.append(stable)
+                patch_count += component_patches
+                after.append(
+                    {"id": stable, "refdes": spec.refdes, "action": "updated"}
+                )
+        component_by_refdes[key] = target_component
+
+    nets_container = document.container.find("./Nets")
+    if nets_container is None:
+        nets_container = ET.SubElement(document.container, "Nets")
+        patch_count += 1
+    existing_nets: dict[str, ET.Element] = {}
+    for existing_net in nets_container.findall("./Net"):
+        name = (existing_net.findtext("./Name") or "").strip()
+        if not name:
+            continue
+        key = name.casefold()
+        if key in existing_nets:
+            raise AmbiguousSelectorError(f"PCB contains duplicate net name: {name}")
+        existing_nets[key] = existing_net
+    next_net_id = int(_next_numeric_id(nets_container.findall("./Net")))
+    endpoint_nets: dict[tuple[str, str], ET.Element] = {}
+    for existing_net in nets_container.findall("./Net"):
+        for item in existing_net.findall("./Pads/Item"):
+            endpoint_nets[(item.get("Comp", ""), item.get("Pad", ""))] = existing_net
+
+    requested_ratlines: list[tuple[str, list[tuple[str, str]]]] = []
+    for net_spec in operation.nets:
+        target_net = existing_nets.get(net_spec.name.casefold())
+        net_was_created = target_net is None
+        if target_net is None:
+            net_id = str(next_net_id)
+            next_net_id += 1
+            target_net = ET.SubElement(
+                nets_container,
+                "Net",
+                {"Id": net_id, "NetClass": "0", "Locked": "N"},
+            )
+            ET.SubElement(target_net, "Name").text = net_spec.name
+            ET.SubElement(target_net, "Pads")
+            ET.SubElement(target_net, "Traces")
+            existing_nets[net_spec.name.casefold()] = target_net
+            stable = stable_id("net", document.source_type, f"xml:{net_id}")
+            changed_ids.append(stable)
+            after.append(
+                {"id": stable, "net": net_spec.name, "action": "created"}
+            )
+            patch_count += 1
+        net_stable = stable_id(
+            "net", document.source_type, f"xml:{target_net.get('Id', '')}"
+        )
+        net_changed = net_was_created
+        pads_container = target_net.find("./Pads")
+        if pads_container is None:
+            pads_container = ET.SubElement(target_net, "Pads")
+            patch_count += 1
+            net_changed = True
+        preexisting_endpoints = [
+            (item.get("Comp", ""), item.get("Pad", ""))
+            for item in pads_container.findall("./Item")
+        ]
+        added_endpoints: list[tuple[str, str]] = []
+        for endpoint in net_spec.endpoints:
+            endpoint_component = component_by_refdes.get(endpoint.refdes.casefold())
+            if endpoint_component is None:
+                raise ObjectNotFoundError(
+                    f"Synchronized PCB component was not found: {endpoint.refdes}"
+                )
+            component_id = endpoint_component.get("Id", "")
+            matching_pads = [
+                pad
+                for pad in endpoint_component.findall("./Pads/Pad")
+                if (pad.get("Number") or pad.get("Id") or "").casefold()
+                == endpoint.pad_number.casefold()
+            ]
+            if len(matching_pads) != 1:
+                raise EditError(
+                    f"Cannot resolve unique pad {endpoint.refdes}:{endpoint.pad_number}"
+                )
+            pad_id = matching_pads[0].get("Id", "")
+            endpoint_key = (component_id, pad_id)
+            current_net = endpoint_nets.get(endpoint_key)
+            if current_net is not None and current_net is not target_net:
+                current_name = (current_net.findtext("./Name") or "").strip()
+                if not operation.allow_reconnect:
+                    raise EditError(
+                        f"PCB endpoint {endpoint.refdes}:{endpoint.pad_number} is already "
+                        f"connected to {current_name}; set allow_reconnect=true to move it"
+                    )
+                if current_net.findall("./Traces/Trace"):
+                    raise EditError(
+                        f"Cannot reconnect routed endpoint {endpoint.refdes}:{endpoint.pad_number}"
+                    )
+                old_pads = current_net.find("./Pads")
+                if old_pads is not None:
+                    for item in list(old_pads.findall("./Item")):
+                        if (item.get("Comp"), item.get("Pad")) == endpoint_key:
+                            old_pads.remove(item)
+                            patch_count += 1
+                            net_changed = True
+                endpoint_nets.pop(endpoint_key, None)
+            if endpoint_key not in endpoint_nets:
+                ET.SubElement(
+                    pads_container,
+                    "Item",
+                    {"Comp": component_id, "Pad": pad_id},
+                )
+                endpoint_nets[endpoint_key] = target_net
+                patch_count += 1
+                net_changed = True
+                added_endpoints.append(endpoint_key)
+        if added_endpoints:
+            ratline_endpoints = (
+                added_endpoints
+                if not preexisting_endpoints
+                else [preexisting_endpoints[0], *added_endpoints]
+            )
+            requested_ratlines.append((net_spec.name, ratline_endpoints))
+        if net_changed and net_stable not in changed_ids:
+            changed_ids.append(net_stable)
+            if not net_was_created:
+                after.append(
+                    {
+                        "id": net_stable,
+                        "net": net_spec.name,
+                        "action": "connectivity_updated",
+                    }
+                )
+
+    if operation.create_ratlines:
+        ratlines = document.container.find("./Ratlines")
+        if ratlines is None:
+            ratlines = ET.SubElement(document.container, "Ratlines")
+            patch_count += 1
+        existing_pairs = {
+            frozenset(
+                {
+                    (item.get("Comp1", ""), item.get("Pad1", "")),
+                    (item.get("Comp2", ""), item.get("Pad2", "")),
+                }
+            )
+            for item in ratlines.findall("./Ratline")
+        }
+        next_ratline_id = int(_next_numeric_id(ratlines.findall("./Ratline")))
+        positioned_snapshot = build_snapshot(document)
+        pad_positions: dict[tuple[str, str], Point] = {}
+        for component_record in positioned_snapshot.objects.values():
+            if (
+                component_record.kind not in {"component", "testpoint"}
+                or not component_record.xml_id
+            ):
+                continue
+            for pad_stable in component_record.relationships.get("pads", []):
+                pad = positioned_snapshot.objects.get(pad_stable)
+                if pad is None or not pad.xml_id:
+                    continue
+                position = pad.position or component_record.position
+                if position is not None:
+                    pad_positions[(component_record.xml_id, pad.xml_id)] = Point(**position)
+        for _net_name, endpoints in requested_ratlines:
+            for first, second in zip(endpoints, endpoints[1:], strict=False):
+                pair = frozenset({first, second})
+                if first == second or pair in existing_pairs:
+                    continue
+                first_component = component_by_refdes[
+                    next(
+                        spec.refdes.casefold()
+                        for spec in operation.components
+                        if component_by_refdes[spec.refdes.casefold()].get("Id") == first[0]
+                    )
+                ]
+                second_component = component_by_refdes[
+                    next(
+                        spec.refdes.casefold()
+                        for spec in operation.components
+                        if component_by_refdes[spec.refdes.casefold()].get("Id") == second[0]
+                    )
+                ]
+                first_position = pad_positions.get(first) or Point(
+                    to_mm(float(first_component.get("X", "0")), document.units),
+                    to_mm(float(first_component.get("Y", "0")), document.units),
+                )
+                second_position = pad_positions.get(second) or Point(
+                    to_mm(float(second_component.get("X", "0")), document.units),
+                    to_mm(float(second_component.get("Y", "0")), document.units),
+                )
+                ET.SubElement(
+                    ratlines,
+                    "Ratline",
+                    {
+                        "Id": str(next_ratline_id),
+                        "Hidden": "N",
+                        "X1": f"{from_mm(first_position.x, document.units):.9g}",
+                        "Y1": f"{from_mm(first_position.y, document.units):.9g}",
+                        "X2": f"{from_mm(second_position.x, document.units):.9g}",
+                        "Y2": f"{from_mm(second_position.y, document.units):.9g}",
+                        "Comp1": first[0],
+                        "Pad1": first[1],
+                        "Comp2": second[0],
+                        "Pad2": second[1],
+                    },
+                )
+                next_ratline_id += 1
+                existing_pairs.add(pair)
+                patch_count += 1
+
+    final_snapshot = build_snapshot(document)
+    targets = [
+        final_snapshot.objects[stable]
+        for stable in dict.fromkeys(changed_ids)
+        if stable in final_snapshot.objects
+    ]
+    return (
+        _operation_preview(index, operation.kind, targets, before, after, document),
+        patch_count,
+    )
+
+
+def _schematic_net_element(document: DipTraceDocument, name: str) -> ET.Element | None:
+    for net in document.container.findall("./Nets/Net"):
+        if (net.findtext("./Name") or "").casefold() == name.casefold() or net.get(
+            "Id"
+        ) == name:
+            return net
+    return None
+
+
+def _resolve_part(
+    snapshot: DocumentSnapshot,
+    *,
+    refdes: str | None,
+    part_id: str | None,
+) -> tuple[ObjectRecord, ET.Element]:
+    if part_id is not None:
+        record = snapshot.get_object(part_id)
+        if record.kind != "part":
+            raise EditError(
+                f"Object is not a schematic part: {part_id}",
+                object_ids=[part_id],
+            )
+        return record, _resolved_element(snapshot, record)
+    assert refdes is not None
+    matches = [
+        item
+        for item in snapshot.objects.values()
+        if item.kind == "part" and (item.refdes or "").casefold() == refdes.casefold()
+    ]
+    if not matches:
+        raise ObjectNotFoundError(f"Schematic part was not found: {refdes}")
+    if len(matches) > 1:
+        raise AmbiguousSelectorError(
+            f"RefDes {refdes!r} is shared by multiple parts; pass part_id instead",
+            object_ids=[item.stable_id for item in matches],
+        )
+    return matches[0], _resolved_element(snapshot, matches[0])
+
+
+def _locate_pin(document: DipTraceDocument, pin_element: ET.Element) -> tuple[str, int]:
+    for part in document.container.findall("./Components/Part"):
+        for index, candidate in enumerate(part.findall("./Pins/Pin")):
+            if candidate is pin_element:
+                return part.get("Id", ""), index
+    raise EditError("Cannot resolve the owning part of a pin element")
+
+
+def _element_stable_id(
+    snapshot: DocumentSnapshot, element: ET.Element, fallback: str
+) -> str:
+    for stable, candidate in snapshot.elements.items():
+        if candidate is element:
+            return stable
+    return fallback
+
+
+def _apply_add_sheet(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: AddSheetOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_schematic(document, "add_sheet")
+    settings = document.container.find("./SheetSettings")
+    if settings is None:
+        settings = ET.Element("SheetSettings")
+        document.container.insert(0, settings)
+    sheets = settings.find("./Sheets")
+    if sheets is None:
+        sheets = ET.SubElement(settings, "Sheets")
+    if any(
+        (sheet.findtext("./Name") or "").casefold() == operation.name.casefold()
+        for sheet in sheets.findall("./Sheet")
+    ):
+        raise AmbiguousSelectorError(f"A sheet named {operation.name!r} already exists")
+    numeric_ids = [
+        int(value)
+        for sheet in sheets.findall("./Sheet")
+        if (value := sheet.findtext("./Id") or "").isdigit()
+    ]
+    new_id = str(max(numeric_ids, default=-1) + 1)
+    sheet = ET.SubElement(sheets, "Sheet")
+    ET.SubElement(sheet, "Id").text = new_id
+    ET.SubElement(sheet, "Name").text = operation.name
+    ET.SubElement(sheet, "Type").text = operation.sheet_type
+    stable = stable_id("sheet", document.source_type, f"xml:{new_id}")
+    changed_ids.append(stable)
+    target = ObjectRecord(
+        stable_id=stable,
+        kind="sheet",
+        label=operation.name,
+        name=operation.name,
+    )
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        [],
+        [{"id": stable, "sheet_id": new_id, "name": operation.name}],
+        document,
+    ), 1
+
+
+def _apply_place_part(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: PlacePartOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_schematic(document, "place_part")
+    _require_sheet(document, operation.sheet)
+    existing = [
+        item
+        for item in snapshot.objects.values()
+        if item.kind == "part" and (item.refdes or "").casefold() == operation.refdes.casefold()
+    ]
+    if existing and not operation.allow_shared_refdes:
+        raise AmbiguousSelectorError(
+            f"RefDes already exists: {operation.refdes}",
+            object_ids=[item.stable_id for item in existing],
+        )
+    components = document.container.find("./Components")
+    if components is None:
+        components = ET.SubElement(document.container, "Components")
+    part_id = _next_numeric_id(components.findall("./Part"))
+    update_ids = [
+        int(value)
+        for part in components.findall("./Part")
+        if (value := part.get("UpdateId", "")).lstrip("-").isdigit()
+    ]
+    update_id = str(max(update_ids, default=99) + 1)
+    attributes = {
+        "Id": part_id,
+        "UpdateId": update_id,
+        "ComponentStyle": operation.component_style,
+        "ComponentPart": str(operation.component_part),
+        "PartNumber": str(operation.part_number),
+        "Sheet": str(operation.sheet),
+        "X": f"{from_mm(operation.x, document.units):.9g}",
+        "Y": f"{from_mm(operation.y, document.units):.9g}",
+        "Locked": "N",
+        "Selected": "N",
+    }
+    if operation.angle_deg:
+        attributes["Angle"] = f"{math.radians(operation.angle_deg):.9g}"
+    part = ET.SubElement(components, "Part", attributes)
+    ET.SubElement(part, "RefDes").text = operation.refdes
+    ET.SubElement(part, "PartRefDes").text = operation.part_refdes or str(
+        operation.component_part + 1
+    )
+    ET.SubElement(part, "PartName").text = operation.part_name or "Part 1"
+    ET.SubElement(part, "Value").text = operation.value
+    ET.SubElement(part, "Name").text = operation.name or operation.component_style
+    pins = ET.SubElement(part, "Pins")
+    for _ in range(operation.pin_count):
+        ET.SubElement(pins, "Pin", {"NetId": "-1", "NotConnected": "N"})
+    stable = stable_id("part", document.source_type, f"xml:{part_id}")
+    changed_ids.append(stable)
+    target = ObjectRecord(
+        stable_id=stable,
+        kind="part",
+        label=operation.refdes,
+        refdes=operation.refdes,
+        name=operation.name or operation.component_style,
+        value=operation.value or None,
+        position=Point(operation.x, operation.y).as_dict(),
+    )
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        [],
+        [
+            {
+                "id": stable,
+                "refdes": operation.refdes,
+                "component_style": operation.component_style,
+                "pin_count": operation.pin_count,
+                "position": Point(operation.x, operation.y).as_dict(),
+            }
+        ],
+        document,
+    ), 1
+
+
+def _apply_connect_pins(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: ConnectPinsOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_schematic(document, "connect_pins")
+    nets = document.container.find("./Nets")
+    if nets is None:
+        nets = ET.SubElement(document.container, "Nets")
+    net_element = _schematic_net_element(document, operation.net)
+    created_net = False
+    patch_count = 0
+    if net_element is None:
+        net_id = _next_numeric_id(nets.findall("./Net"))
+        net_element = ET.SubElement(
+            nets,
+            "Net",
+            {"Id": net_id, "NetClass": "0", "Locked": "N", "Enabled": "Y"},
+        )
+        ET.SubElement(net_element, "Name").text = operation.net
+        ET.SubElement(net_element, "Pins")
+        ET.SubElement(net_element, "Wires")
+        created_net = True
+        patch_count += 1
+    else:
+        net_id = net_element.get("Id", "")
+        if net_element.get("Enabled", "Y") == "N":
+            raise EditError(f"Net is disabled: {operation.net}", code="connectivity_conflict")
+    net_pins = net_element.find("./Pins")
+    if net_pins is None:
+        net_pins = ET.SubElement(net_element, "Pins")
+    before: list[dict[str, Any]] = []
+    after: list[dict[str, Any]] = []
+    targets: list[ObjectRecord] = []
+    for endpoint in operation.pins:
+        record, part_element = _resolve_part(
+            snapshot, refdes=endpoint.refdes, part_id=endpoint.part_id
+        )
+        targets.append(record)
+        part_xml_id = part_element.get("Id", "")
+        part_pins = part_element.findall("./Pins/Pin")
+        if endpoint.pin >= len(part_pins):
+            raise EditError(
+                f"Pin index {endpoint.pin} is out of range for {record.label or record.stable_id} "
+                f"({len(part_pins)} pins)",
+                object_ids=[record.stable_id],
+            )
+        pin_element = part_pins[endpoint.pin]
+        pin_stable = _element_stable_id(
+            snapshot, pin_element, f"{record.stable_id}:pin:{endpoint.pin}"
+        )
+        current_net = pin_element.get("NetId", "-1")
+        before.append(
+            {
+                "id": pin_stable,
+                "refdes": record.refdes,
+                "pin": endpoint.pin,
+                "net": current_net,
+            }
+        )
+        after.append(
+            {
+                "id": pin_stable,
+                "refdes": record.refdes,
+                "pin": endpoint.pin,
+                "net": net_id,
+            }
+        )
+        if current_net == net_id:
+            continue
+        if current_net not in {"", "-1"}:
+            if not operation.allow_reconnect:
+                raise EditError(
+                    f"Pin {record.refdes or record.stable_id}:{endpoint.pin} is already "
+                    f"connected to net {current_net}; pass allow_reconnect=true to move it",
+                    code="connectivity_conflict",
+                    object_ids=[record.stable_id],
+                )
+            old_net = document.container.find(f"./Nets/Net[@Id='{current_net}']")
+            old_pins = old_net.find("./Pins") if old_net is not None else None
+            if old_pins is not None:
+                for item in list(old_pins.findall("./Item")):
+                    if item.get("Part") == part_xml_id and item.get("Pin") == str(
+                        endpoint.pin
+                    ):
+                        old_pins.remove(item)
+                        patch_count += 1
+        pin_element.set("NetId", net_id)
+        pin_element.set("NotConnected", "N")
+        patch_count += 1
+        if not any(
+            item.get("Part") == part_xml_id and item.get("Pin") == str(endpoint.pin)
+            for item in net_pins.findall("./Item")
+        ):
+            ET.SubElement(net_pins, "Item", {"Part": part_xml_id, "Pin": str(endpoint.pin)})
+            patch_count += 1
+        changed_ids.append(pin_stable)
+    if created_net:
+        changed_ids.append(stable_id("net", document.source_type, f"xml:{net_id}"))
+    return _operation_preview(
+        index, operation.kind, targets, before, after, document
+    ), patch_count
+
+
+def _apply_disconnect_pins(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: DisconnectPinsOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_schematic(document, "disconnect_pins")
+    targets = _select_records(snapshot, operation.selector, {"pin"})
+    before: list[dict[str, Any]] = []
+    after: list[dict[str, Any]] = []
+    patch_count = 0
+    for record in targets:
+        pin_element = _resolved_element(snapshot, record)
+        current_net = pin_element.get("NetId", "-1")
+        before.append({"id": record.stable_id, "net": current_net})
+        after.append({"id": record.stable_id, "net": "-1"})
+        if current_net in {"", "-1"}:
+            continue
+        part_xml_id, pin_index = _locate_pin(document, pin_element)
+        pin_element.set("NetId", "-1")
+        patch_count += 1
+        old_net = document.container.find(f"./Nets/Net[@Id='{current_net}']")
+        old_pins = old_net.find("./Pins") if old_net is not None else None
+        if old_pins is not None:
+            for item in list(old_pins.findall("./Item")):
+                if item.get("Part") == part_xml_id and item.get("Pin") == str(pin_index):
+                    old_pins.remove(item)
+                    patch_count += 1
+        changed_ids.append(record.stable_id)
+    return _operation_preview(
+        index, operation.kind, targets, before, after, document
+    ), patch_count
+
+
+def _net_of_wire(document: DipTraceDocument, wire: ET.Element) -> ET.Element | None:
+    for net in document.container.findall("./Nets/Net"):
+        if any(candidate is wire for candidate in net.findall("./Wires/Wire")):
+            return net
+    return None
+
+
+def _wire_endpoint_attributes(
+    index_suffix: int,
+    endpoint: WireEndpoint,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    net_element: ET.Element,
+) -> dict[str, str]:
+    attributes = {
+        f"Connected{index_suffix}": endpoint.type,
+        f"Bus{index_suffix}": "-1",
+    }
+    if endpoint.type == "Free":
+        attributes[f"Object{index_suffix}"] = "-1"
+        attributes[f"SubObject{index_suffix}"] = "-1"
+        return attributes
+    if endpoint.type == "Pin":
+        record, part_element = _resolve_part(
+            snapshot, refdes=endpoint.refdes, part_id=endpoint.part_id
+        )
+        part_pins = part_element.findall("./Pins/Pin")
+        assert endpoint.pin is not None
+        if endpoint.pin >= len(part_pins):
+            raise EditError(
+                f"Pin index {endpoint.pin} is out of range for "
+                f"{record.label or record.stable_id} ({len(part_pins)} pins)",
+                object_ids=[record.stable_id],
+            )
+        net_id = net_element.get("Id", "")
+        if part_pins[endpoint.pin].get("NetId", "-1") != net_id:
+            raise EditError(
+                f"Pin {record.refdes or record.stable_id}:{endpoint.pin} does not belong "
+                "to the wire net; connect it first",
+                code="connectivity_conflict",
+                object_ids=[record.stable_id],
+            )
+        attributes[f"Object{index_suffix}"] = part_element.get("Id", "")
+        attributes[f"SubObject{index_suffix}"] = str(endpoint.pin)
+        return attributes
+    assert endpoint.wire_id is not None
+    target = snapshot.get_object(endpoint.wire_id)
+    if target.kind != "wire":
+        raise EditError(
+            f"Object is not a schematic wire: {endpoint.wire_id}",
+            object_ids=[endpoint.wire_id],
+        )
+    wire_element = _resolved_element(snapshot, target)
+    if _net_of_wire(document, wire_element) is not net_element:
+        raise EditError(
+            "A wire endpoint can only reference a wire of the same net",
+            code="connectivity_conflict",
+            object_ids=[endpoint.wire_id],
+        )
+    point_count = len(wire_element.findall("./Points/Point"))
+    point_index = endpoint.point_index if endpoint.point_index is not None else point_count - 1
+    if point_count == 0 or point_index >= point_count:
+        raise EditError(
+            f"Wire point index {point_index} is out of range ({point_count} points)",
+            object_ids=[endpoint.wire_id],
+        )
+    attributes[f"Object{index_suffix}"] = wire_element.get("Id", "")
+    attributes[f"SubObject{index_suffix}"] = str(point_index)
+    return attributes
+
+
+def _apply_add_wire(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: AddWireOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_schematic(document, "add_wire")
+    _require_sheet(document, operation.sheet)
+    net_element = _schematic_net_element(document, operation.net)
+    if net_element is None:
+        raise ObjectNotFoundError(f"Net was not found: {operation.net}")
+    wires = net_element.find("./Wires")
+    if wires is None:
+        wires = ET.SubElement(net_element, "Wires")
+    wire_id = _next_numeric_id(wires.findall("./Wire"))
+    attributes = {
+        "Id": wire_id,
+        "Sheet": str(operation.sheet),
+        **_wire_endpoint_attributes(1, operation.start, document, snapshot, net_element),
+        **_wire_endpoint_attributes(2, operation.end, document, snapshot, net_element),
+        "HiddenPower": "Y" if operation.hidden_power else "N",
+        "CanUnhide": "N",
+        "Arrows": "None",
+        "Group": "-1",
+        "Selected": "N",
+    }
+    wire = ET.SubElement(wires, "Wire", attributes)
+    points = ET.SubElement(wire, "Points")
+    previous: tuple[float, float] | None = None
+    for point in operation.points:
+        if previous is None:
+            direction = "-1"
+        else:
+            dx = point.x - previous[0]
+            dy = point.y - previous[1]
+            if dx != 0 and dy == 0:
+                direction = "0"
+            elif dy != 0 and dx == 0:
+                direction = "1"
+            else:
+                direction = "-1"
+        previous = (point.x, point.y)
+        ET.SubElement(
+            points,
+            "Point",
+            {
+                "X": f"{from_mm(point.x, document.units):.9g}",
+                "Y": f"{from_mm(point.y, document.units):.9g}",
+                "Dir": direction,
+            },
+        )
+    stable = stable_id("wire", document.source_type, f"xml:{wire_id}")
+    changed_ids.append(stable)
+    target = ObjectRecord(
+        stable_id=stable,
+        kind="wire",
+        label=f"{operation.net} wire {wire_id}",
+        xml_id=wire_id,
+        net_id=net_element.get("Id") or None,
+        net_name=operation.net,
+    )
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        [],
+        [
+            {
+                "id": stable,
+                "net": operation.net,
+                "point_count": len(operation.points),
+                "start": operation.start.model_dump(mode="json"),
+                "end": operation.end.model_dump(mode="json"),
+            }
+        ],
+        document,
+    ), 1
+
+
+def _apply_delete_wire(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: DeleteWireOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_schematic(document, "delete_wire")
+    targets = _select_records(snapshot, operation.selector, {"wire"})
+    before: list[dict[str, Any]] = []
+    after: list[dict[str, Any]] = []
+    patch_count = 0
+    for record in targets:
+        wire_element = _resolved_element(snapshot, record)
+        before.append({"id": record.stable_id, "attributes": dict(wire_element.attrib)})
+        after.append({"id": record.stable_id, "deleted": True})
+        net_element: ET.Element | None = None
+        net_ids = record.relationships.get("net", [])
+        if net_ids:
+            net_element = snapshot.elements.get(net_ids[0])
+        if net_element is None:
+            net_element = _net_of_wire(document, wire_element)
+        wires = net_element.find("./Wires") if net_element is not None else None
+        if wires is None or wire_element not in list(wires):
+            raise EditError(
+                "Cannot resolve the parent net of the wire",
+                object_ids=[record.stable_id],
+            )
+        wires.remove(wire_element)
+        changed_ids.append(record.stable_id)
+        patch_count += 1
+    return _operation_preview(
+        index, operation.kind, targets, before, after, document
+    ), patch_count
+
+
+def _apply_add_net_label(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: AddNetLabelOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_schematic(document, "add_net_label")
+    _require_sheet(document, operation.sheet)
+    net_element = _schematic_net_element(document, operation.net)
+    if net_element is None:
+        raise ObjectNotFoundError(f"Net was not found: {operation.net}")
+    shapes = document.container.find("./Shapes")
+    if shapes is None:
+        shapes = ET.SubElement(document.container, "Shapes")
+    shape_id = _next_numeric_id(shapes.findall("./Shape"))
+    shape = ET.SubElement(
+        shapes,
+        "Shape",
+        {
+            "Enabled": "Y",
+            "Id": shape_id,
+            "Type": "Text",
+            "Sheet": str(operation.sheet),
+            "Angle": "0",
+            "HorzAlign": "Left",
+            "VertAlign": "Bottom",
+            "TextAlign": "Left",
+            "FontVector": "Y",
+            "FontSize": str(operation.font_size),
+            "FontWidth": "-2",
+            "FontScale": "1",
+            "LineSpacing": "1.2",
+            "NetId": net_element.get("Id", ""),
+            "BusId": "-1",
+            "Group": "-1",
+            "Selected": "N",
+            "Locked": "N",
+        },
+    )
+    points = ET.SubElement(shape, "Points")
+    ET.SubElement(
+        points,
+        "Point",
+        {
+            "X": f"{from_mm(operation.x, document.units):.9g}",
+            "Y": f"{from_mm(operation.y, document.units):.9g}",
+        },
+    )
+    lines = ET.SubElement(shape, "TextLines")
+    label_text = operation.text or operation.net
+    ET.SubElement(lines, "TextLine").text = label_text
+    stable = stable_id("net-label", document.source_type, f"xml:{shape_id}")
+    changed_ids.append(stable)
+    target = ObjectRecord(
+        stable_id=stable,
+        kind="net_label",
+        label=label_text,
+        name=label_text,
+        net_id=net_element.get("Id") or None,
+        net_name=operation.net,
+        position=Point(operation.x, operation.y).as_dict(),
+    )
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        [],
+        [
+            {
+                "id": stable,
+                "net": operation.net,
+                "text": label_text,
+                "position": Point(operation.x, operation.y).as_dict(),
+            }
+        ],
+        document,
+    ), 1
+
+
+def _apply_set_panelization(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: SetPanelizationOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_pcb(document, "set_panelization")
+
+    def dim(value_mm: float) -> str:
+        return f"{from_mm(value_mm, document.units):.9g}"
+
+    panel = document.container.find("./Panel")
+    patch_count = 0
+    created = False
+    if panel is None:
+        panel = ET.Element("Panel")
+        outline = document.container.find("./BoardOutline")
+        if outline is not None:
+            document.container.insert(list(document.container).index(outline) + 1, panel)
+        else:
+            document.container.insert(0, panel)
+        created = True
+        patch_count += 1
+    rails = (operation.rail_left, operation.rail_right, operation.rail_top, operation.rail_bottom)
+    attributes = {
+        "Type": operation.panel_type,
+        "Columns": str(operation.columns),
+        "Rows": str(operation.rows),
+        "ColumnSpacing": dim(operation.column_spacing),
+        "RowSpacing": dim(operation.row_spacing),
+        "PanelizeSingle": "N",
+        "RailShow": "Y" if any(value > 0 for value in rails) else "N",
+        "RailLeft": dim(operation.rail_left),
+        "RailRight": dim(operation.rail_right),
+        "RailTop": dim(operation.rail_top),
+        "RailBottom": dim(operation.rail_bottom),
+        "TabWidth": dim(operation.tab_width),
+        "TabRadius": dim(operation.tab_radius),
+        "TabStep": dim(operation.tab_step),
+        "HoleDiam": dim(operation.hole_diameter),
+        "HoleStep": dim(operation.hole_step),
+        "HoleInset": dim(operation.hole_inset),
+        "HoleKeepout": dim(operation.hole_keepout),
+        "TabsDone": "N",
+        "CombinedRadius": dim(operation.combined_radius),
+        "KeepMaterial": "Y" if operation.keep_material else "N",
+        "BorderTabs": str(operation.border_tabs),
+    }
+    before_attributes = dict(panel.attrib)
+    for name, rendered in attributes.items():
+        if panel.get(name) != rendered:
+            panel.set(name, rendered)
+            if not created:
+                patch_count += 1
+    # Manual tab coordinates belong to the previous layout; let DipTrace
+    # recompute them from the new parameters (TabsDone="N").
+    for child_tag in ("HorzTabsX", "VertTabsY"):
+        child = panel.find(f"./{child_tag}")
+        if child is not None:
+            panel.remove(child)
+            patch_count += 1
+    stable = stable_id("panel", document.source_type, "xml:panel")
+    changed_ids.append(stable)
+    target = ObjectRecord(stable_id=stable, kind="panel", label="Panelization")
+    before = [] if created else [{"id": stable, "attributes": before_attributes}]
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        before,
+        [{"id": stable, "attributes": attributes}],
+        document,
+    ), patch_count
+
+
+def _apply_clear_panelization(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: ClearPanelizationOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_pcb(document, "clear_panelization")
+    panel = document.container.find("./Panel")
+    if panel is None:
+        raise ObjectNotFoundError("The document has no panelization settings")
+    before_attributes = dict(panel.attrib)
+    document.container.remove(panel)
+    stable = stable_id("panel", document.source_type, "xml:panel")
+    changed_ids.append(stable)
+    target = ObjectRecord(stable_id=stable, kind="panel", label="Panelization")
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        [{"id": stable, "attributes": before_attributes}],
+        [{"id": stable, "deleted": True}],
+        document,
+    ), 1

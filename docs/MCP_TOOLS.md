@@ -13,12 +13,23 @@ Actual availability for a specific document is reported by `get_capabilities`.
 
 ## Semantic Writes
 
+- document creation: `create_schematic_document` and `create_pcb_document` generate new
+  valid DipTrace XML documents (sheets, outline, layers, stackup, via styles, net classes,
+  DRC) inside the workspace;
 - components: move, rotate, side, lock, properties, pattern, align, distribute, and group;
 - board text: list, move, rotate, visibility, and style;
 - schematic: value, fields, no-connect, and net rename;
+- schematic authoring: `add_sheet`, `place_part`, `connect_pins`, `disconnect_pins`,
+  `add_wire`, `delete_wire`, and `add_net_label` using the official XML structures;
+- schematic-to-PCB: `sync_schematic_to_pcb` additively creates or updates PCB components,
+  copies referenced pattern/pad-style definitions from allowed library documents, maps pins to
+  pads, and creates nets and ratlines in the standard transaction workflow;
 - rules: NetClass assignment, widths, gaps, and length constraints;
+- panelization: `set_panelization` and `clear_panelization` write official DipTrace
+  `Panel` parameters (V-Scoring / Tab Routing, rails, tabs, holes);
 - standalone test points;
 - trace and via primitives, bounded multi-layer local route plans, and symmetric via insertion;
+- `route_connections` routes multiple nets sequentially with bounded rip-up/retry;
 - `plan_diff_pair_route` and `route_diff_pair` using a coupled centerline and atomic pair metadata.
 
 All writes use a plan or dry-run transaction, expected SHA, preview, reparse,
@@ -37,6 +48,8 @@ an expert escape hatch and is not the recommended API.
 ## Exports and Jobs
 
 - bounded DSN export, Freerouting jobs, and SES import;
+- ngspice batch jobs for user-supplied netlists (`run_ngspice_simulation`), with typed
+  log parsing; requires `DIPTRACE_MCP_NGSPICE` or ngspice on `PATH`;
 - generic BOM CSV;
 - generic fabrication and assembly review manifests;
 - job status, result, cancel, and list operations, plus export listing.
@@ -58,6 +71,6 @@ formats are SVG, JSON geometry, and XML diff.
 
 ## Not Registered
 
-Schematic wire synthesis, library mutation, push-and-shove routing, native manufacturing,
-panelization, and unverified stripline or full-wave solvers are not registered. Reasons
-are returned through `reasons_unavailable`.
+Library mutation, push-and-shove routing, native manufacturing outputs, and unverified
+frequency-dependent or full-wave solvers are not registered. Reasons are returned through
+`reasons_unavailable`.

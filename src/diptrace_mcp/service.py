@@ -43,6 +43,7 @@ from .errors import (
     EditError,
     PathAccessError,
     RoundtripValidationError,
+    RoutingError,
     SessionError,
     Sha256MismatchError,
     TransactionConflictError,
@@ -75,18 +76,27 @@ from .library_adapters import (
     validate_library,
 )
 from .model_cache import ModelCache
+from .multirouter import synthesize_routes_with_retry
 from .operations import (
+    AddNetLabelOperation,
+    AddSheetOperation,
     AddTestpointOperation,
     AddTraceOperation,
     AddViaOperation,
+    AddWireOperation,
     AssignNetsToClassOperation,
+    ClearPanelizationOperation,
+    ConnectPinsOperation,
     DeleteTraceOperation,
     DeleteViaOperation,
+    DeleteWireOperation,
+    DisconnectPinsOperation,
     GroupComponentsOperation,
     MoveBoardTextsOperation,
     MoveComponentsOperation,
     MoveTestpointsOperation,
     MoveViaOperation,
+    PlacePartOperation,
     RemoveTestpointsOperation,
     RenameNetOperation,
     ReplaceTraceOperation,
@@ -98,11 +108,13 @@ from .operations import (
     SetComponentPropertiesOperation,
     SetComponentSideOperation,
     SetComponentValueOperation,
+    SetPanelizationOperation,
     SetPinNoConnectOperation,
     SetTextStyleOperation,
     SetTextVisibilityOperation,
     SetTraceWidthOperation,
     SetViaStyleOperation,
+    SyncSchematicToPcbOperation,
     UngroupComponentsOperation,
     UpdateNetClassRulesOperation,
     parse_semantic_operations,
@@ -128,6 +140,12 @@ from .routing import (
     synthesize_differential_pair_route,
     synthesize_route,
 )
+from .scaffolding import (
+    PcbScaffold,
+    SchematicScaffold,
+    build_pcb_document,
+    build_schematic_document,
+)
 from .semantic_compiler import SemanticApplyResult, apply_semantic_operations
 from .sessions import SessionAction, SessionStore
 from .silkscreen import SilkscreenPlanConfig, plan_silkscreen
@@ -137,6 +155,7 @@ from .specctra import (
     parse_ses,
     session_to_operations,
 )
+from .synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan
 from .transactions import TransactionStore, default_risk, tx_preview_resources
 from .xml_document import (
     DipTraceDocument,
@@ -242,6 +261,9 @@ class DipTraceService:
                 report = build_capabilities(None).model_dump()
                 probe = self.external_jobs.freerouting.probe()
                 report["external_adapters"]["freerouting"] = probe.as_dict()
+                report["external_adapters"]["ngspice"] = (
+                    self.external_jobs.ngspice.probe().as_dict()
+                )
                 report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
                 report["limits"]["max_external_log_bytes"] = (
                     self.settings.max_external_log_bytes
@@ -258,6 +280,7 @@ class DipTraceService:
         report = build_capabilities(document, live_session=target.is_live).model_dump()
         probe = self.external_jobs.freerouting.probe()
         report["external_adapters"]["freerouting"] = probe.as_dict()
+        report["external_adapters"]["ngspice"] = self.external_jobs.ngspice.probe().as_dict()
         report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
         report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
         report["policy"].update(self.policy.capability_payload())
@@ -630,6 +653,57 @@ class DipTraceService:
             limitations=result["limitations"],
         )
 
+    def sync_schematic_to_pcb(
+        self,
+        schematic_path: str,
+        pcb_path: str,
+        *,
+        component_mappings: list[dict[str, Any]] | None = None,
+        placement: dict[str, Any] | None = None,
+        pattern_library_paths: list[str] | None = None,
+        update_existing_properties: bool = True,
+        create_ratlines: bool = True,
+        allow_reconnect: bool = False,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        schematic_document, _ = self.load(schematic_path)
+        pcb_document, _ = self.load(pcb_path)
+        pattern_documents = [
+            self.load(path)[0] for path in pattern_library_paths or []
+        ]
+        plan = build_sync_plan(
+            schematic_document,
+            pcb_document,
+            mappings=[
+                ComponentSyncMapping.model_validate(item)
+                for item in component_mappings or []
+            ],
+            placement=SyncPlacement.model_validate(placement or {}),
+            pattern_documents=pattern_documents,
+            update_existing_properties=update_existing_properties,
+            create_ratlines=create_ratlines,
+            allow_reconnect=allow_reconnect,
+        )
+        response = self._run_semantic_write(
+            plan.operation,
+            pcb_path,
+            dry_run,
+            expected_sha256,
+            txid,
+        )
+        response["warnings"] = [*plan.warnings, *response.get("warnings", [])]
+        response["limitations"] = [
+            *plan.limitations,
+            *response.get("limitations", []),
+        ]
+        response.setdefault("result", {})["schematic_source"] = {
+            "path": str(schematic_document.path),
+            "sha256": schematic_document.sha256,
+        }
+        return response
+
     def query_objects(
         self,
         path: str | None = None,
@@ -834,6 +908,73 @@ class DipTraceService:
             }
         )
         return result
+
+    def create_document(
+        self,
+        kind: str,
+        path: str,
+        *,
+        sheets: list[str] | None = None,
+        pcb: dict[str, Any] | None = None,
+        units: str = "mm",
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
+        """Create a brand-new DipTrace XML document inside the workspace."""
+
+        self.policy.require_write(dry_run=False, operation="create_document")
+        if units not in {"mm", "inch", "mil"}:
+            raise EditError(f"Unsupported document units: {units!r}", code="invalid_request")
+        target = self.settings.resolve_allowed_path(path, must_exist=False)
+        if target.exists() and not overwrite:
+            raise EditError(
+                f"Target already exists (pass overwrite=true to replace): {target}",
+                code="path_exists",
+                details={"path": str(target)},
+            )
+        if kind == "schematic":
+            scaffold = SchematicScaffold(sheet_names=sheets) if sheets else None
+            raw = build_schematic_document(scaffold, units=units)
+        elif kind == "pcb":
+            scaffold_pcb = PcbScaffold.model_validate(pcb or {})
+            raw = build_pcb_document(scaffold_pcb, units=units)
+        else:
+            raise EditError(
+                f"Unsupported document kind for creation: {kind!r}",
+                code="invalid_request",
+            )
+        # Validate the generated bytes before they ever reach the filesystem.
+        candidate = DipTraceDocument.from_bytes(target, raw)
+        snapshot = build_snapshot(candidate)
+        if target.exists():
+            backup_dir = target.parent / ".diptrace-mcp-backups"
+            written = write_with_backup(target, raw, backup_dir)
+            backup: str | None = str(written)
+        else:
+            atomic_write_bytes(target, raw)
+            backup = None
+        loaded = DipTraceDocument.load(target, self.settings.max_document_bytes)
+        if loaded.sha256 != sha256_bytes(raw):
+            raise EditError(
+                "Created document failed the post-write checksum verification",
+                details={"path": str(target)},
+            )
+        info = build_snapshot(loaded).info
+        return self._read_success(
+            info,
+            {
+                "created": True,
+                "kind": kind,
+                "path": str(target),
+                "size_bytes": len(raw),
+                "sha256": loaded.sha256,
+                "backup": backup,
+                "summary": {
+                    "sheets": len(snapshot.schematic.sheets) if snapshot.schematic else None,
+                    "layers": len(snapshot.board.layers) if snapshot.board else None,
+                },
+            },
+            warnings=snapshot.warnings,
+        )
 
     def begin_transaction(
         self,
@@ -1578,6 +1719,168 @@ class DipTraceService:
         operation = RenameNetOperation.model_validate(
             {"selector": selector or {}, "new_name": new_name}
         )
+        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def add_sheet(
+        self,
+        name: str,
+        sheet_type: str = "Normal",
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = AddSheetOperation.model_validate({"name": name, "sheet_type": sheet_type})
+        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def place_part(
+        self,
+        component_style: str,
+        refdes: str,
+        x: float,
+        y: float,
+        *,
+        pin_count: int,
+        name: str | None = None,
+        value: str = "",
+        sheet: int = 0,
+        angle_deg: float = 0.0,
+        component_part: int = 0,
+        part_number: int = 0,
+        part_refdes: str | None = None,
+        part_name: str | None = None,
+        allow_shared_refdes: bool = False,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = PlacePartOperation.model_validate(
+            {
+                "component_style": component_style,
+                "refdes": refdes,
+                "x": x,
+                "y": y,
+                "pin_count": pin_count,
+                "name": name,
+                "value": value,
+                "sheet": sheet,
+                "angle_deg": angle_deg,
+                "component_part": component_part,
+                "part_number": part_number,
+                "part_refdes": part_refdes,
+                "part_name": part_name,
+                "allow_shared_refdes": allow_shared_refdes,
+            }
+        )
+        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def connect_pins(
+        self,
+        net: str,
+        pins: list[dict[str, Any]],
+        allow_reconnect: bool = False,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = ConnectPinsOperation.model_validate(
+            {"net": net, "pins": pins, "allow_reconnect": allow_reconnect}
+        )
+        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def disconnect_pins(
+        self,
+        selector: dict[str, Any] | None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = DisconnectPinsOperation.model_validate({"selector": selector or {}})
+        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def add_wire(
+        self,
+        net: str,
+        points: list[dict[str, Any]],
+        start: dict[str, Any],
+        end: dict[str, Any],
+        sheet: int = 0,
+        hidden_power: bool = False,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = AddWireOperation.model_validate(
+            {
+                "net": net,
+                "points": points,
+                "start": start,
+                "end": end,
+                "sheet": sheet,
+                "hidden_power": hidden_power,
+            }
+        )
+        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def delete_wire(
+        self,
+        selector: dict[str, Any] | None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = DeleteWireOperation.model_validate({"selector": selector or {}})
+        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def add_net_label(
+        self,
+        net: str,
+        x: float,
+        y: float,
+        sheet: int = 0,
+        text: str | None = None,
+        font_size: int = 10,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = AddNetLabelOperation.model_validate(
+            {
+                "net": net,
+                "x": x,
+                "y": y,
+                "sheet": sheet,
+                "text": text,
+                "font_size": font_size,
+            }
+        )
+        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def set_panelization(
+        self,
+        panel: dict[str, Any],
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = SetPanelizationOperation.model_validate(panel)
+        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def clear_panelization(
+        self,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = ClearPanelizationOperation.model_validate({})
         return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def update_net_class_rules(
@@ -3210,6 +3513,97 @@ class DipTraceService:
             txid=txid,
         )
 
+    def route_connections(
+        self,
+        connections: list[dict[str, Any]],
+        *,
+        ripup_retry: bool = True,
+        max_ripup_attempts: int = 4,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Route multiple connections sequentially with bounded rip-up/retry."""
+
+        configs = [RouteConnectionConfig.model_validate(item) for item in connections]
+        document, _target = self.load(path)
+        synthesis = synthesize_routes_with_retry(
+            document,
+            configs,
+            ripup_retry=ripup_retry,
+            max_ripup_attempts=max_ripup_attempts,
+        )
+        if not synthesis.operations:
+            raise RoutingError(
+                "No connection could be routed",
+                details={"failed": synthesis.failed},
+            )
+        response = self._run_semantic_operations(
+            synthesis.operations, path, dry_run, expected_sha256, txid
+        )
+        response["routing"] = synthesis.metrics
+        if synthesis.failed:
+            response.setdefault("warnings", []).append(
+                f"{len(synthesis.failed)} connection(s) could not be routed; "
+                "see routing metrics for details."
+            )
+            response["routing"]["failed"] = synthesis.failed
+        if synthesis.ripups:
+            response["routing"]["ripups"] = synthesis.ripups
+        return response
+
+    def run_ngspice_simulation(
+        self,
+        *,
+        netlist: str | None = None,
+        netlist_path: str | None = None,
+        path: str | None = None,
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Run a user-supplied ngspice netlist as a bounded external batch job."""
+
+        self.policy.require_external_execution(operation="run_ngspice_simulation")
+        if (netlist is None) == (netlist_path is None):
+            raise DocumentError("Pass exactly one of netlist or netlist_path")
+        max_netlist_bytes = 256 * 1024
+        if netlist_path is not None:
+            source = self.settings.resolve_allowed_path(netlist_path)
+            if source.stat().st_size > max_netlist_bytes:
+                raise DocumentError("Netlist file exceeds the 256 KiB limit")
+            netlist_bytes = source.read_bytes()
+        else:
+            assert netlist is not None
+            netlist_bytes = netlist.encode("utf-8")
+        if len(netlist_bytes) > max_netlist_bytes:
+            raise DocumentError("Netlist exceeds the 256 KiB limit")
+        info: DocumentInfo | None = None
+        target_path: Path | None = None
+        if path is not None:
+            document, target = self.load(path)
+            info = self.models.get(document, live_session=target.is_live).info
+            target_path = target.path
+        record = self.external_jobs.start_ngspice(
+            info,
+            target_path,
+            netlist_bytes,
+            timeout_seconds=timeout_seconds,
+        )
+        return {
+            "ok": True,
+            "document": info.model_dump() if info is not None else None,
+            "result": {"job": record.model_dump(mode="json")},
+            "warnings": [],
+            "limitations": [
+                "The netlist is user-supplied; the server does not verify its electrical "
+                "correctness.",
+                "Simulation results are ngspice output, not in-circuit measurements.",
+            ],
+            "resources": job_resources(record.jobid),
+            "transaction": None,
+            "job": record.model_dump(mode="json"),
+        }
+
     def get_job_status(self, jobid: str) -> dict[str, Any]:
         record = self.jobs.read(jobid)
         return {
@@ -4014,8 +4408,11 @@ class DipTraceService:
             if finding.severity == "error":
                 after_errors[finding.category] = after_errors.get(finding.category, 0) + 1
         allow_connectivity_regression = any(
-            isinstance(operation, DeleteTraceOperation)
-            and operation.allow_connectivity_regression
+            (
+                isinstance(operation, DeleteTraceOperation)
+                and operation.allow_connectivity_regression
+            )
+            or isinstance(operation, SyncSchematicToPcbOperation)
             for operation in operations
         )
         if (

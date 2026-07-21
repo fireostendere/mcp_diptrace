@@ -30,6 +30,7 @@
             "run_connectivity_check",
             "run_drc",
             "run_erc",
+            "set_panelization",
             "stage_operations",
             "validate_transaction"
           ]
@@ -40,7 +41,6 @@
             "add_fiducials",
             "add_tooling_holes",
             "analyze_panelization",
-            "apply_panelization_plan",
             "plan_panelization"
           ]
         }

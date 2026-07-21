@@ -11,6 +11,15 @@ MCP-сервер для чтения, анализа и контролируем
 
 - capability discovery (`get_capabilities`) с явным описанием доступных и недоступных возможностей;
 - normalized document/model layer для PCB и schematic на основе DipTrace XML fixtures;
+- project scaffolding: создание новых schematic/PCB XML-документов с нуля (листы, контур,
+  слои, стекап, via styles, net classes, DRC) через `create_schematic_document` и `create_pcb_document`;
+- schematic-authoring: листы, размещение part по ComponentStyle, соединение пинов в цепи,
+  провода по официальной схеме `Wire/Points`, net labels — `add_sheet`, `place_part`,
+  `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label`;
+- additive schematic-to-PCB synchronization: перенос RefDes/value/fields, footprint,
+  pin-to-pad connectivity, nets и ratlines через `sync_schematic_to_pcb`; footprint definitions
+  могут копироваться из проверенных Component/Pattern Library документов;
+- официальная панелизация DipTrace (`Panel`, V-Scoring / Tab Routing): `set_panelization` и `clear_panelization`;
 - query API по объектам, включая document models, connectivity graph и spatial selectors;
 - сводка по схеме или плате: компоненты, части, выводы, цепи, слои и дифференциальные пары;
 - поиск компонентов по `RefDes`, имени, значению и дополнительным полям;
@@ -31,10 +40,12 @@ MCP-сервер для чтения, анализа и контролируем
 - deterministic silkscreen planning with locked-label preservation, previews and transactional apply;
 - bounded local component placement with score breakdown, legalization and post-plan DRC comparison;
 - explicit trace/via operations, bounded multi-layer 45-degree A* and symmetric vias;
+- sequential multi-net routing with bounded rip-up/retry (`route_connections`);
 - atomic coupled differential-pair routing from one centerline with plan/preview/rollback;
 - bounded DSN export, Freerouting jobs and guarded SES inspect/import;
 - stackup, net length/skew, differential-pair geometry and preliminary single/differential
-  microstrip impedance;
+  microstrip impedance plus IPC-2141 symmetric stripline;
+- ngspice batch adapter for user-supplied netlists with typed log results;
 - return-path/plane heuristics, advanced DFM/DFA/DFT/BOM review and design comparison;
 - generic BOM/fabrication/assembly manifests with bounded resource artifacts;
 - policy profiles `read_only`, `review`, `interactive_edit`, `automation`, `manufacturing`;
@@ -185,14 +196,23 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Сервер читае
 - универсальные XML-операции позволяют менять структуру, но модель должна соблюдать официальную схему DipTrace;
 - старые бинарные проекты требуют экспорта в XML;
 - одновременно поддерживается одна live-сессия;
-- local router не реализует push-and-shove, rip-up/retry, free-angle и dynamic neck-down;
+- local router не реализует push-and-shove, free-angle и dynamic neck-down; rip-up/retry
+  доступен в bounded multi-net режиме `route_connections`;
 - automatic via routing требует подтверждённый `Lay1`/`Lay2`; omitted span допустим
   только на двухслойной плате;
 - coupled router требует согласованных pad-pair spacing/orientation и не строит uncoupled escapes;
-- impedance является preliminary single/differential microstrip estimate, не field-solver result;
+- impedance является preliminary analytical estimate (microstrip Hammerstad-Jensen и
+  centered symmetric stripline IPC-2141), не field-solver result;
+- `place_part` ссылается на библиотечный ComponentStyle по имени — графику символа и
+  распиновку DipTrace подставляет из своих библиотек при импорте;
+- ngspice-адаптер запускает пользовательские нетлисты в batch-режиме и не генерирует
+  нетлисты из дизайна; openEMS/FastHenry не зарегистрированы;
 - copper pours представлены boundary, не authoritative refill;
 - fabrication manifest не содержит Gerber/NC Drill и не готов к производству;
-- schematic wire/library mutation и panelization не заявлены без verified fixtures;
+- library mutation не заявлена без verified fixtures;
+- schematic-to-PCB sync сохраняет лишние PCB objects и существующие traces; multi-part
+  components требуют явный `part_id + pin -> pad_number` mapping, а новый placement является
+  стартовой детерминированной сеткой и требует legalization;
 - неподписанный bridge `.exe` может потребовать разрешения Windows Defender/SmartScreen.
 
 ## Документация

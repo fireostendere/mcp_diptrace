@@ -24,6 +24,15 @@ thickness is not silently ignored: the tool returns a warning and `confidence="l
 `analyze_stackup_for_impedance` uses only explicit stackup thickness and dielectric
 constant values and reports missing inputs instead of substituting material properties.
 
+`structure="symmetric_stripline"` uses the closed-form IPC-2141 centered stripline
+model: `Z0 = (60/sqrt(Er)) * ln(1.9*B / (0.8*W + T))`, where `dielectric_height_mm` is
+the total plane-to-plane separation `B = 2H + T`. The published validity range is
+`W/(B-T) < 0.35` and `T/(B-T) < 0.25`; outside the range the tool returns a warning and
+`confidence="low"`. The effective permittivity equals the bulk `Er` of the homogeneous
+dielectric. `analyze_stackup_for_impedance` emits `stripline_candidates` for internal
+signal layers when both sides have uniform dielectrics with known thickness/Dk,
+including the plane separation and off-center offset.
+
 ## Length and Differential Pairs
 
 - Geometric trace length accounts for DipTrace three-point arcs.
@@ -32,12 +41,20 @@ constant values and reports missing inputs instead of substituting material prop
 - Rule and tolerance checks include confidence information.
 - Arc length contributes to the total, but curved coupling is reported as a limitation.
 
+## External Simulation
+
+The ngspice adapter runs user-supplied netlists in batch mode
+(`run_ngspice_simulation`) with a fixed CLI contract, an isolated job directory,
+timeout, cancellation, bounded logs, and a typed log summary. It is enabled through
+`DIPTRACE_MCP_NGSPICE` or an `ngspice` executable on `PATH` and never fabricates
+results: an unavailable executable ends in `external_tool_unavailable`.
+
 ## Not Implemented
 
-- symmetric or asymmetric stripline;
-- differential stripline impedance;
+- asymmetric or differential stripline impedance;
 - solder-mask, roughness, or frequency-dispersion corrections;
-- field-solver or full-wave analysis;
+- field-solver or full-wave analysis (openEMS, FastHenry);
+- netlist generation from a design;
 - meander or phase-tuning synthesis.
 
 These modes return `solver_required` or `capability_unavailable`. An analytical estimate

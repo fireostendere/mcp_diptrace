@@ -1068,12 +1068,27 @@ def _delete_vias(
     vias = _select(snapshot, operation.selector, "via")
     before: list[dict[str, str]] = []
     for via in vias:
-        _ensure_net_unlocked(snapshot, snapshot.get_object(via.parent_id or ""))
+        if via.attributes.get("representation") == "static_component":
+            raise CapabilityUnavailableError(
+                "delete_via currently supports routed trace transitions, not static vias"
+            )
+        trace = snapshot.get_object(via.parent_id or "")
+        _ensure_net_unlocked(snapshot, trace)
         element = _element(snapshot, via)
         before.append({"id": via.stable_id, "via_style": element.get("ViaStyle", "-1")})
+        points = _element(snapshot, trace).findall("./Points/Point")
+        try:
+            point_index = points.index(element)
+        except ValueError as exc:
+            raise GeometryError("Via point does not belong to its parent trace") from exc
+        if point_index + 1 >= len(points) or element.get("Lay") is None:
+            raise GeometryError("Via deletion requires an explicit following trace segment")
+        # Removing the transition keeps the outgoing segment on the incoming layer. If the
+        # following point carries another ViaStyle, that point becomes the next real transition.
+        points[point_index + 1].set("Lay", str(element.get("Lay")))
         element.set("ViaStyle", "-1")
     ids = [via.stable_id for via in vias]
-    return _preview(index, operation, ids, before, [], document), len(vias), ids
+    return _preview(index, operation, ids, before, [], document), 2 * len(vias), ids
 
 
 def _set_via_style(

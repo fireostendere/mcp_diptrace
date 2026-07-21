@@ -116,13 +116,17 @@ def measure_net_length(
             geometric_length += chunk_length
             per_layer[layer] = per_layer.get(layer, 0.0) + chunk_length
             arc_count += int(is_arc)
-    via_ids = sorted(
-        {
-            via_id
-            for trace in traces
-            for via_id in trace.relationships.get("vias", [])
-        }
-    )
+    transition_via_ids = {
+        via_id
+        for trace in traces
+        for via_id in trace.relationships.get("vias", [])
+    }
+    physical_via_ids = {
+        via.stable_id
+        for via in snapshot.board.vias
+        if via.net_id == net.xml_id or via.net_name == net.name
+    }
+    via_ids = sorted(transition_via_ids | physical_via_ids)
     electrical_length: float | None = None
     delay_ps: float | None = None
     warnings: list[str] = []
@@ -150,7 +154,7 @@ def measure_net_length(
         trace_count=len(traces),
         via_count=len(via_ids),
         via_ids=via_ids,
-        layer_transition_count=len(via_ids),
+        layer_transition_count=len(transition_via_ids),
         arc_count=arc_count,
         electrical_length_mm=electrical_length,
         delay_ps=delay_ps,

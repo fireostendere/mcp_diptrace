@@ -38,9 +38,18 @@ with `5.3.0.0` and embedded legacy versions. The application version and the XML
 
 ## Implemented Writers
 
+- New document scaffolding: `create_schematic_document` and `create_pcb_document`
+  generate official-structure XML (sheets, outline, layers, stackup, via styles, net
+  classes, DRC) and validate it by parsing before writing.
 - Low-level XML edits through `apply_xml_edits`.
 - Semantic component, part, pattern, group, text, schematic no-connect/net, NetClass, and
   test-point edits.
+- Schematic authoring: sheets, part placement, pin/net connectivity, official
+  `<Net>/<Wires>/<Wire>/<Points>` wires, and net-bound text labels.
+- Additive schematic-to-PCB authoring: PCB components, embedded pattern/pad-style subtrees,
+  net pad endpoints, and ratlines. Pattern-library units must match PCB units; multi-part
+  pin-to-pad mapping must be explicit when it cannot be proven from XML.
+- Official PCB `<Panel>` panelization parameters (V-Scoring / Tab Routing).
 - Official PCB `<Net>/<Traces>/<Trace>/<Points>/<Point>` patches for trace and via primitives.
 - Atomic coupled-pair patches: two traces plus `DifferentialPairs/Segments/Segment`.
 - Atomic write, backup, and reparse after writing.
@@ -81,7 +90,10 @@ with `5.3.0.0` and embedded legacy versions. The application version and the XML
   physical layer span. An omitted span is accepted only on a two-layer board. On larger
   stackups, automatic via routing is disabled until the span is known.
 - A copper-pour boundary is not interpreted as final refilled copper.
-- Schematic wire and library mutation remain unavailable until writer round-trip fixtures exist.
+- Schematic wire authoring follows the official specification structure; a live DipTrace
+  import/re-export acceptance run for authored wires is still pending, so the writer is
+  covered by synthetic round-trip tests only.
+- Library mutation remains unavailable until writer round-trip fixtures exist.
 
 ## Version Baseline
 

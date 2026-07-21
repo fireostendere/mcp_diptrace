@@ -4,9 +4,12 @@
 
 The semantic compiler uses the verified
 `Net/Traces/Trace/Points/Point` structure. Segment parameters are stored on the second
-point; a via is represented by a trace point with `ViaStyle`. Trace add, replace,
-delete, and width operations, and via add, move, delete, and style operations, pass
-through one validation path.
+point. A routed via is represented by a trace point with `ViaStyle` whose incoming
+`Lay` differs from the following segment's `Lay`. `ViaStyle` alone is insufficient:
+real DipTrace exports may retain it on same-layer routing points, which must not be
+counted as physical vias. Standalone/static vias use
+`Components/Component[@Type='Via']`. Trace add, replace, delete, and width operations,
+and via add, move, delete, and style operations, pass through one validation path.
 
 The router uses bounded deterministic eight-neighbor A*:
 
@@ -31,7 +34,21 @@ The adapter accepts documented `Size`/`HoleSize` attributes and observed
 transitions only within the normalized span. The compiler repeats this check
 independently for route plans, `add_via`, and `set_via_style`.
 
-Limitations: no push-and-shove, rip-up/retry, curves, free-angle routing, or dynamic neck-down.
+Limitations: no push-and-shove, curves, free-angle routing, or dynamic neck-down.
+
+## Multi-Net Routing with Rip-Up/Retry
+
+`route_connections` routes a bounded list of connections (up to 64) sequentially against
+an evolving document: every routed connection immediately becomes an obstacle for the
+next one. When a connection fails, a bounded rip-up/retry pass (default 4 candidate
+attempts, hard limit 8) temporarily removes one earlier routed connection of a different
+net, routes the failed connection, and re-routes the ripped one. The result is an ordered
+list of semantic operations (add/delete traces) that replays through the standard
+transactional preview/commit path with the review regression gate. Rip-up candidates are
+limited to connections routed inside the same call; pre-existing routing is never ripped.
+
+Limitations: rip-up/retry is batch-local and bounded, congestion-aware ordering and
+push-and-shove are not implemented.
 
 ## Coupled Differential Pair
 

@@ -400,10 +400,15 @@ Representative write workflows include:
 
 | Tool or group | Purpose | Writes files |
 |---|---|---:|
+| `create_schematic_document` / `create_pcb_document` | New project scaffolding (sheets, layers, stackup, rules) | Immediately |
 | semantic transactions | Plan, preview, commit, and rollback typed edits | On commit |
 | component/part/text/rule operations | Controlled high-level modifications | On commit |
+| schematic authoring | `add_sheet`, `place_part`, `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label` | On commit |
+| `sync_schematic_to_pcb` | Additive component, footprint, net, and ratline synchronization | On commit |
+| `set_panelization` / `clear_panelization` | Official panel parameters (V-Scoring / Tab Routing) | On commit |
 | test-point operations | Add, move, or remove standalone test points | On commit |
 | routing plans | Trace/via and coupled differential-pair operations | On commit |
+| `route_connections` | Sequential multi-net routing with bounded rip-up/retry | On commit |
 | silkscreen/placement plans | Deterministic plan, preview, and apply | On commit |
 | `apply_xml_edits` | Low-level expert XML preview or write | Only with `dry_run=false` |
 | `finish_live_session` | Apply or cancel a live session | Controls live import |
@@ -411,6 +416,37 @@ Representative write workflows include:
 Large diffs, previews, findings, jobs, and exports are exposed through bounded
 `diptrace://...` resources. See [MCP Tools and Resources](MCP_TOOLS.md) for the detailed
 capability map.
+
+### 8.1 Synchronize a Schematic into a PCB
+
+`sync_schematic_to_pcb` uses the ordinary semantic transaction path. It never deletes extra
+PCB objects or existing traces. Preview the operation first:
+
+```json
+{
+  "schematic_path": "project/controller.dch",
+  "pcb_path": "project/controller.dip",
+  "pattern_library_paths": ["libraries/project_patterns.lib"],
+  "component_mappings": [
+    {"refdes": "R1", "pattern_style": "RES_0603"},
+    {
+      "refdes": "U1",
+      "pattern_style": "QFN_32",
+      "pin_map": [
+        {"part_id": "12", "pin": 0, "pad_number": "1"},
+        {"part_id": "13", "pin": 0, "pad_number": "17"}
+      ]
+    }
+  ],
+  "dry_run": true
+}
+```
+
+For a single-part component, pin order maps to pattern pad order when the pattern is available.
+Multi-part components require explicit `part_id`/`pin` to `pad_number` entries for every connected
+pin whose mapping cannot be proven. Library and PCB units must match when a pattern subtree is
+copied. New components receive deterministic grid coordinates; run placement legalization before
+routing. Commit the returned transaction with its PCB source SHA-256.
 
 ## 9. Low-Level XML Operations
 
