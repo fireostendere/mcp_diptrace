@@ -39,8 +39,8 @@ The first two MCP calls must be ordered and sequential: `diptrace_status`, then 
 | `get_capabilities` | `get_capabilities` | `exact` | Use only when document capabilities allow it. |
 | `get_document_info` | `get_document_info` | `exact` | Use only when document capabilities allow it. |
 | `list_unrouted_connections` | `list_unrouted_connections` | `exact` | Use only when document capabilities allow it. |
-| `analyze_routing_congestion` | — | `missing` | Do not call the target name. Use dependency contract `routing-analysis-tuning-v1`; block only dependent stages. |
-| `suggest_routing_order` | — | `missing` | Do not call the target name. Use dependency contract `routing-analysis-tuning-v1`; block only dependent stages. |
+| `analyze_routing_congestion` | `analyze_routing_congestion` | `exact` | Use only when document capabilities allow it. |
+| `suggest_routing_order` | `analyze_routing_congestion` | `alias` | Returns a deterministic most-constrained-first order with corridor congestion evidence. |
 | `find_route_corridors` | — | `missing` | Do not call the target name. Use dependency contract `routing-analysis-tuning-v1`; block only dependent stages. |
 | `get_rules` | `get_design_rules` | `alias` | Exact runtime name for project design rules. |
 

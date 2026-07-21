@@ -16,8 +16,9 @@ MCP-сервер для чтения, анализа и контролируем
 - schematic-authoring: листы, размещение part по ComponentStyle, соединение пинов в цепи,
   провода по официальной схеме `Wire/Points`, net labels — `add_sheet`, `place_part`,
   `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label`;
-- additive schematic-to-PCB synchronization: перенос RefDes/value/fields, footprint,
-  pin-to-pad connectivity, nets и ratlines через `sync_schematic_to_pcb`; footprint definitions
+- schematic-to-PCB synchronization: перенос RefDes/value/fields, footprint, pin-to-pad
+  connectivity, nets и ratlines через `sync_schematic_to_pcb`; по умолчанию режим additive,
+  а guarded `exact` reconciliation удаляет подтверждённые расхождения; footprint definitions
   могут копироваться из проверенных Component/Pattern Library документов;
 - официальная панелизация DipTrace (`Panel`, V-Scoring / Tab Routing): `set_panelization` и `clear_panelization`;
 - query API по объектам, включая document models, connectivity graph и spatial selectors;
@@ -40,7 +41,8 @@ MCP-сервер для чтения, анализа и контролируем
 - deterministic silkscreen planning with locked-label preservation, previews and transactional apply;
 - bounded local component placement with score breakdown, legalization and post-plan DRC comparison;
 - explicit trace/via operations, bounded multi-layer 45-degree A* and symmetric vias;
-- sequential multi-net routing with bounded rip-up/retry (`route_connections`);
+- congestion-ordered multi-net routing with bounded rip-up/retry (`route_connections`) и
+  read-only evidence через `analyze_routing_congestion`;
 - atomic coupled differential-pair routing from one centerline with plan/preview/rollback;
 - bounded DSN export, Freerouting jobs and guarded SES inspect/import;
 - stackup, net length/skew, differential-pair geometry and preliminary single/differential
@@ -197,7 +199,7 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Сервер читае
 - старые бинарные проекты требуют экспорта в XML;
 - одновременно поддерживается одна live-сессия;
 - local router не реализует push-and-shove, free-angle и dynamic neck-down; rip-up/retry
-  доступен в bounded multi-net режиме `route_connections`;
+  и congestion-aware ordering доступны в bounded multi-net режиме `route_connections`;
 - automatic via routing требует подтверждённый `Lay1`/`Lay2`; omitted span допустим
   только на двухслойной плате;
 - coupled router требует согласованных pad-pair spacing/orientation и не строит uncoupled escapes;

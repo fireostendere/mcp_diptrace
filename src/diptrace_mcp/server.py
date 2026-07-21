@@ -201,6 +201,8 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         update_existing_properties: bool = True,
         create_ratlines: bool = True,
         allow_reconnect: bool = False,
+        reconciliation_mode: Literal["additive", "exact"] = "additive",
+        allow_locked_reconciliation: bool = False,
         dry_run: bool = True,
         expected_sha256: str | None = None,
         txid: str | None = None,
@@ -215,6 +217,8 @@ def create_server(settings: Settings | None = None) -> FastMCP:
             update_existing_properties=update_existing_properties,
             create_ratlines=create_ratlines,
             allow_reconnect=allow_reconnect,
+            reconciliation_mode=reconciliation_mode,
+            allow_locked_reconciliation=allow_locked_reconciliation,
             dry_run=dry_run,
             expected_sha256=expected_sha256,
             txid=txid,
@@ -1774,6 +1778,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         connections: list[dict[str, Any]],
         ripup_retry: bool = True,
         max_ripup_attempts: int = 4,
+        ordering: Literal["input", "congestion_aware"] = "congestion_aware",
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1784,10 +1789,24 @@ def create_server(settings: Settings | None = None) -> FastMCP:
             connections,
             ripup_retry=ripup_retry,
             max_ripup_attempts=max_ripup_attempts,
+            ordering=ordering,
             path=path,
             dry_run=dry_run,
             expected_sha256=expected_sha256,
             txid=txid,
+        )
+
+    @mcp.tool()
+    def analyze_routing_congestion(
+        connections: list[dict[str, Any]],
+        ordering: Literal["input", "congestion_aware"] = "congestion_aware",
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        """Rank route connections by deterministic corridor congestion without editing."""
+        return service.analyze_routing_congestion(
+            connections,
+            ordering=ordering,
+            path=path,
         )
 
     @mcp.tool()

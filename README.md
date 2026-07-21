@@ -20,8 +20,9 @@ contains two cooperating components:
 - schematic authoring: sheets, part placement by library `ComponentStyle`, pin/net
   connectivity, official `Wire`/`Points` wires, and net labels (`add_sheet`, `place_part`,
   `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label`);
-- additive schematic-to-PCB synchronization of RefDes/value/fields, footprint references,
-  pin-to-pad connectivity, nets, and ratlines, with verified pattern-library subtree copying;
+- schematic-to-PCB synchronization of RefDes/value/fields, footprint references,
+  pin-to-pad connectivity, nets, and ratlines, with additive-by-default and guarded exact
+  reconciliation modes plus verified pattern-library subtree copying;
 - official DipTrace panelization parameters (`Panel`, V-Scoring / Tab Routing) through
   `set_panelization` and `clear_panelization`;
 - normalized PCB, schematic, Component Library, and Pattern Library domain models;
@@ -41,7 +42,8 @@ contains two cooperating components:
 - deterministic silkscreen and bounded local placement planners;
 - explicit trace/via operations, bounded multi-layer 45-degree A*, and symmetric via
   insertion;
-- sequential multi-net routing with bounded rip-up/retry (`route_connections`);
+- congestion-ordered multi-net routing with bounded rip-up/retry (`route_connections`)
+  and read-only priority evidence (`analyze_routing_congestion`);
 - atomic coupled differential-pair routing from a centerline;
 - bounded DSN export, Freerouting jobs, and guarded SES inspection/import;
 - stackup, net length/skew, differential-pair geometry, return-path heuristics, and
@@ -211,7 +213,8 @@ adapters.
 - One live session is supported at a time.
 - A language model still needs visual review, ERC/DRC, and engineering judgment.
 - The local router does not implement push-and-shove, free-angle routing, or dynamic
-  neck-down; bounded rip-up/retry is available via `route_connections`.
+  neck-down; congestion-aware ordering and bounded rip-up/retry are available via
+  `route_connections`.
 - Automatic via routing requires a confirmed `Lay1`/`Lay2` span on multilayer boards.
 - The coupled router requires compatible endpoint spacing/orientation and does not
   synthesize arbitrary uncoupled escapes.

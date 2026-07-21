@@ -38,7 +38,10 @@ Limitations: no push-and-shove, curves, free-angle routing, or dynamic neck-down
 
 ## Multi-Net Routing with Rip-Up/Retry
 
-`route_connections` routes a bounded list of connections (up to 64) sequentially against
+`analyze_routing_congestion` scores each direct corridor from obstacle count, occupied
+bounding-box area, detour allowance, layer options, via constraints, and direct length.
+`route_connections` uses that deterministic most-constrained-first order by default (or
+caller order with `ordering="input"`) for a bounded list of connections (up to 64) against
 an evolving document: every routed connection immediately becomes an obstacle for the
 next one. When a connection fails, a bounded rip-up/retry pass (default 4 candidate
 attempts, hard limit 8) temporarily removes one earlier routed connection of a different
@@ -47,8 +50,8 @@ list of semantic operations (add/delete traces) that replays through the standar
 transactional preview/commit path with the review regression gate. Rip-up candidates are
 limited to connections routed inside the same call; pre-existing routing is never ripped.
 
-Limitations: rip-up/retry is batch-local and bounded, congestion-aware ordering and
-push-and-shove are not implemented.
+Limitations: the congestion score is a corridor/bounding-box heuristic rather than a global
+router. Rip-up/retry is batch-local and bounded, and push-and-shove is not implemented.
 
 ## Coupled Differential Pair
 

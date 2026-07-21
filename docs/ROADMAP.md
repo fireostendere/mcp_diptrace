@@ -23,8 +23,8 @@ does not imply full equivalence with the DipTrace GUI.
 | 15 | complete v1 | schematic authoring: sheets, part placement, pin connectivity, wires, and net labels |
 | 16 | complete v1 | official panelization parameters (V-Scoring / Tab Routing) and clearing |
 | 17 | complete v1 | ngspice batch adapter for user-supplied netlists with typed log results |
-| 18 | complete v1 | sequential multi-net routing with bounded rip-up/retry |
-| 19 | complete v1 | additive schematic-to-PCB component/net/ratline synchronization with explicit multi-part pin mapping |
+| 18 | complete v2 | congestion-aware multi-net ordering with bounded rip-up/retry |
+| 19 | complete v2 | additive and guarded exact schematic-to-PCB reconciliation with explicit multi-part pin mapping |
 
 ## Phase 4: Verified Boundary
 
@@ -60,7 +60,7 @@ Capability discovery reports the exact unavailability instead of registering emp
   parsers and tests exist.
 - Online component sourcing is disabled by default.
 
-## Phases 14-18: Strict Limits
+## Phases 14-19: Strict Limits
 
 - Scaffolding generates official 4.3-era XML structures; DipTrace import may canonicalize
   numeric values and derived fields, as with any other XML import.
@@ -74,6 +74,10 @@ Capability discovery reports the exact unavailability instead of registering emp
   in `external_tool_unavailable`.
 - Multi-net rip-up/retry is bounded to batch-local candidates and never rips traces that
   were routed outside the current call.
+- Congestion-aware ordering is a deterministic corridor/bounding-box heuristic, not a global
+  router or push-and-shove engine.
+- Exact schematic-to-PCB reconciliation is opt-in, refuses locked objects by default, and
+  removes traces only when a synchronized net's endpoint set changes.
 
 ## Next Engineering Tasks
 
@@ -84,10 +88,6 @@ Capability discovery reports the exact unavailability instead of registering emp
 3. Implement library writers only after round-trip evidence is available.
 4. Add an optional field-solver adapter for frequency-dependent and off-center stripline
    analysis.
-5. Extend multi-net routing with congestion-aware ordering heuristics.
-6. Extend schematic-to-PCB synchronization with a verified destructive reconciliation mode;
-   the v1 operation intentionally preserves extra PCB objects and all existing traces.
-
 A native manufacturing adapter is excluded from the roadmap: without a verified
 DipTrace API it is not planned. Generic manifests are not presented as Gerber or NC
 Drill output.

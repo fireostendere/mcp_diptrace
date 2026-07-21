@@ -76,7 +76,11 @@ from .library_adapters import (
     validate_library,
 )
 from .model_cache import ModelCache
-from .multirouter import synthesize_routes_with_retry
+from .multirouter import (
+    RoutingOrder,
+    plan_connection_order,
+    synthesize_routes_with_retry,
+)
 from .operations import (
     AddNetLabelOperation,
     AddSheetOperation,
@@ -664,6 +668,8 @@ class DipTraceService:
         update_existing_properties: bool = True,
         create_ratlines: bool = True,
         allow_reconnect: bool = False,
+        reconciliation_mode: Literal["additive", "exact"] = "additive",
+        allow_locked_reconciliation: bool = False,
         dry_run: bool = True,
         expected_sha256: str | None = None,
         txid: str | None = None,
@@ -685,6 +691,8 @@ class DipTraceService:
             update_existing_properties=update_existing_properties,
             create_ratlines=create_ratlines,
             allow_reconnect=allow_reconnect,
+            reconciliation_mode=reconciliation_mode,
+            allow_locked_reconciliation=allow_locked_reconciliation,
         )
         response = self._run_semantic_write(
             plan.operation,
@@ -3519,6 +3527,7 @@ class DipTraceService:
         *,
         ripup_retry: bool = True,
         max_ripup_attempts: int = 4,
+        ordering: RoutingOrder = "congestion_aware",
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -3533,6 +3542,7 @@ class DipTraceService:
             configs,
             ripup_retry=ripup_retry,
             max_ripup_attempts=max_ripup_attempts,
+            ordering=ordering,
         )
         if not synthesis.operations:
             raise RoutingError(
@@ -3552,6 +3562,38 @@ class DipTraceService:
         if synthesis.ripups:
             response["routing"]["ripups"] = synthesis.ripups
         return response
+
+    def analyze_routing_congestion(
+        self,
+        connections: list[dict[str, Any]],
+        *,
+        ordering: RoutingOrder = "congestion_aware",
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        """Rank routing connections deterministically without changing the document."""
+
+        configs = [RouteConnectionConfig.model_validate(item) for item in connections]
+        if not configs:
+            raise RoutingError("At least one connection is required")
+        document, target = self.load(path)
+        ordered, priorities = plan_connection_order(
+            document,
+            configs,
+            ordering=ordering,
+        )
+        snapshot = self.models.get(document, live_session=target.is_live)
+        return self._read_success(
+            snapshot.info,
+            {
+                "ordering": ordering,
+                "routing_order": [index for index, _config in ordered],
+                "priorities": [item.as_dict() for item in priorities],
+            },
+            limitations=[
+                "Congestion ranking is a deterministic corridor/bounding-box heuristic, "
+                "not a global routing or push-and-shove solver."
+            ],
+        )
 
     def run_ngspice_simulation(
         self,
