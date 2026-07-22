@@ -1,5 +1,5 @@
 {
-  "source_sha256": "11515d48cec4b4fe0de18742de34aaeec70a83645d4583ad03aa37e811e27402",
+  "source_sha256": "7be0ca875c14599c6e7640e2b104ac5eb1d680a686df43536fb1517fd2bbd519",
   "offline_drc": {
     "profile": "drc_basic",
     "finding_count": 1,
@@ -9,8 +9,8 @@
     ],
     "metrics": {
       "components_or_testpads_checked": 18,
-      "traces_checked": 9,
-      "trace_segments_checked": 25,
+      "traces_checked": 13,
+      "trace_segments_checked": 34,
       "vias_checked": 2
     }
   },

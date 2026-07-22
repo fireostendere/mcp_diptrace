@@ -16,7 +16,7 @@ The current source is intentionally **not** a completed DipTrace 5.3 fixture pac
   exists and validates against `../manifest.schema.json`.
 
 `SENSE` is deliberately left without a trace. Its Top-to-Bottom endpoints make it the
-primary Freerouting/via exercise. GND and passive power branches also retain unresolved
-connectivity for pour and autorouter coverage. The MCP route primitives preserve original
-ratline XML, so `list_unrouted_connections` is not used alone as proof of physical routing;
-the expected files record the route-details and connectivity-review contract.
+primary Freerouting/via exercise. GND and the Bottom-side C4 power branch also retain
+unresolved connectivity for pour and autorouter coverage. Ratlines already satisfied by
+traces are removed; the remaining ratlines form the unresolved-connectivity spanning forest
+that DipTrace expects when importing the source.

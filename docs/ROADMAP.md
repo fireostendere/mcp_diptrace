@@ -129,6 +129,10 @@ Bottom components, seven named nets, five accessible testpoints/test pads, wide 
 routes, an Inner 1 GND route, a Top-only signal route, and a Top/Bottom signal route with
 two explicit through-via spans. Offline component clearance is clean; `SENSE` is the one
 intentional no-trace DRC finding and is reserved for real Freerouting.
+Trace commits now reconcile the exported ratline spanning forest, and trace deletion
+restores the affected pad-to-pad ratline before pruning cycles. The synthetic source was
+regenerated with only unresolved VOUT, GND, and SENSE ratlines after DipTrace 5.3 reported
+that the earlier stale ratline structure had to be reinitialized.
 
 This is preparation, not closure of the evidence gate. The source XML is MCP-generated
 format 4.3.0.3, and the directory deliberately contains only pending-manual instructions

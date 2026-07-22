@@ -5,7 +5,7 @@
     "source_type": "DipTrace-PCB",
     "format_version": "4.3.0.3",
     "units": "mm",
-    "sha256": "11515d48cec4b4fe0de18742de34aaeec70a83645d4583ad03aa37e811e27402"
+    "sha256": "7be0ca875c14599c6e7640e2b104ac5eb1d680a686df43536fb1517fd2bbd519"
   },
   "board": {
     "width_mm": 70.0,
@@ -27,7 +27,7 @@
     "functional_components": 13,
     "standalone_testpoints_or_testpads": 5,
     "nets": 7,
-    "traces": 9,
+    "traces": 13,
     "vias": 2
   },
   "components": [

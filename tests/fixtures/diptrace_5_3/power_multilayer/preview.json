@@ -470,14 +470,5 @@
         "y": 50.0
       }
     ]
-  },
-  "review_validation": {
-    "allow_connectivity_regression": false,
-    "errors_after": {
-      "connectivity": 1
-    },
-    "errors_before": {
-      "connectivity": 1
-    }
   }
 }

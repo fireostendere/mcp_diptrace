@@ -17,7 +17,7 @@
       "status": "ready_mcp_generated_source",
       "source_type": "DipTrace-PCB",
       "format_version": "4.3.0.3",
-      "sha256": "11515d48cec4b4fe0de18742de34aaeec70a83645d4583ad03aa37e811e27402",
+      "sha256": "7be0ca875c14599c6e7640e2b104ac5eb1d680a686df43536fb1517fd2bbd519",
       "intended_semantic_difference": "Baseline synthetic four-layer board before manual copper-pour and Specctra workflows."
     },
     {
@@ -39,7 +39,7 @@
       "status": "ready_mcp_generated_source_pending_5_3_resave",
       "source_type": "DipTrace-PCB",
       "format_version": "4.3.0.3",
-      "sha256": "11515d48cec4b4fe0de18742de34aaeec70a83645d4583ad03aa37e811e27402",
+      "sha256": "7be0ca875c14599c6e7640e2b104ac5eb1d680a686df43536fb1517fd2bbd519",
       "intended_semantic_difference": "Frozen source revision from which input.dsn must be exported."
     },
     {
