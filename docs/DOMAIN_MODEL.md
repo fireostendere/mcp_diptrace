@@ -25,6 +25,8 @@ XML element identity is stored separately in `DocumentSnapshot.elements`.
 
 - `StackupModel`, `DifferentialPairModel`, `NetLengthMeasurement`.
 - `ImpedanceInput`/`ImpedanceResult` with method, assumptions, sensitivity, and confidence.
+- `FieldSolverRequest`/`FieldSolverResult`/`FieldSolverPoint` for a frequency-bound,
+  convergence-aware external stripline result.
 - `Finding`/`ReviewReport`, `BomRecord`, `ReturnPathAnalysis`.
 - `TransactionRecord`, `PlanRecord`, `JobRecord`, `ExportRecord`.
 - `QuerySelector`, `QueryRequest`, `WriteScope`.

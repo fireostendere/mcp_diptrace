@@ -18,11 +18,19 @@ typed log summary (data-row counts and error lines). The adapter never generates
 netlists from a design and never fabricates simulation results: an unavailable
 executable ends in `external_tool_unavailable`.
 
-LTspice, openEMS, FastHenry, and a generic user CLI are not registered. A production
-adapter must provide typed input, a fixed command contract, a capability and version
-probe, a license note, isolated artifacts, timeout and cancellation support, and a
-tested parser. The core does not execute arbitrary commands and does not return fake
-simulation results.
+The openEMS stripline adapter is implemented through a fixed typed runner protocol and is
+enabled only through `DIPTRACE_MCP_OPENEMS_RUNNER`. It supports centered and off-center
+geometry, frequency sweeps, complex characteristic impedance, propagation data, optional
+loss separation, mesh/convergence metadata, and solver provenance. The runner is invoked
+only with `--input` and `--output` paths inside the isolated job directory. Results are
+strictly parsed and must match the requested frequency vector. See
+[Field-Solver Runner Protocol](FIELD_SOLVER_PROTOCOL.md).
+
+The repository does not bundle openEMS or claim that the synthetic parser fixture is a
+solver result. Runtime availability requires a compatible openEMS-backed runner, and the
+remaining real-solver acceptance run is reported separately from adapter implementation.
+LTspice, FastHenry, and a generic user CLI are not registered. The core does not execute
+arbitrary commands and does not return fake simulation results.
 
 ## Dependency Evaluation
 
@@ -37,6 +45,7 @@ simulation results.
 | Pillow | HPND | yes | Optional PNG output is planned; SVG is sufficient for the core |
 | Hypothesis | MPL-2.0 | pure Python | Development-only property tests |
 | psutil | BSD-3-Clause | yes | Not required: subprocess timeout and cancellation use the standard library |
+| openEMS | GPL-3.0-or-later | platform packages | External runtime through the typed runner protocol; not bundled |
 
 The `geometry` extra contains Shapely 2.x. Its Windows wheels include GEOS and NumPy and
 support Python 3.10 and later. Query results are sorted by stable ID for deterministic

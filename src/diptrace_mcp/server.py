@@ -1996,6 +1996,39 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         )
 
     @mcp.tool()
+    def run_openems_stripline_analysis(
+        width_mm: float,
+        copper_thickness_mm: float,
+        lower_dielectric_height_mm: float,
+        upper_dielectric_height_mm: float,
+        dielectric_constant: float,
+        frequencies_hz: list[float],
+        dielectric_loss_tangent: float = 0.0,
+        conductor_conductivity_s_per_m: float = 58_000_000.0,
+        trace_length_mm: float = 20.0,
+        port_impedance_ohm: float = 50.0,
+        mesh_cells_per_wavelength: int = 30,
+        path: str | None = None,
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Run configured openEMS stripline analysis with a typed frequency sweep."""
+        return service.run_openems_stripline_analysis(
+            width_mm=width_mm,
+            copper_thickness_mm=copper_thickness_mm,
+            lower_dielectric_height_mm=lower_dielectric_height_mm,
+            upper_dielectric_height_mm=upper_dielectric_height_mm,
+            dielectric_constant=dielectric_constant,
+            frequencies_hz=frequencies_hz,
+            dielectric_loss_tangent=dielectric_loss_tangent,
+            conductor_conductivity_s_per_m=conductor_conductivity_s_per_m,
+            trace_length_mm=trace_length_mm,
+            port_impedance_ohm=port_impedance_ohm,
+            mesh_cells_per_wavelength=mesh_cells_per_wavelength,
+            path=path,
+            timeout_seconds=timeout_seconds,
+        )
+
+    @mcp.tool()
     def get_job_status(jobid: str) -> dict[str, Any]:
         """Return persistent external-job state and progress."""
         return service.get_job_status(jobid)
@@ -2293,6 +2326,22 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     def job_manifest_resource(jobid: str) -> str:
         """External job provenance and typed option manifest."""
         return service.job_resource(jobid, "manifest.json")
+
+    @mcp.resource(
+        "diptrace://job/{jobid}/field_solver_input.json",
+        mime_type="application/json",
+    )
+    def job_field_solver_input_resource(jobid: str) -> str:
+        """Typed field-solver request artifact."""
+        return service.job_resource(jobid, "field_solver_input.json")
+
+    @mcp.resource(
+        "diptrace://job/{jobid}/field_solver_result.json",
+        mime_type="application/json",
+    )
+    def job_field_solver_result_resource(jobid: str) -> str:
+        """Validated field-solver result artifact."""
+        return service.job_resource(jobid, "field_solver_result.json")
 
     @mcp.resource(
         "diptrace://export/{export_id}/{artifact}",

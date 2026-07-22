@@ -53,6 +53,9 @@ an expert escape hatch and is not the recommended API.
 - bounded DSN export, Freerouting jobs, and SES import;
 - ngspice batch jobs for user-supplied netlists (`run_ngspice_simulation`), with typed
   log parsing; requires `DIPTRACE_MCP_NGSPICE` or ngspice on `PATH`;
+- typed centered/off-center stripline solver jobs (`run_openems_stripline_analysis`),
+  including frequency-dependent complex impedance and propagation data; requires
+  `DIPTRACE_MCP_OPENEMS_RUNNER`;
 - generic BOM CSV;
 - generic fabrication and assembly review manifests;
 - job status, result, cancel, and list operations, plus export listing.

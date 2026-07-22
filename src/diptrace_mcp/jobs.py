@@ -37,7 +37,15 @@ class JobStore:
         return self.job_dir(jobid) / "job.json"
 
     def artifact_path(self, jobid: str, name: str) -> Path:
-        if name not in {"input.dsn", "output.ses", "input.cir", "log.txt", "manifest.json"}:
+        if name not in {
+            "input.dsn",
+            "output.ses",
+            "input.cir",
+            "field_solver_input.json",
+            "field_solver_result.json",
+            "log.txt",
+            "manifest.json",
+        }:
             raise ObjectNotFoundError(f"Unknown job artifact: {name}", jobid=jobid)
         return self.job_dir(jobid) / name
 

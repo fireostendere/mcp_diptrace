@@ -49,11 +49,19 @@ timeout, cancellation, bounded logs, and a typed log summary. It is enabled thro
 `DIPTRACE_MCP_NGSPICE` or an `ngspice` executable on `PATH` and never fabricates
 results: an unavailable executable ends in `external_tool_unavailable`.
 
+`run_openems_stripline_analysis` submits explicit centered or off-center stripline
+geometry and a frequency sweep to a configured `DIPTRACE_MCP_OPENEMS_RUNNER`. Its result
+is solver-produced rather than an analytical estimate and includes complex characteristic
+impedance, propagation constant, optional separated losses, mesh/convergence metadata,
+and solver version. The adapter validates the typed protocol and does not fall back to the
+closed-form estimate when the runner is unavailable. See
+[Field-Solver Runner Protocol](FIELD_SOLVER_PROTOCOL.md).
+
 ## Not Implemented
 
-- asymmetric or differential stripline impedance;
+- differential stripline impedance;
 - solder-mask, roughness, or frequency-dispersion corrections;
-- field-solver or full-wave analysis (openEMS, FastHenry);
+- a bundled field solver or a verified real-openEMS golden fixture;
 - netlist generation from a design;
 - meander or phase-tuning synthesis.
 

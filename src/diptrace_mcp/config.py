@@ -106,7 +106,9 @@ class Settings:
     freerouting_executable: Path | None = None
     java_executable: Path | None = None
     ngspice_executable: Path | None = None
+    openems_runner: Path | None = None
     external_timeout_seconds: int = 3600
+    max_external_result_bytes: int = 16 * 1024 * 1024
     max_external_log_bytes: int = 4 * 1024 * 1024
     active_policy: PolicyProfile = "interactive_edit"
 
@@ -132,6 +134,8 @@ class Settings:
         ngspice_raw = os.environ.get("DIPTRACE_MCP_NGSPICE")
         ngspice_found = ngspice_raw or shutil.which("ngspice")
         ngspice = platform_path(ngspice_found).resolve() if ngspice_found else None
+        openems_raw = os.environ.get("DIPTRACE_MCP_OPENEMS_RUNNER")
+        openems_runner = platform_path(openems_raw).resolve() if openems_raw else None
         return cls(
             workspace=workspace,
             allowed_roots=unique_roots,
@@ -143,8 +147,12 @@ class Settings:
             freerouting_executable=freerouting,
             java_executable=java,
             ngspice_executable=ngspice,
+            openems_runner=openems_runner,
             external_timeout_seconds=_positive_int(
                 "DIPTRACE_MCP_EXTERNAL_TIMEOUT", 3600
+            ),
+            max_external_result_bytes=_positive_int(
+                "DIPTRACE_MCP_MAX_EXTERNAL_RESULT_BYTES", 16 * 1024 * 1024
             ),
             max_external_log_bytes=_positive_int(
                 "DIPTRACE_MCP_MAX_EXTERNAL_LOG_BYTES", 4 * 1024 * 1024
@@ -181,7 +189,9 @@ class Settings:
             "ngspice_executable": (
                 str(self.ngspice_executable) if self.ngspice_executable else None
             ),
+            "openems_runner": str(self.openems_runner) if self.openems_runner else None,
             "external_timeout_seconds": self.external_timeout_seconds,
+            "max_external_result_bytes": self.max_external_result_bytes,
             "max_external_log_bytes": self.max_external_log_bytes,
             "active_policy": self.active_policy,
         }

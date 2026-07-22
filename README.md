@@ -50,6 +50,8 @@ contains two cooperating components:
   preliminary analytical impedance: Hammerstad-Jensen microstrip (single and
   differential) plus IPC-2141 centered symmetric stripline;
 - ngspice batch adapter for user-supplied netlists with typed log results;
+- typed optional openEMS-runner adapter for frequency-dependent centered/off-center
+  stripline results, with bounded jobs and strict result parsing;
 - BOM, DFM/DFA/DFT, thermal-metadata, assembly, and design-comparison reviews;
 - generic BOM, fabrication-review, and assembly-review manifests;
 - policy profiles: `read_only`, `review`, `interactive_edit`, `automation`, and
@@ -218,15 +220,17 @@ adapters.
 - Automatic via routing requires a confirmed `Lay1`/`Lay2` span on multilayer boards.
 - The coupled router requires compatible endpoint spacing/orientation and does not
   synthesize arbitrary uncoupled escapes.
-- Impedance output is a preliminary analytical estimate (Hammerstad-Jensen microstrip and
-  IPC-2141 centered symmetric stripline), not a field-solver or full-wave result.
+- `calculate_impedance` remains a preliminary analytical estimate. Field-solver results
+  are available only from a configured `run_openems_stripline_analysis` backend.
 - `place_part` references a library `ComponentStyle` by name; DipTrace resolves symbol
   graphics and pin mapping from its own libraries on import.
 - The ngspice adapter runs user-supplied netlists in batch mode and does not generate
-  netlists from a design; openEMS and FastHenry adapters remain unregistered.
+  netlists from a design. The openEMS adapter requires a compatible external JSON runner;
+  no solver is bundled and the committed parser fixture is explicitly synthetic.
 - Copper-pour boundaries are not authoritative refill geometry.
 - Generic fabrication manifests do not contain Gerber or NC Drill output.
-- Library mutation and unverified frequency-dependent solvers remain unavailable.
+- Library mutation remains unavailable until verified DipTrace 5.3 round-trip fixtures
+  exist; real-openEMS golden validation also remains external-runtime acceptance work.
 - Schematic-to-PCB sync preserves extra PCB objects and existing traces; multi-part parts need
   explicit `part_id + pin -> pad_number` mappings, and initial grid placement needs legalization.
 - The locally built unsigned bridge may require Windows Defender/SmartScreen approval.
@@ -245,6 +249,7 @@ adapters.
 - [Routing engine](docs/ROUTING_ENGINE.md)
 - [Impedance and preliminary SI](docs/IMPEDANCE_AND_SI.md)
 - [External adapters](docs/EXTERNAL_ADAPTERS.md)
+- [Field-solver runner protocol](docs/FIELD_SOLVER_PROTOCOL.md)
 - [Security and policy](docs/SECURITY_AND_POLICY.md)
 - [Testing and benchmarks](docs/TESTING.md)
 - [Skill contracts](docs/SKILL_CONTRACTS.md)

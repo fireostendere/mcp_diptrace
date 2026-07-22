@@ -134,6 +134,11 @@ def get_capabilities(
                         "Runtime availability requires DIPTRACE_MCP_NGSPICE or ngspice on PATH."
                     ),
                 },
+                "openems": {
+                    "available": False,
+                    "implemented": True,
+                    "reason": "Runtime availability requires DIPTRACE_MCP_OPENEMS_RUNNER.",
+                },
             },
             geometry_backend=backend_report(),
             preview_formats=["svg", "json", "diff"],
@@ -178,8 +183,8 @@ def get_capabilities(
                     "code": "external_tool_unavailable",
                     "message": (
                         "The ngspice batch adapter is implemented for user-supplied "
-                        "netlists; configure DIPTRACE_MCP_NGSPICE to enable it. openEMS "
-                        "and FastHenry adapters remain unregistered."
+                        "netlists. The typed openEMS stripline adapter is implemented; "
+                        "configure DIPTRACE_MCP_OPENEMS_RUNNER to enable it."
                     ),
                 },
             ],

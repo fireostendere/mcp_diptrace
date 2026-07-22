@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from enum import Enum
 from typing import Any, Literal
@@ -717,6 +718,56 @@ class ImpedanceResult(StrictModel):
     assumptions: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     validity: dict[str, Any] = Field(default_factory=dict)
+
+
+class FieldSolverRequest(StrictModel):
+    """Typed quasi-TEM/full-wave stripline request for an external solver backend."""
+
+    schema_version: Literal["diptrace-field-solver-request-v1"] = (
+        "diptrace-field-solver-request-v1"
+    )
+    structure: Literal["stripline"] = "stripline"
+    width_mm: float = Field(gt=0.0, allow_inf_nan=False)
+    copper_thickness_mm: float = Field(gt=0.0, allow_inf_nan=False)
+    lower_dielectric_height_mm: float = Field(gt=0.0, allow_inf_nan=False)
+    upper_dielectric_height_mm: float = Field(gt=0.0, allow_inf_nan=False)
+    dielectric_constant: float = Field(gt=1.0, allow_inf_nan=False)
+    dielectric_loss_tangent: float = Field(default=0.0, ge=0.0, lt=1.0, allow_inf_nan=False)
+    conductor_conductivity_s_per_m: float = Field(
+        default=58_000_000.0, gt=0.0, allow_inf_nan=False
+    )
+    frequencies_hz: list[float] = Field(min_length=1, max_length=1001)
+    trace_length_mm: float = Field(default=20.0, gt=0.0, allow_inf_nan=False)
+    port_impedance_ohm: float = Field(default=50.0, gt=0.0, allow_inf_nan=False)
+    mesh_cells_per_wavelength: int = Field(default=30, ge=10, le=100)
+
+    @model_validator(mode="after")
+    def validate_frequency_sweep(self) -> FieldSolverRequest:
+        if any(not math.isfinite(value) or value <= 0.0 for value in self.frequencies_hz):
+            raise ValueError("frequencies_hz must contain finite positive values")
+        if self.frequencies_hz != sorted(set(self.frequencies_hz)):
+            raise ValueError("frequencies_hz must be strictly increasing and unique")
+        return self
+
+
+class FieldSolverPoint(StrictModel):
+    frequency_hz: float = Field(gt=0.0, allow_inf_nan=False)
+    characteristic_impedance_real_ohm: float = Field(gt=0.0, allow_inf_nan=False)
+    characteristic_impedance_imag_ohm: float = Field(allow_inf_nan=False)
+    propagation_alpha_np_per_m: float = Field(ge=0.0, allow_inf_nan=False)
+    propagation_beta_rad_per_m: float = Field(gt=0.0, allow_inf_nan=False)
+    conductor_loss_db_per_m: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+    dielectric_loss_db_per_m: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+
+
+class FieldSolverResult(StrictModel):
+    schema_version: Literal["diptrace-field-solver-result-v1"]
+    backend: Literal["openems"]
+    solver_version: str = Field(min_length=1, max_length=128)
+    converged: bool
+    points: list[FieldSolverPoint] = Field(min_length=1, max_length=1001)
+    mesh: dict[str, Any] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list, max_length=100)
 
 
 JobStatus = Literal["queued", "running", "completed", "failed", "cancelled"]

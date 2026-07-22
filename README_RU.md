@@ -48,6 +48,8 @@ MCP-сервер для чтения, анализа и контролируем
 - stackup, net length/skew, differential-pair geometry and preliminary single/differential
   microstrip impedance plus IPC-2141 symmetric stripline;
 - ngspice batch adapter for user-supplied netlists with typed log results;
+- опциональный typed openEMS-runner adapter для frequency-dependent centered/off-center
+  stripline с bounded jobs и строгой проверкой результата;
 - return-path/plane heuristics, advanced DFM/DFA/DFT/BOM review and design comparison;
 - generic BOM/fabrication/assembly manifests with bounded resource artifacts;
 - policy profiles `read_only`, `review`, `interactive_edit`, `automation`, `manufacturing`;
@@ -203,12 +205,13 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Сервер читае
 - automatic via routing требует подтверждённый `Lay1`/`Lay2`; omitted span допустим
   только на двухслойной плате;
 - coupled router требует согласованных pad-pair spacing/orientation и не строит uncoupled escapes;
-- impedance является preliminary analytical estimate (microstrip Hammerstad-Jensen и
-  centered symmetric stripline IPC-2141), не field-solver result;
+- `calculate_impedance` остаётся preliminary analytical estimate; field-solver result
+  доступен только через настроенный `run_openems_stripline_analysis` backend;
 - `place_part` ссылается на библиотечный ComponentStyle по имени — графику символа и
   распиновку DipTrace подставляет из своих библиотек при импорте;
 - ngspice-адаптер запускает пользовательские нетлисты в batch-режиме и не генерирует
-  нетлисты из дизайна; openEMS/FastHenry не зарегистрированы;
+  нетлисты из дизайна; openEMS adapter требует внешний совместимый JSON runner, solver
+  не поставляется, а parser fixture явно синтетический;
 - copper pours представлены boundary, не authoritative refill;
 - fabrication manifest не содержит Gerber/NC Drill и не готов к производству;
 - library mutation не заявлена без verified fixtures;
@@ -231,6 +234,7 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Сервер читае
 - [Routing engine](docs/ROUTING_ENGINE.md)
 - [Impedance and SI](docs/IMPEDANCE_AND_SI.md)
 - [External adapters](docs/EXTERNAL_ADAPTERS.md)
+- [Field-solver runner protocol](docs/FIELD_SOLVER_PROTOCOL.md)
 - [Security and policy](docs/SECURITY_AND_POLICY.md)
 - [Testing and benchmarks](docs/TESTING.md)
 - [Skill contracts](docs/SKILL_CONTRACTS.md)
