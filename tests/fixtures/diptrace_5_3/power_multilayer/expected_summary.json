@@ -1,0 +1,72 @@
+{
+  "fixture_status": "mcp_source_ready_manual_diptrace_and_freerouting_evidence_pending",
+  "source": {
+    "path": "source_board.xml",
+    "source_type": "DipTrace-PCB",
+    "format_version": "4.3.0.3",
+    "units": "mm",
+    "sha256": "11515d48cec4b4fe0de18742de34aaeec70a83645d4583ad03aa37e811e27402"
+  },
+  "board": {
+    "width_mm": 70.0,
+    "height_mm": 50.0,
+    "nominal_total_thickness_mm": 1.6,
+    "stackup_name": "Fixture 4L 1.6mm nominal",
+    "copper_thickness_mm": 0.035,
+    "dielectric_thickness_per_interval_mm": 0.486666667,
+    "dielectric_constant": 4.3,
+    "layers": [
+      {"id": "0", "name": "Top", "type": "Signal"},
+      {"id": "1", "name": "Inner 1", "type": "Plane", "intent": "predominantly GND"},
+      {"id": "2", "name": "Inner 2", "type": "Plane", "intent": "predominantly power"},
+      {"id": "3", "name": "Bottom", "type": "Signal"}
+    ],
+    "impedance_note": "No production impedance is claimed. Stackup values are synthetic analytical inputs and require fabrication-house confirmation."
+  },
+  "counts": {
+    "functional_components": 13,
+    "standalone_testpoints_or_testpads": 5,
+    "nets": 7,
+    "traces": 9,
+    "vias": 2
+  },
+  "components": [
+    {"refdes": "J1", "role": "power input", "pattern": "PatType1", "side": "Top", "x_mm": 7.0, "y_mm": 25.0},
+    {"refdes": "F1", "role": "series input element", "pattern": "PatType0", "side": "Top", "x_mm": 15.0, "y_mm": 25.0},
+    {"refdes": "D1", "role": "synthetic TVS/protection diode", "pattern": "PatType0", "side": "Top", "x_mm": 20.0, "y_mm": 33.0},
+    {"refdes": "U1", "role": "conditional two-pin regulator fixture block", "pattern": "PatType0", "side": "Top", "x_mm": 35.0, "y_mm": 25.0},
+    {"refdes": "C1", "role": "input bulk capacitor", "pattern": "PatType0", "side": "Top", "x_mm": 29.0, "y_mm": 22.0},
+    {"refdes": "C2", "role": "input decoupling capacitor", "pattern": "PatType0", "side": "Top", "x_mm": 29.0, "y_mm": 28.0},
+    {"refdes": "C3", "role": "output bulk capacitor", "pattern": "PatType0", "side": "Top", "x_mm": 42.0, "y_mm": 22.0},
+    {"refdes": "C4", "role": "output decoupling capacitor", "pattern": "PatType0", "side": "Bottom", "x_mm": 42.0, "y_mm": 28.0},
+    {"refdes": "R1", "role": "sense divider high", "pattern": "PatType0", "side": "Top", "x_mm": 49.0, "y_mm": 25.0},
+    {"refdes": "R2", "role": "sense divider low", "pattern": "PatType0", "side": "Bottom", "rotation_deg": 90.0, "x_mm": 51.0, "y_mm": 32.0},
+    {"refdes": "J2", "role": "power output", "pattern": "PatType1", "side": "Top", "x_mm": 63.0, "y_mm": 25.0},
+    {"refdes": "J3", "role": "SIGNAL_A header and accessible THT test pad", "pattern": "PatType1", "side": "Top", "x_mm": 8.0, "y_mm": 10.0},
+    {"refdes": "J4", "role": "SIGNAL_B header and accessible THT test pad", "pattern": "PatType1", "side": "Top", "x_mm": 8.0, "y_mm": 40.0}
+  ],
+  "testpoints": [
+    {"refdes": "TP1", "net": "VIN_RAW", "side": "Top", "kind": "through-hole", "x_mm": 11.0, "y_mm": 20.0},
+    {"refdes": "TP2", "net": "VOUT", "side": "Top", "kind": "through-hole", "x_mm": 57.0, "y_mm": 20.0},
+    {"refdes": "TP3", "net": "GND", "side": "Top", "kind": "through-hole", "x_mm": 35.0, "y_mm": 42.0},
+    {"refdes": "TP4", "net": "SIGNAL_A", "side": "Top", "kind": "SMD test pad", "x_mm": 25.0, "y_mm": 10.0},
+    {"refdes": "TP5", "net": "SIGNAL_B", "side": "Top", "kind": "SMD test pad", "x_mm": 25.0, "y_mm": 40.0}
+  ],
+  "nets": [
+    {"name": "VIN_RAW", "endpoint_count": 3},
+    {"name": "VIN_PROTECTED", "endpoint_count": 5},
+    {"name": "VOUT", "endpoint_count": 6},
+    {"name": "GND", "endpoint_count": 11},
+    {"name": "SENSE", "endpoint_count": 2},
+    {"name": "SIGNAL_A", "endpoint_count": 2},
+    {"name": "SIGNAL_B", "endpoint_count": 2}
+  ],
+  "signal_lengths": [
+    {"net": "SIGNAL_A", "geometric_length_mm": 23.27, "per_layer_length_mm": {"Top": 23.27}, "via_count": 0},
+    {"net": "SIGNAL_B", "geometric_length_mm": 23.27, "per_layer_length_mm": {"Top": 17.27, "Bottom": 6.0}, "via_count": 2}
+  ],
+  "preview": {
+    "svg": "preview.svg",
+    "json": "preview.json"
+  }
+}

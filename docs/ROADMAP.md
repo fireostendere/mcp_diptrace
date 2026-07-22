@@ -119,6 +119,25 @@ geometry, but no explicit mask/paste attributes or bottom-courtyard evidence. Th
 removes the tooling gap for collecting local library evidence; it does not unblock
 writers until controlled, redistributable round-trip fixtures exist.
 
+### Synthetic Power Multilayer Pre-Fixture — 2026-07-22
+
+A wholly synthetic 70 × 50 mm four-layer source board now lives under
+`tests/fixtures/diptrace_5_3/power_multilayer/`. It was created through guarded MCP
+schematic-authoring, schematic-to-PCB synchronization, placement, trace and via
+operations. It covers Top/Inner 1/Inner 2/Bottom stackup parsing, mirrored and rotated
+Bottom components, seven named nets, five accessible testpoints/test pads, wide power
+routes, an Inner 1 GND route, a Top-only signal route, and a Top/Bottom signal route with
+two explicit through-via spans. Offline component clearance is clean; `SENSE` is the one
+intentional no-trace DRC finding and is reserved for real Freerouting.
+
+This is preparation, not closure of the evidence gate. The source XML is MCP-generated
+format 4.3.0.3, and the directory deliberately contains only pending-manual instructions
+for the authoritative DipTrace 5.3.0.2 copper-pour before/after pair and real DSN/SES
+pair. Capability discovery reported DSN export unavailable and no configured Freerouting
+adapter, while authoritative copper refill remains outside confirmed write semantics.
+The fixture pack remains incomplete until those four real artifacts are captured, hashed,
+re-imported and recorded in a schema-conforming final manifest.
+
 ### 1. Redistributable DipTrace 5.3 Fixture Pack — Deferred
 
 Add a small synthetic, non-proprietary fixture pack exported by the current DipTrace

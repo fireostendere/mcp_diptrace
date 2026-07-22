@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm" />
+  <Library Type="DipTrace-PatternLibrary" Version="4.3.0.3" Units="mm"><PadStyles><PadStyle Name="SMD_0603" Type="Surface" Side="Top">
+      <MainStack Shape="Rectangle" Width="0.9" Height="0.95" XOff="0" YOff="0" />
+      <MaskPaste TopMask="Common" BotMask="Common" TopPaste="Common" BotPaste="Common" />
+    </PadStyle><PadStyle Name="THT_1MM" Type="Through" HoleType="Round" Hole="1.0" Side="Top">
+      <MainStack Shape="Ellipse" Width="1.8" Height="1.8" XOff="0" YOff="0" />
+    </PadStyle><PadStyle Name="MCPTestPointPad13" Type="Through" Side="Top" HoleType="Round" Hole="0.7"><MainStack Shape="Ellipse" Width="1.5" Height="1.5" XOff="0" YOff="0" /></PadStyle><PadStyle Name="MCPTestPointPad14" Type="Through" Side="Top" HoleType="Round" Hole="0.7"><MainStack Shape="Ellipse" Width="1.5" Height="1.5" XOff="0" YOff="0" /></PadStyle><PadStyle Name="MCPTestPointPad15" Type="Through" Side="Top" HoleType="Round" Hole="0.7"><MainStack Shape="Ellipse" Width="1.5" Height="1.5" XOff="0" YOff="0" /></PadStyle><PadStyle Name="RECT" Type="Surface" Side="Top">
+        <MainStack Shape="Rectangle" Width="2" Height="0.8" XOff="0" YOff="0" />
+        <MaskPaste TopMask="Common" BotMask="Common" TopPaste="Common" BotPaste="Common" />
+      </PadStyle></PadStyles><Patterns><Pattern PatternStyle="PatType0" RefDes="R" Mounting="SMD" Width="3.2" Height="1.6" Orientation="0" Type="Free">
+      <Name>R_0603</Name>
+      <Name_Unique>R_0603_GOLDEN</Name_Unique>
+      <Value>10k</Value>
+      <Manufacturer>Fixture Inc</Manufacturer>
+      <Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Show" Courtyard="Show" />
+      <DefPad Style="SMD_0603" />
+      <Pads>
+        <Pad Id="0" Style="SMD_0603" X="-0.8" Y="0" Angle="0" Locked="N" Side="Top"><Number>1</Number><Note /></Pad>
+        <Pad Id="1" Style="SMD_0603" X="0.8" Y="0" Angle="0" Locked="N" Side="Top"><Number>2</Number><Note /></Pad>
+      </Pads>
+      <Shapes>
+        <Shape Id="0" Type="Line" Locked="N" Layer="Top Silk" LineWidth="0.15" AllLayers="N" Group="-1">
+          <Points><Item X="-1.5" Y="-0.8" /><Item X="-1.5" Y="0.8" /></Points>
+        </Shape>
+      </Shapes>
+      <FuturePatternData Preserve="Y" />
+    </Pattern><Pattern PatternStyle="PatType1" RefDes="J" Mounting="Through" Width="5" Height="2" Orientation="0" Type="Free">
+      <Name>HDR_1X02</Name>
+      <Name_Unique>HDR_1X02_GOLDEN</Name_Unique>
+      <Origin X="0" Y="0" Cross="Y" Circle="N" Common="Show" Courtyard="Show" />
+      <DefPad Style="THT_1MM" />
+      <Pads>
+        <Pad Id="0" Style="THT_1MM" X="-1.27" Y="0" Angle="0" Locked="N" Side="Top"><Number>1</Number></Pad>
+        <Pad Id="1" Style="THT_1MM" X="1.27" Y="0" Angle="0" Locked="N" Side="Top"><Number>2</Number></Pad>
+      </Pads>
+      <Holes><Hole Id="0" Locked="N" X="0" Y="0" Diam="1" HoleDiam="0.5" Group="-1" /></Holes>
+      <Model3D><Filename>hdr_1x02.step</Filename><Rotate X="0" Y="0" Z="0" /><Offset X="0" Y="0" Z="0" /><Zoom X="1" Y="1" Z="1" /></Model3D>
+    </Pattern><Pattern PatternStyle="MCPTestPoint13" RefDes="TP" Mounting="Through" Width="1.5" Height="1.5" Orientation="0" Type="Free"><Name>MCP_TESTPOINT</Name><Name_Unique>MCPTestPoint13</Name_Unique><Origin X="0" Y="0" /><DefPad Style="MCPTestPointPad13" /><Pads><Pad Id="0" Style="MCPTestPointPad13" X="0" Y="0" Locked="N" Side="Top"><Number>1</Number></Pad></Pads></Pattern><Pattern PatternStyle="MCPTestPoint14" RefDes="TP" Mounting="Through" Width="1.5" Height="1.5" Orientation="0" Type="Free"><Name>MCP_TESTPOINT</Name><Name_Unique>MCPTestPoint14</Name_Unique><Origin X="0" Y="0" /><DefPad Style="MCPTestPointPad14" /><Pads><Pad Id="0" Style="MCPTestPointPad14" X="0" Y="0" Locked="N" Side="Top"><Number>1</Number></Pad></Pads></Pattern><Pattern PatternStyle="MCPTestPoint15" RefDes="TP" Mounting="Through" Width="1.5" Height="1.5" Orientation="0" Type="Free"><Name>MCP_TESTPOINT</Name><Name_Unique>MCPTestPoint15</Name_Unique><Origin X="0" Y="0" /><DefPad Style="MCPTestPointPad15" /><Pads><Pad Id="0" Style="MCPTestPointPad15" X="0" Y="0" Locked="N" Side="Top"><Number>1</Number></Pad></Pads></Pattern><Pattern PatternStyle="OnePad" RefDes="X" Mounting="SMD" Width="2" Height="0.8" Orientation="0" Type="Free">
+        <Name>ONE_RECT_PAD</Name><DefPad Style="RECT" />
+        <Pads><Pad Id="0" Style="RECT" X="0" Y="0" Angle="0" Locked="N" Side="Top"><Number>1</Number></Pad></Pads>
+      </Pattern></Patterns></Library>
+  <Board>
+    <BoardOutline Locked="N" Selected="N">
+      <Points>
+        <Point X="0" Y="0" />
+        <Point X="70" Y="0" />
+        <Point X="70" Y="50" />
+        <Point X="0" Y="50" />
+      </Points>
+    </BoardOutline>
+    <Settings>
+      <Routing TraceWidth="0.25" TraceClearance="0.2" ViaSize="0.6" ViaHole="0.3" />
+    </Settings>
+    <CopperLayers>
+      <Lay Id="0" Type="Signal">
+        <Name>Top</Name>
+      </Lay>
+      <Lay Id="1" Type="Plane">
+        <Name>Inner 1</Name>
+      </Lay>
+      <Lay Id="2" Type="Plane">
+        <Name>Inner 2</Name>
+      </Lay>
+      <Lay Id="3" Type="Signal">
+        <Name>Bottom</Name>
+      </Lay>
+    </CopperLayers>
+    <LayerStackName>Fixture 4L 1.6mm nominal</LayerStackName>
+    <LayerStackItems>
+      <LayerStackItem Lay="0">
+        <Material Type="Conductor" VariableThickness="N" Thickness="0.035" Constant="0" TraceWidth="0.25">
+          <Name>Copper</Name>
+        </Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="-1">
+        <Material Type="Dielectric" VariableThickness="N" Thickness="0.486666667" Constant="4.3">
+          <Name>Core</Name>
+        </Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="1">
+        <Material Type="Conductor" VariableThickness="N" Thickness="0.035" Constant="0" TraceWidth="0.25">
+          <Name>Copper</Name>
+        </Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="-1">
+        <Material Type="Dielectric" VariableThickness="N" Thickness="0.486666667" Constant="4.3">
+          <Name>Core</Name>
+        </Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="2">
+        <Material Type="Conductor" VariableThickness="N" Thickness="0.035" Constant="0" TraceWidth="0.25">
+          <Name>Copper</Name>
+        </Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="-1">
+        <Material Type="Dielectric" VariableThickness="N" Thickness="0.486666667" Constant="4.3">
+          <Name>Core</Name>
+        </Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="3">
+        <Material Type="Conductor" VariableThickness="N" Thickness="0.035" Constant="0" TraceWidth="0.25">
+          <Name>Copper</Name>
+        </Material>
+      </LayerStackItem>
+    </LayerStackItems>
+    <ViaStyles>
+      <ViaStyle Id="0" Diameter="0.6" Hole="0.3" Lay1="0" Lay2="3">
+        <Name>Default</Name>
+      </ViaStyle>
+    </ViaStyles>
+    <NetClasses>
+      <NetClass Id="0" UpdateId="0" Type="Normal" AllLayers="Y" CheckLength="N" AllVias="Y" PerformDRC="Y" LengthDelta="2.54" FixedLength="0" MaxUncoupledLength="10" Tolerance="2">
+        <Name>Default</Name>
+        <LayProperties>
+          <LayProperty Width="0.25" MinWidth="0.15" MaxWidth="2" Clearance="0.2" Neck_Width="0.15" Neck_DifClearance="0.2" Neck_MaxLength="3" DifClearance="0.2">
+            <LayerName>Top</LayerName>
+          </LayProperty>
+          <LayProperty Width="0.25" MinWidth="0.15" MaxWidth="2" Clearance="0.2" Neck_Width="0.15" Neck_DifClearance="0.2" Neck_MaxLength="3" DifClearance="0.2">
+            <LayerName>Inner 1</LayerName>
+          </LayProperty>
+          <LayProperty Width="0.25" MinWidth="0.15" MaxWidth="2" Clearance="0.2" Neck_Width="0.15" Neck_DifClearance="0.2" Neck_MaxLength="3" DifClearance="0.2">
+            <LayerName>Inner 2</LayerName>
+          </LayProperty>
+          <LayProperty Width="0.25" MinWidth="0.15" MaxWidth="2" Clearance="0.2" Neck_Width="0.15" Neck_DifClearance="0.2" Neck_MaxLength="3" DifClearance="0.2">
+            <LayerName>Bottom</LayerName>
+          </LayProperty>
+        </LayProperties>
+      </NetClass>
+    </NetClasses>
+    <DRC CheckClearance="Y" CheckNetConnectivity="Y">
+      <LayClearances>
+        <LayClearance Lay="0" TraceToTrace="0.2" TraceToPad="0.2" />
+        <LayClearance Lay="1" TraceToTrace="0.2" TraceToPad="0.2" />
+        <LayClearance Lay="2" TraceToTrace="0.2" TraceToPad="0.2" />
+        <LayClearance Lay="3" TraceToTrace="0.2" TraceToPad="0.2" />
+      </LayClearances>
+      <LaySizes>
+        <LaySize Lay="0" MinTrace="0.15" MinDrill="0.2" MinRing="0.1" />
+        <LaySize Lay="1" MinTrace="0.15" MinDrill="0.2" MinRing="0.1" />
+        <LaySize Lay="2" MinTrace="0.15" MinDrill="0.2" MinRing="0.1" />
+        <LaySize Lay="3" MinTrace="0.15" MinDrill="0.2" MinRing="0.1" />
+      </LaySizes>
+    </DRC>
+    <ConnectivityCheck Traces="Y" Shapes="Y" CopperPours="Y" />
+    <Components><Component Id="0" UpdateId="100" PatternStyle="PatType0" X="29" Y="22" Side="Top" Locked="N" Selected="N"><RefDes>C1</RefDes><Name>CAP_0805</Name><Value>10u input</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="1" UpdateId="101" PatternStyle="PatType0" X="29" Y="28" Side="Top" Locked="N" Selected="N"><RefDes>C2</RefDes><Name>CAP_0603</Name><Value>100n input</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="2" UpdateId="102" PatternStyle="PatType0" X="42" Y="22" Side="Top" Locked="N" Selected="N"><RefDes>C3</RefDes><Name>CAP_0805</Name><Value>10u output</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="3" UpdateId="103" PatternStyle="PatType0" X="42" Y="28" Side="Bottom" Locked="N" Selected="N"><RefDes>C4</RefDes><Name>CAP_0603</Name><Value>100n output</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="4" UpdateId="104" PatternStyle="PatType0" X="20" Y="33" Side="Top" Locked="N" Selected="N"><RefDes>D1</RefDes><Name>TVS_FIXTURE</Name><Value>Protection diode fixture</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="5" UpdateId="105" PatternStyle="PatType0" X="15" Y="25" Side="Top" Locked="N" Selected="N"><RefDes>F1</RefDes><Name>R_FUSE</Name><Value>Resettable fuse fixture</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="6" UpdateId="106" PatternStyle="PatType1" X="7" Y="25" Side="Top" Locked="N" Selected="N"><RefDes>J1</RefDes><Name>POWER_INPUT</Name><Value>2-pin power</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="7" UpdateId="107" PatternStyle="PatType1" X="63" Y="25" Side="Top" Locked="N" Selected="N"><RefDes>J2</RefDes><Name>POWER_OUTPUT</Name><Value>2-pin output</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="8" UpdateId="108" PatternStyle="PatType1" X="8" Y="10" Side="Top" Locked="N" Selected="N"><RefDes>J3</RefDes><Name>SIGNAL_A_HEADER</Name><Value>Signal A fixture</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="9" UpdateId="109" PatternStyle="PatType1" X="8" Y="40" Side="Top" Locked="N" Selected="N"><RefDes>J4</RefDes><Name>SIGNAL_B_HEADER</Name><Value>Signal B fixture</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="10" UpdateId="110" PatternStyle="PatType0" X="49" Y="25" Side="Top" Locked="N" Selected="N"><RefDes>R1</RefDes><Name>RES_0603</Name><Value>10k sense high</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="11" UpdateId="111" PatternStyle="PatType0" X="51" Y="32" Side="Bottom" Locked="N" Selected="N" Angle="1.57079633"><RefDes>R2</RefDes><Name>RES_0603</Name><Value>10k sense low</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="12" UpdateId="112" PatternStyle="PatType0" X="35" Y="25" Side="Top" Locked="N" Selected="N"><RefDes>U1</RefDes><Name>REGULATOR_FIXTURE_2P</Name><Value>Conditional regulator fixture</Value><Pads><Pad Id="0" Number="1" /><Pad Id="1" Number="2" /></Pads></Component><Component Id="13" UpdateId="-1" Type="Pad" PatternStyle="MCPTestPoint13" X="11" Y="20" Side="Top" Locked="N" Selected="N"><RefDes>TP1</RefDes><Name>MCP_TESTPOINT</Name><Value>VIN_RAW</Value><AddFields><AddField Type="Text"><Name>MCP.TestpointDiameterMm</Name><Text>1.5</Text></AddField><AddField Type="Text"><Name>MCP.TestpointHoleMm</Name><Text>0.7</Text></AddField></AddFields><Pads><Pad Id="0" NetId="0" InternalConnection="-1" /></Pads></Component><Component Id="14" UpdateId="-1" Type="Pad" PatternStyle="MCPTestPoint14" X="57" Y="20" Side="Top" Locked="N" Selected="N"><RefDes>TP2</RefDes><Name>MCP_TESTPOINT</Name><Value>VOUT</Value><AddFields><AddField Type="Text"><Name>MCP.TestpointDiameterMm</Name><Text>1.5</Text></AddField><AddField Type="Text"><Name>MCP.TestpointHoleMm</Name><Text>0.7</Text></AddField></AddFields><Pads><Pad Id="0" NetId="2" InternalConnection="-1" /></Pads></Component><Component Id="15" UpdateId="-1" Type="Pad" PatternStyle="MCPTestPoint15" X="35" Y="42" Side="Top" Locked="N" Selected="N"><RefDes>TP3</RefDes><Name>MCP_TESTPOINT</Name><Value>GND</Value><AddFields><AddField Type="Text"><Name>MCP.TestpointDiameterMm</Name><Text>1.5</Text></AddField><AddField Type="Text"><Name>MCP.TestpointHoleMm</Name><Text>0.7</Text></AddField></AddFields><Pads><Pad Id="0" NetId="3" InternalConnection="-1" /></Pads></Component><Component Id="16" UpdateId="113" PatternStyle="OnePad" X="25" Y="10" Side="Top" Locked="N" Selected="N"><RefDes>TP4</RefDes><Name>TEST_PAD</Name><Value>SIGNAL_A</Value><Pads><Pad Id="0" Number="1" /></Pads></Component><Component Id="17" UpdateId="114" PatternStyle="OnePad" X="25" Y="40" Side="Top" Locked="N" Selected="N"><RefDes>TP5</RefDes><Name>TEST_PAD</Name><Value>SIGNAL_B</Value><Pads><Pad Id="0" Number="1" /></Pads></Component></Components>
+    <Ratlines><Ratline Id="0" Hidden="N" X1="5.73" Y1="25" X2="14.2" Y2="25" Comp1="6" Pad1="0" Comp2="5" Pad2="0" /><Ratline Id="1" Hidden="N" X1="15.8" Y1="25" X2="19.2" Y2="33" Comp1="5" Pad1="1" Comp2="4" Pad2="0" /><Ratline Id="2" Hidden="N" X1="19.2" Y1="33" X2="34.2" Y2="25" Comp1="4" Pad1="0" Comp2="12" Pad2="0" /><Ratline Id="3" Hidden="N" X1="34.2" Y1="25" X2="28.2" Y2="22" Comp1="12" Pad1="0" Comp2="0" Pad2="0" /><Ratline Id="4" Hidden="N" X1="28.2" Y1="22" X2="28.2" Y2="28" Comp1="0" Pad1="0" Comp2="1" Pad2="0" /><Ratline Id="5" Hidden="N" X1="35.8" Y1="25" X2="41.2" Y2="22" Comp1="12" Pad1="1" Comp2="2" Pad2="0" /><Ratline Id="6" Hidden="N" X1="41.2" Y1="22" X2="42.8" Y2="28" Comp1="2" Pad1="0" Comp2="3" Pad2="0" /><Ratline Id="7" Hidden="N" X1="42.8" Y1="28" X2="48.2" Y2="25" Comp1="3" Pad1="0" Comp2="10" Pad2="0" /><Ratline Id="8" Hidden="N" X1="48.2" Y1="25" X2="61.73" Y2="25" Comp1="10" Pad1="0" Comp2="7" Pad2="0" /><Ratline Id="9" Hidden="N" X1="8.27" Y1="25" X2="20.8" Y2="33" Comp1="6" Pad1="1" Comp2="4" Pad2="1" /><Ratline Id="10" Hidden="N" X1="20.8" Y1="33" X2="29.8" Y2="22" Comp1="4" Pad1="1" Comp2="0" Pad2="1" /><Ratline Id="11" Hidden="N" X1="29.8" Y1="22" X2="29.8" Y2="28" Comp1="0" Pad1="1" Comp2="1" Pad2="1" /><Ratline Id="12" Hidden="N" X1="29.8" Y1="28" X2="42.8" Y2="22" Comp1="1" Pad1="1" Comp2="2" Pad2="1" /><Ratline Id="13" Hidden="N" X1="42.8" Y1="22" X2="41.2" Y2="28" Comp1="2" Pad1="1" Comp2="3" Pad2="1" /><Ratline Id="14" Hidden="N" X1="41.2" Y1="28" X2="50.2" Y2="32" Comp1="3" Pad1="1" Comp2="11" Pad2="1" /><Ratline Id="15" Hidden="N" X1="50.2" Y1="32" X2="64.27" Y2="25" Comp1="11" Pad1="1" Comp2="7" Pad2="1" /><Ratline Id="16" Hidden="N" X1="64.27" Y1="25" X2="9.27" Y2="10" Comp1="7" Pad1="1" Comp2="8" Pad2="1" /><Ratline Id="17" Hidden="N" X1="9.27" Y1="10" X2="9.27" Y2="40" Comp1="8" Pad1="1" Comp2="9" Pad2="1" /><Ratline Id="18" Hidden="N" X1="49.8" Y1="25" X2="51.8" Y2="32" Comp1="10" Pad1="1" Comp2="11" Pad2="0" /><Ratline Id="19" Hidden="N" X1="6.73" Y1="10" X2="25" Y2="10" Comp1="8" Pad1="0" Comp2="16" Pad2="0" /><Ratline Id="20" Hidden="N" X1="6.73" Y1="40" X2="25" Y2="40" Comp1="9" Pad1="0" Comp2="17" Pad2="0" /></Ratlines>
+    <Nets><Net Id="0" NetClass="0" Locked="N"><Name>VIN_RAW</Name><Pads><Item Comp="6" Pad="0" /><Item Comp="5" Pad="0" /><Item Comp="13" Pad="0" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="6" SubObject1="0" Point1="-1" Connected2="Pad" Object2="5" SubObject2="0" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="5.73" Y="25" /><Point Id="1" X="5.73" Y="22.5" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="14.2" Y="22.5" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="14.2" Y="25" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="1" Connected1="Pad" Object1="13" SubObject1="0" Point1="-1" Connected2="Pad" Object2="5" SubObject2="0" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="11" Y="20" /><Point Id="1" X="14.2" Y="20" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="14.2" Y="25" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="1" NetClass="0" Locked="N"><Name>VIN_PROTECTED</Name><Pads><Item Comp="5" Pad="1" /><Item Comp="4" Pad="0" /><Item Comp="12" Pad="0" /><Item Comp="0" Pad="0" /><Item Comp="1" Pad="0" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="5" SubObject1="1" Point1="-1" Connected2="Pad" Object2="12" SubObject2="0" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="15.8" Y="25" /><Point Id="1" X="34.2" Y="25" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="2" NetClass="0" Locked="N"><Name>VOUT</Name><Pads><Item Comp="12" Pad="1" /><Item Comp="2" Pad="0" /><Item Comp="3" Pad="0" /><Item Comp="10" Pad="0" /><Item Comp="7" Pad="0" /><Item Comp="14" Pad="0" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="12" SubObject1="1" Point1="-1" Connected2="Pad" Object2="10" SubObject2="0" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="35.8" Y="25" /><Point Id="1" X="48.2" Y="25" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="1" Connected1="Pad" Object1="10" SubObject1="0" Point1="-1" Connected2="Pad" Object2="7" SubObject2="0" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="48.2" Y="25" /><Point Id="1" X="48.2" Y="22.5" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="61.73" Y="22.5" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="61.73" Y="25" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="2" Connected1="Pad" Object1="14" SubObject1="0" Point1="-1" Connected2="Pad" Object2="10" SubObject2="0" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="57" Y="20" /><Point Id="1" X="55" Y="18" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="48.2" Y="18" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="48.2" Y="25" Lay="0" Width="0.6" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="3" NetClass="0" Locked="N"><Name>GND</Name><Pads><Item Comp="6" Pad="1" /><Item Comp="4" Pad="1" /><Item Comp="0" Pad="1" /><Item Comp="1" Pad="1" /><Item Comp="2" Pad="1" /><Item Comp="3" Pad="1" /><Item Comp="11" Pad="1" /><Item Comp="7" Pad="1" /><Item Comp="8" Pad="1" /><Item Comp="9" Pad="1" /><Item Comp="15" Pad="0" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="15" SubObject1="0" Point1="-1" Connected2="Pad" Object2="9" SubObject2="1" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="35" Y="42" /><Point Id="1" X="30" Y="45" Lay="1" Width="0.4" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="12" Y="45" Lay="1" Width="0.4" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="9.27" Y="42" Lay="1" Width="0.4" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="9.27" Y="40" Lay="1" Width="0.4" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="4" NetClass="0" Locked="N"><Name>SENSE</Name><Pads><Item Comp="10" Pad="1" /><Item Comp="11" Pad="0" /></Pads><Traces /></Net><Net Id="5" NetClass="0" Locked="N"><Name>SIGNAL_A</Name><Pads><Item Comp="8" Pad="0" /><Item Comp="16" Pad="0" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="8" SubObject1="0" Point1="-1" Connected2="Pad" Object2="16" SubObject2="0" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="6.73" Y="10" /><Point Id="1" X="6.73" Y="7.5" Lay="0" Width="0.25" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="25" Y="7.5" Lay="0" Width="0.25" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="25" Y="10" Lay="0" Width="0.25" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="6" NetClass="0" Locked="N"><Name>SIGNAL_B</Name><Pads><Item Comp="9" Pad="0" /><Item Comp="17" Pad="0" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="9" SubObject1="0" Point1="-1" Connected2="Pad" Object2="17" SubObject2="0" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="6.73" Y="40" /><Point Id="1" X="6.73" Y="37.5" Lay="0" Width="0.25" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="15" Y="37.5" Lay="0" Width="0.25" Jumper="0" Arc="N" ViaStyle="0" Selected="N" /><Point Id="3" X="21" Y="37.5" Lay="3" Width="0.25" Jumper="0" Arc="N" ViaStyle="0" Selected="N" /><Point Id="4" X="25" Y="37.5" Lay="0" Width="0.25" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="25" Y="40" Lay="0" Width="0.25" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net></Nets>
+    <DifferentialPairs />
+    <CopperPours />
+    <Shapes />
+  </Board>
+</Source>

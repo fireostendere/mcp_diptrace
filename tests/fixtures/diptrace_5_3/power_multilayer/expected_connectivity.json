@@ -1,0 +1,33 @@
+{
+  "source_sha256": "11515d48cec4b4fe0de18742de34aaeec70a83645d4583ad03aa37e811e27402",
+  "routed_connections": [
+    {"net": "VIN_RAW", "from": "J1:1", "to": "F1:1", "width_mm": 0.6, "layers": ["Top"]},
+    {"net": "VIN_RAW", "from": "TP1:1", "to": "F1:1", "width_mm": 0.6, "layers": ["Top"]},
+    {"net": "VIN_PROTECTED", "from": "F1:2", "to": "U1:1", "width_mm": 0.6, "layers": ["Top"]},
+    {"net": "VOUT", "from": "U1:2", "to": "R1:1", "width_mm": 0.6, "layers": ["Top"]},
+    {"net": "VOUT", "from": "R1:1", "to": "J2:1", "width_mm": 0.6, "layers": ["Top"]},
+    {"net": "VOUT", "from": "TP2:1", "to": "R1:1", "width_mm": 0.6, "layers": ["Top"]},
+    {"net": "GND", "from": "TP3:1", "to": "J4:2", "width_mm": 0.4, "layers": ["Inner 1"]},
+    {"net": "SIGNAL_A", "from": "J3:1", "to": "TP4:1", "width_mm": 0.25, "layers": ["Top"]},
+    {"net": "SIGNAL_B", "from": "J4:1", "to": "TP5:1", "width_mm": 0.25, "layers": ["Top", "Bottom"], "via_count": 2}
+  ],
+  "intentionally_unrouted": [
+    {
+      "net": "SENSE",
+      "from": "R1:2",
+      "to": "R2:1",
+      "reason": "Primary DSN/SES exercise; Top-to-Bottom endpoints should require a multilayer transition."
+    }
+  ],
+  "partially_unrouted_branches": [
+    {"net": "VIN_PROTECTED", "endpoints": ["D1:1", "C1:1", "C2:1"], "reason": "Preserved as additional autorouter branches."},
+    {"net": "VOUT", "endpoints": ["C3:1", "C4:1"], "reason": "Preserved as additional autorouter branches."},
+    {"net": "GND", "reason": "Most endpoints are intentionally reserved for the later GND copper pour and/or Freerouting."}
+  ],
+  "connectivity_review": {
+    "finding_count": 1,
+    "errors": 1,
+    "expected_error": "Net 'SENSE' has 2 endpoints and no traces."
+  },
+  "ratline_note": "list_unrouted_connections reports 21 exported source ratlines because trace primitives preserve ratline XML. Use route details and connectivity review for physical-route assertions; DipTrace must recalculate the ratsnest before DSN export."
+}

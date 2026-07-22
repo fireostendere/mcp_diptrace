@@ -1,0 +1,38 @@
+{
+  "source_sha256": "11515d48cec4b4fe0de18742de34aaeec70a83645d4583ad03aa37e811e27402",
+  "offline_drc": {
+    "profile": "drc_basic",
+    "finding_count": 1,
+    "by_severity": {"error": 1, "warning": 0, "info": 0},
+    "expected_findings": [
+      {"check_id": "pcb.unrouted_net", "severity": "error", "net": "SENSE"}
+    ],
+    "metrics": {
+      "components_or_testpads_checked": 18,
+      "traces_checked": 9,
+      "trace_segments_checked": 25,
+      "vias_checked": 2
+    }
+  },
+  "component_clearance": {
+    "finding_count": 0,
+    "overlap_count": 0,
+    "board_containment_count": 0
+  },
+  "board_review": {
+    "finding_count": 18,
+    "by_severity": {"error": 1, "warning": 17, "info": 0},
+    "expected_warning_groups": {
+      "pcb.bom_identity": 13,
+      "pcb.testpoint_coverage": 4
+    },
+    "skipped_checks": [
+      {"check_id": "pcb.trace_board_edge", "reason": "trace_to_board_rules_unavailable"},
+      {"check_id": "pcb.thermal_metadata", "reason": "explicit_component_power_metadata_unavailable"}
+    ]
+  },
+  "via_assertions": [
+    {"stable_id": "via_92c8e506dc6ea0de", "net": "SIGNAL_B", "x_mm": 15.0, "y_mm": 37.5, "diameter_mm": 0.6, "hole_mm": 0.3, "layer_span": ["Top", "Inner 1", "Inner 2", "Bottom"]},
+    {"stable_id": "via_3a5a8b7f08589fce", "net": "SIGNAL_B", "x_mm": 21.0, "y_mm": 37.5, "diameter_mm": 0.6, "hole_mm": 0.3, "layer_span": ["Top", "Inner 1", "Inner 2", "Bottom"]}
+  ]
+}
