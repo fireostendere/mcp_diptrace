@@ -12,6 +12,7 @@ from .errors import (
     GeometryError,
     LockedObjectError,
     ObjectNotFoundError,
+    RoutingError,
 )
 from .geometry import (
     BBox,
@@ -167,6 +168,57 @@ def _layer_id(snapshot: DocumentSnapshot, value: str) -> str:
     if len(matches) > 1:
         raise AmbiguousSelectorError(f"Copper layer is ambiguous: {value}")
     return str(matches[0]["id"])
+
+
+def _layer_type(snapshot: DocumentSnapshot, layer_id: str) -> str:
+    """Return the layer type ('Signal', 'Plane', or 'Unknown') for a given layer id."""
+    if snapshot.board is None:
+        return "Unknown"
+    for item in snapshot.board.layers:
+        if str(item.get("id", "")) == layer_id:
+            return str(item.get("type", "Unknown"))
+    return "Unknown"
+
+
+def _validate_routing_layer(snapshot: DocumentSnapshot, layer_id: str, context: str) -> None:
+    """Reject routing on plane or unknown layer types."""
+    layer_type = _layer_type(snapshot, layer_id)
+    if layer_type == "Plane":
+        layer_name = "Unknown"
+        if snapshot.board is not None:
+            for item in snapshot.board.layers:
+                if str(item.get("id", "")) == layer_id:
+                    layer_name = str(item.get("name", "Unknown"))
+                    break
+        raise RoutingError(
+            f"Trace routing is not supported on plane layer {layer_name!r}",
+            details={"layer_id": layer_id, "layer_type": layer_type, "context": context},
+        )
+    if layer_type == "Unknown" and layer_id != "0":
+        raise RoutingError(
+            "Trace routing is not supported on layer with unknown type",
+            details={"layer_id": layer_id, "layer_type": layer_type, "context": context},
+        )
+
+
+def _validate_via_layer(snapshot: DocumentSnapshot, layer_id: str, context: str) -> None:
+    """Reject via transitions that land on a plane layer.
+
+    Less strict than _validate_routing_layer: Unknown types are allowed because
+    via transition layers are just identifiers, not active routing targets.
+    """
+    layer_type = _layer_type(snapshot, layer_id)
+    if layer_type == "Plane":
+        layer_name = "Unknown"
+        if snapshot.board is not None:
+            for item in snapshot.board.layers:
+                if str(item.get("id", "")) == layer_id:
+                    layer_name = str(item.get("name", "Unknown"))
+                    break
+        raise RoutingError(
+            f"Via transition is not supported on plane layer {layer_name!r}",
+            details={"layer_id": layer_id, "layer_type": layer_type, "context": context},
+        )
 
 
 def _via_style_id(snapshot: DocumentSnapshot, value: str) -> str:
@@ -673,6 +725,11 @@ def _add_trace(
     points, layers, widths, via_styles = _path(
         snapshot, operation.points, operation.layer, operation.width
     )
+    # Validate that no segment is on a plane or unknown layer type.
+    # Through-via spans across plane layers are allowed; active segments on
+    # plane layers are not.
+    for layer_id in dict.fromkeys(layers):
+        _validate_routing_layer(snapshot, layer_id, context="add_trace")
     if distance(points[0], Point(**start.position)) > 1e-6 or distance(
         points[-1], Point(**end.position)
     ) > 1e-6:
@@ -797,6 +854,10 @@ def _add_differential_pair_route(
     )
     positive = _path(snapshot, operation.positive_points, operation.layer, operation.width)
     negative = _path(snapshot, operation.negative_points, operation.layer, operation.width)
+    # Validate that no segment is on a plane or unknown layer type.
+    for points_path in (positive, negative):
+        for layer_id in dict.fromkeys(points_path[1]):
+            _validate_routing_layer(snapshot, layer_id, context="diff_pair_route")
     for points, start, end in (
         (positive[0], positive_start, positive_end),
         (negative[0], negative_start, negative_end),
@@ -957,6 +1018,9 @@ def _replace_trace(
     points, layers, widths, via_styles = _path(
         snapshot, operation.points, operation.layer, operation.width
     )
+    # Validate that no segment is on a plane or unknown layer type.
+    for layer_id in dict.fromkeys(layers):
+        _validate_routing_layer(snapshot, layer_id, context="replace_trace")
     previous = [Point(**item) for item in trace.attributes.get("points", [])]
     if len(previous) < 2 or points[0] != previous[0] or points[-1] != previous[-1]:
         raise ConnectivityRegressionError(
@@ -1141,8 +1205,10 @@ def _add_via(
     previous = via_point.get("ViaStyle", "-1")
     via_point.set("ViaStyle", style_id)
     if operation.layer_before is not None:
+        _validate_via_layer(snapshot, operation.layer_before, context="add_via_layer_before")
         via_point.set("Lay", _layer_id(snapshot, operation.layer_before))
     if operation.layer_after is not None:
+        _validate_via_layer(snapshot, operation.layer_after, context="add_via_layer_after")
         updated_points = container.findall("./Point")
         via_index = updated_points.index(via_point)
         if via_index + 1 >= len(updated_points):

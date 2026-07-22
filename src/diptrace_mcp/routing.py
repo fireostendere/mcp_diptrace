@@ -187,6 +187,10 @@ def synthesize_route(
             object_ids=[start.stable_id, end.stable_id],
         )
     layer_ids, start_layer, end_layer = _route_layers(snapshot, config)
+    # Validate that no routing layer is a plane or unknown type.
+    # Through-via spans across plane layers are allowed, but active trace
+    # segments on plane layers are not.
+    _validate_no_plane_layers(snapshot, layer_ids, context="synthesize_route")
     via = _via_style(snapshot, config.via_style) if config.via_style else None
     if start_layer != end_layer and (via is None or config.max_vias == 0):
         raise RoutingError(
@@ -404,6 +408,8 @@ def synthesize_differential_pair_route(
         avoid_component_bodies=config.avoid_component_bodies,
     )
     layer_ids, start_layer, end_layer = _route_layers(snapshot, route_config)
+    # Validate that no routing layer is a plane or unknown type.
+    _validate_no_plane_layers(snapshot, layer_ids, context="diff_pair_route")
     via = _via_style(snapshot, config.via_style) if config.via_style else None
     ignored_nets = {positive_net.xml_id, negative_net.xml_id}
     endpoint_parents = {item.parent_id for item in endpoints}
@@ -817,6 +823,44 @@ def _route_layers(
         if layer_id not in layer_ids:
             layer_ids.append(layer_id)
     return layer_ids, start, end
+
+
+def _layer_type(snapshot: DocumentSnapshot, layer_id: str) -> str:
+    """Return the layer type ('Signal', 'Plane', or 'Unknown') for a given layer id."""
+    if snapshot.board is None:
+        return "Unknown"
+    for item in snapshot.board.layers:
+        if str(item.get("id", "")) == layer_id:
+            return str(item.get("type", "Unknown"))
+    return "Unknown"
+
+
+def _validate_no_plane_layers(
+    snapshot: DocumentSnapshot, layer_ids: list[str], *, context: str
+) -> None:
+    """Reject routing when any active layer is a plane or unknown type.
+
+    Through-via spans that cross plane layers are allowed; the validation
+    only checks layers that carry active trace segments.
+    """
+    for layer_id in layer_ids:
+        layer_type = _layer_type(snapshot, layer_id)
+        if layer_type == "Plane":
+            layer_name = "Unknown"
+            if snapshot.board is not None:
+                for item in snapshot.board.layers:
+                    if str(item.get("id", "")) == layer_id:
+                        layer_name = str(item.get("name", "Unknown"))
+                        break
+            raise RoutingError(
+                f"Trace routing is not supported on plane layer {layer_name!r}",
+                details={"layer_id": layer_id, "layer_type": layer_type, "context": context},
+            )
+        if layer_type == "Unknown" and layer_id != "0":
+            raise RoutingError(
+                "Trace routing is not supported on layer with unknown type",
+                details={"layer_id": layer_id, "layer_type": layer_type, "context": context},
+            )
 
 
 def _via_style(snapshot: DocumentSnapshot, value: str) -> _ViaStyle:

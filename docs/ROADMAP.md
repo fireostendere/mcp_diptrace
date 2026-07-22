@@ -63,8 +63,13 @@ Capability discovery reports the exact unavailability instead of registering emp
 
 ## Phases 14-19: Strict Limits
 
-- Scaffolding generates official 4.3-era XML structures; DipTrace import may canonicalize
-  numeric values and derived fields, as with any other XML import.
+- Scaffolding generates **synthetic** 4.3-era XML structures; DipTrace import may
+  canonicalize numeric values and derived fields, as with any other XML import.
+  These are classified as `synthetic_parser_only` and must not be treated as
+  DipTrace-compatible without independent verification.
+- `create_document_from_seed` copies a real DipTrace-exported XML seed, preserving
+  all unknown XML. The copy inherits the seed's provenance (`diptrace_exported`)
+  but is not automatically upgraded to `diptrace_roundtrip_verified`.
 - `place_part` references a library `ComponentStyle` by name; the symbol graphics and pin
   mapping are resolved by DipTrace from the configured libraries on import, not by the MCP.
 - Schematic wires follow the official `Wire`/`Points` schema; pin-to-net connectivity is
@@ -130,9 +135,13 @@ routes, an Inner 1 GND route, a Top-only signal route, and a Top/Bottom signal r
 two explicit through-via spans. Offline component clearance is clean; `SENSE` is the one
 intentional no-trace DRC finding and is reserved for real Freerouting.
 Trace commits now reconcile the exported ratline spanning forest, and trace deletion
-restores the affected pad-to-pad ratline before pruning cycles. The synthetic source was
-regenerated with only unresolved VOUT, GND, and SENSE ratlines after DipTrace 5.3 reported
-that the earlier stale ratline structure had to be reinitialized.
+restores the affected pad-to-pad ratline before pruning cycles. Native-import testing exposed
+a second invariant from the official PCB XML specification: every component pad must carry
+the reciprocal `NetId` and `InternalConnection` attributes matching `Net/Pads/Item`. The
+compiler now writes those attributes during schematic-to-PCB synchronization, including
+explicit `NetId=-1` for unconnected pads. The pre-fixture was restored to the last revision
+confirmed to open in DipTrace, augmented only with reciprocal pad membership; ratline
+pruning is deferred until DipTrace 5.3 opens and re-exports this corrected source.
 
 This is preparation, not closure of the evidence gate. The source XML is MCP-generated
 format 4.3.0.3, and the directory deliberately contains only pending-manual instructions

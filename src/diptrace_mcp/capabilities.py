@@ -179,6 +179,24 @@ def get_capabilities(
                     "message": "Component and pattern libraries are read/validate only.",
                 },
                 {
+                    "feature": "plane_layer_routing",
+                    "code": "capability_unavailable",
+                    "message": (
+                        "Trace routing on Plane layers is not supported. Only Signal layers "
+                        "accept active trace segments. Through-via spans across Plane layers "
+                        "are allowed."
+                    ),
+                },
+                {
+                    "feature": "ratline_format_verified",
+                    "code": "not_diptrace_verified",
+                    "message": (
+                        "Ratline generation follows the DipTrace XML structure but has not "
+                        "been verified by DipTrace open/save/re-export. Synthetic scaffolding "
+                        "ratlines are experimental."
+                    ),
+                },
+                {
                     "feature": "external_si_pi_solver",
                     "code": "external_tool_unavailable",
                     "message": (

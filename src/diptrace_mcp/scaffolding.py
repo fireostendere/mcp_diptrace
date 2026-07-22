@@ -1,9 +1,16 @@
-"""Scaffolding: build brand-new valid DipTrace XML documents from scratch.
+"""Scaffolding: build synthetic DipTrace-shaped XML documents from scratch.
 
-The generators follow the official DipTrace XML specifications (Schematic and PCB
-Layout, 4.3-era structure) and the same element shapes used by the repository
-fixtures. Generated documents are always validated by parsing them back through
-:class:`~diptrace_mcp.xml_document.DipTraceDocument` before they are written.
+The generators produce XML that follows the official DipTrace XML structure
+(Schematic and PCB Layout, 4.3-era format version) and is validated by parsing
+back through :class:`~diptrace_mcp.xml_document.DipTraceDocument`.
+
+**Important:** These are synthetic MCP-generated documents. They have the correct
+XML shape and can be parsed by the MCP parser, but they have **not** been opened,
+saved, or re-exported by DipTrace. They must not be treated as DipTrace-compatible
+or production-ready without independent verification by a real DipTrace installation.
+
+Use ``create_document_from_seed`` with a real DipTrace-exported XML seed when
+DipTrace compatibility is required.
 """
 
 from __future__ import annotations
@@ -107,7 +114,12 @@ def build_schematic_document(
     units: str = "mm",
     version: str = DEFAULT_FORMAT_VERSION,
 ) -> bytes:
-    """Build a new DipTrace Schematic XML document."""
+    """Build a synthetic DipTrace Schematic XML document.
+
+    The returned bytes are MCP-generated XML that follows the DipTrace 4.3-era
+    structure. They are validated by parser re-read but have **not** been verified
+    by DipTrace open/save. Treat as ``synthetic_parser_only`` provenance.
+    """
 
     scaffold = options or SchematicScaffold()
     root = ET.Element(
@@ -158,7 +170,12 @@ def build_pcb_document(
     units: str = "mm",
     version: str = DEFAULT_FORMAT_VERSION,
 ) -> bytes:
-    """Build a new DipTrace PCB Layout XML document."""
+    """Build a synthetic DipTrace PCB Layout XML document.
+
+    The returned bytes are MCP-generated XML that follows the DipTrace 4.3-era
+    structure. They are validated by parser re-read but have **not** been verified
+    by DipTrace open/save. Treat as ``synthetic_parser_only`` provenance.
+    """
 
     scaffold = options or PcbScaffold()
     layers = scaffold.layers or default_layers(2)

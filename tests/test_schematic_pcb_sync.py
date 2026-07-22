@@ -73,6 +73,19 @@ def test_sync_populates_empty_pcb_and_copies_patterns() -> None:
         "VCC": {("0", "0"), ("1", "0")},
         "SIGNAL": {("0", "1"), ("1", "1")},
     }
+    assert {
+        (component.get("Id"), pad.get("Id")): (
+            pad.get("NetId"),
+            pad.get("InternalConnection"),
+        )
+        for component in components
+        for pad in component.findall("./Pads/Pad")
+    } == {
+        ("0", "0"): ("0", "-1"),
+        ("0", "1"): ("1", "-1"),
+        ("1", "0"): ("0", "-1"),
+        ("1", "1"): ("1", "-1"),
+    }
     assert len(root.findall("./Board/Ratlines/Ratline")) == 2
 
 

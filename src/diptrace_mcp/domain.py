@@ -16,8 +16,144 @@ SourceType = Literal[
 ]
 
 
+class FixtureValidationLevel(str, Enum):
+    """Trust level for test fixtures and generated documents.
+
+    Levels are ordered from least to most trusted.  A fixture must not claim a
+    higher level without meeting all requirements of the lower levels first.
+    """
+
+    synthetic_parser_only = "synthetic_parser_only"
+    synthetic_operation_fixture = "synthetic_operation_fixture"
+    diptrace_exported = "diptrace_exported"
+    diptrace_open_save_verified = "diptrace_open_save_verified"
+    diptrace_roundtrip_verified = "diptrace_roundtrip_verified"
+    external_tool_roundtrip_verified = "external_tool_roundtrip_verified"
+
+
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+
+class FixtureManifest(StrictModel):
+    """Metadata describing the provenance and trust level of a test fixture."""
+
+    provenance: str = Field(
+        min_length=1,
+        max_length=256,
+        description=(
+            "How the fixture was created, e.g. 'mcp_generated', "
+            "'diptrace_exported', 'diptrace_open_save_verified'."
+        ),
+    )
+    validation_level: FixtureValidationLevel
+    diptrace_version: str | None = Field(
+        default=None,
+        description="Exact DipTrace version string if DipTrace was involved.",
+    )
+    diptrace_build: str | None = Field(default=None)
+    source_format_version: str | None = Field(
+        default=None,
+        description="XML Version attribute of the source document.",
+    )
+    source_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    reexport_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    diptrace_opened: bool = False
+    diptrace_saved: bool = False
+    diptrace_reexported: bool = False
+    roundtrip_verified: bool = False
+    semantic_comparison_passed: bool | None = None
+    redistribution_permitted: bool = False
+    redistribution_basis: str | None = None
+    authoring_method: str = Field(
+        default="mcp_generated",
+        description=(
+            "How the fixture content was authored, e.g. 'mcp_generated', "
+            "'diptrace_exported', 'manual_xml'."
+        ),
+    )
+    known_limitations: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _enforce_trust_invariants(self) -> FixtureManifest:
+        """Automatically validate trust invariants on construction.
+
+        This prevents creating manifests with impossible trust states.
+        Raises ValueError if the declared level is inconsistent with the flags.
+        """
+        errors = self._validate_for_level()
+        if errors:
+            raise ValueError(
+                f"FixtureManifest trust invariant violated: {'; '.join(errors)}"
+            )
+        return self
+
+    def _validate_for_level(self) -> list[str]:
+        """Return error messages if metadata is inconsistent with the declared level."""
+        errors: list[str] = []
+        if self.validation_level in {
+            FixtureValidationLevel.diptrace_exported,
+            FixtureValidationLevel.diptrace_open_save_verified,
+            FixtureValidationLevel.diptrace_roundtrip_verified,
+            FixtureValidationLevel.external_tool_roundtrip_verified,
+        }:
+            if not self.diptrace_version:
+                errors.append(
+                    f"validation_level={self.validation_level.value} requires diptrace_version"
+                )
+            if not self.source_sha256:
+                errors.append(
+                    f"validation_level={self.validation_level.value} requires source_sha256"
+                )
+        if self.validation_level in {
+            FixtureValidationLevel.diptrace_open_save_verified,
+            FixtureValidationLevel.diptrace_roundtrip_verified,
+            FixtureValidationLevel.external_tool_roundtrip_verified,
+        }:
+            if not self.diptrace_opened:
+                errors.append(
+                    f"validation_level={self.validation_level.value} requires diptrace_opened=true"
+                )
+            if not self.diptrace_saved:
+                errors.append(
+                    f"validation_level={self.validation_level.value} requires diptrace_saved=true"
+                )
+        if self.validation_level in {
+            FixtureValidationLevel.diptrace_roundtrip_verified,
+            FixtureValidationLevel.external_tool_roundtrip_verified,
+        }:
+            if not self.diptrace_reexported:
+                errors.append(
+                    f"validation_level={self.validation_level.value} "
+                    "requires diptrace_reexported=true"
+                )
+            if not self.reexport_sha256:
+                errors.append(
+                    f"validation_level={self.validation_level.value} "
+                    "requires reexport_sha256"
+                )
+            if self.semantic_comparison_passed is not True:
+                errors.append(
+                    f"validation_level={self.validation_level.value} "
+                    "requires semantic_comparison_passed=true"
+                )
+        if (
+            self.validation_level == FixtureValidationLevel.external_tool_roundtrip_verified
+            and not self.roundtrip_verified
+        ):
+            errors.append(
+                "validation_level=external_tool_roundtrip_verified "
+                "requires roundtrip_verified=true"
+            )
+        return errors
+
+    # Keep public name for backward compatibility with callers that use
+    # manifest.validate_for_level() explicitly.
+    def validate_for_level(self) -> list[str]:
+        """Return a list of error messages if metadata is inconsistent with the
+        declared validation level."""
+        return self._validate_for_level()
 
 
 class Unit(str, Enum):
