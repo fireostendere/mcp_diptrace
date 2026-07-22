@@ -11,3 +11,4 @@ dist/
 plugin/dist/
 *.spec
 .diptrace-mcp-backups/
+docs/private/
