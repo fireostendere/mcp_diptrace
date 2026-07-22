@@ -89,7 +89,7 @@ def test_silkscreen_plan_preview_commit_and_rollback(tmp_path: Path) -> None:
     assert len(planned["resources"]) == 4
     preview_svg = service.plan_resource(plan_id, "preview.svg")
     assert hashlib.sha256(preview_svg.encode()).hexdigest() == (
-        "e36821bd3abf5575f5dd2bcc46a24c23b6591266b15d8a1f3e1ea26d32d69d27"
+        "489cd1e72c59d16b6f64b2f09baaf0645bcb95fd96801bc609ded7d015e6d807"
     )
     assert '"candidates"' in service.plan_resource(plan_id, "preview.json")
 

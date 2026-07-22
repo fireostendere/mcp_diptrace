@@ -534,6 +534,122 @@ def _preview(
     }
 
 
+def _prune_satisfied_ratlines(document: DipTraceDocument) -> int:
+    """Remove ratlines made redundant by confirmed pad-to-pad trace connectivity.
+
+    DipTrace treats ``Board/Ratlines`` as a connectivity spanning forest, not as a
+    historical list of every connection emitted by schematic synchronization.  Keeping
+    a ratline after its endpoints become connected can create a cycle and causes the GUI
+    to discard and reinitialize the complete ratline structure on import.
+
+    Trace-to-trace branches are left conservative here: only exported pad-to-pad trace
+    endpoints participate in the union-find seed.  Existing ratlines are then retained
+    in document order only when they join two previously disconnected pad groups.
+    """
+
+    ratlines = document.container.find("./Ratlines")
+    if ratlines is None:
+        return 0
+
+    endpoint_net: dict[tuple[str, str], str] = {}
+    nets: dict[str, ET.Element] = {}
+    for net in document.container.findall("./Nets/Net"):
+        net_id = net.get("Id", "")
+        if not net_id:
+            continue
+        nets[net_id] = net
+        for item in net.findall("./Pads/Item"):
+            endpoint_net[(item.get("Comp", ""), item.get("Pad", ""))] = net_id
+
+    parent: dict[tuple[str, str], tuple[str, str]] = {
+        endpoint: endpoint for endpoint in endpoint_net
+    }
+
+    def find(endpoint: tuple[str, str]) -> tuple[str, str]:
+        root = parent[endpoint]
+        while root != parent[root]:
+            root = parent[root]
+        while endpoint != root:
+            next_endpoint = parent[endpoint]
+            parent[endpoint] = root
+            endpoint = next_endpoint
+        return root
+
+    def union(left: tuple[str, str], right: tuple[str, str]) -> bool:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root == right_root:
+            return False
+        parent[right_root] = left_root
+        return True
+
+    for net_id, net in nets.items():
+        for trace in net.findall("./Traces/Trace"):
+            if trace.get("Connected1") != "Pad" or trace.get("Connected2") != "Pad":
+                continue
+            left = (trace.get("Object1", ""), trace.get("SubObject1", ""))
+            right = (trace.get("Object2", ""), trace.get("SubObject2", ""))
+            if endpoint_net.get(left) == net_id and endpoint_net.get(right) == net_id:
+                union(left, right)
+
+    removed = 0
+    for ratline in list(ratlines.findall("./Ratline")):
+        left = (ratline.get("Comp1", ""), ratline.get("Pad1", ""))
+        right = (ratline.get("Comp2", ""), ratline.get("Pad2", ""))
+        left_net = endpoint_net.get(left)
+        if left_net is None or left_net != endpoint_net.get(right):
+            continue
+        if not union(left, right):
+            ratlines.remove(ratline)
+            removed += 1
+    return removed
+
+
+def _restore_trace_ratline(document: DipTraceDocument, trace: ET.Element) -> int:
+    """Restore a pad-to-pad ratline before a routed connection is removed."""
+
+    if trace.get("Connected1") != "Pad" or trace.get("Connected2") != "Pad":
+        return 0
+    points = trace.findall("./Points/Point")
+    if not points:
+        return 0
+    left = (trace.get("Object1", ""), trace.get("SubObject1", ""))
+    right = (trace.get("Object2", ""), trace.get("SubObject2", ""))
+    if not all((*left, *right)) or left == right:
+        return 0
+    ratlines = document.container.find("./Ratlines")
+    if ratlines is None:
+        ratlines = ET.SubElement(document.container, "Ratlines")
+    existing_pairs = {
+        frozenset(
+            {
+                (item.get("Comp1", ""), item.get("Pad1", "")),
+                (item.get("Comp2", ""), item.get("Pad2", "")),
+            }
+        )
+        for item in ratlines.findall("./Ratline")
+    }
+    if frozenset({left, right}) in existing_pairs:
+        return 0
+    ET.SubElement(
+        ratlines,
+        "Ratline",
+        {
+            "Id": _next_id(list(ratlines.findall("./Ratline"))),
+            "Hidden": "N",
+            "X1": points[0].get("X", "0"),
+            "Y1": points[0].get("Y", "0"),
+            "X2": points[-1].get("X", "0"),
+            "Y2": points[-1].get("Y", "0"),
+            "Comp1": left[0],
+            "Pad1": left[1],
+            "Comp2": right[0],
+            "Pad2": right[1],
+        },
+    )
+    return 1
+
+
 def _add_trace(
     index: int,
     document: DipTraceDocument,
@@ -579,6 +695,7 @@ def _add_trace(
         widths,
         via_styles,
     )
+    removed_ratlines = _prune_satisfied_ratlines(document)
     length = sum(
         distance(left, right) for left, right in zip(points, points[1:], strict=False)
     )
@@ -588,10 +705,15 @@ def _add_trace(
             operation,
             [net.stable_id, start.stable_id, end.stable_id],
             {"trace_count": net.attributes.get("trace_count", 0)},
-            {"trace_id": generated_id, "xml_id": trace_id, "length_mm": length},
+            {
+                "trace_id": generated_id,
+                "xml_id": trace_id,
+                "length_mm": length,
+                "removed_ratline_count": removed_ratlines,
+            },
             document,
         ),
-        1 + point_patches,
+        1 + point_patches + removed_ratlines,
         [net.stable_id, generated_id],
     )
 
@@ -884,15 +1006,23 @@ def _delete_traces(
                     object_ids=[net.stable_id, *[trace.stable_id for trace in selected]],
                 )
     before: list[dict[str, str | None]] = []
+    ratline_patches = 0
     for trace in traces:
         net = snapshot.get_object(trace.parent_id or "")
         container = _element(snapshot, net).find("./Traces")
         if container is None:
             raise GeometryError(f"Trace container is missing: {trace.stable_id}")
-        container.remove(_element(snapshot, trace))
+        trace_element = _element(snapshot, trace)
+        ratline_patches += _restore_trace_ratline(document, trace_element)
+        container.remove(trace_element)
         before.append({"id": trace.stable_id, "xml_id": trace.xml_id})
+    ratline_patches += _prune_satisfied_ratlines(document)
     ids = [trace.stable_id for trace in traces]
-    return _preview(index, operation, ids, before, [], document), len(ids), ids
+    return (
+        _preview(index, operation, ids, before, [], document),
+        len(ids) + ratline_patches,
+        ids,
+    )
 
 
 def _set_trace_width(

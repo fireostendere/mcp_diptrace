@@ -527,7 +527,23 @@ def _component_records(
                             relationships={"component": [parent]},
                         )
                     )
-        pad_anchors: dict[tuple[str, str], Point] = {}
+        pad_anchors: dict[tuple[str, str], tuple[Point, str]] = {}
+        for trace in document.container.findall("./Nets/Net/Traces/Trace"):
+            points = trace.findall("./Points/Point")
+            if not points:
+                continue
+            for suffix, point in (("1", points[0]), ("2", points[-1])):
+                if trace.get(f"Connected{suffix}") != "Pad":
+                    continue
+                comp_id = trace.get(f"Object{suffix}", "")
+                pad_id = trace.get(f"SubObject{suffix}", "")
+                x = _float_attr_mm(document, point, "X")
+                y = _float_attr_mm(document, point, "Y")
+                if comp_id and pad_id and x is not None and y is not None:
+                    pad_anchors[(comp_id, pad_id)] = (
+                        Point(x, y),
+                        "xml-trace-endpoint",
+                    )
         for ratline in document.container.findall("./Ratlines/Ratline"):
             for suffix in ("1", "2"):
                 comp_id = ratline.get(f"Comp{suffix}", "")
@@ -535,15 +551,19 @@ def _component_records(
                 x = _float_attr_mm(document, ratline, f"X{suffix}")
                 y = _float_attr_mm(document, ratline, f"Y{suffix}")
                 if comp_id and pad_id and x is not None and y is not None:
-                    pad_anchors[(comp_id, pad_id)] = Point(x, y)
+                    pad_anchors[(comp_id, pad_id)] = (
+                        Point(x, y),
+                        "xml-ratline-endpoint",
+                    )
         component_xml_by_stable = {value: key for key, value in by_xml_id.items()}
         for record in records:
             if record.kind != "pad" or record.parent_id is None or record.xml_id is None:
                 continue
             component_xml_id = component_xml_by_stable.get(record.parent_id, "")
-            anchor = pad_anchors.get((component_xml_id, record.xml_id))
-            if anchor is None:
+            anchor_details = pad_anchors.get((component_xml_id, record.xml_id))
+            if anchor_details is None:
                 continue
+            anchor, geometry_source = anchor_details
             if record.position is not None and record.geometry_source == "embedded-pattern-library":
                 calculated = Point(**record.position)
                 mismatch = distance(calculated, anchor)
@@ -554,8 +574,8 @@ def _component_records(
                     )
                 continue
             record.position = anchor.as_dict()
-            record.geometry_source = "xml-ratline-endpoint"
-            record.confidence = 0.75
+            record.geometry_source = geometry_source
+            record.confidence = 0.9 if geometry_source == "xml-trace-endpoint" else 0.75
         return records, by_xml_id, by_refdes
 
     if document.kind == "schematic":

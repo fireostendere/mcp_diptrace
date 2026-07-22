@@ -129,6 +129,7 @@ def test_add_trace_compiles_official_endpoint_and_point_structure() -> None:
     assert points[1].get("Width") == "0.25"
     assert points[1].get("ViaStyle") == "-1"
     assert root.find("./Board/FutureExtension[@Vendor='fixture']") is not None
+    assert root.findall("./Board/Ratlines/Ratline") == []
     reparsed = build_snapshot(result.document)
     vcc = next(item for item in reparsed.board.nets if item.name == "VCC")  # type: ignore[union-attr]
     assert vcc.attributes["trace_count"] == 1
