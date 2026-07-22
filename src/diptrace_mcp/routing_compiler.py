@@ -154,32 +154,6 @@ def _ensure_net_unlocked(snapshot: DocumentSnapshot, trace_or_net: ObjectRecord)
     return net
 
 
-def _layer_id(snapshot: DocumentSnapshot, value: str) -> str:
-    if snapshot.board is None:
-        raise CapabilityUnavailableError("Routing operations require a PCB document")
-    matches = [
-        item
-        for item in snapshot.board.layers
-        if str(item.get("id", "")) == value
-        or str(item.get("name", "")).casefold() == value.casefold()
-    ]
-    if not matches:
-        raise ObjectNotFoundError(f"Copper layer was not found: {value}")
-    if len(matches) > 1:
-        raise AmbiguousSelectorError(f"Copper layer is ambiguous: {value}")
-    return str(matches[0]["id"])
-
-
-def _layer_type(snapshot: DocumentSnapshot, layer_id: str) -> str:
-    """Return the layer type ('Signal', 'Plane', or 'Unknown') for a given layer id."""
-    if snapshot.board is None:
-        return "Unknown"
-    for item in snapshot.board.layers:
-        if str(item.get("id", "")) == layer_id:
-            return str(item.get("type", "Unknown"))
-    return "Unknown"
-
-
 def resolve_copper_layer(
     snapshot: DocumentSnapshot,
     value: str,
@@ -213,27 +187,6 @@ def resolve_copper_layer(
     )
 
 
-def _validate_routing_layer(snapshot: DocumentSnapshot, layer_id: str, context: str) -> None:
-    """Reject routing on plane or unknown layer types."""
-    layer_type = _layer_type(snapshot, layer_id)
-    if layer_type == "Plane":
-        layer_name = "Unknown"
-        if snapshot.board is not None:
-            for item in snapshot.board.layers:
-                if str(item.get("id", "")) == layer_id:
-                    layer_name = str(item.get("name", "Unknown"))
-                    break
-        raise RoutingError(
-            f"Trace routing is not supported on plane layer {layer_name!r}",
-            details={"layer_id": layer_id, "layer_type": layer_type, "context": context},
-        )
-    if layer_type == "Unknown" and layer_id != "0":
-        raise RoutingError(
-            "Trace routing is not supported on layer with unknown type",
-            details={"layer_id": layer_id, "layer_type": layer_type, "context": context},
-        )
-
-
 def require_routing_layer(resolved: ResolvedCopperLayer, context: str) -> None:
     """Validate a resolved layer is suitable for active trace routing."""
     if resolved.is_plane:
@@ -253,26 +206,6 @@ def require_routing_layer(resolved: ResolvedCopperLayer, context: str) -> None:
                 "layer_type": resolved.layer_type,
                 "context": context,
             },
-        )
-
-
-def _validate_via_layer(snapshot: DocumentSnapshot, layer_id: str, context: str) -> None:
-    """Reject via transitions that land on a plane layer.
-
-    Less strict than _validate_routing_layer: Unknown types are allowed because
-    via transition layers are just identifiers, not active routing targets.
-    """
-    layer_type = _layer_type(snapshot, layer_id)
-    if layer_type == "Plane":
-        layer_name = "Unknown"
-        if snapshot.board is not None:
-            for item in snapshot.board.layers:
-                if str(item.get("id", "")) == layer_id:
-                    layer_name = str(item.get("name", "Unknown"))
-                    break
-        raise RoutingError(
-            f"Via transition is not supported on plane layer {layer_name!r}",
-            details={"layer_id": layer_id, "layer_type": layer_type, "context": context},
         )
 
 

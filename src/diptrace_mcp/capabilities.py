@@ -235,10 +235,17 @@ def get_capabilities(
                     "diptrace_roundtrip_verified": True,
                     "external_tool_roundtrip_verified": False,
                 },
+                "roundtrip_authority": {
+                    "diptrace_open_save_verified": "diptrace_open_save_verified",
+                    "diptrace_roundtrip_verified": "diptrace_roundtrip_verified",
+                    "external_tool_roundtrip_verified": "external_tool_roundtrip_verified",
+                },
+                "semantic_digest_version": "1.0",
                 "plane_layer_routing": False,
                 "external_pattern_resolution": False,
                 "provenance_sidecar": True,
                 "trust_invalidated_after_mcp_write": True,
+                "all_write_paths_invalidate_trust": True,
             },
         )
     return capability_report(document, live_session=live_session)

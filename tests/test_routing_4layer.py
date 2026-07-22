@@ -287,7 +287,9 @@ class TestServiceRouting:
                     end_object_id=end,
                     points=[
                         TracePathPoint(x=10, y=9, layer="Top"),
-                        TracePathPoint(x=20, y=9, layer="Bottom"),
+                        TracePathPoint(
+                            x=20, y=9, layer="Top", via_style="Default"
+                        ),
                         TracePathPoint(x=30, y=9, layer="Bottom"),
                     ],
                     layer="Top",
@@ -303,6 +305,11 @@ class TestServiceRouting:
         # The route compiles without rejection — through-via spans are permitted.
         layers_used = {p.get("Lay") for p in points if p.get("Lay") is not None}
         assert "3" in layers_used  # Bottom layer is used
+        # The via transition point must have a real ViaStyle assigned.
+        via_point = points[1]
+        assert via_point.get("ViaStyle") not in (None, "-1"), (
+            f"Expected a real ViaStyle at via transition, got {via_point.get('ViaStyle')!r}"
+        )
 
     def test_add_trace_case_insensitive_layer(self) -> None:
         """Layer name resolution is case-insensitive."""

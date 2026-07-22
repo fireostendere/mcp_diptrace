@@ -31,6 +31,31 @@ class FixtureValidationLevel(str, Enum):
     external_tool_roundtrip_verified = "external_tool_roundtrip_verified"
 
 
+class ProvenanceAuthority(str, Enum):
+    """Who can grant the validation_level claimed by a DocumentProvenance.
+
+    - ``runtime``: the sidecar was written by MCP code; it can never claim
+      a level above ``synthetic_operation_fixture``.
+    - ``fixture_manifest``: a committed manifest.schema.json validated the
+      trust chain; the manifest SHA and schema invariants must match.
+    - ``validated_evidence``: roundtrip evidence was independently verified
+      (source + saved + reexport SHA binding, semantic comparison).
+    """
+
+    runtime = "runtime"
+    fixture_manifest = "fixture_manifest"
+    validated_evidence = "validated_evidence"
+
+
+# Validation levels that a runtime sidecar may NEVER grant on its own.
+_HIGH_TRUST_LEVELS = frozenset({
+    FixtureValidationLevel.diptrace_exported,
+    FixtureValidationLevel.diptrace_open_save_verified,
+    FixtureValidationLevel.diptrace_roundtrip_verified,
+    FixtureValidationLevel.external_tool_roundtrip_verified,
+})
+
+
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
@@ -49,12 +74,27 @@ def requires_diptrace_verification(level: FixtureValidationLevel) -> bool:
     }
 
 
+class SemComparisonResult(StrictModel):
+    """Structured result of a semantic comparison between two documents."""
+
+    passed: bool
+    compared_categories: list[str] = Field(default_factory=list)
+    differences: list[str] = Field(default_factory=list)
+    ignored_normalizations: list[str] = Field(default_factory=list)
+    unsupported_categories: list[str] = Field(default_factory=list)
+    parse_warnings: list[str] = Field(default_factory=list)
+
+
 class DocumentProvenance(StrictModel):
     """Strict sidecar schema for runtime document provenance.
 
     This model is deliberately separate from FixtureManifest.  Runtime
     provenance describes a single working document's trust chain, while
     FixtureManifest describes a committed test evidence pack.
+
+    A runtime sidecar (authority=runtime) can never grant a high-trust level.
+    High-trust levels require either a fixture_manifest or validated_evidence
+    authority with verifiable SHA binding.
     """
 
     schema_version: Literal["diptrace-document-provenance-v1"] = (
@@ -65,11 +105,44 @@ class DocumentProvenance(StrictModel):
     current_document_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     seed_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     parent_validation_level: FixtureValidationLevel | None = None
-    diptrace_version: str | None = None
-    diptrace_build: str | None = None
-    created_by: str = Field(default="mcp", max_length=256)
+    authority: ProvenanceAuthority = ProvenanceAuthority.runtime
+    evidence_manifest_path: str | None = None
+    evidence_manifest_sha256: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{64}$"
+    )
     last_modified_by: str | None = None
-    requires_diptrace_verification: bool = True
+
+    @property
+    def requires_diptrace_verification(self) -> bool:
+        """Computed from validation_level; never set by client."""
+        return requires_diptrace_verification(self.validation_level)
+
+    @model_validator(mode="after")
+    def _enforce_authority_invariants(self) -> DocumentProvenance:
+        """Prevent runtime sidecars from granting high-trust levels.
+
+        Runtime authority can only grant synthetic_parser_only or
+        synthetic_operation_fixture.  Higher levels require either
+        fixture_manifest or validated_evidence authority.
+        """
+        if (
+            self.authority == ProvenanceAuthority.runtime
+            and self.validation_level in _HIGH_TRUST_LEVELS
+        ):
+            raise ValueError(
+                f"Runtime sidecar cannot grant validation_level={self.validation_level.value}; "
+                "requires fixture_manifest or validated_evidence authority"
+            )
+        if self.authority == ProvenanceAuthority.validated_evidence:
+            if not self.evidence_manifest_path:
+                raise ValueError(
+                    "validated_evidence authority requires evidence_manifest_path"
+                )
+            if not self.evidence_manifest_sha256:
+                raise ValueError(
+                    "validated_evidence authority requires evidence_manifest_sha256"
+                )
+        return self
 
 
 class FixtureManifest(StrictModel):
