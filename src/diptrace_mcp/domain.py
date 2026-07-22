@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 from enum import Enum
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -74,15 +75,81 @@ def requires_diptrace_verification(level: FixtureValidationLevel) -> bool:
     }
 
 
+class UnsupportedCategory(StrictModel):
+    """An XML section or category not compared during semantic check."""
+
+    category: str
+    severity: Literal["critical", "non_critical", "informational"]
+    reason: str
+
+
 class SemComparisonResult(StrictModel):
     """Structured result of a semantic comparison between two documents."""
 
     passed: bool
+    comparison_complete: bool = True
     compared_categories: list[str] = Field(default_factory=list)
     differences: list[str] = Field(default_factory=list)
     ignored_normalizations: list[str] = Field(default_factory=list)
-    unsupported_categories: list[str] = Field(default_factory=list)
+    unsupported_categories: list[UnsupportedCategory] = Field(default_factory=list)
     parse_warnings: list[str] = Field(default_factory=list)
+
+
+class RoundtripEvidenceRecord(StrictModel):
+    """Immutable evidence manifest created by validate_roundtrip_evidence."""
+
+    schema_version: Literal["diptrace-roundtrip-evidence-v1"] = (
+        "diptrace-roundtrip-evidence-v1"
+    )
+    authority: str = "user_supplied_roundtrip_evidence"
+    document_path: str
+    document_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source: dict[str, str] = Field(default_factory=dict)
+    saved: dict[str, str] = Field(default_factory=dict)
+    reexport: dict[str, str] | None = None
+    validation_level: str
+    semantic_comparison: dict[str, Any] = Field(default_factory=dict)
+    status: Literal["passed", "failed"] = "passed"
+    created_at: str
+    created_by: str = "mcp_validate_roundtrip_evidence"
+
+
+class ValidatedEvidence:
+    """Return type from _load_and_validate_evidence_manifest.
+
+    Carries all verified fields after manifest file has been loaded, SHA-checked,
+    and parsed.  The caller can trust these values because they come from a
+    file that has been independently verified.
+    """
+
+    __slots__ = (
+        "manifest_path",
+        "manifest_sha256",
+        "document_path",
+        "document_sha256",
+        "source_type",
+        "validation_level",
+        "record",
+    )
+
+    def __init__(
+        self,
+        *,
+        manifest_path: Path,
+        manifest_sha256: str,
+        document_path: str,
+        document_sha256: str,
+        source_type: str,
+        validation_level: FixtureValidationLevel,
+        record: dict[str, Any] | None = None,
+    ) -> None:
+        self.manifest_path = manifest_path
+        self.manifest_sha256 = manifest_sha256
+        self.document_path = document_path
+        self.document_sha256 = document_sha256
+        self.source_type = source_type
+        self.validation_level = validation_level
+        self.record = record
 
 
 class DocumentProvenance(StrictModel):
@@ -124,6 +191,11 @@ class DocumentProvenance(StrictModel):
         Runtime authority can only grant synthetic_parser_only or
         synthetic_operation_fixture.  Higher levels require either
         fixture_manifest or validated_evidence authority.
+
+        fixture_manifest authority with high trust requires
+        evidence_manifest_path and evidence_manifest_sha256.
+
+        validated_evidence authority always requires evidence manifest fields.
         """
         if (
             self.authority == ProvenanceAuthority.runtime
@@ -141,6 +213,20 @@ class DocumentProvenance(StrictModel):
             if not self.evidence_manifest_sha256:
                 raise ValueError(
                     "validated_evidence authority requires evidence_manifest_sha256"
+                )
+        if (
+            self.authority == ProvenanceAuthority.fixture_manifest
+            and self.validation_level in _HIGH_TRUST_LEVELS
+        ):
+            if not self.evidence_manifest_path:
+                raise ValueError(
+                    "fixture_manifest authority with high trust requires "
+                    "evidence_manifest_path"
+                )
+            if not self.evidence_manifest_sha256:
+                raise ValueError(
+                    "fixture_manifest authority with high trust requires "
+                    "evidence_manifest_sha256"
                 )
         return self
 
@@ -895,6 +981,7 @@ class TransactionRecord(StrictModel):
     preview_resources: list[str] = Field(default_factory=list)
     snapshot_path: str | None = None
     backup_path: str | None = None
+    provenance_backup_path: str | None = None
     committed_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     rolled_back_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     error: dict[str, Any] | None = None

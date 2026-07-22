@@ -80,14 +80,26 @@ class TestDocumentProvenanceInvariants:
             )
 
     def test_fixture_manifest_can_grant_high_trust(self) -> None:
-        """fixture_manifest authority can grant high trust."""
+        """fixture_manifest authority can grant high trust with evidence manifest."""
         sidecar = DocumentProvenance(
             provenance="fixture_validated",
             validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,
             current_document_sha256="a" * 64,
             authority=ProvenanceAuthority.fixture_manifest,
+            evidence_manifest_path="/tmp/evidence.json",
+            evidence_manifest_sha256="b" * 64,
         )
         assert sidecar.validation_level == FixtureValidationLevel.diptrace_roundtrip_verified
+
+    def test_fixture_manifest_high_trust_requires_manifest(self) -> None:
+        """fixture_manifest authority with high trust without evidence fields is rejected."""
+        with pytest.raises(ValueError, match="requires evidence_manifest_path"):
+            DocumentProvenance(
+                provenance="fixture_validated",
+                validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,
+                current_document_sha256="a" * 64,
+                authority=ProvenanceAuthority.fixture_manifest,
+            )
 
     def test_runtime_can_grant_synthetic_levels(self) -> None:
         """Runtime authority can grant synthetic levels."""
@@ -127,6 +139,8 @@ class TestDocumentProvenanceInvariants:
                 validation_level=level,
                 current_document_sha256="a" * 64,
                 authority=ProvenanceAuthority.fixture_manifest,
+                evidence_manifest_path="/tmp/m.json",
+                evidence_manifest_sha256="b" * 64,
             )
             assert sidecar.requires_diptrace_verification is True
 
@@ -191,12 +205,29 @@ class TestSeedBasedCreation:
         assert result["result"]["provenance"] == "seed_copy_unknown_origin"
 
     def test_validated_evidence_sidecar_preserves_trust(self, tmp_path: Path) -> None:
-        """Seed with validated_evidence sidecar → trust preserved."""
+        """Seed with validated_evidence sidecar + real evidence manifest → trust preserved."""
         service = _service(tmp_path)
         raw = build_pcb_document(PcbScaffold(width_mm=50.0, height_mm=30.0))
         seed_path = tmp_path / "seed.dip"
         seed_path.write_bytes(raw)
         seed_sha = hashlib.sha256(raw).hexdigest()
+
+        # Create a real evidence manifest
+        from diptrace_mcp.domain import RoundtripEvidenceRecord
+        from diptrace_mcp.xml_document import utc_now
+        manifest = RoundtripEvidenceRecord(
+            document_path=str(seed_path),
+            document_sha256=seed_sha,
+            source={"path": str(seed_path), "sha256": seed_sha, "source_type": "DipTrace-PCB"},
+            saved={"path": str(seed_path), "sha256": seed_sha, "source_type": "DipTrace-PCB"},
+            validation_level=FixtureValidationLevel.diptrace_roundtrip_verified.value,
+            semantic_comparison={"passed": True},
+            status="passed",
+            created_at=utc_now(),
+        )
+        manifest_path = tmp_path / "evidence.json"
+        manifest_path.write_text(manifest.model_dump_json())
+        manifest_sha = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
 
         sidecar = DocumentProvenance(
             provenance="diptrace_validated",
@@ -204,8 +235,8 @@ class TestSeedBasedCreation:
             current_document_sha256=seed_sha,
             seed_sha256=seed_sha,
             authority=ProvenanceAuthority.validated_evidence,
-            evidence_manifest_path="/tmp/evidence.json",
-            evidence_manifest_sha256="b" * 64,
+            evidence_manifest_path=str(manifest_path),
+            evidence_manifest_sha256=manifest_sha,
         )
         sidecar_path = seed_path.with_suffix(seed_path.suffix + ".provenance.json")
         sidecar_path.write_text(sidecar.model_dump_json())
@@ -466,13 +497,13 @@ class TestAllWritePathsInvalidate:
         service.create_document("pcb", "board.dip")
         board_path = tmp_path / "board.dip"
 
-        # Establish a known trust level
+        # Establish a known trust level (use runtime authority to avoid
+        # requiring evidence manifest for test simplicity)
         sha1 = service.document_info("board.dip")["result"]["sha256"]
         sidecar = DocumentProvenance(
             provenance="mcp_generated",
-            validation_level=FixtureValidationLevel.diptrace_exported,
+            validation_level=FixtureValidationLevel.synthetic_operation_fixture,
             current_document_sha256=sha1,
-            authority=ProvenanceAuthority.fixture_manifest,
         )
         sidecar_path = board_path.with_suffix(board_path.suffix + ".provenance.json")
         sidecar_path.write_text(sidecar.model_dump_json())
@@ -493,7 +524,7 @@ class TestAllWritePathsInvalidate:
         assert result["dry_run"] is True
         loaded = service._load_seed_provenance(board_path)
         assert loaded is not None
-        assert loaded.validation_level == FixtureValidationLevel.diptrace_exported
+        assert loaded.validation_level == FixtureValidationLevel.synthetic_operation_fixture
 
     def test_create_document_from_seed_invalidation(self, tmp_path: Path) -> None:
         """create_document_from_seed writes trust sidecar with correct authority."""
