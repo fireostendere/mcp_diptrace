@@ -379,9 +379,8 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     def create_document_from_seed(
         seed_path: str,
         target_path: str,
+        expected_seed_sha256: str | None = None,
         overwrite: bool = False,
-        claimed_validation_level: str = "synthetic_parser_only",
-        diptrace_version: str | None = None,
     ) -> dict[str, Any]:
         """Create a new project document by copying an existing DipTrace-shaped XML seed.
 
@@ -389,21 +388,20 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         PatternLibrary). The copy preserves all unknown XML, line endings, and
         unsupported sections.
 
-        Trust model: The function does NOT automatically verify DipTrace provenance.
-        claimed_validation_level defaults to synthetic_parser_only. The caller must
-        explicitly claim a higher level (e.g. diptrace_exported) and provide the
-        diptrace_version parameter. The trust level is never upgraded automatically.
+        Trust model: The client cannot assign a validation level. Trust is derived
+        exclusively from verifiable metadata (provenance sidecar) found alongside
+        the seed. If no metadata is present, the copy defaults to
+        synthetic_parser_only.
 
-        This is the recommended way to start a new project when DipTrace compatibility
-        is required, as opposed to create_pcb_document/create_schematic_document which
-        produce synthetic MCP-generated XML.
+        This is the recommended way to start a new project when DipTrace
+        compatibility is required, as opposed to create_pcb_document/create_schematic_document
+        which produce synthetic MCP-generated XML.
         """
         return service.create_document_from_seed(
             seed_path,
             target_path,
+            expected_seed_sha256=expected_seed_sha256,
             overwrite=overwrite,
-            claimed_validation_level=claimed_validation_level,
-            diptrace_version=diptrace_version,
         )
 
     @mcp.tool()

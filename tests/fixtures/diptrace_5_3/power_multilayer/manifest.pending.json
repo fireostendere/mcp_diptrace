@@ -29,50 +29,22 @@
       "intended_semantic_difference": "Baseline synthetic four-layer board for parser and routing operation tests. NOT validated by DipTrace open/save."
     },
     {
-      "path": "pours/before_refill.xml",
-      "status": "pending_manual",
-      "source_type": "DipTrace-PCB",
-      "sha256": null,
-      "intended_semantic_difference": "GND copper-pour boundary, thermal and cutout/island configured; refill intentionally not run. Pending manual DipTrace evidence."
-    },
-    {
-      "path": "pours/after_refill.xml",
-      "status": "pending_manual",
-      "source_type": "DipTrace-PCB",
-      "sha256": null,
-      "intended_semantic_difference": "Exactly the same design as before_refill.xml after Update All Copper Pours/Refill only. Pending manual DipTrace evidence."
-    },
-    {
       "path": "specctra/source_board.xml",
-      "status": "synthetic_frozen_copy_pending_5_3_resave",
+      "status": "synthetic_frozen_copy",
       "source_type": "DipTrace-PCB",
       "validation_level": "synthetic_parser_only",
       "provenance": "mcp_generated",
       "format_version": "4.3.0.3",
       "sha256": "e3acbc68fcb7374b4f7fd8c536679e57ebac62435ab41e696e65b6f1f256ada6",
       "intended_semantic_difference": "Frozen source revision from which input.dsn must be exported. NOT DipTrace-validated."
-    },
-    {
-      "path": "specctra/input.dsn",
-      "status": "pending_manual",
-      "source_type": "Specctra-DSN",
-      "sha256": null,
-      "intended_semantic_difference": "Real DipTrace Specctra export of the frozen source_board.xml revision. Pending manual capture."
-    },
-    {
-      "path": "specctra/output.ses",
-      "status": "pending_manual",
-      "source_type": "Specctra-SES",
-      "sha256": null,
-      "intended_semantic_difference": "Real Freerouting session that routes SENSE with a multilayer transition while preserving the source identity. Pending manual capture."
     }
   ],
   "known_limitations": [
     "This is a synthetic MCP-generated fixture, NOT a DipTrace-exported fixture.",
     "It has never been opened, saved, or re-exported by DipTrace.",
     "It must NOT be used as evidence of DipTrace 5.3 compatibility.",
-    "Copper-pour refill evidence is pending manual DipTrace capture.",
-    "DSN/SES round-trip evidence is pending manual capture.",
-    "The fixture validates MCP parser, routing compiler, and semantic operations only."
+    "No promotion path exists for this fixture.",
+    "The fixture validates MCP parser, routing compiler, and semantic operations only.",
+    "A real acceptance fixture must start from a genuine DipTrace-exported seed."
   ]
 }

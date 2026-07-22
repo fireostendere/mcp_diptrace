@@ -54,6 +54,15 @@ with `5.3.0.0` and embedded legacy versions. The application version and the XML
 - Atomic coupled-pair patches: two traces plus `DifferentialPairs/Segments/Segment`.
 - Atomic write, backup, and reparse after writing.
 
+## Layer Resolution
+
+Copper layers are resolved by case-insensitive name or exact id match via
+`resolve_copper_layer()`. The resolved layer includes `layer_id`, `layer_name`,
+and `layer_type` (Signal, Plane, or Unknown). Routing operations use
+`require_routing_layer()` to reject active trace segments on Plane layers;
+through-via spans across Plane layers are permitted. Via transitions use
+`require_via_layer()` which rejects Plane layers but allows Unknown types.
+
 ## Compatibility Matrix
 
 | Source | Read | Write | Round-trip |

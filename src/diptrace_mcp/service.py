@@ -24,6 +24,7 @@ from .connectivity import build_connectivity_graph
 from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
 from .domain import (
     DocumentInfo,
+    DocumentProvenance,
     FieldSolverRequest,
     FixtureValidationLevel,
     ImpedanceInput,
@@ -32,9 +33,11 @@ from .domain import (
     LibraryPattern,
     ObjectRecord,
     PlanStatus,
+    ProvenanceAuthority,
     QueryRequest,
     QuerySelector,
     TransactionRecord,
+    requires_diptrace_verification,
 )
 from .errors import (
     CapabilityUnavailableError,
@@ -188,6 +191,306 @@ class DocumentTarget:
         return self.live_session_id is not None
 
 
+def _semantic_roundtrip_check(
+    source: DipTraceDocument, reexport: DipTraceDocument
+) -> dict[str, Any]:
+    """Compare two DipTrace documents for structural roundtrip equivalence.
+
+    Returns a structured comparison result with:
+      - passed: bool
+      - compared_categories: list of what was compared
+      - differences: list of what differs
+      - ignored_normalizations: cosmetic differences
+      - unsupported_categories: categories not yet compared
+      - parse_warnings: warnings from either document
+    """
+    differences: list[str] = []
+    compared: list[str] = []
+    ignored: list[str] = []
+    unsupported: list[str] = [
+        "board_texts", "board_shapes", "unknown_xml_sections"
+    ]
+    warnings: list[str] = []
+
+    # Source type must match
+    compared.append("source_type")
+    if source.source_type != reexport.source_type:
+        differences.append(
+            f"source_type: {source.source_type!r} vs "
+            f"{reexport.source_type!r}"
+        )
+
+    source_snapshot = build_snapshot(source)
+    reexport_snapshot = build_snapshot(reexport)
+    warnings.extend(source_snapshot.warnings)
+    warnings.extend(reexport_snapshot.warnings)
+
+    # ── PCB comparison ──
+    if (
+        source_snapshot.board is not None
+        and reexport_snapshot.board is not None
+    ):
+        sb = source_snapshot.board
+        rb = reexport_snapshot.board
+
+        # Outline
+        compared.append("board_outline")
+        if sb.outline is not None and rb.outline is not None:
+            src_pts = sb.outline.get("points", [])
+            re_pts = rb.outline.get("points", [])
+            if len(src_pts) != len(re_pts):
+                differences.append(
+                    f"board_outline: point count "
+                    f"{len(src_pts)} vs {len(re_pts)}"
+                )
+            else:
+                for idx, (sp, rp) in enumerate(
+                    zip(src_pts, re_pts, strict=True)
+                ):
+                    sx = abs(sp.get("x", 0) - rp.get("x", 0))
+                    sy = abs(sp.get("y", 0) - rp.get("y", 0))
+                    if sx > 0.01 or sy > 0.01:
+                        differences.append(
+                            f"board_outline: point {idx} differs "
+                            f"({sp} vs {rp})"
+                        )
+                        break
+
+        # Layers
+        compared.append("copper_layers")
+        src_layers = {
+            (ly.get("id"), ly.get("name"), ly.get("type"))
+            for ly in sb.layers
+        }
+        re_layers = {
+            (ly.get("id"), ly.get("name"), ly.get("type"))
+            for ly in rb.layers
+        }
+        if src_layers != re_layers:
+            missing = src_layers - re_layers
+            extra = re_layers - src_layers
+            differences.append(
+                f"copper_layers: missing={missing}, extra={extra}"
+            )
+
+        # Via styles
+        compared.append("via_styles")
+        src_via = {
+            v.name: (v.diameter_mm, v.hole_mm) for v in sb.via_styles
+        }
+        re_via = {
+            v.name: (v.diameter_mm, v.hole_mm) for v in rb.via_styles
+        }
+        if src_via != re_via:
+            differences.append(
+                f"via_styles: {src_via} vs {re_via}"
+            )
+
+        # Components
+        compared.append("components")
+        src_comps = sorted(
+            sb.components, key=lambda c: c.refdes or c.xml_id or ""
+        )
+        re_comps = sorted(
+            rb.components, key=lambda c: c.refdes or c.xml_id or ""
+        )
+        if len(src_comps) != len(re_comps):
+            differences.append(
+                f"components: count {len(src_comps)} vs "
+                f"{len(re_comps)}"
+            )
+        else:
+            for sc, rc in zip(src_comps, re_comps, strict=True):
+                label = sc.refdes or sc.xml_id or "?"
+                if sc.refdes != rc.refdes:
+                    differences.append(
+                        f"component {label}: refdes "
+                        f"{sc.refdes!r} vs {rc.refdes!r}"
+                    )
+                if sc.name != rc.name:
+                    differences.append(
+                        f"component {label}: name "
+                        f"{sc.name!r} vs {rc.name!r}"
+                    )
+                if sc.value != rc.value:
+                    differences.append(
+                        f"component {label}: value "
+                        f"{sc.value!r} vs {rc.value!r}"
+                    )
+                # PatternStyle
+                sp_attr = sc.attributes.get(
+                    "pattern_style"
+                ) or sc.attributes.get("PatternStyle")
+                rp_attr = rc.attributes.get(
+                    "pattern_style"
+                ) or rc.attributes.get("PatternStyle")
+                if sp_attr != rp_attr:
+                    differences.append(
+                        f"component {label}: PatternStyle "
+                        f"{sp_attr!r} vs {rp_attr!r}"
+                    )
+                if sc.side != rc.side:
+                    differences.append(
+                        f"component {label}: side "
+                        f"{sc.side!r} vs {rc.side!r}"
+                    )
+                # Position
+                if sc.position and rc.position:
+                    pos_dx = abs(
+                        sc.position.get("x", 0)
+                        - rc.position.get("x", 0)
+                    )
+                    pos_dy = abs(
+                        sc.position.get("y", 0)
+                        - rc.position.get("y", 0)
+                    )
+                    if pos_dx > 0.01 or pos_dy > 0.01:
+                        differences.append(
+                            f"component {label}: position "
+                            f"{sc.position} vs {rc.position}"
+                        )
+                if abs(sc.rotation_deg - rc.rotation_deg) > 0.01:
+                    differences.append(
+                        f"component {label}: rotation "
+                        f"{sc.rotation_deg} vs {rc.rotation_deg}"
+                    )
+                # Pad-to-net membership
+                src_pads = [
+                    p for p in sb.pads
+                    if p.parent_id == sc.stable_id
+                ]
+                re_pads = [
+                    p for p in rb.pads
+                    if p.parent_id == rc.stable_id
+                ]
+                if len(src_pads) != len(re_pads):
+                    differences.append(
+                        f"component {label}: pad count "
+                        f"{len(src_pads)} vs {len(re_pads)}"
+                    )
+                else:
+                    src_pn = {
+                        (p.xml_id or p.label, p.net_name)
+                        for p in src_pads
+                    }
+                    re_pn = {
+                        (p.xml_id or p.label, p.net_name)
+                        for p in re_pads
+                    }
+                    if src_pn != re_pn:
+                        differences.append(
+                            f"component {label}: pad-to-net "
+                            f"{src_pn} vs {re_pn}"
+                        )
+
+        # Nets
+        compared.append("nets")
+        src_net_names = sorted(n.name or "" for n in sb.nets)
+        re_net_names = sorted(n.name or "" for n in rb.nets)
+        if src_net_names != re_net_names:
+            differences.append(
+                f"nets: {src_net_names} vs {re_net_names}"
+            )
+
+        # Traces
+        compared.append("traces")
+        if len(sb.traces) != len(rb.traces):
+            differences.append(
+                f"traces: count {len(sb.traces)} vs "
+                f"{len(rb.traces)}"
+            )
+        else:
+            for st, rt in zip(
+                sorted(sb.traces, key=lambda t: t.stable_id),
+                sorted(rb.traces, key=lambda t: t.stable_id),
+                strict=True,
+            ):
+                if st.layer != rt.layer:
+                    differences.append(
+                        f"trace {st.stable_id}: layer "
+                        f"{st.layer!r} vs {rt.layer!r}"
+                    )
+                if st.net_name != rt.net_name:
+                    differences.append(
+                        f"trace {st.stable_id}: net "
+                        f"{st.net_name!r} vs {rt.net_name!r}"
+                    )
+
+    # ── Schematic comparison ──
+    if (
+        source_snapshot.schematic is not None
+        and reexport_snapshot.schematic is not None
+    ):
+        ss = source_snapshot.schematic
+        rs = reexport_snapshot.schematic
+
+        compared.append("schematic_sheets")
+        if len(ss.sheets) != len(rs.sheets):
+            differences.append(
+                f"schematic_sheets: count "
+                f"{len(ss.sheets)} vs {len(rs.sheets)}"
+            )
+
+        compared.append("schematic_parts")
+        if len(ss.parts) != len(rs.parts):
+            differences.append(
+                f"schematic_parts: count "
+                f"{len(ss.parts)} vs {len(rs.parts)}"
+            )
+        else:
+            for sp, rp in zip(
+                sorted(ss.parts, key=lambda p: p.refdes or ""),
+                sorted(rs.parts, key=lambda p: p.refdes or ""),
+                strict=True,
+            ):
+                label = sp.refdes or "?"
+                if sp.refdes != rp.refdes:
+                    differences.append(
+                        f"part {label}: refdes differs"
+                    )
+                if sp.value != rp.value:
+                    differences.append(
+                        f"part {label}: value "
+                        f"{sp.value!r} vs {rp.value!r}"
+                    )
+
+        compared.append("schematic_nets")
+        src_sn = sorted(n.name or "" for n in ss.nets)
+        re_sn = sorted(n.name or "" for n in rs.nets)
+        if src_sn != re_sn:
+            differences.append(
+                f"schematic_nets: {src_sn} vs {re_sn}"
+            )
+
+        compared.append("schematic_wires")
+        if len(ss.wires) != len(rs.wires):
+            differences.append(
+                f"schematic_wires: count "
+                f"{len(ss.wires)} vs {len(rs.wires)}"
+            )
+
+        compared.append("schematic_labels")
+        src_labels = sorted(
+            lb.name or "" for lb in ss.labels
+        )
+        re_labels = sorted(
+            lb.name or "" for lb in rs.labels
+        )
+        if src_labels != re_labels:
+            differences.append(
+                f"schematic_labels: {src_labels} vs {re_labels}"
+            )
+
+    return {
+        "passed": len(differences) == 0,
+        "compared_categories": compared,
+        "differences": differences,
+        "ignored_normalizations": ignored,
+        "unsupported_categories": unsupported,
+        "parse_warnings": warnings,
+    }
+
+
 class DipTraceService:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -201,6 +504,61 @@ class DipTraceService:
         self.external_jobs = ExternalJobManager(settings, self.jobs)
         self.models = ModelCache()
         self._document_targets: dict[str, DocumentTarget] = {}
+
+    def _load_seed_provenance(self, seed_path: Path) -> DocumentProvenance | None:
+        """Load and validate the provenance sidecar for a seed file.
+
+        Returns the validated DocumentProvenance if a valid sidecar exists,
+        or None if no sidecar is present or it fails validation.
+        """
+        sidecar = seed_path.with_suffix(seed_path.suffix + ".provenance.json")
+        if not sidecar.exists():
+            return None
+        try:
+            raw = json.loads(sidecar.read_text())
+            return DocumentProvenance.model_validate(raw)
+        except (json.JSONDecodeError, OSError, ValueError):
+            return None
+
+    def _write_provenance_sidecar(
+        self,
+        document_path: Path,
+        provenance: DocumentProvenance,
+    ) -> None:
+        """Write a validated provenance sidecar next to a document."""
+        sidecar = document_path.with_suffix(document_path.suffix + ".provenance.json")
+        atomic_write_bytes(sidecar, provenance.model_dump_json(indent=2).encode())
+
+    def invalidate_document_trust_after_write(
+        self,
+        document_path: Path,
+        document_sha256: str,
+        *,
+        operation_name: str = "mcp_write",
+    ) -> None:
+        """Downgrade trust after any MCP write operation.
+
+        After an MCP-modified write, the bytes are no longer the original
+        DipTrace export.  This helper updates (or creates) the sidecar to
+        reflect the synthetic state while preserving parent provenance.
+        """
+        old_sidecar = self._load_seed_provenance(document_path)
+        parent_level: FixtureValidationLevel | None = None
+        seed_sha: str | None = None
+        if old_sidecar is not None:
+            # Preserve the deepest parent level from the chain
+            parent_level = old_sidecar.parent_validation_level or old_sidecar.validation_level
+            seed_sha = old_sidecar.seed_sha256
+        new_sidecar = DocumentProvenance(
+            provenance="mcp_modified"
+            + (f"_from_{parent_level.value}" if parent_level else ""),
+            validation_level=FixtureValidationLevel.synthetic_operation_fixture,
+            current_document_sha256=document_sha256,
+            seed_sha256=seed_sha,
+            parent_validation_level=parent_level,
+            last_modified_by=operation_name,
+        )
+        self._write_provenance_sidecar(document_path, new_sidecar)
 
     def resolve_target(self, path: str | None) -> DocumentTarget:
         if path:
@@ -340,25 +698,23 @@ class DipTraceService:
         document, target = self.load(path)
         info = self.models.get(document, live_session=target.is_live).info
         result = info.model_dump()
-        # Load provenance sidecar if present
-        sidecar = target.path.with_suffix(target.path.suffix + ".provenance.json")
-        if sidecar.exists():
-            try:
-                sidecar_data = json.loads(sidecar.read_text())
-                result["provenance"] = sidecar_data.get("provenance", "unknown")
-                result["validation_level"] = sidecar_data.get("validation_level", "unknown")
-                result["seed_sha256"] = sidecar_data.get("seed_sha256")
-                result["diptrace_version"] = sidecar_data.get("diptrace_version")
-                result["requires_diptrace_verification"] = (
-                    sidecar_data.get("validation_level") not in {
-                        "diptrace_exported",
-                        "diptrace_open_save_verified",
-                        "diptrace_roundtrip_verified",
-                        "external_tool_roundtrip_verified",
-                    }
+        # Load provenance sidecar if present (strict validation)
+        provenance = self._load_seed_provenance(target.path)
+        if provenance is not None:
+            result["provenance"] = provenance.provenance
+            result["validation_level"] = provenance.validation_level.value
+            result["seed_sha256"] = provenance.seed_sha256
+            result["requires_diptrace_verification"] = (
+                provenance.requires_diptrace_verification
+            )
+            # Validate SHA freshness
+            if provenance.current_document_sha256 != info.sha256:
+                result["provenance_warning"] = (
+                    "Sidecar SHA does not match current document; "
+                    "trust data may be stale"
                 )
-            except (json.JSONDecodeError, OSError):
-                pass
+                result["validation_level"] = "synthetic_parser_only"
+                result["requires_diptrace_verification"] = True
         return self._read_success(info, result)
 
     def board_model(self, path: str | None = None) -> dict[str, Any]:
@@ -952,6 +1308,10 @@ class DipTraceService:
         DipTraceDocument.load(target.path, self.settings.max_document_bytes)
         if target.live_session_id:
             self.sessions.record_edit(target.live_session_id, after_sha256, backup)
+        # Invalidate trust after MCP modification
+        self.invalidate_document_trust_after_write(
+            target.path, after_sha256, operation_name="mcp_apply_xml_edits"
+        )
         result.update(
             {
                 "written": True,
@@ -1012,14 +1372,12 @@ class DipTraceService:
             )
         info = build_snapshot(loaded).info
         # Write provenance sidecar for synthetic documents
-        provenance_data = {
-            "provenance": "mcp_generated",
-            "validation_level": "synthetic_parser_only",
-            "created_by": "mcp_create_document",
-            "source_format_version": loaded.version,
-        }
-        sidecar = target.with_suffix(target.suffix + ".provenance.json")
-        atomic_write_bytes(sidecar, json.dumps(provenance_data, indent=2).encode())
+        sidecar = DocumentProvenance(
+            provenance="mcp_generated",
+            validation_level=FixtureValidationLevel.synthetic_parser_only,
+            current_document_sha256=loaded.sha256,
+        )
+        self._write_provenance_sidecar(target, sidecar)
         return self._read_success(
             info,
             {
@@ -1046,9 +1404,8 @@ class DipTraceService:
         seed_path: str,
         target_path: str,
         *,
+        expected_seed_sha256: str | None = None,
         overwrite: bool = False,
-        claimed_validation_level: str = "synthetic_parser_only",
-        diptrace_version: str | None = None,
     ) -> dict[str, Any]:
         """Create a new document by copying an existing DipTrace-shaped XML seed.
 
@@ -1056,40 +1413,25 @@ class DipTraceService:
         or PatternLibrary). The copy preserves all unknown XML, line endings, and
         unsupported sections.
 
-        **Trust model:** The function does NOT automatically verify DipTrace
-        provenance. The ``claimed_validation_level`` defaults to
-        ``synthetic_parser_only``. The caller must explicitly claim a higher level
-        and provide evidence (e.g. ``diptrace_version``). The trust level is never
-        upgraded automatically.
+        **Trust model:** The client cannot assign a validation level.  Trust is
+        derived exclusively from verifiable metadata (provenance sidecar or
+        fixture manifest) found alongside the seed.  If no metadata is present,
+        the copy defaults to ``synthetic_parser_only``.
         """
         self.policy.require_write(dry_run=False, operation="create_document_from_seed")
-        # Validate the claimed level
-        try:
-            level = FixtureValidationLevel(claimed_validation_level)
-        except ValueError as err:
-            valid = [v.value for v in FixtureValidationLevel]
-            raise EditError(
-                f"Invalid claimed_validation_level: {claimed_validation_level!r}. "
-                f"Valid values: {valid}",
-                code="invalid_request",
-            ) from err
-        # DipTrace-claimed levels require a version string
-        if level in {
-            FixtureValidationLevel.diptrace_exported,
-            FixtureValidationLevel.diptrace_open_save_verified,
-            FixtureValidationLevel.diptrace_roundtrip_verified,
-            FixtureValidationLevel.external_tool_roundtrip_verified,
-        } and not diptrace_version:
-            raise EditError(
-                f"claimed_validation_level={level.value} requires diptrace_version",
-                code="invalid_request",
-            )
         seed = self.settings.resolve_allowed_path(seed_path, must_exist=True)
         seed_bytes = seed.read_bytes()
         if len(seed_bytes) > self.settings.max_document_bytes:
             raise EditError(
                 f"Seed file exceeds max document size: {len(seed_bytes)} bytes",
                 code="document_too_large",
+            )
+        # Pre-copy SHA check
+        seed_sha256 = sha256_bytes(seed_bytes)
+        if expected_seed_sha256 is not None and expected_seed_sha256 != seed_sha256:
+            raise EditError(
+                f"Seed SHA-256 mismatch: expected {expected_seed_sha256}, got {seed_sha256}",
+                code="sha256_mismatch",
             )
         # Validate seed through the parser
         seed_doc = DipTraceDocument.from_bytes(seed, seed_bytes)
@@ -1104,7 +1446,6 @@ class DipTraceService:
                 f"Unsupported seed source type: {source_type!r}",
                 code="invalid_request",
             )
-        seed_sha256 = sha256_bytes(seed_bytes)
         target = self.settings.resolve_allowed_path(target_path, must_exist=False)
         if target.exists() and not overwrite:
             raise EditError(
@@ -1126,18 +1467,56 @@ class DipTraceService:
                 "Seed copy failed the post-write checksum verification",
                 details={"path": str(target)},
             )
+        # Determine trust from verifiable seed metadata only
+        seed_sidecar = self._load_seed_provenance(seed)
+        # Default: unknown origin → synthetic
+        trust_level = FixtureValidationLevel.synthetic_parser_only
+        trust_provenance = "seed_copy_unknown_origin"
+        parent_level: FixtureValidationLevel | None = None
+        copy_authority = ProvenanceAuthority.runtime
+        evidence_path: str | None = None
+        evidence_sha: str | None = None
+        if seed_sidecar is not None:
+            # Validate the sidecar: SHA must match
+            if seed_sidecar.current_document_sha256 != seed_sha256:
+                # Stale sidecar — do not trust at all
+                trust_provenance = "seed_copy_stale_sidecar"
+            elif seed_sidecar.authority == ProvenanceAuthority.runtime:
+                # Runtime sidecar: even if it claims a high level, we downgrade.
+                # A runtime sidecar can never grant high trust.
+                trust_level = FixtureValidationLevel.synthetic_parser_only
+                trust_provenance = "seed_copy_runtime_sidecar_downgraded"
+                parent_level = seed_sidecar.validation_level
+            elif seed_sidecar.authority in {
+                ProvenanceAuthority.fixture_manifest,
+                ProvenanceAuthority.validated_evidence,
+            }:
+                # Evidence-backed sidecar: inherit the level with evidence chain
+                trust_level = seed_sidecar.validation_level
+                trust_provenance = "seed_copy_of_verified_fixture"
+                parent_level = seed_sidecar.validation_level
+                copy_authority = seed_sidecar.authority
+                evidence_path = seed_sidecar.evidence_manifest_path
+                evidence_sha = seed_sidecar.evidence_manifest_sha256
+            else:
+                # Synthetic seed — copy preserves its level
+                trust_level = seed_sidecar.validation_level
+                trust_provenance = "seed_copy"
+        # Write provenance sidecar for the new copy
+        sidecar = DocumentProvenance(
+            provenance=trust_provenance,
+            validation_level=trust_level,
+            current_document_sha256=loaded.sha256,
+            seed_sha256=seed_sha256,
+            parent_validation_level=parent_level,
+            authority=copy_authority,
+            evidence_manifest_path=evidence_path,
+            evidence_manifest_sha256=evidence_sha,
+            last_modified_by="mcp_create_document_from_seed",
+        )
+        sidecar_path = target.with_suffix(target.suffix + ".provenance.json")
+        atomic_write_bytes(sidecar_path, sidecar.model_dump_json(indent=2).encode())
         snapshot = build_snapshot(loaded)
-        # Write provenance sidecar so trust level survives MCP restarts
-        provenance_data = {
-            "provenance": "seed_copy",
-            "validation_level": level.value,
-            "diptrace_version": diptrace_version,
-            "source_format_version": seed_doc.version,
-            "seed_sha256": seed_sha256,
-            "created_by": "mcp_create_document_from_seed",
-        }
-        sidecar = target.with_suffix(target.suffix + ".provenance.json")
-        atomic_write_bytes(sidecar, json.dumps(provenance_data, indent=2).encode())
         return self._read_success(
             snapshot.info,
             {
@@ -1149,14 +1528,9 @@ class DipTraceService:
                 "backup": backup,
                 "seed_path": str(seed),
                 "seed_sha256": seed_sha256,
-                "provenance": "seed_copy",
-                "validation_level": level.value,
-                "diptrace_version": diptrace_version,
-                "source_format_version": seed_doc.version,
-                "requires_diptrace_verification": level in {
-                    FixtureValidationLevel.synthetic_parser_only,
-                    FixtureValidationLevel.synthetic_operation_fixture,
-                },
+                "provenance": trust_provenance,
+                "validation_level": trust_level.value,
+                "requires_diptrace_verification": requires_diptrace_verification(trust_level),
                 "summary": {
                     "sheets": len(snapshot.schematic.sheets) if snapshot.schematic else None,
                     "layers": len(snapshot.board.layers) if snapshot.board else None,
@@ -1355,6 +1729,10 @@ class DipTraceService:
             preview_resources=tx_preview_resources(txid),
             backup_path=backup,
         )
+        # Invalidate trust after MCP modification
+        self.invalidate_document_trust_after_write(
+            target_path, committed_sha256, operation_name="mcp_transaction_commit"
+        )
         return {
             "ok": True,
             "transaction": updated.model_dump(),
@@ -1428,6 +1806,171 @@ class DipTraceService:
         return {
             "ok": True,
             "transactions": [item.model_dump() for item in self.transactions.list()],
+        }
+
+    def validate_roundtrip_evidence(
+        self,
+        path: str,
+        *,
+        source_path: str,
+        source_sha256: str,
+        saved_path: str,
+        reexport_path: str | None = None,
+        reexport_sha256: str | None = None,
+    ) -> dict[str, Any]:
+        """Validate roundtrip evidence and promote a document's trust level.
+
+        This operation verifies that a document has been through a genuine
+        DipTrace open/save/re-export cycle.  It does NOT accept boolean flags
+        from the client — all trust claims must be backed by real files and
+        verified computations.
+
+        SHA binding:
+          - For open_save: current_document_sha256 must match saved_path SHA
+          - For roundtrip: current_document_sha256 must match reexport_path SHA
+
+        Role exclusion:
+          - source, saved, and reexport must be different files
+          - one file cannot serve multiple evidence roles
+
+        Authority: validated_evidence (requires evidence manifest for final acceptance)
+        """
+        self.policy.require_write(
+            dry_run=False, operation="validate_roundtrip_evidence"
+        )
+        document, target = self.load(path)
+        snapshot = self.models.get(document, live_session=target.is_live)
+
+        # Resolve all paths and prevent same-file reuse
+        source = self.settings.resolve_allowed_path(source_path, must_exist=True)
+        saved = self.settings.resolve_allowed_path(saved_path, must_exist=True)
+
+        # Prevent source == saved
+        if source.resolve() == saved.resolve():
+            raise EditError(
+                "source_path and saved_path must be different files",
+                code="evidence_role_conflict",
+            )
+
+        # Load source seed
+        source_bytes = source.read_bytes()
+        actual_source_sha = sha256_bytes(source_bytes)
+        if actual_source_sha != source_sha256:
+            raise EditError(
+                f"Source SHA-256 mismatch: expected {source_sha256}, got {actual_source_sha}",
+                code="sha256_mismatch",
+            )
+
+        # Load saved version
+        saved_bytes = saved.read_bytes()
+        saved_doc = DipTraceDocument.from_bytes(saved, saved_bytes)
+        saved_sha = sha256_bytes(saved_bytes)
+
+        # Verify source type matches
+        if saved_doc.source_type != snapshot.info.source_type:
+            raise EditError(
+                f"Saved source type {saved_doc.source_type!r} does not match "
+                f"document source type {snapshot.info.source_type!r}",
+                code="source_type_mismatch",
+            )
+
+        # Check for critical parse warnings on saved document
+        saved_snapshot = build_snapshot(saved_doc)
+        critical_warnings = [
+            w for w in saved_snapshot.warnings
+            if "error" in w.lower() or "invalid" in w.lower() or "missing" in w.lower()
+        ]
+        if critical_warnings:
+            raise EditError(
+                f"Saved document has critical parse warnings: {critical_warnings}",
+                code="critical_parse_warnings",
+            )
+
+        # Determine trust level based on evidence
+        is_roundtrip = reexport_path is not None and reexport_sha256 is not None
+        reexport_sha: str | None = None
+        sem_result: dict[str, Any] | None = None
+
+        if is_roundtrip and reexport_path is not None and reexport_sha256 is not None:
+            reexport = self.settings.resolve_allowed_path(reexport_path, must_exist=True)
+
+            # Prevent source == reexport and saved == reexport
+            if source.resolve() == reexport.resolve():
+                raise EditError(
+                    "source_path and reexport_path must be different files",
+                    code="evidence_role_conflict",
+                )
+            if saved.resolve() == reexport.resolve():
+                raise EditError(
+                    "saved_path and reexport_path must be different files",
+                    code="evidence_role_conflict",
+                )
+
+            reexport_bytes = reexport.read_bytes()
+            reexport_doc = DipTraceDocument.from_bytes(reexport, reexport_bytes)
+            reexport_sha = sha256_bytes(reexport_bytes)
+
+            if reexport_doc.source_type != snapshot.info.source_type:
+                raise EditError(
+                    f"Reexport source type {reexport_doc.source_type!r} does not match "
+                    f"document source type {snapshot.info.source_type!r}",
+                    code="source_type_mismatch",
+                )
+
+            # SHA binding: current document must match reexport for roundtrip
+            if snapshot.info.sha256 != reexport_sha:
+                raise EditError(
+                    f"Current document SHA {snapshot.info.sha256} does not match "
+                    f"reexport SHA {reexport_sha}; cannot verify roundtrip",
+                    code="sha256_binding_mismatch",
+                )
+
+            if reexport_sha != reexport_sha256:
+                raise EditError(
+                    f"Reexport SHA-256 mismatch: expected {reexport_sha256}, got {reexport_sha}",
+                    code="sha256_mismatch",
+                )
+
+            # Semantic comparison: compare source and reexport structure
+            source_doc = DipTraceDocument.from_bytes(source, source_bytes)
+            sem_result = _semantic_roundtrip_check(source_doc, reexport_doc)
+            level = (
+                FixtureValidationLevel.diptrace_roundtrip_verified
+                if sem_result["passed"]
+                else FixtureValidationLevel.diptrace_open_save_verified
+            )
+        else:
+            # open_save only: SHA binding — current must match saved
+            if snapshot.info.sha256 != saved_sha:
+                raise EditError(
+                    f"Current document SHA {snapshot.info.sha256} does not match "
+                    f"saved SHA {saved_sha}; cannot verify open/save",
+                    code="sha256_binding_mismatch",
+                )
+            level = FixtureValidationLevel.diptrace_open_save_verified
+
+        # Write updated provenance sidecar with validated_evidence authority
+        sidecar = DocumentProvenance(
+            provenance="diptrace_validated",
+            validation_level=level,
+            current_document_sha256=snapshot.info.sha256,
+            seed_sha256=source_sha256,
+            parent_validation_level=level,
+            authority=ProvenanceAuthority.validated_evidence,
+            evidence_manifest_path=str(target.path) + ".roundtrip-evidence.json",
+            last_modified_by="mcp_validate_roundtrip_evidence",
+        )
+        self._write_provenance_sidecar(target.path, sidecar)
+
+        return {
+            "ok": True,
+            "validation_level": level.value,
+            "requires_diptrace_verification": requires_diptrace_verification(level),
+            "authority": ProvenanceAuthority.validated_evidence.value,
+            "source_sha256": source_sha256,
+            "saved_sha256": saved_sha,
+            "reexport_sha256": reexport_sha,
+            "semantic_comparison": sem_result,
         }
 
     def move_components(

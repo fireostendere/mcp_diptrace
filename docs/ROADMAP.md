@@ -85,6 +85,25 @@ Capability discovery reports the exact unavailability instead of registering emp
 - Exact schematic-to-PCB reconciliation is opt-in, refuses locked objects by default, and
   removes traces only when a synchronized net's endpoint set changes.
 
+## Trust Model Hardening — 2026-07-22
+
+- `claimed_validation_level` and `diptrace_version` parameters removed from
+  `create_document_from_seed`; trust is derived from verified sidecar metadata only.
+- Runtime provenance is tracked via `DocumentProvenance` sidecar (`.provenance.json`),
+  separate from `FixtureManifest`.
+- `requires_diptrace_verification(level)` determines whether a validation level
+  requires DipTrace verification; only `diptrace_roundtrip_verified` and
+  `external_tool_roundtrip_verified` are considered verified.
+- MCP writes invalidate trust via `invalidate_document_trust_after_write()`,
+  downgrading to `synthetic_operation_fixture` while preserving parent provenance.
+- `validate_roundtrip_evidence()` requires real file paths and SHA verification;
+  boolean flags from clients are never accepted.
+- `FixtureManifest` conditional schema enforces required fields per validation level
+  (diptrace_build, roundtrip_verified, redistribution fields).
+- `resolve_copper_layer()` provides resolve-then-validate pattern for layer operations;
+  plane-layer routing is rejected, through-via spanning is allowed.
+- `power_multilayer` fixture is permanently synthetic with no promotion path.
+
 ## Remaining Evidence-Gated Work
 
 All implementation work that does not depend on the missing DipTrace 5.3 exports has
