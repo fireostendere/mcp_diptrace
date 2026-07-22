@@ -1003,6 +1003,94 @@ class DipTraceService:
                     "sheets": len(snapshot.schematic.sheets) if snapshot.schematic else None,
                     "layers": len(snapshot.board.layers) if snapshot.board else None,
                 },
+                "provenance": "mcp_generated",
+                "validation_level": "synthetic_parser_only",
+                "requires_diptrace_verification": True,
+                "format_version": loaded.version,
+            },
+            warnings=snapshot.warnings,
+        )
+
+    def create_document_from_seed(
+        self,
+        seed_path: str,
+        target_path: str,
+        *,
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
+        """Create a new document by copying a DipTrace-exported XML seed.
+
+        The seed file must be a real DipTrace XML export (PCB, Schematic,
+        ComponentLibrary, or PatternLibrary). The copy preserves all unknown XML,
+        line endings, and unsupported sections. The resulting document inherits the
+        seed's provenance and validation level — it is NOT upgraded automatically.
+
+        This is the recommended way to start a new project when DipTrace
+        compatibility is required.
+        """
+        self.policy.require_write(dry_run=False, operation="create_document_from_seed")
+        seed = self.settings.resolve_allowed_path(seed_path, must_exist=True)
+        seed_bytes = seed.read_bytes()
+        if len(seed_bytes) > self.settings.max_document_bytes:
+            raise EditError(
+                f"Seed file exceeds max document size: {len(seed_bytes)} bytes",
+                code="document_too_large",
+            )
+        # Validate seed through the parser
+        seed_doc = DipTraceDocument.from_bytes(seed, seed_bytes)
+        source_type = seed_doc.source_type
+        if source_type not in {
+            "DipTrace-PCB",
+            "DipTrace-Schematic",
+            "DipTrace-ComponentLibrary",
+            "DipTrace-PatternLibrary",
+        }:
+            raise EditError(
+                f"Unsupported seed source type: {source_type!r}",
+                code="invalid_request",
+            )
+        seed_sha256 = sha256_bytes(seed_bytes)
+        target = self.settings.resolve_allowed_path(target_path, must_exist=False)
+        if target.exists() and not overwrite:
+            raise EditError(
+                f"Target already exists (pass overwrite=true to replace): {target}",
+                code="path_exists",
+                details={"path": str(target)},
+            )
+        # Copy seed bytes verbatim — do not modify unknown XML
+        if target.exists():
+            backup_dir = target.parent / ".diptrace-mcp-backups"
+            written = write_with_backup(target, seed_bytes, backup_dir)
+            backup: str | None = str(written)
+        else:
+            atomic_write_bytes(target, seed_bytes)
+            backup = None
+        loaded = DipTraceDocument.load(target, self.settings.max_document_bytes)
+        if loaded.sha256 != seed_sha256:
+            raise EditError(
+                "Seed copy failed the post-write checksum verification",
+                details={"path": str(target)},
+            )
+        snapshot = build_snapshot(loaded)
+        return self._read_success(
+            snapshot.info,
+            {
+                "created": True,
+                "kind": source_type.split("-", 1)[-1].lower(),
+                "path": str(target),
+                "size_bytes": len(seed_bytes),
+                "sha256": loaded.sha256,
+                "backup": backup,
+                "seed_path": str(seed),
+                "seed_sha256": seed_sha256,
+                "provenance": "diptrace_exported_seed",
+                "validation_level": "diptrace_exported",
+                "source_format_version": seed_doc.version,
+                "requires_diptrace_verification": False,
+                "summary": {
+                    "sheets": len(snapshot.schematic.sheets) if snapshot.schematic else None,
+                    "layers": len(snapshot.board.layers) if snapshot.board else None,
+                },
             },
             warnings=snapshot.warnings,
         )

@@ -507,6 +507,38 @@ def _apply_component_pattern(
         or pattern.name == operation.pattern_style
         or pattern.unique_name == operation.pattern_style
     ]
+    if not patterns:
+        if operation.validation_mode == "strict_embedded_pattern":
+            raise ObjectNotFoundError(
+                f"Unique embedded pattern was not found: {operation.pattern_style}",
+                details={"matched_count": 0, "validation_mode": operation.validation_mode},
+            )
+        # external_pattern_reference: warn but proceed
+        targets = _select_records(snapshot, operation.selector, {"component"})
+        warnings = [
+            (
+                f"Pattern {operation.pattern_style!r} is not in the embedded library; "
+                "external pattern resolution is required in DipTrace"
+            )
+            for _ in targets
+        ]
+        return (
+            _operation_preview(
+                index,
+                operation.kind,
+                targets,
+                [{"pattern_style": operation.pattern_style}] * len(targets),
+                [
+                    {
+                        "pattern_style": operation.pattern_style,
+                        "warning": "external_pattern_reference",
+                    }
+                ]
+                * len(targets),
+                document,
+            ),
+            0,
+        )
     if len(patterns) != 1:
         raise ObjectNotFoundError(
             f"Unique embedded pattern was not found: {operation.pattern_style}",
@@ -531,6 +563,8 @@ def _apply_component_pattern(
                 f"{record.refdes or record.label}",
                 code="connectivity_regression",
                 details={
+                    "current_pad_count": len(current_pads),
+                    "target_pad_count": len(pattern.pads),
                     "current_pad_numbers": sorted(current_numbers),
                     "target_pad_numbers": sorted(target_numbers),
                 },
@@ -1424,6 +1458,15 @@ def _sync_endpoint_key(
     refdes: str,
     pad_number: str,
 ) -> tuple[str, str]:
+    key, _pad = _sync_endpoint(component_by_refdes, refdes, pad_number)
+    return key
+
+
+def _sync_endpoint(
+    component_by_refdes: dict[str, ET.Element],
+    refdes: str,
+    pad_number: str,
+) -> tuple[tuple[str, str], ET.Element]:
     component = component_by_refdes.get(refdes.casefold())
     if component is None:
         raise ObjectNotFoundError(f"Synchronized PCB component was not found: {refdes}")
@@ -1435,7 +1478,8 @@ def _sync_endpoint_key(
     ]
     if len(matching_pads) != 1:
         raise EditError(f"Cannot resolve unique pad {refdes}:{pad_number}")
-    return component.get("Id", ""), matching_pads[0].get("Id", "")
+    pad = matching_pads[0]
+    return (component.get("Id", ""), pad.get("Id", "")), pad
 
 
 def _apply_sync_schematic_to_pcb(
@@ -1550,7 +1594,12 @@ def _apply_sync_schematic_to_pcb(
                 ET.SubElement(
                     component_pads,
                     "Pad",
-                    {"Id": str(pad_index), "Number": number},
+                    {
+                        "Id": str(pad_index),
+                        "Number": number,
+                        "NetId": "-1",
+                        "InternalConnection": "-1",
+                    },
                 )
             stable = stable_id(
                 "component", document.source_type, f"xml:{component_id}"
@@ -1818,7 +1867,7 @@ def _apply_sync_schematic_to_pcb(
         ]
         added_endpoints: list[tuple[str, str]] = []
         for endpoint in net_spec.endpoints:
-            endpoint_key = _sync_endpoint_key(
+            endpoint_key, component_pad = _sync_endpoint(
                 component_by_refdes,
                 endpoint.refdes,
                 endpoint.pad_number,
@@ -1853,6 +1902,15 @@ def _apply_sync_schematic_to_pcb(
                 patch_count += 1
                 net_changed = True
                 added_endpoints.append(endpoint_key)
+            net_id = sync_net.get("Id", "")
+            if component_pad.get("NetId") != net_id:
+                component_pad.set("NetId", net_id)
+                patch_count += 1
+                net_changed = True
+            if component_pad.get("InternalConnection") is None:
+                component_pad.set("InternalConnection", "-1")
+                patch_count += 1
+                net_changed = True
         if operation.reconciliation_mode == "exact":
             requested_ratlines.append(
                 (net_spec.name, desired_endpoints_by_net[net_spec.name.casefold()])
@@ -1874,6 +1932,25 @@ def _apply_sync_schematic_to_pcb(
                         "action": "connectivity_updated",
                     }
                 )
+
+    # DipTrace stores net membership in both Net/Pads/Item and Component/Pads/Pad.
+    # Keep those representations reciprocal, including pads left unconnected by an
+    # exact reconciliation.  Omitting these attributes can make otherwise well-formed
+    # XML fail native import or force DipTrace to rebuild its ratline structure.
+    for component in component_by_refdes.values():
+        component_id = component.get("Id", "")
+        for pad in component.findall("./Pads/Pad"):
+            endpoint_key = (component_id, pad.get("Id", ""))
+            endpoint_net = endpoint_nets.get(endpoint_key)
+            expected_net_id = (
+                endpoint_net.get("Id", "") if endpoint_net is not None else "-1"
+            )
+            if pad.get("NetId") != expected_net_id:
+                pad.set("NetId", expected_net_id)
+                patch_count += 1
+            if pad.get("InternalConnection") is None:
+                pad.set("InternalConnection", "-1")
+                patch_count += 1
 
     if operation.create_ratlines:
         ratlines = document.container.find("./Ratlines")

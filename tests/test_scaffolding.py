@@ -152,6 +152,10 @@ def test_create_document_service_round_trip(tmp_path: Path) -> None:
     assert created["ok"] is True
     assert created["result"]["summary"]["layers"] == 2
     assert created["result"]["backup"] is None
+    # Verify provenance metadata
+    assert created["result"]["provenance"] == "mcp_generated"
+    assert created["result"]["validation_level"] == "synthetic_parser_only"
+    assert created["result"]["requires_diptrace_verification"] is True
     written = tmp_path / "project" / "board.dip"
     assert written.exists()
     info = service.document_info("project/board.dip")

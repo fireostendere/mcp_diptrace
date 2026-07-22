@@ -12,7 +12,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "diptrace-fixture-manifest-v1"
+      "const": "diptrace-fixture-manifest-v2"
     },
     "diptrace": {
       "type": "object",
@@ -44,6 +44,8 @@
           "path",
           "source_type",
           "sha256",
+          "validation_level",
+          "provenance",
           "workflow",
           "purpose"
         ],
@@ -64,9 +66,60 @@
             ]
           },
           "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "validation_level": {
+            "enum": [
+              "synthetic_parser_only",
+              "synthetic_operation_fixture",
+              "diptrace_exported",
+              "diptrace_open_save_verified",
+              "diptrace_roundtrip_verified",
+              "external_tool_roundtrip_verified"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
           "units": {"enum": ["mm", "inch", "mil", "not_applicable"]},
           "workflow": {"type": "string", "minLength": 1, "maxLength": 1000},
           "purpose": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "format_version": {
+            "type": "string",
+            "description": "XML Version attribute of the source document."
+          },
+          "diptrace_version": {
+            "type": "string",
+            "description": "Exact DipTrace version if DipTrace was involved in creation."
+          },
+          "diptrace_opened": {
+            "type": "boolean",
+            "default": false
+          },
+          "diptrace_saved": {
+            "type": "boolean",
+            "default": false
+          },
+          "diptrace_reexported": {
+            "type": "boolean",
+            "default": false
+          },
+          "reexport_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "roundtrip_verified": {
+            "type": "boolean",
+            "default": false
+          },
+          "semantic_comparison_passed": {
+            "type": ["boolean", "null"]
+          },
+          "known_limitations": {
+            "type": "array",
+            "items": {"type": "string"},
+            "default": []
+          },
           "difference_from": {
             "type": "object",
             "additionalProperties": false,

@@ -1,5 +1,5 @@
 {
-  "source_sha256": "c972afc80eb4c944938370672e6bb2b6ad42cc2145bd9355a30d5478e9f8924d",
+  "source_sha256": "e3acbc68fcb7374b4f7fd8c536679e57ebac62435ab41e696e65b6f1f256ada6",
   "offline_drc": {
     "profile": "drc_basic",
     "finding_count": 1,
@@ -9,8 +9,8 @@
     ],
     "metrics": {
       "components_or_testpads_checked": 18,
-      "traces_checked": 13,
-      "trace_segments_checked": 34,
+      "traces_checked": 9,
+      "trace_segments_checked": 25,
       "vias_checked": 2
     }
   },
@@ -20,11 +20,11 @@
     "board_containment_count": 0
   },
   "board_review": {
-    "finding_count": 18,
-    "by_severity": {"error": 1, "warning": 17, "info": 0},
+    "finding_count": 16,
+    "by_severity": {"error": 1, "warning": 15, "info": 0},
     "expected_warning_groups": {
       "pcb.bom_identity": 13,
-      "pcb.testpoint_coverage": 4
+      "pcb.testpoint_coverage": 2
     },
     "skipped_checks": [
       {"check_id": "pcb.trace_board_edge", "reason": "trace_to_board_rules_unavailable"},

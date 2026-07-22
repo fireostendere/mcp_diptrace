@@ -12,9 +12,27 @@ from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURE = Path(__file__).parent / "fixtures" / "diptrace_5_3" / "power_multilayer"
 
+# This fixture is SYNTHETIC MCP-generated. It is NOT DipTrace-validated.
+# It must NOT be used as evidence of DipTrace 5.3 compatibility.
+FIXTURE_VALIDATION_LEVEL = "synthetic_operation_fixture"
+FIXTURE_PROVENANCE = "mcp_generated"
+DIPTRACE_OPENED = False
+DIPTRACE_REEXPORTED = False
+
 
 def _document() -> DipTraceDocument:
     return DipTraceDocument.load(FIXTURE / "source_board.xml", 10_000_000)
+
+
+def test_power_multilayer_is_classified_as_synthetic() -> None:
+    """Verify that this fixture is correctly classified as synthetic."""
+    manifest_path = FIXTURE / "manifest.pending.json"
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["validation_level"] == FIXTURE_VALIDATION_LEVEL
+    assert manifest["provenance"] == FIXTURE_PROVENANCE
+    assert manifest["diptrace_opened"] is DIPTRACE_OPENED
+    assert manifest["diptrace_reexported"] is DIPTRACE_REEXPORTED
+    assert manifest["roundtrip_verified"] is False
 
 
 def test_power_multilayer_source_identity_and_structure() -> None:
@@ -45,12 +63,32 @@ def test_power_multilayer_source_identity_and_structure() -> None:
         "SIGNAL_A",
         "SIGNAL_B",
     }
-    assert len(snapshot.board.traces) == 13
+    assert len(snapshot.board.traces) == 9
     assert len(snapshot.board.vias) == 2
-    assert len(snapshot.board.ratlines) == 11
+    assert len(snapshot.board.ratlines) == 21
     assert [
         item["attributes"]["Id"] for item in snapshot.board.ratlines
-    ] == [str(index) for index in range(11)]
+    ] == [str(index) for index in range(21)]
+
+
+def test_power_multilayer_pad_net_membership_is_reciprocal() -> None:
+    document = _document()
+    endpoint_nets = {
+        (item.get("Comp", ""), item.get("Pad", "")): net.get("Id", "")
+        for net in document.container.findall("./Nets/Net")
+        for item in net.findall("./Pads/Item")
+    }
+    component_pad_nets = {
+        (component.get("Id", ""), pad.get("Id", "")): pad.get("NetId")
+        for component in document.container.findall("./Components/Component")
+        for pad in component.findall("./Pads/Pad")
+    }
+
+    assert component_pad_nets == endpoint_nets
+    assert all(
+        pad.get("InternalConnection") == "-1"
+        for pad in document.container.findall("./Components/Component/Pads/Pad")
+    )
 
 
 def test_power_multilayer_signal_routes_and_via_spans() -> None:

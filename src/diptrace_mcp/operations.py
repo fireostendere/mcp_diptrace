@@ -77,6 +77,10 @@ class SetComponentPatternOperation(SelectorOperation):
     kind: Literal["set_component_pattern"] = "set_component_pattern"
     pattern_style: str = Field(min_length=1, max_length=1_000)
     allow_locked: bool = False
+    validation_mode: Literal[
+        "strict_embedded_pattern",
+        "external_pattern_reference",
+    ] = "strict_embedded_pattern"
 
 
 class GroupComponentsOperation(SelectorOperation):

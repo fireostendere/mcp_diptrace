@@ -367,8 +367,33 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         units: str = "mm",
         overwrite: bool = False,
     ) -> dict[str, Any]:
-        """Create a new DipTrace PCB XML document (outline, layers, stackup, rules)."""
+        """Create a new DipTrace PCB XML document (outline, layers, stackup, rules).
+
+        This is synthetic MCP-generated content. It has the correct XML structure
+        but has NOT been verified by DipTrace open/save. Use create_document_from_seed
+        with a real DipTrace export when DipTrace compatibility is required.
+        """
         return service.create_document("pcb", path, pcb=pcb, units=units, overwrite=overwrite)
+
+    @mcp.tool()
+    def create_document_from_seed(
+        seed_path: str,
+        target_path: str,
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
+        """Create a new project document by copying a DipTrace-exported XML seed.
+
+        The seed must be a real DipTrace XML export (PCB, Schematic, ComponentLibrary,
+        or PatternLibrary). The copy preserves all unknown XML, line endings, and
+        unsupported sections. The resulting document inherits the seed's provenance.
+
+        This is the recommended way to start a new project when DipTrace compatibility
+        is required, as opposed to create_pcb_document/create_schematic_document which
+        produce synthetic MCP-generated XML.
+        """
+        return service.create_document_from_seed(
+            seed_path, target_path, overwrite=overwrite
+        )
 
     @mcp.tool()
     def begin_transaction(

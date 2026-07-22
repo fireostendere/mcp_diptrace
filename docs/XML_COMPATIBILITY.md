@@ -101,6 +101,14 @@ with `5.3.0.0` and embedded legacy versions. The application version and the XML
 - The installer includes read-only Component and Pattern Editor bridge profiles. They use
   the official whole-library export mode with imports disabled, allowing local 5.3
   inspection without implying writer or round-trip support.
+- **Synthetic MCP-generated XML** (from `create_schematic_document` or
+  `create_pcb_document`) has the correct XML structure but has not been verified by
+  DipTrace open/save. Use `create_document_from_seed` with a real DipTrace export when
+  compatibility is required.
+- **Plane layer routing** is not supported. Only Signal layers accept active trace
+  segments. Through-via spans across Plane layers are allowed.
+- **Ratline generation** follows the DipTrace XML structure but has not been verified
+  by DipTrace open/save/re-export. Synthetic scaffolding ratlines are experimental.
 
 ## Version Baseline
 

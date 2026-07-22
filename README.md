@@ -16,7 +16,10 @@ contains two cooperating components:
   unavailability reasons;
 - project scaffolding: brand-new schematic and PCB XML documents with sheets, outline,
   layers, stackup, via styles, net classes, and DRC (`create_schematic_document`,
-  `create_pcb_document`);
+  `create_pcb_document`); **note: these produce synthetic MCP-generated XML, not
+  DipTrace-verified files**;
+- seed-based project creation: copy a real DipTrace-exported XML seed to start a new
+  project with preserved provenance (`create_document_from_seed`);
 - schematic authoring: sheets, part placement by library `ComponentStyle`, pin/net
   connectivity, official `Wire`/`Points` wires, and net labels (`add_sheet`, `place_part`,
   `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label`);
@@ -214,6 +217,27 @@ and rejects SHA conflicts.
 XML containing `DOCTYPE` or `ENTITY` is rejected. Filesystem access is constrained to
 configured roots. External processes are available only through typed, allowlisted
 adapters.
+
+## Trust Model
+
+The server distinguishes between synthetic MCP-generated content and DipTrace-verified
+content:
+
+- **Synthetic MCP-generated**: XML created by `create_schematic_document` or
+  `create_pcb_document`. These have the correct XML structure and can be parsed by
+  the MCP parser, but have **not** been opened, saved, or re-exported by DipTrace.
+  They are classified as `synthetic_parser_only` provenance.
+
+- **Seed-based**: XML created by `create_document_from_seed` from a real DipTrace
+  export. These preserve the seed's provenance and are classified as
+  `diptrace_exported`. They require DipTrace open/save verification to reach
+  `diptrace_roundtrip_verified`.
+
+- **DipTrace-verified**: XML that has been opened, saved, and re-exported by DipTrace
+  with semantic comparison passing. Only these can claim `diptrace_roundtrip_verified`.
+
+Test fixtures are classified by `validation_level` in their manifest. Synthetic
+fixtures must not be used as evidence of DipTrace compatibility.
 
 ## Known Limits
 

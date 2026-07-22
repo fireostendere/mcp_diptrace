@@ -67,3 +67,21 @@ test that verifies metadata/control publication, cleanup, and exchange-file inte
 
 User projects are not added to repository fixtures without explicit permission. A
 permitted 5.3 fixture is still required to automate this acceptance path in CI.
+
+## Fixture Trust Model
+
+Test fixtures are classified by `validation_level`:
+
+- `synthetic_parser_only` — MCP-generated XML, tested only by the MCP parser.
+- `synthetic_operation_fixture` — MCP-generated XML, tested by parser + operations.
+- `diptrace_exported` — XML exported by DipTrace.
+- `diptrace_open_save_verified` — XML that DipTrace opened and saved.
+- `diptrace_roundtrip_verified` — XML that DipTrace opened, saved, and re-exported.
+- `external_tool_roundtrip_verified` — Same plus external tool round-trip.
+
+CI must reject any fixture claiming `diptrace_roundtrip_verified` or higher without
+exact DipTrace version, source hash, re-export hash, semantic comparison result, and
+confirmed manifest.
+
+The `power_multilayer` fixture is classified as `synthetic_operation_fixture` and must
+not be used as evidence of DipTrace 5.3 compatibility.
