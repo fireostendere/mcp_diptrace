@@ -33,19 +33,48 @@ class FixtureValidationLevel(str, Enum):
 
 
 class ProvenanceAuthority(str, Enum):
-    """Who can grant the validation_level claimed by a DocumentProvenance.
+    """Who created the provenance sidecar.
 
     - ``runtime``: the sidecar was written by MCP code; it can never claim
       a level above ``synthetic_operation_fixture``.
-    - ``fixture_manifest``: a committed manifest.schema.json validated the
+    - ``fixture_manifest``: a committed fixture manifest validated the
       trust chain; the manifest SHA and schema invariants must match.
-    - ``validated_evidence``: roundtrip evidence was independently verified
-      (source + saved + reexport SHA binding, semantic comparison).
+    - ``user_supplied_evidence``: evidence was supplied by the same public
+      MCP client; it may record evidence but never grant authoritative
+      DipTrace trust levels.
+    - ``trusted_registry``: evidence was validated against a server-owned
+      registry under ``state_dir``, inaccessible through ordinary workspace
+      write tools.  (Not yet implemented.)
     """
 
     runtime = "runtime"
     fixture_manifest = "fixture_manifest"
-    validated_evidence = "validated_evidence"
+    user_supplied_evidence = "user_supplied_evidence"
+    trusted_registry = "trusted_registry"
+
+
+class EvidenceAuthority(str, Enum):
+    """Who produced an evidence manifest (separate from who wrote the sidecar).
+
+    - ``runtime``: the evidence was produced internally by the MCP server.
+    - ``user_supplied``: evidence was supplied through the public MCP API.
+      It may be parsed, SHA-bound, compared, recorded, inspected, and
+      reported.  It must NOT automatically become authoritative DipTrace
+      trust.
+    - ``trusted_registry``: evidence is backed by a committed fixture
+      registry with documented provenance.
+    - ``trusted_bridge``: evidence was produced by a trusted DipTrace
+      bridge session through a separate authenticated channel.
+    - ``signed_fixture``: evidence is a cryptographically signed fixture
+      manifest verified against an embedded or configured trusted public
+      key.
+    """
+
+    runtime = "runtime"
+    user_supplied = "user_supplied"
+    trusted_registry = "trusted_registry"
+    trusted_bridge = "trusted_bridge"
+    signed_fixture = "signed_fixture"
 
 
 # Validation levels that a runtime sidecar may NEVER grant on its own.
@@ -54,6 +83,21 @@ _HIGH_TRUST_LEVELS = frozenset({
     FixtureValidationLevel.diptrace_open_save_verified,
     FixtureValidationLevel.diptrace_roundtrip_verified,
     FixtureValidationLevel.external_tool_roundtrip_verified,
+})
+
+# Validation levels that user-supplied evidence may NEVER grant.
+_USER_SUPPLIABLE_TRUST_LEVELS = frozenset({
+    FixtureValidationLevel.diptrace_exported,
+    FixtureValidationLevel.diptrace_open_save_verified,
+    FixtureValidationLevel.diptrace_roundtrip_verified,
+    FixtureValidationLevel.external_tool_roundtrip_verified,
+})
+
+# Evidence authorities whose evidence may grant high trust levels.
+_TRUSTED_EVIDENCE_AUTHORITIES = frozenset({
+    EvidenceAuthority.trusted_registry,
+    EvidenceAuthority.trusted_bridge,
+    EvidenceAuthority.signed_fixture,
 })
 
 
@@ -93,25 +137,182 @@ class SemComparisonResult(StrictModel):
     ignored_normalizations: list[str] = Field(default_factory=list)
     unsupported_categories: list[UnsupportedCategory] = Field(default_factory=list)
     parse_warnings: list[str] = Field(default_factory=list)
+    comparison_version: Literal["1.2"] = "1.2"
 
 
-class RoundtripEvidenceRecord(StrictModel):
-    """Immutable evidence manifest created by validate_roundtrip_evidence."""
+class EvidenceFileRecord(StrictModel):
+    """A single file record in an evidence manifest (strict, no dict hacks)."""
 
-    schema_version: Literal["diptrace-roundtrip-evidence-v1"] = (
-        "diptrace-roundtrip-evidence-v1"
-    )
-    authority: str = "user_supplied_roundtrip_evidence"
+    path: str
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_type: SourceType
+
+
+class SemanticComparisonEvidence(StrictModel):
+    """Strict semantic comparison record inside an evidence manifest."""
+
+    passed: bool
+    comparison_complete: bool
+    compared_categories: list[str] = Field(default_factory=list)
+    differences: list[str] = Field(default_factory=list)
+    unsupported_categories: list[UnsupportedCategory] = Field(default_factory=list)
+    parse_warnings: list[str] = Field(default_factory=list)
+    comparison_version: Literal["1.2"] = "1.2"
+
+
+class UserSuppliedRoundtripEvidence(StrictModel):
+    """Evidence manifest produced by the public MCP API.
+
+    User-supplied evidence may be recorded but must not automatically grant
+    authoritative DipTrace trust levels.  The ``authority`` field is always
+    ``user_supplied``.
+    """
+
+    schema_version: Literal["diptrace-user-evidence-v1"] = "diptrace-user-evidence-v1"
+    authority: Literal[EvidenceAuthority.user_supplied] = EvidenceAuthority.user_supplied
     document_path: str
     document_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    source: dict[str, str] = Field(default_factory=dict)
-    saved: dict[str, str] = Field(default_factory=dict)
-    reexport: dict[str, str] | None = None
-    validation_level: str
-    semantic_comparison: dict[str, Any] = Field(default_factory=dict)
+    source: EvidenceFileRecord
+    saved: EvidenceFileRecord
+    reexport: EvidenceFileRecord | None = None
+    semantic_comparison: SemanticComparisonEvidence | None = None
+    validation_level: FixtureValidationLevel
+    status: Literal["recorded", "failed"] = "recorded"
+    created_at: str
+    created_by: str = "mcp_record_roundtrip_evidence"
+
+    @model_validator(mode="after")
+    def _enforce_evidence_invariants(self) -> UserSuppliedRoundtripEvidence:
+        """Enforce cross-field invariants for user-supplied evidence."""
+        errors: list[str] = []
+        # Role exclusion: source ≠ saved
+        if self.source.path == self.saved.path:
+            errors.append("source and saved must be different files (same path)")
+        # Roundtrip requires reexport
+        if self.validation_level in {
+            FixtureValidationLevel.diptrace_roundtrip_verified,
+            FixtureValidationLevel.external_tool_roundtrip_verified,
+        }:
+            if self.reexport is None:
+                errors.append(
+                    f"validation_level={self.validation_level.value} requires reexport"
+                )
+            else:
+                if self.source.path == self.reexport.path:
+                    errors.append("source and reexport must be different files")
+                if self.saved.path == self.reexport.path:
+                    errors.append("saved and reexport must be different files")
+        # Source types must match across all roles
+        if self.reexport is not None:
+            if (
+                self.source.source_type != self.saved.source_type
+                or self.saved.source_type != self.reexport.source_type
+            ):
+                errors.append("source, saved, and reexport source_type must match")
+        else:
+            if self.source.source_type != self.saved.source_type:
+                errors.append("source and saved source_type must match")
+        # Roundtrip with passed requires semantic comparison
+        if (
+            self.status == "recorded"
+            and self.validation_level
+            in {FixtureValidationLevel.diptrace_roundtrip_verified}
+            and self.semantic_comparison is None
+        ):
+            errors.append(
+                "roundtrip recorded evidence with status=recorded requires "
+                "semantic_comparison"
+            )
+        # Semantic comparison fields
+        if self.semantic_comparison is not None:
+            if not self.semantic_comparison.comparison_complete:
+                errors.append("semantic comparison must be complete for recorded evidence")
+            if not self.semantic_comparison.passed:
+                errors.append("semantic comparison must pass for recorded evidence")
+            if self.semantic_comparison.differences:
+                errors.append(
+                    "semantic comparison with differences cannot be recorded as passed"
+                )
+            # Critical unsupported categories
+            critical = [
+                cat
+                for cat in self.semantic_comparison.unsupported_categories
+                if cat.severity == "critical"
+            ]
+            if critical:
+                errors.append(
+                    "critical unsupported categories prevent recording as passed"
+                )
+        # User-supplied evidence cannot claim authoritative trust levels
+        if self.validation_level in _USER_SUPPLIABLE_TRUST_LEVELS:
+            errors.append(
+                f"user-supplied evidence cannot claim "
+                f"validation_level={self.validation_level.value}"
+            )
+        if errors:
+            raise ValueError(
+                f"UserSuppliedRoundtripEvidence invariant violated: "
+                f"{'; '.join(errors)}"
+            )
+        return self
+
+
+class TrustedRoundtripEvidence(StrictModel):
+    """Evidence manifest produced by a trusted authority (registry, bridge, or
+    signed fixture).  Only these can grant high-trust validation levels."""
+
+    schema_version: Literal["diptrace-trusted-evidence-v1"] = (
+        "diptrace-trusted-evidence-v1"
+    )
+    authority: Literal[
+        EvidenceAuthority.trusted_registry,
+        EvidenceAuthority.trusted_bridge,
+        EvidenceAuthority.signed_fixture,
+    ]
+    document_path: str
+    document_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source: EvidenceFileRecord
+    saved: EvidenceFileRecord
+    reexport: EvidenceFileRecord | None = None
+    semantic_comparison: SemanticComparisonEvidence | None = None
+    validation_level: FixtureValidationLevel
     status: Literal["passed", "failed"] = "passed"
     created_at: str
-    created_by: str = "mcp_validate_roundtrip_evidence"
+    created_by: str = "mcp_trusted_bridge"
+
+    @model_validator(mode="after")
+    def _enforce_trusted_invariants(self) -> TrustedRoundtripEvidence:
+        """Enforce cross-field invariants for trusted evidence."""
+        errors: list[str] = []
+        if self.validation_level not in _HIGH_TRUST_LEVELS:
+            errors.append(
+                f"trusted evidence should claim a high-trust level, got "
+                f"{self.validation_level.value}"
+            )
+        if self.status == "passed":
+            if self.semantic_comparison is None:
+                errors.append("passed trusted evidence requires semantic_comparison")
+            elif not self.semantic_comparison.passed:
+                errors.append("trusted evidence semantic comparison must pass")
+            elif not self.semantic_comparison.comparison_complete:
+                errors.append("trusted evidence semantic comparison must be complete")
+        if self.reexport is None and self.validation_level in {
+            FixtureValidationLevel.diptrace_roundtrip_verified,
+            FixtureValidationLevel.external_tool_roundtrip_verified,
+        }:
+            errors.append(
+                f"{self.validation_level.value} requires reexport"
+            )
+        if errors:
+            raise ValueError(
+                f"TrustedRoundtripEvidence invariant violated: {'; '.join(errors)}"
+            )
+        return self
+
+
+# Backward-compatible alias for code that references RoundtripEvidenceRecord.
+# New code should use UserSuppliedRoundtripEvidence or TrustedRoundtripEvidence.
+RoundtripEvidenceRecord = UserSuppliedRoundtripEvidence
 
 
 class ValidatedEvidence:
@@ -129,6 +330,7 @@ class ValidatedEvidence:
         "document_sha256",
         "source_type",
         "validation_level",
+        "authority",
         "record",
     )
 
@@ -141,6 +343,7 @@ class ValidatedEvidence:
         document_sha256: str,
         source_type: str,
         validation_level: FixtureValidationLevel,
+        authority: EvidenceAuthority = EvidenceAuthority.user_supplied,
         record: dict[str, Any] | None = None,
     ) -> None:
         self.manifest_path = manifest_path
@@ -149,19 +352,23 @@ class ValidatedEvidence:
         self.document_sha256 = document_sha256
         self.source_type = source_type
         self.validation_level = validation_level
+        self.authority = authority
         self.record = record
 
 
 class DocumentProvenance(StrictModel):
     """Strict sidecar schema for runtime document provenance.
 
-    This model is deliberately separate from FixtureManifest.  Runtime
-    provenance describes a single working document's trust chain, while
-    FixtureManifest describes a committed test evidence pack.
+    This model is deliberately separate from FixtureManifest and evidence
+    manifests.  Runtime provenance describes a single working document's
+    trust chain.
 
     A runtime sidecar (authority=runtime) can never grant a high-trust level.
-    High-trust levels require either a fixture_manifest or validated_evidence
+    High-trust levels require either a fixture_manifest or trusted_registry
     authority with verifiable SHA binding.
+
+    User-supplied evidence (authority=user_supplied_evidence) can record
+    evidence but never grant authoritative DipTrace trust levels.
     """
 
     schema_version: Literal["diptrace-document-provenance-v1"] = (
@@ -190,12 +397,16 @@ class DocumentProvenance(StrictModel):
 
         Runtime authority can only grant synthetic_parser_only or
         synthetic_operation_fixture.  Higher levels require either
-        fixture_manifest or validated_evidence authority.
+        fixture_manifest or trusted_registry authority.
+
+        User-supplied evidence authority can only grant user-supplied
+        evidence levels, never authoritative DipTrace trust.
 
         fixture_manifest authority with high trust requires
         evidence_manifest_path and evidence_manifest_sha256.
 
-        validated_evidence authority always requires evidence manifest fields.
+        trusted_registry authority is not yet implemented; high-trust
+        promotion from evidence remains unavailable.
         """
         if (
             self.authority == ProvenanceAuthority.runtime
@@ -203,17 +414,30 @@ class DocumentProvenance(StrictModel):
         ):
             raise ValueError(
                 f"Runtime sidecar cannot grant validation_level={self.validation_level.value}; "
-                "requires fixture_manifest or validated_evidence authority"
+                "requires fixture_manifest or trusted_registry authority"
             )
-        if self.authority == ProvenanceAuthority.validated_evidence:
+        if self.authority == ProvenanceAuthority.user_supplied_evidence:
+            # User-supplied evidence can NEVER grant high-trust levels
+            if self.validation_level in _HIGH_TRUST_LEVELS:
+                raise ValueError(
+                    f"user_supplied_evidence authority cannot grant "
+                    f"validation_level={self.validation_level.value}; "
+                    "only trusted_registry or fixture_manifest can"
+                )
             if not self.evidence_manifest_path:
                 raise ValueError(
-                    "validated_evidence authority requires evidence_manifest_path"
+                    "user_supplied_evidence authority requires evidence_manifest_path"
                 )
             if not self.evidence_manifest_sha256:
                 raise ValueError(
-                    "validated_evidence authority requires evidence_manifest_sha256"
+                    "user_supplied_evidence authority requires evidence_manifest_sha256"
                 )
+        if self.authority == ProvenanceAuthority.trusted_registry:
+            # trusted_registry is not yet implemented
+            raise ValueError(
+                "trusted_registry authority is not yet implemented; "
+                "high-trust promotion from evidence is currently unavailable"
+            )
         if (
             self.authority == ProvenanceAuthority.fixture_manifest
             and self.validation_level in _HIGH_TRUST_LEVELS
@@ -982,6 +1206,9 @@ class TransactionRecord(StrictModel):
     snapshot_path: str | None = None
     backup_path: str | None = None
     provenance_backup_path: str | None = None
+    provenance_backup_sha256: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{64}$"
+    )
     committed_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     rolled_back_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     error: dict[str, Any] | None = None

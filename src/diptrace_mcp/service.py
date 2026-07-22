@@ -5,7 +5,7 @@ import math
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -24,8 +24,12 @@ from .connectivity import build_connectivity_graph
 from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
 from .domain import (
     _HIGH_TRUST_LEVELS,
+    _TRUSTED_EVIDENCE_AUTHORITIES,
+    _USER_SUPPLIABLE_TRUST_LEVELS,
     DocumentInfo,
     DocumentProvenance,
+    EvidenceAuthority,
+    EvidenceFileRecord,
     FieldSolverRequest,
     FixtureValidationLevel,
     ImpedanceInput,
@@ -37,8 +41,12 @@ from .domain import (
     ProvenanceAuthority,
     QueryRequest,
     QuerySelector,
-    RoundtripEvidenceRecord,
+    SemanticComparisonEvidence,
+    SourceType,
     TransactionRecord,
+    TrustedRoundtripEvidence,
+    UnsupportedCategory,
+    UserSuppliedRoundtripEvidence,
     ValidatedEvidence,
     requires_diptrace_verification,
 )
@@ -204,6 +212,63 @@ def same_file_role(path_a: Path, path_b: Path) -> bool:
         return path_a.resolve(strict=False) == path_b.resolve(strict=False)
     except (OSError, ValueError):
         return path_a == path_b
+
+
+# ── Effective trust resolution ───────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class EffectiveTrust:
+    """Resolved trust state for a document, derived from sidecar + manifest."""
+
+    validation_level: FixtureValidationLevel
+    authority: str
+    requires_diptrace_verification: bool
+    evidence_manifest_path: str | None = None
+    evidence_manifest_sha256: str | None = None
+    warnings: list[dict[str, str]] = field(default_factory=list)
+
+
+def _fail_closed_trust(
+    *,
+    reason: str = "evidence_validation_failed",
+    warning_code: str = "evidence_manifest_sha_mismatch",
+) -> EffectiveTrust:
+    """Return a fail-closed trust result."""
+    return EffectiveTrust(
+        validation_level=FixtureValidationLevel.synthetic_parser_only,
+        authority="invalid_or_untrusted_evidence",
+        requires_diptrace_verification=True,
+        warnings=[{"code": warning_code, "detail": reason}],
+    )
+
+
+# ── Required comparison categories ───────────────────────────────────────
+
+REQUIRED_PCB_COMPARISON_CATEGORIES: frozenset[str] = frozenset({
+    "source_type",
+    "board_outline",
+    "copper_layers",
+    "components",
+    "pads",
+    "nets",
+    "traces",
+    "vias",
+    "via_styles",
+})
+
+REQUIRED_SCHEMATIC_COMPARISON_CATEGORIES: frozenset[str] = frozenset({
+    "source_type",
+    "sheets",
+    "hierarchy",
+    "parts",
+    "patterns",
+    "pins",
+    "pin_net_membership",
+    "wires",
+    "wire_geometry",
+    "labels",
+})
 
 
 # ── Semantic comparison policy ─────────────────────────────────────────────
@@ -741,6 +806,7 @@ class DipTraceService:
           6. source_type matches
           7. validation_level matches the claimed level
           8. trust invariants for the level are satisfied
+          9. evidence authority boundary is respected
 
         Raises EditError on any failure (fail-closed).
         """
@@ -792,22 +858,30 @@ class DipTraceService:
                 code="evidence_manifest_invalid_json",
             ) from exc
 
-        # 4. Validate schema
+        # 4. Validate schema — try user-supplied first, then trusted
+        record_data: dict[str, Any] = manifest_data
+        evidence_authority = EvidenceAuthority.user_supplied
         try:
-            record = RoundtripEvidenceRecord.model_validate(manifest_data)
-        except ValueError as exc:
-            raise EditError(
-                f"Evidence manifest schema validation failed: {exc}",
-                code="evidence_manifest_schema_error",
-            ) from exc
+            user_record = UserSuppliedRoundtripEvidence.model_validate(manifest_data)
+            record_data = user_record.model_dump()
+            evidence_authority = EvidenceAuthority.user_supplied
+        except ValueError:
+            # Not a valid user-supplied record; try trusted
+            try:
+                trusted_record = TrustedRoundtripEvidence.model_validate(manifest_data)
+                record_data = trusted_record.model_dump()
+                evidence_authority = trusted_record.authority
+            except ValueError as exc:
+                raise EditError(
+                    f"Evidence manifest schema validation failed: {exc}",
+                    code="evidence_manifest_schema_error",
+                ) from exc
 
-        # 5. Find a record for this document (for single-record manifests,
-        #    the top-level record IS the record)
-        doc_sha_from_manifest = record.document_sha256
-        doc_path_from_manifest = record.document_path
+        # 5. Find document SHA from manifest
+        doc_sha_from_manifest = record_data["document_sha256"]
+        doc_path_from_manifest = record_data["document_path"]
 
         # 6. Document SHA binding
-        # The sidecar's current_document_sha256 must match what the manifest says
         if doc_sha_from_manifest != provenance.current_document_sha256:
             raise EditError(
                 f"Evidence manifest documents SHA {doc_sha_from_manifest} but sidecar "
@@ -815,26 +889,54 @@ class DipTraceService:
                 code="evidence_document_sha_mismatch",
             )
 
-        # 7. Source type validation from saved/reexport records
-        saved_info = record.saved
+        # 7. Source type validation
+        saved_info = record_data.get("saved", {})
         source_type_from_manifest = ""
-        if saved_info:
+        if isinstance(saved_info, dict):
             source_type_from_manifest = saved_info.get("source_type", "")
 
         # 8. Validation level must match
-        level_from_manifest = record.validation_level
-        if level_from_manifest != provenance.validation_level.value:
+        level_from_manifest = record_data.get("validation_level", "")
+        level_matches = (
+            isinstance(level_from_manifest, str)
+            and level_from_manifest == provenance.validation_level.value
+        )
+        if not level_matches and isinstance(level_from_manifest, str):
             raise EditError(
                 f"Evidence manifest declares validation_level={level_from_manifest} "
                 f"but sidecar claims {provenance.validation_level.value}",
                 code="evidence_level_mismatch",
             )
 
-        # 9. Trust invariants: synthetic manifests cannot raise trust
-        if record.status == "failed" and provenance.validation_level in _HIGH_TRUST_LEVELS:
+        # 9. Trust invariants: failed evidence cannot grant high trust
+        status = record_data.get("status", "recorded")
+        if status == "failed" and provenance.validation_level in _HIGH_TRUST_LEVELS:
             raise EditError(
                 "Failed evidence record cannot grant high trust",
                 code="evidence_failed_no_trust",
+            )
+
+        # 10. Authority boundary: user-supplied evidence must not grant high trust
+        if (
+            evidence_authority == EvidenceAuthority.user_supplied
+            and provenance.validation_level in _USER_SUPPLIABLE_TRUST_LEVELS
+        ):
+            raise EditError(
+                f"user-supplied evidence cannot grant "
+                f"validation_level={provenance.validation_level.value}",
+                code="user_supplied_evidence_cannot_grant_high_trust",
+            )
+
+        # 11. Sidecar authority must be compatible with evidence authority
+        if (
+            provenance.authority == ProvenanceAuthority.user_supplied_evidence
+            and evidence_authority not in _TRUSTED_EVIDENCE_AUTHORITIES
+            and provenance.validation_level in _HIGH_TRUST_LEVELS
+        ):
+            raise EditError(
+                "user_supplied_evidence sidecar authority cannot hold "
+                "high-trust validation_level from user-supplied evidence",
+                code="user_supplied_evidence_cannot_grant_high_trust",
             )
 
         return ValidatedEvidence(
@@ -844,7 +946,8 @@ class DipTraceService:
             document_sha256=doc_sha_from_manifest,
             source_type=source_type_from_manifest,
             validation_level=provenance.validation_level,
-            record=manifest_data,
+            authority=evidence_authority,
+            record=record_data,
         )
 
     def _write_provenance_sidecar(
@@ -855,6 +958,142 @@ class DipTraceService:
         """Write a validated provenance sidecar next to a document."""
         sidecar = document_path.with_suffix(document_path.suffix + ".provenance.json")
         atomic_write_bytes(sidecar, provenance.model_dump_json(indent=2).encode())
+
+    def resolve_effective_document_trust(
+        self,
+        document_path: Path,
+        document_sha256: str,
+    ) -> EffectiveTrust:
+        """Central trust resolution: revalidates sidecar + evidence on every read.
+
+        All trust consumers (document_info, create_document_from_seed, export
+        workflows, capability reporting) must use this method.
+
+        Returns an EffectiveTrust with:
+          - fail-closed result on any validation failure
+          - revalidated evidence manifest SHA binding
+          - authority boundary enforcement
+        """
+        # 1. Load and parse the sidecar
+        sidecar_path = document_path.with_suffix(document_path.suffix + ".provenance.json")
+        if not sidecar_path.exists():
+            return EffectiveTrust(
+                validation_level=FixtureValidationLevel.synthetic_parser_only,
+                authority="no_sidecar",
+                requires_diptrace_verification=True,
+            )
+
+        try:
+            sidecar_bytes = sidecar_path.read_bytes()
+        except OSError:
+            return _fail_closed_trust(
+                reason="sidecar_read_error",
+                warning_code="sidecar_read_error",
+            )
+
+        try:
+            sidecar_data = json.loads(sidecar_bytes)
+        except json.JSONDecodeError:
+            return _fail_closed_trust(
+                reason="sidecar_invalid_json",
+                warning_code="sidecar_invalid_json",
+            )
+
+        # 2. Validate sidecar schema
+        try:
+            provenance = DocumentProvenance.model_validate(sidecar_data)
+        except ValueError:
+            return _fail_closed_trust(
+                reason="sidecar_schema_invalid",
+                warning_code="sidecar_schema_invalid",
+            )
+
+        # 3. Verify sidecar document SHA matches current document
+        if provenance.current_document_sha256 != document_sha256:
+            return EffectiveTrust(
+                validation_level=FixtureValidationLevel.synthetic_parser_only,
+                authority="stale_sidecar",
+                requires_diptrace_verification=True,
+                warnings=[{"code": "sidecar_sha_mismatch"}],
+            )
+
+        # 4. Runtime authority: never grants high trust
+        if provenance.authority == ProvenanceAuthority.runtime:
+            return EffectiveTrust(
+                validation_level=provenance.validation_level,
+                authority=provenance.authority.value,
+                requires_diptrace_verification=requires_diptrace_verification(
+                    provenance.validation_level
+                ),
+            )
+
+        # 5. User-supplied evidence authority: cannot grant high trust
+        if provenance.authority == ProvenanceAuthority.user_supplied_evidence:
+            if provenance.validation_level in _HIGH_TRUST_LEVELS:
+                return _fail_closed_trust(
+                    reason="user_supplied_evidence_cannot_grant_high_trust",
+                    warning_code="user_supplied_evidence_cannot_grant_high_trust",
+                )
+            # Revalidate evidence manifest
+            try:
+                evidence = self._load_and_validate_evidence_manifest(
+                    document_path, provenance
+                )
+                return EffectiveTrust(
+                    validation_level=provenance.validation_level,
+                    authority=provenance.authority.value,
+                    requires_diptrace_verification=requires_diptrace_verification(
+                        provenance.validation_level
+                    ),
+                    evidence_manifest_path=str(evidence.manifest_path),
+                    evidence_manifest_sha256=evidence.manifest_sha256,
+                )
+            except EditError as exc:
+                return _fail_closed_trust(
+                    reason=str(exc),
+                    warning_code=getattr(exc, "code", "evidence_validation_failed"),
+                )
+
+        # 6. Fixture manifest authority: revalidate evidence for high trust
+        if provenance.authority == ProvenanceAuthority.fixture_manifest:
+            if provenance.validation_level in _HIGH_TRUST_LEVELS:
+                if not provenance.evidence_manifest_path:
+                    return _fail_closed_trust(
+                        reason="fixture_manifest_high_trust_missing_evidence",
+                        warning_code="evidence_manifest_missing",
+                    )
+                try:
+                    evidence = self._load_and_validate_evidence_manifest(
+                        document_path, provenance
+                    )
+                    return EffectiveTrust(
+                        validation_level=provenance.validation_level,
+                        authority=provenance.authority.value,
+                        requires_diptrace_verification=requires_diptrace_verification(
+                            provenance.validation_level
+                        ),
+                        evidence_manifest_path=str(evidence.manifest_path),
+                        evidence_manifest_sha256=evidence.manifest_sha256,
+                    )
+                except EditError as exc:
+                    return _fail_closed_trust(
+                        reason=str(exc),
+                        warning_code=getattr(exc, "code", "evidence_validation_failed"),
+                    )
+            # Non-high-trust fixture manifest: accept as-is
+            return EffectiveTrust(
+                validation_level=provenance.validation_level,
+                authority=provenance.authority.value,
+                requires_diptrace_verification=requires_diptrace_verification(
+                    provenance.validation_level
+                ),
+            )
+
+        # 7. Unknown authority: fail closed
+        return _fail_closed_trust(
+            reason=f"unknown_authority:{provenance.authority.value}",
+            warning_code="unknown_sidecar_authority",
+        )
 
     def invalidate_document_trust_after_write(
         self,
@@ -1025,23 +1264,17 @@ class DipTraceService:
         document, target = self.load(path)
         info = self.models.get(document, live_session=target.is_live).info
         result = info.model_dump()
-        # Load provenance sidecar if present (strict validation)
-        provenance = self._load_seed_provenance(target.path)
-        if provenance is not None:
-            result["provenance"] = provenance.provenance
-            result["validation_level"] = provenance.validation_level.value
-            result["seed_sha256"] = provenance.seed_sha256
-            result["requires_diptrace_verification"] = (
-                provenance.requires_diptrace_verification
-            )
-            # Validate SHA freshness
-            if provenance.current_document_sha256 != info.sha256:
-                result["provenance_warning"] = (
-                    "Sidecar SHA does not match current document; "
-                    "trust data may be stale"
-                )
-                result["validation_level"] = "synthetic_parser_only"
-                result["requires_diptrace_verification"] = True
+        # Revalidate trust through the central resolver (§8)
+        effective = self.resolve_effective_document_trust(target.path, info.sha256)
+        result["validation_level"] = effective.validation_level.value
+        result["requires_diptrace_verification"] = effective.requires_diptrace_verification
+        result["trust_authority"] = effective.authority
+        if effective.evidence_manifest_path:
+            result["evidence_manifest_path"] = effective.evidence_manifest_path
+        if effective.evidence_manifest_sha256:
+            result["evidence_manifest_sha256"] = effective.evidence_manifest_sha256
+        if effective.warnings:
+            result["trust_warnings"] = effective.warnings
         return self._read_success(info, result)
 
     def board_model(self, path: str | None = None) -> dict[str, Any]:
@@ -1814,12 +2047,30 @@ class DipTraceService:
                 trust_level = FixtureValidationLevel.synthetic_parser_only
                 trust_provenance = "seed_copy_runtime_sidecar_downgraded"
                 parent_level = seed_sidecar.validation_level
-            elif seed_sidecar.authority in {
-                ProvenanceAuthority.fixture_manifest,
-                ProvenanceAuthority.validated_evidence,
-            }:
-                # Evidence-backed sidecar: MUST validate the actual manifest file
-                # before inheriting trust.  Sidecar fields alone are not proof.
+            elif seed_sidecar.authority == ProvenanceAuthority.user_supplied_evidence:
+                # User-supplied evidence: revalidate but cannot grant high trust
+                try:
+                    evidence = self._load_and_validate_evidence_manifest(
+                        seed, seed_sidecar
+                    )
+                    # User-supplied evidence can never grant high trust
+                    if evidence.validation_level in _HIGH_TRUST_LEVELS:
+                        trust_level = FixtureValidationLevel.synthetic_parser_only
+                        trust_provenance = "seed_copy_user_supplied_no_high_trust"
+                        parent_level = evidence.validation_level
+                    else:
+                        trust_level = evidence.validation_level
+                        trust_provenance = "seed_copy_user_supplied_evidence"
+                        parent_level = evidence.validation_level
+                    copy_authority = ProvenanceAuthority.user_supplied_evidence
+                    evidence_path = str(evidence.manifest_path)
+                    evidence_sha = evidence.manifest_sha256
+                except EditError:
+                    trust_level = FixtureValidationLevel.synthetic_parser_only
+                    trust_provenance = "seed_copy_evidence_validation_failed"
+                    parent_level = seed_sidecar.validation_level
+            elif seed_sidecar.authority == ProvenanceAuthority.fixture_manifest:
+                # Fixture manifest: MUST validate the actual manifest file
                 try:
                     evidence = self._load_and_validate_evidence_manifest(
                         seed, seed_sidecar
@@ -1831,14 +2082,14 @@ class DipTraceService:
                     evidence_path = str(evidence.manifest_path)
                     evidence_sha = evidence.manifest_sha256
                 except EditError:
-                    # Fail-closed: evidence validation failed → downgrade
                     trust_level = FixtureValidationLevel.synthetic_parser_only
                     trust_provenance = "seed_copy_evidence_validation_failed"
                     parent_level = seed_sidecar.validation_level
-            else:
-                # Synthetic seed — copy preserves its level
-                trust_level = seed_sidecar.validation_level
-                trust_provenance = "seed_copy"
+            elif seed_sidecar.authority == ProvenanceAuthority.trusted_registry:
+                # Not yet implemented
+                trust_level = FixtureValidationLevel.synthetic_parser_only
+                trust_provenance = "seed_copy_trusted_registry_not_implemented"
+                parent_level = seed_sidecar.validation_level
         # Write provenance sidecar for the new copy
         sidecar = DocumentProvenance(
             provenance=trust_provenance,
@@ -1904,19 +2155,24 @@ class DipTraceService:
         # Backup existing provenance sidecar for rollback restoration
         sidecar_path = target.path.with_suffix(target.path.suffix + ".provenance.json")
         provenance_backup: str | None = None
+        provenance_backup_sha: str | None = None
         if sidecar_path.exists():
             prov_backup_dir = self.transactions.tx_dir(record.txid)
             prov_backup = prov_backup_dir / f"provenance_{record.txid}.json"
             try:
-                prov_backup.write_bytes(sidecar_path.read_bytes())
+                prov_bytes = sidecar_path.read_bytes()
+                prov_backup.write_bytes(prov_bytes)
                 provenance_backup = str(prov_backup)
+                provenance_backup_sha = sha256_bytes(prov_bytes)
             except OSError:
                 provenance_backup = None
+                provenance_backup_sha = None
         updated = self.transactions.update(
             record.txid,
             status="staged",
             snapshot_path=str(self.transactions.snapshot_path(record.txid)),
             provenance_backup_path=provenance_backup,
+            provenance_backup_sha256=provenance_backup_sha,
         )
         return {
             "ok": True,
@@ -2140,6 +2396,12 @@ class DipTraceService:
                 if prov_backup.is_file():
                     try:
                         prov_bytes = prov_backup.read_bytes()
+                        # Verify provenance backup SHA if recorded
+                        if (
+                            record.provenance_backup_sha256
+                            and sha256_bytes(prov_bytes) != record.provenance_backup_sha256
+                        ):
+                            raise ValueError("provenance backup SHA mismatch")
                         # Verify the restored sidecar SHA matches restored doc
                         restored_sidecar = json.loads(prov_bytes)
                         if restored_sidecar.get("current_document_sha256") == restored_sha256:
@@ -2204,7 +2466,7 @@ class DipTraceService:
             "transactions": [item.model_dump() for item in self.transactions.list()],
         }
 
-    def validate_roundtrip_evidence(
+    def record_roundtrip_evidence(
         self,
         path: str,
         *,
@@ -2214,12 +2476,12 @@ class DipTraceService:
         reexport_path: str | None = None,
         reexport_sha256: str | None = None,
     ) -> dict[str, Any]:
-        """Validate roundtrip evidence and promote a document's trust level.
+        """Record user-supplied roundtrip evidence for a document.
 
-        This operation verifies that a document has been through a genuine
-        DipTrace open/save/re-export cycle.  It does NOT accept boolean flags
-        from the client — all trust claims must be backed by real files and
-        verified computations.
+        This operation records evidence supplied through the public MCP API.
+        It does NOT grant authoritative DipTrace trust.  The evidence is
+        recorded with ``authority=user_supplied`` and ``validation_level``
+        reflects the user-supplied evidence state only.
 
         SHA binding:
           - For open_save: current_document_sha256 must match saved_path SHA
@@ -2229,10 +2491,10 @@ class DipTraceService:
           - source, saved, and reexport must be different files
           - one file cannot serve multiple evidence roles
 
-        Authority: validated_evidence (requires evidence manifest for final acceptance)
+        Returns honest evidence_status: "recorded" with authority: "user_supplied".
         """
         self.policy.require_write(
-            dry_run=False, operation="validate_roundtrip_evidence"
+            dry_run=False, operation="record_roundtrip_evidence"
         )
         document, target = self.load(path)
         snapshot = self.models.get(document, live_session=target.is_live)
@@ -2263,6 +2525,7 @@ class DipTraceService:
         saved_sha = sha256_bytes(saved_bytes)
 
         # Verify source type matches
+        source_doc = DipTraceDocument.from_bytes(source, source_bytes)
         if saved_doc.source_type != snapshot.info.source_type:
             raise EditError(
                 f"Saved source type {saved_doc.source_type!r} does not match "
@@ -2282,7 +2545,6 @@ class DipTraceService:
                 code="critical_parse_warnings",
             )
 
-        # Determine trust level based on evidence
         is_roundtrip = reexport_path is not None and reexport_sha256 is not None
         reexport_sha: str | None = None
         sem_result: dict[str, Any] | None = None
@@ -2328,33 +2590,43 @@ class DipTraceService:
                 )
 
             # Semantic comparison: compare source and reexport structure
-            source_doc = DipTraceDocument.from_bytes(source, source_bytes)
             sem_result = _semantic_roundtrip_check(source_doc, reexport_doc)
 
             if not sem_result["passed"]:
-                # Section #3: No fallback to open_save_verified on failed
-                # semantic comparison.  The document is bound to reexport SHA
-                # but may not match saved SHA, so we must reject promotion.
-                evidence_manifest = RoundtripEvidenceRecord(
+                # Record failed evidence — no trust promotion
+                evidence_manifest = UserSuppliedRoundtripEvidence(
                     document_path=str(target.path),
                     document_sha256=snapshot.info.sha256,
-                    source={
-                        "path": str(source),
-                        "sha256": source_sha256,
-                        "source_type": source_doc.source_type,
-                    },
-                    saved={
-                        "path": str(saved),
-                        "sha256": saved_sha,
-                        "source_type": saved_doc.source_type,
-                    },
-                    reexport={
-                        "path": str(reexport),
-                        "sha256": reexport_sha,
-                        "source_type": reexport_doc.source_type,
-                    },
-                    validation_level=FixtureValidationLevel.diptrace_roundtrip_verified.value,
-                    semantic_comparison=sem_result,
+                    source=EvidenceFileRecord(
+                        path=str(source),
+                        sha256=source_sha256,
+                        source_type=cast(SourceType, source_doc.source_type),
+                    ),
+                    saved=EvidenceFileRecord(
+                        path=str(saved),
+                        sha256=saved_sha,
+                        source_type=cast(SourceType, saved_doc.source_type),
+                    ),
+                    reexport=EvidenceFileRecord(
+                        path=str(reexport),
+                        sha256=reexport_sha,
+                        source_type=cast(SourceType, reexport_doc.source_type),
+                    ),
+                    semantic_comparison=SemanticComparisonEvidence(
+                        passed=sem_result["passed"],
+                        comparison_complete=sem_result["comparison_complete"],
+                        compared_categories=sem_result["compared_categories"],
+                        differences=sem_result["differences"],
+                        unsupported_categories=[
+                            UnsupportedCategory.model_validate(cat)
+                            for cat in (
+                                sem_result.get("unsupported_categories", []) or []
+                            )
+                            if isinstance(cat, dict)
+                        ],
+                        parse_warnings=sem_result["parse_warnings"],
+                    ),
+                    validation_level=FixtureValidationLevel.synthetic_operation_fixture,
                     status="failed",
                     created_at=utc_now(),
                 )
@@ -2367,23 +2639,25 @@ class DipTraceService:
                 )
                 manifest_sha = sha256_bytes(manifest_path.read_bytes())
 
-                # Write sidecar as FAILED evidence — no trust promotion
+                # Write sidecar as user-supplied evidence — no trust promotion
                 sidecar = DocumentProvenance(
-                    provenance="diptrace_roundtrip_failed",
+                    provenance="user_supplied_evidence_failed",
                     validation_level=FixtureValidationLevel.synthetic_operation_fixture,
                     current_document_sha256=snapshot.info.sha256,
                     seed_sha256=source_sha256,
-                    authority=ProvenanceAuthority.runtime,
-                    last_modified_by="mcp_validate_roundtrip_evidence",
+                    authority=ProvenanceAuthority.user_supplied_evidence,
+                    evidence_manifest_path=str(manifest_path),
+                    evidence_manifest_sha256=manifest_sha,
+                    last_modified_by="mcp_record_roundtrip_evidence",
                 )
                 self._write_provenance_sidecar(target.path, sidecar)
 
                 return {
                     "ok": False,
-                    "error": "semantic_comparison_failed",
+                    "evidence_status": "failed",
+                    "authority": EvidenceAuthority.user_supplied.value,
                     "validation_level": FixtureValidationLevel.synthetic_operation_fixture.value,
                     "requires_diptrace_verification": True,
-                    "authority": ProvenanceAuthority.runtime.value,
                     "source_sha256": source_sha256,
                     "saved_sha256": saved_sha,
                     "reexport_sha256": reexport_sha,
@@ -2396,7 +2670,7 @@ class DipTraceService:
                     ),
                 }
 
-            level = FixtureValidationLevel.diptrace_roundtrip_verified
+            evidence_level = FixtureValidationLevel.synthetic_operation_fixture
         else:
             # open_save only: SHA binding — current must match saved
             if snapshot.info.sha256 != saved_sha:
@@ -2405,40 +2679,55 @@ class DipTraceService:
                     f"saved SHA {saved_sha}; cannot verify open/save",
                     code="sha256_binding_mismatch",
                 )
-            level = FixtureValidationLevel.diptrace_open_save_verified
+            evidence_level = FixtureValidationLevel.synthetic_operation_fixture
 
-        # Write updated provenance sidecar with validated_evidence authority
-        # Section #2: Create real evidence manifest FIRST, then compute SHA,
-        # then write sidecar with SHA binding.
-        evidence_manifest = RoundtripEvidenceRecord(
+        # Build semantic comparison evidence for roundtrip
+        sem_evidence: SemanticComparisonEvidence | None = None
+        if sem_result is not None:
+            unsupported_raw = sem_result.get("unsupported_categories", []) or []
+            unsupported_cats = [
+                UnsupportedCategory.model_validate(cat)
+                for cat in unsupported_raw
+                if isinstance(cat, dict)
+            ]
+            sem_evidence = SemanticComparisonEvidence(
+                passed=sem_result["passed"],
+                comparison_complete=sem_result["comparison_complete"],
+                compared_categories=sem_result["compared_categories"],
+                differences=sem_result["differences"],
+                unsupported_categories=unsupported_cats,
+                parse_warnings=sem_result["parse_warnings"],
+            )
+
+        # Create user-supplied evidence manifest (honest model)
+        reexport_record: EvidenceFileRecord | None = None
+        if is_roundtrip and reexport is not None and reexport_sha is not None:
+            reexport_record = EvidenceFileRecord(
+                path=str(reexport),
+                sha256=reexport_sha,
+                source_type=cast(
+                    SourceType,
+                    DipTraceDocument.from_bytes(reexport, reexport_bytes).source_type,
+                ),
+            )
+
+        evidence_manifest = UserSuppliedRoundtripEvidence(
             document_path=str(target.path),
             document_sha256=snapshot.info.sha256,
-            source={
-                "path": str(source),
-                "sha256": source_sha256,
-                "source_type": DipTraceDocument.from_bytes(
-                    source, source_bytes
-                ).source_type,
-            },
-            saved={
-                "path": str(saved),
-                "sha256": saved_sha,
-                "source_type": saved_doc.source_type,
-            },
-            reexport=(
-                {
-                    "path": str(reexport),
-                    "sha256": str(reexport_sha),
-                    "source_type": DipTraceDocument.from_bytes(
-                        reexport, reexport_bytes
-                    ).source_type,
-                }
-                if is_roundtrip and reexport is not None
-                else None
+            source=EvidenceFileRecord(
+                path=str(source),
+                sha256=source_sha256,
+                source_type=cast(SourceType, source_doc.source_type),
             ),
-            validation_level=level.value,
-            semantic_comparison=sem_result if sem_result else {},
-            status="passed",
+            saved=EvidenceFileRecord(
+                path=str(saved),
+                sha256=saved_sha,
+                source_type=cast(SourceType, saved_doc.source_type),
+            ),
+            reexport=reexport_record,
+            semantic_comparison=sem_evidence,
+            validation_level=evidence_level,
+            status="recorded",
             created_at=utc_now(),
         )
         manifest_path = Path(str(target.path) + ".roundtrip-evidence.json")
@@ -2456,18 +2745,19 @@ class DipTraceService:
                 code="evidence_manifest_write_error",
             )
         # Re-parse to verify schema integrity
-        RoundtripEvidenceRecord.model_validate(json.loads(reloaded))
+        UserSuppliedRoundtripEvidence.model_validate(json.loads(reloaded))
 
+        # Write sidecar with user_supplied_evidence authority
         sidecar = DocumentProvenance(
-            provenance="diptrace_validated",
-            validation_level=level,
+            provenance="user_supplied_evidence_recorded",
+            validation_level=evidence_level,
             current_document_sha256=snapshot.info.sha256,
             seed_sha256=source_sha256,
-            parent_validation_level=level,
-            authority=ProvenanceAuthority.validated_evidence,
+            parent_validation_level=evidence_level,
+            authority=ProvenanceAuthority.user_supplied_evidence,
             evidence_manifest_path=str(manifest_path),
             evidence_manifest_sha256=manifest_sha,
-            last_modified_by="mcp_validate_roundtrip_evidence",
+            last_modified_by="mcp_record_roundtrip_evidence",
         )
         self._write_provenance_sidecar(target.path, sidecar)
 
@@ -2481,16 +2771,24 @@ class DipTraceService:
 
         return {
             "ok": True,
-            "validation_level": level.value,
-            "requires_diptrace_verification": requires_diptrace_verification(level),
-            "authority": ProvenanceAuthority.validated_evidence.value,
+            "evidence_status": "recorded",
+            "authority": EvidenceAuthority.user_supplied.value,
+            "validation_level": evidence_level.value,
+            "requires_diptrace_verification": True,
             "source_sha256": source_sha256,
             "saved_sha256": saved_sha,
             "reexport_sha256": reexport_sha,
             "semantic_comparison": sem_result,
             "evidence_manifest_path": str(manifest_path),
             "evidence_manifest_sha256": manifest_sha,
+            "message": (
+                "Evidence recorded with authority=user_supplied. "
+                "This does not grant authoritative DipTrace trust."
+            ),
         }
+
+    # Keep backward-compatible alias
+    validate_roundtrip_evidence = record_roundtrip_evidence
 
     def move_components(
         self,
