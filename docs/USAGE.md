@@ -113,8 +113,8 @@ The result is unsigned because it is built locally from the repository source.
 
 ## 4. Installing the DipTrace Plug-in
 
-Close PCB Layout and Schematic Capture before installation. DipTrace reads plug-in
-folders and `settings.xml` when the corresponding module starts.
+Close all DipTrace modules before installation. DipTrace reads plug-in folders and
+`settings.xml` when the corresponding module starts.
 
 Open PowerShell as Administrator:
 
@@ -130,6 +130,8 @@ folders equivalent to:
 ```text
 C:\Program Files\DipTrace5\Plugins\PCB\DipTraceMCP\
 C:\Program Files\DipTrace5\Plugins\Schematic\DipTraceMCP\
+C:\Program Files\DipTrace5\Plugins\CompEdit\DipTraceMCP\
+C:\Program Files\DipTrace5\Plugins\PattEdit\DipTraceMCP\
 ```
 
 Each folder contains:
@@ -150,6 +152,17 @@ Install for Schematic Capture only:
 ```powershell
 .\plugin\install_plugin.ps1 -Mode Schematic
 ```
+
+Install only the read-only Component and Pattern Editor profiles:
+
+```powershell
+.\plugin\install_plugin.ps1 -Mode Libraries
+```
+
+`-Mode Both` keeps the previous PCB plus Schematic selection, while `-Mode All` installs
+all four modules and is the default. The library profiles use `ExpMode=Library All` and
+`ImpMode=None`. They provide complete XML to the MCP reader but deliberately cannot
+import changes back into DipTrace; finish those sessions with `cancel`.
 
 Use a non-standard DipTrace directory:
 

@@ -161,12 +161,13 @@ plug-in specification:
 </Source>
 ```
 
-`ExpMode=All` is required when the MCP server needs complete project context, and
-`ImpMode=All` allows the returned full document to be imported. A narrower read-only
-profile can use `ExpMode=Partial` with explicit object settings and `ImpMode=None`, but
-such a profile cannot apply general project modifications. DipTrace reads plug-in
-folders and `settings.xml` when the corresponding module starts, so module restart is
-required after installing or changing plug-in settings.
+`ExpMode=All` is required when the MCP server needs complete PCB or schematic context,
+and `ImpMode=All` allows the returned full document to be imported. Component and Pattern
+Editor profiles use the official `ExpMode=Library All` with `ImpMode=None`: they expose
+the complete active library to the existing readers while keeping the live path
+read-only until evidence-gated library writers exist. DipTrace reads plug-in folders and
+`settings.xml` when the corresponding module starts, so module restart is required after
+installing or changing plug-in settings.
 
 ## WSL Compatibility
 

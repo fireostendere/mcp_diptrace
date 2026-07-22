@@ -59,12 +59,16 @@ with `5.3.0.0` and embedded legacy versions. The application version and the XML
 | Source | Read | Write | Round-trip |
 | --- | --- | --- | --- |
 | PCB XML 4.3.0.3 synthetic fixture | yes | partial semantic writes | tested objects plus preservation of unknown XML |
+| PCB XML 5.3.0.2 installed example | yes; local bridge acceptance | not mutated | complex four-layer design parsed without warnings; redistributable fixture pending |
 | Other DipTrace 5.x XML | feature-detected | per-operation evidence gate | preserve unknown XML; a matching fixture is preferred |
 | Schematic XML 4.3.0.3 synthetic fixture | yes | partial semantic writes | tested objects plus preservation of unknown XML |
 | Schematic XML 5.3.0.2 live project | yes | bounded raw/semantic writes | manual bridge apply and independent DipTrace re-export verified |
+| Schematic XML 5.3.0.2 installed example | yes; local bridge acceptance | not mutated | seven-sheet design parsed without warnings; hierarchy not proven |
 | Component Library XML 4.3 fixture | yes | expert XML only | read/validate plus preservation of unknown XML |
 | Pattern Library XML 4.3 fixture | yes | expert XML only | read/validate plus preservation of unknown XML |
-| Component/Pattern Library XML 5.3.0.0 | documented; fixture pending | unavailable | preserve unknown XML only after parsing evidence |
+| Component Library XML 5.3.0.2 installed example | yes; local bridge acceptance | unavailable | 187-component library parsed without warnings; redistributable fixture pending |
+| Pattern Library XML 5.3.0.2 installed example | yes; local bridge acceptance | unavailable | 181-pattern library parsed without warnings; redistributable fixture pending |
+| Other Component/Pattern Library XML 5.3.x | feature-detected | unavailable | preserve unknown XML; matching fixtures preferred |
 | DSN/SES fixtures | bounded subset | semantic SES import | tested bounded subset |
 
 ## Notes
@@ -94,6 +98,9 @@ with `5.3.0.0` and embedded legacy versions. The application version and the XML
   import/re-export acceptance run for authored wires is still pending, so the writer is
   covered by synthetic round-trip tests only.
 - Library mutation remains unavailable until writer round-trip fixtures exist.
+- The installer includes read-only Component and Pattern Editor bridge profiles. They use
+  the official whole-library export mode with imports disabled, allowing local 5.3
+  inspection without implying writer or round-trip support.
 
 ## Version Baseline
 

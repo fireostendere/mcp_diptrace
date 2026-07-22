@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Source Type="DipTrace_CompEdit_Plugin" Name="DipTrace MCP Bridge" ExeFile="diptrace_mcp_bridge.exe">
+  <Settings>
+    <ExpMode>Library All</ExpMode>
+    <ImpMode>None</ImpMode>
+    <Comp>All</Comp>
+    <Shape>All</Shape>
+    <Pin>All</Pin>
+    <Pattern>Yes</Pattern>
+    <Attributes>Yes</Attributes>
+  </Settings>
+</Source>

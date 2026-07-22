@@ -11,6 +11,8 @@ def test_plugin_settings_match_official_structure() -> None:
     root = Path(__file__).parents[1] / "plugin" / "settings"
     pcb = ET.parse(root / "pcb.settings.xml").getroot()
     schematic = ET.parse(root / "schematic.settings.xml").getroot()
+    component = ET.parse(root / "component.settings.xml").getroot()
+    pattern = ET.parse(root / "pattern.settings.xml").getroot()
 
     assert pcb.tag == "Source"
     assert pcb.get("Type") == "DipTrace_Pcb_Plugin"
@@ -18,6 +20,14 @@ def test_plugin_settings_match_official_structure() -> None:
     assert pcb.findtext("./Settings/ImpMode") == "All"
     assert schematic.get("Type") == "DipTrace_Schematic_Plugin"
     assert schematic.findtext("./Settings/Patterns") == "Yes"
+    assert component.get("Type") == "DipTrace_CompEdit_Plugin"
+    assert component.findtext("./Settings/ExpMode") == "Library All"
+    assert component.findtext("./Settings/ImpMode") == "None"
+    assert component.findtext("./Settings/Pattern") == "Yes"
+    assert pattern.get("Type") == "DipTrace_PattEdit_Plugin"
+    assert pattern.findtext("./Settings/ExpMode") == "Library All"
+    assert pattern.findtext("./Settings/ImpMode") == "None"
+    assert pattern.findtext("./Settings/Pad") == "All"
 
 
 def test_installer_prefers_current_diptrace_directory() -> None:
@@ -30,6 +40,13 @@ def test_installer_prefers_current_diptrace_directory() -> None:
         'Join-Path $env:ProgramFiles "DipTrace"'
     )
     assert "Pass -DipTraceDir explicitly" in script
+    modes = (
+        'ValidateSet("PCB", "Schematic", "Component", "Pattern", '
+        '"Libraries", "Both", "All")'
+    )
+    assert modes in script
+    assert '"Plugins\\CompEdit\\DipTraceMCP"' in script
+    assert '"Plugins\\PattEdit\\DipTraceMCP"' in script
 
 
 @pytest.mark.skipif(os.name == "nt", reason="WSL path mapping is POSIX-only")
