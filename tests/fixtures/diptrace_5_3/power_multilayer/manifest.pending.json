@@ -1,0 +1,60 @@
+{
+  "schema_version": "diptrace-fixture-manifest-draft-v1",
+  "status": "pending_manual_diptrace_and_freerouting_evidence",
+  "diptrace": {
+    "target_version": "5.3.0.2",
+    "version_used_for_final_exports": null,
+    "build": null,
+    "operating_system": "Windows; exact edition and build pending manual capture"
+  },
+  "redistribution": {
+    "permitted": true,
+    "basis": "The design is wholly synthetic and was authored specifically for this open-source repository; it contains no third-party project data."
+  },
+  "artifacts": [
+    {
+      "path": "source_board.xml",
+      "status": "ready_mcp_generated_source",
+      "source_type": "DipTrace-PCB",
+      "format_version": "4.3.0.3",
+      "sha256": "c972afc80eb4c944938370672e6bb2b6ad42cc2145bd9355a30d5478e9f8924d",
+      "intended_semantic_difference": "Baseline synthetic four-layer board before manual copper-pour and Specctra workflows."
+    },
+    {
+      "path": "pours/before_refill.xml",
+      "status": "pending_manual",
+      "source_type": "DipTrace-PCB",
+      "sha256": null,
+      "intended_semantic_difference": "GND copper-pour boundary, thermal and cutout/island configured; refill intentionally not run."
+    },
+    {
+      "path": "pours/after_refill.xml",
+      "status": "pending_manual",
+      "source_type": "DipTrace-PCB",
+      "sha256": null,
+      "intended_semantic_difference": "Exactly the same design as before_refill.xml after Update All Copper Pours/Refill only."
+    },
+    {
+      "path": "specctra/source_board.xml",
+      "status": "ready_mcp_generated_source_pending_5_3_resave",
+      "source_type": "DipTrace-PCB",
+      "format_version": "4.3.0.3",
+      "sha256": "c972afc80eb4c944938370672e6bb2b6ad42cc2145bd9355a30d5478e9f8924d",
+      "intended_semantic_difference": "Frozen source revision from which input.dsn must be exported."
+    },
+    {
+      "path": "specctra/input.dsn",
+      "status": "pending_manual",
+      "source_type": "Specctra-DSN",
+      "sha256": null,
+      "intended_semantic_difference": "Real DipTrace Specctra export of the frozen source_board.xml revision."
+    },
+    {
+      "path": "specctra/output.ses",
+      "status": "pending_manual",
+      "source_type": "Specctra-SES",
+      "sha256": null,
+      "intended_semantic_difference": "Real Freerouting session that routes SENSE with a multilayer transition while preserving the source identity."
+    }
+  ]
+}

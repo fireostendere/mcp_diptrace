@@ -93,6 +93,9 @@ def test_pcb_scaffold_multilayer_names() -> None:
     ]
     assert len(conductors) == 4
     assert len(dielectrics) == 3
+    via_style = ET.fromstring(raw).find("./Board/ViaStyles/ViaStyle[@Id='0']")
+    assert via_style is not None
+    assert (via_style.get("Lay1"), via_style.get("Lay2")) == ("0", "3")
 
 
 def test_pcb_scaffold_plane_layers_and_custom_rules() -> None:

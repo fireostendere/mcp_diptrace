@@ -127,7 +127,9 @@ py -3.12 -m venv .venv
 powershell -ExecutionPolicy Bypass -File .\plugin\build_bridge.ps1
 ```
 
-Закройте все модули DipTrace. Затем откройте PowerShell **от имени администратора**:
+Закройте все модули DipTrace. Затем откройте PowerShell **от имени администратора**.
+По умолчанию мост устанавливается в PCB Layout, Schematic Capture, Component Editor и
+Pattern Editor:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\plugin\install_plugin.ps1
@@ -139,8 +141,13 @@ Installer сначала ищет `C:\Program Files\DipTrace5`, затем legac
 Для нестандартного каталога:
 
 ```powershell
-.\plugin\install_plugin.ps1 -DipTraceDir "D:\Apps\DipTrace" -Mode Both
+.\plugin\install_plugin.ps1 -DipTraceDir "D:\Apps\DipTrace" -Mode All
 ```
+
+`-Mode Both` ставит только PCB/Schematic, а `-Mode Libraries` — только Component/Pattern
+Editor. Библиотечные профили экспортируют активную библиотеку целиком, но используют
+`ImpMode=None`: это read-only сессии, которые следует завершать через `cancel`, пока
+нативная запись библиотек остаётся evidence-gated.
 
 ### 3. Подключить к Codex
 
@@ -156,7 +163,7 @@ codex mcp list
 
 ### 4. Открыть live-сессию
 
-1. Откройте и сохраните проект в DipTrace.
+1. Откройте и сохраните проект или библиотеку в DipTrace.
 2. Выберите `Tools → Plugins → DipTrace MCP Bridge`.
 3. Оставьте окно моста открытым. В это время DipTrace ожидает завершения плагина — это нормально.
 4. В MCP-клиенте напишите, например:

@@ -1,7 +1,7 @@
 param(
     [string]$DipTraceDir,
-    [ValidateSet("PCB", "Schematic", "Both")]
-    [string]$Mode = "Both",
+    [ValidateSet("PCB", "Schematic", "Component", "Pattern", "Libraries", "Both", "All")]
+    [string]$Mode = "All",
     [string]$BridgeExe,
     [switch]$Uninstall
 )
@@ -30,18 +30,32 @@ if (-not (Test-Path $DipTraceDir -PathType Container)) {
 }
 
 $Targets = @()
-if ($Mode -in @("PCB", "Both")) {
+if ($Mode -in @("PCB", "Both", "All")) {
     $Targets += @{
         Name = "PCB Layout"
         Directory = Join-Path $DipTraceDir "Plugins\Pcb\DipTraceMCP"
         Settings = Join-Path $PluginDir "settings\pcb.settings.xml"
     }
 }
-if ($Mode -in @("Schematic", "Both")) {
+if ($Mode -in @("Schematic", "Both", "All")) {
     $Targets += @{
         Name = "Schematic Capture"
         Directory = Join-Path $DipTraceDir "Plugins\Schematic\DipTraceMCP"
         Settings = Join-Path $PluginDir "settings\schematic.settings.xml"
+    }
+}
+if ($Mode -in @("Component", "Libraries", "All")) {
+    $Targets += @{
+        Name = "Component Editor (read-only import policy)"
+        Directory = Join-Path $DipTraceDir "Plugins\CompEdit\DipTraceMCP"
+        Settings = Join-Path $PluginDir "settings\component.settings.xml"
+    }
+}
+if ($Mode -in @("Pattern", "Libraries", "All")) {
+    $Targets += @{
+        Name = "Pattern Editor (read-only import policy)"
+        Directory = Join-Path $DipTraceDir "Plugins\PattEdit\DipTraceMCP"
+        Settings = Join-Path $PluginDir "settings\pattern.settings.xml"
     }
 }
 
@@ -65,4 +79,4 @@ foreach ($Target in $Targets) {
     Write-Host "Installed for $($Target.Name): $($Target.Directory)" -ForegroundColor Green
 }
 
-Write-Host "Restart all DipTrace modules, then use Tools > Plugins > DipTrace MCP Bridge."
+Write-Host "Restart the installed DipTrace modules, then use Tools > Plugins > DipTrace MCP Bridge."

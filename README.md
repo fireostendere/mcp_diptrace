@@ -140,7 +140,8 @@ Build the unsigned executable locally from this repository:
 powershell -ExecutionPolicy Bypass -File .\plugin\build_bridge.ps1
 ```
 
-Close all DipTrace modules, open PowerShell as Administrator, and install the bridge:
+Close all DipTrace modules, open PowerShell as Administrator, and install the bridge in
+PCB Layout, Schematic Capture, Component Editor, and Pattern Editor:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\plugin\install_plugin.ps1
@@ -150,8 +151,13 @@ The installer checks `C:\Program Files\DipTrace5` first and then the legacy
 `C:\Program Files\DipTrace` directory. Override it when necessary:
 
 ```powershell
-.\plugin\install_plugin.ps1 -DipTraceDir "D:\Apps\DipTrace" -Mode Both
+.\plugin\install_plugin.ps1 -DipTraceDir "D:\Apps\DipTrace" -Mode All
 ```
+
+`-Mode Both` installs only PCB and Schematic support. `-Mode Libraries` installs the
+Component and Pattern Editor bridges. Library sessions export the complete active
+library for inspection, but use `ImpMode=None`; finish them with `cancel` because native
+library mutation remains evidence-gated.
 
 ### 3. Connect Codex
 
@@ -168,7 +174,7 @@ Alternatively, merge [`examples/codex-config.toml`](examples/codex-config.toml) 
 
 ### 4. Start a live session
 
-1. Open and save a design in DipTrace.
+1. Open and save a design or library in DipTrace.
 2. Select `Tools > Plugins > DipTrace MCP Bridge`.
 3. Leave the bridge window open while the MCP client performs reads, plans, and edits.
 4. Ask the client to inspect the document before requesting any write.
@@ -176,7 +182,8 @@ Alternatively, merge [`examples/codex-config.toml`](examples/codex-config.toml) 
 6. Commit with the preview SHA, run post-write checks, then call
    `finish_live_session(action="apply")` or cancel the session.
 
-The bridge buttons provide the same explicit apply/cancel controls.
+The bridge buttons provide the same explicit apply/cancel controls. Component and
+Pattern Editor bridge profiles are read-only and must be cancelled after inspection.
 
 ## Offline Mode
 

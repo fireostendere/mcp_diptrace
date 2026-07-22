@@ -244,15 +244,14 @@ def build_pcb_document(
             )
             material.append(_named("Name", "Core"))
     via_styles = ET.SubElement(board, "ViaStyles")
-    via_style = ET.SubElement(
-        via_styles,
-        "ViaStyle",
-        {
-            "Id": "0",
-            "Diameter": dim(scaffold.via_diameter_mm),
-            "Hole": dim(scaffold.via_hole_mm),
-        },
-    )
+    via_attributes = {
+        "Id": "0",
+        "Diameter": dim(scaffold.via_diameter_mm),
+        "Hole": dim(scaffold.via_hole_mm),
+    }
+    if len(layers) > 2:
+        via_attributes.update({"Lay1": "0", "Lay2": str(len(layers) - 1)})
+    via_style = ET.SubElement(via_styles, "ViaStyle", via_attributes)
     ET.SubElement(via_style, "Name").text = "Default"
     net_classes = ET.SubElement(board, "NetClasses")
     net_class = ET.SubElement(
