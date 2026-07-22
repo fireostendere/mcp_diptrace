@@ -513,31 +513,16 @@ def _apply_component_pattern(
                 f"Unique embedded pattern was not found: {operation.pattern_style}",
                 details={"matched_count": 0, "validation_mode": operation.validation_mode},
             )
-        # external_pattern_reference: warn but proceed
-        targets = _select_records(snapshot, operation.selector, {"component"})
-        warnings = [
-            (
-                f"Pattern {operation.pattern_style!r} is not in the embedded library; "
-                "external pattern resolution is required in DipTrace"
-            )
-            for _ in targets
-        ]
-        return (
-            _operation_preview(
-                index,
-                operation.kind,
-                targets,
-                [{"pattern_style": operation.pattern_style}] * len(targets),
-                [
-                    {
-                        "pattern_style": operation.pattern_style,
-                        "warning": "external_pattern_reference",
-                    }
-                ]
-                * len(targets),
-                document,
-            ),
-            0,
+        # external_pattern_reference: reject — no external resolution mechanism exists
+        raise CapabilityUnavailableError(
+            f"Pattern {operation.pattern_style!r} is not in the embedded library. "
+            "external_pattern_reference mode requires an external pattern resolution "
+            "mechanism which is not yet implemented. Use strict_embedded_pattern mode "
+            "or add the pattern to the embedded library first.",
+            details={
+                "pattern_style": operation.pattern_style,
+                "validation_mode": operation.validation_mode,
+            },
         )
     if len(patterns) != 1:
         raise ObjectNotFoundError(

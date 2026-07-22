@@ -75,9 +75,22 @@ class FixtureManifest(StrictModel):
     known_limitations: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
-    def validate_for_level(self) -> list[str]:
-        """Return a list of error messages if metadata is inconsistent with the
-        declared validation level."""
+    @model_validator(mode="after")
+    def _enforce_trust_invariants(self) -> FixtureManifest:
+        """Automatically validate trust invariants on construction.
+
+        This prevents creating manifests with impossible trust states.
+        Raises ValueError if the declared level is inconsistent with the flags.
+        """
+        errors = self._validate_for_level()
+        if errors:
+            raise ValueError(
+                f"FixtureManifest trust invariant violated: {'; '.join(errors)}"
+            )
+        return self
+
+    def _validate_for_level(self) -> list[str]:
+        """Return error messages if metadata is inconsistent with the declared level."""
         errors: list[str] = []
         if self.validation_level in {
             FixtureValidationLevel.diptrace_exported,
@@ -93,18 +106,19 @@ class FixtureManifest(StrictModel):
                 errors.append(
                     f"validation_level={self.validation_level.value} requires source_sha256"
                 )
-        if (
-            self.validation_level
-            in {
-                FixtureValidationLevel.diptrace_open_save_verified,
-                FixtureValidationLevel.diptrace_roundtrip_verified,
-                FixtureValidationLevel.external_tool_roundtrip_verified,
-            }
-            and not self.diptrace_opened
-        ):
-            errors.append(
-                f"validation_level={self.validation_level.value} requires diptrace_opened=true"
-            )
+        if self.validation_level in {
+            FixtureValidationLevel.diptrace_open_save_verified,
+            FixtureValidationLevel.diptrace_roundtrip_verified,
+            FixtureValidationLevel.external_tool_roundtrip_verified,
+        }:
+            if not self.diptrace_opened:
+                errors.append(
+                    f"validation_level={self.validation_level.value} requires diptrace_opened=true"
+                )
+            if not self.diptrace_saved:
+                errors.append(
+                    f"validation_level={self.validation_level.value} requires diptrace_saved=true"
+                )
         if self.validation_level in {
             FixtureValidationLevel.diptrace_roundtrip_verified,
             FixtureValidationLevel.external_tool_roundtrip_verified,
@@ -133,6 +147,13 @@ class FixtureManifest(StrictModel):
                 "requires roundtrip_verified=true"
             )
         return errors
+
+    # Keep public name for backward compatibility with callers that use
+    # manifest.validate_for_level() explicitly.
+    def validate_for_level(self) -> list[str]:
+        """Return a list of error messages if metadata is inconsistent with the
+        declared validation level."""
+        return self._validate_for_level()
 
 
 class Unit(str, Enum):

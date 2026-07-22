@@ -201,6 +201,26 @@ def _validate_routing_layer(snapshot: DocumentSnapshot, layer_id: str, context: 
         )
 
 
+def _validate_via_layer(snapshot: DocumentSnapshot, layer_id: str, context: str) -> None:
+    """Reject via transitions that land on a plane layer.
+
+    Less strict than _validate_routing_layer: Unknown types are allowed because
+    via transition layers are just identifiers, not active routing targets.
+    """
+    layer_type = _layer_type(snapshot, layer_id)
+    if layer_type == "Plane":
+        layer_name = "Unknown"
+        if snapshot.board is not None:
+            for item in snapshot.board.layers:
+                if str(item.get("id", "")) == layer_id:
+                    layer_name = str(item.get("name", "Unknown"))
+                    break
+        raise RoutingError(
+            f"Via transition is not supported on plane layer {layer_name!r}",
+            details={"layer_id": layer_id, "layer_type": layer_type, "context": context},
+        )
+
+
 def _via_style_id(snapshot: DocumentSnapshot, value: str) -> str:
     if snapshot.board is None:
         raise CapabilityUnavailableError("Via operations require a PCB document")
@@ -1185,8 +1205,10 @@ def _add_via(
     previous = via_point.get("ViaStyle", "-1")
     via_point.set("ViaStyle", style_id)
     if operation.layer_before is not None:
+        _validate_via_layer(snapshot, operation.layer_before, context="add_via_layer_before")
         via_point.set("Lay", _layer_id(snapshot, operation.layer_before))
     if operation.layer_after is not None:
+        _validate_via_layer(snapshot, operation.layer_after, context="add_via_layer_after")
         updated_points = container.findall("./Point")
         via_index = updated_points.index(via_point)
         if via_index + 1 >= len(updated_points):

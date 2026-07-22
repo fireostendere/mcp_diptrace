@@ -73,3 +73,25 @@ def test_diptrace53_manifest_rejects_invalid_validation_level() -> None:
     manifest["fixtures"][0]["validation_level"] = "invalid_level"
     with pytest.raises(ValidationError):
         Draft202012Validator(schema).validate(manifest)
+
+
+def test_pending_manifest_validates_against_pending_schema() -> None:
+    """The real manifest.pending.json must validate against the pending schema."""
+    pending_schema = json.loads(
+        (FIXTURE_ROOT / "manifest.pending.schema.json").read_text()
+    )
+    Draft202012Validator.check_schema(pending_schema)
+    pending_manifest = json.loads(
+        (FIXTURE_ROOT / "power_multilayer" / "manifest.pending.json").read_text()
+    )
+    Draft202012Validator(pending_schema).validate(pending_manifest)
+
+
+def test_v2_schema_rejects_pending_manifest() -> None:
+    """The v2 schema must NOT accept the pending manifest (different structure)."""
+    v2_schema = json.loads((FIXTURE_ROOT / "manifest.schema.json").read_text())
+    pending_manifest = json.loads(
+        (FIXTURE_ROOT / "power_multilayer" / "manifest.pending.json").read_text()
+    )
+    with pytest.raises(ValidationError):
+        Draft202012Validator(v2_schema).validate(pending_manifest)

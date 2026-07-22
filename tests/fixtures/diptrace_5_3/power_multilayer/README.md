@@ -27,8 +27,8 @@ saved, or re-exported by DipTrace. It must not be used as evidence that:
 - `preview.svg` and `preview.json` are MCP previews of that exact source SHA;
 - `specctra/source_board.xml` is an identical frozen copy;
 - authoritative pour-before/refill-after XML and real DSN/SES artifacts are absent;
-- `manifest.pending.json` uses schema v2 with explicit validation_level=
-  `synthetic_operation_fixture`.
+- `manifest.pending.json` uses schema `diptrace-fixture-manifest-pending-v1` with
+  explicit validation_level=`synthetic_operation_fixture`.
 
 ## What is needed for acceptance
 
@@ -42,8 +42,8 @@ captured manually with a real DipTrace 5.3 installation:
 5. Capture `pours/after_refill.xml` after copper-pour refill;
 6. Export DSN from the re-exported version;
 7. Run Freerouting and capture SES;
-8. Hash all artifacts and update manifest to schema v2 with validation_level=
-   `diptrace_roundtrip_verified`.
+8. Hash all artifacts and update manifest to schema v2 (`diptrace-fixture-manifest-v2`)
+   with validation_level=`diptrace_roundtrip_verified`.
 
 ## Ratlines
 

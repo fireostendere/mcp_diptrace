@@ -25,6 +25,7 @@ from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
 from .domain import (
     DocumentInfo,
     FieldSolverRequest,
+    FixtureValidationLevel,
     ImpedanceInput,
     JobStatus,
     LibraryComponent,
@@ -338,7 +339,27 @@ class DipTraceService:
     def document_info(self, path: str | None = None) -> dict[str, Any]:
         document, target = self.load(path)
         info = self.models.get(document, live_session=target.is_live).info
-        return self._read_success(info, info.model_dump())
+        result = info.model_dump()
+        # Load provenance sidecar if present
+        sidecar = target.path.with_suffix(target.path.suffix + ".provenance.json")
+        if sidecar.exists():
+            try:
+                sidecar_data = json.loads(sidecar.read_text())
+                result["provenance"] = sidecar_data.get("provenance", "unknown")
+                result["validation_level"] = sidecar_data.get("validation_level", "unknown")
+                result["seed_sha256"] = sidecar_data.get("seed_sha256")
+                result["diptrace_version"] = sidecar_data.get("diptrace_version")
+                result["requires_diptrace_verification"] = (
+                    sidecar_data.get("validation_level") not in {
+                        "diptrace_exported",
+                        "diptrace_open_save_verified",
+                        "diptrace_roundtrip_verified",
+                        "external_tool_roundtrip_verified",
+                    }
+                )
+            except (json.JSONDecodeError, OSError):
+                pass
+        return self._read_success(info, result)
 
     def board_model(self, path: str | None = None) -> dict[str, Any]:
         document, target = self.load(path)
@@ -990,6 +1011,15 @@ class DipTraceService:
                 details={"path": str(target)},
             )
         info = build_snapshot(loaded).info
+        # Write provenance sidecar for synthetic documents
+        provenance_data = {
+            "provenance": "mcp_generated",
+            "validation_level": "synthetic_parser_only",
+            "created_by": "mcp_create_document",
+            "source_format_version": loaded.version,
+        }
+        sidecar = target.with_suffix(target.suffix + ".provenance.json")
+        atomic_write_bytes(sidecar, json.dumps(provenance_data, indent=2).encode())
         return self._read_success(
             info,
             {
@@ -1017,18 +1047,43 @@ class DipTraceService:
         target_path: str,
         *,
         overwrite: bool = False,
+        claimed_validation_level: str = "synthetic_parser_only",
+        diptrace_version: str | None = None,
     ) -> dict[str, Any]:
-        """Create a new document by copying a DipTrace-exported XML seed.
+        """Create a new document by copying an existing DipTrace-shaped XML seed.
 
-        The seed file must be a real DipTrace XML export (PCB, Schematic,
-        ComponentLibrary, or PatternLibrary). The copy preserves all unknown XML,
-        line endings, and unsupported sections. The resulting document inherits the
-        seed's provenance and validation level — it is NOT upgraded automatically.
+        The seed file must be valid DipTrace XML (PCB, Schematic, ComponentLibrary,
+        or PatternLibrary). The copy preserves all unknown XML, line endings, and
+        unsupported sections.
 
-        This is the recommended way to start a new project when DipTrace
-        compatibility is required.
+        **Trust model:** The function does NOT automatically verify DipTrace
+        provenance. The ``claimed_validation_level`` defaults to
+        ``synthetic_parser_only``. The caller must explicitly claim a higher level
+        and provide evidence (e.g. ``diptrace_version``). The trust level is never
+        upgraded automatically.
         """
         self.policy.require_write(dry_run=False, operation="create_document_from_seed")
+        # Validate the claimed level
+        try:
+            level = FixtureValidationLevel(claimed_validation_level)
+        except ValueError as err:
+            valid = [v.value for v in FixtureValidationLevel]
+            raise EditError(
+                f"Invalid claimed_validation_level: {claimed_validation_level!r}. "
+                f"Valid values: {valid}",
+                code="invalid_request",
+            ) from err
+        # DipTrace-claimed levels require a version string
+        if level in {
+            FixtureValidationLevel.diptrace_exported,
+            FixtureValidationLevel.diptrace_open_save_verified,
+            FixtureValidationLevel.diptrace_roundtrip_verified,
+            FixtureValidationLevel.external_tool_roundtrip_verified,
+        } and not diptrace_version:
+            raise EditError(
+                f"claimed_validation_level={level.value} requires diptrace_version",
+                code="invalid_request",
+            )
         seed = self.settings.resolve_allowed_path(seed_path, must_exist=True)
         seed_bytes = seed.read_bytes()
         if len(seed_bytes) > self.settings.max_document_bytes:
@@ -1072,6 +1127,17 @@ class DipTraceService:
                 details={"path": str(target)},
             )
         snapshot = build_snapshot(loaded)
+        # Write provenance sidecar so trust level survives MCP restarts
+        provenance_data = {
+            "provenance": "seed_copy",
+            "validation_level": level.value,
+            "diptrace_version": diptrace_version,
+            "source_format_version": seed_doc.version,
+            "seed_sha256": seed_sha256,
+            "created_by": "mcp_create_document_from_seed",
+        }
+        sidecar = target.with_suffix(target.suffix + ".provenance.json")
+        atomic_write_bytes(sidecar, json.dumps(provenance_data, indent=2).encode())
         return self._read_success(
             snapshot.info,
             {
@@ -1083,10 +1149,14 @@ class DipTraceService:
                 "backup": backup,
                 "seed_path": str(seed),
                 "seed_sha256": seed_sha256,
-                "provenance": "diptrace_exported_seed",
-                "validation_level": "diptrace_exported",
+                "provenance": "seed_copy",
+                "validation_level": level.value,
+                "diptrace_version": diptrace_version,
                 "source_format_version": seed_doc.version,
-                "requires_diptrace_verification": False,
+                "requires_diptrace_verification": level in {
+                    FixtureValidationLevel.synthetic_parser_only,
+                    FixtureValidationLevel.synthetic_operation_fixture,
+                },
                 "summary": {
                     "sheets": len(snapshot.schematic.sheets) if snapshot.schematic else None,
                     "layers": len(snapshot.board.layers) if snapshot.board else None,

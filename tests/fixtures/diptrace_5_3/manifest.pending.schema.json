@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/diptrace-mcp/diptrace-5.3-fixture-manifest-pending.schema.json",
+  "title": "DipTrace 5.3 Fixture Manifest (Pending / Work-in-Progress)",
+  "description": "Schema for manifests that describe fixtures still awaiting manual DipTrace evidence. These are NOT verified fixtures.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "provenance",
+    "validation_level",
+    "diptrace",
+    "redistribution",
+    "artifacts",
+    "known_limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "diptrace-fixture-manifest-pending-v1"
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "provenance": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "validation_level": {
+      "enum": [
+        "synthetic_parser_only",
+        "synthetic_operation_fixture"
+      ]
+    },
+    "diptrace_opened": {
+      "type": "boolean",
+      "default": false
+    },
+    "diptrace_saved": {
+      "type": "boolean",
+      "default": false
+    },
+    "diptrace_reexported": {
+      "type": "boolean",
+      "default": false
+    },
+    "roundtrip_verified": {
+      "type": "boolean",
+      "default": false
+    },
+    "diptrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target_version": {"type": "string"},
+        "version_used_for_final_exports": {"type": ["string", "null"]},
+        "build": {"type": ["string", "null"]},
+        "operating_system": {"type": "string"}
+      }
+    },
+    "redistribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["permitted", "basis"],
+      "properties": {
+        "permitted": {"type": "boolean"},
+        "basis": {"type": "string", "minLength": 1, "maxLength": 1000}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "source_type", "status"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1, "maxLength": 512},
+          "source_type": {
+            "enum": [
+              "DipTrace-PCB",
+              "DipTrace-Schematic",
+              "DipTrace-ComponentLibrary",
+              "DipTrace-PatternLibrary",
+              "Specctra-DSN",
+              "Specctra-SES"
+            ]
+          },
+          "status": {"type": "string", "minLength": 1, "maxLength": 256},
+          "validation_level": {
+            "enum": [
+              "synthetic_parser_only",
+              "synthetic_operation_fixture"
+            ]
+          },
+          "provenance": {"type": "string", "minLength": 1, "maxLength": 256},
+          "format_version": {"type": "string"},
+          "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+          "intended_semantic_difference": {"type": "string"}
+        }
+      }
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {"type": "string"},
+      "default": []
+    }
+  }
+}

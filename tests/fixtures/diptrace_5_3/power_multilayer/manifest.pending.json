@@ -1,5 +1,5 @@
 {
-  "schema_version": "diptrace-fixture-manifest-v2",
+  "schema_version": "diptrace-fixture-manifest-pending-v1",
   "status": "synthetic_mcp_generated_parser_fixture",
   "provenance": "mcp_generated",
   "validation_level": "synthetic_operation_fixture",
