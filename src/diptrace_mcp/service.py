@@ -23,6 +23,7 @@ from .config import Settings
 from .connectivity import build_connectivity_graph
 from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
 from .domain import (
+    _HIGH_TRUST_LEVELS,
     DocumentInfo,
     DocumentProvenance,
     FieldSolverRequest,
@@ -36,7 +37,9 @@ from .domain import (
     ProvenanceAuthority,
     QueryRequest,
     QuerySelector,
+    RoundtripEvidenceRecord,
     TransactionRecord,
+    ValidatedEvidence,
     requires_diptrace_verification,
 )
 from .errors import (
@@ -191,25 +194,58 @@ class DocumentTarget:
         return self.live_session_id is not None
 
 
+def same_file_role(path_a: Path, path_b: Path) -> bool:
+    """Platform-independent file identity check for evidence role exclusion.
+
+    Resolves symlinks and normalizes paths before comparing.  Works correctly
+    on Windows (drive letters, case-insensitive paths), Linux, and macOS.
+    """
+    try:
+        return path_a.resolve(strict=False) == path_b.resolve(strict=False)
+    except (OSError, ValueError):
+        return path_a == path_b
+
+
+# ── Semantic comparison policy ─────────────────────────────────────────────
+
+SEMANTIC_COMPARISON_POLICY_V1: dict[str, Any] = {
+    "ignored_xml_sections": frozenset({
+        "FutureExtension",
+    }),
+    "critical_xml_sections": frozenset({
+        # Unknown XML sections outside the allowlist are critical because they
+        # may contain electrical semantics we cannot verify.
+    }),
+    "informational_xml_sections": frozenset({
+        "Shapes",   # Text/shapes are cosmetic
+    }),
+    "normalizations": frozenset({
+        "whitespace_in_text",
+        "attribute_order",
+        "xml_declaration_encoding",
+    }),
+}
+
+
 def _semantic_roundtrip_check(
     source: DipTraceDocument, reexport: DipTraceDocument
 ) -> dict[str, Any]:
     """Compare two DipTrace documents for structural roundtrip equivalence.
 
     Returns a structured comparison result with:
-      - passed: bool
+      - passed: bool (fail-closed: only True when comparison is complete,
+        no differences, no critical unsupported categories, no critical warnings)
+      - comparison_complete: bool
       - compared_categories: list of what was compared
       - differences: list of what differs
       - ignored_normalizations: cosmetic differences
-      - unsupported_categories: categories not yet compared
+      - unsupported_categories: list of UnsupportedCategory dicts
       - parse_warnings: warnings from either document
     """
     differences: list[str] = []
     compared: list[str] = []
     ignored: list[str] = []
-    unsupported: list[str] = [
-        "board_texts", "board_shapes", "unknown_xml_sections"
-    ]
+    unsupported: list[dict[str, str]] = []
     warnings: list[str] = []
 
     # Source type must match
@@ -286,7 +322,7 @@ def _semantic_roundtrip_check(
                 f"via_styles: {src_via} vs {re_via}"
             )
 
-        # Components
+        # Components — Section #4: hardened comparison
         compared.append("components")
         src_comps = sorted(
             sb.components, key=lambda c: c.refdes or c.xml_id or ""
@@ -354,45 +390,92 @@ def _semantic_roundtrip_check(
                         f"component {label}: rotation "
                         f"{sc.rotation_deg} vs {rc.rotation_deg}"
                     )
-                # Pad-to-net membership
-                src_pads = [
-                    p for p in sb.pads
-                    if p.parent_id == sc.stable_id
-                ]
-                re_pads = [
-                    p for p in rb.pads
-                    if p.parent_id == rc.stable_id
-                ]
+                # Pad-to-net membership — Section #4: enhanced
+                src_pads = sorted(
+                    [p for p in sb.pads if p.parent_id == sc.stable_id],
+                    key=lambda p: p.xml_id or p.label or "",
+                )
+                re_pads = sorted(
+                    [p for p in rb.pads if p.parent_id == rc.stable_id],
+                    key=lambda p: p.xml_id or p.label or "",
+                )
                 if len(src_pads) != len(re_pads):
                     differences.append(
                         f"component {label}: pad count "
                         f"{len(src_pads)} vs {len(re_pads)}"
                     )
                 else:
-                    src_pn = {
-                        (p.xml_id or p.label, p.net_name)
-                        for p in src_pads
-                    }
-                    re_pn = {
-                        (p.xml_id or p.label, p.net_name)
-                        for p in re_pads
-                    }
-                    if src_pn != re_pn:
-                        differences.append(
-                            f"component {label}: pad-to-net "
-                            f"{src_pn} vs {re_pn}"
-                        )
+                    for sp, rp in zip(src_pads, re_pads, strict=True):
+                        pad_id = sp.xml_id or sp.label or "?"
+                        if sp.xml_id != rp.xml_id:
+                            differences.append(
+                                f"component {label} pad {pad_id}: "
+                                f"xml_id {sp.xml_id!r} vs {rp.xml_id!r}"
+                            )
+                        if sp.net_name != rp.net_name:
+                            differences.append(
+                                f"component {label} pad {pad_id}: "
+                                f"net {sp.net_name!r} vs {rp.net_name!r}"
+                            )
+                        # Compare pad position if available
+                        if sp.position and rp.position:
+                            ppos_dx = abs(
+                                sp.position.get("x", 0)
+                                - rp.position.get("x", 0)
+                            )
+                            ppos_dy = abs(
+                                sp.position.get("y", 0)
+                                - rp.position.get("y", 0)
+                            )
+                            if ppos_dx > 0.01 or ppos_dy > 0.01:
+                                differences.append(
+                                    f"component {label} pad {pad_id}: "
+                                    f"position differs"
+                                )
 
-        # Nets
+        # Nets — Section #4: enhanced with net class, endpoint membership
         compared.append("nets")
-        src_net_names = sorted(n.name or "" for n in sb.nets)
-        re_net_names = sorted(n.name or "" for n in rb.nets)
+        src_nets = sorted(sb.nets, key=lambda n: n.name or "")
+        re_nets = sorted(rb.nets, key=lambda n: n.name or "")
+        src_net_names = [n.name or "" for n in src_nets]
+        re_net_names = [n.name or "" for n in re_nets]
         if src_net_names != re_net_names:
             differences.append(
                 f"nets: {src_net_names} vs {re_net_names}"
             )
+        else:
+            for sn, rn in zip(src_nets, re_nets, strict=True):
+                # Net class
+                sn_class = sn.attributes.get("NetClass", "")
+                rn_class = rn.attributes.get("NetClass", "")
+                if sn_class != rn_class:
+                    differences.append(
+                        f"net {sn.name}: NetClass "
+                        f"{sn_class!r} vs {rn_class!r}"
+                    )
+                # Endpoint membership
+                src_ep = sorted(sn.relationships.get("endpoints", []))
+                re_ep = sorted(rn.relationships.get("endpoints", []))
+                if src_ep != re_ep:
+                    differences.append(
+                        f"net {sn.name}: endpoints differ"
+                    )
+                # Trace membership
+                src_tr = sorted(sn.relationships.get("traces", []))
+                re_tr = sorted(rn.relationships.get("traces", []))
+                if src_tr != re_tr:
+                    differences.append(
+                        f"net {sn.name}: trace membership differs"
+                    )
+                # Via membership
+                src_via_ids = sorted(sn.relationships.get("vias", []))
+                re_via_ids = sorted(rn.relationships.get("vias", []))
+                if src_via_ids != re_via_ids:
+                    differences.append(
+                        f"net {sn.name}: via membership differs"
+                    )
 
-        # Traces
+        # Traces — Section #4: hardened with endpoint, via, width comparison
         compared.append("traces")
         if len(sb.traces) != len(rb.traces):
             differences.append(
@@ -415,8 +498,31 @@ def _semantic_roundtrip_check(
                         f"trace {st.stable_id}: net "
                         f"{st.net_name!r} vs {rt.net_name!r}"
                     )
+                # Section #4: Compare trace endpoints
+                st_ep1 = st.attributes.get("Connected1", "")
+                rt_ep1 = rt.attributes.get("Connected1", "")
+                if st_ep1 != rt_ep1:
+                    differences.append(
+                        f"trace {st.stable_id}: Connected1 "
+                        f"{st_ep1!r} vs {rt_ep1!r}"
+                    )
+                st_ep2 = st.attributes.get("Connected2", "")
+                rt_ep2 = rt.attributes.get("Connected2", "")
+                if st_ep2 != rt_ep2:
+                    differences.append(
+                        f"trace {st.stable_id}: Connected2 "
+                        f"{st_ep2!r} vs {rt_ep2!r}"
+                    )
+                # Section #4: Compare trace points (geometry)
+                src_points = st.relationships.get("points", [])
+                re_points = rt.relationships.get("points", [])
+                if len(src_points) != len(re_points):
+                    differences.append(
+                        f"trace {st.stable_id}: point count "
+                        f"{len(src_points)} vs {len(re_points)}"
+                    )
 
-    # ── Schematic comparison ──
+    # ── Schematic comparison — Section #4: enhanced ──
     if (
         source_snapshot.schematic is not None
         and reexport_snapshot.schematic is not None
@@ -453,6 +559,19 @@ def _semantic_roundtrip_check(
                         f"part {label}: value "
                         f"{sp.value!r} vs {rp.value!r}"
                     )
+                # Section #4: Compare pin-to-net membership
+                src_pins = sorted(
+                    sp.relationships.get("pins", []),
+                    key=lambda p: str(p),
+                )
+                re_pins = sorted(
+                    rp.relationships.get("pins", []),
+                    key=lambda p: str(p),
+                )
+                if src_pins != re_pins:
+                    differences.append(
+                        f"part {label}: pin membership differs"
+                    )
 
         compared.append("schematic_nets")
         src_sn = sorted(n.name or "" for n in ss.nets)
@@ -481,8 +600,93 @@ def _semantic_roundtrip_check(
                 f"schematic_labels: {src_labels} vs {re_labels}"
             )
 
+    # Section #5: Classify unsupported categories
+    # Unknown XML sections are critical by default (may contain electrical semantics)
+    # unless they are in the allowlist.
+    comparison_complete = True
+    has_critical_unsupported = False
+    has_critical_warnings = False
+
+    # Check if either document has unsupported XML sections at the root level
+    for doc_label, doc in [("source", source), ("reexport", reexport)]:
+        root = doc.root
+        if root is not None:
+            # Children of <Source> are the top-level structure
+            known_source_children = {
+                "Library", "Board", "Schematic",
+            }
+            for child in root:
+                if child.tag not in known_source_children:
+                    # Unknown top-level section under <Source>
+                    unsupported.append({
+                        "category": f"unknown_xml_section:{child.tag}",
+                        "severity": "critical",
+                        "reason": (
+                            f"Unknown XML section <{child.tag}> in {doc_label} "
+                            "may contain electrical semantics"
+                        ),
+                    })
+                    has_critical_unsupported = True
+
+        # Also check Board/Schematic children for unknown sections
+        board = root.find("./Board") if root is not None else None
+        if board is not None:
+            known_board_children = {
+                "BoardOutline", "Settings", "CopperLayers", "ViaStyles",
+                "NetClasses", "DRC", "ConnectivityCheck", "Components",
+                "Ratlines", "Nets", "DifferentialPairs", "Shapes",
+                "FutureExtension", "DesignRules", "Stackup",
+                "CopperPours", "CopperAreas",
+            }
+            for child in board:
+                if child.tag not in known_board_children:
+                    unsupported.append({
+                        "category": f"unknown_board_section:{child.tag}",
+                        "severity": "informational",
+                        "reason": (
+                            f"Unknown Board section <{child.tag}> in {doc_label}; "
+                            "likely cosmetic or tool-specific"
+                        ),
+                    })
+
+    # If we only have PCB or only have Schematic, comparison is partial
+    source_has_board = source_snapshot.board is not None
+    reexport_has_board = reexport_snapshot.board is not None
+    source_has_sch = source_snapshot.schematic is not None
+    reexport_has_sch = reexport_snapshot.schematic is not None
+
+    if source_has_board != reexport_has_board:
+        differences.append(
+            f"board_presence: source={source_has_board} "
+            f"reexport={reexport_has_board}"
+        )
+        comparison_complete = False
+    if source_has_sch != reexport_has_sch:
+        differences.append(
+            f"schematic_presence: source={source_has_sch} "
+            f"reexport={reexport_has_sch}"
+        )
+        comparison_complete = False
+
+    # Section #5: Classify parse warnings
+    critical_w = [
+        w for w in warnings
+        if "error" in w.lower() or "invalid" in w.lower() or "missing" in w.lower()
+    ]
+    if critical_w:
+        has_critical_warnings = True
+
+    # Section #5: Fail-closed passed logic
+    passed = (
+        not differences
+        and comparison_complete
+        and not has_critical_unsupported
+        and not has_critical_warnings
+    )
+
     return {
-        "passed": len(differences) == 0,
+        "passed": passed,
+        "comparison_complete": comparison_complete,
         "compared_categories": compared,
         "differences": differences,
         "ignored_normalizations": ignored,
@@ -519,6 +723,129 @@ class DipTraceService:
             return DocumentProvenance.model_validate(raw)
         except (json.JSONDecodeError, OSError, ValueError):
             return None
+
+    def _load_and_validate_evidence_manifest(
+        self,
+        document_path: Path,
+        provenance: DocumentProvenance,
+    ) -> ValidatedEvidence:
+        """Load and fully validate an evidence manifest referenced by a sidecar.
+
+        This is the single point of truth for trusting evidence-backed sidecars.
+        It verifies:
+          1. manifest path exists and is within allowed roots
+          2. manifest file SHA matches the sidecar's evidence_manifest_sha256
+          3. manifest parses as valid JSON matching the expected schema
+          4. manifest contains a record for the current document
+          5. document SHA in manifest matches the actual document SHA
+          6. source_type matches
+          7. validation_level matches the claimed level
+          8. trust invariants for the level are satisfied
+
+        Raises EditError on any failure (fail-closed).
+        """
+        if not provenance.evidence_manifest_path:
+            raise EditError(
+                "Evidence manifest path is required for evidence-backed trust",
+                code="evidence_manifest_missing",
+            )
+        if not provenance.evidence_manifest_sha256:
+            raise EditError(
+                "Evidence manifest SHA is required for evidence-backed trust",
+                code="evidence_manifest_sha_missing",
+            )
+
+        # 1. Resolve and verify path is within allowed roots
+        try:
+            manifest_path = self.settings.resolve_allowed_path(
+                provenance.evidence_manifest_path, must_exist=True
+            )
+        except (EditError, PathAccessError, OSError) as exc:
+            raise EditError(
+                f"Evidence manifest not found or outside allowed roots: {exc}",
+                code="evidence_manifest_not_found",
+            ) from exc
+
+        # 2. SHA binding: file content must match sidecar's recorded SHA
+        try:
+            manifest_bytes = manifest_path.read_bytes()
+        except OSError as exc:
+            raise EditError(
+                f"Cannot read evidence manifest: {exc}",
+                code="evidence_manifest_read_error",
+            ) from exc
+
+        actual_manifest_sha = sha256_bytes(manifest_bytes)
+        if actual_manifest_sha != provenance.evidence_manifest_sha256:
+            raise EditError(
+                f"Evidence manifest SHA mismatch: expected "
+                f"{provenance.evidence_manifest_sha256}, got {actual_manifest_sha}",
+                code="evidence_manifest_sha_mismatch",
+            )
+
+        # 3. Parse as JSON
+        try:
+            manifest_data = json.loads(manifest_bytes)
+        except json.JSONDecodeError as exc:
+            raise EditError(
+                f"Evidence manifest is not valid JSON: {exc}",
+                code="evidence_manifest_invalid_json",
+            ) from exc
+
+        # 4. Validate schema
+        try:
+            record = RoundtripEvidenceRecord.model_validate(manifest_data)
+        except ValueError as exc:
+            raise EditError(
+                f"Evidence manifest schema validation failed: {exc}",
+                code="evidence_manifest_schema_error",
+            ) from exc
+
+        # 5. Find a record for this document (for single-record manifests,
+        #    the top-level record IS the record)
+        doc_sha_from_manifest = record.document_sha256
+        doc_path_from_manifest = record.document_path
+
+        # 6. Document SHA binding
+        # The sidecar's current_document_sha256 must match what the manifest says
+        if doc_sha_from_manifest != provenance.current_document_sha256:
+            raise EditError(
+                f"Evidence manifest documents SHA {doc_sha_from_manifest} but sidecar "
+                f"claims {provenance.current_document_sha256}",
+                code="evidence_document_sha_mismatch",
+            )
+
+        # 7. Source type validation from saved/reexport records
+        saved_info = record.saved
+        source_type_from_manifest = ""
+        if saved_info:
+            source_type_from_manifest = saved_info.get("source_type", "")
+
+        # 8. Validation level must match
+        level_from_manifest = record.validation_level
+        if level_from_manifest != provenance.validation_level.value:
+            raise EditError(
+                f"Evidence manifest declares validation_level={level_from_manifest} "
+                f"but sidecar claims {provenance.validation_level.value}",
+                code="evidence_level_mismatch",
+            )
+
+        # 9. Trust invariants: synthetic manifests cannot raise trust
+        if record.status == "failed" and provenance.validation_level in _HIGH_TRUST_LEVELS:
+            raise EditError(
+                "Failed evidence record cannot grant high trust",
+                code="evidence_failed_no_trust",
+            )
+
+        return ValidatedEvidence(
+            manifest_path=manifest_path,
+            manifest_sha256=actual_manifest_sha,
+            document_path=doc_path_from_manifest,
+            document_sha256=doc_sha_from_manifest,
+            source_type=source_type_from_manifest,
+            validation_level=provenance.validation_level,
+            record=manifest_data,
+        )
 
     def _write_provenance_sidecar(
         self,
@@ -1491,13 +1818,23 @@ class DipTraceService:
                 ProvenanceAuthority.fixture_manifest,
                 ProvenanceAuthority.validated_evidence,
             }:
-                # Evidence-backed sidecar: inherit the level with evidence chain
-                trust_level = seed_sidecar.validation_level
-                trust_provenance = "seed_copy_of_verified_fixture"
-                parent_level = seed_sidecar.validation_level
-                copy_authority = seed_sidecar.authority
-                evidence_path = seed_sidecar.evidence_manifest_path
-                evidence_sha = seed_sidecar.evidence_manifest_sha256
+                # Evidence-backed sidecar: MUST validate the actual manifest file
+                # before inheriting trust.  Sidecar fields alone are not proof.
+                try:
+                    evidence = self._load_and_validate_evidence_manifest(
+                        seed, seed_sidecar
+                    )
+                    trust_level = evidence.validation_level
+                    trust_provenance = "seed_copy_of_verified_fixture"
+                    parent_level = evidence.validation_level
+                    copy_authority = seed_sidecar.authority
+                    evidence_path = str(evidence.manifest_path)
+                    evidence_sha = evidence.manifest_sha256
+                except EditError:
+                    # Fail-closed: evidence validation failed → downgrade
+                    trust_level = FixtureValidationLevel.synthetic_parser_only
+                    trust_provenance = "seed_copy_evidence_validation_failed"
+                    parent_level = seed_sidecar.validation_level
             else:
                 # Synthetic seed — copy preserves its level
                 trust_level = seed_sidecar.validation_level
@@ -1564,10 +1901,22 @@ class DipTraceService:
             notes=notes,
         )
         self.transactions.store_snapshot(record.txid, document.raw_bytes)
+        # Backup existing provenance sidecar for rollback restoration
+        sidecar_path = target.path.with_suffix(target.path.suffix + ".provenance.json")
+        provenance_backup: str | None = None
+        if sidecar_path.exists():
+            prov_backup_dir = self.transactions.tx_dir(record.txid)
+            prov_backup = prov_backup_dir / f"provenance_{record.txid}.json"
+            try:
+                prov_backup.write_bytes(sidecar_path.read_bytes())
+                provenance_backup = str(prov_backup)
+            except OSError:
+                provenance_backup = None
         updated = self.transactions.update(
             record.txid,
             status="staged",
             snapshot_path=str(self.transactions.snapshot_path(record.txid)),
+            provenance_backup_path=provenance_backup,
         )
         return {
             "ok": True,
@@ -1784,6 +2133,53 @@ class DipTraceService:
             DipTraceDocument.from_bytes(target_path, backup_bytes)
             atomic_write_bytes(target_path, backup_bytes)
             restored_sha256 = sha256_bytes(backup_bytes)
+            # Section #6: Restore provenance sidecar from backup
+            sidecar_path = target_path.with_suffix(target_path.suffix + ".provenance.json")
+            if record.provenance_backup_path:
+                prov_backup = Path(record.provenance_backup_path)
+                if prov_backup.is_file():
+                    try:
+                        prov_bytes = prov_backup.read_bytes()
+                        # Verify the restored sidecar SHA matches restored doc
+                        restored_sidecar = json.loads(prov_bytes)
+                        if restored_sidecar.get("current_document_sha256") == restored_sha256:
+                            atomic_write_bytes(sidecar_path, prov_bytes)
+                        else:
+                            # Sidecar SHA stale → create synthetic fallback
+                            sidecar = DocumentProvenance(
+                                provenance="mcp_rollback_synthetic",
+                                validation_level=FixtureValidationLevel.synthetic_operation_fixture,
+                                current_document_sha256=restored_sha256,
+                                last_modified_by="mcp_rollback_transaction",
+                            )
+                            self._write_provenance_sidecar(target_path, sidecar)
+                    except (OSError, json.JSONDecodeError, ValueError):
+                        # Corrupt backup → create synthetic fallback
+                        sidecar = DocumentProvenance(
+                            provenance="mcp_rollback_synthetic",
+                            validation_level=FixtureValidationLevel.synthetic_operation_fixture,
+                            current_document_sha256=restored_sha256,
+                            last_modified_by="mcp_rollback_transaction",
+                        )
+                        self._write_provenance_sidecar(target_path, sidecar)
+                else:
+                    # Backup file missing → create synthetic fallback
+                    sidecar = DocumentProvenance(
+                        provenance="mcp_rollback_no_backup",
+                        validation_level=FixtureValidationLevel.synthetic_operation_fixture,
+                        current_document_sha256=restored_sha256,
+                        last_modified_by="mcp_rollback_transaction",
+                    )
+                    self._write_provenance_sidecar(target_path, sidecar)
+            else:
+                # No provenance backup existed → create synthetic fallback
+                sidecar = DocumentProvenance(
+                    provenance="mcp_rollback_no_backup",
+                    validation_level=FixtureValidationLevel.synthetic_operation_fixture,
+                    current_document_sha256=restored_sha256,
+                    last_modified_by="mcp_rollback_transaction",
+                )
+                self._write_provenance_sidecar(target_path, sidecar)
         updated = self.transactions.mark_rolled_back(
             txid,
             rolled_back_sha256=restored_sha256,
@@ -1845,8 +2241,8 @@ class DipTraceService:
         source = self.settings.resolve_allowed_path(source_path, must_exist=True)
         saved = self.settings.resolve_allowed_path(saved_path, must_exist=True)
 
-        # Prevent source == saved
-        if source.resolve() == saved.resolve():
+        # Prevent source == saved (platform-independent)
+        if same_file_role(source, saved):
             raise EditError(
                 "source_path and saved_path must be different files",
                 code="evidence_role_conflict",
@@ -1895,12 +2291,12 @@ class DipTraceService:
             reexport = self.settings.resolve_allowed_path(reexport_path, must_exist=True)
 
             # Prevent source == reexport and saved == reexport
-            if source.resolve() == reexport.resolve():
+            if same_file_role(source, reexport):
                 raise EditError(
                     "source_path and reexport_path must be different files",
                     code="evidence_role_conflict",
                 )
-            if saved.resolve() == reexport.resolve():
+            if same_file_role(saved, reexport):
                 raise EditError(
                     "saved_path and reexport_path must be different files",
                     code="evidence_role_conflict",
@@ -1934,11 +2330,73 @@ class DipTraceService:
             # Semantic comparison: compare source and reexport structure
             source_doc = DipTraceDocument.from_bytes(source, source_bytes)
             sem_result = _semantic_roundtrip_check(source_doc, reexport_doc)
-            level = (
-                FixtureValidationLevel.diptrace_roundtrip_verified
-                if sem_result["passed"]
-                else FixtureValidationLevel.diptrace_open_save_verified
-            )
+
+            if not sem_result["passed"]:
+                # Section #3: No fallback to open_save_verified on failed
+                # semantic comparison.  The document is bound to reexport SHA
+                # but may not match saved SHA, so we must reject promotion.
+                evidence_manifest = RoundtripEvidenceRecord(
+                    document_path=str(target.path),
+                    document_sha256=snapshot.info.sha256,
+                    source={
+                        "path": str(source),
+                        "sha256": source_sha256,
+                        "source_type": source_doc.source_type,
+                    },
+                    saved={
+                        "path": str(saved),
+                        "sha256": saved_sha,
+                        "source_type": saved_doc.source_type,
+                    },
+                    reexport={
+                        "path": str(reexport),
+                        "sha256": reexport_sha,
+                        "source_type": reexport_doc.source_type,
+                    },
+                    validation_level=FixtureValidationLevel.diptrace_roundtrip_verified.value,
+                    semantic_comparison=sem_result,
+                    status="failed",
+                    created_at=utc_now(),
+                )
+                manifest_path = Path(str(target.path) + ".roundtrip-evidence.json")
+                atomic_write_bytes(
+                    manifest_path,
+                    json.dumps(
+                        evidence_manifest.model_dump(), indent=2, sort_keys=True
+                    ).encode(),
+                )
+                manifest_sha = sha256_bytes(manifest_path.read_bytes())
+
+                # Write sidecar as FAILED evidence — no trust promotion
+                sidecar = DocumentProvenance(
+                    provenance="diptrace_roundtrip_failed",
+                    validation_level=FixtureValidationLevel.synthetic_operation_fixture,
+                    current_document_sha256=snapshot.info.sha256,
+                    seed_sha256=source_sha256,
+                    authority=ProvenanceAuthority.runtime,
+                    last_modified_by="mcp_validate_roundtrip_evidence",
+                )
+                self._write_provenance_sidecar(target.path, sidecar)
+
+                return {
+                    "ok": False,
+                    "error": "semantic_comparison_failed",
+                    "validation_level": FixtureValidationLevel.synthetic_operation_fixture.value,
+                    "requires_diptrace_verification": True,
+                    "authority": ProvenanceAuthority.runtime.value,
+                    "source_sha256": source_sha256,
+                    "saved_sha256": saved_sha,
+                    "reexport_sha256": reexport_sha,
+                    "semantic_comparison": sem_result,
+                    "evidence_manifest_path": str(manifest_path),
+                    "evidence_manifest_sha256": manifest_sha,
+                    "message": (
+                        "Roundtrip semantic comparison failed. "
+                        f"Differences: {sem_result['differences']}"
+                    ),
+                }
+
+            level = FixtureValidationLevel.diptrace_roundtrip_verified
         else:
             # open_save only: SHA binding — current must match saved
             if snapshot.info.sha256 != saved_sha:
@@ -1950,6 +2408,56 @@ class DipTraceService:
             level = FixtureValidationLevel.diptrace_open_save_verified
 
         # Write updated provenance sidecar with validated_evidence authority
+        # Section #2: Create real evidence manifest FIRST, then compute SHA,
+        # then write sidecar with SHA binding.
+        evidence_manifest = RoundtripEvidenceRecord(
+            document_path=str(target.path),
+            document_sha256=snapshot.info.sha256,
+            source={
+                "path": str(source),
+                "sha256": source_sha256,
+                "source_type": DipTraceDocument.from_bytes(
+                    source, source_bytes
+                ).source_type,
+            },
+            saved={
+                "path": str(saved),
+                "sha256": saved_sha,
+                "source_type": saved_doc.source_type,
+            },
+            reexport=(
+                {
+                    "path": str(reexport),
+                    "sha256": str(reexport_sha),
+                    "source_type": DipTraceDocument.from_bytes(
+                        reexport, reexport_bytes
+                    ).source_type,
+                }
+                if is_roundtrip and reexport is not None
+                else None
+            ),
+            validation_level=level.value,
+            semantic_comparison=sem_result if sem_result else {},
+            status="passed",
+            created_at=utc_now(),
+        )
+        manifest_path = Path(str(target.path) + ".roundtrip-evidence.json")
+        manifest_json = json.dumps(
+            evidence_manifest.model_dump(), indent=2, sort_keys=True
+        ).encode()
+        atomic_write_bytes(manifest_path, manifest_json)
+        manifest_sha = sha256_bytes(manifest_path.read_bytes())
+
+        # Re-read manifest to verify atomic write
+        reloaded = manifest_path.read_bytes()
+        if sha256_bytes(reloaded) != manifest_sha:
+            raise EditError(
+                "Evidence manifest re-read SHA mismatch after write",
+                code="evidence_manifest_write_error",
+            )
+        # Re-parse to verify schema integrity
+        RoundtripEvidenceRecord.model_validate(json.loads(reloaded))
+
         sidecar = DocumentProvenance(
             provenance="diptrace_validated",
             validation_level=level,
@@ -1957,10 +2465,19 @@ class DipTraceService:
             seed_sha256=source_sha256,
             parent_validation_level=level,
             authority=ProvenanceAuthority.validated_evidence,
-            evidence_manifest_path=str(target.path) + ".roundtrip-evidence.json",
+            evidence_manifest_path=str(manifest_path),
+            evidence_manifest_sha256=manifest_sha,
             last_modified_by="mcp_validate_roundtrip_evidence",
         )
         self._write_provenance_sidecar(target.path, sidecar)
+
+        # Re-read sidecar to verify
+        reloaded_sidecar = self._load_seed_provenance(target.path)
+        if reloaded_sidecar is None:
+            raise EditError(
+                "Sidecar verification failed after write",
+                code="sidecar_write_error",
+            )
 
         return {
             "ok": True,
@@ -1971,6 +2488,8 @@ class DipTraceService:
             "saved_sha256": saved_sha,
             "reexport_sha256": reexport_sha,
             "semantic_comparison": sem_result,
+            "evidence_manifest_path": str(manifest_path),
+            "evidence_manifest_sha256": manifest_sha,
         }
 
     def move_components(
