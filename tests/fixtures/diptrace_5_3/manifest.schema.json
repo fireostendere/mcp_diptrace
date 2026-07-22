@@ -92,6 +92,10 @@
             "type": "string",
             "description": "Exact DipTrace version if DipTrace was involved in creation."
           },
+          "diptrace_build": {
+            "type": "string",
+            "description": "DipTrace build identifier."
+          },
           "diptrace_opened": {
             "type": "boolean",
             "default": false
@@ -129,7 +133,69 @@
               "single_change": {"type": "string", "minLength": 1, "maxLength": 1000}
             }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"validation_level": {"const": "diptrace_exported"}}},
+            "then": {
+              "required": ["diptrace_version", "sha256", "provenance", "format_version"]
+            }
+          },
+          {
+            "if": {"properties": {"validation_level": {"const": "diptrace_open_save_verified"}}},
+            "then": {
+              "required": ["diptrace_version", "diptrace_opened", "diptrace_saved", "diptrace_build"],
+              "properties": {
+                "diptrace_opened": {"const": true},
+                "diptrace_saved": {"const": true}
+              }
+            }
+          },
+          {
+            "if": {"properties": {"validation_level": {"const": "diptrace_roundtrip_verified"}}},
+            "then": {
+              "required": [
+                "diptrace_version",
+                "diptrace_build",
+                "diptrace_opened",
+                "diptrace_saved",
+                "diptrace_reexported",
+                "reexport_sha256",
+                "roundtrip_verified",
+                "semantic_comparison_passed"
+              ],
+              "properties": {
+                "diptrace_opened": {"const": true},
+                "diptrace_saved": {"const": true},
+                "diptrace_reexported": {"const": true},
+                "roundtrip_verified": {"const": true},
+                "semantic_comparison_passed": {"const": true}
+              }
+            }
+          },
+          {
+            "if": {"properties": {"validation_level": {"const": "external_tool_roundtrip_verified"}}},
+            "then": {
+              "required": [
+                "diptrace_version",
+                "diptrace_build",
+                "diptrace_opened",
+                "diptrace_saved",
+                "diptrace_reexported",
+                "reexport_sha256",
+                "roundtrip_verified",
+                "semantic_comparison_passed"
+              ],
+              "properties": {
+                "diptrace_opened": {"const": true},
+                "diptrace_saved": {"const": true},
+                "diptrace_reexported": {"const": true},
+                "roundtrip_verified": {"const": true},
+                "semantic_comparison_passed": {"const": true}
+              }
+            }
+          }
+        ]
       }
     }
   }

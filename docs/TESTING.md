@@ -26,6 +26,10 @@ Freerouting, openEMS, or network access.
 - review registry and findings, silkscreen plans, and placement plans;
 - trace/via compiler, multi-layer 45-degree A*, explicit blind/full via spans, rejection
   of unknown four-layer spans, and coupled-pair plus symmetric-via round-trips;
+- resolve_copper_layer / require_routing_layer / require_via_layer with synthetic 4-layer
+  PCB (Signal + Plane layers); plane-layer routing rejection, through-via spanning;
+- pattern validation with embedded pattern library (style/name/unique-name lookup,
+  pad mapping, external pattern rejection);
 - unknown format-version feature detection and preservation of optional or unknown XML;
 - exact GEOS DRC for rotated pads, DSN/SES, and mocked Freerouting jobs;
 - stackup, length/skew/differential-pair analysis, and single/coupled impedance golden cases;

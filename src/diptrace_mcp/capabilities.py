@@ -226,5 +226,19 @@ def get_capabilities(
                     "synchronize_schematic_to_pcb",
                 )
             ],
+            trust_model={
+                "seed_based_creation": True,
+                "seed_trust_auto_upgrade": False,
+                "client_can_assign_validation_level": False,
+                "roundtrip_evidence_validation": {
+                    "diptrace_open_save_verified": True,
+                    "diptrace_roundtrip_verified": True,
+                    "external_tool_roundtrip_verified": False,
+                },
+                "plane_layer_routing": False,
+                "external_pattern_resolution": False,
+                "provenance_sidecar": True,
+                "trust_invalidated_after_mcp_write": True,
+            },
         )
     return capability_report(document, live_session=live_session)

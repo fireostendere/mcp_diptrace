@@ -35,6 +35,43 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
 
+def requires_diptrace_verification(level: FixtureValidationLevel) -> bool:
+    """Return True if a document at this trust level still needs DipTrace verification.
+
+    Only a full round-trip (open/save/re-export with semantic comparison) or an
+    external tool round-trip can免除 further verification.
+    """
+    return level in {
+        FixtureValidationLevel.synthetic_parser_only,
+        FixtureValidationLevel.synthetic_operation_fixture,
+        FixtureValidationLevel.diptrace_exported,
+        FixtureValidationLevel.diptrace_open_save_verified,
+    }
+
+
+class DocumentProvenance(StrictModel):
+    """Strict sidecar schema for runtime document provenance.
+
+    This model is deliberately separate from FixtureManifest.  Runtime
+    provenance describes a single working document's trust chain, while
+    FixtureManifest describes a committed test evidence pack.
+    """
+
+    schema_version: Literal["diptrace-document-provenance-v1"] = (
+        "diptrace-document-provenance-v1"
+    )
+    provenance: str = Field(min_length=1, max_length=256)
+    validation_level: FixtureValidationLevel
+    current_document_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    seed_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    parent_validation_level: FixtureValidationLevel | None = None
+    diptrace_version: str | None = None
+    diptrace_build: str | None = None
+    created_by: str = Field(default="mcp", max_length=256)
+    last_modified_by: str | None = None
+    requires_diptrace_verification: bool = True
+
+
 class FixtureManifest(StrictModel):
     """Metadata describing the provenance and trust level of a test fixture."""
 
@@ -106,6 +143,15 @@ class FixtureManifest(StrictModel):
                 errors.append(
                     f"validation_level={self.validation_level.value} requires source_sha256"
                 )
+        # diptrace_exported requires authoring_method
+        if self.validation_level == FixtureValidationLevel.diptrace_exported and (
+            not self.authoring_method or self.authoring_method == "mcp_generated"
+        ):
+            errors.append(
+                "validation_level=diptrace_exported requires "
+                "authoring_method other than 'mcp_generated'"
+            )
+        # open_save_verified and above require opened + saved + build
         if self.validation_level in {
             FixtureValidationLevel.diptrace_open_save_verified,
             FixtureValidationLevel.diptrace_roundtrip_verified,
@@ -119,6 +165,11 @@ class FixtureManifest(StrictModel):
                 errors.append(
                     f"validation_level={self.validation_level.value} requires diptrace_saved=true"
                 )
+            if not self.diptrace_build:
+                errors.append(
+                    f"validation_level={self.validation_level.value} requires diptrace_build"
+                )
+        # roundtrip_verified and external require reexport + semantic + redistribution
         if self.validation_level in {
             FixtureValidationLevel.diptrace_roundtrip_verified,
             FixtureValidationLevel.external_tool_roundtrip_verified,
@@ -138,14 +189,21 @@ class FixtureManifest(StrictModel):
                     f"validation_level={self.validation_level.value} "
                     "requires semantic_comparison_passed=true"
                 )
-        if (
-            self.validation_level == FixtureValidationLevel.external_tool_roundtrip_verified
-            and not self.roundtrip_verified
-        ):
-            errors.append(
-                "validation_level=external_tool_roundtrip_verified "
-                "requires roundtrip_verified=true"
-            )
+            if not self.roundtrip_verified:
+                errors.append(
+                    f"validation_level={self.validation_level.value} "
+                    "requires roundtrip_verified=true"
+                )
+            if not self.redistribution_permitted:
+                errors.append(
+                    f"validation_level={self.validation_level.value} "
+                    "requires redistribution_permitted=true"
+                )
+            if not self.redistribution_basis:
+                errors.append(
+                    f"validation_level={self.validation_level.value} "
+                    "requires redistribution_basis"
+                )
         return errors
 
     # Keep public name for backward compatibility with callers that use
@@ -796,6 +854,42 @@ class PlanRecord(StrictModel):
     transaction_id: str | None = Field(default=None, pattern=r"^tx_[0-9a-f-]{36}$")
 
 
+class ResolvedCopperLayer:
+    """Resolved copper layer with validated type and canonical id.
+
+    Use resolve_copper_layer() to create instances. Never construct directly
+    from user input without going through the resolver.
+    """
+
+    __slots__ = ("layer_id", "layer_name", "layer_type", "input_value")
+
+    def __init__(
+        self,
+        layer_id: str,
+        layer_name: str,
+        layer_type: str,
+        input_value: str,
+    ) -> None:
+        self.layer_id = layer_id
+        self.layer_name = layer_name
+        self.layer_type = layer_type
+        self.input_value = input_value
+
+    @property
+    def is_signal(self) -> bool:
+        return self.layer_type == "Signal"
+
+    @property
+    def is_plane(self) -> bool:
+        return self.layer_type == "Plane"
+
+    def __repr__(self) -> str:
+        return (
+            f"ResolvedCopperLayer(id={self.layer_id!r}, name={self.layer_name!r}, "
+            f"type={self.layer_type!r})"
+        )
+
+
 class CapabilityReport(StrictModel):
     server_version: str
     source_types: dict[str, Any] = Field(default_factory=dict)
@@ -810,6 +904,7 @@ class CapabilityReport(StrictModel):
     reasons_unavailable: list[dict[str, Any]] = Field(default_factory=list)
     registered_checks: list[str] = Field(default_factory=list)
     workflow_prompts: list[dict[str, Any]] = Field(default_factory=list)
+    trust_model: dict[str, Any] = Field(default_factory=dict)
 
 
 ImpedanceStructure = Literal[

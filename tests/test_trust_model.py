@@ -17,7 +17,11 @@ import pytest
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
-from diptrace_mcp.domain import FixtureManifest, FixtureValidationLevel
+from diptrace_mcp.domain import (
+    FixtureManifest,
+    FixtureValidationLevel,
+    requires_diptrace_verification,
+)
 from diptrace_mcp.errors import EditError, RoutingError
 from diptrace_mcp.operations import SetComponentPatternOperation
 from diptrace_mcp.scaffolding import (
@@ -112,6 +116,68 @@ class TestFixtureClassification:
                 diptrace_opened=True,
                 diptrace_saved=False,
             )
+
+    def test_roundtrip_requires_roundtrip_verified_flag(self) -> None:
+        """diptrace_roundtrip_verified now requires roundtrip_verified=true."""
+        with pytest.raises(ValueError, match="roundtrip_verified"):
+            FixtureManifest(
+                provenance="diptrace_exported",
+                validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,
+                diptrace_version="5.3.0.2",
+                diptrace_build="build123",
+                source_sha256="a" * 64,
+                reexport_sha256="b" * 64,
+                diptrace_opened=True,
+                diptrace_saved=True,
+                diptrace_reexported=True,
+                semantic_comparison_passed=True,
+                roundtrip_verified=False,
+                redistribution_permitted=True,
+                redistribution_basis="test",
+            )
+
+    def test_roundtrip_requires_redistribution(self) -> None:
+        """diptrace_roundtrip_verified requires redistribution_permitted=true."""
+        with pytest.raises(ValueError, match="redistribution_permitted"):
+            FixtureManifest(
+                provenance="diptrace_exported",
+                validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,
+                diptrace_version="5.3.0.2",
+                diptrace_build="build123",
+                source_sha256="a" * 64,
+                reexport_sha256="b" * 64,
+                diptrace_opened=True,
+                diptrace_saved=True,
+                diptrace_reexported=True,
+                semantic_comparison_passed=True,
+                roundtrip_verified=True,
+                redistribution_permitted=False,
+            )
+
+
+# ---------------------------------------------------------------------------
+# requires_diptrace_verification parametrized tests
+# ---------------------------------------------------------------------------
+
+
+class TestRequiresDiptraceVerification:
+    """Verify the requires_diptrace_verification helper for all levels."""
+
+    @pytest.mark.parametrize(
+        ("level", "expected"),
+        [
+            (FixtureValidationLevel.synthetic_parser_only, True),
+            (FixtureValidationLevel.synthetic_operation_fixture, True),
+            (FixtureValidationLevel.diptrace_exported, True),
+            (FixtureValidationLevel.diptrace_open_save_verified, True),
+            (FixtureValidationLevel.diptrace_roundtrip_verified, False),
+            (FixtureValidationLevel.external_tool_roundtrip_verified, False),
+        ],
+    )
+    def test_requires_verification_by_level(
+        self, level: FixtureValidationLevel, expected: bool
+    ) -> None:
+        assert requires_diptrace_verification(level) is expected
 
 
 # ---------------------------------------------------------------------------
@@ -263,13 +329,15 @@ class TestSeedBasedCreation:
 
         result = service.create_document_from_seed("seed.dip", "project/board.dip")
         assert result["result"]["created"] is True
-        assert result["result"]["provenance"] == "seed_copy"
+        assert result["result"]["provenance"] == "seed_copy_unknown_origin"
         assert result["result"]["validation_level"] == "synthetic_parser_only"
         assert result["result"]["requires_diptrace_verification"] is True
         assert result["result"]["seed_sha256"] is not None
 
-    def test_create_document_from_seed_explicit_level(self, tmp_path: Path) -> None:
-        """Seed creation with explicit claimed level and DipTrace version."""
+    def test_create_document_from_seed_with_diptrace_sidecar(self, tmp_path: Path) -> None:
+        """Seed with DipTrace-exported sidecar preserves trust."""
+        from diptrace_mcp.domain import DocumentProvenance
+
         service = DipTraceService(
             Settings(
                 workspace=tmp_path,
@@ -281,42 +349,27 @@ class TestSeedBasedCreation:
         seed_path = tmp_path / "seed.dip"
         raw = build_pcb_document(PcbScaffold(width_mm=50.0, height_mm=30.0))
         seed_path.write_bytes(raw)
-
-        result = service.create_document_from_seed(
-            "seed.dip",
-            "project/board.dip",
-            claimed_validation_level="diptrace_exported",
+        seed_sha = hashlib.sha256(raw).hexdigest()
+        # Write a valid DipTrace-exported sidecar next to the seed
+        sidecar = DocumentProvenance(
+            provenance="diptrace_exported",
+            validation_level=FixtureValidationLevel.diptrace_exported,
+            current_document_sha256=seed_sha,
+            seed_sha256=seed_sha,
             diptrace_version="5.3.0.2",
+            created_by="manual_export",
+            requires_diptrace_verification=True,
         )
+        sidecar_path = seed_path.with_suffix(seed_path.suffix + ".provenance.json")
+        sidecar_path.write_text(sidecar.model_dump_json())
+
+        result = service.create_document_from_seed("seed.dip", "project/board.dip")
         assert result["result"]["validation_level"] == "diptrace_exported"
-        assert result["result"]["diptrace_version"] == "5.3.0.2"
-        assert result["result"]["requires_diptrace_verification"] is False
+        assert result["result"]["provenance"] == "derived_from_diptrace_exported_seed"
+        assert result["result"]["requires_diptrace_verification"] is True
 
-    def test_create_document_from_seed_rejects_high_level_without_version(
-        self, tmp_path: Path
-    ) -> None:
-        """Claiming diptrace_exported without diptrace_version must fail."""
-        service = DipTraceService(
-            Settings(
-                workspace=tmp_path,
-                allowed_roots=(tmp_path,),
-                state_dir=tmp_path / ".level",
-                max_document_bytes=MAX_BYTES,
-            )
-        )
-        seed_path = tmp_path / "seed.dip"
-        raw = build_pcb_document()
-        seed_path.write_bytes(raw)
-
-        with pytest.raises(EditError, match="diptrace_version"):
-            service.create_document_from_seed(
-                "seed.dip",
-                "board.dip",
-                claimed_validation_level="diptrace_exported",
-            )
-
-    def test_create_document_from_seed_rejects_invalid_level(self, tmp_path: Path) -> None:
-        """Invalid claimed_validation_level must be rejected."""
+    def test_create_document_from_seed_with_sha_mismatch(self, tmp_path: Path) -> None:
+        """Seed creation fails when expected SHA does not match actual."""
         service = DipTraceService(
             Settings(
                 workspace=tmp_path,
@@ -329,12 +382,52 @@ class TestSeedBasedCreation:
         raw = build_pcb_document()
         seed_path.write_bytes(raw)
 
-        with pytest.raises(EditError, match="Invalid claimed_validation_level"):
+        with pytest.raises(EditError, match="SHA-256 mismatch"):
             service.create_document_from_seed(
-                "seed.dip",
-                "board.dip",
-                claimed_validation_level="nonexistent_level",
+                "seed.dip", "board.dip", expected_seed_sha256="a" * 64
             )
+
+    def test_mcp_edit_invalidates_trust(self, tmp_path: Path) -> None:
+        """After MCP modification, trust is downgraded but parent is preserved."""
+        from diptrace_mcp.domain import DocumentProvenance
+
+        service = DipTraceService(
+            Settings(
+                workspace=tmp_path,
+                allowed_roots=(tmp_path,),
+                state_dir=tmp_path / ".state",
+                max_document_bytes=MAX_BYTES,
+            )
+        )
+        # Create a synthetic document
+        service.create_document("pcb", "board.dip")
+        # Read its SHA
+        result = service.document_info("board.dip")
+        sha = result["result"]["sha256"]
+        # Write a fake DipTrace-exported sidecar
+        sidecar = DocumentProvenance(
+            provenance="diptrace_exported",
+            validation_level=FixtureValidationLevel.diptrace_exported,
+            current_document_sha256=sha,
+            seed_sha256=sha,
+            diptrace_version="5.3.0.2",
+            created_by="test",
+            requires_diptrace_verification=True,
+        )
+        board_path = tmp_path / "board.dip"
+        sidecar_path = board_path.with_suffix(board_path.suffix + ".provenance.json")
+        sidecar_path.write_text(sidecar.model_dump_json())
+        # Simulate trust invalidation after MCP write
+        new_sha = "b" * 64
+        service.invalidate_document_trust_after_write(
+            board_path, new_sha, operation_name="test_edit"
+        )
+        # Verify trust is downgraded
+        loaded = service._load_seed_provenance(board_path)
+        assert loaded is not None
+        assert loaded.validation_level == FixtureValidationLevel.synthetic_operation_fixture
+        assert loaded.parent_validation_level == FixtureValidationLevel.diptrace_exported
+        assert loaded.last_modified_by == "test_edit"
 
     def test_seed_creation_refuses_overwrite(self, tmp_path: Path) -> None:
         """Seed-based creation should refuse overwrite without flag."""

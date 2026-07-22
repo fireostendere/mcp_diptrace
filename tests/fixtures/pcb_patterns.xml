@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Source Type="DipTrace-PCB" Version="5.3.0.2" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary" Version="5.3.0.2" Units="mm" />
+  <Library Type="DipTrace-PatternLibrary" Version="5.3.0.2" Units="mm">
+    <PadStyles>
+      <PadStyle Name="RES_0603" Type="Surface" Side="Top">
+        <MainStack Shape="Rectangle" Width="0.9" Height="0.8" XOff="0" YOff="0" />
+        <MaskPaste TopMask="Common" BotMask="Common" TopPaste="Common" BotPaste="Common" />
+      </PadStyle>
+      <PadStyle Name="RES_0402" Type="Surface" Side="Top">
+        <MainStack Shape="Rectangle" Width="0.5" Height="0.6" XOff="0" YOff="0" />
+        <MaskPaste TopMask="Common" BotMask="Common" TopPaste="Common" BotPaste="Common" />
+      </PadStyle>
+      <PadStyle Name="TH_2PIN" Type="Through" Side="Top">
+        <MainStack Shape="Circle" Width="1.2" Height="1.2" XOff="0" YOff="0" />
+        <Hole Type="Drill" Width="0.6" Height="0.6" />
+        <MaskPaste TopMask="Common" BotMask="Common" TopPaste="Common" BotPaste="Common" />
+      </PadStyle>
+      <PadStyle Name="SMD_8PIN" Type="Surface" Side="Top">
+        <MainStack Shape="Rectangle" Width="0.6" Height="1.5" XOff="0" YOff="0" />
+        <MaskPaste TopMask="Common" BotMask="Common" TopPaste="Common" BotPaste="Common" />
+      </PadStyle>
+    </PadStyles>
+    <Patterns>
+      <Pattern PatternStyle="PatType0" RefDes="R" Mounting="SMD" Width="3.2" Height="1.6" Orientation="0" Type="Free">
+        <Name>RES_0603</Name>
+        <Name_Unique>RES_0603_Pattern</Name_Unique>
+        <DefPad Style="RES_0603" />
+        <Origin X="0" Y="0" />
+        <Pads>
+          <Pad Id="0" Style="RES_0603" X="-1.1" Y="0" Angle="0" Locked="N" Side="Top"><Number>1</Number></Pad>
+          <Pad Id="1" Style="RES_0603" X="1.1" Y="0" Angle="0" Locked="N" Side="Top"><Number>2</Number></Pad>
+        </Pads>
+      </Pattern>
+      <Pattern PatternStyle="PatType1" RefDes="R" Mounting="SMD" Width="2.0" Height="1.0" Orientation="0" Type="Free">
+        <Name>RES_0402</Name>
+        <Name_Unique>RES_0402_Pattern</Name_Unique>
+        <DefPad Style="RES_0402" />
+        <Origin X="0" Y="0" />
+        <Pads>
+          <Pad Id="0" Style="RES_0402" X="-0.6" Y="0" Angle="0" Locked="N" Side="Top"><Number>1</Number></Pad>
+          <Pad Id="1" Style="RES_0402" X="0.6" Y="0" Angle="0" Locked="N" Side="Top"><Number>2</Number></Pad>
+        </Pads>
+      </Pattern>
+      <Pattern PatternStyle="PatType2" RefDes="J" Mounting="Through" Width="5" Height="2" Orientation="0" Type="Free">
+        <Name>CONN_2PIN</Name>
+        <Name_Unique>CONN_2PIN_Pattern</Name_Unique>
+        <DefPad Style="TH_2PIN" />
+        <Origin X="0" Y="0" />
+        <Pads>
+          <Pad Id="0" Style="TH_2PIN" X="-1" Y="0" Angle="0" Locked="N" Side="Top"><Number>1</Number></Pad>
+          <Pad Id="1" Style="TH_2PIN" X="1" Y="0" Angle="0" Locked="N" Side="Top"><Number>2</Number></Pad>
+        </Pads>
+      </Pattern>
+      <Pattern PatternStyle="PatType3" RefDes="U" Mounting="SMD" Width="5" Height="4" Orientation="0" Type="Free">
+        <Name>IC_SO8</Name>
+        <Name_Unique>IC_SO8_Pattern</Name_Unique>
+        <DefPad Style="SMD_8PIN" />
+        <Origin X="0" Y="0" />
+        <Pads>
+          <Pad Id="0" Style="SMD_8PIN" X="-2.5" Y="-1.5" Angle="0" Locked="N" Side="Top"><Number>1</Number></Pad>
+          <Pad Id="1" Style="SMD_8PIN" X="-2.5" Y="-0.5" Angle="0" Locked="N" Side="Top"><Number>2</Number></Pad>
+          <Pad Id="2" Style="SMD_8PIN" X="-2.5" Y="0.5" Angle="0" Locked="N" Side="Top"><Number>3</Number></Pad>
+          <Pad Id="3" Style="SMD_8PIN" X="-2.5" Y="1.5" Angle="0" Locked="N" Side="Top"><Number>4</Number></Pad>
+          <Pad Id="4" Style="SMD_8PIN" X="2.5" Y="1.5" Angle="0" Locked="N" Side="Top"><Number>5</Number></Pad>
+          <Pad Id="5" Style="SMD_8PIN" X="2.5" Y="0.5" Angle="0" Locked="N" Side="Top"><Number>6</Number></Pad>
+          <Pad Id="6" Style="SMD_8PIN" X="2.5" Y="-0.5" Angle="0" Locked="N" Side="Top"><Number>7</Number></Pad>
+          <Pad Id="7" Style="SMD_8PIN" X="2.5" Y="-1.5" Angle="0" Locked="N" Side="Top"><Number>8</Number></Pad>
+        </Pads>
+      </Pattern>
+    </Patterns>
+  </Library>
+  <Board>
+    <BoardOutline Locked="N" Selected="N">
+      <Points>
+        <Point X="0" Y="0" />
+        <Point X="50" Y="0" />
+        <Point X="50" Y="30" />
+        <Point X="0" Y="30" />
+      </Points>
+    </BoardOutline>
+    <Settings>
+      <Routing TraceWidth="0.25" TraceClearance="0.2" ViaSize="0.6" ViaHole="0.3" />
+    </Settings>
+    <CopperLayers>
+      <Lay Id="0" Type="Signal"><Name>Top</Name></Lay>
+      <Lay Id="1" Type="Signal"><Name>Bottom</Name></Lay>
+    </CopperLayers>
+    <ViaStyles>
+      <ViaStyle Id="0" Diameter="0.6" Hole="0.3"><Name>Default</Name></ViaStyle>
+    </ViaStyles>
+    <NetClasses>
+      <NetClass Id="0" UpdateId="0" Type="Normal" AllLayers="Y" CheckLength="N" AllVias="Y" PerformDRC="Y" LengthDelta="2.54" FixedLength="0" MaxUncoupledLength="10" Tolerance="2">
+        <Name>Default</Name>
+        <LayProperties>
+          <LayProperty Width="0.25" MinWidth="0.15" MaxWidth="2" Clearance="0.2" Neck_Width="0.2" Neck_DifClearance="0.2" Neck_MaxLength="3" DifClearance="0.2"><LayerName>Top</LayerName></LayProperty>
+        </LayProperties>
+      </NetClass>
+    </NetClasses>
+    <DRC CheckClearance="Y" CheckNetConnectivity="Y">
+      <LayClearances>
+        <LayClearance Lay="0" TraceToTrace="0.2" TraceToPad="0.2" />
+      </LayClearances>
+      <LaySizes>
+        <LaySize Lay="0" MinTrace="0.15" MinDrill="0.2" MinRing="0.1" />
+      </LaySizes>
+    </DRC>
+    <ConnectivityCheck Traces="Y" Shapes="Y" CopperPours="Y" />
+    <Components>
+      <Component Id="0" UpdateId="100" PatternStyle="PatType0" X="10" Y="10" Side="Top" Locked="N" Selected="N">
+        <RefDes>R1</RefDes>
+        <Name>RES_0603</Name>
+        <Value>10k</Value>
+        <Pads>
+          <Pad Id="0" Number="1" />
+          <Pad Id="1" Number="2" />
+        </Pads>
+      </Component>
+      <Component Id="1" UpdateId="101" PatternStyle="PatType1" X="30" Y="10" Side="Top" Locked="N" Selected="N">
+        <RefDes>R2</RefDes>
+        <Name>RES_0402</Name>
+        <Value>4.7k</Value>
+        <Pads>
+          <Pad Id="0" Number="1" />
+          <Pad Id="1" Number="2" />
+        </Pads>
+      </Component>
+      <Component Id="2" UpdateId="102" PatternStyle="PatType2" X="20" Y="20" Side="Top" Locked="N" Selected="N">
+        <RefDes>J1</RefDes>
+        <Name>CONN_2PIN</Name>
+        <Value>Connector</Value>
+        <Pads>
+          <Pad Id="0" Number="1" />
+          <Pad Id="1" Number="2" />
+        </Pads>
+      </Component>
+      <Component Id="3" UpdateId="103" PatternStyle="PatType3" X="40" Y="15" Side="Top" Locked="N" Selected="N">
+        <RefDes>U1</RefDes>
+        <Name>IC_SO8</Name>
+        <Value>OpAmp</Value>
+        <Pads>
+          <Pad Id="0" Number="1" />
+          <Pad Id="1" Number="2" />
+          <Pad Id="2" Number="3" />
+          <Pad Id="3" Number="4" />
+          <Pad Id="4" Number="5" />
+          <Pad Id="5" Number="6" />
+          <Pad Id="6" Number="7" />
+          <Pad Id="7" Number="8" />
+        </Pads>
+      </Component>
+    </Components>
+    <Ratlines />
+    <Nets />
+    <DifferentialPairs />
+    <Shapes />
+    <FutureExtension Vendor="fixture"><Data Preserve="Y" /></FutureExtension>
+  </Board>
+</Source>

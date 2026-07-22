@@ -1961,12 +1961,12 @@ def _apply_sync_schematic_to_pcb(
             ):
                 continue
             for pad_stable in component_record.relationships.get("pads", []):
-                pad = positioned_snapshot.objects.get(pad_stable)
-                if pad is None or not pad.xml_id:
+                pad_record: ObjectRecord | None = positioned_snapshot.objects.get(pad_stable)
+                if pad_record is None or not pad_record.xml_id:
                     continue
-                position = pad.position or component_record.position
+                position = pad_record.position or component_record.position
                 if position is not None:
-                    pad_positions[(component_record.xml_id, pad.xml_id)] = Point(**position)
+                    pad_positions[(component_record.xml_id, pad_record.xml_id)] = Point(**position)
         for _net_name, endpoints in requested_ratlines:
             for first, second in zip(endpoints, endpoints[1:], strict=False):
                 pair = frozenset({first, second})
