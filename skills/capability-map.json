@@ -20,6 +20,10 @@
     "apply_panelization_plan": {
       "runtime_tool": "set_panelization",
       "note": "Applies official DipTrace panel parameters directly; there is no separate plan-apply split."
+    },
+    "suggest_routing_order": {
+      "runtime_tool": "analyze_routing_congestion",
+      "note": "Returns a deterministic most-constrained-first order with corridor congestion evidence."
     }
   },
   "missing": {
@@ -37,8 +41,6 @@
     "analyze_reset_and_boot": "domain-analyzer-v1",
     "analyze_programming_interface": "domain-analyzer-v1",
     "analyze_interface": "domain-analyzer-v1",
-    "analyze_routing_congestion": "routing-analysis-tuning-v1",
-    "suggest_routing_order": "routing-analysis-tuning-v1",
     "find_route_corridors": "routing-analysis-tuning-v1",
     "update_copper_pour": "copper-geometry-write-v1",
     "tune_diff_pair": "routing-analysis-tuning-v1",
@@ -64,7 +66,7 @@
     "route_net": "Bounded local 45-degree router without push-and-shove.",
     "route_diff_pair": "Bounded coupled route; no independent post-route tuning engine.",
     "generate_placement_candidates": "Bounded local candidates, not global placement.",
-    "sync_schematic_to_pcb": "Additive synchronization only; multi-part components need explicit pin-to-pad mappings and extra PCB objects/traces are preserved.",
+    "sync_schematic_to_pcb": "Additive by default; opt-in exact reconciliation removes unmatched component/net/ratline state and traces on changed nets. Multi-part components need explicit pin-to-pad mappings.",
     "get_findings": "Requires a report_id returned by a review; use the document findings resource for aggregate history.",
     "get_job_status": "Requires a jobid and cannot discover a job implicitly."
   },

@@ -103,12 +103,18 @@ def test_ripup_retry_recovers_blocked_connection() -> None:
     configs = _configs(document, signal_detour=1.0)
     vcc_id, signal_id = (config.net for config in configs)
 
-    without_retry = synthesize_routes_with_retry(document, configs, ripup_retry=False)
+    without_retry = synthesize_routes_with_retry(
+        document, configs, ripup_retry=False, ordering="input"
+    )
     assert without_retry.metrics["routed_count"] == 1
     assert without_retry.failed[0]["net"] == signal_id
 
     with_retry = synthesize_routes_with_retry(
-        document, configs, ripup_retry=True, max_ripup_attempts=4
+        document,
+        configs,
+        ripup_retry=True,
+        max_ripup_attempts=4,
+        ordering="input",
     )
     assert with_retry.failed == []
     assert with_retry.metrics["routed_count"] == 2
@@ -125,6 +131,23 @@ def test_ripup_retry_recovers_blocked_connection() -> None:
     assert snapshot.board is not None
     assert len(snapshot.board.traces) == 2
     assert {record.net_name for record in snapshot.board.traces} == {"VCC", "SIGNAL"}
+
+
+def test_congestion_aware_order_routes_most_constrained_connection_first() -> None:
+    document = _two_net_document(signal_y=9.0, signal_x1=12.0, signal_x2=18.0)
+    configs = _configs(document, signal_detour=1.0)
+
+    result = synthesize_routes_with_retry(
+        document,
+        configs,
+        ripup_retry=False,
+        ordering="congestion_aware",
+    )
+
+    assert result.metrics["ordering"] == "congestion_aware"
+    assert result.metrics["routing_order"] == [1, 0]
+    priorities = {item["index"]: item for item in result.metrics["priorities"]}
+    assert priorities[1]["score"] > priorities[0]["score"]
 
 
 def _service(workspace: Path, state: Path) -> DipTraceService:
@@ -173,3 +196,19 @@ def test_route_connections_service_transaction(tmp_path: Path) -> None:
     assert committed["transaction"]["status"] == "committed"
     model = service.board_model("board.dip")
     assert len(model["result"]["traces"]) == 2
+
+
+def test_analyze_routing_congestion_is_read_only(tmp_path: Path) -> None:
+    target = tmp_path / "board.dip"
+    document = _two_net_document(signal_y=9.0, signal_x1=12.0, signal_x2=18.0)
+    target.write_bytes(document.raw_bytes)
+    service = _service(tmp_path, tmp_path / ".state")
+
+    response = service.analyze_routing_congestion(
+        [item.model_dump() for item in _configs(document, signal_detour=1.0)],
+        path="board.dip",
+    )
+
+    assert response["result"]["routing_order"] == [1, 0]
+    assert response["result"]["priorities"][1]["corridor_bbox"]
+    assert target.read_bytes() == document.raw_bytes

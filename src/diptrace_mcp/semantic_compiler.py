@@ -1402,6 +1402,42 @@ def _require_sheet(document: DipTraceDocument, sheet: int) -> None:
         raise ObjectNotFoundError(f"Sheet was not found: {sheet}")
 
 
+def _xml_locked(element: ET.Element) -> bool:
+    return element.get("Locked", "N").strip().casefold() in {"y", "yes", "true", "1"}
+
+
+def _require_reconciliation_unlocked(
+    element: ET.Element,
+    label: str,
+    *,
+    allow_locked: bool,
+) -> None:
+    if _xml_locked(element) and not allow_locked:
+        raise LockedObjectError(
+            f"Exact schematic-to-PCB reconciliation would modify locked {label}; "
+            "set allow_locked_reconciliation=true to authorize it"
+        )
+
+
+def _sync_endpoint_key(
+    component_by_refdes: dict[str, ET.Element],
+    refdes: str,
+    pad_number: str,
+) -> tuple[str, str]:
+    component = component_by_refdes.get(refdes.casefold())
+    if component is None:
+        raise ObjectNotFoundError(f"Synchronized PCB component was not found: {refdes}")
+    matching_pads = [
+        pad
+        for pad in component.findall("./Pads/Pad")
+        if (pad.get("Number") or pad.get("Id") or "").casefold()
+        == pad_number.casefold()
+    ]
+    if len(matching_pads) != 1:
+        raise EditError(f"Cannot resolve unique pad {refdes}:{pad_number}")
+    return component.get("Id", ""), matching_pads[0].get("Id", "")
+
+
 def _apply_sync_schematic_to_pcb(
     index: int,
     document: DipTraceDocument,
@@ -1587,6 +1623,33 @@ def _apply_sync_schematic_to_pcb(
                 )
         component_by_refdes[key] = target_component
 
+    if operation.reconciliation_mode == "exact":
+        desired_component_keys = {item.refdes.casefold() for item in operation.components}
+        for key, extra_component in list(existing_components.items()):
+            if key in desired_component_keys:
+                continue
+            refdes = (extra_component.findtext("./RefDes") or "").strip() or key
+            _require_reconciliation_unlocked(
+                extra_component,
+                f"component {refdes}",
+                allow_locked=operation.allow_locked_reconciliation,
+            )
+            component_id = extra_component.get("Id", "")
+            stable = stable_id(
+                "component", document.source_type, f"xml:{component_id}"
+            )
+            before.append(
+                {
+                    "id": stable,
+                    "refdes": refdes,
+                    "action": "removed_by_exact_reconciliation",
+                }
+            )
+            changed_ids.append(stable)
+            components.remove(extra_component)
+            del existing_components[key]
+            patch_count += 1
+
     nets_container = document.container.find("./Nets")
     if nets_container is None:
         nets_container = ET.SubElement(document.container, "Nets")
@@ -1600,6 +1663,118 @@ def _apply_sync_schematic_to_pcb(
         if key in existing_nets:
             raise AmbiguousSelectorError(f"PCB contains duplicate net name: {name}")
         existing_nets[key] = existing_net
+
+    desired_endpoints_by_net = {
+        net_spec.name.casefold(): [
+            _sync_endpoint_key(
+                component_by_refdes,
+                endpoint.refdes,
+                endpoint.pad_number,
+            )
+            for endpoint in net_spec.endpoints
+        ]
+        for net_spec in operation.nets
+    }
+    if operation.reconciliation_mode == "exact":
+        desired_net_keys = set(desired_endpoints_by_net)
+        for key, extra_net in list(existing_nets.items()):
+            if key in desired_net_keys:
+                continue
+            net_name = (extra_net.findtext("./Name") or "").strip() or key
+            _require_reconciliation_unlocked(
+                extra_net,
+                f"net {net_name}",
+                allow_locked=operation.allow_locked_reconciliation,
+            )
+            for trace in extra_net.findall("./Traces/Trace"):
+                _require_reconciliation_unlocked(
+                    trace,
+                    f"trace on net {net_name}",
+                    allow_locked=operation.allow_locked_reconciliation,
+                )
+            net_id = extra_net.get("Id", "")
+            stable = stable_id("net", document.source_type, f"xml:{net_id}")
+            before.append(
+                {
+                    "id": stable,
+                    "net": net_name,
+                    "action": "removed_by_exact_reconciliation",
+                }
+            )
+            changed_ids.append(stable)
+            nets_container.remove(extra_net)
+            del existing_nets[key]
+            patch_count += 1
+
+        for key, target_net in existing_nets.items():
+            desired_endpoints = desired_endpoints_by_net.get(key)
+            if desired_endpoints is None:
+                continue
+            net_pads = target_net.find("./Pads")
+            current_items = net_pads.findall("./Item") if net_pads is not None else []
+            current_endpoints = [
+                (item.get("Comp", ""), item.get("Pad", "")) for item in current_items
+            ]
+            if set(current_endpoints) == set(desired_endpoints):
+                continue
+            net_name = (target_net.findtext("./Name") or "").strip() or key
+            _require_reconciliation_unlocked(
+                target_net,
+                f"net {net_name}",
+                allow_locked=operation.allow_locked_reconciliation,
+            )
+            traces = target_net.find("./Traces")
+            trace_elements = traces.findall("./Trace") if traces is not None else []
+            for trace in trace_elements:
+                _require_reconciliation_unlocked(
+                    trace,
+                    f"trace on changed net {net_name}",
+                    allow_locked=operation.allow_locked_reconciliation,
+                )
+            if net_pads is None:
+                net_pads = ET.SubElement(target_net, "Pads")
+                patch_count += 1
+            for item in current_items:
+                net_pads.remove(item)
+                patch_count += 1
+            for component_id, pad_id in desired_endpoints:
+                ET.SubElement(net_pads, "Item", {"Comp": component_id, "Pad": pad_id})
+                patch_count += 1
+            if traces is not None:
+                for trace in trace_elements:
+                    traces.remove(trace)
+                    patch_count += 1
+            net_id = target_net.get("Id", "")
+            stable = stable_id("net", document.source_type, f"xml:{net_id}")
+            changed_ids.append(stable)
+            after.append(
+                {
+                    "id": stable,
+                    "net": net_name,
+                    "action": "exact_connectivity_reconciled",
+                    "removed_trace_count": len(trace_elements),
+                }
+            )
+
+        desired_ratline_pairs = {
+            frozenset({first, second})
+            for endpoints in desired_endpoints_by_net.values()
+            for first, second in zip(endpoints, endpoints[1:], strict=False)
+            if first != second
+        }
+        ratlines = document.container.find("./Ratlines")
+        if ratlines is not None:
+            for ratline in list(ratlines.findall("./Ratline")):
+                pair = frozenset(
+                    {
+                        (ratline.get("Comp1", ""), ratline.get("Pad1", "")),
+                        (ratline.get("Comp2", ""), ratline.get("Pad2", "")),
+                    }
+                )
+                if not operation.create_ratlines or pair not in desired_ratline_pairs:
+                    ratlines.remove(ratline)
+                    patch_count += 1
+
     next_net_id = int(_next_numeric_id(nets_container.findall("./Net")))
     endpoint_nets: dict[tuple[str, str], ET.Element] = {}
     for existing_net in nets_container.findall("./Net"):
@@ -1608,20 +1783,20 @@ def _apply_sync_schematic_to_pcb(
 
     requested_ratlines: list[tuple[str, list[tuple[str, str]]]] = []
     for net_spec in operation.nets:
-        target_net = existing_nets.get(net_spec.name.casefold())
-        net_was_created = target_net is None
-        if target_net is None:
+        sync_net = existing_nets.get(net_spec.name.casefold())
+        net_was_created = sync_net is None
+        if sync_net is None:
             net_id = str(next_net_id)
             next_net_id += 1
-            target_net = ET.SubElement(
+            sync_net = ET.SubElement(
                 nets_container,
                 "Net",
                 {"Id": net_id, "NetClass": "0", "Locked": "N"},
             )
-            ET.SubElement(target_net, "Name").text = net_spec.name
-            ET.SubElement(target_net, "Pads")
-            ET.SubElement(target_net, "Traces")
-            existing_nets[net_spec.name.casefold()] = target_net
+            ET.SubElement(sync_net, "Name").text = net_spec.name
+            ET.SubElement(sync_net, "Pads")
+            ET.SubElement(sync_net, "Traces")
+            existing_nets[net_spec.name.casefold()] = sync_net
             stable = stable_id("net", document.source_type, f"xml:{net_id}")
             changed_ids.append(stable)
             after.append(
@@ -1629,12 +1804,12 @@ def _apply_sync_schematic_to_pcb(
             )
             patch_count += 1
         net_stable = stable_id(
-            "net", document.source_type, f"xml:{target_net.get('Id', '')}"
+            "net", document.source_type, f"xml:{sync_net.get('Id', '')}"
         )
         net_changed = net_was_created
-        pads_container = target_net.find("./Pads")
+        pads_container = sync_net.find("./Pads")
         if pads_container is None:
-            pads_container = ET.SubElement(target_net, "Pads")
+            pads_container = ET.SubElement(sync_net, "Pads")
             patch_count += 1
             net_changed = True
         preexisting_endpoints = [
@@ -1643,26 +1818,13 @@ def _apply_sync_schematic_to_pcb(
         ]
         added_endpoints: list[tuple[str, str]] = []
         for endpoint in net_spec.endpoints:
-            endpoint_component = component_by_refdes.get(endpoint.refdes.casefold())
-            if endpoint_component is None:
-                raise ObjectNotFoundError(
-                    f"Synchronized PCB component was not found: {endpoint.refdes}"
-                )
-            component_id = endpoint_component.get("Id", "")
-            matching_pads = [
-                pad
-                for pad in endpoint_component.findall("./Pads/Pad")
-                if (pad.get("Number") or pad.get("Id") or "").casefold()
-                == endpoint.pad_number.casefold()
-            ]
-            if len(matching_pads) != 1:
-                raise EditError(
-                    f"Cannot resolve unique pad {endpoint.refdes}:{endpoint.pad_number}"
-                )
-            pad_id = matching_pads[0].get("Id", "")
-            endpoint_key = (component_id, pad_id)
+            endpoint_key = _sync_endpoint_key(
+                component_by_refdes,
+                endpoint.refdes,
+                endpoint.pad_number,
+            )
             current_net = endpoint_nets.get(endpoint_key)
-            if current_net is not None and current_net is not target_net:
+            if current_net is not None and current_net is not sync_net:
                 current_name = (current_net.findtext("./Name") or "").strip()
                 if not operation.allow_reconnect:
                     raise EditError(
@@ -1685,13 +1847,17 @@ def _apply_sync_schematic_to_pcb(
                 ET.SubElement(
                     pads_container,
                     "Item",
-                    {"Comp": component_id, "Pad": pad_id},
+                    {"Comp": endpoint_key[0], "Pad": endpoint_key[1]},
                 )
-                endpoint_nets[endpoint_key] = target_net
+                endpoint_nets[endpoint_key] = sync_net
                 patch_count += 1
                 net_changed = True
                 added_endpoints.append(endpoint_key)
-        if added_endpoints:
+        if operation.reconciliation_mode == "exact":
+            requested_ratlines.append(
+                (net_spec.name, desired_endpoints_by_net[net_spec.name.casefold()])
+            )
+        elif added_endpoints:
             ratline_endpoints = (
                 added_endpoints
                 if not preexisting_endpoints

@@ -201,6 +201,8 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         update_existing_properties: bool = True,
         create_ratlines: bool = True,
         allow_reconnect: bool = False,
+        reconciliation_mode: Literal["additive", "exact"] = "additive",
+        allow_locked_reconciliation: bool = False,
         dry_run: bool = True,
         expected_sha256: str | None = None,
         txid: str | None = None,
@@ -215,6 +217,8 @@ def create_server(settings: Settings | None = None) -> FastMCP:
             update_existing_properties=update_existing_properties,
             create_ratlines=create_ratlines,
             allow_reconnect=allow_reconnect,
+            reconciliation_mode=reconciliation_mode,
+            allow_locked_reconciliation=allow_locked_reconciliation,
             dry_run=dry_run,
             expected_sha256=expected_sha256,
             txid=txid,
@@ -1774,6 +1778,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         connections: list[dict[str, Any]],
         ripup_retry: bool = True,
         max_ripup_attempts: int = 4,
+        ordering: Literal["input", "congestion_aware"] = "congestion_aware",
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1784,10 +1789,24 @@ def create_server(settings: Settings | None = None) -> FastMCP:
             connections,
             ripup_retry=ripup_retry,
             max_ripup_attempts=max_ripup_attempts,
+            ordering=ordering,
             path=path,
             dry_run=dry_run,
             expected_sha256=expected_sha256,
             txid=txid,
+        )
+
+    @mcp.tool()
+    def analyze_routing_congestion(
+        connections: list[dict[str, Any]],
+        ordering: Literal["input", "congestion_aware"] = "congestion_aware",
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        """Rank route connections by deterministic corridor congestion without editing."""
+        return service.analyze_routing_congestion(
+            connections,
+            ordering=ordering,
+            path=path,
         )
 
     @mcp.tool()
@@ -1972,6 +1991,39 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         return service.run_ngspice_simulation(
             netlist=netlist,
             netlist_path=netlist_path,
+            path=path,
+            timeout_seconds=timeout_seconds,
+        )
+
+    @mcp.tool()
+    def run_openems_stripline_analysis(
+        width_mm: float,
+        copper_thickness_mm: float,
+        lower_dielectric_height_mm: float,
+        upper_dielectric_height_mm: float,
+        dielectric_constant: float,
+        frequencies_hz: list[float],
+        dielectric_loss_tangent: float = 0.0,
+        conductor_conductivity_s_per_m: float = 58_000_000.0,
+        trace_length_mm: float = 20.0,
+        port_impedance_ohm: float = 50.0,
+        mesh_cells_per_wavelength: int = 30,
+        path: str | None = None,
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Run configured openEMS stripline analysis with a typed frequency sweep."""
+        return service.run_openems_stripline_analysis(
+            width_mm=width_mm,
+            copper_thickness_mm=copper_thickness_mm,
+            lower_dielectric_height_mm=lower_dielectric_height_mm,
+            upper_dielectric_height_mm=upper_dielectric_height_mm,
+            dielectric_constant=dielectric_constant,
+            frequencies_hz=frequencies_hz,
+            dielectric_loss_tangent=dielectric_loss_tangent,
+            conductor_conductivity_s_per_m=conductor_conductivity_s_per_m,
+            trace_length_mm=trace_length_mm,
+            port_impedance_ohm=port_impedance_ohm,
+            mesh_cells_per_wavelength=mesh_cells_per_wavelength,
             path=path,
             timeout_seconds=timeout_seconds,
         )
@@ -2274,6 +2326,22 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     def job_manifest_resource(jobid: str) -> str:
         """External job provenance and typed option manifest."""
         return service.job_resource(jobid, "manifest.json")
+
+    @mcp.resource(
+        "diptrace://job/{jobid}/field_solver_input.json",
+        mime_type="application/json",
+    )
+    def job_field_solver_input_resource(jobid: str) -> str:
+        """Typed field-solver request artifact."""
+        return service.job_resource(jobid, "field_solver_input.json")
+
+    @mcp.resource(
+        "diptrace://job/{jobid}/field_solver_result.json",
+        mime_type="application/json",
+    )
+    def job_field_solver_result_resource(jobid: str) -> str:
+        """Validated field-solver result artifact."""
+        return service.job_resource(jobid, "field_solver_result.json")
 
     @mcp.resource(
         "diptrace://export/{export_id}/{artifact}",

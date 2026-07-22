@@ -12,7 +12,7 @@ python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 
 CI runs pytest, Ruff, and strict Mypy on Linux with Python 3.10, 3.12, and 3.13, and on
 Windows and macOS with Python 3.12. Core tests do not require DipTrace, Java,
-Freerouting, or network access.
+Freerouting, openEMS, or network access.
 
 ## Coverage
 
@@ -29,6 +29,8 @@ Freerouting, or network access.
 - unknown format-version feature detection and preservation of optional or unknown XML;
 - exact GEOS DRC for rotated pads, DSN/SES, and mocked Freerouting jobs;
 - stackup, length/skew/differential-pair analysis, and single/coupled impedance golden cases;
+- typed openEMS runner protocol, synthetic result parsing, centered analytical sanity,
+  malformed/non-converged output, unavailable backend, and timeout handling;
 - return path and pour boundaries, BOM, and schematic/PCB comparison;
 - generic exports, CSV-injection protection, and MCP tool/resource/prompt contracts.
 - all 57 English PCB skill packages, strict result schemas and examples, actual MCP tool
@@ -53,7 +55,8 @@ pass/fail decisions based on wall-clock time.
 - a dense multilayer PCB with exact mask, paste, courtyard, and refill polygons;
 - multiple native XML versions and real DSN/SES pairs;
 - an optional real Freerouting test matrix;
-- solver-backed SI/PI golden data.
+- a captured real-openEMS SI golden result (the committed protocol fixture is explicitly
+  synthetic).
 
 A live acceptance test with DipTrace 5.3 separately verifies the source SHA guard, 41
 bounded schematic-marking patches, backup equality, atomic write, bridge apply, and an

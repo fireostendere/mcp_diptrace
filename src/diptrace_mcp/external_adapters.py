@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -11,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import Settings
-from .domain import DocumentInfo, JobRecord
+from .domain import DocumentInfo, FieldSolverRequest, FieldSolverResult, JobRecord
 from .errors import (
     ExternalToolFailedError,
     ExternalToolUnavailableError,
@@ -157,7 +158,11 @@ class NgSpiceAdapter:
             return NgSpiceProbe(
                 False, str(executable), "Configured ngspice executable does not exist."
             )
-        if os.name != "nt" and not os.access(executable, os.X_OK):
+        if (
+            executable.suffix.casefold() != ".py"
+            and os.name != "nt"
+            and not os.access(executable, os.X_OK)
+        ):
             return NgSpiceProbe(False, str(executable), "Configured executable is not executable.")
         return NgSpiceProbe(True, str(executable), None)
 
@@ -167,7 +172,96 @@ class NgSpiceAdapter:
             raise ExternalToolUnavailableError(
                 probe.reason or "ngspice is unavailable", details=probe.as_dict()
             )
-        return [probe.executable, "-b", str(netlist_path)]
+        prefix = (
+            [sys.executable, probe.executable]
+            if Path(probe.executable).suffix.casefold() == ".py"
+            else [probe.executable]
+        )
+        return [*prefix, "-b", str(netlist_path)]
+
+
+@dataclass(frozen=True, slots=True)
+class OpenEmsProbe:
+    available: bool
+    runner: str | None
+    reason: str | None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "available": self.available,
+            "implemented": True,
+            "runner": self.runner,
+            "reason": self.reason,
+            "backend": "openems",
+            "protocol": "diptrace-field-solver-request/result-v1",
+            "cli_contract": "openems-runner --input request.json --output result.json",
+            "license_note": "openEMS is GPL-3.0-or-later; configure a compatible runner.",
+        }
+
+
+class OpenEmsAdapter:
+    """Fixed-contract adapter for an openEMS-backed stripline runner."""
+
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+
+    def probe(self) -> OpenEmsProbe:
+        runner = self.settings.openems_runner
+        if runner is None:
+            return OpenEmsProbe(
+                False,
+                None,
+                "DIPTRACE_MCP_OPENEMS_RUNNER is not configured.",
+            )
+        if not runner.is_file():
+            return OpenEmsProbe(False, str(runner), "Configured openEMS runner does not exist.")
+        if runner.suffix.casefold() != ".py" and os.name != "nt" and not os.access(runner, os.X_OK):
+            return OpenEmsProbe(False, str(runner), "Configured openEMS runner is not executable.")
+        return OpenEmsProbe(True, str(runner), None)
+
+    def command(self, input_path: Path, output_path: Path) -> list[str]:
+        probe = self.probe()
+        if not probe.available or probe.runner is None:
+            raise ExternalToolUnavailableError(
+                probe.reason or "openEMS runner is unavailable", details=probe.as_dict()
+            )
+        prefix = (
+            [sys.executable, probe.runner]
+            if Path(probe.runner).suffix.casefold() == ".py"
+            else [probe.runner]
+        )
+        return [*prefix, "--input", str(input_path), "--output", str(output_path)]
+
+
+def parse_field_solver_result(
+    payload: bytes,
+    request: FieldSolverRequest,
+) -> FieldSolverResult:
+    """Validate an openEMS runner result and bind it to the requested sweep."""
+
+    try:
+        result = FieldSolverResult.model_validate_json(payload)
+    except ValueError as exc:
+        raise ExternalToolFailedError(
+            "openEMS runner returned malformed result JSON",
+            details={"validation_error": str(exc)},
+        ) from exc
+    if not result.converged:
+        raise ExternalToolFailedError(
+            "openEMS runner reported a non-converged solution",
+            details={"solver_version": result.solver_version, "warnings": result.warnings},
+        )
+    actual = [point.frequency_hz for point in result.points]
+    expected = request.frequencies_hz
+    if len(actual) != len(expected) or any(
+        abs(left - right) > max(1e-6, abs(right) * 1e-9)
+        for left, right in zip(actual, expected, strict=True)
+    ):
+        raise ExternalToolFailedError(
+            "openEMS result frequency sweep does not match the request",
+            details={"expected_frequencies_hz": expected, "actual_frequencies_hz": actual},
+        )
+    return result
 
 
 _DATA_ROWS = re.compile(r"No\.\s*of\s*Data\s*Rows\s*:\s*(\d+)", re.IGNORECASE)
@@ -193,6 +287,7 @@ class ExternalJobManager:
         self.store = store
         self.freerouting = FreeroutingAdapter(settings)
         self.ngspice = NgSpiceAdapter(settings)
+        self.openems = OpenEmsAdapter(settings)
         self._processes: dict[str, subprocess.Popen[bytes]] = {}
         self._cancel: dict[str, threading.Event] = {}
         self._lock = threading.RLock()
@@ -358,6 +453,69 @@ class ExternalJobManager:
         thread = threading.Thread(
             target=self._run_ngspice,
             args=(record.jobid, command, timeout, cancel),
+            name=f"diptrace-{record.jobid}",
+            daemon=True,
+        )
+        thread.start()
+        return record
+
+    def start_openems(
+        self,
+        info: DocumentInfo | None,
+        target_path: Path | None,
+        request: FieldSolverRequest,
+        *,
+        timeout_seconds: int | None,
+    ) -> JobRecord:
+        probe = self.openems.probe()
+        if not probe.available:
+            raise ExternalToolUnavailableError(
+                probe.reason or "openEMS runner is unavailable", details=probe.as_dict()
+            )
+        timeout = timeout_seconds or self.settings.external_timeout_seconds
+        if not 1 <= timeout <= self.settings.external_timeout_seconds:
+            raise ExternalToolFailedError(
+                f"timeout_seconds must be between 1 and {self.settings.external_timeout_seconds}"
+            )
+        record = self.store.create(
+            job_type="openems_stripline",
+            document_id=info.document_id if info is not None else None,
+            source_sha256=info.sha256 if info is not None else None,
+            target_path=target_path,
+        )
+        input_bytes = request.model_dump_json(indent=2).encode("utf-8")
+        input_path = self.store.store_artifact(
+            record.jobid, "field_solver_input.json", input_bytes
+        )
+        output_path = self.store.artifact_path(record.jobid, "field_solver_result.json")
+        command = self.openems.command(input_path, output_path)
+        manifest = {
+            "adapter": "openems",
+            "protocol": request.schema_version,
+            "document_id": info.document_id if info is not None else None,
+            "source_sha256": info.sha256 if info is not None else None,
+            "request_sha256": sha256_bytes(input_bytes),
+            "options": {"timeout_seconds": timeout},
+        }
+        self.store.store_artifact(
+            record.jobid,
+            "manifest.json",
+            json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
+        )
+        record = self.store.update(
+            record.jobid,
+            command=command,
+            artifacts={
+                "input": f"diptrace://job/{record.jobid}/field_solver_input.json",
+                "manifest": f"diptrace://job/{record.jobid}/manifest.json",
+            },
+        )
+        cancel = threading.Event()
+        with self._lock:
+            self._cancel[record.jobid] = cancel
+        thread = threading.Thread(
+            target=self._run_openems,
+            args=(record.jobid, command, output_path, request, timeout, cancel),
             name=f"diptrace-{record.jobid}",
             daemon=True,
         )
@@ -592,6 +750,128 @@ class ExternalJobManager:
                 completed_at=utc_now(),
                 error=ExternalToolFailedError(
                     f"Could not execute ngspice: {exc}", jobid=jobid
+                ).payload.as_dict(),
+            )
+        finally:
+            with self._lock:
+                self._processes.pop(jobid, None)
+                self._cancel.pop(jobid, None)
+
+    def _run_openems(
+        self,
+        jobid: str,
+        command: list[str],
+        output_path: Path,
+        request: FieldSolverRequest,
+        timeout: int,
+        cancel: threading.Event,
+    ) -> None:
+        started = time.monotonic()
+        log_path = self.store.artifact_path(jobid, "log.txt")
+        self.store.update(
+            jobid,
+            status="running",
+            phase="external_execution",
+            progress=0.05,
+            started_at=utc_now(),
+        )
+        allowed_env = {
+            key: value
+            for key, value in os.environ.items()
+            if key in {"PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP"}
+        }
+        try:
+            with log_path.open("wb") as log:
+                process = subprocess.Popen(
+                    command,
+                    cwd=self.store.job_dir(jobid),
+                    stdin=subprocess.DEVNULL,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    shell=False,
+                    env=allowed_env,
+                )
+                with self._lock:
+                    self._processes[jobid] = process
+                while process.poll() is None:
+                    elapsed = time.monotonic() - started
+                    if cancel.is_set():
+                        process.terminate()
+                        try:
+                            process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                        raise JobCancelledError("openEMS job was cancelled", jobid=jobid)
+                    if elapsed > timeout:
+                        process.kill()
+                        raise JobTimeoutError(
+                            f"openEMS exceeded {timeout} seconds", jobid=jobid
+                        )
+                    self.store.update(jobid, elapsed_seconds=elapsed, progress=0.1)
+                    time.sleep(0.1)
+                return_code = process.returncode
+            elapsed = time.monotonic() - started
+            self._bound_log(log_path)
+            if return_code != 0:
+                raise ExternalToolFailedError(
+                    f"openEMS runner exited with status {return_code}",
+                    details={"return_code": return_code},
+                    jobid=jobid,
+                )
+            if not output_path.is_file() or output_path.stat().st_size == 0:
+                raise ExternalToolFailedError(
+                    "openEMS runner did not produce a non-empty result", jobid=jobid
+                )
+            if output_path.stat().st_size > self.settings.max_external_result_bytes:
+                raise ExternalToolFailedError(
+                    "openEMS result exceeds the configured size limit", jobid=jobid
+                )
+            result_bytes = output_path.read_bytes()
+            try:
+                result = parse_field_solver_result(result_bytes, request)
+            except ExternalToolFailedError as exc:
+                raise ExternalToolFailedError(
+                    str(exc), details=exc.details, jobid=jobid
+                ) from exc
+            self.store.update(
+                jobid,
+                status="completed",
+                phase="completed",
+                progress=1.0,
+                elapsed_seconds=elapsed,
+                completed_at=utc_now(),
+                artifacts={
+                    **self.store.read(jobid).artifacts,
+                    "result": f"diptrace://job/{jobid}/field_solver_result.json",
+                    "log": f"diptrace://job/{jobid}/log",
+                },
+                result={
+                    **result.model_dump(mode="json"),
+                    "result_sha256": sha256_bytes(result_bytes),
+                    "resources": job_resources(jobid),
+                },
+                warnings=result.warnings,
+            )
+        except (JobCancelledError, JobTimeoutError, ExternalToolFailedError) as exc:
+            self._bound_log(log_path)
+            status = "cancelled" if isinstance(exc, JobCancelledError) else "failed"
+            self.store.update(
+                jobid,
+                status=status,
+                phase=status,
+                elapsed_seconds=time.monotonic() - started,
+                completed_at=utc_now(),
+                error=exc.payload.as_dict(),
+            )
+        except OSError as exc:
+            self.store.update(
+                jobid,
+                status="failed",
+                phase="failed",
+                elapsed_seconds=time.monotonic() - started,
+                completed_at=utc_now(),
+                error=ExternalToolFailedError(
+                    f"Could not execute openEMS runner: {exc}", jobid=jobid
                 ).payload.as_dict(),
             )
         finally:

@@ -157,6 +157,8 @@ def build_sync_plan(
     update_existing_properties: bool = True,
     create_ratlines: bool = True,
     allow_reconnect: bool = False,
+    reconciliation_mode: Literal["additive", "exact"] = "additive",
+    allow_locked_reconciliation: bool = False,
 ) -> SyncPlan:
     if schematic.kind != "schematic" or pcb.kind != "pcb":
         raise DocumentError("sync_schematic_to_pcb requires schematic and PCB documents")
@@ -420,14 +422,27 @@ def build_sync_plan(
             "update_existing_properties": update_existing_properties,
             "create_ratlines": create_ratlines,
             "allow_reconnect": allow_reconnect,
+            "reconciliation_mode": reconciliation_mode,
+            "allow_locked_reconciliation": allow_locked_reconciliation,
         }
     )
+    if reconciliation_mode == "exact":
+        warnings.append(
+            "Exact reconciliation may delete unmatched PCB components, nets, ratlines, "
+            "and traces on nets whose endpoint sets change."
+        )
     return SyncPlan(
         operation=operation,
         warnings=warnings,
         limitations=[
             "Multi-part components require explicit part-id/pin to pad-number mappings.",
-            "Synchronization is additive; extra PCB components, nets and traces are preserved.",
+            (
+                "Exact reconciliation covers components, net endpoint sets, traces on changed "
+                "nets, and ratlines; unrelated board geometry remains outside its scope."
+                if reconciliation_mode == "exact"
+                else "Synchronization is additive; extra PCB components, nets and traces "
+                "are preserved."
+            ),
             "New components use deterministic grid placement and should be legalized "
             "before routing.",
         ],

@@ -444,6 +444,8 @@ class SyncSchematicToPcbOperation(SemanticOperation):
     update_existing_properties: bool = True
     create_ratlines: bool = True
     allow_reconnect: bool = False
+    reconciliation_mode: Literal["additive", "exact"] = "additive"
+    allow_locked_reconciliation: bool = False
 
     @model_validator(mode="after")
     def validate_unique_names(self) -> SyncSchematicToPcbOperation:

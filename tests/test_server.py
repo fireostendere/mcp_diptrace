@@ -40,6 +40,7 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert "score_placement" in tool_names
             assert "apply_component_placement_plan" in tool_names
             assert "sync_schematic_to_pcb" in tool_names
+            assert "analyze_routing_congestion" in tool_names
             assert "add_trace" in tool_names
             assert "replace_trace" in tool_names
             assert "delete_trace" in tool_names
@@ -60,6 +61,7 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert "export_fabrication_outputs" in tool_names
             assert "export_assembly_outputs" in tool_names
             assert "list_exports" in tool_names
+            assert "run_openems_stripline_analysis" in tool_names
 
             result = await session.call_tool("summarize_design", {"path": "pcb.xml"})
             assert not result.isError
@@ -88,6 +90,7 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert "diptrace://transaction/{txid}/preview.json" in template_uris
             assert "diptrace://plan/{plan_id}/preview.svg" in template_uris
             assert "diptrace://export/{export_id}/{artifact}" in template_uris
+            assert "diptrace://job/{jobid}/field_solver_result.json" in template_uris
 
             prompts = await session.list_prompts()
             prompt_names = {item.name for item in prompts.prompts}

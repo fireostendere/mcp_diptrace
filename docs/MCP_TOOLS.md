@@ -21,15 +21,18 @@ Actual availability for a specific document is reported by `get_capabilities`.
 - schematic: value, fields, no-connect, and net rename;
 - schematic authoring: `add_sheet`, `place_part`, `connect_pins`, `disconnect_pins`,
   `add_wire`, `delete_wire`, and `add_net_label` using the official XML structures;
-- schematic-to-PCB: `sync_schematic_to_pcb` additively creates or updates PCB components,
-  copies referenced pattern/pad-style definitions from allowed library documents, maps pins to
-  pads, and creates nets and ratlines in the standard transaction workflow;
+- schematic-to-PCB: `sync_schematic_to_pcb` creates or updates PCB components, copies
+  referenced pattern/pad-style definitions from allowed library documents, maps pins to pads,
+  and creates nets and ratlines; the default is additive, while opt-in `exact` reconciliation
+  removes unmatched components/nets/ratlines and traces only on changed nets;
 - rules: NetClass assignment, widths, gaps, and length constraints;
 - panelization: `set_panelization` and `clear_panelization` write official DipTrace
   `Panel` parameters (V-Scoring / Tab Routing, rails, tabs, holes);
 - standalone test points;
 - trace and via primitives, bounded multi-layer local route plans, and symmetric via insertion;
-- `route_connections` routes multiple nets sequentially with bounded rip-up/retry;
+- `analyze_routing_congestion` returns deterministic corridor congestion and priority evidence;
+- `route_connections` routes multiple nets most-constrained-first by default with bounded
+  rip-up/retry, or preserves caller order with `ordering="input"`;
 - `plan_diff_pair_route` and `route_diff_pair` using a coupled centerline and atomic pair metadata.
 
 All writes use a plan or dry-run transaction, expected SHA, preview, reparse,
@@ -50,6 +53,9 @@ an expert escape hatch and is not the recommended API.
 - bounded DSN export, Freerouting jobs, and SES import;
 - ngspice batch jobs for user-supplied netlists (`run_ngspice_simulation`), with typed
   log parsing; requires `DIPTRACE_MCP_NGSPICE` or ngspice on `PATH`;
+- typed centered/off-center stripline solver jobs (`run_openems_stripline_analysis`),
+  including frequency-dependent complex impedance and propagation data; requires
+  `DIPTRACE_MCP_OPENEMS_RUNNER`;
 - generic BOM CSV;
 - generic fabrication and assembly review manifests;
 - job status, result, cancel, and list operations, plus export listing.

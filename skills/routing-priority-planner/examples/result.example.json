@@ -26,18 +26,6 @@
   "resources": [],
   "skipped_checks": [
     {
-      "check_id": "analyze_routing_congestion",
-      "reason": "No compatible current runtime capability for this fixture profile.",
-      "impact": "Dependent evidence is unavailable.",
-      "mandatory": false
-    },
-    {
-      "check_id": "suggest_routing_order",
-      "reason": "No compatible current runtime capability for this fixture profile.",
-      "impact": "Dependent evidence is unavailable.",
-      "mandatory": false
-    },
-    {
       "check_id": "find_route_corridors",
       "reason": "No compatible current runtime capability for this fixture profile.",
       "impact": "Dependent evidence is unavailable.",
@@ -57,33 +45,11 @@
       "blocking": false,
       "requires_user_confirmation": false,
       "depends_on": [
-        "routing-analysis-tuning-v1",
-        "routing-analysis-tuning-v1",
         "routing-analysis-tuning-v1"
       ]
     }
   ],
   "dependency_report": [
-    {
-      "capability": "analyze_routing_congestion",
-      "contract_id": "routing-analysis-tuning-v1",
-      "reason": "Use only when document capabilities allow it.",
-      "impact": "The dependent stage cannot be represented as a verified MCP result.",
-      "dependent_stages": [
-        "requested dependent stage"
-      ],
-      "state": "missing"
-    },
-    {
-      "capability": "suggest_routing_order",
-      "contract_id": "routing-analysis-tuning-v1",
-      "reason": "Use only when document capabilities allow it.",
-      "impact": "The dependent stage cannot be represented as a verified MCP result.",
-      "dependent_stages": [
-        "requested dependent stage"
-      ],
-      "state": "missing"
-    },
     {
       "capability": "find_route_corridors",
       "contract_id": "routing-analysis-tuning-v1",

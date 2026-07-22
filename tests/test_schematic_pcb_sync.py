@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from diptrace_mcp.config import Settings
-from diptrace_mcp.errors import EditError
+from diptrace_mcp.errors import EditError, LockedObjectError
 from diptrace_mcp.scaffolding import build_pcb_document
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.service import DipTraceService
@@ -95,6 +95,134 @@ def test_sync_operation_is_idempotent() -> None:
     second = apply_semantic_operations(first.document, [second_plan.operation])
     assert second.patch_count == 0
     assert second.raw_bytes == first.raw_bytes
+
+
+def _synced_pcb_with_extras(*, locked_extra: bool = False) -> DipTraceDocument:
+    schematic = _load("schematic.xml")
+    empty = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    additive_plan = build_sync_plan(
+        schematic,
+        empty,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+    )
+    synced = apply_semantic_operations(empty, [additive_plan.operation]).document
+    root = ET.fromstring(synced.raw_bytes)
+    components = root.find("./Board/Components")
+    assert components is not None
+    extra = ET.SubElement(
+        components,
+        "Component",
+        {
+            "Id": "2",
+            "UpdateId": "102",
+            "PatternStyle": "PatType0",
+            "X": "30",
+            "Y": "30",
+            "Side": "Top",
+            "Locked": "Y" if locked_extra else "N",
+            "Selected": "N",
+        },
+    )
+    ET.SubElement(extra, "RefDes").text = "X1"
+    ET.SubElement(extra, "Name").text = "EXTRA"
+    ET.SubElement(extra, "Value").text = "EXTRA"
+    pads = ET.SubElement(extra, "Pads")
+    ET.SubElement(pads, "Pad", {"Id": "0", "Number": "1"})
+
+    vcc = root.find("./Board/Nets/Net[Name='VCC']")
+    assert vcc is not None
+    vcc_pads = vcc.find("./Pads")
+    vcc_traces = vcc.find("./Traces")
+    assert vcc_pads is not None and vcc_traces is not None
+    ET.SubElement(vcc_pads, "Item", {"Comp": "2", "Pad": "0"})
+    trace = ET.SubElement(vcc_traces, "Trace", {"Id": "0", "Locked": "N"})
+    points = ET.SubElement(trace, "Points")
+    ET.SubElement(points, "Point", {"X": "10", "Y": "10", "Layer": "0"})
+    ET.SubElement(points, "Point", {"X": "30", "Y": "30", "Layer": "0"})
+
+    nets = root.find("./Board/Nets")
+    assert nets is not None
+    extra_net = ET.SubElement(
+        nets,
+        "Net",
+        {"Id": "2", "NetClass": "0", "Locked": "N"},
+    )
+    ET.SubElement(extra_net, "Name").text = "EXTRA"
+    ET.SubElement(extra_net, "Pads")
+    ET.SubElement(extra_net, "Traces")
+
+    ratlines = root.find("./Board/Ratlines")
+    assert ratlines is not None
+    ET.SubElement(
+        ratlines,
+        "Ratline",
+        {
+            "Id": "99",
+            "Hidden": "N",
+            "X1": "10",
+            "Y1": "10",
+            "X2": "30",
+            "Y2": "30",
+            "Comp1": "0",
+            "Pad1": "0",
+            "Comp2": "2",
+            "Pad2": "0",
+        },
+    )
+    return DipTraceDocument.from_bytes(
+        Path("board.dip"), ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    )
+
+
+def test_exact_sync_removes_unmatched_objects_and_changed_net_traces() -> None:
+    schematic = _load("schematic.xml")
+    pcb = _synced_pcb_with_extras()
+    plan = build_sync_plan(
+        schematic,
+        pcb,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+        reconciliation_mode="exact",
+    )
+
+    first = apply_semantic_operations(pcb, [plan.operation])
+    root = ET.fromstring(first.raw_bytes)
+    assert {
+        item.findtext("./RefDes")
+        for item in root.findall("./Board/Components/Component")
+    } == {"R1", "U1"}
+    assert {
+        item.findtext("./Name") for item in root.findall("./Board/Nets/Net")
+    } == {"VCC", "SIGNAL"}
+    assert root.findall("./Board/Nets/Net/Traces/Trace") == []
+    assert len(root.findall("./Board/Ratlines/Ratline")) == 2
+
+    second_plan = build_sync_plan(
+        schematic,
+        first.document,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+        reconciliation_mode="exact",
+    )
+    second = apply_semantic_operations(first.document, [second_plan.operation])
+    assert second.patch_count == 0
+    assert second.raw_bytes == first.raw_bytes
+
+
+def test_exact_sync_rejects_locked_unmatched_component_by_default() -> None:
+    schematic = _load("schematic.xml")
+    pcb = _synced_pcb_with_extras(locked_extra=True)
+    plan = build_sync_plan(
+        schematic,
+        pcb,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+        reconciliation_mode="exact",
+    )
+
+    with pytest.raises(LockedObjectError, match="allow_locked_reconciliation"):
+        apply_semantic_operations(pcb, [plan.operation])
 
 
 def test_sync_requires_explicit_mapping_for_connected_multi_part_pin() -> None:

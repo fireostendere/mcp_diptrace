@@ -24,6 +24,7 @@ from .connectivity import build_connectivity_graph
 from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
 from .domain import (
     DocumentInfo,
+    FieldSolverRequest,
     ImpedanceInput,
     JobStatus,
     LibraryComponent,
@@ -76,7 +77,11 @@ from .library_adapters import (
     validate_library,
 )
 from .model_cache import ModelCache
-from .multirouter import synthesize_routes_with_retry
+from .multirouter import (
+    RoutingOrder,
+    plan_connection_order,
+    synthesize_routes_with_retry,
+)
 from .operations import (
     AddNetLabelOperation,
     AddSheetOperation,
@@ -264,9 +269,14 @@ class DipTraceService:
                 report["external_adapters"]["ngspice"] = (
                     self.external_jobs.ngspice.probe().as_dict()
                 )
+                openems_probe = self.external_jobs.openems.probe()
+                report["external_adapters"]["openems"] = openems_probe.as_dict()
                 report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
                 report["limits"]["max_external_log_bytes"] = (
                     self.settings.max_external_log_bytes
+                )
+                report["limits"]["max_external_result_bytes"] = (
+                    self.settings.max_external_result_bytes
                 )
                 report["policy"].update(self.policy.capability_payload())
                 if probe.available:
@@ -275,20 +285,37 @@ class DipTraceService:
                         for item in report["reasons_unavailable"]
                         if item.get("feature") != "external_autorouting"
                     ]
+                if openems_probe.available:
+                    report["reasons_unavailable"] = [
+                        item
+                        for item in report["reasons_unavailable"]
+                        if item.get("feature") != "external_si_pi_solver"
+                    ]
                 return report
         document, target = self.load(path)
         report = build_capabilities(document, live_session=target.is_live).model_dump()
         probe = self.external_jobs.freerouting.probe()
         report["external_adapters"]["freerouting"] = probe.as_dict()
         report["external_adapters"]["ngspice"] = self.external_jobs.ngspice.probe().as_dict()
+        openems_probe = self.external_jobs.openems.probe()
+        report["external_adapters"]["openems"] = openems_probe.as_dict()
         report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
         report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
+        report["limits"]["max_external_result_bytes"] = (
+            self.settings.max_external_result_bytes
+        )
         report["policy"].update(self.policy.capability_payload())
         if probe.available:
             report["reasons_unavailable"] = [
                 item
                 for item in report["reasons_unavailable"]
                 if item.get("feature") != "external_autorouting"
+            ]
+        if openems_probe.available:
+            report["reasons_unavailable"] = [
+                item
+                for item in report["reasons_unavailable"]
+                if item.get("feature") != "external_si_pi_solver"
             ]
         snapshot = self.models.get(document, live_session=target.is_live)
         dsn_reasons = dsn_export_limitations(snapshot)
@@ -664,6 +691,8 @@ class DipTraceService:
         update_existing_properties: bool = True,
         create_ratlines: bool = True,
         allow_reconnect: bool = False,
+        reconciliation_mode: Literal["additive", "exact"] = "additive",
+        allow_locked_reconciliation: bool = False,
         dry_run: bool = True,
         expected_sha256: str | None = None,
         txid: str | None = None,
@@ -685,6 +714,8 @@ class DipTraceService:
             update_existing_properties=update_existing_properties,
             create_ratlines=create_ratlines,
             allow_reconnect=allow_reconnect,
+            reconciliation_mode=reconciliation_mode,
+            allow_locked_reconciliation=allow_locked_reconciliation,
         )
         response = self._run_semantic_write(
             plan.operation,
@@ -3519,6 +3550,7 @@ class DipTraceService:
         *,
         ripup_retry: bool = True,
         max_ripup_attempts: int = 4,
+        ordering: RoutingOrder = "congestion_aware",
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -3533,6 +3565,7 @@ class DipTraceService:
             configs,
             ripup_retry=ripup_retry,
             max_ripup_attempts=max_ripup_attempts,
+            ordering=ordering,
         )
         if not synthesis.operations:
             raise RoutingError(
@@ -3552,6 +3585,38 @@ class DipTraceService:
         if synthesis.ripups:
             response["routing"]["ripups"] = synthesis.ripups
         return response
+
+    def analyze_routing_congestion(
+        self,
+        connections: list[dict[str, Any]],
+        *,
+        ordering: RoutingOrder = "congestion_aware",
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        """Rank routing connections deterministically without changing the document."""
+
+        configs = [RouteConnectionConfig.model_validate(item) for item in connections]
+        if not configs:
+            raise RoutingError("At least one connection is required")
+        document, target = self.load(path)
+        ordered, priorities = plan_connection_order(
+            document,
+            configs,
+            ordering=ordering,
+        )
+        snapshot = self.models.get(document, live_session=target.is_live)
+        return self._read_success(
+            snapshot.info,
+            {
+                "ordering": ordering,
+                "routing_order": [index for index, _config in ordered],
+                "priorities": [item.as_dict() for item in priorities],
+            },
+            limitations=[
+                "Congestion ranking is a deterministic corridor/bounding-box heuristic, "
+                "not a global routing or push-and-shove solver."
+            ],
+        )
 
     def run_ngspice_simulation(
         self,
@@ -3598,6 +3663,67 @@ class DipTraceService:
                 "The netlist is user-supplied; the server does not verify its electrical "
                 "correctness.",
                 "Simulation results are ngspice output, not in-circuit measurements.",
+            ],
+            "resources": job_resources(record.jobid),
+            "transaction": None,
+            "job": record.model_dump(mode="json"),
+        }
+
+    def run_openems_stripline_analysis(
+        self,
+        *,
+        width_mm: float,
+        copper_thickness_mm: float,
+        lower_dielectric_height_mm: float,
+        upper_dielectric_height_mm: float,
+        dielectric_constant: float,
+        frequencies_hz: list[float],
+        dielectric_loss_tangent: float = 0.0,
+        conductor_conductivity_s_per_m: float = 58_000_000.0,
+        trace_length_mm: float = 20.0,
+        port_impedance_ohm: float = 50.0,
+        mesh_cells_per_wavelength: int = 30,
+        path: str | None = None,
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Start a bounded off-center/centered stripline field-solver job."""
+
+        self.policy.require_external_execution(operation="run_openems_stripline_analysis")
+        request = FieldSolverRequest(
+            width_mm=width_mm,
+            copper_thickness_mm=copper_thickness_mm,
+            lower_dielectric_height_mm=lower_dielectric_height_mm,
+            upper_dielectric_height_mm=upper_dielectric_height_mm,
+            dielectric_constant=dielectric_constant,
+            dielectric_loss_tangent=dielectric_loss_tangent,
+            conductor_conductivity_s_per_m=conductor_conductivity_s_per_m,
+            frequencies_hz=frequencies_hz,
+            trace_length_mm=trace_length_mm,
+            port_impedance_ohm=port_impedance_ohm,
+            mesh_cells_per_wavelength=mesh_cells_per_wavelength,
+        )
+        info: DocumentInfo | None = None
+        target_path: Path | None = None
+        if path is not None:
+            document, target = self.load(path)
+            info = self.models.get(document, live_session=target.is_live).info
+            target_path = target.path
+        record = self.external_jobs.start_openems(
+            info,
+            target_path,
+            request,
+            timeout_seconds=timeout_seconds,
+        )
+        return {
+            "ok": True,
+            "document": info.model_dump() if info is not None else None,
+            "result": {"job": record.model_dump(mode="json")},
+            "warnings": [],
+            "limitations": [
+                "The result is produced by the configured openEMS runner and is not a "
+                "fabrication guarantee.",
+                "Mesh, port, convergence, material, and loss assumptions remain part of the "
+                "solver result and must be reviewed.",
             ],
             "resources": job_resources(record.jobid),
             "transaction": None,
@@ -3692,6 +3818,8 @@ class DipTraceService:
             "log": "log.txt",
             "input.dsn": "input.dsn",
             "output.ses": "output.ses",
+            "field_solver_input.json": "field_solver_input.json",
+            "field_solver_result.json": "field_solver_result.json",
             "manifest.json": "manifest.json",
         }.get(artifact)
         if name is None:

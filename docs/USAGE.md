@@ -404,11 +404,12 @@ Representative write workflows include:
 | semantic transactions | Plan, preview, commit, and rollback typed edits | On commit |
 | component/part/text/rule operations | Controlled high-level modifications | On commit |
 | schematic authoring | `add_sheet`, `place_part`, `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label` | On commit |
-| `sync_schematic_to_pcb` | Additive component, footprint, net, and ratline synchronization | On commit |
+| `sync_schematic_to_pcb` | Additive or guarded exact component/net/ratline synchronization | On commit |
 | `set_panelization` / `clear_panelization` | Official panel parameters (V-Scoring / Tab Routing) | On commit |
 | test-point operations | Add, move, or remove standalone test points | On commit |
 | routing plans | Trace/via and coupled differential-pair operations | On commit |
-| `route_connections` | Sequential multi-net routing with bounded rip-up/retry | On commit |
+| `analyze_routing_congestion` | Read-only corridor congestion and ordering evidence | Never |
+| `route_connections` | Congestion-ordered multi-net routing with bounded rip-up/retry | On commit |
 | silkscreen/placement plans | Deterministic plan, preview, and apply | On commit |
 | `apply_xml_edits` | Low-level expert XML preview or write | Only with `dry_run=false` |
 | `finish_live_session` | Apply or cancel a live session | Controls live import |
@@ -419,8 +420,11 @@ capability map.
 
 ### 8.1 Synchronize a Schematic into a PCB
 
-`sync_schematic_to_pcb` uses the ordinary semantic transaction path. It never deletes extra
-PCB objects or existing traces. Preview the operation first:
+`sync_schematic_to_pcb` uses the ordinary semantic transaction path. It is additive by default.
+Set `reconciliation_mode` to `exact` only when the schematic is authoritative: unmatched PCB
+components/nets/ratlines are removed and traces are removed only from nets whose endpoint sets
+change. Locked objects require the additional `allow_locked_reconciliation=true` authorization.
+Preview the operation first:
 
 ```json
 {
@@ -571,6 +575,10 @@ Deleting or replacing the `<Source>` root is prohibited.
 | `DIPTRACE_MCP_PORT` | `8765` | HTTP server port |
 | `DIPTRACE_MCP_FREEROUTING` | unset | Explicit Freerouting JAR or adapter enablement path |
 | `DIPTRACE_MCP_JAVA` | auto-detected | Explicit Java executable for Freerouting jobs |
+| `DIPTRACE_MCP_NGSPICE` | auto-detected | Explicit ngspice executable or portable Python wrapper |
+| `DIPTRACE_MCP_OPENEMS_RUNNER` | unset | Compatible openEMS JSON-protocol runner |
+| `DIPTRACE_MCP_EXTERNAL_TIMEOUT` | `3600` | Maximum external-job timeout in seconds |
+| `DIPTRACE_MCP_MAX_EXTERNAL_RESULT_BYTES` | `16777216` | Maximum typed solver-result artifact size |
 
 Example with multiple Windows roots:
 

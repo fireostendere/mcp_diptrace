@@ -20,6 +20,7 @@
         {
           "kind": "callable_tools_registered",
           "equals": [
+            "analyze_routing_congestion",
             "diptrace_status",
             "get_capabilities",
             "get_design_rules",
@@ -30,9 +31,7 @@
         {
           "kind": "never_call_target_names",
           "equals": [
-            "analyze_routing_congestion",
-            "find_route_corridors",
-            "suggest_routing_order"
+            "find_route_corridors"
           ]
         }
       ]

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/diptrace-mcp/diptrace-5.3-fixture-manifest.schema.json",
+  "title": "DipTrace 5.3 Fixture Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "diptrace",
+    "redistribution",
+    "fixtures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "diptrace-fixture-manifest-v1"
+    },
+    "diptrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "build", "operating_system"],
+      "properties": {
+        "version": {"type": "string", "pattern": "^5\\.3(?:\\.|$)"},
+        "build": {"type": "string", "minLength": 1, "maxLength": 128},
+        "operating_system": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    },
+    "redistribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["permitted", "basis"],
+      "properties": {
+        "permitted": {"const": true},
+        "basis": {"type": "string", "minLength": 1, "maxLength": 1000}
+      }
+    },
+    "fixtures": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "source_type",
+          "sha256",
+          "workflow",
+          "purpose"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9_.() -]+(?:/[A-Za-z0-9_.() -]+)*$",
+            "maxLength": 512
+          },
+          "source_type": {
+            "enum": [
+              "DipTrace-PCB",
+              "DipTrace-Schematic",
+              "DipTrace-ComponentLibrary",
+              "DipTrace-PatternLibrary",
+              "Specctra-DSN",
+              "Specctra-SES"
+            ]
+          },
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "units": {"enum": ["mm", "inch", "mil", "not_applicable"]},
+          "workflow": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "purpose": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "difference_from": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "single_change"],
+            "properties": {
+              "path": {"type": "string", "minLength": 1, "maxLength": 512},
+              "single_change": {"type": "string", "minLength": 1, "maxLength": 1000}
+            }
+          }
+        }
+      }
+    }
+  }
+}

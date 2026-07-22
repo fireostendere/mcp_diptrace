@@ -1,0 +1,34 @@
+{
+  "schema_version": "diptrace-field-solver-result-v1",
+  "backend": "openems",
+  "solver_version": "synthetic-openems-protocol-fixture-1",
+  "converged": true,
+  "points": [
+    {
+      "frequency_hz": 1000000000.0,
+      "characteristic_impedance_real_ohm": 66.71,
+      "characteristic_impedance_imag_ohm": -0.18,
+      "propagation_alpha_np_per_m": 0.021,
+      "propagation_beta_rad_per_m": 42.95,
+      "conductor_loss_db_per_m": 0.12,
+      "dielectric_loss_db_per_m": 0.06
+    },
+    {
+      "frequency_hz": 2000000000.0,
+      "characteristic_impedance_real_ohm": 66.58,
+      "characteristic_impedance_imag_ohm": -0.24,
+      "propagation_alpha_np_per_m": 0.035,
+      "propagation_beta_rad_per_m": 85.93,
+      "conductor_loss_db_per_m": 0.18,
+      "dielectric_loss_db_per_m": 0.12
+    }
+  ],
+  "mesh": {
+    "cells": 184320,
+    "minimum_cell_mm": 0.015,
+    "energy_decay_db": -52.4
+  },
+  "warnings": [
+    "Synthetic parser fixture; replace with a captured openEMS run for solver validation."
+  ]
+}
