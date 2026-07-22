@@ -88,6 +88,37 @@ deferred until suitable files can be produced; item 3 remains blocked by that ev
 The optional solver adapter in item 4 is implemented at the protocol/job layer, with only
 real-runtime acceptance evidence outstanding.
 
+### Local Corpus and Bridge Audit — 2026-07-22
+
+An anonymous, local-only audit was run against 90 shallow repository checkouts selected
+from a private source index. The index is excluded through `docs/private/`; repository
+names, URLs, files, and derived fixtures are not stored in this project. The temporary
+checkouts are not a source of redistributable test data.
+
+The aggregate inventory contained 348 binary schematics and 452 binary boards. Binary
+magic identified all 51 `.eli` files as DipTrace component libraries and 22 of 78 `.lib`
+files as DipTrace pattern libraries; the other 56 `.lib` files belonged to unrelated
+software formats. Eighty-five XML files were inspected, but none had a native DipTrace
+XML root. Of 33 `.dsn` files, only two were textual
+Specctra PCB designs, neither carried a confirmed DipTrace generator marker, and no
+`.ses` file was present. This corpus is therefore useful for local compatibility and
+future export sampling, but it does not satisfy the XML, controlled before/after, or
+DSN/SES evidence gates below.
+
+The installed DipTrace 5.3.0.2 bridge was also exercised against vendor-installed local
+examples without retaining the exported XML. A complex four-layer PCB and a seven-sheet
+schematic both parsed without warnings. This confirms the general 5.3 reader path, but
+does not prove hierarchy, controlled mask/paste/courtyard semantics, copper refill
+before/after behavior, library round trips, or redistribution permission.
+
+The bridge installer now covers Component Editor and Pattern Editor as explicit read-only
+profiles using whole-library export with imports disabled. Both profiles were exercised
+against small vendor-installed 5.3.0.2 libraries: a 187-component export and a
+181-pattern export parsed without warnings. The pattern sample contained top-courtyard
+geometry, but no explicit mask/paste attributes or bottom-courtyard evidence. This
+removes the tooling gap for collecting local library evidence; it does not unblock
+writers until controlled, redistributable round-trip fixtures exist.
+
 ### 1. Redistributable DipTrace 5.3 Fixture Pack — Deferred
 
 Add a small synthetic, non-proprietary fixture pack exported by the current DipTrace
@@ -134,6 +165,11 @@ single-setting before/after pairs, or DSN/SES files, and therefore cannot satisf
 evidence gate by itself. Treat exported derivatives as local validation data unless their
 redistribution terms are explicitly confirmed; committed fixtures must have clear
 redistribution permission.
+
+Local bridge acceptance has now confirmed that representative installed PCB and
+multi-sheet Schematic examples export as XML `Version="5.3.0.2"` and parse without
+warnings. Those exports were not retained or committed, so the CI fixture requirement is
+unchanged.
 
 `manifest.json` must record the exact DipTrace version/build, operating system, export
 workflow, source type, units, SHA-256 of every fixture, the intended semantic difference
