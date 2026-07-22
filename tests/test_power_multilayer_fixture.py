@@ -48,6 +48,9 @@ def test_power_multilayer_source_identity_and_structure() -> None:
     assert len(snapshot.board.traces) == 13
     assert len(snapshot.board.vias) == 2
     assert len(snapshot.board.ratlines) == 11
+    assert [
+        item["attributes"]["Id"] for item in snapshot.board.ratlines
+    ] == [str(index) for index in range(11)]
 
 
 def test_power_multilayer_signal_routes_and_via_spans() -> None:

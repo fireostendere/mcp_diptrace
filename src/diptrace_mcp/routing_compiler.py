@@ -534,7 +534,7 @@ def _preview(
     }
 
 
-def _prune_satisfied_ratlines(document: DipTraceDocument) -> int:
+def _prune_satisfied_ratlines(document: DipTraceDocument) -> tuple[int, int]:
     """Remove ratlines made redundant by confirmed pad-to-pad trace connectivity.
 
     DipTrace treats ``Board/Ratlines`` as a connectivity spanning forest, not as a
@@ -549,7 +549,7 @@ def _prune_satisfied_ratlines(document: DipTraceDocument) -> int:
 
     ratlines = document.container.find("./Ratlines")
     if ratlines is None:
-        return 0
+        return 0, 0
 
     endpoint_net: dict[tuple[str, str], str] = {}
     nets: dict[str, ET.Element] = {}
@@ -602,7 +602,13 @@ def _prune_satisfied_ratlines(document: DipTraceDocument) -> int:
         if not union(left, right):
             ratlines.remove(ratline)
             removed += 1
-    return removed
+    renumbered = 0
+    for ratline_id, ratline in enumerate(ratlines.findall("./Ratline")):
+        normalized_id = str(ratline_id)
+        if ratline.get("Id") != normalized_id:
+            ratline.set("Id", normalized_id)
+            renumbered += 1
+    return removed, renumbered
 
 
 def _restore_trace_ratline(document: DipTraceDocument, trace: ET.Element) -> int:
@@ -695,7 +701,7 @@ def _add_trace(
         widths,
         via_styles,
     )
-    removed_ratlines = _prune_satisfied_ratlines(document)
+    removed_ratlines, renumbered_ratlines = _prune_satisfied_ratlines(document)
     length = sum(
         distance(left, right) for left, right in zip(points, points[1:], strict=False)
     )
@@ -710,10 +716,11 @@ def _add_trace(
                 "xml_id": trace_id,
                 "length_mm": length,
                 "removed_ratline_count": removed_ratlines,
+                "renumbered_ratline_count": renumbered_ratlines,
             },
             document,
         ),
-        1 + point_patches + removed_ratlines,
+        1 + point_patches + removed_ratlines + renumbered_ratlines,
         [net.stable_id, generated_id],
     )
 
@@ -1016,7 +1023,8 @@ def _delete_traces(
         ratline_patches += _restore_trace_ratline(document, trace_element)
         container.remove(trace_element)
         before.append({"id": trace.stable_id, "xml_id": trace.xml_id})
-    ratline_patches += _prune_satisfied_ratlines(document)
+    removed_ratlines, renumbered_ratlines = _prune_satisfied_ratlines(document)
+    ratline_patches += removed_ratlines + renumbered_ratlines
     ids = [trace.stable_id for trace in traces]
     return (
         _preview(index, operation, ids, before, [], document),

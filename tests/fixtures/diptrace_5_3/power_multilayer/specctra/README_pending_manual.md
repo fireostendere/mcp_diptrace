@@ -1,7 +1,7 @@
 # Specctra DSN/SES evidence — pending manual DipTrace/Freerouting work
 
 `source_board.xml` is the frozen MCP-generated source revision. Its current SHA-256 is
-`7be0ca875c14599c6e7640e2b104ac5eb1d680a686df43536fb1517fd2bbd519`.
+`c972afc80eb4c944938370672e6bb2b6ad42cc2145bd9355a30d5478e9f8924d`.
 No `input.dsn` or `output.ses` is present yet.
 
 1. Open `source_board.xml` in DipTrace PCB Layout 5.3.0.2 and recalculate the ratsnest.
