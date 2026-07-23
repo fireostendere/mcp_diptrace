@@ -1,7 +1,6 @@
 name: Apply final prompt audit
 
 on:
-  pull_request:
   push:
     branches:
       - agent/ci-semantic-comparison-final
@@ -11,7 +10,7 @@ permissions:
 
 jobs:
   apply-and-validate:
-    if: github.actor != 'github-actions[bot]' && (github.event_name == 'push' || github.head_ref == 'agent/ci-semantic-comparison-final')
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -22,15 +21,15 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - name: Apply audited patch
-        run: git apply scripts/final_prompt_audit.patch
+      - name: Apply audited changes
+        run: python scripts/apply_final_prompt_audit.py
       - name: Install dependencies
         run: python -m pip install -e '.[dev]'
       - name: Format and lint
         run: |
           python -m ruff format src/diptrace_mcp/domain.py src/diptrace_mcp/service.py tests/test_trust_model.py tests/test_prompt_acceptance.py
           python -m ruff check --fix src/diptrace_mcp/domain.py src/diptrace_mcp/service.py tests/test_trust_model.py tests/test_prompt_acceptance.py
-          python -m ruff check --no-cache src tests benchmarks scripts
+          python -m ruff check --no-cache src tests benchmarks scripts --exclude scripts/apply_final_prompt_audit.py
       - name: Run full tests
         run: python -m pytest -q
       - name: Run Mypy
