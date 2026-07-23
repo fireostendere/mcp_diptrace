@@ -1,6 +1,7 @@
 name: Export source audit
 
 on:
+  pull_request:
   push:
     branches:
       - agent/ci-semantic-comparison-final
