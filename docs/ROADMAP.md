@@ -25,6 +25,8 @@ does not imply full equivalence with the DipTrace GUI.
 | 17 | complete v1 | ngspice batch adapter for user-supplied netlists with typed log results |
 | 18 | complete v2 | congestion-aware multi-net ordering with bounded rip-up/retry |
 | 19 | complete v2 | additive and guarded exact schematic-to-PCB reconciliation with explicit multi-part pin mapping |
+| 20 | complete v1 | fail-closed trust authority, full PCB/schematic semantic comparison, native Windows CI, and terminal external-job cancellation |
+| 21 | planned | human-guided pattern feedback dataset, deterministic retrieval, and measurable recommendation workflow |
 
 ## Phase 4: Verified Boundary
 
@@ -85,32 +87,71 @@ Capability discovery reports the exact unavailability instead of registering emp
 - Exact schematic-to-PCB reconciliation is opt-in, refuses locked objects by default, and
   removes traces only when a synchronized net's endpoint set changes.
 
-## Trust Model Hardening — 2026-07-22
+## Trust, Semantic Comparison, and CI Baseline — 2026-07-23
 
-- `claimed_validation_level` and `diptrace_version` parameters removed from
-  `create_document_from_seed`; trust is derived from verified sidecar metadata only.
-- Runtime provenance is tracked via `DocumentProvenance` sidecar (`.provenance.json`),
-  separate from `FixtureManifest`.
-- `requires_diptrace_verification(level)` determines whether a validation level
-  requires DipTrace verification; only `diptrace_roundtrip_verified` and
-  `external_tool_roundtrip_verified` are considered verified.
-- MCP writes invalidate trust via `invalidate_document_trust_after_write()`,
-  downgrading to `synthetic_operation_fixture` while preserving parent provenance.
-- `validate_roundtrip_evidence()` requires real file paths and SHA verification;
-  boolean flags from clients are never accepted.
-- `FixtureManifest` conditional schema enforces required fields per validation level
-  (diptrace_build, roundtrip_verified, redistribution fields).
-- `resolve_copper_layer()` provides resolve-then-validate pattern for layer operations;
-  plane-layer routing is rejected, through-via spanning is allowed.
-- `power_multilayer` fixture is permanently synthetic with no promotion path.
+This baseline is complete and must not be weakened by later feature work:
+
+- runtime, user-supplied evidence, fixture-manifest labels, and trusted authority are
+  separate concepts;
+- runtime or user-controlled JSON, sidecars, hashes, and fixture manifests cannot mint
+  `diptrace_roundtrip_verified` or `external_tool_roundtrip_verified`;
+- high-trust promotion remains unavailable until an authenticated server-owned registry,
+  signature verifier, or committed allowlist is implemented;
+- evidence is bound to the exact document role/path, source type, before/after SHA-256,
+  and required semantic-comparison categories;
+- rollback reparses and revalidates restored provenance/evidence and falls back to
+  synthetic provenance when validation fails;
+- PCB comparison covers components, pads, nets, trace endpoints, ordered points, widths,
+  segment layers, via styles/spans, locks, and differential-pair membership;
+- schematic comparison covers sheets/hierarchy, parts, values/patterns, pins, pin-to-net
+  connectivity, wire geometry, labels, buses, and hierarchy records;
+- `comparison_complete` is derived from required categories and cannot be set by a
+  caller while categories are absent;
+- CI runs Linux Python 3.10/3.12/3.13 tests, one Linux static-analysis gate, macOS and
+  Windows tests/CLI smoke, and a real Windows bridge build/EXE verification;
+- external job cancellation is terminal across Freerouting, ngspice, and openEMS even
+  when process exit races with the worker's cancellation check.
+
+### Human-Guided Pattern Learning Roadmap
+
+The first target is recommendation of an **existing** pattern, not automatic mutation of
+native libraries and not model fine-tuning.
+
+| Milestone | Status | Deliverable | Exit criterion |
+| --- | --- | --- | --- |
+| P0 | complete | Pattern/Component Library read and validation, exact pin-to-pad checks, existing-pattern assignment, read-only Pattern Editor bridge | Existing patterns can be inspected and selected without claiming writer support |
+| P1 | next | Typed append-only feedback records: `record_pattern_example`, `accept_pattern_suggestion`, `reject_pattern_suggestion` | Accepted/rejected decisions persist with immutable IDs, document/library SHA, provenance, rationale, candidate list, and train/test split |
+| P2 | planned | Deterministic feature extraction and retrieval over accepted examples | Exact constraints filter invalid candidates; top-1/top-3 metrics run on a held-out set |
+| P3 | planned | Suggestion workflow integrated with capability discovery and transactions | The agent proposes ranked existing patterns, explains evidence, and never writes without an explicit existing-pattern operation |
+| P4 | planned | Controlled human correction capture from DipTrace exports | Before/after XML and optional screenshots are linked; XML plus manifest remain authoritative |
+| P5 | blocked | Native Pattern/Component Library writers and learning from corrected footprints | Items 1-2 below provide redistributable DipTrace 5.3 round-trip evidence and every writer passes open/save/re-export equivalence |
+| P6 | deferred | Optional fine-tuning/export pipeline | Only considered after dataset quality, held-out metrics, privacy controls, and retrieval baselines are established |
+
+The P1 record is append-only and local by default. User projects, datasheets, screenshots,
+and library XML are never committed to this repository automatically. Each record must
+include enough immutable context to reproduce the decision without trusting free-form
+claims: normalized package features, source hashes, selected pattern identity, rejected
+alternatives, decision reason, provenance, and validation result.
+
+P2 starts with deterministic retrieval rather than embeddings or fine-tuning: filter by
+pad count/type, pitch, body dimensions, mounting/hole requirements, thermal-pad needs,
+and side constraints; then rank the remaining examples by normalized geometry distance.
+The baseline metrics are top-1 accuracy, top-3 accuracy, rejection precision for invalid
+patterns, and manual-correction rate. The held-out set must never be used for retrieval
+or prompt examples during evaluation.
+
+P3 remains read-only with respect to Pattern Libraries. It may call the existing
+component pattern-assignment operation only when the selected pattern already exists and
+pin-to-pad validation passes. P5 cannot start merely because recommendation metrics are
+good; native writer work remains independently evidence-gated.
 
 ## Remaining Evidence-Gated Work
 
-All implementation work that does not depend on the missing DipTrace 5.3 exports has
-been completed. By the current project decision, items 1 and 2 below are explicitly
-deferred until suitable files can be produced; item 3 remains blocked by that evidence.
-The optional solver adapter in item 4 is implemented at the protocol/job layer, with only
-real-runtime acceptance evidence outstanding.
+Two tracks remain. The pattern-recommendation track (P1-P4 above) can proceed without
+native library writers. The native-writer track remains evidence-gated: items 1 and 2
+below are deferred until suitable DipTrace 5.3 files can be produced, and item 3 is
+blocked by that evidence. The optional solver adapter in item 4 is implemented at the
+protocol/job layer, with only real-runtime acceptance evidence outstanding.
 
 ### Local Corpus and Bridge Audit — 2026-07-22
 
@@ -302,13 +343,23 @@ fabricated output when the solver is absent.
 
 ## Roadmap Closure Definition
 
-The remaining completion order is: obtain the deferred fixture pack, verify the geometry
-policy, then implement and round-trip the library writers. Phase 12 and the declared
-roadmap remain partial until those evidence-gated items pass. The openEMS adapter is
-complete v1 at the protocol/job layer and gains solver-verified status only after a real
-captured integration run.
+The committed implementation order is:
+
+1. implement P1 append-only feedback contracts and persistence;
+2. implement P2 deterministic retrieval plus held-out metrics;
+3. expose P3 ranked existing-pattern suggestions with truthful capabilities;
+4. collect P4 controlled corrections and native evidence;
+5. obtain the deferred fixture pack and verify mask/paste/courtyard policy;
+6. only then implement P5 native library writers and round-trip them through DipTrace.
+
+Phase 12 remains partial until the evidence-gated writer items pass. Phase 21 remains
+planned until P1-P3 are implemented and evaluated. A recommendation system is not allowed
+to claim footprint creation, native library mutation, or high-trust validation.
+
+The openEMS adapter is complete v1 at the protocol/job layer and gains solver-verified
+status only after a real captured integration run.
 
 Completion does not mean full DipTrace GUI equivalence. A native manufacturing adapter is
 excluded without a verified DipTrace API; generic manifests are not Gerber or NC Drill
 output. Full push-and-shove/global autorouting, GUI automation, and always-on online
-sourcing also remain explicit product boundaries rather than unfinished roadmap items.
+sourcing remain explicit product boundaries rather than unfinished roadmap items.

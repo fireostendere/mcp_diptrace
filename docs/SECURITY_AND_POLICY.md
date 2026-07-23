@@ -10,7 +10,8 @@
 - locked objects are preserved by default;
 - only one live session may be active;
 - external processes use a fixed typed argument vector, `shell=false`, an isolated job
-  directory, bounded logs, a timeout, and cancellation;
+  directory, bounded logs, a timeout, and cancellation; cancellation is terminal even if
+  process exit races with the worker state update;
 - the core does not use the network or execute arbitrary shell commands supplied by an LLM.
 
 ## Policy Profiles
@@ -34,3 +35,10 @@ details. Rollback is not blocked by policy because it restores a previously safe
 The server is a local single-user tool. Streamable HTTP listens on loopback by default;
 there is no built-in remote authentication. Exposing the port externally requires a
 separate reverse proxy and authentication layer and is outside the core security model.
+
+Clients are not trust authorities. Runtime sidecars, user-supplied evidence, fixture
+manifests, matching hashes, and workspace-controlled JSON cannot self-mint high-trust
+validation. Evidence is bound to exact file roles/paths, source type, SHA-256, and a
+complete semantic comparison. Rollback revalidates restored provenance and evidence.
+High-trust promotion remains unavailable until an authenticated server-owned registry,
+signature verifier, or committed allowlist exists.

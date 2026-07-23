@@ -63,13 +63,25 @@ MCP-сервер для чтения, анализа и контролируем
 
 ## Статус проверки
 
-Текущий MCP-код проходит полный core test suite, Ruff и strict Mypy. Отдельный live-тест
-с DipTrace 5.3.0.2 подтвердил SHA-защиту, backup, atomic write, применение 41
-`RefDesMarking`-правки на листе Power и независимый повторный export из DipTrace.
-Все 41 координаты сохранились; нормализованные количества листов, частей, выводов,
-цепей, шин и differential pairs не изменились; новых offline ERC errors не появилось.
+CI разделяет проверки по назначению:
 
-Это подтверждает проверенный сценарий, но не является обещанием полной совместимости со
+- полный pytest на Linux с Python 3.10, 3.12 и 3.13;
+- Ruff, strict Mypy и проверка сгенерированных skills на Linux/Python 3.12;
+- полный pytest и CLI smoke test на macOS и Windows/Python 3.12;
+- нативная Windows-сборка с проверкой непустого `diptrace_mcp_bridge.exe`.
+
+Текущая ветка `main` проходит всю эту матрицу. Regression coverage включает
+fail-closed trust authority, обязательные категории semantic comparison для PCB и
+schematic, Windows atomic-job поведение и terminal cancellation semantics для
+Freerouting/ngspice/openEMS.
+
+Отдельный live-тест с DipTrace 5.3.0.2 подтвердил SHA-защиту, backup, atomic write,
+применение 41 `RefDesMarking`-правки на листе Power и независимый повторный export из
+DipTrace. Все 41 координаты сохранились; нормализованные количества листов, частей,
+выводов, цепей, шин и differential pairs не изменились; новых offline ERC errors не
+появилось.
+
+Это подтверждает проверенные сценарии, но не является обещанием полной совместимости со
 всеми версиями DipTrace и всеми XML objects.
 
 ## Как это устроено
@@ -199,6 +211,37 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Сервер читае
 Профиль задаётся `DIPTRACE_MCP_POLICY`. Для review-only агента используйте
 `review`: semantic previews разрешены, commit и external execution запрещены.
 
+## Модель доверия
+
+Сервер разделяет provenance и authority. Клиент может передать evidence, но не может
+самостоятельно повысить документ до high-trust validation level.
+
+- XML, созданный MCP с нуля, остаётся `synthetic_parser_only`;
+- копия реального seed сохраняет provenance, но не получает round-trip authority;
+- `record_roundtrip_evidence` связывает точные пути, source type, SHA-256 и semantic
+  comparison, однако user-supplied evidence не является доверенным корнем;
+- `diptrace_roundtrip_verified` и `external_tool_roundtrip_verified` намеренно недоступны,
+  пока нет server-owned registry, проверки подписи или committed allowlist.
+
+Любая запись MCP инвалидирует прежние high-trust claims. Evidence повторно проверяется
+при использовании и rollback; path aliases, несовпадение source type/SHA, неполные
+категории сравнения и semantic differences приводят к fail-closed результату.
+
+## Статус обучения паттернов
+
+Уже можно читать и валидировать существующие Pattern Libraries, проверять pin-to-pad
+mapping и назначать компоненту существующий pattern при точном совпадении pad numbers.
+Сессии Pattern Editor остаются read-only.
+
+В проекте пока нет persistent feedback tools `record_pattern_example`,
+`accept_pattern_suggestion` и `reject_pattern_suggestion`. Следующий этап — append-only
+dataset с provenance и deterministic retrieval похожих принятых примеров. Fine-tuning
+отложен: для первого полезного recommendation loop он не требуется.
+
+Создание и изменение native Pattern/Component Libraries остаётся заблокировано до
+появления контролируемых DipTrace 5.3 before/after и open/save/re-export fixtures.
+Фиксированный порядок работ и критерии готовности описаны в [roadmap](docs/ROADMAP.md).
+
 ## Ограничения
 
 - сервер не управляет GUI DipTrace и не нажимает пункты меню;
@@ -221,6 +264,7 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Сервер читае
   не поставляется, а parser fixture явно синтетический;
 - copper pours представлены boundary, не authoritative refill;
 - fabrication manifest не содержит Gerber/NC Drill и не готов к производству;
+- persistent feedback/retrieval для обучения выбору паттернов пока не реализованы;
 - library mutation не заявлена без verified fixtures;
 - schematic-to-PCB sync сохраняет лишние PCB objects и существующие traces; multi-part
   components требуют явный `part_id + pin -> pad_number` mapping, а новый placement является
@@ -246,7 +290,7 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Сервер читае
 - [Testing and benchmarks](docs/TESTING.md)
 - [Skill contracts](docs/SKILL_CONTRACTS.md)
 - [Англоязычный каталог PCB skills](skills/README.md)
-- [Roadmap](docs/ROADMAP.md)
+- [Roadmap и план обучения паттернов](docs/ROADMAP.md)
 - [Разработка](docs/DEVELOPMENT.md)
 - [Основной README на английском](README.md)
 - [Официальные спецификации DipTrace XML и плагинов](https://diptrace.com/support/tutorials/)
