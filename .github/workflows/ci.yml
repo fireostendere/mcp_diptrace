@@ -1,39 +1,99 @@
 name: CI
 
 on:
-  push:
   pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  test:
+  test-linux:
+    name: test-linux (${{ matrix.python }})
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            python: "3.10"
-          - os: ubuntu-latest
-            python: "3.12"
-          - os: ubuntu-latest
-            python: "3.13"
-          - os: windows-latest
-            python: "3.12"
-          - os: macos-latest
-            python: "3.12"
-    runs-on: ${{ matrix.os }}
+        python: ["3.10", "3.12", "3.13"]
     steps:
-      - name: Check out source
-        uses: actions/checkout@v5
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
-      - name: Install test dependencies
-        run: python -m pip install -e ".[dev]"
+      - run: python -m pip install -e ".[dev]"
       - name: Run tests
-        run: python -m pytest -q
-      - name: Run Ruff
-        run: python -m ruff check --no-cache src tests benchmarks scripts
-      - name: Run Mypy
-        run: python -m mypy --no-incremental src/diptrace_mcp
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q --tb=long 2>&1 | tee pytest-${{ matrix.python }}.log
+      - name: Upload failed test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-linux-${{ matrix.python }}
+          path: pytest-${{ matrix.python }}.log
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m ruff check --no-cache src tests benchmarks scripts
+      - run: python -m mypy --no-incremental src/diptrace_mcp
+      - run: python scripts/generate_pcb_skills.py --check
+
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q
+      - run: diptrace-mcp --help
+
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q
+      - run: diptrace-mcp --help
+
+  build-windows-bridge:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Build unsigned bridge
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\plugin\build_bridge.ps1 -PythonCommand python -Clean
+      - name: Verify bridge executable
+        shell: pwsh
+        run: |
+          $path = ".\plugin\dist\diptrace_mcp_bridge.exe"
+          if (-not (Test-Path $path)) { throw "Bridge executable was not created" }
+          if ((Get-Item $path).Length -le 0) { throw "Bridge executable is empty" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diptrace-bridge-ci-unsigned
+          path: plugin/dist/diptrace_mcp_bridge.exe

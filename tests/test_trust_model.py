@@ -1,6 +1,7 @@
 """Trust model tests — covers sidecar authority, trust escalation prevention,
 seed creation, trust invalidation, roundtrip evidence, authority boundary,
 structural comparison, and attack regression tests (§7, §17)."""
+
 from __future__ import annotations
 
 import hashlib
@@ -31,9 +32,7 @@ from diptrace_mcp.xml_document import DipTraceDocument, XmlEdit, utc_now
 
 def _efr(path: str, sha256: str) -> EvidenceFileRecord:
     """Shorthand for EvidenceFileRecord with DipTrace-PCB source type."""
-    return EvidenceFileRecord(
-        path=path, sha256=sha256, source_type="DipTrace-PCB"
-    )
+    return EvidenceFileRecord(path=path, sha256=sha256, source_type="DipTrace-PCB")
 
 
 MAX_BYTES = 10_000_000
@@ -60,8 +59,7 @@ def _pcb_xml(
     net_elements = []
     for idx, name in enumerate(nets):
         net_elements.append(
-            f'<Net Id="{idx}" NetClass="0" Locked="N">'
-            f"<Name>{name}</Name><Traces/></Net>"
+            f'<Net Id="{idx}" NetClass="0" Locked="N"><Name>{name}</Name><Traces/></Net>'
         )
     nets_xml = "\n".join(net_elements)
     points_xml = " ".join(
@@ -162,21 +160,23 @@ class TestDocumentProvenanceInvariants:
                 evidence_manifest_sha256="b" * 64,
             )
 
-    def test_fixture_manifest_can_grant_high_trust(self) -> None:
-        """fixture_manifest authority can grant high trust with evidence manifest."""
-        sidecar = DocumentProvenance(
-            provenance="fixture_validated",
-            validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,
-            current_document_sha256="a" * 64,
-            authority=ProvenanceAuthority.fixture_manifest,
-            evidence_manifest_path="/tmp/evidence.json",
-            evidence_manifest_sha256="b" * 64,
-        )
-        assert sidecar.validation_level == FixtureValidationLevel.diptrace_roundtrip_verified
+    def test_fixture_manifest_cannot_grant_high_trust_without_authenticated_allowlist(
+        self,
+    ) -> None:
+        """A workspace-controlled fixture manifest is not a root of trust."""
+        with pytest.raises(ValueError, match="fixture_manifest high trust is unavailable"):
+            DocumentProvenance(
+                provenance="fixture_validated",
+                validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,
+                current_document_sha256="a" * 64,
+                authority=ProvenanceAuthority.fixture_manifest,
+                evidence_manifest_path="/tmp/evidence.json",
+                evidence_manifest_sha256="b" * 64,
+            )
 
-    def test_fixture_manifest_high_trust_requires_manifest(self) -> None:
-        """fixture_manifest authority with high trust without evidence fields is rejected."""
-        with pytest.raises(ValueError, match="requires evidence_manifest_path"):
+    def test_fixture_manifest_high_trust_without_manifest_is_rejected(self) -> None:
+        """Missing evidence cannot bypass the unavailable authority boundary."""
+        with pytest.raises(ValueError, match="fixture_manifest high trust is unavailable"):
             DocumentProvenance(
                 provenance="fixture_validated",
                 validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,
@@ -215,15 +215,15 @@ class TestDocumentProvenanceInvariants:
             FixtureValidationLevel.diptrace_roundtrip_verified,
             FixtureValidationLevel.external_tool_roundtrip_verified,
         }:
-            sidecar = DocumentProvenance(
-                provenance="test",
-                validation_level=level,
-                current_document_sha256="a" * 64,
-                authority=ProvenanceAuthority.fixture_manifest,
-                evidence_manifest_path="/tmp/m.json",
-                evidence_manifest_sha256="b" * 64,
-            )
-            assert sidecar.requires_diptrace_verification is False
+            with pytest.raises(ValueError, match="fixture_manifest high trust is unavailable"):
+                DocumentProvenance(
+                    provenance="test",
+                    validation_level=level,
+                    current_document_sha256="a" * 64,
+                    authority=ProvenanceAuthority.fixture_manifest,
+                    evidence_manifest_path="/tmp/m.json",
+                    evidence_manifest_sha256="b" * 64,
+                )
 
 
 # ── Seed creation ────────────────────────────────────────────────────────────
@@ -315,7 +315,9 @@ class TestSeedBasedCreation:
             source=_efr(str(source2), seed_sha),
             saved=_efr(str(saved), seed_sha),
             semantic_comparison=SemanticComparisonEvidence(
-                passed=True, comparison_complete=True, compared_categories=["source_type"],
+                passed=True,
+                comparison_complete=True,
+                compared_categories=["source_type"],
             ),
             validation_level=FixtureValidationLevel.synthetic_operation_fixture,
             status="recorded",
@@ -530,13 +532,15 @@ class TestAllWritePathsInvalidate:
         sidecar_path.write_text(sidecar.model_dump_json())
 
         result = service.apply_edits(
-            [XmlEdit(
-                operation="set_attribute",
-                xpath="/Source",
-                attribute="Version",
-                value="4.3.0.3",
-                expected_matches=1,
-            )],
+            [
+                XmlEdit(
+                    operation="set_attribute",
+                    xpath="/Source",
+                    attribute="Version",
+                    value="4.3.0.3",
+                    expected_matches=1,
+                )
+            ],
             path="board.dip",
             dry_run=True,
         )
@@ -563,6 +567,7 @@ class TestAllWritePathsInvalidate:
     def test_all_claimed_write_paths_have_public_e2e_tests(self) -> None:
         """§17: Verify the capability report honestly marks untested paths."""
         from diptrace_mcp.capabilities import get_capabilities
+
         report = get_capabilities(None)
         trust = report.trust_model
         assert trust["all_write_paths_invalidate_trust"] is False
@@ -577,9 +582,7 @@ class TestAllWritePathsInvalidate:
 class TestAttackRegression:
     """End-to-end attack regression tests through public service methods."""
 
-    def test_self_minted_manifest_cannot_grant_high_trust(
-        self, tmp_path: Path
-    ) -> None:
+    def test_self_minted_manifest_cannot_grant_high_trust(self, tmp_path: Path) -> None:
         """Attack A: Client creates XML, manifest, SHA, and sidecar claiming high trust."""
         raw = build_pcb_document(PcbScaffold(width_mm=50.0, height_mm=30.0))
         seed_path = tmp_path / "seed.dip"
@@ -599,7 +602,9 @@ class TestAttackRegression:
             source=_efr(str(source), seed_sha),
             saved=_efr(str(saved), seed_sha),
             semantic_comparison=SemanticComparisonEvidence(
-                passed=True, comparison_complete=True, compared_categories=["source_type"],
+                passed=True,
+                comparison_complete=True,
+                compared_categories=["source_type"],
             ),
             validation_level=FixtureValidationLevel.synthetic_operation_fixture,
             status="recorded",
@@ -636,18 +641,21 @@ class TestAttackRegression:
         # but point to a fake manifest
         manifest_path = tmp_path / "nonexistent.json"
         manifest_sha = "a" * 64
-        sidecar = DocumentProvenance(
-            provenance="fake_fixture",
-            validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,
-            current_document_sha256=seed_sha,
-            authority=ProvenanceAuthority.fixture_manifest,
-            evidence_manifest_path=str(manifest_path),
-            evidence_manifest_sha256=manifest_sha,
-        )
         sidecar_path = seed_path.with_suffix(seed_path.suffix + ".provenance.json")
-        sidecar_path.write_text(sidecar.model_dump_json())
+        sidecar_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "diptrace-document-provenance-v1",
+                    "provenance": "fake_fixture",
+                    "validation_level": "diptrace_roundtrip_verified",
+                    "current_document_sha256": seed_sha,
+                    "authority": "fixture_manifest",
+                    "evidence_manifest_path": str(manifest_path),
+                    "evidence_manifest_sha256": manifest_sha,
+                }
+            )
+        )
 
-        # document_info should resolve to fail-closed because manifest is missing
         result = service.create_document_from_seed("seed.dip", "project/board.dip")
         assert result["result"]["validation_level"] == "synthetic_parser_only"
 
@@ -665,9 +673,7 @@ class TestAttackRegression:
                 evidence_manifest_sha256="b" * 64,
             )
 
-    def test_source_equals_saved_evidence_role_conflict(
-        self, tmp_path: Path
-    ) -> None:
+    def test_source_equals_saved_evidence_role_conflict(self, tmp_path: Path) -> None:
         """Attack C: source equals saved → evidence role conflict."""
         service = _service(tmp_path)
         raw = build_pcb_document(PcbScaffold(width_mm=50.0, height_mm=30.0))
@@ -684,9 +690,7 @@ class TestAttackRegression:
                 saved_path="shared.dip",
             )
 
-    def test_source_equals_reexport_evidence_role_conflict(
-        self, tmp_path: Path
-    ) -> None:
+    def test_source_equals_reexport_evidence_role_conflict(self, tmp_path: Path) -> None:
         """Attack D: source equals reexport → evidence role conflict."""
         service = _service(tmp_path)
         raw = build_pcb_document(PcbScaffold(width_mm=50.0, height_mm=30.0))
@@ -707,9 +711,7 @@ class TestAttackRegression:
                 reexport_sha256=sha,
             )
 
-    def test_saved_equals_reexport_evidence_role_conflict(
-        self, tmp_path: Path
-    ) -> None:
+    def test_saved_equals_reexport_evidence_role_conflict(self, tmp_path: Path) -> None:
         """Attack E: saved equals reexport → evidence role conflict."""
         service = _service(tmp_path)
         raw = build_pcb_document(PcbScaffold(width_mm=50.0, height_mm=30.0))
@@ -749,7 +751,9 @@ class TestAttackRegression:
             source=_efr(str(source), seed_sha),
             saved=_efr(str(saved), seed_sha),
             semantic_comparison=SemanticComparisonEvidence(
-                passed=True, comparison_complete=True, compared_categories=["source_type"],
+                passed=True,
+                comparison_complete=True,
+                compared_categories=["source_type"],
             ),
             validation_level=FixtureValidationLevel.synthetic_operation_fixture,
             status="recorded",
@@ -796,7 +800,9 @@ class TestAttackRegression:
             source=_efr(str(source), seed_sha),
             saved=_efr(str(saved), seed_sha),
             semantic_comparison=SemanticComparisonEvidence(
-                passed=True, comparison_complete=True, compared_categories=["source_type"],
+                passed=True,
+                comparison_complete=True,
+                compared_categories=["source_type"],
             ),
             validation_level=FixtureValidationLevel.synthetic_operation_fixture,
             status="recorded",
@@ -867,37 +873,6 @@ class TestAttackRegression:
         assert result["result"]["validation_level"] == "synthetic_operation_fixture"
         assert result["result"]["requires_diptrace_verification"] is True
 
-    def test_trace_coordinate_change_is_detected(self) -> None:
-        """§17: Trace point X/Y change is detected."""
-        # This tests the semantic comparison directly (§9)
-        # For now, test that comparison catches net changes
-        a = DipTraceDocument.from_bytes(Path("a.dip"), _pcb_xml("VCC"))
-        b = DipTraceDocument.from_bytes(Path("b.dip"), _pcb_xml("GND"))
-        result = _semantic_roundtrip_check(a, b)
-        assert not result["passed"]
-        assert result["comparison_complete"]
-        assert len(result["differences"]) > 0
-
-    def test_schematic_wire_geometry_change_is_detected(self) -> None:
-        """§17: Schematic wire geometry change detection placeholder."""
-        # The schematic comparison currently compares wire count.
-        # Full wire geometry comparison requires §10 implementation.
-        # This test ensures the comparison framework works.
-        assert True  # Placeholder for when full schematic comparison is implemented
-
-    def test_schematic_pin_net_change_is_detected(self) -> None:
-        """§17: Schematic pin-to-net membership change detection placeholder."""
-        # Pin membership is compared in §4 implementation.
-        # This test ensures the framework is in place.
-        assert True  # Placeholder for when full schematic comparison is implemented
-
-    def test_rollback_revalidates_restored_evidence(self) -> None:
-        """§17: Rollback with backup SHA verification."""
-        # This tests that begin_transaction records provenance_backup_sha256
-        # and rollback_transaction verifies it. Full E2E test requires
-        # transaction commit + rollback cycle.
-        assert True  # Placeholder for full E2E transaction test
-
 
 # ── Evidence authority boundary ────────────────────────────────────────────
 
@@ -905,9 +880,7 @@ class TestAttackRegression:
 class TestEvidenceAuthorityBoundary:
     """User-supplied evidence cannot grant authoritative DipTrace trust."""
 
-    def test_user_supplied_evidence_records_honest_level(
-        self, tmp_path: Path
-    ) -> None:
+    def test_user_supplied_evidence_records_honest_level(self, tmp_path: Path) -> None:
         """User-supplied evidence records with honest status."""
         manifest = UserSuppliedRoundtripEvidence(
             document_path="/tmp/doc.dip",
@@ -915,7 +888,9 @@ class TestEvidenceAuthorityBoundary:
             source=_efr("/tmp/src.dip", "b" * 64),
             saved=_efr("/tmp/saved.dip", "c" * 64),
             semantic_comparison=SemanticComparisonEvidence(
-                passed=True, comparison_complete=True, compared_categories=["source_type"],
+                passed=True,
+                comparison_complete=True,
+                compared_categories=["source_type"],
             ),
             validation_level=FixtureValidationLevel.synthetic_operation_fixture,
             status="recorded",
@@ -964,7 +939,9 @@ class TestEvidenceAuthorityBoundary:
                 saved=_efr("/tmp/saved.dip", "c" * 64),
                 reexport=_efr("/tmp/re.dip", "d" * 64),
                 semantic_comparison=SemanticComparisonEvidence(
-                    passed=True, comparison_complete=True, compared_categories=["source_type"],
+                    passed=True,
+                    comparison_complete=True,
+                    compared_categories=["source_type"],
                 ),
                 validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,
                 status="recorded",

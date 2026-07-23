@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
@@ -188,8 +189,8 @@ from .xml_document import (
 )
 
 _CANDIDATE_SUFFIXES = {".xml", ".dip", ".dch", ".eli", ".lib"}
-_SOURCE_TAG = re.compile(br"<(?:Source|Library)\b([^>]*)>", re.IGNORECASE)
-_SOURCE_ATTRIBUTE = re.compile(br"([A-Za-z][A-Za-z0-9_-]*)\s*=\s*['\"]([^'\"]*)['\"]")
+_SOURCE_TAG = re.compile(rb"<(?:Source|Library)\b([^>]*)>", re.IGNORECASE)
+_SOURCE_ATTRIBUTE = re.compile(rb"([A-Za-z][A-Za-z0-9_-]*)\s*=\s*['\"]([^'\"]*)['\"]")
 
 
 @dataclass(frozen=True)
@@ -203,15 +204,19 @@ class DocumentTarget:
 
 
 def same_file_role(path_a: Path, path_b: Path) -> bool:
-    """Platform-independent file identity check for evidence role exclusion.
-
-    Resolves symlinks and normalizes paths before comparing.  Works correctly
-    on Windows (drive letters, case-insensitive paths), Linux, and macOS.
-    """
+    """Return whether two evidence roles identify the same filesystem object."""
     try:
-        return path_a.resolve(strict=False) == path_b.resolve(strict=False)
+        if path_a.exists() and path_b.exists():
+            return os.path.samefile(path_a, path_b)
+    except OSError:
+        pass
+    try:
+        left = os.path.normcase(os.path.abspath(path_a.resolve(strict=False)))
+        right = os.path.normcase(os.path.abspath(path_b.resolve(strict=False)))
     except (OSError, ValueError):
-        return path_a == path_b
+        left = os.path.normcase(os.path.abspath(path_a))
+        right = os.path.normcase(os.path.abspath(path_b))
+    return left == right
 
 
 # ── Effective trust resolution ───────────────────────────────────────────
@@ -245,516 +250,410 @@ def _fail_closed_trust(
 
 # ── Required comparison categories ───────────────────────────────────────
 
-REQUIRED_PCB_COMPARISON_CATEGORIES: frozenset[str] = frozenset({
-    "source_type",
-    "board_outline",
-    "copper_layers",
-    "components",
-    "pads",
-    "nets",
-    "traces",
-    "vias",
-    "via_styles",
-})
+REQUIRED_PCB_COMPARISON_CATEGORIES: frozenset[str] = frozenset(
+    {
+        "source_type",
+        "board_outline",
+        "copper_layers",
+        "components",
+        "pads",
+        "nets",
+        "traces",
+        "vias",
+        "via_styles",
+    }
+)
 
-REQUIRED_SCHEMATIC_COMPARISON_CATEGORIES: frozenset[str] = frozenset({
-    "source_type",
-    "sheets",
-    "hierarchy",
-    "parts",
-    "patterns",
-    "pins",
-    "pin_net_membership",
-    "wires",
-    "wire_geometry",
-    "labels",
-})
+REQUIRED_SCHEMATIC_COMPARISON_CATEGORIES: frozenset[str] = frozenset(
+    {
+        "source_type",
+        "sheets",
+        "hierarchy",
+        "parts",
+        "patterns",
+        "pins",
+        "pin_net_membership",
+        "wires",
+        "wire_geometry",
+        "labels",
+    }
+)
 
 
 # ── Semantic comparison policy ─────────────────────────────────────────────
 
 SEMANTIC_COMPARISON_POLICY_V1: dict[str, Any] = {
-    "ignored_xml_sections": frozenset({
-        "FutureExtension",
-    }),
-    "critical_xml_sections": frozenset({
-        # Unknown XML sections outside the allowlist are critical because they
-        # may contain electrical semantics we cannot verify.
-    }),
-    "informational_xml_sections": frozenset({
-        "Shapes",   # Text/shapes are cosmetic
-    }),
-    "normalizations": frozenset({
-        "whitespace_in_text",
-        "attribute_order",
-        "xml_declaration_encoding",
-    }),
+    "ignored_xml_sections": frozenset(
+        {
+            "FutureExtension",
+        }
+    ),
+    "critical_xml_sections": frozenset(
+        {
+            # Unknown XML sections outside the allowlist are critical because they
+            # may contain electrical semantics we cannot verify.
+        }
+    ),
+    "informational_xml_sections": frozenset(
+        {
+            "Shapes",  # Text/shapes are cosmetic
+        }
+    ),
+    "normalizations": frozenset(
+        {
+            "whitespace_in_text",
+            "attribute_order",
+            "xml_declaration_encoding",
+        }
+    ),
 }
 
 
 def _semantic_roundtrip_check(
     source: DipTraceDocument, reexport: DipTraceDocument
 ) -> dict[str, Any]:
-    """Compare two DipTrace documents for structural roundtrip equivalence.
-
-    Returns a structured comparison result with:
-      - passed: bool (fail-closed: only True when comparison is complete,
-        no differences, no critical unsupported categories, no critical warnings)
-      - comparison_complete: bool
-      - compared_categories: list of what was compared
-      - differences: list of what differs
-      - ignored_normalizations: cosmetic differences
-      - unsupported_categories: list of UnsupportedCategory dicts
-      - parse_warnings: warnings from either document
-    """
+    """Compare electrically meaningful normalized DipTrace structures."""
     differences: list[str] = []
-    compared: list[str] = []
-    ignored: list[str] = []
+    compared: list[str] = ["source_type"]
     unsupported: list[dict[str, str]] = []
     warnings: list[str] = []
 
-    # Source type must match
-    compared.append("source_type")
     if source.source_type != reexport.source_type:
-        differences.append(
-            f"source_type: {source.source_type!r} vs "
-            f"{reexport.source_type!r}"
-        )
+        differences.append(f"source_type: {source.source_type!r} vs {reexport.source_type!r}")
 
     source_snapshot = build_snapshot(source)
     reexport_snapshot = build_snapshot(reexport)
     warnings.extend(source_snapshot.warnings)
     warnings.extend(reexport_snapshot.warnings)
 
-    # ── PCB comparison ──
-    if (
-        source_snapshot.board is not None
-        and reexport_snapshot.board is not None
-    ):
+    def rounded(value: Any) -> Any:
+        if isinstance(value, float):
+            return round(value, 6)
+        if isinstance(value, dict):
+            return tuple(sorted((str(key), rounded(item)) for key, item in value.items()))
+        if isinstance(value, list):
+            return tuple(rounded(item) for item in value)
+        return value
+
+    def record_key(record: ObjectRecord) -> tuple[str, str, str]:
+        return (record.xml_id or "", record.refdes or "", record.label or record.stable_id)
+
+    def compare_category(name: str, left: Any, right: Any) -> None:
+        compared.append(name)
+        if rounded(left) != rounded(right):
+            differences.append(f"{name}: semantic content differs")
+
+    if source_snapshot.board is not None and reexport_snapshot.board is not None:
         sb = source_snapshot.board
         rb = reexport_snapshot.board
-
-        # Outline
-        compared.append("board_outline")
-        if sb.outline is not None and rb.outline is not None:
-            src_pts = sb.outline.get("points", [])
-            re_pts = rb.outline.get("points", [])
-            if len(src_pts) != len(re_pts):
-                differences.append(
-                    f"board_outline: point count "
-                    f"{len(src_pts)} vs {len(re_pts)}"
-                )
-            else:
-                for idx, (sp, rp) in enumerate(
-                    zip(src_pts, re_pts, strict=True)
-                ):
-                    sx = abs(sp.get("x", 0) - rp.get("x", 0))
-                    sy = abs(sp.get("y", 0) - rp.get("y", 0))
-                    if sx > 0.01 or sy > 0.01:
-                        differences.append(
-                            f"board_outline: point {idx} differs "
-                            f"({sp} vs {rp})"
-                        )
-                        break
-
-        # Layers
-        compared.append("copper_layers")
-        src_layers = {
-            (ly.get("id"), ly.get("name"), ly.get("type"))
-            for ly in sb.layers
-        }
-        re_layers = {
-            (ly.get("id"), ly.get("name"), ly.get("type"))
-            for ly in rb.layers
-        }
-        if src_layers != re_layers:
-            missing = src_layers - re_layers
-            extra = re_layers - src_layers
-            differences.append(
-                f"copper_layers: missing={missing}, extra={extra}"
-            )
-
-        # Via styles
-        compared.append("via_styles")
-        src_via = {
-            v.name: (v.diameter_mm, v.hole_mm) for v in sb.via_styles
-        }
-        re_via = {
-            v.name: (v.diameter_mm, v.hole_mm) for v in rb.via_styles
-        }
-        if src_via != re_via:
-            differences.append(
-                f"via_styles: {src_via} vs {re_via}"
-            )
-
-        # Components — Section #4: hardened comparison
-        compared.append("components")
-        src_comps = sorted(
-            sb.components, key=lambda c: c.refdes or c.xml_id or ""
+        compare_category("board_outline", sb.outline, rb.outline)
+        compare_category("copper_layers", sb.layers, rb.layers)
+        compare_category(
+            "via_styles",
+            [item.model_dump(mode="json") for item in sb.via_styles],
+            [item.model_dump(mode="json") for item in rb.via_styles],
         )
-        re_comps = sorted(
-            rb.components, key=lambda c: c.refdes or c.xml_id or ""
+
+        def component_sig(item: ObjectRecord) -> Any:
+            return (
+                record_key(item),
+                item.name,
+                item.value,
+                item.side,
+                item.locked,
+                item.position,
+                rounded(item.rotation_deg),
+                item.mirrored,
+                item.attributes.get("pattern_style"),
+                item.attributes.get("pattern_name"),
+            )
+
+        compare_category(
+            "components",
+            [component_sig(item) for item in sorted(sb.components, key=record_key)],
+            [component_sig(item) for item in sorted(rb.components, key=record_key)],
         )
-        if len(src_comps) != len(re_comps):
-            differences.append(
-                f"components: count {len(src_comps)} vs "
-                f"{len(re_comps)}"
+
+        def endpoint_sig(item: ObjectRecord) -> Any:
+            return (
+                record_key(item),
+                item.parent_id,
+                item.net_id,
+                item.net_name,
+                item.position,
+                item.layer,
+                item.attributes,
             )
-        else:
-            for sc, rc in zip(src_comps, re_comps, strict=True):
-                label = sc.refdes or sc.xml_id or "?"
-                if sc.refdes != rc.refdes:
-                    differences.append(
-                        f"component {label}: refdes "
-                        f"{sc.refdes!r} vs {rc.refdes!r}"
-                    )
-                if sc.name != rc.name:
-                    differences.append(
-                        f"component {label}: name "
-                        f"{sc.name!r} vs {rc.name!r}"
-                    )
-                if sc.value != rc.value:
-                    differences.append(
-                        f"component {label}: value "
-                        f"{sc.value!r} vs {rc.value!r}"
-                    )
-                # PatternStyle
-                sp_attr = sc.attributes.get(
-                    "pattern_style"
-                ) or sc.attributes.get("PatternStyle")
-                rp_attr = rc.attributes.get(
-                    "pattern_style"
-                ) or rc.attributes.get("PatternStyle")
-                if sp_attr != rp_attr:
-                    differences.append(
-                        f"component {label}: PatternStyle "
-                        f"{sp_attr!r} vs {rp_attr!r}"
-                    )
-                if sc.side != rc.side:
-                    differences.append(
-                        f"component {label}: side "
-                        f"{sc.side!r} vs {rc.side!r}"
-                    )
-                # Position
-                if sc.position and rc.position:
-                    pos_dx = abs(
-                        sc.position.get("x", 0)
-                        - rc.position.get("x", 0)
-                    )
-                    pos_dy = abs(
-                        sc.position.get("y", 0)
-                        - rc.position.get("y", 0)
-                    )
-                    if pos_dx > 0.01 or pos_dy > 0.01:
-                        differences.append(
-                            f"component {label}: position "
-                            f"{sc.position} vs {rc.position}"
+
+        compare_category(
+            "pads",
+            [endpoint_sig(item) for item in sorted(sb.pads, key=record_key)],
+            [endpoint_sig(item) for item in sorted(rb.pads, key=record_key)],
+        )
+
+        def net_sig(item: ObjectRecord) -> Any:
+            return (
+                record_key(item),
+                item.name,
+                item.locked,
+                item.attributes.get("net_class", item.attributes.get("NetClass")),
+                sorted(item.relationships.get("endpoints", [])),
+                sorted(item.relationships.get("traces", [])),
+                sorted(item.relationships.get("vias", [])),
+            )
+
+        compare_category(
+            "nets",
+            [net_sig(item) for item in sorted(sb.nets, key=record_key)],
+            [net_sig(item) for item in sorted(rb.nets, key=record_key)],
+        )
+
+        def trace_pair_membership(board: Any) -> dict[str, list[tuple[str, str]]]:
+            membership: dict[str, list[tuple[str, str]]] = {}
+            for pair in board.differential_pairs:
+                for segment in pair.segments:
+                    if segment.positive_trace_xml_id:
+                        membership.setdefault(segment.positive_trace_xml_id, []).append(
+                            (pair.name, "positive")
                         )
-                if abs(sc.rotation_deg - rc.rotation_deg) > 0.01:
-                    differences.append(
-                        f"component {label}: rotation "
-                        f"{sc.rotation_deg} vs {rc.rotation_deg}"
-                    )
-                # Pad-to-net membership — Section #4: enhanced
-                src_pads = sorted(
-                    [p for p in sb.pads if p.parent_id == sc.stable_id],
-                    key=lambda p: p.xml_id or p.label or "",
-                )
-                re_pads = sorted(
-                    [p for p in rb.pads if p.parent_id == rc.stable_id],
-                    key=lambda p: p.xml_id or p.label or "",
-                )
-                if len(src_pads) != len(re_pads):
-                    differences.append(
-                        f"component {label}: pad count "
-                        f"{len(src_pads)} vs {len(re_pads)}"
-                    )
-                else:
-                    for sp, rp in zip(src_pads, re_pads, strict=True):
-                        pad_id = sp.xml_id or sp.label or "?"
-                        if sp.xml_id != rp.xml_id:
-                            differences.append(
-                                f"component {label} pad {pad_id}: "
-                                f"xml_id {sp.xml_id!r} vs {rp.xml_id!r}"
-                            )
-                        if sp.net_name != rp.net_name:
-                            differences.append(
-                                f"component {label} pad {pad_id}: "
-                                f"net {sp.net_name!r} vs {rp.net_name!r}"
-                            )
-                        # Compare pad position if available
-                        if sp.position and rp.position:
-                            ppos_dx = abs(
-                                sp.position.get("x", 0)
-                                - rp.position.get("x", 0)
-                            )
-                            ppos_dy = abs(
-                                sp.position.get("y", 0)
-                                - rp.position.get("y", 0)
-                            )
-                            if ppos_dx > 0.01 or ppos_dy > 0.01:
-                                differences.append(
-                                    f"component {label} pad {pad_id}: "
-                                    f"position differs"
-                                )
+                    if segment.negative_trace_xml_id:
+                        membership.setdefault(segment.negative_trace_xml_id, []).append(
+                            (pair.name, "negative")
+                        )
+            return membership
 
-        # Nets — Section #4: enhanced with net class, endpoint membership
-        compared.append("nets")
-        src_nets = sorted(sb.nets, key=lambda n: n.name or "")
-        re_nets = sorted(rb.nets, key=lambda n: n.name or "")
-        src_net_names = [n.name or "" for n in src_nets]
-        re_net_names = [n.name or "" for n in re_nets]
-        if src_net_names != re_net_names:
-            differences.append(
-                f"nets: {src_net_names} vs {re_net_names}"
+        source_pairs = trace_pair_membership(sb)
+        reexport_pairs = trace_pair_membership(rb)
+
+        def trace_sig(item: ObjectRecord, pairs: dict[str, list[tuple[str, str]]]) -> Any:
+            attrs = item.attributes
+            return (
+                record_key(item),
+                item.net_id,
+                item.net_name,
+                item.layer,
+                item.locked,
+                attrs.get("Connected1"),
+                attrs.get("Connected2"),
+                attrs.get("points", []),
+                attrs.get("segment_widths_mm", []),
+                attrs.get("segment_layers", []),
+                attrs.get("point_via_styles", []),
+                attrs.get("point_arc_middle", []),
+                sorted(pairs.get(item.xml_id or "", [])),
             )
-        else:
-            for sn, rn in zip(src_nets, re_nets, strict=True):
-                # Net class
-                sn_class = sn.attributes.get("NetClass", "")
-                rn_class = rn.attributes.get("NetClass", "")
-                if sn_class != rn_class:
-                    differences.append(
-                        f"net {sn.name}: NetClass "
-                        f"{sn_class!r} vs {rn_class!r}"
-                    )
-                # Endpoint membership
-                src_ep = sorted(sn.relationships.get("endpoints", []))
-                re_ep = sorted(rn.relationships.get("endpoints", []))
-                if src_ep != re_ep:
-                    differences.append(
-                        f"net {sn.name}: endpoints differ"
-                    )
-                # Trace membership
-                src_tr = sorted(sn.relationships.get("traces", []))
-                re_tr = sorted(rn.relationships.get("traces", []))
-                if src_tr != re_tr:
-                    differences.append(
-                        f"net {sn.name}: trace membership differs"
-                    )
-                # Via membership
-                src_via_ids = sorted(sn.relationships.get("vias", []))
-                re_via_ids = sorted(rn.relationships.get("vias", []))
-                if src_via_ids != re_via_ids:
-                    differences.append(
-                        f"net {sn.name}: via membership differs"
-                    )
 
-        # Traces — Section #4: hardened with endpoint, via, width comparison
-        compared.append("traces")
-        if len(sb.traces) != len(rb.traces):
-            differences.append(
-                f"traces: count {len(sb.traces)} vs "
-                f"{len(rb.traces)}"
+        compare_category(
+            "traces",
+            [trace_sig(item, source_pairs) for item in sorted(sb.traces, key=record_key)],
+            [trace_sig(item, reexport_pairs) for item in sorted(rb.traces, key=record_key)],
+        )
+
+        def via_sig(item: ObjectRecord) -> Any:
+            attrs = item.attributes
+            return (
+                record_key(item),
+                item.parent_id,
+                item.net_id,
+                item.net_name,
+                item.position,
+                item.layer,
+                item.locked,
+                attrs.get("via_style"),
+                attrs.get("layer_start_id"),
+                attrs.get("layer_end_id"),
+                attrs.get("span_layer_ids", []),
+                attrs.get("diameter_mm"),
+                attrs.get("hole_mm"),
             )
-        else:
-            for st, rt in zip(
-                sorted(sb.traces, key=lambda t: t.stable_id),
-                sorted(rb.traces, key=lambda t: t.stable_id),
-                strict=True,
-            ):
-                if st.layer != rt.layer:
-                    differences.append(
-                        f"trace {st.stable_id}: layer "
-                        f"{st.layer!r} vs {rt.layer!r}"
-                    )
-                if st.net_name != rt.net_name:
-                    differences.append(
-                        f"trace {st.stable_id}: net "
-                        f"{st.net_name!r} vs {rt.net_name!r}"
-                    )
-                # Section #4: Compare trace endpoints
-                st_ep1 = st.attributes.get("Connected1", "")
-                rt_ep1 = rt.attributes.get("Connected1", "")
-                if st_ep1 != rt_ep1:
-                    differences.append(
-                        f"trace {st.stable_id}: Connected1 "
-                        f"{st_ep1!r} vs {rt_ep1!r}"
-                    )
-                st_ep2 = st.attributes.get("Connected2", "")
-                rt_ep2 = rt.attributes.get("Connected2", "")
-                if st_ep2 != rt_ep2:
-                    differences.append(
-                        f"trace {st.stable_id}: Connected2 "
-                        f"{st_ep2!r} vs {rt_ep2!r}"
-                    )
-                # Section #4: Compare trace points (geometry)
-                src_points = st.relationships.get("points", [])
-                re_points = rt.relationships.get("points", [])
-                if len(src_points) != len(re_points):
-                    differences.append(
-                        f"trace {st.stable_id}: point count "
-                        f"{len(src_points)} vs {len(re_points)}"
-                    )
 
-    # ── Schematic comparison — Section #4: enhanced ──
-    if (
-        source_snapshot.schematic is not None
-        and reexport_snapshot.schematic is not None
-    ):
+        compare_category(
+            "vias",
+            [via_sig(item) for item in sorted(sb.vias, key=record_key)],
+            [via_sig(item) for item in sorted(rb.vias, key=record_key)],
+        )
+        compare_category(
+            "differential_pairs",
+            [item.model_dump(mode="json", exclude={"stable_id"}) for item in sb.differential_pairs],
+            [item.model_dump(mode="json", exclude={"stable_id"}) for item in rb.differential_pairs],
+        )
+
+    if source_snapshot.schematic is not None and reexport_snapshot.schematic is not None:
         ss = source_snapshot.schematic
         rs = reexport_snapshot.schematic
+        compare_category("sheets", ss.sheets, rs.sheets)
 
-        compared.append("schematic_sheets")
-        if len(ss.sheets) != len(rs.sheets):
-            differences.append(
-                f"schematic_sheets: count "
-                f"{len(ss.sheets)} vs {len(rs.sheets)}"
+        def part_sig(item: ObjectRecord) -> Any:
+            attrs = item.attributes
+            return (
+                record_key(item),
+                item.name,
+                item.value,
+                item.position,
+                rounded(item.rotation_deg),
+                item.mirrored,
+                item.locked,
+                attrs.get("sheet"),
+                attrs.get("component_style"),
+                attrs.get("component_part"),
+                attrs.get("part_number"),
             )
 
-        compared.append("schematic_parts")
-        if len(ss.parts) != len(rs.parts):
-            differences.append(
-                f"schematic_parts: count "
-                f"{len(ss.parts)} vs {len(rs.parts)}"
-            )
-        else:
-            for sp, rp in zip(
-                sorted(ss.parts, key=lambda p: p.refdes or ""),
-                sorted(rs.parts, key=lambda p: p.refdes or ""),
-                strict=True,
-            ):
-                label = sp.refdes or "?"
-                if sp.refdes != rp.refdes:
-                    differences.append(
-                        f"part {label}: refdes differs"
-                    )
-                if sp.value != rp.value:
-                    differences.append(
-                        f"part {label}: value "
-                        f"{sp.value!r} vs {rp.value!r}"
-                    )
-                # Section #4: Compare pin-to-net membership
-                src_pins = sorted(
-                    sp.relationships.get("pins", []),
-                    key=lambda p: str(p),
-                )
-                re_pins = sorted(
-                    rp.relationships.get("pins", []),
-                    key=lambda p: str(p),
-                )
-                if src_pins != re_pins:
-                    differences.append(
-                        f"part {label}: pin membership differs"
-                    )
-
-        compared.append("schematic_nets")
-        src_sn = sorted(n.name or "" for n in ss.nets)
-        re_sn = sorted(n.name or "" for n in rs.nets)
-        if src_sn != re_sn:
-            differences.append(
-                f"schematic_nets: {src_sn} vs {re_sn}"
-            )
-
-        compared.append("schematic_wires")
-        if len(ss.wires) != len(rs.wires):
-            differences.append(
-                f"schematic_wires: count "
-                f"{len(ss.wires)} vs {len(rs.wires)}"
-            )
-
-        compared.append("schematic_labels")
-        src_labels = sorted(
-            lb.name or "" for lb in ss.labels
+        compare_category(
+            "parts",
+            [part_sig(item) for item in sorted(ss.parts, key=record_key)],
+            [part_sig(item) for item in sorted(rs.parts, key=record_key)],
         )
-        re_labels = sorted(
-            lb.name or "" for lb in rs.labels
+        compare_category(
+            "patterns",
+            [
+                (record_key(item), item.attributes.get("component_style"))
+                for item in sorted(ss.parts, key=record_key)
+            ],
+            [
+                (record_key(item), item.attributes.get("component_style"))
+                for item in sorted(rs.parts, key=record_key)
+            ],
         )
-        if src_labels != re_labels:
-            differences.append(
-                f"schematic_labels: {src_labels} vs {re_labels}"
+
+        def pin_sig(item: ObjectRecord) -> Any:
+            return (
+                record_key(item),
+                item.parent_id,
+                item.net_id,
+                item.net_name,
+                item.attributes,
             )
 
-    # Section #5: Classify unsupported categories
-    # Unknown XML sections are critical by default (may contain electrical semantics)
-    # unless they are in the allowlist.
-    comparison_complete = True
+        source_pins = [pin_sig(item) for item in sorted(ss.pins, key=record_key)]
+        reexport_pins = [pin_sig(item) for item in sorted(rs.pins, key=record_key)]
+        compare_category("pins", source_pins, reexport_pins)
+        compare_category(
+            "pin_net_membership",
+            [(item.xml_id, item.net_id, item.net_name) for item in sorted(ss.pins, key=record_key)],
+            [(item.xml_id, item.net_id, item.net_name) for item in sorted(rs.pins, key=record_key)],
+        )
+
+        def schematic_net_sig(item: ObjectRecord) -> Any:
+            return (
+                record_key(item),
+                item.name,
+                item.locked,
+                sorted(item.relationships.get("endpoints", [])),
+            )
+
+        compare_category(
+            "schematic_nets",
+            [schematic_net_sig(item) for item in sorted(ss.nets, key=record_key)],
+            [schematic_net_sig(item) for item in sorted(rs.nets, key=record_key)],
+        )
+
+        def wire_sig(item: ObjectRecord, include_geometry: bool) -> Any:
+            base = (
+                record_key(item),
+                item.net_id,
+                item.net_name,
+                item.locked,
+                item.attributes.get("sheet"),
+            )
+            return base + ((item.attributes.get("points", []),) if include_geometry else ())
+
+        compare_category(
+            "wires",
+            [wire_sig(item, False) for item in sorted(ss.wires, key=record_key)],
+            [wire_sig(item, False) for item in sorted(rs.wires, key=record_key)],
+        )
+        compare_category(
+            "wire_geometry",
+            [wire_sig(item, True) for item in sorted(ss.wires, key=record_key)],
+            [wire_sig(item, True) for item in sorted(rs.wires, key=record_key)],
+        )
+        compare_category(
+            "hierarchy",
+            [
+                (record_key(item), item.attributes.get("sheet"))
+                for item in sorted(ss.parts, key=record_key)
+            ],
+            [
+                (record_key(item), item.attributes.get("sheet"))
+                for item in sorted(rs.parts, key=record_key)
+            ],
+        )
+        compare_category(
+            "buses",
+            ss.buses,
+            rs.buses,
+        )
+
+        def label_signatures(document: DipTraceDocument) -> list[Any]:
+            labels: list[Any] = []
+            for element in document.container.iter():
+                if "label" not in str(element.tag).casefold():
+                    continue
+                labels.append(
+                    (
+                        element.tag,
+                        tuple(sorted(element.attrib.items())),
+                        (element.text or "").strip(),
+                        tuple(
+                            (
+                                child.tag,
+                                tuple(sorted(child.attrib.items())),
+                                (child.text or "").strip(),
+                            )
+                            for child in element
+                        ),
+                    )
+                )
+            return sorted(labels, key=repr)
+
+        compare_category("labels", label_signatures(source), label_signatures(reexport))
+
+    known_root_children = {"Library", "Board", "Schematic"}
     has_critical_unsupported = False
-    has_critical_warnings = False
-
-    # Check if either document has unsupported XML sections at the root level
-    for doc_label, doc in [("source", source), ("reexport", reexport)]:
-        root = doc.root
-        if root is not None:
-            # Children of <Source> are the top-level structure
-            known_source_children = {
-                "Library", "Board", "Schematic",
-            }
-            for child in root:
-                if child.tag not in known_source_children:
-                    # Unknown top-level section under <Source>
-                    unsupported.append({
+    for document_label, document in (("source", source), ("reexport", reexport)):
+        for child in document.root:
+            if child.tag not in known_root_children:
+                unsupported.append(
+                    {
                         "category": f"unknown_xml_section:{child.tag}",
                         "severity": "critical",
-                        "reason": (
-                            f"Unknown XML section <{child.tag}> in {doc_label} "
-                            "may contain electrical semantics"
-                        ),
-                    })
-                    has_critical_unsupported = True
+                        "reason": f"Unknown top-level section in {document_label}",
+                    }
+                )
+                has_critical_unsupported = True
 
-        # Also check Board/Schematic children for unknown sections
-        board = root.find("./Board") if root is not None else None
-        if board is not None:
-            known_board_children = {
-                "BoardOutline", "Settings", "CopperLayers", "ViaStyles",
-                "NetClasses", "DRC", "ConnectivityCheck", "Components",
-                "Ratlines", "Nets", "DifferentialPairs", "Shapes",
-                "FutureExtension", "DesignRules", "Stackup",
-                "CopperPours", "CopperAreas",
-            }
-            for child in board:
-                if child.tag not in known_board_children:
-                    unsupported.append({
-                        "category": f"unknown_board_section:{child.tag}",
-                        "severity": "informational",
-                        "reason": (
-                            f"Unknown Board section <{child.tag}> in {doc_label}; "
-                            "likely cosmetic or tool-specific"
-                        ),
-                    })
+    required: set[str] = {"source_type"}
+    if source_snapshot.board is not None or reexport_snapshot.board is not None:
+        required.update(REQUIRED_PCB_COMPARISON_CATEGORIES)
+        required.add("differential_pairs")
+    if source_snapshot.schematic is not None or reexport_snapshot.schematic is not None:
+        required.update(REQUIRED_SCHEMATIC_COMPARISON_CATEGORIES)
+        required.update({"schematic_nets", "buses"})
 
-    # If we only have PCB or only have Schematic, comparison is partial
-    source_has_board = source_snapshot.board is not None
-    reexport_has_board = reexport_snapshot.board is not None
-    source_has_sch = source_snapshot.schematic is not None
-    reexport_has_sch = reexport_snapshot.schematic is not None
+    missing_required = sorted(required - set(compared))
+    comparison_complete = not missing_required
+    if missing_required:
+        differences.append("missing_required_categories: " + ", ".join(missing_required))
 
-    if source_has_board != reexport_has_board:
-        differences.append(
-            f"board_presence: source={source_has_board} "
-            f"reexport={reexport_has_board}"
-        )
-        comparison_complete = False
-    if source_has_sch != reexport_has_sch:
-        differences.append(
-            f"schematic_presence: source={source_has_sch} "
-            f"reexport={reexport_has_sch}"
-        )
-        comparison_complete = False
-
-    # Section #5: Classify parse warnings
-    critical_w = [
-        w for w in warnings
-        if "error" in w.lower() or "invalid" in w.lower() or "missing" in w.lower()
+    critical_warnings = [
+        warning
+        for warning in warnings
+        if any(token in warning.casefold() for token in ("error", "invalid", "missing"))
     ]
-    if critical_w:
-        has_critical_warnings = True
-
-    # Section #5: Fail-closed passed logic
     passed = (
         not differences
         and comparison_complete
         and not has_critical_unsupported
-        and not has_critical_warnings
+        and not critical_warnings
     )
-
     return {
         "passed": passed,
         "comparison_complete": comparison_complete,
         "compared_categories": compared,
+        "missing_required_categories": missing_required,
         "differences": differences,
-        "ignored_normalizations": ignored,
+        "ignored_normalizations": [],
         "unsupported_categories": unsupported,
         "parse_warnings": warnings,
     }
@@ -877,9 +776,24 @@ class DipTraceService:
                     code="evidence_manifest_schema_error",
                 ) from exc
 
-        # 5. Find document SHA from manifest
+        # 5. Bind the manifest to this exact target document, not merely bytes
+        # with the same hash elsewhere in the workspace.
         doc_sha_from_manifest = record_data["document_sha256"]
         doc_path_from_manifest = record_data["document_path"]
+        try:
+            manifest_document_path = self.settings.resolve_allowed_path(
+                doc_path_from_manifest, must_exist=True
+            )
+        except (EditError, PathAccessError, OSError) as exc:
+            raise EditError(
+                f"Evidence document path is unavailable or outside allowed roots: {exc}",
+                code="evidence_document_path_invalid",
+            ) from exc
+        if not same_file_role(manifest_document_path, document_path):
+            raise EditError(
+                "Evidence manifest is bound to a different document path",
+                code="evidence_document_path_mismatch",
+            )
 
         # 6. Document SHA binding
         if doc_sha_from_manifest != provenance.current_document_sha256:
@@ -889,11 +803,18 @@ class DipTraceService:
                 code="evidence_document_sha_mismatch",
             )
 
-        # 7. Source type validation
+        # 7. Source type validation against the actual current document.
         saved_info = record_data.get("saved", {})
         source_type_from_manifest = ""
         if isinstance(saved_info, dict):
             source_type_from_manifest = saved_info.get("source_type", "")
+        actual_document = DipTraceDocument.load(document_path, self.settings.max_document_bytes)
+        if source_type_from_manifest != actual_document.source_type:
+            raise EditError(
+                f"Evidence source type {source_type_from_manifest!r} does not match "
+                f"document source type {actual_document.source_type!r}",
+                code="evidence_source_type_mismatch",
+            )
 
         # 8. Validation level must match
         level_from_manifest = record_data.get("validation_level", "")
@@ -1036,9 +957,7 @@ class DipTraceService:
                 )
             # Revalidate evidence manifest
             try:
-                evidence = self._load_and_validate_evidence_manifest(
-                    document_path, provenance
-                )
+                evidence = self._load_and_validate_evidence_manifest(document_path, provenance)
                 return EffectiveTrust(
                     validation_level=provenance.validation_level,
                     authority=provenance.authority.value,
@@ -1054,33 +973,14 @@ class DipTraceService:
                     warning_code=getattr(exc, "code", "evidence_validation_failed"),
                 )
 
-        # 6. Fixture manifest authority: revalidate evidence for high trust
+        # 6. Fixture-manifest is not an authenticated root of trust yet.
+        # Workspace-controlled JSON + matching SHA cannot self-mint high trust.
         if provenance.authority == ProvenanceAuthority.fixture_manifest:
             if provenance.validation_level in _HIGH_TRUST_LEVELS:
-                if not provenance.evidence_manifest_path:
-                    return _fail_closed_trust(
-                        reason="fixture_manifest_high_trust_missing_evidence",
-                        warning_code="evidence_manifest_missing",
-                    )
-                try:
-                    evidence = self._load_and_validate_evidence_manifest(
-                        document_path, provenance
-                    )
-                    return EffectiveTrust(
-                        validation_level=provenance.validation_level,
-                        authority=provenance.authority.value,
-                        requires_diptrace_verification=requires_diptrace_verification(
-                            provenance.validation_level
-                        ),
-                        evidence_manifest_path=str(evidence.manifest_path),
-                        evidence_manifest_sha256=evidence.manifest_sha256,
-                    )
-                except EditError as exc:
-                    return _fail_closed_trust(
-                        reason=str(exc),
-                        warning_code=getattr(exc, "code", "evidence_validation_failed"),
-                    )
-            # Non-high-trust fixture manifest: accept as-is
+                return _fail_closed_trust(
+                    reason="fixture_manifest_high_trust_authority_unavailable",
+                    warning_code="trusted_fixture_authority_unavailable",
+                )
             return EffectiveTrust(
                 validation_level=provenance.validation_level,
                 authority=provenance.authority.value,
@@ -1116,8 +1016,7 @@ class DipTraceService:
             parent_level = old_sidecar.parent_validation_level or old_sidecar.validation_level
             seed_sha = old_sidecar.seed_sha256
         new_sidecar = DocumentProvenance(
-            provenance="mcp_modified"
-            + (f"_from_{parent_level.value}" if parent_level else ""),
+            provenance="mcp_modified" + (f"_from_{parent_level.value}" if parent_level else ""),
             validation_level=FixtureValidationLevel.synthetic_operation_fixture,
             current_document_sha256=document_sha256,
             seed_sha256=seed_sha,
@@ -1197,9 +1096,7 @@ class DipTraceService:
                 openems_probe = self.external_jobs.openems.probe()
                 report["external_adapters"]["openems"] = openems_probe.as_dict()
                 report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
-                report["limits"]["max_external_log_bytes"] = (
-                    self.settings.max_external_log_bytes
-                )
+                report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
                 report["limits"]["max_external_result_bytes"] = (
                     self.settings.max_external_result_bytes
                 )
@@ -1226,9 +1123,7 @@ class DipTraceService:
         report["external_adapters"]["openems"] = openems_probe.as_dict()
         report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
         report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
-        report["limits"]["max_external_result_bytes"] = (
-            self.settings.max_external_result_bytes
-        )
+        report["limits"]["max_external_result_bytes"] = self.settings.max_external_result_bytes
         report["policy"].update(self.policy.capability_payload())
         if probe.available:
             report["reasons_unavailable"] = [
@@ -1393,14 +1288,10 @@ class DipTraceService:
             "missing_pin_number",
             "pin_pad_mapping_missing",
         }
-        findings = [
-            item for item in result["result"]["findings"] if item["code"] in mapping_codes
-        ]
+        findings = [item for item in result["result"]["findings"] if item["code"] in mapping_codes]
         result["result"]["findings"] = findings
         result["result"]["finding_count"] = len(findings)
-        result["result"]["valid"] = not any(
-            item["severity"] == "error" for item in findings
-        )
+        result["result"]["valid"] = not any(item["severity"] == "error" for item in findings)
         return result
 
     def get_bom(
@@ -1566,9 +1457,7 @@ class DipTraceService:
 
     def detect_duplicate_bom_items(self, path: str | None = None) -> dict[str, Any]:
         response = self.get_bom(path, grouped=True, include_dnp=True)
-        duplicates = [
-            item for item in response["result"]["items"] if int(item["quantity"]) > 1
-        ]
+        duplicates = [item for item in response["result"]["items"] if int(item["quantity"]) > 1]
         response["result"] = {
             "duplicate_group_count": len(duplicates),
             "items": duplicates,
@@ -1586,9 +1475,7 @@ class DipTraceService:
         response["result"]["valid"] = not response["result"]["findings"]
         return response
 
-    def validate_value_pattern_consistency(
-        self, path: str | None = None
-    ) -> dict[str, Any]:
+    def validate_value_pattern_consistency(self, path: str | None = None) -> dict[str, Any]:
         response = self.review_bom(path)
         response["result"]["findings"] = [
             item
@@ -1598,14 +1485,10 @@ class DipTraceService:
         response["result"]["valid"] = not response["result"]["findings"]
         return response
 
-    def compare_schematic_to_pcb(
-        self, schematic_path: str, pcb_path: str
-    ) -> dict[str, Any]:
+    def compare_schematic_to_pcb(self, schematic_path: str, pcb_path: str) -> dict[str, Any]:
         schematic_document, schematic_target = self.load(schematic_path)
         pcb_document, pcb_target = self.load(pcb_path)
-        schematic = self.models.get(
-            schematic_document, live_session=schematic_target.is_live
-        )
+        schematic = self.models.get(schematic_document, live_session=schematic_target.is_live)
         pcb = self.models.get(pcb_document, live_session=pcb_target.is_live)
         result = compare_design_snapshots(schematic, pcb)
         return self._read_success(
@@ -1636,15 +1519,12 @@ class DipTraceService:
     ) -> dict[str, Any]:
         schematic_document, _ = self.load(schematic_path)
         pcb_document, _ = self.load(pcb_path)
-        pattern_documents = [
-            self.load(path)[0] for path in pattern_library_paths or []
-        ]
+        pattern_documents = [self.load(path)[0] for path in pattern_library_paths or []]
         plan = build_sync_plan(
             schematic_document,
             pcb_document,
             mappings=[
-                ComponentSyncMapping.model_validate(item)
-                for item in component_mappings or []
+                ComponentSyncMapping.model_validate(item) for item in component_mappings or []
             ],
             placement=SyncPlacement.model_validate(placement or {}),
             pattern_documents=pattern_documents,
@@ -2050,9 +1930,7 @@ class DipTraceService:
             elif seed_sidecar.authority == ProvenanceAuthority.user_supplied_evidence:
                 # User-supplied evidence: revalidate but cannot grant high trust
                 try:
-                    evidence = self._load_and_validate_evidence_manifest(
-                        seed, seed_sidecar
-                    )
+                    evidence = self._load_and_validate_evidence_manifest(seed, seed_sidecar)
                     # User-supplied evidence can never grant high trust
                     if evidence.validation_level in _HIGH_TRUST_LEVELS:
                         trust_level = FixtureValidationLevel.synthetic_parser_only
@@ -2072,9 +1950,7 @@ class DipTraceService:
             elif seed_sidecar.authority == ProvenanceAuthority.fixture_manifest:
                 # Fixture manifest: MUST validate the actual manifest file
                 try:
-                    evidence = self._load_and_validate_evidence_manifest(
-                        seed, seed_sidecar
-                    )
+                    evidence = self._load_and_validate_evidence_manifest(seed, seed_sidecar)
                     trust_level = evidence.validation_level
                     trust_provenance = "seed_copy_of_verified_fixture"
                     parent_level = evidence.validation_level
@@ -2402,21 +2278,23 @@ class DipTraceService:
                             and sha256_bytes(prov_bytes) != record.provenance_backup_sha256
                         ):
                             raise ValueError("provenance backup SHA mismatch")
-                        # Verify the restored sidecar SHA matches restored doc
-                        restored_sidecar = json.loads(prov_bytes)
-                        if restored_sidecar.get("current_document_sha256") == restored_sha256:
-                            atomic_write_bytes(sidecar_path, prov_bytes)
-                        else:
-                            # Sidecar SHA stale → create synthetic fallback
-                            sidecar = DocumentProvenance(
-                                provenance="mcp_rollback_synthetic",
-                                validation_level=FixtureValidationLevel.synthetic_operation_fixture,
-                                current_document_sha256=restored_sha256,
-                                last_modified_by="mcp_rollback_transaction",
+                        # Validate schema, document binding, and any referenced
+                        # evidence before restoring provenance atomically.
+                        restored_sidecar = DocumentProvenance.model_validate_json(prov_bytes)
+                        if restored_sidecar.current_document_sha256 != restored_sha256:
+                            raise ValueError("restored provenance document SHA mismatch")
+                        if restored_sidecar.authority == ProvenanceAuthority.user_supplied_evidence:
+                            self._load_and_validate_evidence_manifest(target_path, restored_sidecar)
+                        if (
+                            restored_sidecar.authority == ProvenanceAuthority.fixture_manifest
+                            and restored_sidecar.validation_level in _HIGH_TRUST_LEVELS
+                        ):
+                            raise ValueError(
+                                "unauthenticated fixture high trust cannot be restored"
                             )
-                            self._write_provenance_sidecar(target_path, sidecar)
-                    except (OSError, json.JSONDecodeError, ValueError):
-                        # Corrupt backup → create synthetic fallback
+                        atomic_write_bytes(sidecar_path, prov_bytes)
+                    except (OSError, json.JSONDecodeError, ValueError, EditError):
+                        # Corrupt or unauthenticated backup → create synthetic fallback
                         sidecar = DocumentProvenance(
                             provenance="mcp_rollback_synthetic",
                             validation_level=FixtureValidationLevel.synthetic_operation_fixture,
@@ -2493,9 +2371,7 @@ class DipTraceService:
 
         Returns honest evidence_status: "recorded" with authority: "user_supplied".
         """
-        self.policy.require_write(
-            dry_run=False, operation="record_roundtrip_evidence"
-        )
+        self.policy.require_write(dry_run=False, operation="record_roundtrip_evidence")
         document, target = self.load(path)
         snapshot = self.models.get(document, live_session=target.is_live)
 
@@ -2536,7 +2412,8 @@ class DipTraceService:
         # Check for critical parse warnings on saved document
         saved_snapshot = build_snapshot(saved_doc)
         critical_warnings = [
-            w for w in saved_snapshot.warnings
+            w
+            for w in saved_snapshot.warnings
             if "error" in w.lower() or "invalid" in w.lower() or "missing" in w.lower()
         ]
         if critical_warnings:
@@ -2619,9 +2496,7 @@ class DipTraceService:
                         differences=sem_result["differences"],
                         unsupported_categories=[
                             UnsupportedCategory.model_validate(cat)
-                            for cat in (
-                                sem_result.get("unsupported_categories", []) or []
-                            )
+                            for cat in (sem_result.get("unsupported_categories", []) or [])
                             if isinstance(cat, dict)
                         ],
                         parse_warnings=sem_result["parse_warnings"],
@@ -2633,9 +2508,7 @@ class DipTraceService:
                 manifest_path = Path(str(target.path) + ".roundtrip-evidence.json")
                 atomic_write_bytes(
                     manifest_path,
-                    json.dumps(
-                        evidence_manifest.model_dump(), indent=2, sort_keys=True
-                    ).encode(),
+                    json.dumps(evidence_manifest.model_dump(), indent=2, sort_keys=True).encode(),
                 )
                 manifest_sha = sha256_bytes(manifest_path.read_bytes())
 
@@ -2826,9 +2699,7 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        op = SetComponentValueOperation.model_validate(
-            {"selector": selector or {}, "value": value}
-        )
+        op = SetComponentValueOperation.model_validate({"selector": selector or {}, "value": value})
         return self._run_semantic_write(op, path, dry_run, expected_sha256, txid)
 
     def rotate_components(
@@ -3062,14 +2933,11 @@ class DipTraceService:
         else:
             boxes = [box(record) for record in records]
             first_edge = boxes[0][minimum_key]
-            total_size = sum(
-                item[maximum_key] - item[minimum_key] for item in boxes
-            )
+            total_size = sum(item[maximum_key] - item[minimum_key] for item in boxes)
             gap = (
                 spacing
                 if spacing is not None
-                else (boxes[-1][maximum_key] - first_edge - total_size)
-                / (len(records) - 1)
+                else (boxes[-1][maximum_key] - first_edge - total_size) / (len(records) - 1)
             )
             cursor = first_edge
             for item in boxes:
@@ -3636,9 +3504,7 @@ class DipTraceService:
         if not testpoints:
             raise DocumentError("testpoints cannot be empty", code="scope_required")
         operations = [AddTestpointOperation.model_validate(item) for item in testpoints]
-        return self._run_semantic_operations(
-            operations, path, dry_run, expected_sha256, txid
-        )
+        return self._run_semantic_operations(operations, path, dry_run, expected_sha256, txid)
 
     def move_testpoints(
         self,
@@ -3710,9 +3576,7 @@ class DipTraceService:
                 "covered_nets": [record.name for record in covered],
                 "uncovered_nets": [record.name for record in uncovered],
             },
-            limitations=[
-                "Coverage counts explicit MCP/DipTrace standalone pad testpoints only."
-            ],
+            limitations=["Coverage counts explicit MCP/DipTrace standalone pad testpoints only."],
         )
 
     def add_trace(
@@ -3906,11 +3770,7 @@ class DipTraceService:
             if first.net_id is None or first.net_id != second.net_id:
                 continue
             net = next(
-                (
-                    item
-                    for item in snapshot.board.nets
-                    if item.xml_id == first.net_id
-                ),
+                (item for item in snapshot.board.nets if item.xml_id == first.net_id),
                 None,
             )
             if net is None or (
@@ -3954,9 +3814,7 @@ class DipTraceService:
         path: str | None = None,
     ) -> dict[str, Any]:
         if (trace_id is None) == (net is None):
-            raise DocumentError(
-                "Specify exactly one of trace_id or net", code="scope_required"
-            )
+            raise DocumentError("Specify exactly one of trace_id or net", code="scope_required")
         document, target = self.load(path)
         snapshot = self.models.get(document, live_session=target.is_live)
         if snapshot.board is None:
@@ -3977,9 +3835,7 @@ class DipTraceService:
             if len(net_matches) != 1:
                 raise DocumentError(f"Unique net was not found: {net}")
             traces = [
-                item
-                for item in snapshot.board.traces
-                if item.parent_id == net_matches[0].stable_id
+                item for item in snapshot.board.traces if item.parent_id == net_matches[0].stable_id
             ]
         per_layer: dict[str, float] = {}
         total_length = 0.0
@@ -3989,15 +3845,11 @@ class DipTraceService:
             points = [Point(**item) for item in trace.attributes.get("points", [])]
             layers = trace.attributes.get("segment_layers", [])
             segment_lengths: list[float] = []
-            for segment_index, (start, end) in enumerate(
-                zip(points, points[1:], strict=False)
-            ):
+            for segment_index, (start, end) in enumerate(zip(points, points[1:], strict=False)):
                 length = distance(start, end)
                 segment_lengths.append(length)
                 layer = (
-                    str(layers[segment_index])
-                    if segment_index < len(layers)
-                    else trace.layer or ""
+                    str(layers[segment_index]) if segment_index < len(layers) else trace.layer or ""
                 )
                 per_layer[layer] = per_layer.get(layer, 0.0) + length
                 total_length += length
@@ -4124,23 +3976,17 @@ class DipTraceService:
                 "matched_count": len(pairs),
                 "offset": offset,
                 "limit": limit,
-                "items": [
-                    item.model_dump(mode="json") for item in pairs[offset : offset + limit]
-                ],
+                "items": [item.model_dump(mode="json") for item in pairs[offset : offset + limit]],
             },
         )
 
-    def get_differential_pair(
-        self, pair: str, path: str | None = None
-    ) -> dict[str, Any]:
+    def get_differential_pair(self, pair: str, path: str | None = None) -> dict[str, Any]:
         document, target = self.load(path)
         snapshot = self.models.get(document, live_session=target.is_live)
         result = resolve_differential_pair(snapshot, pair)
         return self._read_success(snapshot.info, result.model_dump(mode="json"))
 
-    def analyze_differential_pair(
-        self, pair: str, path: str | None = None
-    ) -> dict[str, Any]:
+    def analyze_differential_pair(self, pair: str, path: str | None = None) -> dict[str, Any]:
         document, target = self.load(path)
         snapshot = self.models.get(document, live_session=target.is_live)
         result = analyze_pair_geometry(snapshot, pair)
@@ -4168,10 +4014,7 @@ class DipTraceService:
                 "matched_count": len(analyses),
                 "items": [item.model_dump(mode="json") for item in analyses],
                 "failed_check_count": sum(
-                    1
-                    for item in analyses
-                    for check in item.checks
-                    if not bool(check["passed"])
+                    1 for item in analyses for check in item.checks if not bool(check["passed"])
                 ),
             },
             limitations=[
@@ -4179,9 +4022,7 @@ class DipTraceService:
             ],
         )
 
-    def validate_differential_pair(
-        self, pair: str, path: str | None = None
-    ) -> dict[str, Any]:
+    def validate_differential_pair(self, pair: str, path: str | None = None) -> dict[str, Any]:
         response = self.analyze_differential_pair(pair, path)
         checks = response["result"]["checks"]
         response["result"]["valid"] = all(bool(check["passed"]) for check in checks)
@@ -4292,8 +4133,7 @@ class DipTraceService:
         stackup_analysis = analyze_stackup(snapshot.board.stackup)
         candidates = stackup_analysis["microstrip_candidates"]
         layer_names = {
-            str(layer.get("id", "")): str(layer.get("name", ""))
-            for layer in snapshot.board.layers
+            str(layer.get("id", "")): str(layer.get("name", "")) for layer in snapshot.board.layers
         }
         results: list[dict[str, Any]] = []
         for index, raw_constraint in enumerate(constraints):
@@ -4331,17 +4171,12 @@ class DipTraceService:
                 float(width)
                 for trace in snapshot.board.traces
                 if trace.parent_id == net.stable_id
-                for segment_index, width in enumerate(
-                    trace.attributes.get("segment_widths_mm", [])
-                )
+                for segment_index, width in enumerate(trace.attributes.get("segment_widths_mm", []))
                 if width is not None
                 and (
-                    segment_index
-                    >= len(trace.attributes.get("segment_layers", []))
+                    segment_index >= len(trace.attributes.get("segment_layers", []))
                     or str(trace.attributes["segment_layers"][segment_index]) == layer_ref
-                    or layer_names.get(
-                        str(trace.attributes["segment_layers"][segment_index]), ""
-                    )
+                    or layer_names.get(str(trace.attributes["segment_layers"][segment_index]), "")
                     == canonical_layer
                 )
             }
@@ -4432,9 +4267,7 @@ class DipTraceService:
                 "matched_count": len(items),
                 "offset": offset,
                 "limit": limit,
-                "items": [
-                    item.model_dump(mode="json") for item in items[offset : offset + limit]
-                ],
+                "items": [item.model_dump(mode="json") for item in items[offset : offset + limit]],
             },
             limitations=[
                 "Exported polygons are pour boundaries, not authoritative refilled copper."
@@ -4524,9 +4357,7 @@ class DipTraceService:
             avoid_component_bodies=avoid_component_bodies,
         )
         route = synthesize_route(snapshot, config)
-        response = self._run_semantic_write(
-            route.operation, path, dry_run, expected_sha256, txid
-        )
+        response = self._run_semantic_write(route.operation, path, dry_run, expected_sha256, txid)
         response["routing"] = {
             "points": [point.as_dict() for point in route.points],
             "path": [point.model_dump(mode="json") for point in route.operation.points],
@@ -4590,9 +4421,7 @@ class DipTraceService:
             )
             working = applied.document
             working_snapshot = build_snapshot(working, live_session=target.is_live)
-        response = self._run_semantic_operations(
-            operations, path, dry_run, expected_sha256, txid
-        )
+        response = self._run_semantic_operations(operations, path, dry_run, expected_sha256, txid)
         response["routing"] = {"connection_count": len(operations), "routes": metrics}
         return response
 
@@ -4637,9 +4466,7 @@ class DipTraceService:
                 max_detour=max_detour,
             ),
         )
-        response = self._run_semantic_write(
-            route.operation, path, dry_run, expected_sha256, txid
-        )
+        response = self._run_semantic_write(route.operation, path, dry_run, expected_sha256, txid)
         response["routing"] = {
             "center_points": [point.as_dict() for point in route.center_points],
             "positive_points": [point.as_dict() for point in route.positive_points],
@@ -4975,9 +4802,7 @@ class DipTraceService:
                 },
             )
         ses_path = self.jobs.artifact_path(jobid, "output.ses")
-        session = parse_ses(
-            ses_path.read_bytes(), max_bytes=self.settings.max_document_bytes
-        )
+        session = parse_ses(ses_path.read_bytes(), max_bytes=self.settings.max_document_bytes)
         operation_plan = session_to_operations(snapshot, session, via_style=via_style)
         plan_record = None
         resources = job_resources(jobid)
@@ -4992,19 +4817,12 @@ class DipTraceService:
                 target_path=target.path,
                 config={"jobid": jobid, "via_style": via_style},
                 operations=[
-                    operation.model_dump(mode="json")
-                    for operation in operation_plan.operations
+                    operation.model_dump(mode="json") for operation in operation_plan.operations
                 ],
-                changed_ids=sorted(
-                    {operation.net for operation in operation_plan.operations}
-                ),
+                changed_ids=sorted({operation.net for operation in operation_plan.operations}),
                 unresolved=operation_plan.skipped,
                 candidates=[item.model_dump(mode="json") for item in session.routes],
-                score={
-                    "imported_length_mm": float(
-                        operation_plan.metrics["imported_length_mm"]
-                    )
-                },
+                score={"imported_length_mm": float(operation_plan.metrics["imported_length_mm"])},
                 metrics=operation_plan.metrics,
                 assumptions=[
                     "SES coordinates are converted using the routes resolution scope.",
@@ -5367,9 +5185,7 @@ class DipTraceService:
             second = snapshot.get_object(str(endpoints[1]["pad_id"]))
             if first.net_id is None or first.net_id != second.net_id:
                 continue
-            net = next(
-                (item for item in snapshot.board.nets if item.xml_id == first.net_id), None
-            )
+            net = next((item for item in snapshot.board.nets if item.xml_id == first.net_id), None)
             if net is None or not (
                 (net.name or "").casefold() in requested
                 or net.stable_id.casefold() in requested
@@ -5475,9 +5291,7 @@ class DipTraceService:
         return self._read_success(
             snapshot.info,
             result,
-            limitations=[
-                "Component bounds are estimated when body/courtyard geometry is absent."
-            ],
+            limitations=["Component bounds are estimated when body/courtyard geometry is absent."],
         )
 
     def generate_placement_candidates(
@@ -5540,9 +5354,7 @@ class DipTraceService:
                 document, planned.operations, live_session=target.is_live
             )
             after_snapshot = build_snapshot(applied.document, live_session=target.is_live)
-            after_findings, _, _, _ = run_checks(
-                after_snapshot, categories={"placement"}
-            )
+            after_findings, _, _, _ = run_checks(after_snapshot, categories={"placement"})
             preview = self._preview_semantic_operations(document, planned.operations)
         else:
             after_findings = before_findings
@@ -5690,9 +5502,7 @@ class DipTraceService:
         )
         transaction = response.get("transaction") or {}
         transaction_id = transaction.get("txid")
-        status: PlanStatus = (
-            "committed" if transaction.get("status") == "committed" else "staged"
-        )
+        status: PlanStatus = "committed" if transaction.get("status") == "committed" else "staged"
         updated = self.plans.update(
             plan_id,
             status=status,
@@ -5702,9 +5512,7 @@ class DipTraceService:
         return response
 
     @staticmethod
-    def _placement_config(
-        selector: dict[str, Any], options: dict[str, Any]
-    ) -> PlacementConfig:
+    def _placement_config(selector: dict[str, Any], options: dict[str, Any]) -> PlacementConfig:
         payload = {"selector": selector, **options}
         if "weights" in payload:
             payload["weights"] = PlacementWeights.model_validate(payload["weights"] or {})
@@ -5743,9 +5551,7 @@ class DipTraceService:
     ) -> dict[str, Any]:
         document, target = self.load(path)
         snapshot = self.models.get(document, live_session=target.is_live)
-        findings, metrics, skipped, check_count = run_checks(
-            snapshot, categories=categories
-        )
+        findings, metrics, skipped, check_count = run_checks(snapshot, categories=categories)
         assumptions = [
             "All coordinates are normalized to millimetres.",
             "Checks use exported XML geometry only and do not invoke DipTrace DRC/ERC.",
@@ -5866,9 +5672,7 @@ class DipTraceService:
         recursive: bool,
     ) -> dict[str, Any]:
         scanned = self.scan_documents(root, recursive)
-        items = [
-            item for item in scanned["documents"] if item.get("type") == source_type
-        ]
+        items = [item for item in scanned["documents"] if item.get("type") == source_type]
         return {
             "ok": True,
             "document": None,
@@ -5952,9 +5756,7 @@ class DipTraceService:
         expected_sha256: str | None,
         txid: str | None,
     ) -> dict[str, Any]:
-        return self._run_semantic_operations(
-            [operation], path, dry_run, expected_sha256, txid
-        )
+        return self._run_semantic_operations([operation], path, dry_run, expected_sha256, txid)
 
     def _run_semantic_operations(
         self,
@@ -6070,9 +5872,7 @@ class DipTraceService:
                 details={"before": before_errors, "after": after_errors},
                 object_ids=result.changed_ids,
             )
-        non_connectivity_categories = (
-            set(before_errors) | set(after_errors)
-        ) - {"connectivity"}
+        non_connectivity_categories = (set(before_errors) | set(after_errors)) - {"connectivity"}
         regressions = {
             category: {
                 "before": before_errors.get(category, 0),

@@ -78,27 +78,33 @@ class EvidenceAuthority(str, Enum):
 
 
 # Validation levels that a runtime sidecar may NEVER grant on its own.
-_HIGH_TRUST_LEVELS = frozenset({
-    FixtureValidationLevel.diptrace_exported,
-    FixtureValidationLevel.diptrace_open_save_verified,
-    FixtureValidationLevel.diptrace_roundtrip_verified,
-    FixtureValidationLevel.external_tool_roundtrip_verified,
-})
+_HIGH_TRUST_LEVELS = frozenset(
+    {
+        FixtureValidationLevel.diptrace_exported,
+        FixtureValidationLevel.diptrace_open_save_verified,
+        FixtureValidationLevel.diptrace_roundtrip_verified,
+        FixtureValidationLevel.external_tool_roundtrip_verified,
+    }
+)
 
 # Validation levels that user-supplied evidence may NEVER grant.
-_USER_SUPPLIABLE_TRUST_LEVELS = frozenset({
-    FixtureValidationLevel.diptrace_exported,
-    FixtureValidationLevel.diptrace_open_save_verified,
-    FixtureValidationLevel.diptrace_roundtrip_verified,
-    FixtureValidationLevel.external_tool_roundtrip_verified,
-})
+_USER_SUPPLIABLE_TRUST_LEVELS = frozenset(
+    {
+        FixtureValidationLevel.diptrace_exported,
+        FixtureValidationLevel.diptrace_open_save_verified,
+        FixtureValidationLevel.diptrace_roundtrip_verified,
+        FixtureValidationLevel.external_tool_roundtrip_verified,
+    }
+)
 
 # Evidence authorities whose evidence may grant high trust levels.
-_TRUSTED_EVIDENCE_AUTHORITIES = frozenset({
-    EvidenceAuthority.trusted_registry,
-    EvidenceAuthority.trusted_bridge,
-    EvidenceAuthority.signed_fixture,
-})
+_TRUSTED_EVIDENCE_AUTHORITIES = frozenset(
+    {
+        EvidenceAuthority.trusted_registry,
+        EvidenceAuthority.trusted_bridge,
+        EvidenceAuthority.signed_fixture,
+    }
+)
 
 
 class StrictModel(BaseModel):
@@ -133,6 +139,7 @@ class SemComparisonResult(StrictModel):
     passed: bool
     comparison_complete: bool = True
     compared_categories: list[str] = Field(default_factory=list)
+    missing_required_categories: list[str] = Field(default_factory=list)
     differences: list[str] = Field(default_factory=list)
     ignored_normalizations: list[str] = Field(default_factory=list)
     unsupported_categories: list[UnsupportedCategory] = Field(default_factory=list)
@@ -154,6 +161,7 @@ class SemanticComparisonEvidence(StrictModel):
     passed: bool
     comparison_complete: bool
     compared_categories: list[str] = Field(default_factory=list)
+    missing_required_categories: list[str] = Field(default_factory=list)
     differences: list[str] = Field(default_factory=list)
     unsupported_categories: list[UnsupportedCategory] = Field(default_factory=list)
     parse_warnings: list[str] = Field(default_factory=list)
@@ -194,9 +202,7 @@ class UserSuppliedRoundtripEvidence(StrictModel):
             FixtureValidationLevel.external_tool_roundtrip_verified,
         }:
             if self.reexport is None:
-                errors.append(
-                    f"validation_level={self.validation_level.value} requires reexport"
-                )
+                errors.append(f"validation_level={self.validation_level.value} requires reexport")
             else:
                 if self.source.path == self.reexport.path:
                     errors.append("source and reexport must be different files")
@@ -215,34 +221,28 @@ class UserSuppliedRoundtripEvidence(StrictModel):
         # Roundtrip with passed requires semantic comparison
         if (
             self.status == "recorded"
-            and self.validation_level
-            in {FixtureValidationLevel.diptrace_roundtrip_verified}
+            and self.validation_level in {FixtureValidationLevel.diptrace_roundtrip_verified}
             and self.semantic_comparison is None
         ):
             errors.append(
-                "roundtrip recorded evidence with status=recorded requires "
-                "semantic_comparison"
+                "roundtrip recorded evidence with status=recorded requires semantic_comparison"
             )
-        # Semantic comparison fields
-        if self.semantic_comparison is not None:
+        # Successful recorded evidence must be complete and difference-free.
+        # Failed evidence intentionally preserves incomplete/different results.
+        if self.semantic_comparison is not None and self.status == "recorded":
             if not self.semantic_comparison.comparison_complete:
                 errors.append("semantic comparison must be complete for recorded evidence")
             if not self.semantic_comparison.passed:
                 errors.append("semantic comparison must pass for recorded evidence")
             if self.semantic_comparison.differences:
-                errors.append(
-                    "semantic comparison with differences cannot be recorded as passed"
-                )
-            # Critical unsupported categories
+                errors.append("semantic comparison with differences cannot be recorded as passed")
             critical = [
                 cat
                 for cat in self.semantic_comparison.unsupported_categories
                 if cat.severity == "critical"
             ]
             if critical:
-                errors.append(
-                    "critical unsupported categories prevent recording as passed"
-                )
+                errors.append("critical unsupported categories prevent recording as passed")
         # User-supplied evidence cannot claim authoritative trust levels
         if self.validation_level in _USER_SUPPLIABLE_TRUST_LEVELS:
             errors.append(
@@ -251,8 +251,7 @@ class UserSuppliedRoundtripEvidence(StrictModel):
             )
         if errors:
             raise ValueError(
-                f"UserSuppliedRoundtripEvidence invariant violated: "
-                f"{'; '.join(errors)}"
+                f"UserSuppliedRoundtripEvidence invariant violated: {'; '.join(errors)}"
             )
         return self
 
@@ -261,9 +260,7 @@ class TrustedRoundtripEvidence(StrictModel):
     """Evidence manifest produced by a trusted authority (registry, bridge, or
     signed fixture).  Only these can grant high-trust validation levels."""
 
-    schema_version: Literal["diptrace-trusted-evidence-v1"] = (
-        "diptrace-trusted-evidence-v1"
-    )
+    schema_version: Literal["diptrace-trusted-evidence-v1"] = "diptrace-trusted-evidence-v1"
     authority: Literal[
         EvidenceAuthority.trusted_registry,
         EvidenceAuthority.trusted_bridge,
@@ -300,13 +297,9 @@ class TrustedRoundtripEvidence(StrictModel):
             FixtureValidationLevel.diptrace_roundtrip_verified,
             FixtureValidationLevel.external_tool_roundtrip_verified,
         }:
-            errors.append(
-                f"{self.validation_level.value} requires reexport"
-            )
+            errors.append(f"{self.validation_level.value} requires reexport")
         if errors:
-            raise ValueError(
-                f"TrustedRoundtripEvidence invariant violated: {'; '.join(errors)}"
-            )
+            raise ValueError(f"TrustedRoundtripEvidence invariant violated: {'; '.join(errors)}")
         return self
 
 
@@ -364,16 +357,14 @@ class DocumentProvenance(StrictModel):
     trust chain.
 
     A runtime sidecar (authority=runtime) can never grant a high-trust level.
-    High-trust levels require either a fixture_manifest or trusted_registry
-    authority with verifiable SHA binding.
+    High-trust promotion is unavailable until an authenticated server-owned
+    registry, trusted bridge, or signed/allowlisted fixture authority exists.
 
     User-supplied evidence (authority=user_supplied_evidence) can record
     evidence but never grant authoritative DipTrace trust levels.
     """
 
-    schema_version: Literal["diptrace-document-provenance-v1"] = (
-        "diptrace-document-provenance-v1"
-    )
+    schema_version: Literal["diptrace-document-provenance-v1"] = "diptrace-document-provenance-v1"
     provenance: str = Field(min_length=1, max_length=256)
     validation_level: FixtureValidationLevel
     current_document_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -381,9 +372,7 @@ class DocumentProvenance(StrictModel):
     parent_validation_level: FixtureValidationLevel | None = None
     authority: ProvenanceAuthority = ProvenanceAuthority.runtime
     evidence_manifest_path: str | None = None
-    evidence_manifest_sha256: str | None = Field(
-        default=None, pattern=r"^[0-9a-f]{64}$"
-    )
+    evidence_manifest_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     last_modified_by: str | None = None
 
     @property
@@ -396,14 +385,15 @@ class DocumentProvenance(StrictModel):
         """Prevent runtime sidecars from granting high-trust levels.
 
         Runtime authority can only grant synthetic_parser_only or
-        synthetic_operation_fixture.  Higher levels require either
-        fixture_manifest or trusted_registry authority.
+        synthetic_operation_fixture. High-trust promotion remains unavailable
+        until an authenticated authority is implemented.
 
         User-supplied evidence authority can only grant user-supplied
         evidence levels, never authoritative DipTrace trust.
 
-        fixture_manifest authority with high trust requires
-        evidence_manifest_path and evidence_manifest_sha256.
+        fixture_manifest is only a provenance label until a committed
+        allowlist or signature verifier is implemented; it cannot grant high
+        trust from workspace-controlled JSON and SHA values.
 
         trusted_registry authority is not yet implemented; high-trust
         promotion from evidence remains unavailable.
@@ -414,7 +404,7 @@ class DocumentProvenance(StrictModel):
         ):
             raise ValueError(
                 f"Runtime sidecar cannot grant validation_level={self.validation_level.value}; "
-                "requires fixture_manifest or trusted_registry authority"
+                "an authenticated high-trust authority is unavailable"
             )
         if self.authority == ProvenanceAuthority.user_supplied_evidence:
             # User-supplied evidence can NEVER grant high-trust levels
@@ -422,12 +412,10 @@ class DocumentProvenance(StrictModel):
                 raise ValueError(
                     f"user_supplied_evidence authority cannot grant "
                     f"validation_level={self.validation_level.value}; "
-                    "only trusted_registry or fixture_manifest can"
+                    "an authenticated high-trust authority is unavailable"
                 )
             if not self.evidence_manifest_path:
-                raise ValueError(
-                    "user_supplied_evidence authority requires evidence_manifest_path"
-                )
+                raise ValueError("user_supplied_evidence authority requires evidence_manifest_path")
             if not self.evidence_manifest_sha256:
                 raise ValueError(
                     "user_supplied_evidence authority requires evidence_manifest_sha256"
@@ -442,16 +430,10 @@ class DocumentProvenance(StrictModel):
             self.authority == ProvenanceAuthority.fixture_manifest
             and self.validation_level in _HIGH_TRUST_LEVELS
         ):
-            if not self.evidence_manifest_path:
-                raise ValueError(
-                    "fixture_manifest authority with high trust requires "
-                    "evidence_manifest_path"
-                )
-            if not self.evidence_manifest_sha256:
-                raise ValueError(
-                    "fixture_manifest authority with high trust requires "
-                    "evidence_manifest_sha256"
-                )
+            raise ValueError(
+                "fixture_manifest high trust is unavailable without an authenticated "
+                "committed allowlist or signature verifier"
+            )
         return self
 
 
@@ -504,9 +486,7 @@ class FixtureManifest(StrictModel):
         """
         errors = self._validate_for_level()
         if errors:
-            raise ValueError(
-                f"FixtureManifest trust invariant violated: {'; '.join(errors)}"
-            )
+            raise ValueError(f"FixtureManifest trust invariant violated: {'; '.join(errors)}")
         return self
 
     def _validate_for_level(self) -> list[str]:
@@ -564,8 +544,7 @@ class FixtureManifest(StrictModel):
                 )
             if not self.reexport_sha256:
                 errors.append(
-                    f"validation_level={self.validation_level.value} "
-                    "requires reexport_sha256"
+                    f"validation_level={self.validation_level.value} requires reexport_sha256"
                 )
             if self.semantic_comparison_passed is not True:
                 errors.append(
@@ -584,8 +563,7 @@ class FixtureManifest(StrictModel):
                 )
             if not self.redistribution_basis:
                 errors.append(
-                    f"validation_level={self.validation_level.value} "
-                    "requires redistribution_basis"
+                    f"validation_level={self.validation_level.value} requires redistribution_basis"
                 )
         return errors
 
@@ -1125,9 +1103,7 @@ class QueryRequest(StrictModel):
     selector: QuerySelector = Field(default_factory=QuerySelector)
     offset: int = Field(default=0, ge=0)
     limit: int = Field(default=100, ge=1, le=500)
-    sort_by: Literal["stable_id", "kind", "label", "name", "value", "refdes", "layer"] = (
-        "stable_id"
-    )
+    sort_by: Literal["stable_id", "kind", "label", "name", "value", "refdes", "layer"] = "stable_id"
     include_geometry: bool = True
     include_relationships: bool = True
 
@@ -1206,9 +1182,7 @@ class TransactionRecord(StrictModel):
     snapshot_path: str | None = None
     backup_path: str | None = None
     provenance_backup_path: str | None = None
-    provenance_backup_sha256: str | None = Field(
-        default=None, pattern=r"^[0-9a-f]{64}$"
-    )
+    provenance_backup_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     committed_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     rolled_back_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     error: dict[str, Any] | None = None
@@ -1323,9 +1297,7 @@ class ImpedanceInput(StrictModel):
 class ImpedanceResult(StrictModel):
     structure: ImpedanceStructure
     estimated_impedance_ohm: float = Field(gt=0.0, allow_inf_nan=False)
-    effective_dielectric_constant: float | None = Field(
-        default=None, gt=1.0, allow_inf_nan=False
-    )
+    effective_dielectric_constant: float | None = Field(default=None, gt=1.0, allow_inf_nan=False)
     method: str
     inputs: ImpedanceInput
     confidence: Literal["low", "medium", "high"]
@@ -1341,9 +1313,7 @@ class ImpedanceResult(StrictModel):
 class FieldSolverRequest(StrictModel):
     """Typed quasi-TEM/full-wave stripline request for an external solver backend."""
 
-    schema_version: Literal["diptrace-field-solver-request-v1"] = (
-        "diptrace-field-solver-request-v1"
-    )
+    schema_version: Literal["diptrace-field-solver-request-v1"] = "diptrace-field-solver-request-v1"
     structure: Literal["stripline"] = "stripline"
     width_mm: float = Field(gt=0.0, allow_inf_nan=False)
     copper_thickness_mm: float = Field(gt=0.0, allow_inf_nan=False)
@@ -1351,9 +1321,7 @@ class FieldSolverRequest(StrictModel):
     upper_dielectric_height_mm: float = Field(gt=0.0, allow_inf_nan=False)
     dielectric_constant: float = Field(gt=1.0, allow_inf_nan=False)
     dielectric_loss_tangent: float = Field(default=0.0, ge=0.0, lt=1.0, allow_inf_nan=False)
-    conductor_conductivity_s_per_m: float = Field(
-        default=58_000_000.0, gt=0.0, allow_inf_nan=False
-    )
+    conductor_conductivity_s_per_m: float = Field(default=58_000_000.0, gt=0.0, allow_inf_nan=False)
     frequencies_hz: list[float] = Field(min_length=1, max_length=1001)
     trace_length_mm: float = Field(default=20.0, gt=0.0, allow_inf_nan=False)
     port_impedance_ohm: float = Field(default=50.0, gt=0.0, allow_inf_nan=False)

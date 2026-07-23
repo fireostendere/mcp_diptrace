@@ -187,14 +187,16 @@ def _component_records(
         from .library_adapters import get_embedded_pattern_model
 
         pattern_model = get_embedded_pattern_model(document)
-        patterns_by_style = {
-            pattern.style: pattern
-            for pattern in pattern_model.patterns if pattern.style
-        } if pattern_model is not None else {}
-        pad_styles_by_name = {
-            style.name: style
-            for style in pattern_model.pad_styles
-        } if pattern_model is not None else {}
+        patterns_by_style = (
+            {pattern.style: pattern for pattern in pattern_model.patterns if pattern.style}
+            if pattern_model is not None
+            else {}
+        )
+        pad_styles_by_name = (
+            {style.name: style for style in pattern_model.pad_styles}
+            if pattern_model is not None
+            else {}
+        )
         for component in document.container.findall("./Components/Component"):
             xml_id = component.get("Id", "")
             refdes = _text(component, "RefDes")
@@ -259,7 +261,8 @@ def _component_records(
                 selected=_bool_attr(component, "Selected"),
                 position=_point_dict(Point(x, y)) if x is not None and y is not None else None,
                 bbox=_bbox_dict(
-                    pattern_bbox or _bbox_from_center(
+                    pattern_bbox
+                    or _bbox_from_center(
                         x,
                         y,
                         _float_text(additional_fields.get("MCP.TestpointDiameterMm"), 1.0)
@@ -298,12 +301,14 @@ def _component_records(
                 continue
             parent_record = next(item for item in records if item.stable_id == parent)
             pattern = patterns_by_style.get(str(parent_record.attributes.get("pattern_style", "")))
-            pattern_pads_by_id = {
-                item.xml_id: item for item in pattern.pads
-            } if pattern is not None else {}
-            pattern_pads_by_number = {
-                item.number: item for item in pattern.pads if item.number
-            } if pattern is not None else {}
+            pattern_pads_by_id = (
+                {item.xml_id: item for item in pattern.pads} if pattern is not None else {}
+            )
+            pattern_pads_by_number = (
+                {item.number: item for item in pattern.pads if item.number}
+                if pattern is not None
+                else {}
+            )
             component_transform = (
                 Transform(
                     translate_x=parent_record.position["x"],
@@ -322,9 +327,7 @@ def _component_records(
                 library_pad = pattern_pads_by_id.get(pad_id) or pattern_pads_by_number.get(
                     pad_number
                 )
-                local_position = (
-                    Point(**library_pad.position) if library_pad is not None else None
-                )
+                local_position = Point(**library_pad.position) if library_pad is not None else None
                 board_position = (
                     component_transform.apply_point(local_position)
                     if component_transform is not None and local_position is not None
@@ -333,7 +336,9 @@ def _component_records(
                 pad_position = (
                     parent_record.position
                     if parent_record.kind == "testpoint"
-                    else board_position.as_dict() if board_position is not None else None
+                    else board_position.as_dict()
+                    if board_position is not None
+                    else None
                 )
                 board_pad_bbox = (
                     shape_bbox(transform_shape(library_pad.geometry, component_transform))
@@ -349,16 +354,12 @@ def _component_records(
                     else None
                 )
                 pad_style = (
-                    pad_styles_by_name.get(library_pad.style)
-                    if library_pad is not None
-                    else None
+                    pad_styles_by_name.get(library_pad.style) if library_pad is not None else None
                 )
                 board_mask_geometry = (
                     {
                         side: [
-                            transform_shape(shape, component_transform).model_dump(
-                                mode="json"
-                            )
+                            transform_shape(shape, component_transform).model_dump(mode="json")
                             for shape in shapes
                         ]
                         for side, shapes in library_pad.mask_geometry.items()
@@ -369,9 +370,7 @@ def _component_records(
                 board_paste_geometry = (
                     {
                         side: [
-                            transform_shape(shape, component_transform).model_dump(
-                                mode="json"
-                            )
+                            transform_shape(shape, component_transform).model_dump(mode="json")
                             for shape in shapes
                         ]
                         for side, shapes in library_pad.paste_geometry.items()
@@ -408,8 +407,11 @@ def _component_records(
                             else "xml-structure"
                         ),
                         confidence=(
-                            0.95 if board_position is not None else 0.9
-                            if pad_position is not None else 0.4
+                            0.95
+                            if board_position is not None
+                            else 0.9
+                            if pad_position is not None
+                            else 0.4
                         ),
                         attributes={
                             **dict(pad.attrib),
@@ -430,9 +432,7 @@ def _component_records(
                 for hole_index, hole in enumerate(pattern.holes):
                     local = Point(float(hole["x_mm"]), float(hole["y_mm"]))
                     position = component_transform.apply_point(local)
-                    diameter = float(
-                        hole.get("hole_diameter_mm") or hole.get("diameter_mm") or 0.0
-                    )
+                    diameter = float(hole.get("hole_diameter_mm") or hole.get("diameter_mm") or 0.0)
                     if diameter <= 0:
                         continue
                     hole_id = stable_id(
@@ -691,9 +691,7 @@ def _net_records(
                 else:
                     pin_index = endpoint.get("Pin", "")
                     endpoints.append(
-                        _pin_stable_id(
-                            document, owner_stable, f"{owner_xml_id}:{pin_index}"
-                        )
+                        _pin_stable_id(document, owner_stable, f"{owner_xml_id}:{pin_index}")
                         if pin_index
                         else owner_stable
                     )
@@ -721,9 +719,7 @@ def _net_records(
                 for point in trace.findall("./Points/Point")[1:]
             ]
             width_values = [width for width in widths if width is not None]
-            segment_layers = [
-                point.get("Lay") for point in trace.findall("./Points/Point")[1:]
-            ]
+            segment_layers = [point.get("Lay") for point in trace.findall("./Points/Point")[1:]]
             point_elements = trace.findall("./Points/Point")
             arc_middle = [_bool_attr(point, "Arc") for point in point_elements]
             trace_bbox = BBox.from_points(points) if points else None
@@ -804,18 +800,10 @@ def _net_records(
                             "via_style": via_style,
                             "diameter_mm": diameter,
                             "hole_mm": hole,
-                            "layer_start_id": (
-                                style.layer_start_id if style is not None else None
-                            ),
-                            "layer_end_id": (
-                                style.layer_end_id if style is not None else None
-                            ),
-                            "span_layer_ids": (
-                                style.span_layer_ids if style is not None else []
-                            ),
-                            "span_source": (
-                                style.span_source if style is not None else "invalid"
-                            ),
+                            "layer_start_id": (style.layer_start_id if style is not None else None),
+                            "layer_end_id": (style.layer_end_id if style is not None else None),
+                            "span_layer_ids": (style.span_layer_ids if style is not None else []),
+                            "span_source": (style.span_source if style is not None else "invalid"),
                             **dict(point_element.attrib),
                         },
                         relationships={"net": [stable], "trace": [trace_stable]},
@@ -864,9 +852,7 @@ def _static_via_records(
     """
     if document.kind != "pcb":
         return []
-    nets_by_xml = {
-        item.xml_id: item for item in net_records if item.kind == "net" and item.xml_id
-    }
+    nets_by_xml = {item.xml_id: item for item in net_records if item.kind == "net" and item.xml_id}
     styles_by_id = {style.id: style for style in normalized_via_styles}
     records: list[ObjectRecord] = []
     for component in document.container.findall("./Components/Component"):
@@ -875,11 +861,7 @@ def _static_via_records(
         xml_id = component.get("Id", "")
         refdes = _text(component, "RefDes")
         pads = component.findall("./Pads/Pad")
-        net_ids = {
-            pad.get("NetId", "")
-            for pad in pads
-            if pad.get("NetId") not in {None, "", "-1"}
-        }
+        net_ids = {pad.get("NetId", "") for pad in pads if pad.get("NetId") not in {None, "", "-1"}}
         net_id = next(iter(net_ids)) if len(net_ids) == 1 else None
         net = nets_by_xml.get(net_id) if net_id is not None else None
         style_id = component.get("ViaStyle", "-1")
@@ -1065,9 +1047,7 @@ def _board_via_styles(document: DipTraceDocument) -> list[ViaStyleModel]:
             ViaStyleModel(
                 id=item.get("Id", "") or "<missing>",
                 name=_text(item, "Name"),
-                diameter_mm=_first_float_attr_mm(
-                    document, item, ("Diameter", "Size")
-                ),
+                diameter_mm=_first_float_attr_mm(document, item, ("Diameter", "Size")),
                 hole_mm=_first_float_attr_mm(document, item, ("Hole", "HoleSize")),
                 layer_start_id=start,
                 layer_end_id=end,
@@ -1079,9 +1059,7 @@ def _board_via_styles(document: DipTraceDocument) -> list[ViaStyleModel]:
     return styles
 
 
-def _board_ratlines(
-    document: DipTraceDocument, owner_map: dict[str, str]
-) -> list[dict[str, Any]]:
+def _board_ratlines(document: DipTraceDocument, owner_map: dict[str, str]) -> list[dict[str, Any]]:
     if document.kind != "pcb":
         return []
     records: list[dict[str, Any]] = []
@@ -1143,9 +1121,7 @@ def _net_class_pair_rules(
     )
 
 
-def _differential_center_point(
-    document: DipTraceDocument, item: ET.Element
-) -> dict[str, Any]:
+def _differential_center_point(document: DipTraceDocument, item: ET.Element) -> dict[str, Any]:
     point: dict[str, Any] = {
         "position": {
             "x": _float_attr_mm(document, item, "X") or 0.0,
@@ -1191,8 +1167,7 @@ def _board_differential_pairs(
             name,
         )
     classes_by_xml = {
-        item.get("Id", ""): item
-        for item in document.container.findall("./NetClasses/NetClass")
+        item.get("Id", ""): item for item in document.container.findall("./NetClasses/NetClass")
     }
     result: list[DifferentialPairModel] = []
     for index, item in enumerate(
@@ -1346,16 +1321,9 @@ def _board_stackup(document: DipTraceDocument) -> StackupModel:
                 ),
             )
         )
-    total = sum(
-        layer.material.thickness_mm or 0.0
-        for layer in layers
-    )
-    has_conductor = any(
-        layer.material.material_type in {"conductor", "plane"} for layer in layers
-    )
-    has_dielectric = any(
-        layer.material.material_type == "dielectric" for layer in layers
-    )
+    total = sum(layer.material.thickness_mm or 0.0 for layer in layers)
+    has_conductor = any(layer.material.material_type in {"conductor", "plane"} for layer in layers)
+    has_dielectric = any(layer.material.material_type == "dielectric" for layer in layers)
     if not has_conductor:
         missing.append("conductor_or_plane_layer")
     if not has_dielectric:
@@ -1406,8 +1374,7 @@ def _board_copper_pour_records(document: DipTraceDocument) -> list[ObjectRecord]
                 ),
                 kind="copper_pour",
                 label=(
-                    f"{connected_net[1] if connected_net else 'unassigned'}:"
-                    f"pour-{xml_id or index}"
+                    f"{connected_net[1] if connected_net else 'unassigned'}:pour-{xml_id or index}"
                 ),
                 xml_id=xml_id or None,
                 net_id=net_xml_id if connected_net is not None else None,
@@ -1424,20 +1391,13 @@ def _board_copper_pour_records(document: DipTraceDocument) -> list[ObjectRecord]
                     "poured": _bool_attr(pour, "Poured"),
                     "regions_done": _bool_attr(pour, "RegionsDone"),
                     "clearance_mm": _float_attr_mm(document, pour, "Clearance"),
-                    "board_clearance_mm": _float_attr_mm(
-                        document, pour, "BoardClearance"
-                    ),
+                    "board_clearance_mm": _float_attr_mm(document, pour, "BoardClearance"),
                     "minimum_area_mm2": (
-                        to_mm(1.0, document.units) ** 2
-                        * (_float_attr(pour, "MinimumArea") or 0.0)
+                        to_mm(1.0, document.units) ** 2 * (_float_attr(pour, "MinimumArea") or 0.0)
                     ),
                 },
-                relationships={
-                    "net": [connected_net[0]] if connected_net is not None else []
-                },
-                warnings=[
-                    "Boundary geometry is not the final refilled copper region."
-                ],
+                relationships={"net": [connected_net[0]] if connected_net is not None else []},
+                warnings=["Boundary geometry is not the final refilled copper region."],
             )
         )
     return records
@@ -1595,9 +1555,7 @@ class DocumentSnapshot:
 
     def query(self, request: QueryRequest) -> QueryResult:
         items = [
-            item
-            for item in self.objects.values()
-            if _matches_selector(item, request.selector)
+            item for item in self.objects.values() if _matches_selector(item, request.selector)
         ]
         items.sort(
             key=lambda item: (
@@ -1655,8 +1613,7 @@ def _matches_selector(item: ObjectRecord, selector: QuerySelector) -> bool:
         if not isinstance(item_fields, dict):
             return False
         if any(
-            str(item_fields.get(key, "")) != expected
-            for key, expected in selector.fields.items()
+            str(item_fields.get(key, "")) != expected for key, expected in selector.fields.items()
         ):
             return False
     if selector.nets:
@@ -1825,9 +1782,7 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
                     *_xml_identity(xml_id, str(index)),
                 )
                 elements[shape_stable] = shape
-        for index, pour in enumerate(
-            document.container.findall("./CopperPours/CopperPour")
-        ):
+        for index, pour in enumerate(document.container.findall("./CopperPours/CopperPour")):
             pour_stable = stable_id(
                 "copper-pour",
                 document.source_type,
@@ -1852,8 +1807,7 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
             holes=[record for record in component_records if record.kind == "hole"],
             nets=[record for record in net_records if record.kind == "net"],
             traces=[record for record in net_records if record.kind == "trace"],
-            vias=[record for record in net_records if record.kind == "via"]
-            + static_via_records,
+            vias=[record for record in net_records if record.kind == "via"] + static_via_records,
             copper_pours=pour_records,
             keepouts=[record for record in shape_records if record.kind == "keepout"],
             layers=_board_layers(document),
@@ -1926,12 +1880,11 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
                         net_name=net_name or None,
                         locked=_bool_attr(wire, "Locked"),
                         selected=_bool_attr(wire, "Selected"),
-                        bbox=(
-                            BBox.from_points(wire_points).as_dict() if wire_points else None
-                        ),
+                        bbox=(BBox.from_points(wire_points).as_dict() if wire_points else None),
                         attributes={
                             "sheet": wire.get("Sheet", ""),
                             "point_count": len(wire_points),
+                            "points": [point.as_dict() for point in wire_points],
                             **dict(wire.attrib),
                         },
                         relationships={"net": [net_stable]},
@@ -2193,7 +2146,8 @@ def summarize(document: DipTraceDocument, *, live_session: bool = False) -> dict
                 ),
                 "component_types": {
                     item.attributes.get("type", "LibraryComponent"): sum(
-                        1 for component in snapshot.board.components
+                        1
+                        for component in snapshot.board.components
                         if component.attributes.get("type", "LibraryComponent")
                         == item.attributes.get("type", "LibraryComponent")
                     )
@@ -2205,9 +2159,7 @@ def summarize(document: DipTraceDocument, *, live_session: bool = False) -> dict
         part_pins = sum(
             len(item.relationships.get("pins", [])) for item in snapshot.schematic.parts
         )
-        parts_by_refdes = {
-            item.refdes for item in snapshot.schematic.parts if item.refdes
-        }
+        parts_by_refdes = {item.refdes for item in snapshot.schematic.parts if item.refdes}
         unconnected_pin_count = 0
         intentional_no_connect_count = 0
         for part in document.container.findall("./Components/Part"):
