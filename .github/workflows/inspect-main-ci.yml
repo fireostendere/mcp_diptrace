@@ -1,0 +1,44 @@
+name: Inspect failed main CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch CI run 83 failure
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/runs" \
+            -f branch=main -f event=push -f per_page=20 > runs.json
+          run_id="$(jq -r '.workflow_runs[] | select(.name == "CI" and .run_number == 83) | .id' runs.json | head -n1)"
+          if [[ -z "$run_id" || "$run_id" == "null" ]]; then
+            echo "CI run 83 not found" >&2
+            jq '.workflow_runs[] | {id, name, run_number, event, status, conclusion, head_sha}' runs.json
+            exit 1
+          fi
+          echo "$run_id" > run-id.txt
+          gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs" > jobs.json
+          gh run view "$run_id" --log-failed > failed.log 2>&1 || true
+          cat failed.log
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-ci-83-diagnostics
+          path: |
+            runs.json
+            run-id.txt
+            jobs.json
+            failed.log
