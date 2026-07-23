@@ -28,7 +28,17 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
       - run: python -m pip install -e ".[dev]"
-      - run: python -m pytest -q
+      - name: Run tests
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q --tb=long 2>&1 | tee pytest-${{ matrix.python }}.log
+      - name: Upload failed test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-linux-${{ matrix.python }}
+          path: pytest-${{ matrix.python }}.log
 
   static-analysis:
     runs-on: ubuntu-latest
