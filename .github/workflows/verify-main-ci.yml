@@ -1,0 +1,68 @@
+name: Verify merged main CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: bf7efd6c89b8c522ac769d734afae9e26054742b
+    steps:
+      - uses: actions/checkout@v5
+      - name: Wait for main push CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=""
+          for attempt in $(seq 1 60); do
+            gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/runs" \
+              -f head_sha="${TARGET_SHA}" -f event=push -f per_page=20 > runs.json
+            run_id="$(jq -r '.workflow_runs[] | select(.name == "CI") | .id' runs.json | head -n1)"
+            if [[ -n "$run_id" && "$run_id" != "null" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          if [[ -z "$run_id" || "$run_id" == "null" ]]; then
+            echo "No main push CI run found for ${TARGET_SHA}" >&2
+            exit 1
+          fi
+          echo "$run_id" > run-id.txt
+          for attempt in $(seq 1 120); do
+            gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > run.json
+            status="$(jq -r '.status' run.json)"
+            conclusion="$(jq -r '.conclusion // ""' run.json)"
+            echo "Main CI status=${status} conclusion=${conclusion}"
+            if [[ "$status" == "completed" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs" > jobs.json
+          gh run view "$run_id" --log-failed > failed.log 2>&1 || true
+          status="$(jq -r '.status' run.json)"
+          conclusion="$(jq -r '.conclusion // ""' run.json)"
+          if [[ "$status" != "completed" || "$conclusion" != "success" ]]; then
+            cat failed.log
+            exit 1
+          fi
+      - name: Upload verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-ci-bf7-verification
+          path: |
+            runs.json
+            run-id.txt
+            run.json
+            jobs.json
+            failed.log
