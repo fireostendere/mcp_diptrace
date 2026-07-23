@@ -1,9 +1,7 @@
 name: Apply final prompt audit
 
 on:
-  push:
-    branches:
-      - agent/ci-semantic-comparison-final
+  pull_request:
 
 permissions:
   contents: write
