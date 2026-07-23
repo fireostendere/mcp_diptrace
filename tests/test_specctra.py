@@ -143,7 +143,7 @@ def test_dsn_export_requires_and_uses_exact_embedded_pattern_geometry(tmp_path: 
     assert first == second
     text = first.decode()
     assert text.startswith('(pcb "Golden Board"')
-    assert '(resolution mm 1000)' in text
+    assert "(resolution mm 1000)" in text
     assert '(image "PatType0"' in text
     assert '(pin "PAD_SMD" "1" 0 -1000)' in text
     assert '(pins "R1"-"1" "U1"-"1")' in text
@@ -244,6 +244,11 @@ def test_external_job_cancellation(tmp_path: Path) -> None:
     _mock_router(router, _simple_ses(), delay_seconds=2.0)
     service = _service(workspace, tmp_path / "state", router)
     jobid = service.run_external_autorouter(str(board), dsn_path=str(dsn))["job"]["jobid"]
+
+    deadline = time.monotonic() + 2.0
+    while jobid not in service.external_jobs._processes and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert jobid in service.external_jobs._processes
 
     service.cancel_job(jobid)
 

@@ -484,9 +484,7 @@ class ExternalJobManager:
             target_path=target_path,
         )
         input_bytes = request.model_dump_json(indent=2).encode("utf-8")
-        input_path = self.store.store_artifact(
-            record.jobid, "field_solver_input.json", input_bytes
-        )
+        input_path = self.store.store_artifact(record.jobid, "field_solver_input.json", input_bytes)
         output_path = self.store.artifact_path(record.jobid, "field_solver_result.json")
         command = self.openems.command(input_path, output_path)
         manifest = {
@@ -558,6 +556,8 @@ class ExternalJobManager:
             if key in {"PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP"}
         }
         try:
+            if cancel.is_set():
+                raise JobCancelledError("External autorouter job was cancelled", jobid=jobid)
             with log_path.open("wb") as log:
                 process = subprocess.Popen(
                     command,
@@ -588,6 +588,8 @@ class ExternalJobManager:
                         )
                     self.store.update(jobid, elapsed_seconds=elapsed, progress=0.1)
                     time.sleep(0.1)
+                if cancel.is_set():
+                    raise JobCancelledError("External autorouter job was cancelled", jobid=jobid)
                 return_code = process.returncode
             elapsed = time.monotonic() - started
             if return_code != 0:
@@ -671,6 +673,8 @@ class ExternalJobManager:
             if key in {"PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP"}
         }
         try:
+            if cancel.is_set():
+                raise JobCancelledError("ngspice job was cancelled", jobid=jobid)
             with log_path.open("wb") as log:
                 process = subprocess.Popen(
                     command,
@@ -694,11 +698,11 @@ class ExternalJobManager:
                         raise JobCancelledError("ngspice job was cancelled", jobid=jobid)
                     if elapsed > timeout:
                         process.kill()
-                        raise JobTimeoutError(
-                            f"ngspice exceeded {timeout} seconds", jobid=jobid
-                        )
+                        raise JobTimeoutError(f"ngspice exceeded {timeout} seconds", jobid=jobid)
                     self.store.update(jobid, elapsed_seconds=elapsed, progress=0.1)
                     time.sleep(0.1)
+                if cancel.is_set():
+                    raise JobCancelledError("ngspice job was cancelled", jobid=jobid)
                 return_code = process.returncode
             elapsed = time.monotonic() - started
             self._bound_log(log_path)
@@ -781,6 +785,8 @@ class ExternalJobManager:
             if key in {"PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP"}
         }
         try:
+            if cancel.is_set():
+                raise JobCancelledError("openEMS job was cancelled", jobid=jobid)
             with log_path.open("wb") as log:
                 process = subprocess.Popen(
                     command,
@@ -804,11 +810,11 @@ class ExternalJobManager:
                         raise JobCancelledError("openEMS job was cancelled", jobid=jobid)
                     if elapsed > timeout:
                         process.kill()
-                        raise JobTimeoutError(
-                            f"openEMS exceeded {timeout} seconds", jobid=jobid
-                        )
+                        raise JobTimeoutError(f"openEMS exceeded {timeout} seconds", jobid=jobid)
                     self.store.update(jobid, elapsed_seconds=elapsed, progress=0.1)
                     time.sleep(0.1)
+                if cancel.is_set():
+                    raise JobCancelledError("openEMS job was cancelled", jobid=jobid)
                 return_code = process.returncode
             elapsed = time.monotonic() - started
             self._bound_log(log_path)
@@ -830,9 +836,7 @@ class ExternalJobManager:
             try:
                 result = parse_field_solver_result(result_bytes, request)
             except ExternalToolFailedError as exc:
-                raise ExternalToolFailedError(
-                    str(exc), details=exc.details, jobid=jobid
-                ) from exc
+                raise ExternalToolFailedError(str(exc), details=exc.details, jobid=jobid) from exc
             self.store.update(
                 jobid,
                 status="completed",
