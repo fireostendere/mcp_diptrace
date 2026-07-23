@@ -75,7 +75,12 @@ class JobStore:
 
     def read(self, jobid: str) -> JobRecord:
         try:
-            return JobRecord.model_validate_json(self.record_path(jobid).read_bytes())
+            # Windows does not permit opening the destination while os.replace()
+            # is swapping an atomic-write temporary file into place. Serialize
+            # reads with updates so callers never observe that transient lock.
+            with self._lock:
+                payload = self.record_path(jobid).read_bytes()
+            return JobRecord.model_validate_json(payload)
         except FileNotFoundError as exc:
             raise ObjectNotFoundError(f"Job was not found: {jobid}", jobid=jobid) from exc
 
@@ -98,7 +103,9 @@ class JobStore:
         records: list[JobRecord] = []
         for path in sorted(self.jobs_dir.glob("job_*/job.json")):
             try:
-                record = JobRecord.model_validate_json(path.read_bytes())
+                with self._lock:
+                    payload = path.read_bytes()
+                record = JobRecord.model_validate_json(payload)
             except (OSError, ValueError):
                 continue
             if status is None or record.status == status:
