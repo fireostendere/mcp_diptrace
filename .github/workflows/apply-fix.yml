@@ -1,6 +1,7 @@
 name: Apply CI and semantic fix
 
 on:
+  pull_request:
   push:
     branches:
       - agent/ci-semantic-comparison-final
@@ -10,7 +11,7 @@ permissions:
 
 jobs:
   apply-fix:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name == 'push' || github.head_ref == 'agent/ci-semantic-comparison-final')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
