@@ -1,4 +1,4 @@
-name: Inspect failed main CI
+name: Apply Python 3.10 cancellation fix
 
 on:
   pull_request:
@@ -6,39 +6,47 @@ on:
       - main
 
 permissions:
-  actions: read
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Fetch CI run 83 failure
-        env:
-          GH_TOKEN: ${{ github.token }}
+        with:
+          ref: fix/main-ci-310
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: pip
+      - name: Apply cancellation-race fix
+        run: python scripts/apply_ci_310_fix.py
+      - name: Install dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Format changed files
+        run: python -m ruff format src/diptrace_mcp/external_adapters.py tests/test_specctra.py
+      - name: Lint project
+        run: python -m ruff check --no-cache src tests benchmarks scripts/generate_pcb_skills.py scripts/mcp_smoke.py
+      - name: Stress cancellation regression
         shell: bash
         run: |
           set -euo pipefail
-          gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/runs" \
-            -f branch=main -f event=push -f per_page=20 > runs.json
-          run_id="$(jq -r '.workflow_runs[] | select(.name == "CI" and .run_number == 83) | .id' runs.json | head -n1)"
-          if [[ -z "$run_id" || "$run_id" == "null" ]]; then
-            echo "CI run 83 not found" >&2
-            jq '.workflow_runs[] | {id, name, run_number, event, status, conclusion, head_sha}' runs.json
-            exit 1
-          fi
-          echo "$run_id" > run-id.txt
-          gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs" > jobs.json
-          gh run view "$run_id" --log-failed > failed.log 2>&1 || true
-          cat failed.log
-      - name: Upload diagnostic logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: main-ci-83-diagnostics
-          path: |
-            runs.json
-            run-id.txt
-            jobs.json
-            failed.log
+          for iteration in $(seq 1 50); do
+            echo "Cancellation regression run ${iteration}/50"
+            python -m pytest -q tests/test_specctra.py::test_external_job_cancellation
+          done
+      - name: Run full tests
+        run: python -m pytest -q --tb=long
+      - name: Run Mypy
+        run: python -m mypy --no-incremental src/diptrace_mcp
+      - name: Check generated PCB skills
+        run: python scripts/generate_pcb_skills.py --check
+      - name: Commit validated fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/diptrace_mcp/external_adapters.py tests/test_specctra.py
+          git commit -m 'fix: preserve cancellation across external process exit race'
+          git push origin HEAD:fix/main-ci-310
