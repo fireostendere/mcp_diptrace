@@ -26,9 +26,18 @@ jobs:
       - name: Format audited files
         run: python -m ruff format src/diptrace_mcp/domain.py src/diptrace_mcp/service.py tests/test_trust_model.py tests/test_prompt_acceptance.py
       - name: Fix audited lint issues
-        run: python -m ruff check --fix src/diptrace_mcp/domain.py src/diptrace_mcp/service.py tests/test_trust_model.py tests/test_prompt_acceptance.py
+        run: python -m ruff check --fix --exit-zero src/diptrace_mcp/domain.py src/diptrace_mcp/service.py tests/test_trust_model.py tests/test_prompt_acceptance.py
       - name: Check project lint
-        run: python -m ruff check --no-cache src tests benchmarks scripts/generate_pcb_skills.py scripts/mcp_smoke.py
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m ruff check --no-cache src tests benchmarks scripts/generate_pcb_skills.py scripts/mcp_smoke.py 2>&1 | tee ruff-final-audit.log
+      - name: Upload Ruff report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruff-final-audit
+          path: ruff-final-audit.log
       - name: Run full tests
         run: python -m pytest -q
       - name: Run Mypy
