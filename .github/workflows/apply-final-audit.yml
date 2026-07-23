@@ -23,11 +23,12 @@ jobs:
         run: python scripts/apply_final_prompt_audit.py
       - name: Install dependencies
         run: python -m pip install -e '.[dev]'
-      - name: Format and lint
-        run: |
-          python -m ruff format src/diptrace_mcp/domain.py src/diptrace_mcp/service.py tests/test_trust_model.py tests/test_prompt_acceptance.py
-          python -m ruff check --fix src/diptrace_mcp/domain.py src/diptrace_mcp/service.py tests/test_trust_model.py tests/test_prompt_acceptance.py
-          python -m ruff check --no-cache src tests benchmarks scripts --exclude scripts/apply_final_prompt_audit.py
+      - name: Format audited files
+        run: python -m ruff format src/diptrace_mcp/domain.py src/diptrace_mcp/service.py tests/test_trust_model.py tests/test_prompt_acceptance.py
+      - name: Fix audited lint issues
+        run: python -m ruff check --fix src/diptrace_mcp/domain.py src/diptrace_mcp/service.py tests/test_trust_model.py tests/test_prompt_acceptance.py
+      - name: Check project lint
+        run: python -m ruff check --no-cache src tests benchmarks scripts/generate_pcb_skills.py scripts/mcp_smoke.py
       - name: Run full tests
         run: python -m pytest -q
       - name: Run Mypy
