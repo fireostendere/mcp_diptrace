@@ -16,8 +16,8 @@ jobs:
       - uses: actions/checkout@v5
       - name: Package source
         run: |
-          tar --exclude=.git -czf ../mcp-diptrace-source.tar.gz .
+          tar --exclude=.git --exclude=mcp-diptrace-source.tar.gz -czf mcp-diptrace-source.tar.gz .
       - uses: actions/upload-artifact@v4
         with:
           name: mcp-diptrace-source-audit
-          path: ../mcp-diptrace-source.tar.gz
+          path: mcp-diptrace-source.tar.gz
