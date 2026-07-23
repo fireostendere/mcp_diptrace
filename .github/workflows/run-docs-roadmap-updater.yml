@@ -1,0 +1,80 @@
+name: Run docs roadmap updater
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply-docs:
+    if: github.event.head_commit.message == 'chore: run docs roadmap updater'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: docs/finalize-roadmap-and-status
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Execute embedded documentation updater
+        shell: bash
+        run: |
+          python - <<'PYCODE'
+          import base64
+          import re
+          import zlib
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/apply-docs-roadmap.yml').read_text(encoding='utf-8')
+          match = re.search(r'payload = r"""(.*?)"""', workflow, re.DOTALL)
+          if match is None:
+              raise SystemExit('embedded updater payload was not found')
+          source = zlib.decompress(base64.b64decode(match.group(1)))
+          exec(compile(source, '.github/apply_docs_update.py', 'exec'))
+          PYCODE
+      - name: Validate documentation
+        shell: bash
+        run: |
+          python - <<'PYCODE'
+          from pathlib import Path
+          import re
+
+          files = [
+              Path('README.md'),
+              Path('README_RU.md'),
+              Path('docs/ROADMAP.md'),
+              Path('docs/TESTING.md'),
+              Path('docs/SECURITY_AND_POLICY.md'),
+              Path('docs/EXTERNAL_ADAPTERS.md'),
+              Path('docs/MCP_TOOLS.md'),
+          ]
+          missing = []
+          for path in files:
+              text = path.read_text(encoding='utf-8')
+              if any(marker in text for marker in ('<<<<<<<', '=======', '>>>>>>>')):
+                  raise SystemExit(f'conflict marker in {path}')
+              if any(line.endswith(' ') for line in text.splitlines()):
+                  raise SystemExit(f'trailing whitespace in {path}')
+              for match in re.finditer(r'\[[^\]]+\]\(([^)]+)\)', text):
+                  target = match.group(1).split('#', 1)[0]
+                  if not target or '://' in target or target.startswith('mailto:'):
+                      continue
+                  if not (path.parent / target).resolve().exists():
+                      missing.append((str(path), target))
+          if missing:
+              raise SystemExit(f'missing relative links: {missing}')
+          PYCODE
+      - name: Commit documentation
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md README_RU.md docs/ROADMAP.md docs/TESTING.md \
+            docs/SECURITY_AND_POLICY.md docs/EXTERNAL_ADAPTERS.md docs/MCP_TOOLS.md
+          git diff --cached --check
+          git commit -m 'docs: align status and fix pattern learning roadmap'
+          git push origin HEAD:docs/finalize-roadmap-and-status
