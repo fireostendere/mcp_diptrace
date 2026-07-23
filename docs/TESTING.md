@@ -10,18 +10,26 @@ mypy --no-incremental src/diptrace_mcp
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 ```
 
-CI runs pytest, Ruff, and strict Mypy on Linux with Python 3.10, 3.12, and 3.13, and on
-Windows and macOS with Python 3.12. Core tests do not require DipTrace, Java,
-Freerouting, openEMS, or network access.
+CI runs full pytest on Linux with Python 3.10, 3.12, and 3.13. Ruff, strict Mypy,
+and generated-skill checks run once on Linux/Python 3.12. macOS and Windows run full
+pytest plus CLI smoke tests on Python 3.12, and a separate Windows job builds and
+verifies a non-empty `diptrace_mcp_bridge.exe`. Core tests do not require DipTrace,
+Java, Freerouting, openEMS, or network access.
 
 ## Coverage
 
 - secure parsing, units, stable IDs, transforms/mirroring/arcs/bounding boxes/spatial index;
 - normalized PCB, schematic, Component Library, and Pattern Library models;
 - preservation of unknown XML and semantic round-trips;
+- required-category PCB comparison of trace coordinates/order, widths, segment layers,
+  endpoints, via styles/spans, locks, and differential-pair membership;
+- required-category schematic comparison of sheets/hierarchy, parts, pins, pin-to-net
+  connectivity, wire geometry, labels, and buses;
 - byte-exact preservation of BOM, XML declaration, CRLF, empty tags, and unknown sections
   outside low-level and semantic patch targets;
 - transaction state, SHA, preview, commit, rollback, and policy;
+- fail-closed trust authority tests: self-minted manifests, path/hardlink/symlink roles,
+  source-type/SHA binding, incomplete comparisons, and rollback with corrupt evidence;
 - component, text, rule, test-point, pattern, and group operations;
 - review registry and findings, silkscreen plans, and placement plans;
 - trace/via compiler, multi-layer 45-degree A*, explicit blind/full via spans, rejection
@@ -32,6 +40,8 @@ Freerouting, openEMS, or network access.
   pad mapping, external pattern rejection);
 - unknown format-version feature detection and preservation of optional or unknown XML;
 - exact GEOS DRC for rotated pads, DSN/SES, and mocked Freerouting jobs;
+- external-job cancellation behavior, including a deterministic Python 3.10 regression
+  for the process-exit race;
 - stackup, length/skew/differential-pair analysis, and single/coupled impedance golden cases;
 - typed openEMS runner protocol, synthetic result parsing, centered analytical sanity,
   malformed/non-converged output, unavailable backend, and timeout handling;
@@ -83,9 +93,11 @@ Test fixtures are classified by `validation_level`:
 - `diptrace_roundtrip_verified` — XML that DipTrace opened, saved, and re-exported.
 - `external_tool_roundtrip_verified` — Same plus external tool round-trip.
 
-CI must reject any fixture claiming `diptrace_roundtrip_verified` or higher without
-exact DipTrace version, source hash, re-export hash, semantic comparison result, and
-confirmed manifest.
+User-controlled manifests and sidecars cannot grant `diptrace_roundtrip_verified` or
+higher at all. CI rejects self-minted high trust, missing required comparison categories,
+path/source-type/SHA mismatches, and semantic differences. Future high-trust promotion
+requires an authenticated server-owned registry, signature verifier, or committed
+allowlist in addition to exact DipTrace version and round-trip evidence.
 
 The `power_multilayer` fixture is classified as `synthetic_operation_fixture` and must
 not be used as evidence of DipTrace 5.3 compatibility.

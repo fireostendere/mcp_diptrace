@@ -77,6 +77,7 @@ formats are SVG, JSON geometry, and XML diff.
 
 ## Not Registered
 
-Library mutation, push-and-shove routing, native manufacturing outputs, and unverified
-frequency-dependent or full-wave solvers are not registered. Reasons are returned through
-`reasons_unavailable`.
+Library mutation, persistent pattern-training feedback/retrieval tools, push-and-shove
+routing, native manufacturing outputs, and unverified frequency-dependent or full-wave
+solvers are not registered. The pattern recommendation milestones are fixed in
+[ROADMAP.md](ROADMAP.md). Reasons are returned through `reasons_unavailable`.

@@ -6,7 +6,9 @@ The adapter is enabled only through `DIPTRACE_MCP_FREEROUTING`. The JAR requires
 a discovered Java runtime or an explicit `DIPTRACE_MCP_JAVA` path. The capability probe
 checks the file and execution mode. Jobs use a fixed argument vector, `shell=false`, a
 sanitized environment, an isolated job directory, a timeout, cancellation, and bounded
-logs. DSN and SES artifacts are tied to the source SHA.
+logs. Cancellation is terminal: a process that exits because `terminate()` raced with
+the worker loop cannot overwrite `cancelled` with `failed`. DSN and SES artifacts are
+tied to the source SHA.
 
 ## Solver Adapters
 
@@ -17,6 +19,8 @@ environment, an isolated job directory, a timeout, cancellation, bounded logs, a
 typed log summary (data-row counts and error lines). The adapter never generates
 netlists from a design and never fabricates simulation results: an unavailable
 executable ends in `external_tool_unavailable`.
+
+The same terminal-cancellation rule applies to ngspice and openEMS jobs.
 
 The openEMS stripline adapter is implemented through a fixed typed runner protocol and is
 enabled only through `DIPTRACE_MCP_OPENEMS_RUNNER`. It supports centered and off-center

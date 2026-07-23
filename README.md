@@ -67,21 +67,32 @@ the required geometry, rules, stackup data, or external adapter.
 
 ## Validation Status
 
-The core test suite, Ruff, and strict Mypy are clean on the current source tree. Synthetic
-4.3 fixtures cover PCB, schematic, Component Library, Pattern Library, geometry,
-transactions, review, routing, DSN/SES, and server contracts.
+The repository CI separates platform responsibilities instead of repeating every gate on
+every runner:
 
-A live DipTrace 5.3.0.2 schematic acceptance test also verified:
+- full pytest on Linux with Python 3.10, 3.12, and 3.13;
+- Ruff, strict Mypy, and generated-skill checks on Linux with Python 3.12;
+- full pytest and CLI smoke tests on macOS and Windows with Python 3.12;
+- a native Windows build that verifies a non-empty `diptrace_mcp_bridge.exe` artifact.
+
+The current `main` branch passes this complete matrix. Regression coverage includes the
+fail-closed trust authority boundary, required-category semantic comparison for PCB and
+schematic round trips, native Windows atomic-job behavior, and terminal cancellation semantics for
+Freerouting, ngspice, and openEMS jobs.
+
+Synthetic 4.3 fixtures cover PCB, schematic, Component Library, Pattern Library,
+geometry, transactions, review, routing, DSN/SES, and server contracts. A live DipTrace
+5.3.0.2 schematic acceptance test separately verified:
 
 - source-SHA conflict protection, backup equality, and atomic write;
 - 41 scoped `RefDesMarking` edits on the Power sheet;
 - bridge apply followed by an independent DipTrace re-export;
 - persistence of all 41 coordinates and unchanged normalized
   sheet/part/pin/net/bus/differential-pair counts;
-- no new offline ERC errors after the round-trip.
+- no new offline ERC errors after the round trip.
 
-This validation is strong evidence for the tested path, not a claim of complete
-compatibility with every DipTrace version or every XML object.
+This is strong evidence for the tested paths, not a claim of complete compatibility with
+every DipTrace version or every XML object.
 
 ## Architecture
 
@@ -220,24 +231,42 @@ adapters.
 
 ## Trust Model
 
-The server distinguishes between synthetic MCP-generated content and DipTrace-verified
-content:
+The server distinguishes provenance from authority. A client may submit evidence, but it
+cannot promote its own document to a high-trust validation level.
 
 - **Synthetic MCP-generated**: XML created by `create_schematic_document` or
-  `create_pcb_document`. These have the correct XML structure and can be parsed by
-  the MCP parser, but have **not** been opened, saved, or re-exported by DipTrace.
-  They are classified as `synthetic_parser_only` provenance.
+  `create_pcb_document`. It is classified as `synthetic_parser_only` until stronger,
+  independently verified evidence exists.
+- **Seed-based**: XML copied by `create_document_from_seed` from a real DipTrace export.
+  It preserves the seed provenance, but copying does not create round-trip authority.
+- **Recorded evidence**: `record_roundtrip_evidence` binds before/after files, exact paths,
+  source type, SHA-256 values, and semantic comparison. User-supplied evidence is useful
+  for audit and regression, but is not a trusted root.
+- **High trust**: promotion to `diptrace_roundtrip_verified` or
+  `external_tool_roundtrip_verified` is intentionally unavailable until the project has
+  an authenticated server-owned registry, signature verifier, or committed allowlist.
 
-- **Seed-based**: XML created by `create_document_from_seed` from a real DipTrace
-  export. These preserve the seed's provenance and are classified as
-  `diptrace_exported`. They require DipTrace open/save verification to reach
-  `diptrace_roundtrip_verified`.
+Every MCP write invalidates prior high-trust claims and records the parent provenance.
+Evidence manifests are revalidated on use and rollback; path aliases, source-type
+mismatches, stale hashes, incomplete comparison categories, and semantic differences fail
+closed.
 
-- **DipTrace-verified**: XML that has been opened, saved, and re-exported by DipTrace
-  with semantic comparison passing. Only these can claim `diptrace_roundtrip_verified`.
+## Pattern Learning Status
 
-Test fixtures are classified by `validation_level` in their manifest. Synthetic
-fixtures must not be used as evidence of DipTrace compatibility.
+The current baseline can inspect and validate existing Pattern Libraries, compare pad
+mapping, and apply an existing pattern to a component when pad numbers match. Pattern
+Editor bridge sessions are deliberately read-only.
+
+The project does **not** yet contain persistent training/feedback tools such as
+`record_pattern_example`, `accept_pattern_suggestion`, or `reject_pattern_suggestion`.
+The next implementation milestone is an append-only, provenance-bound feedback dataset
+and deterministic retrieval of similar accepted examples. Fine-tuning is explicitly
+later work and is not required for the first useful recommendation system.
+
+Creation or mutation of native Pattern/Component Libraries remains blocked until
+controlled DipTrace 5.3 before/after and open/save/re-export fixtures prove the writer
+semantics. The committed implementation order and acceptance criteria are recorded in
+[the roadmap](docs/ROADMAP.md).
 
 ## Known Limits
 
@@ -260,6 +289,7 @@ fixtures must not be used as evidence of DipTrace compatibility.
   no solver is bundled and the committed parser fixture is explicitly synthetic.
 - Copper-pour boundaries are not authoritative refill geometry.
 - Generic fabrication manifests do not contain Gerber or NC Drill output.
+- Persistent pattern-training feedback and recommendation tools are not implemented yet.
 - Library mutation remains unavailable until verified DipTrace 5.3 round-trip fixtures
   exist; real-openEMS golden validation also remains external-runtime acceptance work.
 - Schematic-to-PCB sync preserves extra PCB objects and existing traces; multi-part parts need
