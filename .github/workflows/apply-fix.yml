@@ -34,7 +34,16 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
       - name: Run Mypy
-        run: python -m mypy --no-incremental src/diptrace_mcp
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m mypy --no-incremental src/diptrace_mcp 2>&1 | tee mypy.log
+      - name: Upload Mypy diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mypy-diagnostic
+          path: mypy.log
       - name: Check generated PCB skills
         run: python scripts/generate_pcb_skills.py --check
       - name: Commit validated changes
