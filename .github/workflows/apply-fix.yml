@@ -7,7 +7,7 @@ on:
       - agent/ci-semantic-comparison-final
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   apply-fix:
@@ -50,17 +50,16 @@ jobs:
         run: python -m mypy --no-incremental src/diptrace_mcp
       - name: Check generated PCB skills
         run: python scripts/generate_pcb_skills.py --check
-      - name: Stage validated files
+      - name: Restore temporary workflow files
         run: |
-          mkdir -p validated-patch/.github/workflows validated-patch/src/diptrace_mcp
-          cp .gitattributes validated-patch/.gitattributes
-          cp .github/workflows/ci.yml validated-patch/.github/workflows/ci.yml
-          cp src/diptrace_mcp/service.py validated-patch/src/diptrace_mcp/service.py
-          cp src/diptrace_mcp/adapters.py validated-patch/src/diptrace_mcp/adapters.py
-          cp src/diptrace_mcp/domain.py validated-patch/src/diptrace_mcp/domain.py
-          cp src/diptrace_mcp/jobs.py validated-patch/src/diptrace_mcp/jobs.py
-      - name: Upload validated patch
-        uses: actions/upload-artifact@v4
-        with:
-          name: validated-ci-semantic-patch
-          path: validated-patch
+          git restore --source=HEAD -- .github/workflows/ci.yml
+          git restore --source=HEAD -- .github/workflows/apply-fix.yml
+          git restore --source=HEAD -- .github/workflows/diagnose-windows.yml
+          git restore --source=HEAD -- scripts/apply_ci_semantic_fix.py
+      - name: Commit validated Python changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/diptrace_mcp/service.py src/diptrace_mcp/adapters.py src/diptrace_mcp/domain.py
+          git commit -m "fix: complete semantic roundtrip comparison"
+          git push origin HEAD:agent/ci-semantic-comparison-final
