@@ -1,0 +1,22 @@
+name: Export source audit
+
+on:
+  push:
+    branches:
+      - agent/ci-semantic-comparison-final
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Package source
+        run: |
+          tar --exclude=.git -czf ../mcp-diptrace-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcp-diptrace-source-audit
+          path: ../mcp-diptrace-source.tar.gz
