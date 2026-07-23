@@ -227,15 +227,15 @@ class UserSuppliedRoundtripEvidence(StrictModel):
             errors.append(
                 "roundtrip recorded evidence with status=recorded requires semantic_comparison"
             )
-        # Semantic comparison fields
-        if self.semantic_comparison is not None:
+        # Successful recorded evidence must be complete and difference-free.
+        # Failed evidence intentionally preserves incomplete/different results.
+        if self.semantic_comparison is not None and self.status == "recorded":
             if not self.semantic_comparison.comparison_complete:
                 errors.append("semantic comparison must be complete for recorded evidence")
             if not self.semantic_comparison.passed:
                 errors.append("semantic comparison must pass for recorded evidence")
             if self.semantic_comparison.differences:
                 errors.append("semantic comparison with differences cannot be recorded as passed")
-            # Critical unsupported categories
             critical = [
                 cat
                 for cat in self.semantic_comparison.unsupported_categories
@@ -357,8 +357,8 @@ class DocumentProvenance(StrictModel):
     trust chain.
 
     A runtime sidecar (authority=runtime) can never grant a high-trust level.
-    High-trust levels require either a fixture_manifest or trusted_registry
-    authority with verifiable SHA binding.
+    High-trust promotion is unavailable until an authenticated server-owned
+    registry, trusted bridge, or signed/allowlisted fixture authority exists.
 
     User-supplied evidence (authority=user_supplied_evidence) can record
     evidence but never grant authoritative DipTrace trust levels.
@@ -385,14 +385,15 @@ class DocumentProvenance(StrictModel):
         """Prevent runtime sidecars from granting high-trust levels.
 
         Runtime authority can only grant synthetic_parser_only or
-        synthetic_operation_fixture.  Higher levels require either
-        fixture_manifest or trusted_registry authority.
+        synthetic_operation_fixture. High-trust promotion remains unavailable
+        until an authenticated authority is implemented.
 
         User-supplied evidence authority can only grant user-supplied
         evidence levels, never authoritative DipTrace trust.
 
-        fixture_manifest authority with high trust requires
-        evidence_manifest_path and evidence_manifest_sha256.
+        fixture_manifest is only a provenance label until a committed
+        allowlist or signature verifier is implemented; it cannot grant high
+        trust from workspace-controlled JSON and SHA values.
 
         trusted_registry authority is not yet implemented; high-trust
         promotion from evidence remains unavailable.
@@ -403,7 +404,7 @@ class DocumentProvenance(StrictModel):
         ):
             raise ValueError(
                 f"Runtime sidecar cannot grant validation_level={self.validation_level.value}; "
-                "requires fixture_manifest or trusted_registry authority"
+                "an authenticated high-trust authority is unavailable"
             )
         if self.authority == ProvenanceAuthority.user_supplied_evidence:
             # User-supplied evidence can NEVER grant high-trust levels
@@ -411,7 +412,7 @@ class DocumentProvenance(StrictModel):
                 raise ValueError(
                     f"user_supplied_evidence authority cannot grant "
                     f"validation_level={self.validation_level.value}; "
-                    "only trusted_registry or fixture_manifest can"
+                    "an authenticated high-trust authority is unavailable"
                 )
             if not self.evidence_manifest_path:
                 raise ValueError("user_supplied_evidence authority requires evidence_manifest_path")
@@ -429,14 +430,10 @@ class DocumentProvenance(StrictModel):
             self.authority == ProvenanceAuthority.fixture_manifest
             and self.validation_level in _HIGH_TRUST_LEVELS
         ):
-            if not self.evidence_manifest_path:
-                raise ValueError(
-                    "fixture_manifest authority with high trust requires evidence_manifest_path"
-                )
-            if not self.evidence_manifest_sha256:
-                raise ValueError(
-                    "fixture_manifest authority with high trust requires evidence_manifest_sha256"
-                )
+            raise ValueError(
+                "fixture_manifest high trust is unavailable without an authenticated "
+                "committed allowlist or signature verifier"
+            )
         return self
 
 

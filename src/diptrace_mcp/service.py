@@ -776,9 +776,24 @@ class DipTraceService:
                     code="evidence_manifest_schema_error",
                 ) from exc
 
-        # 5. Find document SHA from manifest
+        # 5. Bind the manifest to this exact target document, not merely bytes
+        # with the same hash elsewhere in the workspace.
         doc_sha_from_manifest = record_data["document_sha256"]
         doc_path_from_manifest = record_data["document_path"]
+        try:
+            manifest_document_path = self.settings.resolve_allowed_path(
+                doc_path_from_manifest, must_exist=True
+            )
+        except (EditError, PathAccessError, OSError) as exc:
+            raise EditError(
+                f"Evidence document path is unavailable or outside allowed roots: {exc}",
+                code="evidence_document_path_invalid",
+            ) from exc
+        if not same_file_role(manifest_document_path, document_path):
+            raise EditError(
+                "Evidence manifest is bound to a different document path",
+                code="evidence_document_path_mismatch",
+            )
 
         # 6. Document SHA binding
         if doc_sha_from_manifest != provenance.current_document_sha256:
@@ -788,11 +803,18 @@ class DipTraceService:
                 code="evidence_document_sha_mismatch",
             )
 
-        # 7. Source type validation
+        # 7. Source type validation against the actual current document.
         saved_info = record_data.get("saved", {})
         source_type_from_manifest = ""
         if isinstance(saved_info, dict):
             source_type_from_manifest = saved_info.get("source_type", "")
+        actual_document = DipTraceDocument.load(document_path, self.settings.max_document_bytes)
+        if source_type_from_manifest != actual_document.source_type:
+            raise EditError(
+                f"Evidence source type {source_type_from_manifest!r} does not match "
+                f"document source type {actual_document.source_type!r}",
+                code="evidence_source_type_mismatch",
+            )
 
         # 8. Validation level must match
         level_from_manifest = record_data.get("validation_level", "")
@@ -951,31 +973,14 @@ class DipTraceService:
                     warning_code=getattr(exc, "code", "evidence_validation_failed"),
                 )
 
-        # 6. Fixture manifest authority: revalidate evidence for high trust
+        # 6. Fixture-manifest is not an authenticated root of trust yet.
+        # Workspace-controlled JSON + matching SHA cannot self-mint high trust.
         if provenance.authority == ProvenanceAuthority.fixture_manifest:
             if provenance.validation_level in _HIGH_TRUST_LEVELS:
-                if not provenance.evidence_manifest_path:
-                    return _fail_closed_trust(
-                        reason="fixture_manifest_high_trust_missing_evidence",
-                        warning_code="evidence_manifest_missing",
-                    )
-                try:
-                    evidence = self._load_and_validate_evidence_manifest(document_path, provenance)
-                    return EffectiveTrust(
-                        validation_level=provenance.validation_level,
-                        authority=provenance.authority.value,
-                        requires_diptrace_verification=requires_diptrace_verification(
-                            provenance.validation_level
-                        ),
-                        evidence_manifest_path=str(evidence.manifest_path),
-                        evidence_manifest_sha256=evidence.manifest_sha256,
-                    )
-                except EditError as exc:
-                    return _fail_closed_trust(
-                        reason=str(exc),
-                        warning_code=getattr(exc, "code", "evidence_validation_failed"),
-                    )
-            # Non-high-trust fixture manifest: accept as-is
+                return _fail_closed_trust(
+                    reason="fixture_manifest_high_trust_authority_unavailable",
+                    warning_code="trusted_fixture_authority_unavailable",
+                )
             return EffectiveTrust(
                 validation_level=provenance.validation_level,
                 authority=provenance.authority.value,
@@ -2273,21 +2278,23 @@ class DipTraceService:
                             and sha256_bytes(prov_bytes) != record.provenance_backup_sha256
                         ):
                             raise ValueError("provenance backup SHA mismatch")
-                        # Verify the restored sidecar SHA matches restored doc
-                        restored_sidecar = json.loads(prov_bytes)
-                        if restored_sidecar.get("current_document_sha256") == restored_sha256:
-                            atomic_write_bytes(sidecar_path, prov_bytes)
-                        else:
-                            # Sidecar SHA stale → create synthetic fallback
-                            sidecar = DocumentProvenance(
-                                provenance="mcp_rollback_synthetic",
-                                validation_level=FixtureValidationLevel.synthetic_operation_fixture,
-                                current_document_sha256=restored_sha256,
-                                last_modified_by="mcp_rollback_transaction",
+                        # Validate schema, document binding, and any referenced
+                        # evidence before restoring provenance atomically.
+                        restored_sidecar = DocumentProvenance.model_validate_json(prov_bytes)
+                        if restored_sidecar.current_document_sha256 != restored_sha256:
+                            raise ValueError("restored provenance document SHA mismatch")
+                        if restored_sidecar.authority == ProvenanceAuthority.user_supplied_evidence:
+                            self._load_and_validate_evidence_manifest(target_path, restored_sidecar)
+                        if (
+                            restored_sidecar.authority == ProvenanceAuthority.fixture_manifest
+                            and restored_sidecar.validation_level in _HIGH_TRUST_LEVELS
+                        ):
+                            raise ValueError(
+                                "unauthenticated fixture high trust cannot be restored"
                             )
-                            self._write_provenance_sidecar(target_path, sidecar)
-                    except (OSError, json.JSONDecodeError, ValueError):
-                        # Corrupt backup → create synthetic fallback
+                        atomic_write_bytes(sidecar_path, prov_bytes)
+                    except (OSError, json.JSONDecodeError, ValueError, EditError):
+                        # Corrupt or unauthenticated backup → create synthetic fallback
                         sidecar = DocumentProvenance(
                             provenance="mcp_rollback_synthetic",
                             validation_level=FixtureValidationLevel.synthetic_operation_fixture,
