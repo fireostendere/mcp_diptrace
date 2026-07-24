@@ -21,6 +21,19 @@ jobs:
           python-version: '3.12'
       - name: Apply serializer reference integration
         run: python scripts/apply_serializer_reference.py
+      - name: Fix strict typing for optional MaskPaste values
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/diptrace_mcp/library_adapters.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''        swell_raw = (\n            float(mask.get("CustomSwell"))\n            if mask is not None and mask.get("CustomSwell") is not None\n            else None\n        )\n        shrink_raw = (\n            float(mask.get("CustomShrink"))\n            if mask is not None and mask.get("CustomShrink") is not None\n            else None\n        )\n'''
+          new = '''        swell_value = mask.get("CustomSwell") if mask is not None else None\n        shrink_value = mask.get("CustomShrink") if mask is not None else None\n        swell_raw = float(swell_value) if swell_value is not None else None\n        shrink_raw = float(shrink_value) if shrink_value is not None else None\n'''
+          if text.count(old) != 1:
+              raise RuntimeError('MaskPaste typing anchor changed')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
       - name: Install development dependencies
         run: python -m pip install -e '.[dev]'
       - name: Format changed Python files
