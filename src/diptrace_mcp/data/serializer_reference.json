@@ -1,0 +1,998 @@
+{
+  "schema_version": "diptrace-serializer-reference-v1",
+  "generated_from": "user-supplied serializer-derived documentation and AI context pack",
+  "serializer_revision_claim": "7276",
+  "serializer_revision_authenticated": false,
+  "trust": {
+    "classification": "user_supplied_reference",
+    "trust_effect": "none",
+    "may_constrain_implementation": true,
+    "may_grant_roundtrip_trust": false,
+    "requires_independent_diptrace_5_3_fixtures_for_writers": true
+  },
+  "sources": [
+    {
+      "name": "DipTrace_PCB_XML_Specification.md",
+      "sha256": "ec70cb9ecc5766c500cad4ed7c99e1d712d6e02b9e4075a59bd02ede965916b9",
+      "role": "serializer-derived",
+      "trust_effect": "none"
+    },
+    {
+      "name": "DipTrace_Schematic_XML_Specification.md",
+      "sha256": "d6ed68ae448b453841ba7b83aff51dccf9966450b55f7cc4d58e0265d31f080a",
+      "role": "serializer-derived",
+      "trust_effect": "none"
+    },
+    {
+      "name": "DipTrace_CompEdit_XML_Specification.md",
+      "sha256": "cf76b6698cab8fa5300e48003a0516e4a53d0e2b58259d40439c600f8ac6fc48",
+      "role": "serializer-derived",
+      "trust_effect": "none"
+    },
+    {
+      "name": "DipTrace_PattEdit_XML_Specification.md",
+      "sha256": "b000a248bdbf7a2f17d24a12b9453928c8a4c1a2b96388800b085aa52838bdf3",
+      "role": "serializer-derived",
+      "trust_effect": "none"
+    },
+    {
+      "name": "01_plugin_architecture.md",
+      "sha256": "1ff3a4ebc2efe1f2c6c00774c094c796c6b5ad5d2e83a1a428e24656a02ea00d",
+      "role": "agent-context-pack",
+      "trust_effect": "none"
+    },
+    {
+      "name": "02_diptrace_xml_conventions.md",
+      "sha256": "bc394b87c01b59c8152e513a38467a311057f0ba9812e008d5f146613e6d2e56",
+      "role": "agent-context-pack",
+      "trust_effect": "none"
+    },
+    {
+      "name": "10_pcb_xml_reference.md",
+      "sha256": "2f00698fba0e7a0f54e38ec828f7156fe6947efef75780260a4730aee6d2d223",
+      "role": "agent-context-pack",
+      "trust_effect": "none"
+    },
+    {
+      "name": "20_schematic_xml_reference.md",
+      "sha256": "f010c7f29daed2a474ec27b2e96f760941cd7f83a078bb7d4351c1a561c28958",
+      "role": "agent-context-pack",
+      "trust_effect": "none"
+    },
+    {
+      "name": "30_compedit_xml_reference.md",
+      "sha256": "e2178030ca0d09972dca821dd5598a146b840fdafc47141f9823104f6dba1d36",
+      "role": "agent-context-pack",
+      "trust_effect": "none"
+    },
+    {
+      "name": "40_pattedit_xml_reference.md",
+      "sha256": "c4af40003ba20021ca21106ab1ce0945875a44b8d073a1fed7d27bec06b047a2",
+      "role": "agent-context-pack",
+      "trust_effect": "none"
+    },
+    {
+      "name": "50_common_operations.md",
+      "sha256": "338cdfa5ab1e6df45256cb072a63b1173eea8e8634018a2263a1d94f3486673c",
+      "role": "agent-context-pack",
+      "trust_effect": "none"
+    },
+    {
+      "name": "60_common_mistakes.md",
+      "sha256": "d1b38e4477ac9dd70251c79c7221315debb952a060d34172b9731ff92fdcf981",
+      "role": "agent-context-pack",
+      "trust_effect": "none"
+    },
+    {
+      "name": "README.md",
+      "sha256": "23d5c0456ea8d6e168a7c784f6bc8c2019763213a953f49bd628ad9e3023994a",
+      "role": "agent-context-pack",
+      "trust_effect": "none"
+    }
+  ],
+  "cross_cutting_behaviors": [
+    {
+      "id": "shared.units.root",
+      "title": "Root Units govern every Real geometry value",
+      "behavior": "Units is mm, inch, or mil; there is no per-object geometry unit override.",
+      "writer_requirement": "Preserve root Units and write geometry in that unit."
+    },
+    {
+      "id": "shared.real.decimal-dot",
+      "title": "Canonical decimal separator is a dot",
+      "behavior": "DipTrace may read locale commas defensively, but canonical emitted Real values use a dot.",
+      "writer_requirement": "Always emit dot-decimal numbers."
+    },
+    {
+      "id": "shared.angle.radians",
+      "title": "Ordinary angles are radians CCW",
+      "behavior": "Angle fields are radians counter-clockwise unless the field is explicitly a discrete Orientation enum. Model3D Rotate is degrees.",
+      "writer_requirement": "Do not serialize placement/shape angles as degrees."
+    },
+    {
+      "id": "shared.ids.edit",
+      "title": "Edit import is keyed by existing top-level Id",
+      "behavior": "Under ImpMode=Edit, preserve Id for edits; omit Id for additions rather than guessing a free value.",
+      "writer_requirement": "Never renumber existing IDs during an edit transaction."
+    },
+    {
+      "id": "shared.full-file.dense-ids",
+      "title": "Whole-file top-level arrays are positional",
+      "behavior": "For whole-file generation, top-level arrays must be dense and ordered from Id 0 with position equal to Id.",
+      "writer_requirement": "Do not use sparse/reordered top-level arrays in generated whole files."
+    },
+    {
+      "id": "shared.enabled.delete",
+      "title": "Enabled=N is an import delete flag",
+      "behavior": "On supported edit-import objects, Enabled=N means delete; absent means enabled. Normal saves often prune disabled objects.",
+      "writer_requirement": "For edit-import deletion, retain the node and set Enabled=N when that object supports the flag."
+    },
+    {
+      "id": "shared.selected.filter",
+      "title": "Selected filter skips unselected incoming objects",
+      "behavior": "With PCB/Schematic Selected filtering under Edit, incoming objects without Selected=Y are skipped, including new objects.",
+      "writer_requirement": "Set Selected=Y on every edited/added object when a Selected filter is active."
+    },
+    {
+      "id": "shared.nested-list.replace",
+      "title": "Nested ID-less lists are replacement containers",
+      "behavior": "Traces, net/bus Wires, and point lists are replaced wholesale when their container is present; they are not member-merged.",
+      "writer_requirement": "Omit an untouched container or re-list all current children plus changes."
+    },
+    {
+      "id": "shared.unknown.preserve",
+      "title": "Unknown XML is forward-compatible state",
+      "behavior": "Newer serializer fields may not exist in older published tables.",
+      "writer_requirement": "Preserve unknown attributes/elements during targeted edits."
+    },
+    {
+      "id": "shared.points.canonical",
+      "title": "Canonical geometry vertices use Point",
+      "behavior": "Geometry point containers canonically emit Point; readers may accept Item. Mask/paste segment rectangles are a documented Item exception.",
+      "writer_requirement": "Emit Point for ordinary geometry and Item only for documented reference/segment lists."
+    },
+    {
+      "id": "shared.segment.second-point",
+      "title": "Segment parameters live on the segment end point",
+      "behavior": "PCB trace and Schematic wire per-segment attributes are stored on the second/end Point; the first point carries geometry identity only.",
+      "writer_requirement": "When splitting/extending a path, move segment attributes to the correct end point."
+    },
+    {
+      "id": "shared.paths.path-var",
+      "title": "External file references preserve Path and Var",
+      "behavior": "Library/picture/3D file references may carry resolved Path and environment-variable Var forms.",
+      "writer_requirement": "Preserve both representations when present."
+    },
+    {
+      "id": "plugin.exchange.same-file",
+      "title": "Plugin exchange is overwrite-in-place",
+      "behavior": "DipTrace passes plugin_exchange.xml as argv[1], waits for the process, then reads the same path back.",
+      "writer_requirement": "Modify the supplied exchange path; do not create a replacement path."
+    },
+    {
+      "id": "plugin.type.namespaces",
+      "title": "Plugin and data Type namespaces differ",
+      "behavior": "settings.xml uses underscore plugin types while exchange XML uses hyphenated DipTrace-PCB / DipTrace-Schematic data types.",
+      "writer_requirement": "Do not mix settings.xml Type values with data XML root Type values."
+    }
+  ],
+  "rules": [
+    {
+      "id": "pcb.root.type",
+      "dialect": "pcb",
+      "path": "/Source",
+      "field": "@Type",
+      "type": "literal",
+      "semantics": "Document dialect identifier.",
+      "values": [
+        "DipTrace-PCB"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pcb.root.units",
+      "dialect": "pcb",
+      "path": "/Source",
+      "field": "@Units",
+      "type": "enum",
+      "semantics": "Unit for every Real geometry/length value.",
+      "values": [
+        "mm",
+        "inch",
+        "mil"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "schematic.root.type",
+      "dialect": "schematic",
+      "path": "/Source",
+      "field": "@Type",
+      "type": "literal",
+      "semantics": "Document dialect identifier.",
+      "values": [
+        "DipTrace-Schematic"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "schematic.root.units",
+      "dialect": "schematic",
+      "path": "/Source",
+      "field": "@Units",
+      "type": "enum",
+      "semantics": "Unit for every Real geometry/length value.",
+      "values": [
+        "mm",
+        "inch",
+        "mil"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "component_library.root.type",
+      "dialect": "component_library",
+      "path": "/Library",
+      "field": "@Type",
+      "type": "literal",
+      "semantics": "Document dialect identifier.",
+      "values": [
+        "DipTrace-ComponentLibrary"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "component_library.root.units",
+      "dialect": "component_library",
+      "path": "/Library",
+      "field": "@Units",
+      "type": "enum",
+      "semantics": "Unit for every Real geometry/length value.",
+      "values": [
+        "mm",
+        "inch",
+        "mil"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pattern_library.root.type",
+      "dialect": "pattern_library",
+      "path": "/Library",
+      "field": "@Type",
+      "type": "literal",
+      "semantics": "Document dialect identifier.",
+      "values": [
+        "DipTrace-PatternLibrary"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pattern_library.root.units",
+      "dialect": "pattern_library",
+      "path": "/Library",
+      "field": "@Units",
+      "type": "enum",
+      "semantics": "Unit for every Real geometry/length value.",
+      "values": [
+        "mm",
+        "inch",
+        "mil"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.padstyle.type",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle",
+      "field": "@Type",
+      "type": "enum",
+      "semantics": "Pad kind.",
+      "values": [
+        "Surface",
+        "Through"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.padstyle.hole_type",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle",
+      "field": "@HoleType",
+      "type": "enum",
+      "semantics": "Drill shape for Through pads.",
+      "values": [
+        "Round",
+        "Obround"
+      ],
+      "written_when": "Through only"
+    },
+    {
+      "id": "pattern.padstyle.hole",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle",
+      "field": "@Hole",
+      "type": "real",
+      "semantics": "Through-pad drill diameter/width; for a Fiducial MainStack it instead means fiducial keepout diameter.",
+      "written_when": "Through or Fiducial",
+      "writer_notes": "Do not treat Fiducial Hole as a drill."
+    },
+    {
+      "id": "pattern.padstyle.holeh",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle",
+      "field": "@HoleH",
+      "type": "real",
+      "semantics": "Obround drill height; no fiducial meaning.",
+      "written_when": "HoleType=Obround"
+    },
+    {
+      "id": "pattern.mainstack.shape",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MainStack",
+      "field": "@Shape",
+      "type": "enum",
+      "semantics": "Primary copper shape.",
+      "values": [
+        "Ellipse",
+        "Obround",
+        "Rectangle",
+        "Polygon",
+        "D-shape",
+        "Fiducial"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.mainstack.width",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MainStack",
+      "field": "@Width",
+      "type": "real",
+      "semantics": "Copper width; for Fiducial it is the copper diameter.",
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.mainstack.height",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MainStack",
+      "field": "@Height",
+      "type": "real",
+      "semantics": "Copper height.",
+      "written_when": "if not Fiducial",
+      "reader_notes": "For Fiducial, derive normalized height from Width rather than treating omission as zero."
+    },
+    {
+      "id": "pattern.mainstack.offset",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MainStack",
+      "field": "@XOff/@YOff",
+      "type": "real",
+      "semantics": "Copper offset from drill center.",
+      "written_when": "Through only"
+    },
+    {
+      "id": "pattern.mainstack.corner",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MainStack",
+      "field": "@Corner",
+      "type": "real",
+      "semantics": "Rectangle corner rounding.",
+      "written_when": "Rectangle only"
+    },
+    {
+      "id": "pattern.terminal.angle",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/Terminals/Terminal",
+      "field": "@Angle",
+      "type": "real",
+      "semantics": "Secondary terminal rotation in radians CCW.",
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.mask.mode",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MaskPaste",
+      "field": "@TopMask/@BotMask",
+      "type": "enum",
+      "semantics": "Per-side solder mask state.",
+      "values": [
+        "Common",
+        "Open",
+        "Tented",
+        "By Paste"
+      ],
+      "default": "Common (attribute omitted)",
+      "written_when": "if not Common"
+    },
+    {
+      "id": "pattern.paste.mode",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MaskPaste",
+      "field": "@TopPaste/@BotPaste",
+      "type": "enum",
+      "semantics": "Per-side paste state.",
+      "values": [
+        "Common",
+        "Solder",
+        "No Solder",
+        "Segments"
+      ],
+      "default": "Common (attribute omitted)",
+      "written_when": "if not Common"
+    },
+    {
+      "id": "pattern.mask.custom_swell",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MaskPaste",
+      "field": "@CustomSwell",
+      "type": "real",
+      "semantics": "Custom mask swell.",
+      "default": "unset sentinel -1000",
+      "written_when": "if set",
+      "reader_notes": "Normalize -1000 to None/unset; never generate geometry from it."
+    },
+    {
+      "id": "pattern.paste.custom_shrink",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MaskPaste",
+      "field": "@CustomShrink",
+      "type": "real",
+      "semantics": "Custom paste shrink.",
+      "default": "unset sentinel -1000",
+      "written_when": "if set",
+      "reader_notes": "Normalize -1000 to None/unset; never generate geometry from it."
+    },
+    {
+      "id": "pattern.paste.segments",
+      "dialect": "pattern_library",
+      "path": "/Library/PadStyles/PadStyle/MaskPaste/TopSegments|BotSegments",
+      "field": "Item@X1,Y1,X2,Y2",
+      "type": "rectangle-list",
+      "semantics": "Explicit segmented paste rectangles.",
+      "written_when": "paste side is Segments",
+      "reader_notes": "These geometry children are Item, not Point."
+    },
+    {
+      "id": "pattern.pattern.mounting",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern",
+      "field": "@Mounting",
+      "type": "enum",
+      "semantics": "Footprint mounting kind; there is no None value.",
+      "values": [
+        "Through",
+        "SMD",
+        "Chassis",
+        "Mixed"
+      ],
+      "written_when": "always",
+      "reader_notes": "Unknown/omitted must not be normalized to a fabricated None enum."
+    },
+    {
+      "id": "pattern.pattern.orientation",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern",
+      "field": "@Orientation",
+      "type": "enum",
+      "semantics": "Metadata orientation; does not rotate stored footprint geometry.",
+      "values": [
+        "0",
+        "90",
+        "180",
+        "270"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.pattern.type",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern",
+      "field": "@Type",
+      "type": "enum",
+      "semantics": "Creation-template type.",
+      "values": [
+        "None",
+        "Free",
+        "Right Angle",
+        "Left Angle",
+        "T",
+        "Circle",
+        "Lines",
+        "Square",
+        "Matrix",
+        "Rectangle",
+        "Zig-Zag",
+        "IPC-7351"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.pad.side",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern/Pads/Pad",
+      "field": "@Side",
+      "type": "enum",
+      "semantics": "Pad side.",
+      "values": [
+        "Top",
+        "Bottom"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.pad.angle",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern/Pads/Pad",
+      "field": "@Angle",
+      "type": "real",
+      "semantics": "Pad rotation in radians CCW.",
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.shape.type",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern/Shapes/Shape",
+      "field": "@Type",
+      "type": "enum",
+      "semantics": "Footprint graphic type.",
+      "values": [
+        "None",
+        "Line",
+        "Rectangle",
+        "Obround",
+        "FillRect",
+        "FillObround",
+        "Arc",
+        "Text",
+        "Polyline",
+        "Polygon"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.shape.layer",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern/Shapes/Shape",
+      "field": "@Layer",
+      "type": "enum",
+      "semantics": "Textual layer literal.",
+      "values": [
+        "Top Silk",
+        "Top Assy",
+        "Top Mask",
+        "Top Paste",
+        "Bottom Paste",
+        "Bottom Mask",
+        "Bottom Assy",
+        "Bottom Silk",
+        "Top",
+        "Top Keepout",
+        "Bottom Keepout",
+        "Bottom",
+        "Board Cutout",
+        "Top Dimension",
+        "Bottom Dimension",
+        "Non-Signal",
+        "Top Courtyard",
+        "Bottom Courtyard",
+        "Top Outline",
+        "Bottom Outline",
+        "Top Terminals",
+        "Bottom Terminals"
+      ],
+      "written_when": "always",
+      "writer_notes": "Never invent combined Top/Bottom layer names."
+    },
+    {
+      "id": "pattern.hole.geometry",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern/Holes/Hole",
+      "field": "@Diam/@HoleDiam",
+      "type": "real",
+      "semantics": "Diam is keepout diameter; HoleDiam is drilled-hole diameter.",
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.model.filename",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern/Model3D/Filename",
+      "field": "Path/Var",
+      "type": "path-pair",
+      "semantics": "3D model path in resolved and variable forms.",
+      "written_when": "model present",
+      "reader_notes": "Filename is a container; do not read only direct element text."
+    },
+    {
+      "id": "pattern.model.rotate",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern/Model3D/Rotate",
+      "field": "@X/@Y/@Z",
+      "type": "real",
+      "semantics": "3D model rotation components in degrees.",
+      "written_when": "always"
+    },
+    {
+      "id": "pattern.model.units",
+      "dialect": "pattern_library",
+      "path": "/Library/Patterns/Pattern/Model3D",
+      "field": "@Units",
+      "type": "enum",
+      "semantics": "3D model file units.",
+      "values": [
+        "mm",
+        "mil",
+        "inch",
+        "Wings"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "component.part.part_type",
+      "dialect": "component_library",
+      "path": "/Library/Components/Component/Part",
+      "field": "@PartType",
+      "type": "enum",
+      "semantics": "Component section role.",
+      "values": [
+        "Normal",
+        "Power",
+        "Net Port",
+        "Hierarchy Connector",
+        "Hierarchy Block"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "component.part.show_numbers",
+      "dialect": "component_library",
+      "path": "/Library/Components/Component/Part",
+      "field": "@ShowNumbers",
+      "type": "enum",
+      "semantics": "Pin-number display mode.",
+      "values": [
+        "Common",
+        "Show",
+        "Hide"
+      ],
+      "default": "Common (omitted)",
+      "written_when": "if > 0"
+    },
+    {
+      "id": "component.pattern.style",
+      "dialect": "component_library",
+      "path": "/Library/Components/Component/Part/Pattern",
+      "field": "@Style",
+      "type": "text",
+      "semantics": "Attached footprint style key.",
+      "written_when": "first part only",
+      "reader_notes": "Accept legacy PatternType alias; writer emits Style."
+    },
+    {
+      "id": "component.pin.electric_type",
+      "dialect": "component_library",
+      "path": "/Library/Components/Component/Part/Pins/Pin",
+      "field": "@ElectricType",
+      "type": "enum",
+      "semantics": "ERC electrical type.",
+      "values": [
+        "Undefined",
+        "Passive",
+        "Input",
+        "Output",
+        "Bidirectional",
+        "Open High",
+        "Open Low",
+        "Passive High",
+        "Passive Low",
+        "3 State",
+        "Power"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "component.pin.orientation",
+      "dialect": "component_library",
+      "path": "/Library/Components/Component/Part/Pins/Pin",
+      "field": "@Orientation",
+      "type": "enum",
+      "semantics": "Discrete pin direction in degrees.",
+      "values": [
+        "0",
+        "90",
+        "180",
+        "270"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "component.pin.pad_id",
+      "dialect": "component_library",
+      "path": "/Library/Components/Component/Part/Pins/Pin",
+      "field": "@PadId",
+      "type": "int",
+      "semantics": "Numeric index into attached footprint pad array.",
+      "written_when": "always",
+      "reader_notes": "Accept legacy PadIndex alias; writer emits PadId."
+    },
+    {
+      "id": "component.pin.pad_number",
+      "dialect": "component_library",
+      "path": "/Library/Components/Component/Part/Pins/Pin/PadNumber",
+      "field": "#text",
+      "type": "text",
+      "semantics": "Footprint pad name paired with PadId.",
+      "written_when": "if present"
+    },
+    {
+      "id": "component.internal_connection",
+      "dialect": "component_library",
+      "path": "/Library/Components/Component/Part/InternalConnections/IntCon",
+      "field": "@X/@Y",
+      "type": "id-reference",
+      "semantics": "Both values reference footprint pad Id values, not coordinates.",
+      "written_when": "if internal short exists",
+      "writer_notes": "Deleting/renumbering pads requires updating every IntCon reference."
+    },
+    {
+      "id": "component.add_field.type",
+      "dialect": "component_library",
+      "path": "/Library/Components/Component/Part/AddFields/AddField",
+      "field": "@Type",
+      "type": "enum",
+      "semantics": "User field type.",
+      "values": [
+        "Text",
+        "Link"
+      ],
+      "written_when": "always"
+    },
+    {
+      "id": "pcb.component.type",
+      "dialect": "pcb",
+      "path": "/Source/Board/Components/Component",
+      "field": "@Type",
+      "type": "enum",
+      "semantics": "Special standalone object kind; absent for ordinary footprint components.",
+      "values": [
+        "Pad",
+        "MtHole",
+        "Via",
+        "Fiducial"
+      ],
+      "written_when": "special object only"
+    },
+    {
+      "id": "pcb.component.angle",
+      "dialect": "pcb",
+      "path": "/Source/Board/Components/Component",
+      "field": "@Angle",
+      "type": "real",
+      "semantics": "Placed component rotation in radians CCW.",
+      "default": "0 (omitted)",
+      "written_when": "if nonzero"
+    },
+    {
+      "id": "pcb.component.side",
+      "dialect": "pcb",
+      "path": "/Source/Board/Components/Component",
+      "field": "@Side",
+      "type": "enum",
+      "semantics": "Placed component side.",
+      "values": [
+        "Top",
+        "Bottom"
+      ],
+      "written_when": "ordinary components"
+    },
+    {
+      "id": "pcb.pad.net_id",
+      "dialect": "pcb",
+      "path": "/Source/Board/Components/Component/Pads/Pad",
+      "field": "@NetId",
+      "type": "int",
+      "semantics": "Authoritative pad net membership; -1 means unconnected.",
+      "written_when": "always",
+      "writer_notes": "Do not rely on Net/Pads mirror alone to move a pad between nets."
+    },
+    {
+      "id": "pcb.net.net_class",
+      "dialect": "pcb",
+      "path": "/Source/Board/Nets/Net",
+      "field": "@NetClass",
+      "type": "positional-index",
+      "semantics": "Index into ordered NetClasses list, not an Id lookup.",
+      "written_when": "always"
+    },
+    {
+      "id": "pcb.net.pads",
+      "dialect": "pcb",
+      "path": "/Source/Board/Nets/Net/Pads/Item",
+      "field": "@Comp/@Pad",
+      "type": "id-reference",
+      "semantics": "Derived mirror of component pad memberships.",
+      "written_when": "members exist"
+    },
+    {
+      "id": "pcb.trace.endpoints",
+      "dialect": "pcb",
+      "path": "/Source/Board/Nets/Net/Traces/Trace",
+      "field": "@Connected1,Object1,SubObject1,Point1 / @Connected2,Object2,SubObject2,Point2",
+      "type": "endpoint-reference",
+      "semantics": "Trace connectivity is declared by endpoint references, not geometric touching.",
+      "written_when": "trace present"
+    },
+    {
+      "id": "pcb.trace.point.layer",
+      "dialect": "pcb",
+      "path": "/Source/Board/Nets/Net/Traces/Trace/Points/Point",
+      "field": "@Lay",
+      "type": "layer-id",
+      "semantics": "Numeric copper layer Id stored on a point/segment end.",
+      "written_when": "point present",
+      "writer_notes": "Do not replace with textual Layer."
+    },
+    {
+      "id": "pcb.trace.point.via_style",
+      "dialect": "pcb",
+      "path": "/Source/Board/Nets/Net/Traces/Trace/Points/Point",
+      "field": "@ViaStyle",
+      "type": "positional-index",
+      "semantics": "Via-style reference; concrete via geometry is rebuilt from the style.",
+      "written_when": "via at point"
+    },
+    {
+      "id": "pcb.trace.point.width",
+      "dialect": "pcb",
+      "path": "/Source/Board/Nets/Net/Traces/Trace/Points/Point",
+      "field": "@Width",
+      "type": "real",
+      "semantics": "Segment width lives on the segment end point.",
+      "written_when": "segment attribute present"
+    },
+    {
+      "id": "pcb.shape.layer",
+      "dialect": "pcb",
+      "path": "/Source/Board/Shapes/Shape",
+      "field": "@Layer/@LayId",
+      "type": "text+id",
+      "semantics": "Layer is textual name; LayId is numeric layer reference where applicable.",
+      "written_when": "shape present"
+    },
+    {
+      "id": "pcb.copper_pour.layer",
+      "dialect": "pcb",
+      "path": "/Source/Board/CopperPours/CopperPour",
+      "field": "@Lay",
+      "type": "layer-id",
+      "semantics": "Numeric copper layer Id.",
+      "written_when": "always"
+    },
+    {
+      "id": "pcb.via_style.reference",
+      "dialect": "pcb",
+      "path": "/Source/Board/ViaStyles/ViaStyle",
+      "field": "list-position",
+      "type": "positional-list",
+      "semantics": "References to via styles are positional in serializer behavior.",
+      "written_when": "via styles present",
+      "writer_notes": "Do not reorder the list casually."
+    },
+    {
+      "id": "pcb.ratlines.derived",
+      "dialect": "pcb",
+      "path": "/Source/Board/Ratlines",
+      "field": "derived",
+      "type": "derived-state",
+      "semantics": "Ratlines are generated from pad net membership; they are not authoritative connectivity.",
+      "written_when": "export may include them"
+    },
+    {
+      "id": "schematic.part.angle",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Components/Part",
+      "field": "@Angle",
+      "type": "real",
+      "semantics": "Placed part rotation in radians CCW.",
+      "default": "0 (omitted)",
+      "written_when": "if nonzero"
+    },
+    {
+      "id": "schematic.part.pin.net_id",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Components/Part/Pins/Pin",
+      "field": "@NetId",
+      "type": "int",
+      "semantics": "Connected net Id or -1.",
+      "written_when": "always"
+    },
+    {
+      "id": "schematic.part.pin.not_connected",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Components/Part/Pins/Pin",
+      "field": "@NotConnected",
+      "type": "bool",
+      "semantics": "Explicit no-connect state.",
+      "default": "N (omitted)",
+      "written_when": "if set"
+    },
+    {
+      "id": "schematic.net.net_class",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Nets/Net",
+      "field": "@NetClass",
+      "type": "positional-index",
+      "semantics": "Index into ordered NetClasses list.",
+      "written_when": "always"
+    },
+    {
+      "id": "schematic.net.enabled",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Nets/Net",
+      "field": "@Enabled",
+      "type": "bool",
+      "semantics": "Deleted net marker.",
+      "default": "enabled/omitted",
+      "written_when": "N only for deleted net"
+    },
+    {
+      "id": "schematic.net.pins",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Nets/Net/Pins/Item",
+      "field": "@Part/@Pin",
+      "type": "id+position-reference",
+      "semantics": "Part Id plus positional pin index.",
+      "written_when": "members exist"
+    },
+    {
+      "id": "schematic.wire.dir",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Nets/Net/Wires/Wire/Points/Point",
+      "field": "@Dir",
+      "type": "enum-int",
+      "semantics": "Segment direction on segment end: -1 unset, 0 horizontal, 1 vertical.",
+      "values": [
+        "-1",
+        "0",
+        "1"
+      ],
+      "written_when": "point present"
+    },
+    {
+      "id": "schematic.wire.endpoints",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Nets/Net/Wires/Wire",
+      "field": "@Connected1/2,Bus1/2,Object1/2,SubObject1/2",
+      "type": "endpoint-reference",
+      "semantics": "Wire endpoints bind to pins/wires/buses by ids and point indexes.",
+      "written_when": "wire present"
+    },
+    {
+      "id": "schematic.diffpair.nets",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/DifferentialPairs/DifferentialPair",
+      "field": "@PosNet/@NegNet",
+      "type": "net-id",
+      "semantics": "Positive and negative net Id references.",
+      "written_when": "pair present"
+    },
+    {
+      "id": "schematic.bus.members",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Buses/Bus/Nets/Net",
+      "field": "@NetId/@ConnectionNumber",
+      "type": "net-reference",
+      "semantics": "Bus member net Id and ordinal.",
+      "written_when": "member exists"
+    },
+    {
+      "id": "schematic.shape.net_bus",
+      "dialect": "schematic",
+      "path": "/Source/Schematic/Shapes/Shape",
+      "field": "@NetId/@BusId",
+      "type": "id-reference",
+      "semantics": "Text shapes may be bound as net/bus labels.",
+      "written_when": "Text shape and binding present"
+    }
+  ]
+}
