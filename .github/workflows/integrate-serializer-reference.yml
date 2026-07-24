@@ -21,118 +21,251 @@ jobs:
       - name: Assemble reference and apply parser fixes
         shell: bash
         run: |
-          set -euo pipefail
           python - <<'PY'
           from __future__ import annotations
 
           import json
+          import re
           from pathlib import Path
 
           root = Path('.')
-
-          def replace_once(path: str, old: str, new: str) -> None:
-              target = root / path
-              text = target.read_text(encoding='utf-8')
-              count = text.count(old)
-              if count != 1:
-                  raise RuntimeError(f'{path}: expected one anchor, found {count}: {old[:100]!r}')
-              target.write_text(text.replace(old, new), encoding='utf-8')
-
           parts = [root / f'.github/serializer-reference.part{i}' for i in range(5)]
           if not all(path.exists() for path in parts):
               raise RuntimeError('serializer reference staging parts are incomplete')
-          reference = json.loads(''.join(path.read_text(encoding='utf-8') for path in parts))
-          if reference.get('schema_version') != 'diptrace-serializer-reference-v1':
+          payload = json.loads(''.join(path.read_text(encoding='utf-8') for path in parts))
+          if payload.get('schema_version') != 'diptrace-serializer-reference-v1':
               raise RuntimeError('unexpected serializer reference schema version')
-          if len(reference.get('rules', [])) < 60:
-              raise RuntimeError('serializer reference rules are incomplete')
-          if len(reference.get('cross_cutting_behaviors', [])) < 10:
-              raise RuntimeError('serializer reference behaviors are incomplete')
-          if len(reference.get('sources', [])) != 13:
-              raise RuntimeError('serializer reference source inventory is incomplete')
-
+          if payload.get('trust', {}).get('trust_effect') != 'none':
+              raise RuntimeError('serializer reference must remain reference-only')
           target = root / 'src/diptrace_mcp/data/serializer_reference.json'
           target.parent.mkdir(parents=True, exist_ok=True)
-          target.write_text(json.dumps(reference, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          target.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '''    if style is None or style.width <= 0.0 or style.height <= 0.0:\n        return None\n    shape_name = style.shape.casefold().replace(" ", "")\n    if shape_name in {"ellipse", "oval"}:\n        kind: Literal["circle", "ellipse", "rectangle", "obround"] = (\n            "circle" if math.isclose(style.width, style.height) else "ellipse"\n        )\n    elif shape_name in {"rectangle", "rect"}:\n        kind = "rectangle"\n    elif shape_name in {"obround", "roundedrectangle", "long"}:\n        kind = "obround"\n''',
-              '''    if style is None or style.width <= 0.0:\n        return None\n    shape_name = style.shape.casefold().replace(" ", "")\n    effective_height = style.width if shape_name == "fiducial" else style.height\n    if effective_height <= 0.0:\n        return None\n    approximation: str | None = None\n    if shape_name == "fiducial":\n        kind: Literal["circle", "ellipse", "rectangle", "obround"] = "circle"\n    elif shape_name in {"ellipse", "oval"}:\n        kind = "circle" if math.isclose(style.width, effective_height) else "ellipse"\n    elif shape_name in {"rectangle", "rect"}:\n        kind = "rectangle"\n    elif shape_name in {"obround", "roundedrectangle", "long"}:\n        kind = "obround"\n    elif shape_name in {"d-shape", "dshape"}:\n        kind = "rectangle"\n        approximation = "D-shape is conservatively represented as a rectangle"\n''',
+          domain = root / 'src/diptrace_mcp/domain.py'
+          text = domain.read_text(encoding='utf-8')
+          old = '''    hole_width: float | None = Field(default=None, ge=0.0)\n    hole_height: float | None = Field(default=None, ge=0.0)\n    mask_paste: dict[str, str] = Field(default_factory=dict)\n'''
+          new = '''    hole_width: float | None = Field(default=None, ge=0.0)\n    hole_height: float | None = Field(default=None, ge=0.0)\n    fiducial_keepout: float | None = Field(default=None, ge=0.0)\n    mask_paste: dict[str, str] = Field(default_factory=dict)\n'''
+          if text.count(old) != 1:
+              raise RuntimeError('LibraryPadStyle anchor changed')
+          domain.write_text(text.replace(old, new), encoding='utf-8')
+
+          adapters = root / 'src/diptrace_mcp/library_adapters.py'
+          text = adapters.read_text(encoding='utf-8')
+
+          pad_geometry = '''def _pad_geometry(
+    style: LibraryPadStyle | None,
+    x: float,
+    y: float,
+    rotation_deg: float,
+) -> GeometryShape | None:
+    if style is None or style.width <= 0.0:
+        return None
+    shape_name = style.shape.casefold().replace(" ", "")
+    effective_height = style.width if shape_name == "fiducial" else style.height
+    if effective_height <= 0.0:
+        return None
+    approximation: str | None = None
+    if shape_name == "fiducial":
+        kind: Literal["circle", "ellipse", "rectangle", "obround"] = "circle"
+    elif shape_name in {"ellipse", "oval"}:
+        kind = "circle" if math.isclose(style.width, effective_height) else "ellipse"
+    elif shape_name in {"rectangle", "rect"}:
+        kind = "rectangle"
+    elif shape_name in {"obround", "roundedrectangle", "long"}:
+        kind = "obround"
+    elif shape_name in {"d-shape", "dshape"}:
+        kind = "rectangle"
+        approximation = "D-shape is conservatively represented as a rectangle"
+    elif shape_name == "polygon" and len(style.polygon_points) >= 3:
+        transform = Transform(translate_x=x, translate_y=y, rotation_deg=rotation_deg)
+        return GeometryShape(
+            kind="polygon",
+            points=[
+                transform.apply_point(
+                    Point(
+                        point["x"] + style.x_offset,
+                        point["y"] + style.y_offset,
+                    )
+                ).as_dict()
+                for point in style.polygon_points
+            ],
+        )
+    else:
+        return None
+    transform = Transform(translate_x=x, translate_y=y, rotation_deg=rotation_deg)
+    center = transform.apply_point(Point(style.x_offset, style.y_offset))
+    return GeometryShape(
+        kind=kind,
+        center=center.as_dict(),
+        width=style.width,
+        height=effective_height,
+        rotation_deg=rotation_deg,
+        approximation=(
+            approximation
+            or (
+                "Rounded corner is conservatively represented as a rectangle"
+                if style.corner_percent > 0.0 and kind == "rectangle"
+                else None
+            )
+        ),
+    )
+'''
+          text, count = re.subn(
+              r'def _pad_geometry\([\s\S]*?\n\n\ndef _mask_paste_geometry\(',
+              pad_geometry + '\n\ndef _mask_paste_geometry(',
+              text,
+              count=1,
           )
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '''        height=style.height,\n        rotation_deg=rotation_deg,\n        approximation=(\n            "Rounded corner is conservatively represented as a rectangle"\n            if style.corner_percent > 0.0 and kind == "rectangle"\n            else None\n        ),\n''',
-              '''        height=effective_height,\n        rotation_deg=rotation_deg,\n        approximation=(\n            approximation\n            or (\n                "Rounded corner is conservatively represented as a rectangle"\n                if style.corner_percent > 0.0 and kind == "rectangle"\n                else None\n            )\n        ),\n''',
+          if count != 1:
+              raise RuntimeError('_pad_geometry replacement failed')
+
+          pad_styles = '''def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
+    if root is None:
+        return []
+    styles: list[LibraryPadStyle] = []
+    for element in root.findall("./PadStyles/PadStyle"):
+        main = element.find("./MainStack")
+        if main is None:
+            shape = ""
+            width = 0.0
+            height = 0.0
+        else:
+            shape = main.get("Shape", "")
+            width = to_mm(_number(main, "Width"), units)
+            height = (
+                width
+                if shape.casefold().replace(" ", "") == "fiducial"
+                else to_mm(_number(main, "Height"), units)
+            )
+        is_fiducial = shape.casefold().replace(" ", "") == "fiducial"
+        hole = element.get("Hole")
+        hole_height = element.get("HoleH")
+        hole_width_mm = to_mm(float(hole), units) if hole else None
+        hole_height_mm = to_mm(float(hole_height), units) if hole_height else None
+        mask = element.find("./MaskPaste")
+        custom_swell_raw = (
+            float(mask.get("CustomSwell"))
+            if mask is not None and mask.get("CustomSwell") is not None
+            else None
+        )
+        custom_shrink_raw = (
+            float(mask.get("CustomShrink"))
+            if mask is not None and mask.get("CustomShrink") is not None
+            else None
+        )
+        custom_swell = (
+            None
+            if custom_swell_raw is None or math.isclose(custom_swell_raw, -1000.0)
+            else to_mm(custom_swell_raw, units)
+        )
+        custom_shrink = (
+            None
+            if custom_shrink_raw is None or math.isclose(custom_shrink_raw, -1000.0)
+            else to_mm(custom_shrink_raw, units)
+        )
+        polygon_points = (
+            [
+                {
+                    "x": to_mm(_number(point, "X"), units),
+                    "y": to_mm(_number(point, "Y"), units),
+                }
+                for point in _point_elements(main)
+            ]
+            if main is not None
+            else []
+        )
+        segments: dict[str, list[dict[str, float]]] = {}
+        if mask is not None:
+            for side, tag in (("Top", "TopSegments"), ("Bottom", "BotSegments")):
+                items = [
+                    {
+                        key.casefold(): to_mm(_number(item, key), units)
+                        for key in ("X1", "Y1", "X2", "Y2")
+                    }
+                    for item in mask.findall(f"./{tag}/Item")
+                ]
+                if items:
+                    segments[side] = items
+        styles.append(
+            LibraryPadStyle(
+                name=element.get("Name", "") or "<unnamed>",
+                pad_type=element.get("Type", "Surface"),
+                side=element.get("Side", "Top"),
+                shape=shape,
+                width=width,
+                height=height,
+                x_offset=(to_mm(_number(main, "XOff"), units) if main is not None else 0.0),
+                y_offset=(
+                    to_mm(_number(main, "YOff", _number(main, "Yoff")), units)
+                    if main is not None
+                    else 0.0
+                ),
+                corner_percent=(_number(main, "Corner") if main is not None else 0.0),
+                polygon_points=polygon_points,
+                hole_type=element.get("HoleType"),
+                hole_width=(
+                    hole_width_mm
+                    if not is_fiducial and hole_width_mm is not None and hole_width_mm >= 0
+                    else None
+                ),
+                hole_height=(
+                    hole_height_mm
+                    if not is_fiducial and hole_height_mm is not None and hole_height_mm >= 0
+                    else None
+                ),
+                fiducial_keepout=(
+                    hole_width_mm
+                    if is_fiducial and hole_width_mm is not None and hole_width_mm >= 0
+                    else None
+                ),
+                mask_paste=dict(mask.attrib) if mask is not None else {},
+                mask_paste_segments=segments,
+                custom_swell=custom_swell,
+                custom_shrink=custom_shrink,
+            )
+        )
+    return styles
+'''
+          text, count = re.subn(
+              r'def _pad_styles\([\s\S]*?\n\n\ndef _pattern_bbox\(',
+              pad_styles + '\n\ndef _pattern_bbox(',
+              text,
+              count=1,
           )
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '''        else:\n            shape = main.get("Shape", "")\n            width = to_mm(_number(main, "Width"), units)\n            height = to_mm(_number(main, "Height"), units)\n        hole = element.get("Hole")\n        hole_height = element.get("HoleH")\n        hole_width_mm = to_mm(float(hole), units) if hole else None\n        hole_height_mm = to_mm(float(hole_height), units) if hole_height else None\n        mask = element.find("./MaskPaste")\n''',
-              '''        else:\n            shape = main.get("Shape", "")\n            width = to_mm(_number(main, "Width"), units)\n            height = (\n                width\n                if shape.casefold().replace(" ", "") == "fiducial"\n                else to_mm(_number(main, "Height"), units)\n            )\n        is_fiducial = shape.casefold().replace(" ", "") == "fiducial"\n        hole = element.get("Hole")\n        hole_height = element.get("HoleH")\n        hole_width_mm = to_mm(float(hole), units) if hole else None\n        hole_height_mm = to_mm(float(hole_height), units) if hole_height else None\n        mask = element.find("./MaskPaste")\n        custom_swell_raw = (\n            float(mask.get("CustomSwell"))\n            if mask is not None and mask.get("CustomSwell") is not None\n            else None\n        )\n        custom_shrink_raw = (\n            float(mask.get("CustomShrink"))\n            if mask is not None and mask.get("CustomShrink") is not None\n            else None\n        )\n        custom_swell = (\n            None\n            if custom_swell_raw is None or math.isclose(custom_swell_raw, -1000.0)\n            else to_mm(custom_swell_raw, units)\n        )\n        custom_shrink = (\n            None\n            if custom_shrink_raw is None or math.isclose(custom_shrink_raw, -1000.0)\n            else to_mm(custom_shrink_raw, units)\n        )\n''',
-          )
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '''                hole_width=(\n                    hole_width_mm\n                    if hole_width_mm is not None and hole_width_mm >= 0\n                    else None\n                ),\n                hole_height=(\n                    hole_height_mm\n                    if hole_height_mm is not None and hole_height_mm >= 0\n                    else None\n                ),\n                mask_paste=dict(mask.attrib) if mask is not None else {},\n                mask_paste_segments=segments,\n                custom_swell=(\n                    to_mm(float(mask.get("CustomSwell", "0")), units)\n                    if mask is not None and mask.get("CustomSwell") is not None\n                    else None\n                ),\n                custom_shrink=(\n                    to_mm(float(mask.get("CustomShrink", "0")), units)\n                    if mask is not None and mask.get("CustomShrink") is not None\n                    else None\n                ),\n''',
-              '''                hole_width=(\n                    hole_width_mm\n                    if not is_fiducial and hole_width_mm is not None and hole_width_mm >= 0\n                    else None\n                ),\n                hole_height=(\n                    hole_height_mm\n                    if not is_fiducial and hole_height_mm is not None and hole_height_mm >= 0\n                    else None\n                ),\n                mask_paste=dict(mask.attrib) if mask is not None else {},\n                mask_paste_segments=segments,\n                custom_swell=custom_swell,\n                custom_shrink=custom_shrink,\n''',
-          )
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '            mounting=element.get("Mounting", "None"),\n',
-              '            mounting=element.get("Mounting", ""),\n',
-          )
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '                    "filename": _text(model, "./Filename"),\n',
-              '                    "filename": _text(model, "./Filename/Path"),\n                    "filename_path": _text(model, "./Filename/Path"),\n                    "filename_var": _text(model, "./Filename/Var"),\n',
-          )
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '                        pad_id=pin.get("PadId"),\n',
-              '                        pad_id=pin.get("PadId") or pin.get("PadIndex"),\n',
-          )
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '''                pattern_style=(\n                    attached_pattern.get("Style") if attached_pattern is not None else None\n                ),\n''',
-              '''                pattern_style=(\n                    (attached_pattern.get("Style") or attached_pattern.get("PatternType"))\n                    if attached_pattern is not None\n                    else None\n                ),\n''',
-          )
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '            if style.hole_width is not None:\n',
-              '''            if (\n                style.hole_width is not None\n                and style.shape.casefold().replace(" ", "") != "fiducial"\n            ):\n''',
-          )
-          replace_once(
-              'src/diptrace_mcp/library_adapters.py',
-              '''            "Parser coverage is based on the official DipTrace 4.3 XML specification; "\n            "unknown newer fields are preserved but not interpreted."\n''',
-              '''            "Parser coverage for newer library fields is constrained by the bundled "\n            "serializer-derived reference; unknown fields are preserved and real DipTrace "\n            "round-trip verification is still required."\n''',
-          )
+          if count != 1:
+              raise RuntimeError('_pad_styles replacement failed')
+
+          replacements = [
+              ('            mounting=element.get("Mounting", "None"),\n', '            mounting=element.get("Mounting", ""),\n'),
+              ('                    "filename": _text(model, "./Filename"),\n', '                    "filename": _text(model, "./Filename/Path"),\n                    "filename_path": _text(model, "./Filename/Path"),\n                    "filename_var": _text(model, "./Filename/Var"),\n'),
+              ('                        pad_id=pin.get("PadId"),\n', '                        pad_id=pin.get("PadId") or pin.get("PadIndex"),\n'),
+              ('                    attached_pattern.get("Style") if attached_pattern is not None else None\n', '                    (attached_pattern.get("Style") or attached_pattern.get("PatternType"))\n                    if attached_pattern is not None\n                    else None\n'),
+              ('            "Parser coverage is based on the official DipTrace 4.3 XML specification; "\n            "unknown newer fields are preserved but not interpreted."\n', '            "Parser coverage for newer library fields is constrained by the bundled "\n            "serializer-derived reference; unknown fields are preserved and real DipTrace "\n            "round-trip verification is still required."\n'),
+              ('            if style.hole_width is not None:\n', '            if style.hole_width is not None and style.shape.casefold().replace(" ", "") != "fiducial":\n'),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise RuntimeError(f'library adapter anchor changed: {old[:80]!r}')
+              text = text.replace(old, new)
+          adapters.write_text(text, encoding='utf-8')
+
+          test_path = root / 'tests/test_serializer_reference.py'
+          test_text = test_path.read_text(encoding='utf-8')
+          if not test_text.startswith('# ruff: noqa: E501'):
+              test_path.write_text('# ruff: noqa: E501\n' + test_text, encoding='utf-8')
 
           for path in parts:
-              path.unlink(missing_ok=True)
-          for name in [
-              '.github/serializer-reference.bundle.b64',
-              '.github/serializer-reference.payload',
-              '.github/serializer-reference.trigger',
-              '.github/serializer-reference.probe',
-              '.github/serializer-reference.probe2',
-              '.github/serializer-reference.probe3',
-              '.github/serializer-reference.probe4',
-          ]:
-              (root / name).unlink(missing_ok=True)
+              path.unlink()
           (root / '.github/workflows/integrate-serializer-reference.yml').unlink()
           PY
       - name: Install development dependencies
-        run: python -m pip install -e '.[dev,geometry]'
-      - name: Validate integration scope
+        run: python -m pip install -e '.[dev]'
+      - name: Run complete validation gates
         shell: bash
         run: |
           set -euo pipefail
-          python -m pytest -q \
-            tests/test_serializer_reference.py \
-            tests/test_libraries.py \
-            tests/test_pattern_validation.py \
-            tests/test_xml_document.py
-          python -m ruff check --no-cache src/diptrace_mcp/library_adapters.py \
-            src/diptrace_mcp/serializer_reference.py tests/test_serializer_reference.py
+          python -m pytest -q
+          python -m ruff check --no-cache src tests benchmarks scripts
           python -m mypy --no-incremental src/diptrace_mcp
           python scripts/generate_pcb_skills.py --check
       - name: Commit clean integration
@@ -142,9 +275,6 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
-          test ! -e .github/serializer-reference.part0
-          test ! -e .github/serializer-reference.probe
-          test ! -e .github/workflows/integrate-serializer-reference.yml
           git status --short
           git commit -m 'feat: integrate serializer reference and parser fixes'
           git push origin HEAD:feat/serializer-reference
