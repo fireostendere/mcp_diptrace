@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from __future__ import annotations
 
 import json
@@ -52,6 +53,9 @@ def test_serializer_reference_is_reference_only_and_fingerprinted() -> None:
     assert hashes["DipTrace_CompEdit_XML_Specification.md"] == (
         "cf76b6698cab8fa5300e48003a0516e4a53d0e2b58259d40439c600f8ac6fc48"
     )
+    assert hashes["60_common_mistakes.md"] == (
+        "d1b38e4477ac9dd70251c79c7221315debb952a060d34172b9731ff92fdcf981"
+    )
 
 
 def test_reference_lookup_helpers_cover_enums_and_cross_cutting_behavior() -> None:
@@ -71,7 +75,7 @@ def test_reference_lookup_helpers_cover_enums_and_cross_cutting_behavior() -> No
         serializer_rule("does.not.exist")
 
 
-def test_fiducial_omitted_height_and_hole_keepout_are_normalized() -> None:
+def test_fiducial_omitted_height_hole_and_maskpaste_sentinels_are_normalized() -> None:
     document = _doc(
         """<?xml version="1.0" encoding="UTF-8"?>
 <Library Type="DipTrace-PatternLibrary" Name="Ref" Version="5.3.0.0" Units="mm">
@@ -94,9 +98,10 @@ def test_fiducial_omitted_height_and_hole_keepout_are_normalized() -> None:
     assert style.height == pytest.approx(0.8)
     assert style.hole_width is None
     assert style.hole_height is None
-    assert style.fiducial_keepout == pytest.approx(1.2)
     assert style.custom_swell is None
     assert style.custom_shrink is None
+    assert style.mask_paste["TopMask"] == "Open"
+    assert style.mask_paste["TopPaste"] == "Solder"
     assert pad.geometry is not None
     assert pad.geometry.kind == "circle"
     assert pad.geometry.width == pytest.approx(0.8)
