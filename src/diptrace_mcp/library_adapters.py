@@ -70,27 +70,31 @@ def _pad_geometry(
     y: float,
     rotation_deg: float,
 ) -> GeometryShape | None:
-    if style is None or style.width <= 0.0 or style.height <= 0.0:
+    if style is None or style.width <= 0.0:
         return None
     shape_name = style.shape.casefold().replace(" ", "")
-    if shape_name in {"ellipse", "oval"}:
-        kind: Literal["circle", "ellipse", "rectangle", "obround"] = (
-            "circle" if math.isclose(style.width, style.height) else "ellipse"
-        )
+    effective_height = style.width if shape_name == "fiducial" else style.height
+    if effective_height <= 0.0:
+        return None
+    approximation: str | None = None
+    if shape_name == "fiducial":
+        kind: Literal["circle", "ellipse", "rectangle", "obround"] = "circle"
+    elif shape_name in {"ellipse", "oval"}:
+        kind = "circle" if math.isclose(style.width, effective_height) else "ellipse"
     elif shape_name in {"rectangle", "rect"}:
         kind = "rectangle"
     elif shape_name in {"obround", "roundedrectangle", "long"}:
         kind = "obround"
+    elif shape_name in {"d-shape", "dshape"}:
+        kind = "rectangle"
+        approximation = "D-shape is conservatively represented as a rectangle"
     elif shape_name == "polygon" and len(style.polygon_points) >= 3:
         transform = Transform(translate_x=x, translate_y=y, rotation_deg=rotation_deg)
         return GeometryShape(
             kind="polygon",
             points=[
                 transform.apply_point(
-                    Point(
-                        point["x"] + style.x_offset,
-                        point["y"] + style.y_offset,
-                    )
+                    Point(point["x"] + style.x_offset, point["y"] + style.y_offset)
                 ).as_dict()
                 for point in style.polygon_points
             ],
@@ -103,12 +107,15 @@ def _pad_geometry(
         kind=kind,
         center=center.as_dict(),
         width=style.width,
-        height=style.height,
+        height=effective_height,
         rotation_deg=rotation_deg,
         approximation=(
-            "Rounded corner is conservatively represented as a rectangle"
-            if style.corner_percent > 0.0 and kind == "rectangle"
-            else None
+            approximation
+            or (
+                "Rounded corner is conservatively represented as a rectangle"
+                if style.corner_percent > 0.0 and kind == "rectangle"
+                else None
+            )
         ),
     )
 
@@ -183,12 +190,31 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
         else:
             shape = main.get("Shape", "")
             width = to_mm(_number(main, "Width"), units)
-            height = to_mm(_number(main, "Height"), units)
+            height = (
+                width
+                if shape.casefold().replace(" ", "") == "fiducial"
+                else to_mm(_number(main, "Height"), units)
+            )
+        is_fiducial = shape.casefold().replace(" ", "") == "fiducial"
         hole = element.get("Hole")
         hole_height = element.get("HoleH")
         hole_width_mm = to_mm(float(hole), units) if hole else None
         hole_height_mm = to_mm(float(hole_height), units) if hole_height else None
         mask = element.find("./MaskPaste")
+        swell_value = mask.get("CustomSwell") if mask is not None else None
+        shrink_value = mask.get("CustomShrink") if mask is not None else None
+        swell_raw = float(swell_value) if swell_value is not None else None
+        shrink_raw = float(shrink_value) if shrink_value is not None else None
+        custom_swell = (
+            None
+            if swell_raw is None or math.isclose(swell_raw, -1000.0)
+            else to_mm(swell_raw, units)
+        )
+        custom_shrink = (
+            None
+            if shrink_raw is None or math.isclose(shrink_raw, -1000.0)
+            else to_mm(shrink_raw, units)
+        )
         polygon_points = (
             [
                 {
@@ -220,43 +246,34 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
                 shape=shape,
                 width=width,
                 height=height,
-                x_offset=(
-                    to_mm(_number(main, "XOff"), units) if main is not None else 0.0
-                ),
+                x_offset=(to_mm(_number(main, "XOff"), units) if main is not None else 0.0),
                 y_offset=(
                     to_mm(_number(main, "YOff", _number(main, "Yoff")), units)
                     if main is not None
                     else 0.0
                 ),
-                corner_percent=(
-                    _number(main, "Corner") if main is not None else 0.0
-                ),
+                corner_percent=(_number(main, "Corner") if main is not None else 0.0),
                 polygon_points=polygon_points,
                 hole_type=element.get("HoleType"),
-                # Observed 5.2 design caches use negative drill values as a
-                # sentinel on unused/generated styles, not physical geometry.
                 hole_width=(
                     hole_width_mm
-                    if hole_width_mm is not None and hole_width_mm >= 0
+                    if not is_fiducial and hole_width_mm is not None and hole_width_mm >= 0
                     else None
                 ),
                 hole_height=(
                     hole_height_mm
-                    if hole_height_mm is not None and hole_height_mm >= 0
+                    if not is_fiducial and hole_height_mm is not None and hole_height_mm >= 0
+                    else None
+                ),
+                fiducial_keepout=(
+                    hole_width_mm
+                    if is_fiducial and hole_width_mm is not None and hole_width_mm >= 0
                     else None
                 ),
                 mask_paste=dict(mask.attrib) if mask is not None else {},
                 mask_paste_segments=segments,
-                custom_swell=(
-                    to_mm(float(mask.get("CustomSwell", "0")), units)
-                    if mask is not None and mask.get("CustomSwell") is not None
-                    else None
-                ),
-                custom_shrink=(
-                    to_mm(float(mask.get("CustomShrink", "0")), units)
-                    if mask is not None and mask.get("CustomShrink") is not None
-                    else None
-                ),
+                custom_swell=custom_swell,
+                custom_shrink=custom_shrink,
             )
         )
     return styles
@@ -388,7 +405,7 @@ def _patterns(
             unique_name=unique_name,
             value=_text(element, "./Value"),
             refdes=element.get("RefDes", ""),
-            mounting=element.get("Mounting", "None"),
+            mounting=element.get("Mounting", ""),
             manufacturer=_text(element, "./Manufacturer"),
             datasheet=_text(element, "./Datasheet"),
             fields=_additional_fields(element),
@@ -398,7 +415,9 @@ def _patterns(
             courtyard_geometry=courtyard_geometry,
             model_3d=(
                 {
-                    "filename": _text(model, "./Filename"),
+                    "filename": _text(model, "./Filename/Path"),
+                    "filename_path": _text(model, "./Filename/Path"),
+                    "filename_var": _text(model, "./Filename/Var"),
                     "rotate": dict(model_rotate.attrib) if model_rotate is not None else {},
                     "offset": dict(model_offset.attrib) if model_offset is not None else {},
                     "zoom": dict(model_zoom.attrib) if model_zoom is not None else {},
@@ -436,7 +455,7 @@ def _components(document: DipTraceDocument) -> list[LibraryComponent]:
                         xml_id=xml_id,
                         name=_text(pin, "./Name"),
                         number=_text(pin, "./PadNumber"),
-                        pad_id=pin.get("PadId"),
+                        pad_id=pin.get("PadId") or pin.get("PadIndex"),
                         electrical_type=pin.get("ElectricType", "Undefined"),
                         pin_type=pin.get("Type", "Default"),
                         position={
@@ -459,7 +478,9 @@ def _components(document: DipTraceDocument) -> list[LibraryComponent]:
                 datasheet=_text(first, "./Datasheet"),
                 fields=_additional_fields(first),
                 pattern_style=(
-                    attached_pattern.get("Style") if attached_pattern is not None else None
+                    (attached_pattern.get("Style") or attached_pattern.get("PatternType"))
+                    if attached_pattern is not None
+                    else None
                 ),
                 part_count=len(parts),
                 pins=pins,
@@ -488,8 +509,9 @@ def get_library_model(document: DipTraceDocument) -> LibraryModel:
         patterns=patterns,
         pad_styles=styles,
         warnings=[
-            "Parser coverage is based on the official DipTrace 4.3 XML specification; "
-            "unknown newer fields are preserved but not interpreted."
+            "Parser coverage for newer library fields is constrained by the bundled "
+            "serializer-derived reference; unknown fields are preserved and real DipTrace "
+            "round-trip verification is still required."
         ]
         if document.version and not document.version.startswith("4.3")
         else [],
@@ -526,8 +548,7 @@ def get_embedded_pattern_model(document: DipTraceDocument) -> LibraryModel | Non
 
 def query_library_items(model: LibraryModel, query: str | None = None) -> list[dict[str, Any]]:
     items = [
-        {"kind": "library_component", **component.model_dump()}
-        for component in model.components
+        {"kind": "library_component", **component.model_dump()} for component in model.components
     ] + [{"kind": "library_pattern", **pattern.model_dump()} for pattern in model.patterns]
     if not query:
         return items
@@ -696,7 +717,10 @@ def validate_library(model: LibraryModel) -> list[LibraryValidationFinding]:
                         object_id=pad.stable_id,
                     )
                 )
-            if style.hole_width is not None:
+            if (
+                style.hole_width is not None
+                and style.shape.casefold().replace(" ", "") != "fiducial"
+            ):
                 ring = (min(style.width, style.height) - style.hole_width) / 2.0
                 if ring <= 0:
                     findings.append(

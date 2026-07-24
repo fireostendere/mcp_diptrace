@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/diptrace/serializer_reference.schema.json",
+  "title": "DipTrace serializer implementation reference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_from",
+    "serializer_revision_claim",
+    "serializer_revision_authenticated",
+    "trust",
+    "sources",
+    "cross_cutting_behaviors",
+    "rules"
+  ],
+  "properties": {
+    "schema_version": {"const": "diptrace-serializer-reference-v1"},
+    "generated_from": {"type": "string", "minLength": 1},
+    "serializer_revision_claim": {"type": "string", "minLength": 1},
+    "serializer_revision_authenticated": {"type": "boolean"},
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "trust_effect",
+        "may_constrain_implementation",
+        "may_grant_roundtrip_trust",
+        "requires_independent_diptrace_5_3_fixtures_for_writers"
+      ],
+      "properties": {
+        "classification": {"const": "user_supplied_reference"},
+        "trust_effect": {"const": "none"},
+        "may_constrain_implementation": {"const": true},
+        "may_grant_roundtrip_trust": {"const": false},
+        "requires_independent_diptrace_5_3_fixtures_for_writers": {"const": true}
+      }
+    },
+    "sources": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "sha256", "role", "trust_effect"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "role": {"enum": ["serializer-derived", "agent-context-pack"]},
+          "trust_effect": {"const": "none"}
+        }
+      }
+    },
+    "cross_cutting_behaviors": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "title", "behavior", "writer_requirement"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "title": {"type": "string", "minLength": 1},
+          "behavior": {"type": "string", "minLength": 1},
+          "writer_requirement": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "rules": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "dialect", "path", "field", "type", "semantics"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "dialect": {"enum": ["pcb", "schematic", "component_library", "pattern_library"]},
+          "path": {"type": "string", "minLength": 1},
+          "field": {"type": "string", "minLength": 1},
+          "type": {"type": "string", "minLength": 1},
+          "semantics": {"type": "string", "minLength": 1},
+          "values": {"type": "array", "items": {"type": "string"}},
+          "default": {"type": "string"},
+          "written_when": {"type": "string"},
+          "reader_notes": {"type": "string"},
+          "writer_notes": {"type": "string"}
+        }
+      }
+    }
+  }
+}

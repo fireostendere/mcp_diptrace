@@ -950,6 +950,7 @@ class LibraryPadStyle(StrictModel):
     hole_type: str | None = None
     hole_width: float | None = Field(default=None, ge=0.0)
     hole_height: float | None = Field(default=None, ge=0.0)
+    fiducial_keepout: float | None = Field(default=None, ge=0.0)
     mask_paste: dict[str, str] = Field(default_factory=dict)
     mask_paste_segments: dict[str, list[dict[str, float]]] = Field(default_factory=dict)
     custom_swell: float | None = Field(default=None, allow_inf_nan=False)
