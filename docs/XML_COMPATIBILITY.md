@@ -1,128 +1,132 @@
 # XML Compatibility
 
+DipTrace MCP uses feature detection, raw-preserving patches, and explicit evidence levels rather than assuming compatibility from a file extension or application version alone.
+
+The runtime source of truth is `get_capabilities`. This document describes the maintained compatibility baseline, not a promise that every XML object in every DipTrace build has been round-trip verified.
+
 ## Supported Source Types
 
-- `DipTrace-PCB`
-- `DipTrace-Schematic`
-- `DipTrace-ComponentLibrary` — normalized reading and validation for the tested 4.3 fixture.
-- `DipTrace-PatternLibrary` — normalized reading and validation for the tested 4.3 fixture.
+- `DipTrace-PCB`;
+- `DipTrace-Schematic`;
+- `DipTrace-ComponentLibrary`;
+- `DipTrace-PatternLibrary`.
+
+Standalone Component/Pattern Libraries are currently supported for normalized reading and validation. Native library mutation remains evidence-gated and is not registered as a normal capability.
 
 ## Official Format Evidence
 
-- [PCB XML specification](https://www.diptrace.com/books/DipTraceXML_Pcb_En.pdf)
-- [Schematic XML specification](https://diptrace.com/books/DipTraceXML_Schematic_En.pdf)
-- [Component Editor XML specification](https://www.diptrace.com/books/DipTraceXML_CompEdit_En.pdf)
-- [Pattern Editor XML specification](https://www.diptrace.com/books/DipTraceXML_PattEdit_En.pdf)
-- [DipTrace plug-ins specification](https://diptrace.com/books/DipTrace_Plugins.pdf)
+The implementation is constrained by the official DipTrace XML and plug-in specifications plus controlled observed exports. The maintained references include PCB, Schematic, Component Editor, Pattern Editor, and executable plug-in XML documentation.
 
-`Version` is preserved in document identity and the compatibility report, but it is not
-the only gate. The reader uses feature detection, tolerates omitted optional/default
-parameters, and preserves unknown sections. Each write operation separately verifies
-the fields it requires.
+`Version` is preserved in document identity and compatibility reports, but it is not the sole compatibility gate. Readers use feature detection, tolerate documented optional/default fields, preserve unknown sections, and require each writer to validate the structures it needs.
 
-A live import/re-export acceptance run with DipTrace 5.3 confirms that real Schematic
-XML may use `Version="5.3.0.2"`, while the publicly available specifications and some
-examples still use `4.3.0.3`. Component and Pattern Library documents have been observed
-with `5.3.0.0` and embedded legacy versions. The application version and the XML
-`Version` value are not treated as interchangeable.
+A live import/re-export acceptance run with DipTrace 5.3 has confirmed real Schematic XML using `Version="5.3.0.2"`. Component and Pattern Library exports have also been observed from DipTrace 5.3, while some public specification examples remain 4.3-era. Application version and XML `Version` are therefore treated as related but non-equivalent evidence.
 
 ## Implemented Readers
 
-- XML root validation for `<Source>` and official standalone `<Library>` roots.
-- Rejection of `DOCTYPE` and `ENTITY` declarations.
-- PCB outline, components, pads, holes, nets, ratlines, copper layers, physical stackup, and rules.
-- Trace arcs, segment width and layer, vias, pour boundaries, text, keepouts, and differential pairs.
-- Schematic sheets, parts, pins, nets, fixture-covered wires, buses, and ERC blobs.
-- Component Library parts, pins, fields, attached patterns, and pin-to-pad mapping.
-- Pattern pad styles, pads, holes, shapes, mask/paste metadata, and 3D references.
+- `<Source>` and official standalone `<Library>` root validation;
+- rejection of `DOCTYPE` and `ENTITY` declarations;
+- PCB outline, components, pads, holes, nets, ratlines, copper layers, physical stackup, and rules;
+- trace arcs, segment width/layer, vias, pour boundaries, text, keepouts, and differential pairs;
+- schematic sheets, parts, pins, nets, fixture-covered wires, labels, buses, hierarchy records, and ERC data;
+- Component Library parts, pins, fields, attached patterns, and pin-to-pad mapping;
+- Pattern Library pad styles, pads, holes, shapes, mask/paste metadata, courtyard-related geometry where present, and 3D references;
+- unknown/unsupported XML remains accessible through raw XML inspection and is preserved outside targeted patches.
 
 ## Implemented Writers
 
-- New document scaffolding: `create_schematic_document` and `create_pcb_document`
-  generate official-structure XML (sheets, outline, layers, stackup, via styles, net
-  classes, DRC) and validate it by parsing before writing.
-- Low-level XML edits through `apply_xml_edits`.
-- Semantic component, part, pattern, group, text, schematic no-connect/net, NetClass, and
-  test-point edits.
-- Schematic authoring: sheets, part placement, pin/net connectivity, official
-  `<Net>/<Wires>/<Wire>/<Points>` wires, and net-bound text labels.
-- Additive schematic-to-PCB authoring: PCB components, embedded pattern/pad-style subtrees,
-  net pad endpoints, and ratlines. Pattern-library units must match PCB units; multi-part
-  pin-to-pad mapping must be explicit when it cannot be proven from XML.
-- Official PCB `<Panel>` panelization parameters (V-Scoring / Tab Routing).
-- Official PCB `<Net>/<Traces>/<Trace>/<Points>/<Point>` patches for trace and via primitives.
-- Atomic coupled-pair patches: two traces plus `DifferentialPairs/Segments/Segment`.
-- Atomic write, backup, and reparse after writing.
+- synthetic document scaffolding through `create_schematic_document` and `create_pcb_document`;
+- seed-based copies through `create_document_from_seed`;
+- low-level guarded XML edits through `apply_xml_edits`;
+- semantic component, part, pattern-assignment, group, board-text, schematic property/no-connect/net, NetClass, and test-point edits;
+- schematic authoring: sheets, part placement, logical pin/net connectivity, official `<Net>/<Wires>/<Wire>/<Points>` wires, and net-bound labels;
+- additive and guarded exact schematic-to-PCB synchronization, including PCB components, embedded pattern/pad-style subtrees, pad membership, nets, ratlines, and explicit multi-part pin mapping where inference is insufficient;
+- official PCB `<Panel>` parameters for V-Scoring / Tab Routing;
+- official PCB trace/via structures and coupled differential-pair segment metadata;
+- atomic writes, backups, SHA conflict protection, and reparsing after modification.
 
-## Layer Resolution
+## Compatibility and Evidence Levels
 
-Copper layers are resolved by case-insensitive name or exact id match via
-`resolve_copper_layer()`. The resolved layer includes `layer_id`, `layer_name`,
-and `layer_type` (Signal, Plane, or Unknown). Routing operations use
-`require_routing_layer()` to reject active trace segments on Plane layers;
-through-via spans across Plane layers are permitted. Via transitions use
-`require_via_layer()` which rejects Plane layers but allows Unknown types.
+A parser success is not equivalent to a real DipTrace writer round trip. The project distinguishes:
+
+- `synthetic_parser_only` — MCP-generated XML accepted by the MCP parser;
+- `synthetic_operation_fixture` — MCP-generated XML exercised by semantic operations;
+- `diptrace_exported` — XML exported by DipTrace;
+- `diptrace_open_save_verified` — file opened and saved by DipTrace;
+- `diptrace_roundtrip_verified` — controlled open/save/re-export evidence with semantic comparison;
+- `external_tool_roundtrip_verified` — equivalent evidence including an external tool path.
+
+User-controlled manifests, sidecars, labels, or hashes cannot mint high-trust levels by themselves.
 
 ## Compatibility Matrix
 
-| Source | Read | Write | Round-trip |
+| Source | Read | Write | Evidence status |
 | --- | --- | --- | --- |
-| PCB XML 4.3.0.3 synthetic fixture | yes | partial semantic writes | tested objects plus preservation of unknown XML |
-| PCB XML 5.3.0.2 installed example | yes; local bridge acceptance | not mutated | complex four-layer design parsed without warnings; redistributable fixture pending |
-| Other DipTrace 5.x XML | feature-detected | per-operation evidence gate | preserve unknown XML; a matching fixture is preferred |
-| Schematic XML 4.3.0.3 synthetic fixture | yes | partial semantic writes | tested objects plus preservation of unknown XML |
-| Schematic XML 5.3.0.2 live project | yes | bounded raw/semantic writes | manual bridge apply and independent DipTrace re-export verified |
-| Schematic XML 5.3.0.2 installed example | yes; local bridge acceptance | not mutated | seven-sheet design parsed without warnings; hierarchy not proven |
-| Component Library XML 4.3 fixture | yes | expert XML only | read/validate plus preservation of unknown XML |
-| Pattern Library XML 4.3 fixture | yes | expert XML only | read/validate plus preservation of unknown XML |
-| Component Library XML 5.3.0.2 installed example | yes; local bridge acceptance | unavailable | 187-component library parsed without warnings; redistributable fixture pending |
-| Pattern Library XML 5.3.0.2 installed example | yes; local bridge acceptance | unavailable | 181-pattern library parsed without warnings; redistributable fixture pending |
-| Other Component/Pattern Library XML 5.3.x | feature-detected | unavailable | preserve unknown XML; matching fixtures preferred |
-| DSN/SES fixtures | bounded subset | semantic SES import | tested bounded subset |
+| PCB XML 4.3.0.3 synthetic fixtures | yes | partial semantic writes | parser/operation regression coverage; unknown XML preserved |
+| PCB XML 5.3.0.2 installed examples | yes | not broadly mutation-verified | complex multilayer examples parsed locally; redistributable round-trip fixtures still needed |
+| Other DipTrace 5.x PCB XML | feature-detected | per-operation | preserve unknown XML; matching fixture preferred |
+| Schematic XML 4.3.0.3 synthetic fixtures | yes | partial semantic writes | parser/operation regression coverage |
+| Schematic XML 5.3.0.2 live project | yes | bounded raw/semantic writes | real bridge apply + independent DipTrace re-export verified for scoped marking edits |
+| Schematic XML 5.3.0.2 installed examples | yes | not broadly mutation-verified | multi-sheet examples parsed locally; hierarchy/writer fixture coverage still incomplete |
+| Component Library XML 4.3 fixture | yes | expert raw XML only | normalized read/validate + unknown preservation |
+| Pattern Library XML 4.3 fixture | yes | expert raw XML only | normalized read/validate + unknown preservation |
+| Component Library XML 5.3 local export | yes | unavailable as native writer | local read-only bridge acceptance; redistributable fixture pending |
+| Pattern Library XML 5.3 local export | yes | unavailable as native writer | local read-only bridge acceptance; redistributable fixture pending |
+| Other 5.3.x libraries | feature-detected | unavailable | preserve unknown XML; matching fixtures preferred |
+| DSN/SES bounded subset | yes | guarded SES import | synthetic/mocked regression coverage; real paired DipTrace fixture still required |
 
-## Notes
+## Known Writer Evidence Gaps
 
-- Unknown XML sections and original bytes outside targeted nodes are preserved by the
-  raw-patch compiler. Structural additions serialize only the new subtree. After reparse,
-  the semantic tree must match the compiled model.
-- Native binary `.dip` and `.dch` files are not parsed directly. Export them to DipTrace
-  XML first, unless the specific file is already stored as XML and begins with an
-  official DipTrace XML root.
-- PCB and Schematic golden fixtures are synthetic 4.3.0.3 fixtures derived from the
-  public official specifications. A real 5.3.0.2 schematic acceptance run preserved all
-  41 scoped marking coordinates and the normalized sheet/part/pin/net/bus/differential-
-  pair counts after DipTrace import and re-export. The user project is not redistributed,
-  so a permitted fixture is still required for automated 5.3 round-trip CI.
-- DipTrace canonicalized numeric values and derived fields during that re-export and
-  removed two unreferenced embedded Pattern records. Neither PatternStyle was referenced
-  by a part before or after import. Byte equality is therefore required across MCP
-  patching outside targets, but not across a subsequent DipTrace import/export cycle.
-- Segment parameters are written on the second point, as required by the official PCB XML specification.
-- Via-style geometry reads documented `Size`/`HoleSize` and observed
-  `Diameter`/`Hole` aliases. Explicit `Lay1`/`Lay2` values are normalized to an inclusive
-  physical layer span. An omitted span is accepted only on a two-layer board. On larger
-  stackups, automatic via routing is disabled until the span is known.
-- A copper-pour boundary is not interpreted as final refilled copper.
-- Schematic wire authoring follows the official specification structure; a live DipTrace
-  import/re-export acceptance run for authored wires is still pending, so the writer is
-  covered by synthetic round-trip tests only.
-- Library mutation remains unavailable until writer round-trip fixtures exist.
-- The installer includes read-only Component and Pattern Editor bridge profiles. They use
-  the official whole-library export mode with imports disabled, allowing local 5.3
-  inspection without implying writer or round-trip support.
-- **Synthetic MCP-generated XML** (from `create_schematic_document` or
-  `create_pcb_document`) has the correct XML structure but has not been verified by
-  DipTrace open/save. Use `create_document_from_seed` with a real DipTrace export when
-  compatibility is required.
-- **Plane layer routing** is not supported. Only Signal layers accept active trace
-  segments. Through-via spans across Plane layers are allowed.
-- **Ratline generation** follows the DipTrace XML structure but has not been verified
-  by DipTrace open/save/re-export. Synthetic scaffolding ratlines are experimental.
+The following are implemented but still need stronger real-DipTrace evidence before they should be described as broadly round-trip verified:
 
-## Version Baseline
+- authored schematic wires;
+- generated ratlines;
+- representative PCB semantic writes on DipTrace 5.3;
+- schematic-to-PCB synchronization across controlled 5.3 before/after fixtures;
+- SES import through a real DipTrace-produced DSN/SES pair;
+- Component/Pattern Library writers, which remain blocked and unregistered.
 
-The documentation and live acceptance path were reviewed against an installed DipTrace
-5.3 build exporting XML `Version="5.3.0.2"`. The official XML specification PDFs used
-by this project still show 4.3-era examples, so compatibility claims remain
-feature-based and fixture-based rather than inferred solely from the application
-version number.
+The trust layer also currently reports incomplete all-path invalidation coverage for `plan_apply`, `ses_import`, `schematic_to_pcb_sync`, and `live_session_apply`. This is a trust/evidence gap, not permission to silently claim higher compatibility.
+
+## Mask, Paste, Courtyard, and `Common`
+
+The parser already models significant mask/paste and pattern geometry, but some DipTrace 5.3 semantics remain evidence-gated. Controlled exports are still required for:
+
+- top/bottom mask and paste;
+- `Common` versus explicit values;
+- zero, positive expansion, and negative reduction;
+- custom mask/paste shapes;
+- SMD and through-hole pads;
+- top/bottom courtyard lines, arcs, and polygons;
+- mirrored/rotated/bottom-side placed instances.
+
+The global `Common` policy must not be normalized from inference alone. One-setting-at-a-time DipTrace exports are the acceptance source.
+
+## Layer Resolution
+
+Copper layers are resolved by case-insensitive name or exact ID. The normalized result includes layer identity and type (`Signal`, `Plane`, or unknown).
+
+Routing requires active trace segments on routable signal layers. Plane layers are not accepted as active trace-routing layers, although through-via spans may cross plane layers. On multilayer boards, automatic via routing requires a confirmed span; an omitted span is accepted only in the explicitly supported two-layer case.
+
+## Preservation Rules
+
+- raw patches preserve original bytes outside targeted regions where the patch model permits;
+- structural additions serialize only the new subtree instead of regenerating the whole document;
+- unknown XML is preserved whenever the operation does not need to own that structure;
+- semantic post-parse checks compare the resulting model against the intended operation;
+- DipTrace itself may canonicalize numeric fields or derived structures on import/export, so byte equality is required for untouched MCP regions but not across an independent DipTrace round trip.
+
+A prior live schematic acceptance run observed DipTrace canonicalization and removal of unreferenced embedded pattern records. That behavior is treated as application canonicalization rather than proof that arbitrary reserialization is safe.
+
+## Binary and Native-XML Files
+
+Legacy binary `.dip`/`.dch` files are not parsed as binary project formats. Export them through DipTrace XML first.
+
+Some current `.dip`, `.dch`, `.eli`, or `.lib` files may already contain XML. Direct analysis is allowed only when the content passes official DipTrace XML root validation; the extension alone is not trusted.
+
+## Current 5.3 Baseline
+
+The maintained code and documentation were reviewed against an installed DipTrace 5.3.0.2 environment. A live schematic round trip preserved all 41 scoped marking-coordinate changes, stable normalized object counts, and offline ERC severity counts.
+
+Representative installed PCB, multi-sheet schematic, Component Library, and Pattern Library exports have also parsed without warnings through local bridge acceptance. Because those files are not committed as redistributable fixtures, they increase confidence but do not close automated CI evidence gates.
+
+See [ROADMAP.md](ROADMAP.md) for the fixture pack and writer-verification exit criteria.
