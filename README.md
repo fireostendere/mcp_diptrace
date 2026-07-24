@@ -41,6 +41,9 @@ contains two cooperating components:
   and grouping operations;
 - board-text edits, documented net-class rules, and standalone-pad test points;
 - Component/Pattern Library reading, validation, and pin-to-pad checks;
+- machine-readable serializer reference for exact XML enums, defaults, aliases, and import
+  semantics derived from the supplied documentation archives; it is explicitly reference-only
+  and cannot grant DipTrace round-trip trust;
 - registry-based offline DRC/ERC reviews with persistent structured findings;
 - deterministic silkscreen and bounded local placement planners;
 - explicit trace/via operations, bounded multi-layer 45-degree A*, and symmetric via
@@ -92,7 +95,8 @@ geometry, transactions, review, routing, DSN/SES, and server contracts. A live D
 - no new offline ERC errors after the round trip.
 
 This is strong evidence for the tested paths, not a claim of complete compatibility with
-every DipTrace version or every XML object.
+every DipTrace version or every XML object. The bundled serializer reference further constrains
+parser behavior, but does not replace real DipTrace open/save/re-export evidence.
 
 ## Architecture
 
@@ -242,6 +246,8 @@ cannot promote its own document to a high-trust validation level.
 - **Recorded evidence**: `record_roundtrip_evidence` binds before/after files, exact paths,
   source type, SHA-256 values, and semantic comparison. User-supplied evidence is useful
   for audit and regression, but is not a trusted root.
+- **Serializer reference**: the bundled rule set fingerprints and distills the supplied XML
+  documentation. It can constrain parser/writer implementation and tests, but has no trust effect.
 - **High trust**: promotion to `diptrace_roundtrip_verified` or
   `external_tool_roundtrip_verified` is intentionally unavailable until the project has
   an authenticated server-owned registry, signature verifier, or committed allowlist.
@@ -292,44 +298,12 @@ semantics. The committed implementation order and acceptance criteria are record
 - Persistent pattern-training feedback and recommendation tools are not implemented yet.
 - Library mutation remains unavailable until verified DipTrace 5.3 round-trip fixtures
   exist; real-openEMS golden validation also remains external-runtime acceptance work.
-- Schematic-to-PCB sync preserves extra PCB objects and existing traces; multi-part parts need
-  explicit `part_id + pin -> pad_number` mappings, and initial grid placement needs legalization.
-- The locally built unsigned bridge may require Windows Defender/SmartScreen approval.
 
 ## Documentation
 
-- [Complete guide](docs/USAGE.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Domain model](docs/DOMAIN_MODEL.md)
-- [XML compatibility matrix](docs/XML_COMPATIBILITY.md)
-- [Geometry engine](docs/GEOMETRY_ENGINE.md)
-- [Transactions](docs/TRANSACTIONS.md)
-- [MCP tools and resources](docs/MCP_TOOLS.md)
-- [Review engine](docs/REVIEW_ENGINE.md)
-- [Placement engine](docs/PLACEMENT_ENGINE.md)
-- [Routing engine](docs/ROUTING_ENGINE.md)
-- [Impedance and preliminary SI](docs/IMPEDANCE_AND_SI.md)
-- [External adapters](docs/EXTERNAL_ADAPTERS.md)
-- [Field-solver runner protocol](docs/FIELD_SOLVER_PROTOCOL.md)
-- [Security and policy](docs/SECURITY_AND_POLICY.md)
-- [Testing and benchmarks](docs/TESTING.md)
-- [Skill contracts](docs/SKILL_CONTRACTS.md)
-- [English PCB skill catalog](skills/README.md)
-- [Development](docs/DEVELOPMENT.md)
 - [Roadmap and actual status](docs/ROADMAP.md)
-- [Russian README](README_RU.md)
-
-## Development
-
-```bash
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install -e '.[dev,geometry]'
-python scripts/generate_pcb_skills.py --check
-python -m pytest -q
-python -m ruff check --no-cache src tests benchmarks scripts
-python -m mypy --no-incremental src/diptrace_mcp
-```
-
-See [Development](docs/DEVELOPMENT.md) and [Testing](docs/TESTING.md) before submitting
-changes.
+- [Serializer reference](docs/SERIALIZER_REFERENCE.md)
+- [XML compatibility](docs/XML_COMPATIBILITY.md)
+- [Testing](docs/TESTING.md)
+- [Security and policy](docs/SECURITY_AND_POLICY.md)
+- [MCP tools](docs/MCP_TOOLS.md)
