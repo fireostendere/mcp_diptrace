@@ -5,56 +5,54 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   apply:
     if: github.event.pull_request.head.ref == 'agent/serializer-reference-skill' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-          show-progress: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-      - name: Inspect staged bundle
+      - name: Inspect staged bundle through GitHub API
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           python - <<'PY'
-          import base64, json, pathlib, zlib
-          p = pathlib.Path('.github/serializer-reference.payload')
-          data = zlib.decompress(base64.b64decode(p.read_text(encoding='utf-8').strip()))
-          report = {
-              'bytes': len(data),
-              'prefix': data[:2000].decode('utf-8', errors='replace'),
-          }
+          import base64, json, os, urllib.request, zlib
+          url = 'https://api.github.com/repos/fireostendere/mcp_diptrace/contents/.github/serializer-reference.payload?ref=agent/serializer-reference-skill'
+          req = urllib.request.Request(url, headers={
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+          })
+          with urllib.request.urlopen(req) as response:
+              meta = json.load(response)
+          encoded_file = base64.b64decode(meta['content']).decode('utf-8').strip()
+          packed = base64.b64decode(encoded_file)
+          print('packed_bytes=', len(packed))
+          print('packed_prefix=', packed[:16].hex())
           try:
-              obj = json.loads(data.decode('utf-8'))
-              report['json_type'] = type(obj).__name__
-              if isinstance(obj, dict):
-                  report['keys'] = list(obj)[:100]
-                  report['value_types'] = {str(k): type(v).__name__ for k, v in list(obj.items())[:50]}
-                  if 'files' in obj:
-                      files = obj['files']
-                      report['files_type'] = type(files).__name__
-                      if isinstance(files, dict):
-                          report['file_keys'] = list(files)[:100]
-                      elif isinstance(files, list):
-                          report['files_preview'] = files[:3]
-              elif isinstance(obj, list):
-                  report['list_preview'] = obj[:3]
+              data = zlib.decompress(packed)
+              print('decompressed_bytes=', len(data))
+              print('prefix=', repr(data[:1200].decode('utf-8', errors='replace')))
+              try:
+                  obj = json.loads(data.decode('utf-8'))
+                  print('json_type=', type(obj).__name__)
+                  if isinstance(obj, dict):
+                      print('keys=', list(obj)[:50])
+                      print('value_types=', {str(k): type(v).__name__ for k, v in list(obj.items())[:30]})
+                      if 'files' in obj:
+                          files = obj['files']
+                          print('files_type=', type(files).__name__)
+                          if isinstance(files, dict):
+                              print('file_keys=', list(files)[:50])
+                          elif isinstance(files, list):
+                              print('files_preview=', repr(files[:2])[:2000])
+                  elif isinstance(obj, list):
+                      print('list_preview=', repr(obj[:2])[:2000])
+              except Exception as exc:
+                  print('json_error=', repr(exc))
           except Exception as exc:
-              report['json_error'] = repr(exc)
-          pathlib.Path('.github/payload-inspect.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+              print('zlib_error=', repr(exc))
+              raise
           PY
-      - name: Commit inspection
-        shell: bash
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/payload-inspect.json
-          git commit -m 'chore: inspect serializer payload'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
