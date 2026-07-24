@@ -1,7 +1,85 @@
 # Roadmap and Actual Status
 
-The statuses below mean that production code, typed contracts, and tests exist. `v1`
-does not imply full equivalence with the DipTrace GUI.
+This document separates three things that were previously easy to mix together:
+
+1. **implemented code** — production code, typed contracts, and tests exist;
+2. **runtime availability** — the feature is available for the active document and configured adapters;
+3. **DipTrace-verified compatibility** — the write path has controlled open/save/re-export evidence from a real DipTrace build.
+
+`complete v1/v2/v3` below means that the implementation exists and is covered by the repository test suite. It does **not** imply full equivalence with the DipTrace GUI or complete DipTrace 5.3 round-trip evidence.
+
+The authoritative runtime source remains `get_capabilities`.
+
+## Current Readiness — 2026-07-25
+
+The project has moved beyond a parser/MCP prototype. The strongest areas are read/query, engineering review, guarded semantic edits, transactions, schematic-to-PCB comparison/synchronization, and bounded routing/placement workflows.
+
+The main remaining risk is no longer missing MCP surface area. It is the gap between synthetic/fixture-tested writer behavior and broad, redistributable, automated evidence from real DipTrace 5.3 open/save/re-export cycles.
+
+Current practical classification:
+
+| Area | Status | Main remaining gap |
+| --- | --- | --- |
+| PCB/schematic read/query | mature beta | broader redistributable DipTrace 5.3 fixtures |
+| Component/Pattern Library read/validate | mature beta | more 5.3 mask/paste/courtyard fixtures |
+| Guarded semantic edits | mature beta | close all trust-invalidation/write-path evidence gaps |
+| Schematic authoring | beta | live round-trip evidence for authored wires and more operations |
+| Schematic → PCB synchronization | beta | full trust-path coverage and broader real 5.3 round trips |
+| Placement | beta, bounded | no global placer/legalizer equivalent to a full EDA engine |
+| Local/multi-net routing | beta, bounded | no push-and-shove/free-angle/global router |
+| Differential-pair/SI analysis | beta | external solver validation remains optional/runtime-dependent |
+| Native Component/Pattern Library mutation | blocked | controlled 5.3 writer fixtures and semantics |
+| Native manufacturing output | out of current core scope | no verified DipTrace API for Gerber/NC Drill generation |
+| Pattern recommendation | planned | feedback dataset, deterministic retrieval, held-out metrics |
+
+## Revised Priority Order
+
+Feature count is no longer the bottleneck. New high-level tools should not outrun compatibility evidence. The implementation priority is therefore:
+
+### Priority A — Close compatibility and trust evidence
+
+1. close trust invalidation coverage for every write path currently reported as untested by `get_capabilities`:
+   - `plan_apply`;
+   - `ses_import`;
+   - `schematic_to_pcb_sync`;
+   - `live_session_apply`;
+2. collect a redistributable DipTrace 5.3 fixture pack covering PCB, schematic, Component Library, Pattern Library, controlled before/after writer cases, and a real DSN/SES pair;
+3. add explicit real-DipTrace acceptance for authored schematic wires and generated ratlines;
+4. verify mask/paste/courtyard/`Common` semantics with one-setting-at-a-time exports;
+5. make these cases executable in CI without requiring DipTrace to be installed.
+
+Exit condition: the project can distinguish parser-tested, operation-tested, DipTrace-exported, and DipTrace-roundtrip-verified paths without relying on broad documentation claims.
+
+### Priority B — Native library writers
+
+Only after Priority A supplies writer evidence:
+
+- create/update patterns;
+- create/update components, parts, pins, graphics, and fields;
+- attach a pattern to a component;
+- maintain explicit pin-to-pad mapping;
+- preserve unknown/unsupported library XML;
+- prove idempotence and DipTrace 5.3 open/save/re-export equivalence.
+
+### Priority C — Human-guided pattern recommendation
+
+After the compatibility baseline is stable:
+
+1. append-only feedback records;
+2. deterministic package feature extraction and retrieval;
+3. held-out top-1/top-3/rejection metrics;
+4. ranked existing-pattern suggestions;
+5. controlled human correction capture.
+
+The first useful recommendation system should select among **existing** patterns. Fine-tuning is explicitly later work and is not required for the initial system.
+
+### Priority D — Optional external validation
+
+- capture a real openEMS result and integration run;
+- optionally broaden Freerouting integration fixtures;
+- keep external-solver availability separate from core parser/writer trust.
+
+## Phase Summary
 
 | Phase | Status | Implemented |
 | --- | --- | --- |
@@ -17,7 +95,7 @@ does not imply full equivalence with the DipTrace GUI.
 | 9 | complete v1 | bounded DSN export, Freerouting job, SES inspect/import, and post-review |
 | 10 | complete v3 | coupled-pair routing, lengths/skew, microstrip and IPC-2141 symmetric stripline impedance |
 | 11 | complete v1 | return-path/plane heuristics, BOM/design comparison, DFM/DFA/DFT, and thermal skips |
-| 12 | partial v2 | library validation, generic release manifests, and typed optional openEMS jobs; library mutation and native fabrication remain unavailable |
+| 12 | partial v2 | library validation, generic release manifests, typed optional openEMS jobs; library mutation and native fabrication remain unavailable |
 | 13 | complete v1 | workflow prompts, skill contracts, CI matrix, benchmark harness, truthful discovery |
 | 14 | complete v1 | project scaffolding: new schematic/PCB XML documents with stackup, rules, and sheets |
 | 15 | complete v1 | schematic authoring: sheets, part placement, pin connectivity, wires, and net labels |
@@ -25,197 +103,98 @@ does not imply full equivalence with the DipTrace GUI.
 | 17 | complete v1 | ngspice batch adapter for user-supplied netlists with typed log results |
 | 18 | complete v2 | congestion-aware multi-net ordering with bounded rip-up/retry |
 | 19 | complete v2 | additive and guarded exact schematic-to-PCB reconciliation with explicit multi-part pin mapping |
-| 20 | complete v1 | fail-closed trust authority, full PCB/schematic semantic comparison, native Windows CI, and terminal external-job cancellation |
-| 21 | planned | human-guided pattern feedback dataset, deterministic retrieval, and measurable recommendation workflow |
+| 20 | complete implementation baseline | fail-closed authority boundary, PCB/schematic semantic comparison, native Windows CI, external-job cancellation; full write-path trust invalidation still has explicitly reported gaps |
+| 21 | planned | human-guided pattern feedback dataset, deterministic retrieval, measurable recommendation workflow |
 
-## Phase 4: Verified Boundary
+## Implemented Boundary
 
-Implemented operations include move, rotate, side, lock, value, properties, pattern,
-align, distribute, group, board text, no-connect, net rename, NetClass rules, and
-standalone test points. Pattern swap requires exact pad-number matching. Component and
-Pattern Libraries are available for reading and validation.
+Implemented semantic operations include move, rotate, side, lock, value, properties, pattern, align, distribute, group, board text, no-connect, net rename, NetClass rules, standalone test points, trace/via primitives, local routing, differential-pair routing, schematic authoring, panelization, and schematic-to-PCB synchronization.
 
-Library create/update and attach-pattern mutation are not implemented because the
-repository does not contain verified round-trip writer fixtures for those structures.
-Capability discovery reports the exact unavailability instead of registering empty tools.
+Pattern swap requires exact pad-number compatibility. Component and Pattern Libraries are available for reading and validation.
 
-## Phases 8-10: Strict Limits
+Native library create/update and attach-pattern mutation are intentionally unavailable because the repository does not yet contain sufficient controlled DipTrace 5.3 writer fixtures. Capability discovery must continue to report this as unavailable rather than registering placeholder tools.
 
-- The local router supports bounded vias and multi-layer routing with orthogonal and
-  45-degree segments, but not push-and-shove. Sequential multi-net routing with bounded
-  rip-up/retry is available through `route_connections`.
-- The DSN serializer rejects unsupported geometry instead of silently losing data.
-- SES always passes internal inspection, preview, and review before import.
+## Routing and SI Limits
+
+- The local router supports bounded vias and multi-layer routing with orthogonal/45-degree segments.
+- `route_connections` provides congestion-aware ordering and bounded batch-local rip-up/retry.
+- It is not push-and-shove, free-angle, dynamic neck-down, or a global autorouter.
+- The DSN serializer rejects unsupported geometry rather than silently dropping data.
+- SES import always passes internal inspection, preview, and review before commit.
 - Differential-pair synthesis writes both traces and the pair `Segment` atomically.
-- Impedance uses preliminary-only Hammerstad-Jensen single/coupled microstrip and the
-  IPC-2141 centered symmetric stripline closed form; frequency-dependent and off-center
-  stripline analysis requires an external solver.
+- Analytical impedance is preliminary: Hammerstad-Jensen single/coupled microstrip and IPC-2141 centered symmetric stripline.
+- Frequency-dependent/off-center stripline analysis requires the optional external openEMS runner.
 
-## Phases 11-12: Strict Limits
+## Review and Manufacturing Limits
 
-- The copper-pour adapter reads the boundary, not the final refill.
+- Copper-pour handling reads the boundary, not authoritative refilled copper geometry.
 - Return-path analysis is a geometry heuristic with confidence reporting, not full-wave SI.
-- A generic fabrication manifest is not a Gerber/NC Drill package.
-- Generic placement CSV requires mapping to the selected assembler's coordinate convention.
-- The ngspice adapter runs user-supplied netlists in batch mode; it does not generate
-  netlists from a design. The openEMS runner adapter has a typed fixed protocol, bounded
-  jobs, strict parsing, and failure tests, but no solver is bundled and its current parser
-  fixture is explicitly synthetic.
+- Generic fabrication manifests are not Gerber/NC Drill/ODB++/IPC-2581 packages.
+- Generic placement CSV must be mapped to the selected assembler's coordinate convention.
+- The ngspice adapter runs user-supplied netlists; it does not generate a netlist from a DipTrace design.
 - Online component sourcing is disabled by default.
 
-## Phases 14-19: Strict Limits
+## Project Creation and Synchronization Limits
 
-- Scaffolding generates **synthetic** 4.3-era XML structures; DipTrace import may
-  canonicalize numeric values and derived fields, as with any other XML import.
-  These are classified as `synthetic_parser_only` and must not be treated as
-  DipTrace-compatible without independent verification.
-- `create_document_from_seed` copies a real DipTrace-exported XML seed, preserving
-  all unknown XML. The copy inherits the seed's provenance (`diptrace_exported`)
-  but is not automatically upgraded to `diptrace_roundtrip_verified`.
-- `place_part` references a library `ComponentStyle` by name; the symbol graphics and pin
-  mapping are resolved by DipTrace from the configured libraries on import, not by the MCP.
-- Schematic wires follow the official `Wire`/`Points` schema; pin-to-net connectivity is
-  maintained separately via `connect_pins`/`disconnect_pins`.
-- Panelization writes official `Panel` parameters only; tab coordinates are recomputed by
-  DipTrace (`TabsDone="N"`), and no panel geometry is expanded by the MCP.
-- The ngspice adapter never fabricates simulation results: an unavailable executable ends
-  in `external_tool_unavailable`.
-- Multi-net rip-up/retry is bounded to batch-local candidates and never rips traces that
-  were routed outside the current call.
-- Congestion-aware ordering is a deterministic corridor/bounding-box heuristic, not a global
-  router or push-and-shove engine.
-- Exact schematic-to-PCB reconciliation is opt-in, refuses locked objects by default, and
-  removes traces only when a synchronized net's endpoint set changes.
+- `create_schematic_document` and `create_pcb_document` generate **synthetic** 4.3-era XML structures. They are classified as `synthetic_parser_only` until independent DipTrace evidence exists.
+- `create_document_from_seed` copies a real DipTrace-exported XML seed and preserves unknown XML and provenance, but does not auto-upgrade round-trip trust.
+- `place_part` references a library `ComponentStyle`; DipTrace resolves symbol graphics and pin mapping from configured libraries during import.
+- Schematic wires use the official `Wire`/`Points` structure, while logical pin-to-net connectivity is maintained separately through `connect_pins`/`disconnect_pins`.
+- Panelization writes official `Panel` parameters; tab coordinates are recomputed by DipTrace and MCP does not expand final panel geometry.
+- Exact schematic-to-PCB reconciliation is opt-in, refuses locked objects by default, and removes traces only when a synchronized net's endpoint set changes.
+- Multi-net rip-up/retry is limited to traces produced within the current routing batch.
 
-## Trust, Semantic Comparison, and CI Baseline — 2026-07-23
+## Trust, Semantic Comparison, and CI Baseline
 
-This baseline is complete and must not be weakened by later feature work:
+The following baseline must not be weakened by later feature work:
 
-- runtime, user-supplied evidence, fixture-manifest labels, and trusted authority are
-  separate concepts;
-- runtime or user-controlled JSON, sidecars, hashes, and fixture manifests cannot mint
-  `diptrace_roundtrip_verified` or `external_tool_roundtrip_verified`;
-- high-trust promotion remains unavailable until an authenticated server-owned registry,
-  signature verifier, or committed allowlist is implemented;
-- evidence is bound to the exact document role/path, source type, before/after SHA-256,
-  and required semantic-comparison categories;
-- rollback reparses and revalidates restored provenance/evidence and falls back to
-  synthetic provenance when validation fails;
-- PCB comparison covers components, pads, nets, trace endpoints, ordered points, widths,
-  segment layers, via styles/spans, locks, and differential-pair membership;
-- schematic comparison covers sheets/hierarchy, parts, values/patterns, pins, pin-to-net
-  connectivity, wire geometry, labels, buses, and hierarchy records;
-- `comparison_complete` is derived from required categories and cannot be set by a
-  caller while categories are absent;
-- CI runs Linux Python 3.10/3.12/3.13 tests, one Linux static-analysis gate, macOS and
-  Windows tests/CLI smoke, and a real Windows bridge build/EXE verification;
-- external job cancellation is terminal across Freerouting, ngspice, and openEMS even
-  when process exit races with the worker's cancellation check.
+- runtime state, user-supplied evidence, fixture labels, and trusted authority are separate concepts;
+- user-controlled JSON, sidecars, hashes, and fixture manifests cannot mint `diptrace_roundtrip_verified` or `external_tool_roundtrip_verified`;
+- high-trust promotion remains unavailable until an authenticated server-owned registry, signature verifier, or committed allowlist exists;
+- evidence is bound to exact document role/path, source type, before/after SHA-256, and required semantic-comparison categories;
+- rollback reparses and revalidates restored provenance/evidence;
+- PCB comparison covers components, pads, nets, trace endpoints, ordered points, widths, segment layers, via styles/spans, locks, and differential-pair membership;
+- schematic comparison covers sheets/hierarchy, parts, values/patterns, pins, pin-to-net connectivity, wire geometry, labels, buses, and hierarchy records;
+- `comparison_complete` is derived from required categories and cannot be asserted by a caller while categories are absent;
+- CI runs Linux Python 3.10/3.12/3.13, Linux static analysis, macOS/Windows tests and CLI smoke, plus a real Windows bridge build;
+- external-job cancellation is terminal across Freerouting, ngspice, and openEMS.
 
-### Human-Guided Pattern Learning Roadmap
+### Known trust-coverage gap
 
-The first target is recommendation of an **existing** pattern, not automatic mutation of
-native libraries and not model fine-tuning.
+The capability report currently does **not** claim `all_write_paths_invalidate_trust=true`. The explicitly listed untested paths are:
+
+- `plan_apply`;
+- `ses_import`;
+- `schematic_to_pcb_sync`;
+- `live_session_apply`.
+
+Closing this list is Priority A work. Documentation must not summarize the trust model as if every possible write path has already been proven equivalent.
+
+## Human-Guided Pattern Recommendation
+
+The existing baseline can inspect/validate libraries and assign an existing compatible pattern. Pattern Editor bridge sessions remain read-only.
 
 | Milestone | Status | Deliverable | Exit criterion |
 | --- | --- | --- | --- |
-| P0 | complete | Pattern/Component Library read and validation, exact pin-to-pad checks, existing-pattern assignment, read-only Pattern Editor bridge | Existing patterns can be inspected and selected without claiming writer support |
-| P1 | next | Typed append-only feedback records: `record_pattern_example`, `accept_pattern_suggestion`, `reject_pattern_suggestion` | Accepted/rejected decisions persist with immutable IDs, document/library SHA, provenance, rationale, candidate list, and train/test split |
-| P2 | planned | Deterministic feature extraction and retrieval over accepted examples | Exact constraints filter invalid candidates; top-1/top-3 metrics run on a held-out set |
-| P3 | planned | Suggestion workflow integrated with capability discovery and transactions | The agent proposes ranked existing patterns, explains evidence, and never writes without an explicit existing-pattern operation |
-| P4 | planned | Controlled human correction capture from DipTrace exports | Before/after XML and optional screenshots are linked; XML plus manifest remain authoritative |
-| P5 | blocked | Native Pattern/Component Library writers and learning from corrected footprints | Items 1-2 below provide redistributable DipTrace 5.3 round-trip evidence and every writer passes open/save/re-export equivalence |
-| P6 | deferred | Optional fine-tuning/export pipeline | Only considered after dataset quality, held-out metrics, privacy controls, and retrieval baselines are established |
+| P0 | complete | Pattern/Component Library read/validation, exact pin-to-pad checks, existing-pattern assignment, read-only Pattern Editor bridge | Existing patterns can be inspected and selected without writer claims |
+| P1 | planned after compatibility closure | typed append-only feedback: `record_pattern_example`, `accept_pattern_suggestion`, `reject_pattern_suggestion` | immutable decision records with document/library SHA, provenance, rationale, candidates, train/test split |
+| P2 | planned | deterministic feature extraction and retrieval | exact constraints remove invalid candidates; top-1/top-3 metrics run on held-out data |
+| P3 | planned | ranked suggestion workflow integrated with capabilities | agent explains ranked existing patterns and never mutates a library implicitly |
+| P4 | planned | controlled human correction capture | before/after XML and optional screenshots are linked; XML + manifest remain authoritative |
+| P5 | blocked by real writer evidence | native Pattern/Component Library writers | every writer passes controlled DipTrace 5.3 import and open/save/re-export equivalence |
+| P6 | deferred | optional fine-tuning/export pipeline | considered only after retrieval baseline, held-out metrics, privacy controls, and dataset quality are established |
 
-The P1 record is append-only and local by default. User projects, datasheets, screenshots,
-and library XML are never committed to this repository automatically. Each record must
-include enough immutable context to reproduce the decision without trusting free-form
-claims: normalized package features, source hashes, selected pattern identity, rejected
-alternatives, decision reason, provenance, and validation result.
+The feedback dataset should be append-only and local by default. User projects, datasheets, screenshots, and library XML must never be committed automatically. Each record should preserve reproducible normalized package features, source hashes, chosen pattern, rejected alternatives, rationale, provenance, and validation outcome.
 
-P2 starts with deterministic retrieval rather than embeddings or fine-tuning: filter by
-pad count/type, pitch, body dimensions, mounting/hole requirements, thermal-pad needs,
-and side constraints; then rank the remaining examples by normalized geometry distance.
-The baseline metrics are top-1 accuracy, top-3 accuracy, rejection precision for invalid
-patterns, and manual-correction rate. The held-out set must never be used for retrieval
-or prompt examples during evaluation.
-
-P3 remains read-only with respect to Pattern Libraries. It may call the existing
-component pattern-assignment operation only when the selected pattern already exists and
-pin-to-pad validation passes. P5 cannot start merely because recommendation metrics are
-good; native writer work remains independently evidence-gated.
+Deterministic retrieval should begin with hard filters such as pad count/type, pitch, package/body dimensions, mounting holes, thermal-pad requirements, and side constraints, followed by normalized geometry-distance ranking. Baseline metrics are top-1 accuracy, top-3 accuracy, invalid-pattern rejection precision, and manual-correction rate.
 
 ## Remaining Evidence-Gated Work
 
-Two tracks remain. The pattern-recommendation track (P1-P4 above) can proceed without
-native library writers. The native-writer track remains evidence-gated: items 1 and 2
-below are deferred until suitable DipTrace 5.3 files can be produced, and item 3 is
-blocked by that evidence. The optional solver adapter in item 4 is implemented at the
-protocol/job layer, with only real-runtime acceptance evidence outstanding.
+### 1. Redistributable DipTrace 5.3 Fixture Pack — highest priority
 
-### Local Corpus and Bridge Audit — 2026-07-22
+Add a small non-proprietary fixture pack exported by the current DipTrace 5.3 branch. Keep files byte-for-byte as exported; do not hand-normalize them before commit.
 
-An anonymous, local-only audit was run against 90 shallow repository checkouts selected
-from a private source index. The index is excluded through `docs/private/`; repository
-names, URLs, files, and derived fixtures are not stored in this project. The temporary
-checkouts are not a source of redistributable test data.
-
-The aggregate inventory contained 348 binary schematics and 452 binary boards. Binary
-magic identified all 51 `.eli` files as DipTrace component libraries and 22 of 78 `.lib`
-files as DipTrace pattern libraries; the other 56 `.lib` files belonged to unrelated
-software formats. Eighty-five XML files were inspected, but none had a native DipTrace
-XML root. Of 33 `.dsn` files, only two were textual
-Specctra PCB designs, neither carried a confirmed DipTrace generator marker, and no
-`.ses` file was present. This corpus is therefore useful for local compatibility and
-future export sampling, but it does not satisfy the XML, controlled before/after, or
-DSN/SES evidence gates below.
-
-The installed DipTrace 5.3.0.2 bridge was also exercised against vendor-installed local
-examples without retaining the exported XML. A complex four-layer PCB and a seven-sheet
-schematic both parsed without warnings. This confirms the general 5.3 reader path, but
-does not prove hierarchy, controlled mask/paste/courtyard semantics, copper refill
-before/after behavior, library round trips, or redistribution permission.
-
-The bridge installer now covers Component Editor and Pattern Editor as explicit read-only
-profiles using whole-library export with imports disabled. Both profiles were exercised
-against small vendor-installed 5.3.0.2 libraries: a 187-component export and a
-181-pattern export parsed without warnings. The pattern sample contained top-courtyard
-geometry, but no explicit mask/paste attributes or bottom-courtyard evidence. This
-removes the tooling gap for collecting local library evidence; it does not unblock
-writers until controlled, redistributable round-trip fixtures exist.
-
-### Synthetic Power Multilayer Pre-Fixture — 2026-07-22
-
-A wholly synthetic 70 × 50 mm four-layer source board now lives under
-`tests/fixtures/diptrace_5_3/power_multilayer/`. It was created through guarded MCP
-schematic-authoring, schematic-to-PCB synchronization, placement, trace and via
-operations. It covers Top/Inner 1/Inner 2/Bottom stackup parsing, mirrored and rotated
-Bottom components, seven named nets, five accessible testpoints/test pads, wide power
-routes, an Inner 1 GND route, a Top-only signal route, and a Top/Bottom signal route with
-two explicit through-via spans. Offline component clearance is clean; `SENSE` is the one
-intentional no-trace DRC finding and is reserved for real Freerouting.
-Trace commits now reconcile the exported ratline spanning forest, and trace deletion
-restores the affected pad-to-pad ratline before pruning cycles. Native-import testing exposed
-a second invariant from the official PCB XML specification: every component pad must carry
-the reciprocal `NetId` and `InternalConnection` attributes matching `Net/Pads/Item`. The
-compiler now writes those attributes during schematic-to-PCB synchronization, including
-explicit `NetId=-1` for unconnected pads. The pre-fixture was restored to the last revision
-confirmed to open in DipTrace, augmented only with reciprocal pad membership; ratline
-pruning is deferred until DipTrace 5.3 opens and re-exports this corrected source.
-
-This is preparation, not closure of the evidence gate. The source XML is MCP-generated
-format 4.3.0.3, and the directory deliberately contains only pending-manual instructions
-for the authoritative DipTrace 5.3.0.2 copper-pour before/after pair and real DSN/SES
-pair. Capability discovery reported DSN export unavailable and no configured Freerouting
-adapter, while authoritative copper refill remains outside confirmed write semantics.
-The fixture pack remains incomplete until those four real artifacts are captured, hashed,
-re-imported and recorded in a schema-conforming final manifest.
-
-### 1. Redistributable DipTrace 5.3 Fixture Pack — Deferred
-
-Add a small synthetic, non-proprietary fixture pack exported by the current DipTrace
-5.3 branch. Keep the files exactly as exported; do not hand-normalize XML before it is
-committed. The target layout is:
+Target layout:
 
 ```text
 tests/fixtures/diptrace_5_3/
@@ -227,6 +206,8 @@ tests/fixtures/diptrace_5_3/
   libraries/patterns.xml
   schematic_roundtrip/<case>/before.xml
   schematic_roundtrip/<case>/after.xml
+  pcb_roundtrip/<case>/before.xml
+  pcb_roundtrip/<case>/after.xml
   specctra/source_board.xml
   specctra/input.dsn
   specctra/output.ses
@@ -234,132 +215,70 @@ tests/fixtures/diptrace_5_3/
 
 Required coverage:
 
-- a main schematic sheet, a nested hierarchy block, hierarchy connectors, and a global
-  net;
-- the same PCB immediately before and after a copper-pour refill, including at least one
-  cutout/island or thermal case when the GUI permits it;
-- a component library with a simple component, a multi-part component, custom fields,
-  and attached patterns;
-- a pattern library with SMD and through-hole pads, non-trivial graphics, and pin-to-pad
-  mapping evidence;
-- controlled schematic before/after pairs where each pair changes one feature only:
-  part placement, wire/connectivity, net label, property/value, or attached pattern;
-- a real DSN/SES pair generated from the included PCB without editing the design between
-  DSN export and SES import; include a routed trace and a via/multi-layer case.
+- hierarchical multi-sheet schematic with hierarchy connectors and a global net;
+- controlled schematic writer pairs for placement, wire/connectivity, net label, property/value, and attached pattern;
+- controlled PCB writer pairs for representative component/property/rule/trace/via operations;
+- copper-pour before/after refill, including cutout/island or thermal behavior where possible;
+- Component Library with simple and multi-part components, custom fields, attached patterns;
+- Pattern Library with SMD/THT pads, non-trivial graphics, pin-to-pad mapping, courtyard, and mask/paste evidence;
+- real DSN/SES pair produced from the same board with at least one routed trace and multilayer/via case;
+- authored schematic wire and generated ratline open/save/re-export acceptance.
 
-The official examples installed under the user's DipTrace `Examples` directory should be
-used to bootstrap local 5.3 validation instead of recreating large designs. In particular,
-the `PCB_2`/`PCB_4`/`PCB_6`, `Differential_Pairs`, routed/unrouted, Banana Pi, CNC, and
-SPICE examples provide useful real schematic and PCB coverage. They are shipped as binary
-`.dch`/`.dip` files, so relevant cases must first be opened and exported/saved as native
-5.3 XML. This installed set does not contain component/pattern library fixtures, controlled
-single-setting before/after pairs, or DSN/SES files, and therefore cannot satisfy the
-evidence gate by itself. Treat exported derivatives as local validation data unless their
-redistribution terms are explicitly confirmed; committed fixtures must have clear
-redistribution permission.
+`manifest.json` must record exact DipTrace version/build, OS, export workflow, source type, units, SHA-256 for every file, intended before/after difference, and redistribution permission.
 
-Local bridge acceptance has now confirmed that representative installed PCB and
-multi-sheet Schematic examples export as XML `Version="5.3.0.2"` and parse without
-warnings. Those exports were not retained or committed, so the CI fixture requirement is
-unchanged.
+This item is complete when all four native source types parse, fixture-specific assertions pass, guarded SES import is exercised, writer cases survive DipTrace open/save/re-export, and CI can run the pack without DipTrace installed.
 
-`manifest.json` must record the exact DipTrace version/build, operating system, export
-workflow, source type, units, SHA-256 of every fixture, the intended semantic difference
-for each before/after pair, and confirmation that the files may be redistributed in the
-repository.
+### 2. Mask, Paste, Courtyard, and `Common` Verification
 
-This item is complete when all four native source types parse, fixture-specific semantic
-assertions pass, the real SES imports through the guarded preview path, and CI exercises
-the pack without requiring DipTrace to be installed.
+Capture focused 5.3 pattern-library and placed-PCB exports covering:
 
-### 2. Mask, Paste, Courtyard, and `Common` Verification — Deferred
-
-Add a focused 5.3 pattern-library export and a PCB export containing placed instances of
-the patterns. The evidence matrix must cover, where the DipTrace UI supports it:
-
-- top and bottom mask and paste settings;
-- `Common`, explicit zero, positive expansion, and negative reduction;
+- top/bottom mask and paste;
+- `Common`, explicit zero, positive expansion, negative reduction;
 - SMD and through-hole pads;
 - custom mask/paste shapes;
-- top and bottom courtyard geometry using lines, arcs, and polygons;
-- rotated, bottom-side, and mirrored placed components.
+- top/bottom courtyard lines, arcs, and polygons;
+- rotated, bottom-side, and mirrored components.
 
-For every ambiguous setting, capture two exports that differ by exactly one GUI value and
-record that value in the fixture manifest. Screenshots may be kept as supporting evidence,
-but machine-readable before/after exports and the manifest are authoritative.
+For ambiguous values, capture two exports differing by exactly one GUI setting. Machine-readable before/after XML plus manifest are authoritative; screenshots are supporting evidence only.
 
-This item is complete when the XML fields are mapped to typed model fields, transforms
-are verified on placed instances, unknown fields survive a guarded round trip, and tests
-prove the normalization behavior. The global `Common` policy must not be changed from
-inference alone; normalize it only after the 5.3 exports identify its exact semantics.
+### 3. Evidence-Gated Library Writers
 
-### 3. Evidence-Gated Library Writers — Blocked by Items 1-2
+After items 1-2:
 
-After items 1 and 2 supply round-trip evidence, implement native-XML mutation for:
+- create/update patterns;
+- create/update components, parts, pins, graphics, and custom fields;
+- attach patterns and maintain explicit pin-to-pad mapping;
+- preserve unknown/unsupported XML structures;
+- require explicit collision/replacement behavior;
+- use existing SHA/preview/commit/rollback transaction boundaries.
 
-- creating and updating patterns;
-- creating and updating components, parts, pins, graphics, and custom fields;
-- attaching a pattern to a component and maintaining explicit pin-to-pad mapping;
-- preserving unsupported and unknown XML structures instead of regenerating the whole
-  library from the reduced domain model.
+A writer is complete only when the result imports into DipTrace 5.3 without warnings, survives open/save/re-export semantically, repeated identical operation is idempotent, and `get_capabilities` registers it truthfully.
 
-Library writes must use the existing transaction boundary: confined workspace paths,
-expected source SHA, preview, commit/rollback, atomic replacement, reparsing, and
-post-write validation. Name collisions and replacement must be explicit; a writer must
-not silently overwrite an unrelated library item.
+### 4. Optional Real openEMS Acceptance
 
-This item is complete when every supported mutation has before/after fixture tests, the
-result imports into DipTrace 5.3 without warnings, a DipTrace open/save/re-export cycle is
-semantically equivalent, a second identical MCP operation produces no change, and
-capability discovery truthfully registers the new tools.
+The typed openEMS runner protocol, parsing, bounded jobs, failure handling, timeout handling, and synthetic CI backend are implemented. Remaining evidence is a captured real solver result and one configured integration run. Absence of the solver must continue to produce explicit unavailability rather than fallback/fabricated output.
 
-### 4. Optional Frequency-Dependent Field-Solver Adapter — Implemented v1
+## Existing 5.3 Evidence
 
-The openEMS runner adapter is implemented with a fixed typed JSON protocol. The MCP tool
-is registered, but runtime capability is available only when
-`DIPTRACE_MCP_OPENEMS_RUNNER` points to a compatible backend.
+A live DipTrace 5.3.0.2 schematic acceptance test has already verified source-SHA protection, backup equality, atomic write, 41 scoped `RefDesMarking` edits, bridge apply, independent DipTrace re-export, coordinate persistence, stable normalized object counts, and no new offline ERC errors.
 
-The typed request must include conductor geometry, stackup/material properties, trace
-offset, frequency sweep, and solver/mesh controls. The typed result must include the
-frequency vector, complex characteristic impedance, propagation constant, available loss
-terms, solver version, convergence/mesh metadata, logs, and generated artifacts.
+Representative installed 5.3 PCB and multi-sheet schematic examples have also parsed without warnings, as have small Component/Pattern Library exports through read-only bridge profiles. Those local exports were not retained as redistributable fixtures, so they improve confidence but do not close CI evidence gates.
 
-Implemented validation cases are:
+A synthetic four-layer `power_multilayer` pre-fixture exists for parser/operation regression. It must not be treated as proof of DipTrace 5.3 compatibility until the corresponding native-import/re-export artifacts are captured.
 
-- centered symmetric stripline checked against the existing analytical implementation;
-- off-center stripline that is explicitly unsupported by the closed-form implementation;
-- a multi-frequency sweep with a stored synthetic protocol fixture that is never presented
-  as real solver output;
-- unavailable executable, timeout, malformed output, and non-converged solver outcomes.
+## Closure Definition
 
-Execution uses an isolated job workspace, sanitized environment, fixed command arguments,
-explicit time/result/log limits, and the existing asynchronous job/error contracts. CI
-parses the synthetic protocol fixture and runs deterministic fake backends by default.
+The near-term roadmap closes in this order:
 
-Typed parsing, failure handling, portability, timeout, frequency binding, and centered
-analytical sanity tests are complete. A captured real-openEMS result and one configured
-integration run remain an acceptance-evidence task; they do not cause fallback or
-fabricated output when the solver is absent.
+1. eliminate the explicit write-path trust-invalidation gaps;
+2. commit the redistributable DipTrace 5.3 fixture pack;
+3. verify mask/paste/courtyard/`Common`, authored wires, ratlines, and real DSN/SES paths;
+4. implement and round-trip native library writers;
+5. implement P1-P3 pattern feedback/retrieval/recommendation and evaluate held-out metrics;
+6. add P4 correction capture;
+7. consider P6 fine-tuning only if deterministic retrieval has measurable limitations;
+8. capture optional real-openEMS acceptance evidence.
 
-## Roadmap Closure Definition
+Phase 12 remains partial until evidence-gated library writers exist. Phase 21 remains planned until the feedback/retrieval/recommendation workflow is implemented and measured.
 
-The committed implementation order is:
-
-1. implement P1 append-only feedback contracts and persistence;
-2. implement P2 deterministic retrieval plus held-out metrics;
-3. expose P3 ranked existing-pattern suggestions with truthful capabilities;
-4. collect P4 controlled corrections and native evidence;
-5. obtain the deferred fixture pack and verify mask/paste/courtyard policy;
-6. only then implement P5 native library writers and round-trip them through DipTrace.
-
-Phase 12 remains partial until the evidence-gated writer items pass. Phase 21 remains
-planned until P1-P3 are implemented and evaluated. A recommendation system is not allowed
-to claim footprint creation, native library mutation, or high-trust validation.
-
-The openEMS adapter is complete v1 at the protocol/job layer and gains solver-verified
-status only after a real captured integration run.
-
-Completion does not mean full DipTrace GUI equivalence. A native manufacturing adapter is
-excluded without a verified DipTrace API; generic manifests are not Gerber or NC Drill
-output. Full push-and-shove/global autorouting, GUI automation, and always-on online
-sourcing remain explicit product boundaries rather than unfinished roadmap items.
+Completion does not mean full DipTrace GUI equivalence. Full push-and-shove/global autorouting, GUI automation, native manufacturing generation without a verified DipTrace API, and always-on online sourcing remain explicit product boundaries rather than unfinished core milestones.
