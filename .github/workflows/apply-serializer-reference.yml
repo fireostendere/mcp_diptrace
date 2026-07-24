@@ -16,98 +16,45 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
+          show-progress: false
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Decode and apply staged bundle
+      - name: Inspect staged bundle
         shell: bash
         run: |
           python - <<'PY'
-          import base64, io, json, pathlib, tarfile, zipfile, zlib
-
-          root = pathlib.Path('.')
-          payload_path = root / '.github/serializer-reference.payload'
-          if not payload_path.exists():
-              raise SystemExit('staged payload is missing')
-          packed = base64.b64decode(payload_path.read_text(encoding='utf-8').strip())
-          data = zlib.decompress(packed)
-
-          def write_file(path: str, content):
-              target = root / path
-              target.parent.mkdir(parents=True, exist_ok=True)
-              if isinstance(content, str):
-                  target.write_text(content, encoding='utf-8')
-              elif isinstance(content, list):
-                  target.write_text('\n'.join(str(x) for x in content), encoding='utf-8')
-              else:
-                  target.write_text(json.dumps(content, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-              print('wrote', path)
-
-          applied = False
+          import base64, json, pathlib, zlib
+          p = pathlib.Path('.github/serializer-reference.payload')
+          data = zlib.decompress(base64.b64decode(p.read_text(encoding='utf-8').strip()))
+          report = {
+              'bytes': len(data),
+              'prefix': data[:2000].decode('utf-8', errors='replace'),
+          }
           try:
               obj = json.loads(data.decode('utf-8'))
-          except Exception:
-              obj = None
-
-          if isinstance(obj, dict):
-              files = obj.get('files', obj)
-              if isinstance(files, dict) and all(isinstance(k, str) for k in files):
-                  for path, content in files.items():
-                      if path in {'format', 'version', 'metadata'} and not isinstance(content, str):
-                          continue
-                      write_file(path, content)
-                  applied = True
-              elif isinstance(files, list):
-                  for item in files:
-                      if not isinstance(item, dict) or 'path' not in item or 'content' not in item:
-                          raise RuntimeError('unsupported files list item')
-                      write_file(str(item['path']), item['content'])
-                  applied = True
-          elif isinstance(obj, list):
-              for item in obj:
-                  if not isinstance(item, dict) or 'path' not in item or 'content' not in item:
-                      raise RuntimeError('unsupported top-level list item')
-                  write_file(str(item['path']), item['content'])
-              applied = True
-
-          if not applied:
-              bio = io.BytesIO(data)
-              if zipfile.is_zipfile(bio):
-                  bio.seek(0)
-                  with zipfile.ZipFile(bio) as archive:
-                      archive.extractall(root)
-                  applied = True
-              else:
-                  bio.seek(0)
-                  try:
-                      with tarfile.open(fileobj=bio, mode='r:*') as archive:
-                          archive.extractall(root, filter='data')
-                      applied = True
-                  except tarfile.TarError:
-                      pass
-
-          if not applied:
-              preview = data[:500].decode('utf-8', errors='replace')
-              raise RuntimeError(f'unsupported payload format; prefix={preview!r}')
-
-          payload_path.unlink()
+              report['json_type'] = type(obj).__name__
+              if isinstance(obj, dict):
+                  report['keys'] = list(obj)[:100]
+                  report['value_types'] = {str(k): type(v).__name__ for k, v in list(obj.items())[:50]}
+                  if 'files' in obj:
+                      files = obj['files']
+                      report['files_type'] = type(files).__name__
+                      if isinstance(files, dict):
+                          report['file_keys'] = list(files)[:100]
+                      elif isinstance(files, list):
+                          report['files_preview'] = files[:3]
+              elif isinstance(obj, list):
+                  report['list_preview'] = obj[:3]
+          except Exception as exc:
+              report['json_error'] = repr(exc)
+          pathlib.Path('.github/payload-inspect.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           PY
-      - name: Install dev dependencies
-        run: python -m pip install -e '.[dev]'
-      - name: Validate
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m pytest -q
-          python -m ruff check --no-cache src tests benchmarks scripts
-          python -m mypy --no-incremental src/diptrace_mcp
-          python scripts/generate_pcb_skills.py --check
-      - name: Commit verified bundle
+      - name: Commit inspection
         shell: bash
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git status --short
-          git commit -m 'feat: add serializer reference and agent skill'
+          git add .github/payload-inspect.json
+          git commit -m 'chore: inspect serializer payload'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
