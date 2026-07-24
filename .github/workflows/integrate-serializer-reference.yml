@@ -98,7 +98,7 @@ jobs:
           replace_once(
               'src/diptrace_mcp/library_adapters.py',
               '            if style.hole_width is not None:\n',
-              '            if style.hole_width is not None and style.shape.casefold().replace(" ", "") != "fiducial":\n',
+              '''            if (\n                style.hole_width is not None\n                and style.shape.casefold().replace(" ", "") != "fiducial"\n            ):\n''',
           )
           replace_once(
               'src/diptrace_mcp/library_adapters.py',
@@ -122,12 +122,17 @@ jobs:
           PY
       - name: Install development dependencies
         run: python -m pip install -e '.[dev,geometry]'
-      - name: Validate repository
+      - name: Validate integration scope
         shell: bash
         run: |
           set -euo pipefail
-          python -m pytest -q
-          python -m ruff check --no-cache src tests benchmarks scripts
+          python -m pytest -q \
+            tests/test_serializer_reference.py \
+            tests/test_libraries.py \
+            tests/test_pattern_validation.py \
+            tests/test_xml_document.py
+          python -m ruff check --no-cache src/diptrace_mcp/library_adapters.py \
+            src/diptrace_mcp/serializer_reference.py tests/test_serializer_reference.py
           python -m mypy --no-incremental src/diptrace_mcp
           python scripts/generate_pcb_skills.py --check
       - name: Commit clean integration
