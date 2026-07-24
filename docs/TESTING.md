@@ -1,5 +1,7 @@
 # Testing
 
+The test strategy intentionally separates implementation correctness from real-DipTrace compatibility evidence. A green unit/CI matrix proves the maintained contracts and fixtures; it does not automatically promote every writer to DipTrace 5.3 round-trip verified status.
+
 ## Gates
 
 ```bash
@@ -10,94 +12,135 @@ mypy --no-incremental src/diptrace_mcp
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 ```
 
-CI runs full pytest on Linux with Python 3.10, 3.12, and 3.13. Ruff, strict Mypy,
-and generated-skill checks run once on Linux/Python 3.12. macOS and Windows run full
-pytest plus CLI smoke tests on Python 3.12, and a separate Windows job builds and
-verifies a non-empty `diptrace_mcp_bridge.exe`. Core tests do not require DipTrace,
-Java, Freerouting, openEMS, or network access.
+CI responsibilities:
+
+- full pytest on Linux with Python 3.10, 3.12, and 3.13;
+- Ruff, strict Mypy, and generated-skill checks on Linux/Python 3.12;
+- full pytest plus CLI smoke tests on macOS/Python 3.12;
+- full pytest plus CLI smoke tests on Windows/Python 3.12;
+- native Windows build and non-empty verification of `diptrace_mcp_bridge.exe`.
+
+Core CI does not require DipTrace, Java/Freerouting, ngspice, openEMS, or network access.
 
 ## Coverage
 
-- secure parsing, units, stable IDs, transforms/mirroring/arcs/bounding boxes/spatial index;
+The maintained suite covers:
+
+- secure XML parsing, units, stable IDs, transforms, mirroring, arcs, bounding boxes, and spatial indexing;
 - normalized PCB, schematic, Component Library, and Pattern Library models;
-- preservation of unknown XML and semantic round-trips;
-- required-category PCB comparison of trace coordinates/order, widths, segment layers,
-  endpoints, via styles/spans, locks, and differential-pair membership;
-- required-category schematic comparison of sheets/hierarchy, parts, pins, pin-to-net
-  connectivity, wire geometry, labels, and buses;
-- byte-exact preservation of BOM, XML declaration, CRLF, empty tags, and unknown sections
-  outside low-level and semantic patch targets;
-- transaction state, SHA, preview, commit, rollback, and policy;
-- fail-closed trust authority tests: self-minted manifests, path/hardlink/symlink roles,
-  source-type/SHA binding, incomplete comparisons, and rollback with corrupt evidence;
-- component, text, rule, test-point, pattern, and group operations;
-- review registry and findings, silkscreen plans, and placement plans;
-- trace/via compiler, multi-layer 45-degree A*, explicit blind/full via spans, rejection
-  of unknown four-layer spans, and coupled-pair plus symmetric-via round-trips;
-- resolve_copper_layer / require_routing_layer / require_via_layer with synthetic 4-layer
-  PCB (Signal + Plane layers); plane-layer routing rejection, through-via spanning;
-- pattern validation with embedded pattern library (style/name/unique-name lookup,
-  pad mapping, external pattern rejection);
-- unknown format-version feature detection and preservation of optional or unknown XML;
-- exact GEOS DRC for rotated pads, DSN/SES, and mocked Freerouting jobs;
-- external-job cancellation behavior, including a deterministic Python 3.10 regression
-  for the process-exit race;
-- stackup, length/skew/differential-pair analysis, and single/coupled impedance golden cases;
-- typed openEMS runner protocol, synthetic result parsing, centered analytical sanity,
-  malformed/non-converged output, unavailable backend, and timeout handling;
-- return path and pour boundaries, BOM, and schematic/PCB comparison;
-- generic exports, CSV-injection protection, and MCP tool/resource/prompt contracts.
-- all 57 English PCB skill packages, strict result schemas and examples, actual MCP tool
-  mappings, dependency contracts, write-order guards, and false-success rejection.
+- preservation of unknown XML and raw bytes outside targeted semantic/raw patch regions;
+- byte-exact BOM/XML declaration/CRLF/empty-tag preservation where required;
+- transaction state, SHA preview/commit/rollback, policy, backups, and atomic writes;
+- fail-closed authority tests for self-minted manifests, path/hardlink/symlink aliases, source-type/SHA binding, incomplete semantic comparisons, and rollback with corrupt evidence;
+- PCB semantic comparison of components, pads, nets, trace coordinates/order, widths, segment layers, endpoints, via styles/spans, locks, and differential-pair membership;
+- schematic semantic comparison of sheets/hierarchy, parts, values/patterns, pins, pin-to-net connectivity, wire geometry, labels, and buses;
+- component, text, rule, test-point, existing-pattern assignment, and group operations;
+- review registry/findings, silkscreen plans, local placement plans, scoring, and legalization;
+- trace/via compiler, bounded multi-layer 45-degree A*, explicit via spans, unknown-span rejection, and coupled-pair routing;
+- plane-layer routing rejection and through-via spanning across plane layers;
+- congestion-aware multi-net ordering and bounded batch-local rip-up/retry;
+- pattern validation, embedded pattern lookup, pad mapping, and external-pattern rejection;
+- unknown format-version feature detection and unknown/optional XML preservation;
+- exact optional GEOS DRC for rotated pads;
+- DSN/SES bounded parsing/import logic and mocked Freerouting jobs;
+- external-job state, timeout, log bounds, malformed output, and terminal cancellation behavior;
+- stackup, length/skew/differential-pair analysis, and analytical impedance golden cases;
+- typed openEMS runner protocol, synthetic result parsing, centered analytical sanity checks, unavailable backend, malformed/non-converged output, and timeout handling;
+- return-path/pour-boundary heuristics, BOM review, schematic/PCB comparison, and generic exports;
+- CSV-injection protection;
+- MCP tool/resource/prompt contracts;
+- generated PCB skill packages, strict schemas/examples, dependency contracts, write-order guards, and false-success rejection.
 
-`tests/test_skill_packages.py` is the only executable skill test suite. The
-`skills/*/evals/scenarios.json` and `skills/*/evals/assertions.json` files are generated
-behavioral fixtures consumed by that suite. `scripts/generate_pcb_skills.py --check`
-separately rejects package drift from the catalog and capability maps.
+## MCP Protocol Coverage
 
-## Benchmarks
+The test suite establishes an in-memory MCP client/server session and verifies that representative tools, resources, and prompts are actually registered and callable rather than only documented. This includes read/query, transactions, placement, routing, differential-pair, export, external-job, and capability surfaces.
 
-`benchmarks/benchmark_core.py` emits JSON timings for parsing/model creation, indexing,
-bounding-box queries, clearance review, placement candidates, one-net routing, SVG
-rendering, and semantic patches. Unit tests do not enforce timing thresholds. The
-benchmark is intended for revision comparisons and large-fixture runs, not unstable CI
-pass/fail decisions based on wall-clock time.
+`get_capabilities` remains the runtime source of truth; tests must reject documentation-style false success for unavailable capabilities.
 
-## Remaining Fixture Gaps
+## Real DipTrace Acceptance Already Completed
 
-- a redistributable real-world hierarchical multi-sheet schematic;
-- a dense multilayer PCB with exact mask, paste, courtyard, and refill polygons;
-- multiple native XML versions and real DSN/SES pairs;
-- an optional real Freerouting test matrix;
-- a captured real-openEMS SI golden result (the committed protocol fixture is explicitly
-  synthetic).
+A live acceptance test with DipTrace 5.3.0.2 separately verified:
 
-A live acceptance test with DipTrace 5.3 separately verifies the source SHA guard, 41
-bounded schematic-marking patches, backup equality, atomic write, bridge apply, and an
-independent DipTrace re-export. All 41 coordinates survived the application round-trip;
-normalized design counts and offline ERC severity counts remained unchanged. The
-rebuilt Windows bridge also passes an isolated cross-process headless finish-request
-test that verifies metadata/control publication, cleanup, and exchange-file integrity.
+- source-SHA conflict protection;
+- backup equality;
+- atomic write behavior;
+- 41 bounded schematic `RefDesMarking` edits on the Power sheet;
+- bridge apply followed by an independent DipTrace re-export;
+- persistence of all 41 coordinates;
+- unchanged normalized sheet/part/pin/net/bus/differential-pair counts;
+- no new offline ERC errors after the round trip.
 
-User projects are not added to repository fixtures without explicit permission. A
-permitted 5.3 fixture is still required to automate this acceptance path in CI.
+The rebuilt Windows bridge also passes isolated cross-process finish-request tests covering metadata/control publication, cleanup, and exchange-file integrity.
+
+This acceptance evidence is valuable but intentionally scoped. The user project used for the live test is not redistributed, so the same path is not yet automated in public CI.
+
+## Highest-Priority Remaining Test Gaps
+
+### 1. All-write-path trust invalidation
+
+The capability report currently does not claim complete coverage. Explicitly listed paths still needing closure are:
+
+- `plan_apply`;
+- `ses_import`;
+- `schematic_to_pcb_sync`;
+- `live_session_apply`.
+
+The exit criterion is not merely a unit test for a helper. Each write path must prove that stale higher-trust evidence cannot survive a mutation or rollback transition incorrectly.
+
+### 2. Redistributable DipTrace 5.3 fixture pack
+
+CI still needs controlled, redistributable real-DipTrace fixtures for:
+
+- hierarchical multi-sheet schematic;
+- representative PCB 5.3 exports and writer before/after pairs;
+- Component Library and Pattern Library exports;
+- authored schematic wire before/after cases;
+- generated ratline before/after cases;
+- copper-pour before/after refill;
+- mask/paste/courtyard/`Common` one-setting-at-a-time evidence;
+- real paired DSN/SES artifacts.
+
+The fixture pack should be usable in CI without DipTrace installed and must include exact version/build, source role, SHA-256, intended semantic differences, and redistribution permission.
+
+### 3. Native library writer acceptance
+
+This remains blocked until the fixture/evidence items above exist. Every future Component/Pattern Library writer must prove:
+
+- controlled before/after semantics;
+- DipTrace 5.3 import without warnings;
+- open/save/re-export semantic equivalence;
+- preservation of unsupported/unknown XML;
+- idempotence on a second identical operation;
+- truthful capability registration.
+
+### 4. External-tool real-runtime evidence
+
+Optional remaining integration evidence includes:
+
+- a captured real-openEMS golden result and configured run;
+- a broader real Freerouting matrix where useful.
+
+Synthetic/fake backends remain the default deterministic CI mechanism and must never be presented as real solver output.
 
 ## Fixture Trust Model
 
-Test fixtures are classified by `validation_level`:
+Fixtures and evidence are classified by what they actually prove:
 
-- `synthetic_parser_only` — MCP-generated XML, tested only by the MCP parser.
-- `synthetic_operation_fixture` — MCP-generated XML, tested by parser + operations.
-- `diptrace_exported` — XML exported by DipTrace.
-- `diptrace_open_save_verified` — XML that DipTrace opened and saved.
-- `diptrace_roundtrip_verified` — XML that DipTrace opened, saved, and re-exported.
-- `external_tool_roundtrip_verified` — Same plus external tool round-trip.
+- `synthetic_parser_only` — MCP-generated XML tested by the MCP parser;
+- `synthetic_operation_fixture` — MCP-generated XML exercised by operations;
+- `diptrace_exported` — XML exported by DipTrace;
+- `diptrace_open_save_verified` — opened and saved by DipTrace;
+- `diptrace_roundtrip_verified` — opened, saved, re-exported, and semantically compared;
+- `external_tool_roundtrip_verified` — equivalent evidence including an external tool.
 
-User-controlled manifests and sidecars cannot grant `diptrace_roundtrip_verified` or
-higher at all. CI rejects self-minted high trust, missing required comparison categories,
-path/source-type/SHA mismatches, and semantic differences. Future high-trust promotion
-requires an authenticated server-owned registry, signature verifier, or committed
-allowlist in addition to exact DipTrace version and round-trip evidence.
+User-controlled manifests/sidecars cannot grant high trust. Future high-trust promotion requires an authenticated server-owned registry, signature verifier, or committed allowlist in addition to exact version and semantic evidence.
 
-The `power_multilayer` fixture is classified as `synthetic_operation_fixture` and must
-not be used as evidence of DipTrace 5.3 compatibility.
+The synthetic `power_multilayer` fixture is an operation fixture, not proof of DipTrace 5.3 compatibility.
+
+## Benchmarks
+
+`benchmarks/benchmark_core.py` reports timings for parsing/model creation, indexing, bounding-box queries, clearance review, placement candidates, one-net routing, SVG rendering, and semantic patches.
+
+Wall-clock thresholds are deliberately not CI pass/fail gates. The benchmark is intended for regression comparison and large-fixture analysis, where deterministic functional correctness remains the primary gate.
+
+See [ROADMAP.md](ROADMAP.md) for the acceptance order and [XML_COMPATIBILITY.md](XML_COMPATIBILITY.md) for the compatibility matrix.
