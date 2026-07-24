@@ -32,9 +32,7 @@ jobs:
           printf '  %s\n' "${branches[@]}"
 
           for branch in "${branches[@]}"; do
-            if [[ "$branch" == "main" ]]; then
-              continue
-            fi
+            [[ "$branch" == "main" ]] && continue
             echo "Deleting $branch"
             git push origin --delete "$branch"
           done
@@ -49,7 +47,4 @@ jobs:
           echo "Branches after cleanup:"
           printf '  %s\n' "${remaining[@]}"
 
-          if [[ "${#remaining[@]}" -ne 1 || "${remaining[0]}" != "main" ]]; then
-            echo "Expected exactly one branch: main" >&2
-            exit 1
-          fi
+          [[ "${#remaining[@]}" -eq 1 && "${remaining[0]}" == "main" ]]
