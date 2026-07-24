@@ -1,0 +1,202 @@
+name: Integrate serializer reference
+
+on:
+  push:
+    branches: [feat/serializer-reference]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Assemble reference, apply parser fixes, and update docs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = root / path
+              text = target.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path}: expected one anchor, found {count}: {old[:80]!r}')
+              target.write_text(text.replace(old, new), encoding='utf-8')
+
+          parts = [root / f'.github/serializer-reference.part{i}' for i in range(5)]
+          if not all(path.exists() for path in parts):
+              raise RuntimeError('serializer reference staging parts are incomplete')
+          reference_text = ''.join(path.read_text(encoding='utf-8') for path in parts)
+          reference = json.loads(reference_text)
+          if reference.get('schema_version') != 'diptrace-serializer-reference-v1':
+              raise RuntimeError('unexpected serializer reference schema version')
+          if len(reference.get('rules', [])) < 60 or len(reference.get('cross_cutting_behaviors', [])) < 10:
+              raise RuntimeError('serializer reference is unexpectedly incomplete')
+          reference_path = root / 'src/diptrace_mcp/data/serializer_reference.json'
+          reference_path.parent.mkdir(parents=True, exist_ok=True)
+          reference_path.write_text(json.dumps(reference, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          for path in parts:
+              path.unlink()
+
+          replace_once(
+              'src/diptrace_mcp/domain.py',
+              '''    hole_width: float | None = Field(default=None, ge=0.0)\n    hole_height: float | None = Field(default=None, ge=0.0)\n    mask_paste: dict[str, str] = Field(default_factory=dict)\n''',
+              '''    hole_width: float | None = Field(default=None, ge=0.0)\n    hole_height: float | None = Field(default=None, ge=0.0)\n    fiducial_keepout: float | None = Field(default=None, ge=0.0)\n    mask_paste: dict[str, str] = Field(default_factory=dict)\n''',
+          )
+
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '''    if style is None or style.width <= 0.0 or style.height <= 0.0:\n        return None\n    shape_name = style.shape.casefold().replace(" ", "")\n    if shape_name in {"ellipse", "oval"}:\n        kind: Literal["circle", "ellipse", "rectangle", "obround"] = (\n            "circle" if math.isclose(style.width, style.height) else "ellipse"\n        )\n    elif shape_name in {"rectangle", "rect"}:\n        kind = "rectangle"\n    elif shape_name in {"obround", "roundedrectangle", "long"}:\n        kind = "obround"\n''',
+              '''    if style is None or style.width <= 0.0:\n        return None\n    shape_name = style.shape.casefold().replace(" ", "")\n    effective_height = style.width if shape_name == "fiducial" else style.height\n    if effective_height <= 0.0:\n        return None\n    approximation: str | None = None\n    if shape_name == "fiducial":\n        kind: Literal["circle", "ellipse", "rectangle", "obround"] = "circle"\n    elif shape_name in {"ellipse", "oval"}:\n        kind = "circle" if math.isclose(style.width, effective_height) else "ellipse"\n    elif shape_name in {"rectangle", "rect"}:\n        kind = "rectangle"\n    elif shape_name in {"obround", "roundedrectangle", "long"}:\n        kind = "obround"\n    elif shape_name in {"d-shape", "dshape"}:\n        kind = "rectangle"\n        approximation = "D-shape is conservatively represented as a rectangle"\n''',
+          )
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '''        height=style.height,\n        rotation_deg=rotation_deg,\n        approximation=(\n            "Rounded corner is conservatively represented as a rectangle"\n            if style.corner_percent > 0.0 and kind == "rectangle"\n            else None\n        ),\n''',
+              '''        height=effective_height,\n        rotation_deg=rotation_deg,\n        approximation=(\n            approximation\n            or (\n                "Rounded corner is conservatively represented as a rectangle"\n                if style.corner_percent > 0.0 and kind == "rectangle"\n                else None\n            )\n        ),\n''',
+          )
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '''        else:\n            shape = main.get("Shape", "")\n            width = to_mm(_number(main, "Width"), units)\n            height = to_mm(_number(main, "Height"), units)\n        hole = element.get("Hole")\n        hole_height = element.get("HoleH")\n        hole_width_mm = to_mm(float(hole), units) if hole else None\n        hole_height_mm = to_mm(float(hole_height), units) if hole_height else None\n        mask = element.find("./MaskPaste")\n''',
+              '''        else:\n            shape = main.get("Shape", "")\n            width = to_mm(_number(main, "Width"), units)\n            height = (\n                width\n                if shape.casefold().replace(" ", "") == "fiducial"\n                else to_mm(_number(main, "Height"), units)\n            )\n        is_fiducial = shape.casefold().replace(" ", "") == "fiducial"\n        hole = element.get("Hole")\n        hole_height = element.get("HoleH")\n        hole_width_mm = to_mm(float(hole), units) if hole else None\n        hole_height_mm = to_mm(float(hole_height), units) if hole_height else None\n        mask = element.find("./MaskPaste")\n        custom_swell_raw = (\n            float(mask.get("CustomSwell"))\n            if mask is not None and mask.get("CustomSwell") is not None\n            else None\n        )\n        custom_shrink_raw = (\n            float(mask.get("CustomShrink"))\n            if mask is not None and mask.get("CustomShrink") is not None\n            else None\n        )\n        custom_swell = (\n            None\n            if custom_swell_raw is None or math.isclose(custom_swell_raw, -1000.0)\n            else to_mm(custom_swell_raw, units)\n        )\n        custom_shrink = (\n            None\n            if custom_shrink_raw is None or math.isclose(custom_shrink_raw, -1000.0)\n            else to_mm(custom_shrink_raw, units)\n        )\n''',
+          )
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '''                hole_width=(\n                    hole_width_mm\n                    if hole_width_mm is not None and hole_width_mm >= 0\n                    else None\n                ),\n                hole_height=(\n                    hole_height_mm\n                    if hole_height_mm is not None and hole_height_mm >= 0\n                    else None\n                ),\n                mask_paste=dict(mask.attrib) if mask is not None else {},\n                mask_paste_segments=segments,\n                custom_swell=(\n                    to_mm(float(mask.get("CustomSwell", "0")), units)\n                    if mask is not None and mask.get("CustomSwell") is not None\n                    else None\n                ),\n                custom_shrink=(\n                    to_mm(float(mask.get("CustomShrink", "0")), units)\n                    if mask is not None and mask.get("CustomShrink") is not None\n                    else None\n                ),\n''',
+              '''                hole_width=(\n                    hole_width_mm\n                    if not is_fiducial and hole_width_mm is not None and hole_width_mm >= 0\n                    else None\n                ),\n                hole_height=(\n                    hole_height_mm\n                    if not is_fiducial and hole_height_mm is not None and hole_height_mm >= 0\n                    else None\n                ),\n                fiducial_keepout=(\n                    hole_width_mm\n                    if is_fiducial and hole_width_mm is not None and hole_width_mm >= 0\n                    else None\n                ),\n                mask_paste=dict(mask.attrib) if mask is not None else {},\n                mask_paste_segments=segments,\n                custom_swell=custom_swell,\n                custom_shrink=custom_shrink,\n''',
+          )
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '            mounting=element.get("Mounting", "None"),\n',
+              '            mounting=element.get("Mounting", ""),\n',
+          )
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '                    "filename": _text(model, "./Filename"),\n',
+              '                    "filename": _text(model, "./Filename/Path"),\n                    "filename_path": _text(model, "./Filename/Path"),\n                    "filename_var": _text(model, "./Filename/Var"),\n',
+          )
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '                        pad_id=pin.get("PadId"),\n',
+              '                        pad_id=pin.get("PadId") or pin.get("PadIndex"),\n',
+          )
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '''                pattern_style=(\n                    attached_pattern.get("Style") if attached_pattern is not None else None\n                ),\n''',
+              '''                pattern_style=(\n                    (attached_pattern.get("Style") or attached_pattern.get("PatternType"))\n                    if attached_pattern is not None\n                    else None\n                ),\n''',
+          )
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '''            "Parser coverage is based on the official DipTrace 4.3 XML specification; "\n            "unknown newer fields are preserved but not interpreted."\n''',
+              '''            "Parser coverage for newer library fields is constrained by the bundled "\n            "serializer-derived reference; unknown fields are preserved and real DipTrace "\n            "round-trip verification is still required."\n''',
+          )
+          replace_once(
+              'src/diptrace_mcp/library_adapters.py',
+              '            if style.hole_width is not None:\n',
+              '            if style.hole_width is not None and style.shape.casefold().replace(" ", "") != "fiducial":\n',
+          )
+
+          test_path = root / 'tests/test_serializer_reference.py'
+          test_text = test_path.read_text(encoding='utf-8')
+          if not test_text.startswith('# ruff: noqa: E501'):
+              test_path.write_text('# ruff: noqa: E501\n' + test_text, encoding='utf-8')
+
+          replace_once(
+              'README.md',
+              '- Component/Pattern Library reading, validation, and pin-to-pad checks;\n',
+              '- Component/Pattern Library reading, validation, and pin-to-pad checks;\n- a bundled, machine-readable serializer reference for exact XML enums/defaults/import semantics,\n  explicitly reference-only and unable to grant DipTrace round-trip trust;\n',
+          )
+          replace_once(
+              'README.md',
+              '- [XML compatibility matrix](docs/XML_COMPATIBILITY.md)\n',
+              '- [XML compatibility matrix](docs/XML_COMPATIBILITY.md)\n- [Serializer reference](docs/SERIALIZER_REFERENCE.md)\n',
+          )
+          replace_once(
+              'README_RU.md',
+              '- Component/Pattern Library normalized read, validation and pin-to-pad checks;\n',
+              '- Component/Pattern Library normalized read, validation and pin-to-pad checks;\n- машинно-проверяемый serializer reference для точных XML enum/default/import semantics; он\n  является только справочным источником и не повышает trust level документов;\n',
+          )
+          replace_once(
+              'README_RU.md',
+              '- [XML compatibility matrix](docs/XML_COMPATIBILITY.md)\n',
+              '- [XML compatibility matrix](docs/XML_COMPATIBILITY.md)\n- [Serializer reference](docs/SERIALIZER_REFERENCE.md)\n',
+          )
+          replace_once(
+              'docs/XML_COMPATIBILITY.md',
+              '- [DipTrace plug-ins specification](https://diptrace.com/books/DipTrace_Plugins.pdf)\n',
+              '- [DipTrace plug-ins specification](https://diptrace.com/books/DipTrace_Plugins.pdf)\n- [Bundled serializer implementation reference](SERIALIZER_REFERENCE.md)\n\nThe bundled serializer reference is distilled from two user-supplied documentation archives and\ncontains source SHA-256 fingerprints, enums, defaults, omission rules, import semantics, and\nlegacy aliases. It is `reference-only`: the claimed serializer revision is not independently\nauthenticated and the reference cannot grant any DipTrace validation/trust level.\n',
+          )
+          replace_once(
+              'docs/XML_COMPATIBILITY.md',
+              '- Pattern pad styles, pads, holes, shapes, mask/paste metadata, and 3D references.\n',
+              '- Pattern pad styles, pads, holes, shapes, mask/paste metadata, and 3D references,\n  including fiducial keepout semantics, `-1000` mask/paste sentinels, D-shape preservation,\n  nested `Model3D/Filename` Path/Var, and documented legacy Component Editor aliases.\n',
+          )
+          replace_once(
+              'docs/XML_COMPATIBILITY.md',
+              '- Library mutation remains unavailable until writer round-trip fixtures exist.\n',
+              '- Library mutation remains unavailable until writer round-trip fixtures exist. The bundled\n  serializer reference constrains implementation but does not satisfy that evidence gate.\n',
+          )
+          replace_once(
+              'docs/DOMAIN_MODEL.md',
+              '- `LibraryModel`: components, pins, patterns, pad styles, pads, holes, shapes, and 3D references.\n',
+              '- `LibraryModel`: components, pins, patterns, pad styles, pads, holes, shapes, and 3D references.\n- `LibraryPadStyle` separates physical drill geometry from fiducial keepout diameter and normalizes\n  serializer sentinel/default behavior before mask/paste geometry is derived.\n',
+          )
+          replace_once(
+              'docs/TESTING.md',
+              '- normalized PCB, schematic, Component Library, and Pattern Library models;\n',
+              '- normalized PCB, schematic, Component Library, and Pattern Library models;\n- machine-readable serializer-reference schema/API plus regressions for fiducials, mask/paste\n  sentinels, D-shape geometry, Model3D Path/Var, and Component Editor legacy aliases;\n',
+          )
+          replace_once(
+              'docs/TESTING.md',
+              'A live acceptance test with DipTrace 5.3 separately verifies the source SHA guard, 41\n',
+              'The serializer reference improves deterministic parser coverage but is not a real-DipTrace\nfixture and does not close any open/save/re-export evidence gap.\n\nA live acceptance test with DipTrace 5.3 separately verifies the source SHA guard, 41\n',
+          )
+          replace_once(
+              'docs/ROADMAP.md',
+              '| 1 | complete v1 | PCB/schematic/library domain model, stable IDs, XML adapters, structured query |\n',
+              '| 1 | complete v1 | PCB/schematic/library domain model, stable IDs, XML adapters, structured query, reference-backed library normalization |\n',
+          )
+          replace_once(
+              'docs/ROADMAP.md',
+              '### Human-Guided Pattern Learning Roadmap\n',
+              '''## Serializer Reference Baseline — 2026-07-24\n\nThe two supplied documentation archives are integrated as a machine-readable, fingerprinted,\nreference-only serializer knowledge base. It constrains exact enums/defaults/omission/import\nsemantics and has regression coverage for parser corrections, but it is not a trusted fixture and\ndoes not unlock native library writers. Real DipTrace 5.3 controlled open/save/re-export evidence\nremains the writer gate.\n\n### Human-Guided Pattern Learning Roadmap\n''',
+          )
+
+          workflow = root / '.github/workflows/integrate-serializer-reference.yml'
+          workflow.unlink()
+          PY
+      - name: Install development dependencies
+        run: python -m pip install -e '.[dev,geometry]'
+      - name: Run complete validation gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q
+          python -m ruff check --no-cache src tests benchmarks scripts
+          python -m mypy --no-incremental src/diptrace_mcp
+          python scripts/generate_pcb_skills.py --check
+      - name: Commit clean integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          test ! -e .github/serializer-reference.part0
+          test ! -e .github/workflows/integrate-serializer-reference.yml
+          git status --short
+          git commit -m 'feat: integrate serializer reference and parser fixes'
+          git push origin HEAD:feat/serializer-reference
