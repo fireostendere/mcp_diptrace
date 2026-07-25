@@ -1,235 +1,240 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+from typing import Any
+
 from . import __version__
-from .adapters import capability_report
-from .capability_model import MAX_TRANSACTION_OPERATIONS, get_trust_model
+from .adapters import DocumentSnapshot, build_snapshot
+from .capability_model import (
+    MAX_TRANSACTION_OPERATIONS,
+    get_trust_model,
+    render_capability_tables,
+)
 from .domain import CapabilityReport
 from .geometry_backend import backend_report
 from .xml_document import DipTraceDocument
+
+_SUPPORTED_SOURCE_TYPES = [
+    "DipTrace-PCB",
+    "DipTrace-Schematic",
+    "DipTrace-ComponentLibrary",
+    "DipTrace-PatternLibrary",
+]
+_TESTED_VERSIONS = {
+    "DipTrace-PCB": ["4.3.0.3"],
+    "DipTrace-Schematic": ["4.3.0.3"],
+    "DipTrace-ComponentLibrary": ["4.3.0.1"],
+    "DipTrace-PatternLibrary": ["4.3.0.1"],
+}
+_DOCUMENTED_VERSIONS = {
+    "DipTrace-PCB": ["4.3.0.3"],
+    "DipTrace-Schematic": ["4.3.0.3"],
+    "DipTrace-ComponentLibrary": ["4.3.0.1", "5.3.0.0"],
+    "DipTrace-PatternLibrary": ["4.3.0.1", "5.3.0.0"],
+}
+
+
+def _source_type_payload(snapshot: DocumentSnapshot | None) -> dict[str, Any]:
+    return {
+        "supported": list(_SUPPORTED_SOURCE_TYPES),
+        "tested_versions": {key: list(value) for key, value in _TESTED_VERSIONS.items()},
+        "documented_versions": {
+            key: list(value) for key, value in _DOCUMENTED_VERSIONS.items()
+        },
+        "compatibility_policy": "feature_detected_preserve_unknown",
+        "note": (
+            "5.3.0.0 is the DipTrace application release and a documented library "
+            "format version; PCB/Schematic 5.3 round-trip requires a real export fixture. "
+            "Load a document for exact feature compatibility."
+        ),
+        "document": snapshot.info.source_type if snapshot is not None else None,
+        "kind": snapshot.info.kind if snapshot is not None else None,
+        "compatibility": snapshot.info.compatibility if snapshot is not None else None,
+    }
+
+
+def _external_adapters() -> dict[str, dict[str, object]]:
+    return {
+        "freerouting": {
+            "available": False,
+            "implemented": True,
+            "reason": "Runtime availability requires DIPTRACE_MCP_FREEROUTING.",
+        },
+        "ngspice": {
+            "available": False,
+            "implemented": True,
+            "reason": "Runtime availability requires DIPTRACE_MCP_NGSPICE or ngspice on PATH.",
+        },
+        "openems": {
+            "available": False,
+            "implemented": True,
+            "reason": "Runtime availability requires DIPTRACE_MCP_OPENEMS_RUNNER.",
+        },
+    }
+
+
+def _reasons_unavailable(
+    snapshot: DocumentSnapshot | None,
+    capability_tables: dict[str, dict[str, bool]],
+) -> list[dict[str, Any]]:
+    reasons: list[dict[str, Any]] = [
+        {
+            "feature": "preview_png",
+            "code": "capability_unavailable",
+            "message": "PNG rendering is unavailable; use SVG or JSON geometry.",
+        },
+        {
+            "feature": "external_autorouting",
+            "code": "external_tool_unavailable",
+            "message": "Freerouting adapter is implemented but no executable is configured.",
+        },
+        {
+            "feature": "global_placement",
+            "code": "capability_unavailable",
+            "message": "Only deterministic bounded local placement is implemented.",
+        },
+        {
+            "feature": "push_and_shove_routing",
+            "code": "capability_unavailable",
+            "message": (
+                "The local router is bounded 45-degree A*; rip-up/retry is "
+                "available via route_connections, push-and-shove is not implemented."
+            ),
+        },
+        {
+            "feature": "native_manufacturing_outputs",
+            "code": "capability_unavailable",
+            "message": "Gerber, NC drill, ODB++ and IPC-2581 generation is unavailable.",
+        },
+        {
+            "feature": "library_mutation",
+            "code": "capability_unavailable",
+            "message": "Component and pattern libraries are read/validate only.",
+        },
+        {
+            "feature": "plane_layer_routing",
+            "code": "capability_unavailable",
+            "message": (
+                "Trace routing on Plane layers is not supported. Only Signal layers "
+                "accept active trace segments. Through-via spans across Plane layers "
+                "are allowed."
+            ),
+        },
+        {
+            "feature": "ratline_format_verified",
+            "code": "not_diptrace_verified",
+            "message": (
+                "Ratline generation follows the DipTrace XML structure but has not "
+                "been verified by DipTrace open/save/re-export. Synthetic scaffolding "
+                "ratlines are experimental."
+            ),
+        },
+        {
+            "feature": "external_si_pi_solver",
+            "code": "external_tool_unavailable",
+            "message": (
+                "The ngspice batch adapter is implemented for user-supplied "
+                "netlists. The typed openEMS stripline adapter is implemented; "
+                "configure DIPTRACE_MCP_OPENEMS_RUNNER to enable it."
+            ),
+        },
+    ]
+    if (
+        snapshot is not None
+        and snapshot.board is not None
+        and len(snapshot.board.layers) > 1
+        and not capability_tables["experimental_capabilities"]["automatic_via_routing"]
+    ):
+        reasons.insert(
+            0,
+            {
+                "feature": "automatic_via_routing",
+                "code": "capability_unavailable",
+                "message": "No via style has valid geometry and a resolvable Lay1/Lay2 span.",
+            },
+        )
+    return reasons
+
+
+def capability_report(
+    snapshot: DocumentSnapshot | None,
+    *,
+    workflow_prompt_names: Iterable[str] = (),
+    document_trust: dict[str, Any] | None = None,
+) -> CapabilityReport:
+    """Render capability state from an existing snapshot or server-only context."""
+
+    from .review import registry
+
+    capability_tables = render_capability_tables(snapshot)
+    document_kind = snapshot.document.kind if snapshot is not None else None
+    trust_context: dict[str, Any] | None = None
+    if snapshot is not None:
+        trust_context = {
+            "kind": snapshot.document.kind,
+            "sha256": snapshot.info.sha256,
+            "path": snapshot.info.path,
+            "live_session": snapshot.info.live_session,
+            "validation_level": None,
+            "trust_authority": None,
+            "requires_diptrace_verification": None,
+            "evidence_manifest_path": None,
+            "evidence_manifest_sha256": None,
+            "warnings": [],
+            **(document_trust or {}),
+        }
+    return CapabilityReport(
+        server_version=__version__,
+        source_types=_source_type_payload(snapshot),
+        read_capabilities=capability_tables["read_capabilities"],
+        write_capabilities=capability_tables["write_capabilities"],
+        experimental_capabilities=capability_tables["experimental_capabilities"],
+        external_adapters=_external_adapters(),
+        geometry_backend=backend_report(),
+        preview_formats=["svg", "json", "diff"],
+        limits={
+            "max_document_bytes": None,
+            "max_external_log_bytes": None,
+            "max_external_result_bytes": None,
+            "max_query_results": 500,
+            "max_transaction_operations": MAX_TRANSACTION_OPERATIONS,
+        },
+        policy={
+            "active_profile": None,
+            "allows_preview": None,
+            "allows_commit": None,
+            "allows_external_execution": None,
+            "default_write_mode": "dry_run",
+            "rollback_supported": True,
+            "conflict_safe_rollback": True,
+            "explicit_sha_on_commit": True,
+            "preserve_unknown_xml": True,
+        },
+        reasons_unavailable=_reasons_unavailable(snapshot, capability_tables),
+        registered_checks=registry.ids(),
+        workflow_prompts=[
+            {"name": name, "status": "available"}
+            for name in sorted(set(workflow_prompt_names))
+        ],
+        trust_model=get_trust_model(
+            document_kind=document_kind,
+            document_trust=trust_context,
+        ),
+    )
 
 
 def get_capabilities(
     document: DipTraceDocument | None = None,
     *,
     live_session: bool = False,
+    workflow_prompt_names: Iterable[str] = (),
 ) -> CapabilityReport:
-    from .review import registry
+    """Build at most one snapshot, then render the shared capability model."""
 
-    if document is None:
-        return CapabilityReport(
-            server_version=__version__,
-            source_types={
-                "supported": [
-                    "DipTrace-PCB",
-                    "DipTrace-Schematic",
-                    "DipTrace-ComponentLibrary",
-                    "DipTrace-PatternLibrary",
-                ],
-                "tested_versions": {
-                    "DipTrace-PCB": ["4.3.0.3"],
-                    "DipTrace-Schematic": ["4.3.0.3"],
-                    "DipTrace-ComponentLibrary": ["4.3.0.1"],
-                    "DipTrace-PatternLibrary": ["4.3.0.1"],
-                },
-                "documented_versions": {
-                    "DipTrace-PCB": ["4.3.0.3"],
-                    "DipTrace-Schematic": ["4.3.0.3"],
-                    "DipTrace-ComponentLibrary": ["4.3.0.1", "5.3.0.0"],
-                    "DipTrace-PatternLibrary": ["4.3.0.1", "5.3.0.0"],
-                },
-                "compatibility_policy": "feature_detected_preserve_unknown",
-                "note": (
-                    "5.3.0.0 is the DipTrace application release and a documented library "
-                    "format version; PCB/Schematic 5.3 round-trip requires a real export fixture. "
-                    "Load a document for exact feature compatibility."
-                ),
-            },
-            read_capabilities={
-                "document_info": True,
-                "board_model": True,
-                "schematic_model": True,
-                "library_models": True,
-                "library_validation": True,
-                "query_objects": True,
-                "connectivity_graph": True,
-                "bom": True,
-                "structured_findings": True,
-                "offline_review": True,
-                "manufacturing_review": True,
-                "assembly_review": True,
-                "testability_review": True,
-                "return_path_heuristics": True,
-                "copper_pour_boundaries": True,
-                "silkscreen_planning": True,
-                "placement_analysis": True,
-                "placement_scoring": True,
-                "local_placement_candidates": True,
-                "unrouted_connections": True,
-                "route_details": True,
-                "physical_stackup": True,
-                "net_length_measurement": True,
-                "differential_pair_analysis": True,
-                "analytical_microstrip_impedance": True,
-                "analytical_differential_microstrip_impedance": True,
-                "analytical_symmetric_stripline_impedance": True,
-                "local_45_degree_routing": True,
-                "multilayer_local_routing": True,
-                "coupled_diff_pair_routing": True,
-                "autorouter_ses_inspection": True,
-                "external_jobs": True,
-            },
-            write_capabilities={
-                "apply_xml_edits": True,
-                "transactions": True,
-                "document_creation": True,
-                "schematic_authoring": True,
-                "schematic_to_pcb_sync": True,
-                "panelization": True,
-                "move_components": True,
-                "rotate_components": True,
-                "set_component_side": True,
-                "lock_components": True,
-                "set_component_value": True,
-                "set_component_properties": True,
-                "set_component_pattern": True,
-                "align_distribute_components": True,
-                "component_groups": True,
-                "board_text_edits": True,
-                "set_pin_no_connect": True,
-                "rename_net": True,
-                "net_class_rules": True,
-                "testpoints": True,
-                "apply_silkscreen_plan": True,
-                "apply_component_placement_plan": True,
-                "trace_primitives": True,
-                "via_primitives": True,
-                "apply_route_plan": True,
-                "route_diff_pair": True,
-                "bom_export": True,
-                "fabrication_manifest_export": True,
-                "assembly_manifest_export": True,
-                "autorouter_dsn_export": False,
-                "autorouter_ses_import": True,
-            },
-            experimental_capabilities={
-                "global_placement": False,
-                "push_and_shove_routing": False,
-                "rip_up_retry_routing": True,
-                "automatic_via_routing": True,
-                "coupled_diff_pair_routing": True,
-                "testpoint_candidate_accessibility": True,
-                "symmetric_stripline_impedance": True,
-                "differential_impedance": True,
-                "return_path_heuristics": True,
-            },
-            external_adapters={
-                "freerouting": {
-                    "available": False,
-                    "implemented": True,
-                    "reason": "Runtime availability requires DIPTRACE_MCP_FREEROUTING.",
-                },
-                "ngspice": {
-                    "available": False,
-                    "implemented": True,
-                    "reason": (
-                        "Runtime availability requires DIPTRACE_MCP_NGSPICE or ngspice on PATH."
-                    ),
-                },
-                "openems": {
-                    "available": False,
-                    "implemented": True,
-                    "reason": "Runtime availability requires DIPTRACE_MCP_OPENEMS_RUNNER.",
-                },
-            },
-            geometry_backend=backend_report(),
-            preview_formats=["svg", "json", "diff"],
-            limits={
-                "max_transaction_operations": MAX_TRANSACTION_OPERATIONS,
-                "max_query_results": 500,
-            },
-            policy={
-                "active_profile": "interactive_edit",
-                "default_write_mode": "dry_run",
-                "explicit_sha_on_commit": True,
-                "conflict_safe_rollback": True,
-            },
-            reasons_unavailable=[
-                {
-                    "feature": "preview_png",
-                    "code": "capability_unavailable",
-                    "message": "PNG rendering is unavailable; use SVG or JSON geometry.",
-                },
-                {
-                    "feature": "global_placement",
-                    "code": "capability_unavailable",
-                    "message": "Only deterministic bounded local placement is implemented.",
-                },
-                {
-                    "feature": "push_and_shove_routing",
-                    "code": "capability_unavailable",
-                    "message": (
-                        "The local router is bounded 45-degree A*; rip-up/retry is "
-                        "available via route_connections, push-and-shove is not implemented."
-                    ),
-                },
-                {
-                    "feature": "native_manufacturing_outputs",
-                    "code": "capability_unavailable",
-                    "message": "Gerber, NC drill, ODB++ and IPC-2581 generation is unavailable.",
-                },
-                {
-                    "feature": "library_mutation",
-                    "code": "capability_unavailable",
-                    "message": "Component and pattern libraries are read/validate only.",
-                },
-                {
-                    "feature": "plane_layer_routing",
-                    "code": "capability_unavailable",
-                    "message": (
-                        "Trace routing on Plane layers is not supported. Only Signal layers "
-                        "accept active trace segments. Through-via spans across Plane layers "
-                        "are allowed."
-                    ),
-                },
-                {
-                    "feature": "ratline_format_verified",
-                    "code": "not_diptrace_verified",
-                    "message": (
-                        "Ratline generation follows the DipTrace XML structure but has not "
-                        "been verified by DipTrace open/save/re-export. Synthetic scaffolding "
-                        "ratlines are experimental."
-                    ),
-                },
-                {
-                    "feature": "external_si_pi_solver",
-                    "code": "external_tool_unavailable",
-                    "message": (
-                        "The ngspice batch adapter is implemented for user-supplied "
-                        "netlists. The typed openEMS stripline adapter is implemented; "
-                        "configure DIPTRACE_MCP_OPENEMS_RUNNER to enable it."
-                    ),
-                },
-            ],
-            registered_checks=registry.ids(),
-            workflow_prompts=[
-                {"name": name, "status": "available"}
-                for name in (
-                    "review_board_before_release",
-                    "review_schematic_before_layout",
-                    "place_selected_components_safely",
-                    "place_decoupling_network",
-                    "route_critical_net",
-                    "route_diff_pair_with_constraints",
-                    "clean_silkscreen_for_manufacturing",
-                    "add_testpoints_for_fixture",
-                    "review_return_paths",
-                    "prepare_fabrication_export",
-                    "prepare_assembly_export",
-                    "review_bom",
-                    "compare_schematic_and_pcb",
-                    "synchronize_schematic_to_pcb",
-                )
-            ],
-            trust_model=get_trust_model(),
-        )
-    return capability_report(document, live_session=live_session)
+    snapshot = (
+        build_snapshot(document, live_session=live_session) if document is not None else None
+    )
+    return capability_report(
+        snapshot,
+        workflow_prompt_names=workflow_prompt_names,
+    )

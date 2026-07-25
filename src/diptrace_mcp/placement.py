@@ -25,6 +25,7 @@ from .operations import (
 )
 
 Side = Literal["Top", "Bottom"]
+_MM_FIELD_DESCRIPTION = "Distance in millimetres."
 
 
 class PlacementWeights(StrictModel):
@@ -42,11 +43,17 @@ class PlacementConfig(StrictModel):
     region: dict[str, float] | None = None
     allowed_sides: list[Literal["Top", "Bottom"]] = Field(default_factory=list)
     allowed_rotations: list[float] = Field(default_factory=list, max_length=16)
-    grid: float = Field(default=0.5, gt=0.0, le=100.0)
+    grid: float = Field(
+        default=0.5, gt=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION
+    )
     search_steps: int = Field(default=8, ge=1, le=100)
     max_candidates_per_component: int = Field(default=256, ge=1, le=512)
-    spacing: float = Field(default=0.2, ge=0.0, le=100.0)
-    board_edge_clearance: float = Field(default=0.5, ge=0.0, le=100.0)
+    spacing: float = Field(
+        default=0.2, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION
+    )
+    board_edge_clearance: float = Field(
+        default=0.5, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION
+    )
     deterministic_seed: int = 0
     time_budget_ms: int = Field(default=5_000, ge=100, le=30_000)
     respect_keepouts: bool = True
@@ -80,8 +87,8 @@ class PlacementPlanningResult:
 
 class PlacementProposal(StrictModel):
     object_id: str
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     side: Side | None = None
     rotation_deg: float | None = Field(default=None, allow_inf_nan=False)
 

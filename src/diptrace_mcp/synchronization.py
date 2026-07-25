@@ -12,6 +12,8 @@ from .geometry import to_mm
 from .operations import SyncSchematicToPcbOperation
 from .xml_document import DipTraceDocument
 
+_MM_FIELD_DESCRIPTION = "Distance in millimetres."
+
 
 class PinPadAssignment(StrictModel):
     part_id: str = Field(min_length=1, max_length=512)
@@ -24,8 +26,12 @@ class ComponentSyncMapping(StrictModel):
     pattern_style: str | None = Field(default=None, min_length=1, max_length=1_000)
     pad_numbers: list[str] = Field(default_factory=list, max_length=10_000)
     pin_map: list[PinPadAssignment] = Field(default_factory=list, max_length=100_000)
-    x: float | None = Field(default=None, allow_inf_nan=False)
-    y: float | None = Field(default=None, allow_inf_nan=False)
+    x: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    y: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
     side: Literal["Top", "Bottom"] = "Top"
 
     @model_validator(mode="after")
@@ -42,10 +48,18 @@ class ComponentSyncMapping(StrictModel):
 
 
 class SyncPlacement(StrictModel):
-    origin_x: float | None = Field(default=None, allow_inf_nan=False)
-    origin_y: float | None = Field(default=None, allow_inf_nan=False)
-    pitch_x: float = Field(default=10.0, gt=0.0, allow_inf_nan=False)
-    pitch_y: float = Field(default=10.0, gt=0.0, allow_inf_nan=False)
+    origin_x: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    origin_y: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    pitch_x: float = Field(
+        default=10.0, gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    pitch_y: float = Field(
+        default=10.0, gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
     columns: int = Field(default=8, ge=1, le=1_000)
 
 

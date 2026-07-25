@@ -4,13 +4,14 @@ import math
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .capability_model import MAX_TRANSACTION_OPERATIONS
 
 StableId = str
+_MM_FIELD_DESCRIPTION = "Distance in millimetres."
 SourceType = Literal[
     "DipTrace-PCB",
     "DipTrace-Schematic",
@@ -1030,6 +1031,24 @@ class LibraryModel(StrictModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+MillimetreCoordinate = Annotated[
+    float,
+    Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION),
+]
+
+
+class SelectorBBox(TypedDict):
+    min_x: MillimetreCoordinate
+    min_y: MillimetreCoordinate
+    max_x: MillimetreCoordinate
+    max_y: MillimetreCoordinate
+
+
+class SelectorNear(TypedDict):
+    x: MillimetreCoordinate
+    y: MillimetreCoordinate
+
+
 class QuerySelector(StrictModel):
     ids: list[str] = Field(default_factory=list, max_length=1_000)
     kinds: list[str] = Field(default_factory=list, max_length=100)
@@ -1046,9 +1065,11 @@ class QuerySelector(StrictModel):
     text: str | None = Field(default=None, max_length=1_000)
     selected: bool | None = None
     locked: bool | None = None
-    bbox: dict[str, float] | None = None
-    near: dict[str, float] | None = None
-    max_distance: float | None = Field(default=None, ge=0.0)
+    bbox: SelectorBBox | None = None
+    near: SelectorNear | None = None
+    max_distance: float | None = Field(
+        default=None, ge=0.0, description=_MM_FIELD_DESCRIPTION
+    )
 
     @field_validator("refdes_regex", "name_regex")
     @classmethod
@@ -1060,15 +1081,17 @@ class QuerySelector(StrictModel):
                 raise ValueError(f"invalid regular expression: {exc}") from exc
         return value
 
-    @field_validator("bbox")
+    @field_validator("bbox", mode="before")
     @classmethod
-    def validate_bbox(cls, value: dict[str, float] | None) -> dict[str, float] | None:
+    def validate_bbox(cls, value: Any) -> Any:
         return ObjectRecord.validate_bbox(value)
 
-    @field_validator("near")
+    @field_validator("near", mode="before")
     @classmethod
-    def validate_near(cls, value: dict[str, float] | None) -> dict[str, float] | None:
-        if value is not None and set(value) != {"x", "y"}:
+    def validate_near(cls, value: Any) -> Any:
+        if value is not None and (
+            not isinstance(value, dict) or set(value) != {"x", "y"}
+        ):
             raise ValueError("near must contain exactly x and y")
         return value
 
@@ -1283,11 +1306,22 @@ ImpedanceStructure = Literal[
 
 class ImpedanceInput(StrictModel):
     structure: ImpedanceStructure
-    width_mm: float = Field(gt=0.0, allow_inf_nan=False)
-    copper_thickness_mm: float = Field(ge=0.0, allow_inf_nan=False)
-    dielectric_height_mm: float = Field(gt=0.0, allow_inf_nan=False)
+    width_mm: float = Field(
+        gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    copper_thickness_mm: float = Field(
+        ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    dielectric_height_mm: float = Field(
+        gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
     dielectric_constant: float = Field(gt=1.0, allow_inf_nan=False)
-    gap_mm: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    gap_mm: float | None = Field(
+        default=None,
+        gt=0.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
     frequency_hz: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
     target_ohm: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
     tolerance_ohm: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
@@ -1321,15 +1355,28 @@ class FieldSolverRequest(StrictModel):
 
     schema_version: Literal["diptrace-field-solver-request-v1"] = "diptrace-field-solver-request-v1"
     structure: Literal["stripline"] = "stripline"
-    width_mm: float = Field(gt=0.0, allow_inf_nan=False)
-    copper_thickness_mm: float = Field(gt=0.0, allow_inf_nan=False)
-    lower_dielectric_height_mm: float = Field(gt=0.0, allow_inf_nan=False)
-    upper_dielectric_height_mm: float = Field(gt=0.0, allow_inf_nan=False)
+    width_mm: float = Field(
+        gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    copper_thickness_mm: float = Field(
+        gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    lower_dielectric_height_mm: float = Field(
+        gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    upper_dielectric_height_mm: float = Field(
+        gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
     dielectric_constant: float = Field(gt=1.0, allow_inf_nan=False)
     dielectric_loss_tangent: float = Field(default=0.0, ge=0.0, lt=1.0, allow_inf_nan=False)
     conductor_conductivity_s_per_m: float = Field(default=58_000_000.0, gt=0.0, allow_inf_nan=False)
     frequencies_hz: list[float] = Field(min_length=1, max_length=1001)
-    trace_length_mm: float = Field(default=20.0, gt=0.0, allow_inf_nan=False)
+    trace_length_mm: float = Field(
+        default=20.0,
+        gt=0.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
     port_impedance_ohm: float = Field(default=50.0, gt=0.0, allow_inf_nan=False)
     mesh_cells_per_wavelength: int = Field(default=30, ge=10, le=100)
 

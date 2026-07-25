@@ -4,6 +4,7 @@ import pytest
 
 from diptrace_mcp.config import PolicyProfile, Settings
 from diptrace_mcp.errors import PolicyDeniedError
+from diptrace_mcp.policy import Policy
 from diptrace_mcp.service import DipTraceService
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -47,3 +48,12 @@ def test_read_only_policy_denies_semantic_preview(tmp_path: Path) -> None:
         )
 
     assert error.value.payload.details["active_profile"] == "read_only"
+
+
+def test_policy_capabilities_only_advertise_enforced_gates() -> None:
+    assert Policy("manufacturing").capability_payload() == {
+        "active_profile": "manufacturing",
+        "allows_preview": True,
+        "allows_commit": True,
+        "allows_external_execution": True,
+    }

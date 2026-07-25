@@ -176,7 +176,3 @@ class InsufficientStackupDataError(DipTraceMcpError):
 
 class SolverRequiredError(DipTraceMcpError):
     code = "solver_required"
-
-
-def error_response(error: DipTraceMcpError) -> dict[str, Any]:
-    return {"ok": False, "error": error.payload.as_dict()}

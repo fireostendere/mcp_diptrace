@@ -11,7 +11,8 @@ report keyed by document SHA.
 - STRtree-filtered trace-to-pad and trace-to-via clearance using exact Shapely shape distance;
 - via drill size and annular ring;
 - unrouted nets and dangling or useless trace topology;
-- silkscreen overlap and silkscreen-to-pad clearance when geometry is available;
+- silkscreen overlap; silkscreen-to-pad clearance is not implemented and is reported as
+  a structured `not_implemented` skip;
 - stackup completeness and differential-pair rules;
 - test-point coverage;
 - BOM identity, assembly pattern geometry, and explicit thermal metadata.

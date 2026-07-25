@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .domain import QuerySelector, StrictModel
 from .xml_document import reject_forbidden_xml_declarations
+
+_MM_FIELD_DESCRIPTION = "Distance in millimetres."
 
 
 class SemanticOperation(StrictModel):
@@ -18,12 +20,21 @@ class SelectorOperation(SemanticOperation):
 
 class MoveComponentsOperation(SelectorOperation):
     kind: Literal["move_components"] = "move_components"
-    dx: float = Field(default=0.0, allow_inf_nan=False)
-    dy: float = Field(default=0.0, allow_inf_nan=False)
-    absolute_x: float | None = Field(default=None, allow_inf_nan=False)
-    absolute_y: float | None = Field(default=None, allow_inf_nan=False)
+    dx: float = Field(default=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    dy: float = Field(default=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    absolute_x: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    absolute_y: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
     anchor: Literal["center", "origin"] = "center"
-    grid_snap: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    grid_snap: float | None = Field(
+        default=None,
+        gt=0.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
     allow_locked: bool = False
 
     @model_validator(mode="after")
@@ -98,10 +109,14 @@ class UngroupComponentsOperation(SelectorOperation):
 
 class MoveBoardTextsOperation(SelectorOperation):
     kind: Literal["move_board_texts"] = "move_board_texts"
-    dx: float = Field(default=0.0, allow_inf_nan=False)
-    dy: float = Field(default=0.0, allow_inf_nan=False)
-    absolute_x: float | None = Field(default=None, allow_inf_nan=False)
-    absolute_y: float | None = Field(default=None, allow_inf_nan=False)
+    dx: float = Field(default=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    dy: float = Field(default=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    absolute_x: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    absolute_y: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
     allow_locked: bool = False
 
     @model_validator(mode="after")
@@ -127,7 +142,9 @@ class SetTextVisibilityOperation(SelectorOperation):
 class SetTextStyleOperation(SelectorOperation):
     kind: Literal["set_text_style"] = "set_text_style"
     font_size: int | None = Field(default=None, ge=1, le=1_000)
-    font_width: float | None = Field(default=None, allow_inf_nan=False)
+    font_width: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
     horizontal_align: Literal["Left", "Center", "Right"] | None = None
     vertical_align: Literal["Top", "Center", "Bottom"] | None = None
     mirrored: bool | None = None
@@ -163,17 +180,37 @@ class UpdateNetClassRulesOperation(SemanticOperation):
     kind: Literal["update_net_class_rules"] = "update_net_class_rules"
     class_name: str = Field(min_length=1, max_length=256)
     layer: str | None = Field(default=None, max_length=256)
-    width: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
-    min_width: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
-    max_width: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
-    clearance: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
-    neck_width: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
-    differential_gap: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
-    max_uncoupled_length: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
-    tolerance: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+    width: float | None = Field(
+        default=None, gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    min_width: float | None = Field(
+        default=None, gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    max_width: float | None = Field(
+        default=None, gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    clearance: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    neck_width: float | None = Field(
+        default=None, gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    differential_gap: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    max_uncoupled_length: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    tolerance: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
     check_length: bool | None = None
-    fixed_length: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
-    length_delta: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+    fixed_length: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    length_delta: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
 
     @model_validator(mode="after")
     def validate_rules(self) -> UpdateNetClassRulesOperation:
@@ -213,11 +250,18 @@ class AssignNetsToClassOperation(SelectorOperation):
 class AddTestpointOperation(SemanticOperation):
     kind: Literal["add_testpoint"] = "add_testpoint"
     net: str = Field(min_length=1, max_length=1_000)
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     side: Literal["Top", "Bottom"] = "Top"
-    pad_diameter: float = Field(gt=0.0, allow_inf_nan=False)
-    hole_diameter: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    pad_diameter: float = Field(
+        gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    hole_diameter: float = Field(
+        default=0.0,
+        ge=0.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
     refdes: str | None = Field(default=None, pattern=r"^TP[A-Za-z0-9_.-]*$", max_length=256)
 
     @model_validator(mode="after")
@@ -229,11 +273,20 @@ class AddTestpointOperation(SemanticOperation):
 
 class MoveTestpointsOperation(SelectorOperation):
     kind: Literal["move_testpoints"] = "move_testpoints"
-    dx: float = Field(default=0.0, allow_inf_nan=False)
-    dy: float = Field(default=0.0, allow_inf_nan=False)
-    absolute_x: float | None = Field(default=None, allow_inf_nan=False)
-    absolute_y: float | None = Field(default=None, allow_inf_nan=False)
-    grid_snap: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    dx: float = Field(default=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    dy: float = Field(default=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    absolute_x: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    absolute_y: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    grid_snap: float | None = Field(
+        default=None,
+        gt=0.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
     allow_locked: bool = False
 
     @model_validator(mode="after")
@@ -249,10 +302,12 @@ class RemoveTestpointsOperation(SelectorOperation):
 
 
 class TracePathPoint(StrictModel):
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     layer: str | None = Field(default=None, min_length=1, max_length=256)
-    width: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    width: float | None = Field(
+        default=None, gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
     via_style: str | None = Field(default=None, min_length=1, max_length=256)
 
 
@@ -263,8 +318,10 @@ class AddTraceOperation(SemanticOperation):
     end_object_id: str = Field(min_length=1)
     points: list[TracePathPoint] = Field(min_length=2, max_length=10_000)
     layer: str = Field(min_length=1, max_length=256)
-    width: float = Field(gt=0.0, allow_inf_nan=False)
-    clearance: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+    width: float = Field(gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    clearance: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
 
     @model_validator(mode="after")
     def validate_path(self) -> AddTraceOperation:
@@ -279,14 +336,14 @@ class AddTraceOperation(SemanticOperation):
 
 
 class DifferentialPairCenterPoint(StrictModel):
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     layer: str = Field(min_length=1, max_length=256)
     via_style: str | None = Field(default=None, min_length=1, max_length=256)
-    positive_dx: float = Field(allow_inf_nan=False)
-    positive_dy: float = Field(allow_inf_nan=False)
-    negative_dx: float = Field(allow_inf_nan=False)
-    negative_dy: float = Field(allow_inf_nan=False)
+    positive_dx: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    positive_dy: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    negative_dx: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    negative_dy: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
 
 
 class AddDifferentialPairRouteOperation(SemanticOperation):
@@ -306,8 +363,10 @@ class AddDifferentialPairRouteOperation(SemanticOperation):
     start_pad_point_id: str = Field(min_length=1, max_length=256)
     end_pad_point_id: str = Field(min_length=1, max_length=256)
     layer: str = Field(min_length=1, max_length=256)
-    width: float = Field(gt=0.0, allow_inf_nan=False)
-    clearance: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+    width: float = Field(gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    clearance: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
 
     @model_validator(mode="after")
     def validate_coupled_paths(self) -> AddDifferentialPairRouteOperation:
@@ -328,8 +387,10 @@ class ReplaceTraceOperation(SemanticOperation):
     trace_id: str = Field(min_length=1)
     points: list[TracePathPoint] = Field(min_length=2, max_length=10_000)
     layer: str = Field(min_length=1, max_length=256)
-    width: float = Field(gt=0.0, allow_inf_nan=False)
-    clearance: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+    width: float = Field(gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    clearance: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
 
 
 class DeleteTraceOperation(SelectorOperation):
@@ -339,7 +400,7 @@ class DeleteTraceOperation(SelectorOperation):
 
 class SetTraceWidthOperation(SelectorOperation):
     kind: Literal["set_trace_width"] = "set_trace_width"
-    width: float = Field(gt=0.0, allow_inf_nan=False)
+    width: float = Field(gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     segment_indices: list[int] = Field(default_factory=list, max_length=10_000)
 
     @field_validator("segment_indices")
@@ -353,8 +414,8 @@ class SetTraceWidthOperation(SelectorOperation):
 class AddViaOperation(SemanticOperation):
     kind: Literal["add_via"] = "add_via"
     trace_id: str = Field(min_length=1)
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     via_style: str = Field(min_length=1, max_length=256)
     layer_before: str | None = Field(default=None, min_length=1, max_length=256)
     layer_after: str | None = Field(default=None, min_length=1, max_length=256)
@@ -362,10 +423,14 @@ class AddViaOperation(SemanticOperation):
 
 class MoveViaOperation(SelectorOperation):
     kind: Literal["move_via"] = "move_via"
-    dx: float = Field(default=0.0, allow_inf_nan=False)
-    dy: float = Field(default=0.0, allow_inf_nan=False)
-    absolute_x: float | None = Field(default=None, allow_inf_nan=False)
-    absolute_y: float | None = Field(default=None, allow_inf_nan=False)
+    dx: float = Field(default=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    dy: float = Field(default=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    absolute_x: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    absolute_y: float | None = Field(
+        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
 
     @model_validator(mode="after")
     def reject_noop(self) -> MoveViaOperation:
@@ -395,8 +460,8 @@ class PlacePartOperation(SemanticOperation):
     refdes: str = Field(min_length=1, max_length=256)
     name: str | None = Field(default=None, max_length=1_000)
     value: str = Field(default="", max_length=4_096)
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     sheet: int = Field(default=0, ge=0)
     pin_count: int = Field(ge=0, le=10_000)
     angle_deg: float = Field(default=0.0, allow_inf_nan=False)
@@ -412,8 +477,8 @@ class PcbSyncComponent(StrictModel):
     name: str = Field(default="", max_length=1_000)
     value: str = Field(default="", max_length=4_096)
     pattern_style: str = Field(min_length=1, max_length=1_000)
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     side: Literal["Top", "Bottom"] = "Top"
     pad_numbers: list[str] = Field(min_length=1, max_length=10_000)
     fields: dict[str, str] = Field(default_factory=dict)
@@ -517,8 +582,8 @@ class WireEndpoint(StrictModel):
 
 
 class WirePathPoint(StrictModel):
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
 
 
 class AddWireOperation(SemanticOperation):
@@ -538,8 +603,8 @@ class DeleteWireOperation(SelectorOperation):
 class AddNetLabelOperation(SemanticOperation):
     kind: Literal["add_net_label"] = "add_net_label"
     net: str = Field(min_length=1, max_length=1_000)
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     sheet: int = Field(default=0, ge=0)
     text: str | None = Field(default=None, min_length=1, max_length=1_000)
     font_size: int = Field(default=10, ge=1, le=1_000)
@@ -550,20 +615,104 @@ class SetPanelizationOperation(SemanticOperation):
     panel_type: Literal["V-Scoring", "Tab Routing"] = "V-Scoring"
     columns: int = Field(default=2, ge=1, le=100)
     rows: int = Field(default=1, ge=1, le=100)
-    column_spacing: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
-    row_spacing: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
-    rail_left: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
-    rail_right: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
-    rail_top: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
-    rail_bottom: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
-    tab_width: float = Field(default=13.5, gt=0.0, le=500.0, allow_inf_nan=False)
-    tab_radius: float = Field(default=3.6, ge=0.0, le=100.0, allow_inf_nan=False)
-    tab_step: float = Field(default=225.0, gt=0.0, le=10_000.0, allow_inf_nan=False)
-    hole_diameter: float = Field(default=2.4, gt=0.0, le=100.0, allow_inf_nan=False)
-    hole_step: float = Field(default=3.6, gt=0.0, le=1_000.0, allow_inf_nan=False)
-    hole_inset: float = Field(default=0.0, ge=0.0, le=500.0, allow_inf_nan=False)
-    hole_keepout: float = Field(default=3.0, ge=0.0, le=500.0, allow_inf_nan=False)
-    combined_radius: float = Field(default=1.5, ge=0.0, le=100.0, allow_inf_nan=False)
+    column_spacing: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=500.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    row_spacing: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=500.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    rail_left: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=500.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    rail_right: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=500.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    rail_top: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=500.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    rail_bottom: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=500.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    tab_width: float = Field(
+        default=13.5,
+        gt=0.0,
+        le=500.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    tab_radius: float = Field(
+        default=3.6,
+        ge=0.0,
+        le=100.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    tab_step: float = Field(
+        default=225.0,
+        gt=0.0,
+        le=10_000.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    hole_diameter: float = Field(
+        default=2.4,
+        gt=0.0,
+        le=100.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    hole_step: float = Field(
+        default=3.6,
+        gt=0.0,
+        le=1_000.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    hole_inset: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=500.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    hole_keepout: float = Field(
+        default=3.0,
+        ge=0.0,
+        le=500.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    combined_radius: float = Field(
+        default=1.5,
+        ge=0.0,
+        le=100.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
     keep_material: bool = False
     border_tabs: Literal[0, 1, 2] = 0
 
@@ -613,6 +762,62 @@ _OPERATION_TYPES: dict[str, type[SemanticOperation]] = {
     "set_panelization": SetPanelizationOperation,
     "clear_panelization": ClearPanelizationOperation,
 }
+
+OperationKind = Literal[
+    "move_components",
+    "rotate_components",
+    "set_component_side",
+    "set_component_lock",
+    "set_component_value",
+    "set_component_properties",
+    "set_component_pattern",
+    "group_components",
+    "ungroup_components",
+    "move_board_texts",
+    "rotate_board_texts",
+    "set_text_visibility",
+    "set_text_style",
+    "set_pin_no_connect",
+    "rename_net",
+    "update_net_class_rules",
+    "assign_nets_to_class",
+    "add_testpoint",
+    "move_testpoints",
+    "remove_testpoints",
+    "add_trace",
+    "add_differential_pair_route",
+    "replace_trace",
+    "delete_trace",
+    "set_trace_width",
+    "add_via",
+    "move_via",
+    "delete_via",
+    "set_via_style",
+    "add_sheet",
+    "place_part",
+    "sync_schematic_to_pcb",
+    "connect_pins",
+    "disconnect_pins",
+    "add_wire",
+    "delete_wire",
+    "add_net_label",
+    "set_panelization",
+    "clear_panelization",
+]
+
+
+class StagedOperationInput(BaseModel):
+    """Schema envelope that publishes the registry discriminator without narrowing payloads."""
+
+    model_config = ConfigDict(extra="allow")
+
+    kind: OperationKind
+
+
+def semantic_operation_kinds() -> tuple[str, ...]:
+    """Return the operation registry keys used by parser and public schema parity tests."""
+
+    return tuple(_OPERATION_TYPES)
 
 
 def parse_semantic_operations(payload: list[dict[str, Any]]) -> list[SemanticOperation]:

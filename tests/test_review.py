@@ -162,14 +162,14 @@ def test_review_service_persists_report_and_resources(tmp_path: Path) -> None:
     summary = result["result"]["summary"]
     assert summary["finding_count"] == 8
     assert summary["by_severity"]["error"] == 1
-    assert summary["completeness"] == 14 / 17
+    assert summary["completeness"] == 14 / 16
     assert result["result"]["skipped_checks"] == [
         {"check_id": "pcb.trace_board_edge", "reason": "trace_to_board_rules_unavailable"},
         {
             "check_id": "pcb.thermal_metadata",
             "reason": "explicit_component_power_metadata_unavailable",
         },
-        {"check_id": "pcb.silk_to_pad", "reason": "pad_geometry_unavailable"}
+        {"check_id": "pcb.silk_to_pad", "reason": "not_implemented"},
     ]
     report_id = summary["report_id"]
     finding_id = next(
@@ -184,3 +184,20 @@ def test_review_service_persists_report_and_resources(tmp_path: Path) -> None:
     resource = service.review_resource(report_id)
     assert report_id in resource
     assert "pcb.unrouted_net" in resource
+
+
+def test_review_discloses_unimplemented_silk_to_pad_with_pad_geometry(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    board = workspace / "board.xml"
+    shutil.copyfile(FIXTURES / "exact_geometry_pcb.xml", board)
+    service = _service(workspace, tmp_path / "state")
+
+    result = service.run_review(str(board), profile="board_review")
+
+    assert "pcb.silk_to_pad" not in registry.ids()
+    assert {"check_id": "pcb.silk_to_pad", "reason": "not_implemented"} in result[
+        "result"
+    ]["skipped_checks"]

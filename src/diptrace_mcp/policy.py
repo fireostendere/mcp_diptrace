@@ -22,10 +22,6 @@ class Policy:
     def allows_external_execution(self) -> bool:
         return self.profile in {"interactive_edit", "automation", "manufacturing"}
 
-    @property
-    def allows_manufacturing_export(self) -> bool:
-        return self.profile == "manufacturing"
-
     def require_write(self, *, dry_run: bool, operation: str) -> None:
         allowed = self.allows_preview if dry_run else self.allows_commit
         if allowed:
@@ -54,5 +50,4 @@ class Policy:
             "allows_preview": self.allows_preview,
             "allows_commit": self.allows_commit,
             "allows_external_execution": self.allows_external_execution,
-            "allows_manufacturing_export": self.allows_manufacturing_export,
         }

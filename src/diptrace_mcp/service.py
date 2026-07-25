@@ -19,7 +19,7 @@ from .adapters import (
     get_schematic_model,
 )
 from .bom import compare_bom_records, extract_bom, group_bom, review_bom
-from .capabilities import get_capabilities as build_capabilities
+from .capabilities import capability_report as build_capability_report
 from .capability_model import MAX_TRANSACTION_OPERATIONS
 from .config import Settings
 from .connectivity import build_connectivity_graph
@@ -681,6 +681,12 @@ class DipTraceService:
         self.external_jobs = ExternalJobManager(settings, self.jobs)
         self.models = ModelCache()
         self._document_targets: dict[str, DocumentTarget] = {}
+        self._workflow_prompt_names: tuple[str, ...] = ()
+
+    def set_workflow_prompt_names(self, names: Sequence[str]) -> None:
+        """Record the prompt names registered by the concrete MCP server."""
+
+        self._workflow_prompt_names = tuple(sorted(set(names)))
 
     def _load_seed_provenance(self, seed_path: Path) -> DocumentProvenance | None:
         """Load and validate the provenance sidecar for a seed file.
@@ -1096,35 +1102,50 @@ class DipTraceService:
         if path is None:
             active = self.sessions.active_metadata()
             if active is None:
-                report = build_capabilities(None).model_dump()
-                probe = self.external_jobs.freerouting.probe()
-                report["external_adapters"]["freerouting"] = probe.as_dict()
-                report["external_adapters"]["ngspice"] = (
-                    self.external_jobs.ngspice.probe().as_dict()
-                )
-                openems_probe = self.external_jobs.openems.probe()
-                report["external_adapters"]["openems"] = openems_probe.as_dict()
-                report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
-                report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
-                report["limits"]["max_external_result_bytes"] = (
-                    self.settings.max_external_result_bytes
-                )
-                report["policy"].update(self.policy.capability_payload())
-                if probe.available:
-                    report["reasons_unavailable"] = [
-                        item
-                        for item in report["reasons_unavailable"]
-                        if item.get("feature") != "external_autorouting"
-                    ]
-                if openems_probe.available:
-                    report["reasons_unavailable"] = [
-                        item
-                        for item in report["reasons_unavailable"]
-                        if item.get("feature") != "external_si_pi_solver"
-                    ]
-                return report
+                report = build_capability_report(
+                    None,
+                    workflow_prompt_names=self._workflow_prompt_names,
+                ).model_dump()
+                return self._add_runtime_capabilities(report)
         document, target = self.load(path)
-        report = build_capabilities(document, live_session=target.is_live).model_dump()
+        snapshot = self.models.get(document, live_session=target.is_live)
+        effective_trust = self.resolve_effective_document_trust(
+            target.path,
+            snapshot.info.sha256,
+        )
+        report = build_capability_report(
+            snapshot,
+            workflow_prompt_names=self._workflow_prompt_names,
+            document_trust={
+                "validation_level": effective_trust.validation_level.value,
+                "trust_authority": effective_trust.authority,
+                "requires_diptrace_verification": (
+                    effective_trust.requires_diptrace_verification
+                ),
+                "evidence_manifest_path": effective_trust.evidence_manifest_path,
+                "evidence_manifest_sha256": effective_trust.evidence_manifest_sha256,
+                "warnings": effective_trust.warnings,
+            },
+        ).model_dump()
+        report = self._add_runtime_capabilities(report)
+        dsn_reasons = dsn_export_limitations(snapshot)
+        report["write_capabilities"]["autorouter_dsn_export"] = not dsn_reasons
+        if dsn_reasons:
+            report["reasons_unavailable"].append(
+                {
+                    "feature": "autorouter_dsn_export",
+                    "code": "capability_unavailable",
+                    "message": (
+                        "Current document lacks geometry required by the bounded DSN serializer."
+                    ),
+                    "details": {"reasons": dsn_reasons},
+                }
+            )
+        return report
+
+    def _add_runtime_capabilities(self, report: dict[str, Any]) -> dict[str, Any]:
+        """Add configured adapter, resource-limit and policy state once."""
+
         probe = self.external_jobs.freerouting.probe()
         report["external_adapters"]["freerouting"] = probe.as_dict()
         report["external_adapters"]["ngspice"] = self.external_jobs.ngspice.probe().as_dict()
@@ -1146,22 +1167,6 @@ class DipTraceService:
                 for item in report["reasons_unavailable"]
                 if item.get("feature") != "external_si_pi_solver"
             ]
-        snapshot = self.models.get(document, live_session=target.is_live)
-        dsn_reasons = dsn_export_limitations(snapshot)
-        report["write_capabilities"]["autorouter_dsn_export"] = not dsn_reasons
-        report["read_capabilities"]["autorouter_ses_inspection"] = document.kind == "pcb"
-        report["write_capabilities"]["autorouter_ses_import"] = document.kind == "pcb"
-        if dsn_reasons:
-            report["reasons_unavailable"].append(
-                {
-                    "feature": "autorouter_dsn_export",
-                    "code": "capability_unavailable",
-                    "message": (
-                        "Current document lacks geometry required by the bounded DSN serializer."
-                    ),
-                    "details": {"reasons": dsn_reasons},
-                }
-            )
         return report
 
     def document_info(self, path: str | None = None) -> dict[str, Any]:
@@ -5561,7 +5566,10 @@ class DipTraceService:
     ) -> dict[str, Any]:
         document, target = self.load(path)
         snapshot = self.models.get(document, live_session=target.is_live)
-        findings, metrics, skipped, check_count = run_checks(snapshot, categories=categories)
+        findings, metrics, skipped, registered_check_count = run_checks(
+            snapshot, categories=categories
+        )
+        unsupported_checks: list[dict[str, str]] = []
         assumptions = [
             "All coordinates are normalized to millimetres.",
             "Checks use exported XML geometry only and do not invoke DipTrace DRC/ERC.",
@@ -5570,14 +5578,12 @@ class DipTraceService:
             assumptions.append(
                 "Component bboxes are estimated when footprint courtyard/body geometry is absent."
             )
-            if not any(pad.bbox for pad in snapshot.board.pads):
-                skipped.append(
-                    {
-                        "check_id": "pcb.silk_to_pad",
-                        "reason": "pad_geometry_unavailable",
-                    }
-                )
-                check_count += 1
+            unsupported_checks.append(
+                {
+                    "check_id": "pcb.silk_to_pad",
+                    "reason": "not_implemented",
+                }
+            )
         report = self.findings.create_report(
             document_id=snapshot.info.document_id,
             source_sha256=snapshot.info.sha256,
@@ -5586,8 +5592,13 @@ class DipTraceService:
             metrics=metrics,
             assumptions=assumptions,
             skipped_checks=skipped,
-            registered_check_count=check_count,
+            registered_check_count=registered_check_count,
         )
+        if unsupported_checks:
+            # Unsupported, unregistered checks are disclosures, not registry entries. Add them
+            # after the registry-only completeness calculation, then persist the full disclosure.
+            report.skipped_checks.extend(unsupported_checks)
+            self.findings.store(report)
         resources = [
             f"diptrace://document/{snapshot.info.document_id}/review/{report.report_id}",
             f"diptrace://document/{snapshot.info.document_id}/findings",

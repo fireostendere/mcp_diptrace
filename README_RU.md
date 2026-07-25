@@ -191,7 +191,7 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Доступ к фай�
 
 - **Synthetic MCP-generated**: XML из `create_schematic_document`/`create_pcb_document` имеет `synthetic_parser_only`, пока нет более сильного независимо проверенного evidence.
 - **Seed-based**: `create_document_from_seed` копирует реальный DipTrace export и сохраняет provenance, но копирование само по себе не создаёт round-trip authority.
-- **Recorded evidence**: `record_roundtrip_evidence` связывает before/after files, точные paths, source type, SHA-256 и semantic comparison. User-supplied evidence полезен для audit/regression, но не является trusted root.
+- **Recorded evidence (пока только внутри service)**: внутренний метод `record_roundtrip_evidence` связывает before/after files, точные paths, source type, SHA-256 и semantic comparison. Он ещё не зарегистрирован на MCP surface; intake станет доступен клиентам только после evidence harness из Phase 7. User-supplied evidence не является trusted root.
 - **High trust**: повышение до `diptrace_roundtrip_verified`/`external_tool_roundtrip_verified` недоступно до появления authenticated server-owned registry, signature verifier или committed allowlist.
 
 Trust invalidation после MCP write реализован для основных проверенных путей, но capability layer намеренно **не заявляет полное покрытие всех write paths**. Отдельно остаются неполностью закрытыми `plan_apply`, `ses_import`, `schematic_to_pcb_sync` и `live_session_apply`; их полное fail-closed trust invalidation входит в ближайший roadmap. Поэтому `get_capabilities` имеет приоритет над более общими описаниями документации.
