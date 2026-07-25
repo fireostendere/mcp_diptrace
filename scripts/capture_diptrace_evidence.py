@@ -1090,6 +1090,7 @@ class CaptureRepository:
             )
         lock_handle = os.fdopen(descriptor, "a+b")
         unlock: Any
+        windows_locking = False
         try:
             try:
                 import fcntl
@@ -1102,8 +1103,9 @@ class CaptureRepository:
             except ImportError:
                 import msvcrt
 
+                windows_locking = True
                 lock_handle.seek(0)
-                if not lock_handle.read(1):
+                if os.fstat(lock_handle.fileno()).st_size == 0:
                     lock_handle.write(b"\0")
                     lock_handle.flush()
                 lock_handle.seek(0)
@@ -1134,11 +1136,12 @@ class CaptureRepository:
                     code="session_locked",
                     exit_code=4,
                 ) from exc
-            lock_handle.seek(0)
-            lock_handle.truncate()
-            lock_handle.write(f"pid={os.getpid()}\nacquired_at={utc_now()}\n".encode())
-            lock_handle.flush()
-            os.fsync(lock_handle.fileno())
+            if not windows_locking:
+                lock_handle.seek(0)
+                lock_handle.truncate()
+                lock_handle.write(f"pid={os.getpid()}\nacquired_at={utc_now()}\n".encode())
+                lock_handle.flush()
+                os.fsync(lock_handle.fileno())
             yield
         finally:
             if "unlock" in locals():
