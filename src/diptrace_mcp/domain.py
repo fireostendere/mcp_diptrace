@@ -4,9 +4,10 @@ import math
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any, Literal, TypedDict
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing_extensions import TypedDict
 
 from .capability_model import MAX_TRANSACTION_OPERATIONS
 
