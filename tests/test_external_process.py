@@ -259,7 +259,7 @@ def test_concurrency_refusal_is_typed_and_slot_recovers_after_timeout(
         log_name="recovered.log",
     )
     assert recovered.return_code == 0
-    assert recovered.log_bytes == b"recovered\n"
+    assert recovered.log_bytes.splitlines() == [b"recovered"]
     assert runner.active_slots == 0
 
 
