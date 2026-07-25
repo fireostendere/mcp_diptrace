@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import math
 from collections import defaultdict
 from collections.abc import Iterator
@@ -16,10 +15,38 @@ from .operations import AddTraceOperation, TracePathPoint
 from .via_styles import resolve_via_span, validate_via_geometry
 
 _UNIT_TO_MM = {"mm": 1.0, "um": 0.001, "mil": 0.0254, "inch": 25.4}
+_DSN_STRING_QUOTE = '"'
+
+
+def _quoted_token_limitation(value: str, context: str) -> str | None:
+    if any(ord(character) < 0x20 or ord(character) == 0x7F for character in value):
+        return (
+            f"{context} contains an ASCII control character; DSN quoted tokens "
+            "cannot represent it without an unverified convention."
+        )
+    if _DSN_STRING_QUOTE in value or "\\" in value:
+        return (
+            f"{context} contains a quote or backslash; Specctra escape semantics "
+            "are not verified."
+        )
+    if not value.isascii():
+        return (
+            f"{context} contains non-ASCII text; DipTrace DSN encoding acceptance "
+            "is not verified."
+        )
+    return None
 
 
 def _quote(value: str) -> str:
-    return json.dumps(value, ensure_ascii=False)
+    """Serialize one token only when no escaping or encoding assumption is needed."""
+
+    limitation = _quoted_token_limitation(value, "DSN quoted token")
+    if limitation is not None:
+        raise CapabilityUnavailableError(
+            "The value cannot be represented by the verified DSN quoted-token subset",
+            details={"reasons": [limitation]},
+        )
+    return f"{_DSN_STRING_QUOTE}{value}{_DSN_STRING_QUOTE}"
 
 
 def _coordinate(value: float, resolution: int) -> str:
@@ -30,7 +57,117 @@ def _supported_pad_shape(shape: str) -> bool:
     return shape.casefold() in {"rectangle", "rect", "ellipse", "oval", "obround", "circle"}
 
 
-def dsn_export_limitations(snapshot: DocumentSnapshot) -> list[str]:
+def _dsn_quoted_values(
+    snapshot: DocumentSnapshot,
+    design_name: str | None,
+) -> Iterator[tuple[str, str]]:
+    board = snapshot.board
+    if board is None:
+        return
+    layers = [str(item.get("name") or item.get("id")) for item in board.layers]
+    layer_by_id = {
+        str(item.get("id")): str(item.get("name") or item.get("id"))
+        for item in board.layers
+    }
+    patterns = {item.style: item for item in board.patterns if item.style}
+    via_names = {item.id: f"MCP_VIA_{item.id}" for item in board.via_styles}
+
+    yield design_name or snapshot.info.document_id, "DSN design name"
+    for index, layer in enumerate(layers):
+        yield layer, f"Copper layer {index} name"
+    for index, via_name in enumerate(via_names.values()):
+        yield via_name, f"Via style {index} generated padstack name"
+
+    referenced_pattern_styles: set[str] = set()
+    for component in board.components:
+        pattern_style = str(component.attributes.get("pattern_style", ""))
+        if pattern_style:
+            referenced_pattern_styles.add(pattern_style)
+            yield (
+                pattern_style,
+                f"Component {component.stable_id} pattern style",
+            )
+        if component.refdes is not None:
+            yield (
+                component.refdes,
+                f"Component {component.stable_id} reference designator",
+            )
+
+    for pattern_style in sorted(referenced_pattern_styles):
+        pattern = patterns.get(pattern_style)
+        if pattern is None:
+            continue
+        for pad_index, pad in enumerate(pattern.pads):
+            yield (
+                f"PAD_{pad.style}",
+                f"Pattern {pattern.stable_id} pad {pad_index} padstack name",
+            )
+            yield (
+                pad.number or pad.xml_id,
+                f"Pattern {pattern.stable_id} pad {pad_index} number",
+            )
+
+    for style_index, style in enumerate(board.pad_styles):
+        yield f"PAD_{style.name}", f"Pad style {style_index} generated padstack name"
+
+    for net in board.nets:
+        if net.name:
+            yield net.name, f"Net {net.stable_id} name"
+        for endpoint_index, endpoint_id in enumerate(
+            net.relationships.get("endpoints", [])
+        ):
+            endpoint = snapshot.objects.get(endpoint_id)
+            if endpoint is None or endpoint.parent_id is None:
+                continue
+            parent = snapshot.objects.get(endpoint.parent_id)
+            if parent is None or parent.refdes is None:
+                continue
+            yield (
+                parent.refdes,
+                f"Net {net.stable_id} endpoint {endpoint_index} reference designator",
+            )
+            number = str(
+                endpoint.attributes.get("number")
+                or endpoint.label
+                or endpoint.xml_id
+            )
+            yield number, f"Net {net.stable_id} endpoint {endpoint_index} pin number"
+
+    for trace in board.traces:
+        points = list(trace.attributes.get("points", []))
+        segment_layers = list(trace.attributes.get("segment_layers", []))
+        for segment_index in range(min(max(len(points) - 1, 0), len(segment_layers))):
+            layer_id = str(segment_layers[segment_index])
+            yield (
+                layer_by_id.get(layer_id, layer_id),
+                f"Trace {trace.stable_id} segment {segment_index} layer",
+            )
+            yield (
+                trace.net_name or "",
+                f"Trace {trace.stable_id} segment {segment_index} net name",
+            )
+        for via_index, via_id in enumerate(trace.relationships.get("vias", [])):
+            via_record = snapshot.objects.get(via_id)
+            if via_record is None:
+                continue
+            style_id = str(via_record.attributes.get("via_style", ""))
+            if via_record.position is None or style_id not in via_names:
+                continue
+            yield (
+                via_names[style_id],
+                f"Trace {trace.stable_id} via {via_index} padstack name",
+            )
+            yield (
+                via_record.net_name or "",
+                f"Trace {trace.stable_id} via {via_index} net name",
+            )
+
+
+def dsn_export_limitations(
+    snapshot: DocumentSnapshot,
+    *,
+    design_name: str | None = None,
+) -> list[str]:
     board = snapshot.board
     if board is None:
         return ["Specctra DSN export requires a PCB document."]
@@ -79,6 +216,10 @@ def dsn_export_limitations(snapshot: DocumentSnapshot) -> list[str]:
             resolve_via_span(board, via_style)
         except (CapabilityUnavailableError, GeometryError) as exc:
             reasons.append(f"Via style {via_style.id} is not exportable: {exc}")
+    for value, context in _dsn_quoted_values(snapshot, design_name):
+        limitation = _quoted_token_limitation(value, context)
+        if limitation is not None:
+            reasons.append(limitation)
     return sorted(set(reasons))
 
 
@@ -117,10 +258,10 @@ def _padstack_shape(
 
 def export_dsn(snapshot: DocumentSnapshot, *, design_name: str | None = None) -> bytes:
     board = snapshot.board
-    reasons = dsn_export_limitations(snapshot)
+    reasons = dsn_export_limitations(snapshot, design_name=design_name)
     if board is None or reasons:
         raise CapabilityUnavailableError(
-            "The PCB does not contain sufficient verified geometry for Specctra DSN export",
+            "The PCB cannot be represented safely by the bounded Specctra DSN serializer",
             details={"reasons": reasons},
         )
     assert board.outline is not None
@@ -151,7 +292,7 @@ def export_dsn(snapshot: DocumentSnapshot, *, design_name: str | None = None) ->
     )
     lines = [
         f"(pcb {_quote(name)}",
-        '  (parser (string_quote ") (space_in_quoted_tokens on)',
+        f"  (parser (string_quote {_DSN_STRING_QUOTE}) (space_in_quoted_tokens on)",
         '    (host_cad "DipTrace MCP") (host_version "0.1"))',
         f"  (resolution mm {resolution})",
         "  (unit mm)",

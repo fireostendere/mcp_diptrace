@@ -8,10 +8,15 @@ import pytest
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
-from diptrace_mcp.errors import DocumentError, Sha256MismatchError
+from diptrace_mcp.errors import (
+    CapabilityUnavailableError,
+    DocumentError,
+    Sha256MismatchError,
+)
 from diptrace_mcp.external_adapters import FreeroutingAdapter
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.specctra import (
+    _quote,
     dsn_export_limitations,
     export_dsn,
     parse_ses,
@@ -150,6 +155,115 @@ def test_dsn_export_requires_and_uses_exact_embedded_pattern_geometry(tmp_path: 
     assert '(padstack "MCP_VIA_0"' in text
     assert "UnknownCacheData" not in text
     assert b"UnknownCacheData" in document.raw_bytes
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("", '""'),
+        ("Board rev A", '"Board rev A"'),
+        ("A (B) #1", '"A (B) #1"'),
+        ("name-with_'[]{}", '"name-with_\'[]{}"'),
+    ],
+)
+def test_dsn_quote_serializes_safe_printable_ascii_literally(
+    value: str,
+    expected: str,
+) -> None:
+    assert _quote(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "reason"),
+    [
+        ('A"B', "quote or backslash"),
+        (r"A\B", "quote or backslash"),
+        ("A\nB", "ASCII control character"),
+        ("A\x7fB", "ASCII control character"),
+        ("µBoard", "non-ASCII text"),
+    ],
+)
+def test_dsn_quote_refuses_unverified_escape_and_encoding_conventions(
+    value: str,
+    reason: str,
+) -> None:
+    with pytest.raises(CapabilityUnavailableError) as exc_info:
+        _quote(value)
+
+    payload = exc_info.value.payload
+    assert payload.code == "capability_unavailable"
+    assert reason in payload.details["reasons"][0]
+
+
+@pytest.mark.parametrize(
+    ("design_name", "reason"),
+    [
+        ('Bad"board', "quote or backslash"),
+        (r"Bad\board", "quote or backslash"),
+        ("Bad\nboard", "ASCII control character"),
+        ("µBoard", "non-ASCII text"),
+    ],
+)
+def test_dsn_export_preflights_unsafe_design_name(
+    tmp_path: Path,
+    design_name: str,
+    reason: str,
+) -> None:
+    document = DipTraceDocument.from_bytes(
+        tmp_path / "board.xml",
+        _embedded_board_bytes(),
+    )
+    snapshot = build_snapshot(document)
+
+    limitations = dsn_export_limitations(snapshot, design_name=design_name)
+    assert any(
+        item.startswith("DSN design name contains") and reason in item
+        for item in limitations
+    )
+    with pytest.raises(CapabilityUnavailableError) as exc_info:
+        export_dsn(snapshot, design_name=design_name)
+    assert exc_info.value.payload.details["reasons"] == limitations
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "reason"),
+    [
+        (
+            b"<Name>Top</Name>",
+            "<Name>Tµp</Name>".encode(),
+            "Copper layer 0 name contains non-ASCII text",
+        ),
+        (
+            b"<RefDes>R1</RefDes>",
+            b"<RefDes>R&quot;1</RefDes>",
+            "reference designator contains a quote or backslash",
+        ),
+        (
+            b"<Number>1</Number>",
+            b"<Number>1\\2</Number>",
+            "pad 0 number contains a quote or backslash",
+        ),
+    ],
+)
+def test_dsn_export_preflights_quoted_identifiers_from_document(
+    tmp_path: Path,
+    old: bytes,
+    new: bytes,
+    reason: str,
+) -> None:
+    raw = _embedded_board_bytes()
+    assert old in raw
+    document = DipTraceDocument.from_bytes(
+        tmp_path / "board.xml",
+        raw.replace(old, new, 1),
+    )
+    snapshot = build_snapshot(document)
+
+    limitations = dsn_export_limitations(snapshot)
+    assert any(reason in item for item in limitations)
+    with pytest.raises(CapabilityUnavailableError) as exc_info:
+        export_dsn(snapshot)
+    assert exc_info.value.payload.details["reasons"] == limitations
 
 
 def test_ses_parser_and_simple_route_conversion() -> None:

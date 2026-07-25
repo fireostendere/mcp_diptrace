@@ -1136,7 +1136,7 @@ class DipTraceService:
                     "feature": "autorouter_dsn_export",
                     "code": "capability_unavailable",
                     "message": (
-                        "Current document lacks geometry required by the bounded DSN serializer."
+                        "Current document cannot be represented by the bounded DSN serializer."
                     ),
                     "details": {"reasons": dsn_reasons},
                 }
@@ -4723,6 +4723,8 @@ class DipTraceService:
                 "assumptions": [
                     "DipTrace board coordinates are emitted directly in Specctra millimetres.",
                     "Only embedded pattern shapes accepted by capability validation are emitted.",
+                    "Quoted tokens use only printable ASCII excluding quote and backslash; "
+                    "no escape convention is assumed.",
                 ],
             },
         )
@@ -4732,7 +4734,7 @@ class DipTraceService:
             resources=job_resources(record.jobid),
             limitations=[
                 "The bounded serializer rejects cutouts, keepouts, pours and unsupported "
-                "pad shapes."
+                "pad shapes, plus identifiers requiring unverified escaping or encoding."
             ],
         )
         response["job"] = record.model_dump(mode="json")
