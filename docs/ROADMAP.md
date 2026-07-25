@@ -36,7 +36,9 @@ misclassified as attributes are excluded. Current coverage against this measured
 | Passthrough (unknown XML, kept byte-for-byte) | 174 |
 | **Coverage** | **28.5%** |
 
-See [FORMAT_COVERAGE.md](FORMAT_COVERAGE.md) for the full element-by-element inventory, and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) for facts the specification does not settle.
+See [FORMAT_COVERAGE.md](FORMAT_COVERAGE.md) for the full element-by-element inventory, and
+[OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) for the current maintained set of high-impact unresolved
+compatibility questions.
 
 Current practical classification:
 

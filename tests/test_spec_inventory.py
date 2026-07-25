@@ -3,11 +3,34 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 _INVENTORY_PATH = Path("reference/diptrace-xml/spec_inventory.json")
 _COVERAGE_PATH = Path("docs/FORMAT_COVERAGE.md")
 _OPEN_QUESTIONS_PATH = Path("docs/OPEN_QUESTIONS.md")
+
+
+def _open_question_blocks() -> list[tuple[int, str, str]]:
+    content = _OPEN_QUESTIONS_PATH.read_text(encoding="utf-8")
+    headers = list(
+        re.finditer(
+            r"^## Q(?P<number>\d+): (?P<title>.+)$",
+            content,
+            flags=re.MULTILINE,
+        )
+    )
+    blocks: list[tuple[int, str, str]] = []
+    for index, header in enumerate(headers):
+        end = headers[index + 1].start() if index + 1 < len(headers) else len(content)
+        blocks.append(
+            (
+                int(header.group("number")),
+                header.group("title").strip(),
+                content[header.end() : end],
+            )
+        )
+    return blocks
 
 
 def _load_inventory() -> dict:
@@ -167,20 +190,72 @@ class TestOpenQuestions:
         """The open questions file must exist."""
         assert _OPEN_QUESTIONS_PATH.exists(), f"{_OPEN_QUESTIONS_PATH} does not exist"
 
-    def test_open_questions_has_entries(self) -> None:
-        """The open questions file must have at least 5 entries."""
-        content = _OPEN_QUESTIONS_PATH.read_text(encoding="utf-8")
-        # Count entries by looking for "## Q" headers
-        q_count = content.count("## Q")
-        assert q_count >= 5, f"Expected at least 5 open questions, found {q_count}"
+    def test_questions_are_sequential_and_have_nonempty_required_sections(self) -> None:
+        """Every question must carry the evidence-oriented structure."""
+        blocks = _open_question_blocks()
+        assert len(blocks) >= 13
+        assert [number for number, _, _ in blocks] == list(
+            range(1, len(blocks) + 1)
+        )
+        for number, title, block in blocks:
+            assert title.endswith("?"), f"Q{number} title is not a question"
+            for label in (
+                "Question",
+                "Why the code depends on it",
+                "Experiment",
+                "Who can perform",
+            ):
+                match = re.search(
+                    rf"\*\*{re.escape(label)}:\*\*\s*(.+?)"
+                    r"(?=\n\n\*\*|\n\n---|\Z)",
+                    block,
+                    flags=re.DOTALL,
+                )
+                assert match is not None, f"Q{number} missing {label}"
+                assert match.group(1).strip(), f"Q{number} has empty {label}"
 
-    def test_open_questions_have_experiment(self) -> None:
-        """Each open question must have an experiment section."""
-        content = _OPEN_QUESTIONS_PATH.read_text(encoding="utf-8")
-        assert "Experiment:" in content
-        assert "Who can perform:" in content
+    def test_each_dependency_section_has_a_stable_code_symbol(self) -> None:
+        """Line numbers drift; every dependency must cite a stable symbol."""
+        for number, _, block in _open_question_blocks():
+            why = re.search(
+                r"\*\*Why the code depends on it:\*\*\s*(.+?)"
+                r"(?=\n\n\*\*|\n\n---|\Z)",
+                block,
+                flags=re.DOTALL,
+            )
+            assert why is not None
+            assert re.search(
+                r"`src/diptrace_mcp/[a-z0-9_]+\.py::"
+                r"[A-Za-z_][A-Za-z0-9_.]*`",
+                why.group(1),
+            ), f"Q{number} lacks a stable code-symbol reference"
 
-    def test_component_angle_question_present(self) -> None:
-        """The Component/@Angle question must be present."""
+    def test_required_human_gated_unknowns_are_present(self) -> None:
+        """Keep every high-consequence unknown named by the work order."""
         content = _OPEN_QUESTIONS_PATH.read_text(encoding="utf-8")
-        assert "Component" in content and "Angle" in content and "radians" in content
+        question_six = next(
+            title
+            for number, title, _ in _open_question_blocks()
+            if number == 6
+        )
+        assert 'Selected="Y"' in question_six
+        required = (
+            "ImpMode=All",
+            "9.6e-09",
+            "copper-pour fill data",
+            "routing_compiler.py::_write_points",
+            "standalone Component and Pattern Editor XML",
+            "preserve the source encoding and BOM",
+        )
+        for phrase in required:
+            assert phrase in content
+        assert "does not state whether selection/highlighting persists" in content
+        assert "16 trace-point" in content
+
+    def test_answered_and_duplicate_questions_are_absent(self) -> None:
+        """Do not retain questions answered by the spec or duplicate numeric format."""
+        content = _OPEN_QUESTIONS_PATH.read_text(encoding="utf-8")
+        assert "Does DipTrace write `Component/@Angle` when the value is 0?" not in content
+        assert "maximum number of significant digits" not in content
+        assert "lists every fact" not in content
+        assert "not exhaustive" in content
