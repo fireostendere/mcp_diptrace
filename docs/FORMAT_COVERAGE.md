@@ -11,8 +11,8 @@
 | Documented parent/child relationships | 90 across 80 parents |
 | Normalized (reader produces typed field) | 58 |
 | Written only (writer can create/modify) | 19 |
-| Mentioned only (literal, not an XML call) | 19 |
-| Passthrough (unknown XML, kept byte-for-byte) | 174 |
+| Mentioned only (literal, not an XML call) | 22 |
+| Passthrough (unknown XML, kept byte-for-byte) | 171 |
 | **Coverage** | **28.5%** |
 
 ## Inventory Provenance
@@ -135,8 +135,11 @@ inferred.
 - `Signal`
 - `Silk`
 - `TopSegments`
+- `TraceClearance`
 - `ValueMarking`
 - `VertTabsY`
+- `ViaHole`
+- `ViaSize`
 
 ## Passthrough Elements
 
@@ -295,7 +298,6 @@ inferred.
 - `Titles`
 - `TopComponentLock`
 - `TopMargin`
-- `TraceClearance`
 - `TraceWidth`
 - `UId`
 - `UpdateIds`
@@ -305,8 +307,6 @@ inferred.
 - `Variation`
 - `VertBorderSize`
 - `VertZones`
-- `ViaHole`
-- `ViaSize`
 - `Visible`
 - `X`
 - `XPos`
