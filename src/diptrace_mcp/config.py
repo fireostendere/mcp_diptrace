@@ -117,6 +117,7 @@ class Settings:
     ngspice_executable: Path | None = None
     openems_runner: Path | None = None
     external_timeout_seconds: int = 3600
+    max_external_processes: int = 2
     max_external_result_bytes: int = 16 * 1024 * 1024
     max_external_log_bytes: int = 4 * 1024 * 1024
     active_policy: PolicyProfile = "interactive_edit"
@@ -168,6 +169,9 @@ class Settings:
             external_timeout_seconds=_positive_int(
                 "DIPTRACE_MCP_EXTERNAL_TIMEOUT", 3600
             ),
+            max_external_processes=_positive_int(
+                "DIPTRACE_MCP_MAX_EXTERNAL_PROCESSES", 2
+            ),
             max_external_result_bytes=_positive_int(
                 "DIPTRACE_MCP_MAX_EXTERNAL_RESULT_BYTES", 16 * 1024 * 1024
             ),
@@ -208,6 +212,7 @@ class Settings:
             ),
             "openems_runner": str(self.openems_runner) if self.openems_runner else None,
             "external_timeout_seconds": self.external_timeout_seconds,
+            "max_external_processes": self.max_external_processes,
             "max_external_result_bytes": self.max_external_result_bytes,
             "max_external_log_bytes": self.max_external_log_bytes,
             "active_policy": self.active_policy,

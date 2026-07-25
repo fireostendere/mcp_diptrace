@@ -9,7 +9,7 @@
 - commits and rollbacks use SHA-256 optimistic concurrency;
 - locked objects are preserved by default unless an operation explicitly allows otherwise;
 - only one live DipTrace bridge session may be active;
-- external processes use fixed typed argument vectors, `shell=false`, isolated job directories, bounded logs/results, timeouts, and terminal cancellation;
+- external processes use fixed typed argument vectors, `shell=false`, isolated job directories, bounded streaming logs/results, a global concurrency cap, process-tree timeouts, terminal cancellation, and explicit reaping;
 - the core does not expose arbitrary shell execution supplied by an LLM;
 - high-level write tools default to preview/dry-run behavior and must not silently convert unavailable capabilities into success.
 
@@ -73,6 +73,8 @@ Required properties include:
 - isolated job workspace;
 - sanitized/bounded environment and arguments;
 - explicit timeout, result-size, and log-size limits;
+- a configured cross-adapter concurrency limit;
+- process-group/tree termination followed by root-process reaping;
 - structured status/result parsing;
 - terminal cancellation semantics;
 - explicit `external_tool_unavailable`, timeout, malformed-output, or non-convergence failures instead of fabricated fallback output.

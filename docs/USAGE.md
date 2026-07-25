@@ -598,6 +598,7 @@ Deleting or replacing the `<Source>` root is prohibited.
 | `DIPTRACE_MCP_NGSPICE` | auto-detected | Explicit ngspice executable or portable Python wrapper |
 | `DIPTRACE_MCP_OPENEMS_RUNNER` | unset | Compatible openEMS JSON-protocol runner |
 | `DIPTRACE_MCP_EXTERNAL_TIMEOUT` | `3600` | Maximum external-job timeout in seconds |
+| `DIPTRACE_MCP_MAX_EXTERNAL_PROCESSES` | `2` | Maximum concurrently running external adapter processes |
 | `DIPTRACE_MCP_MAX_EXTERNAL_RESULT_BYTES` | `16777216` | Maximum typed solver-result artifact size |
 | `DIPTRACE_MCP_MAX_EXTERNAL_LOG_BYTES` | `4194304` | Maximum retained or returned external-job log size |
 

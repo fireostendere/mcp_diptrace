@@ -1153,6 +1153,7 @@ class DipTraceService:
         report["external_adapters"]["openems"] = openems_probe.as_dict()
         report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
         report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
+        report["limits"]["max_external_processes"] = self.settings.max_external_processes
         report["limits"]["max_external_result_bytes"] = self.settings.max_external_result_bytes
         report["policy"].update(self.policy.capability_payload())
         if probe.available:
