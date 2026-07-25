@@ -5,6 +5,35 @@ This is a coding-agent guide to the extracted public
 [format coverage](../../docs/FORMAT_COVERAGE.md). Missing or unknown entries remain unknown; this
 guide does not supply facts that the cited specifications do not state.
 
+## Reproducible inventory
+
+The PDFs are intentionally not committed. The repository instead contains canonical per-page
+text bundles in [`extracted_text/`](extracted_text/), produced with the pinned
+`pypdf==6.14.2`. Every bundle records the source PDF URL, SHA-256, byte size, page count, and
+extraction engine; `spec_inventory.json` records the bundle SHA-256 as well.
+
+CI performs the offline check:
+
+```bash
+python scripts/extract_spec_inventory.py \
+  --sources reference/diptrace-xml/extracted_text \
+  --out reference/diptrace-xml/spec_inventory.json \
+  --check
+```
+
+A maintainer who has downloaded the three source PDFs can independently refresh and compare the
+committed intermediate:
+
+```bash
+python scripts/extract_spec_inventory.py \
+  --sources reference/diptrace-xml/sources \
+  --write-extracted-text reference/diptrace-xml/extracted_text \
+  --out reference/diptrace-xml/spec_inventory.json
+```
+
+Only literal XML examples introduce elements. Element text values are stored separately from XML
+attributes; a prose mention such as “see `<Groups>` section” cannot re-anchor the extractor.
+
 ## Exchange lifecycle
 
 DipTrace exports `plugin_exchange.xml`, launches the standalone executable with the exchange path

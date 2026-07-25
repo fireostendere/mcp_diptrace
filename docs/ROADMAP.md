@@ -18,16 +18,23 @@ The main remaining risk is no longer missing MCP surface area. It is the gap bet
 
 ### Format Coverage (measured from official specifications)
 
-The official DipTrace XML specifications (PCB and Schematic, v4.3.0.3, 2023) define **294 elements** with **806 attributes**. Current coverage against these specifications:
+The reproducible inventory extracted from the official DipTrace XML specifications (PCB and
+Schematic, v4.3.0.3, 2023) contains **270 literal XML elements**, **727 XML attributes**, and
+**232 element text-content definitions**. Prose-only tag mentions and text values previously
+misclassified as attributes are excluded. Current coverage against this measured inventory:
 
 | Metric | Value |
 | --- | --- |
-| Total elements in spec | 294 |
-| Normalized (reader produces typed field) | 61 |
-| Written only (writer can create/modify) | 22 |
-| Mentioned only (literal, not an XML call) | 20 |
-| Passthrough (unknown XML, kept byte-for-byte) | 191 |
-| **Coverage** | **28.2%** |
+| Total literal XML elements in spec | 270 |
+| XML attributes in spec | 727 |
+| Element text-content definitions | 232 |
+| Explicit attribute omission clauses | 4 |
+| Documented parent/child relationships | 90 across 80 parents |
+| Normalized (reader produces typed field) | 58 |
+| Written only (writer can create/modify) | 19 |
+| Mentioned only (literal, not an XML call) | 19 |
+| Passthrough (unknown XML, kept byte-for-byte) | 174 |
+| **Coverage** | **28.5%** |
 
 See [FORMAT_COVERAGE.md](FORMAT_COVERAGE.md) for the full element-by-element inventory, and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) for facts the specification does not settle.
 

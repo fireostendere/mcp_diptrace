@@ -12,41 +12,242 @@ With --check, regenerates in memory and exits non-zero if the committed file dif
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pypdf import PdfReader
+if __package__:
+    from .spec_inventory_integrity import validate_inventory
+else:
+    from spec_inventory_integrity import validate_inventory
+
+_EXTRACTED_TEXT_SCHEMA = "diptrace-extracted-text-v1"
+_EXTRACTION_ENGINE = "pypdf"
+_EXTRACTION_ENGINE_VERSION = "6.14.2"
+_EXTRACTED_TEXT_REPOSITORY_DIR = Path("reference/diptrace-xml/extracted_text")
+
+
+@dataclass(frozen=True)
+class ExtractedSource:
+    file: str
+    url: str
+    sha256: str
+    size_bytes: int
+    pages: tuple[str, ...]
+    extracted_text_file: str
+    extracted_text_sha256: str
 
 # ---------------------------------------------------------------------------
 # PDF text extraction
 # ---------------------------------------------------------------------------
 
+
 def _extract_pages(pdf_path: Path) -> list[str]:
-    """Return per-page text for a PDF."""
+    """Return per-page text using the pinned extraction engine."""
+    import pypdf
+    from pypdf import PdfReader
+
+    if pypdf.__version__ != _EXTRACTION_ENGINE_VERSION:
+        raise RuntimeError(
+            "PDF extraction requires "
+            f"{_EXTRACTION_ENGINE}=={_EXTRACTION_ENGINE_VERSION}; "
+            f"found {pypdf.__version__}"
+        )
     reader = PdfReader(str(pdf_path))
     return [page.extract_text() or "" for page in reader.pages]
+
+
+def _canonical_json(data: dict[str, Any]) -> str:
+    return json.dumps(data, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
+
+
+def _bundle_filename(pdf_name: str) -> str:
+    return f"{Path(pdf_name).stem}.pages.json"
+
+
+def _bundle_repository_path(pdf_name: str) -> str:
+    # Inventory paths are repository identifiers, not host-native filesystem
+    # paths. Keep their serialized form stable on Windows as well as POSIX.
+    return (
+        _EXTRACTED_TEXT_REPOSITORY_DIR / _bundle_filename(pdf_name)
+    ).as_posix()
+
+
+def _extracted_text_bundle(pdf_path: Path, pages: list[str]) -> dict[str, Any]:
+    raw = pdf_path.read_bytes()
+    return {
+        "schema_version": _EXTRACTED_TEXT_SCHEMA,
+        "source": {
+            "file": pdf_path.name,
+            "url": _source_url(pdf_path.name),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "size_bytes": len(raw),
+            "page_count": len(pages),
+        },
+        "extraction": {
+            "engine": _EXTRACTION_ENGINE,
+            "version": _EXTRACTION_ENGINE_VERSION,
+        },
+        "pages": [
+            {
+                "page": index,
+                "text": text,
+            }
+            for index, text in enumerate(pages, start=1)
+        ],
+    }
+
+
+def _source_from_pdf(
+    pdf_path: Path,
+    *,
+    write_extracted_text_dir: Path | None,
+) -> ExtractedSource:
+    pages = _extract_pages(pdf_path)
+    bundle = _extracted_text_bundle(pdf_path, pages)
+    bundle_bytes = _canonical_json(bundle).encode("utf-8")
+    if write_extracted_text_dir is not None:
+        write_extracted_text_dir.mkdir(parents=True, exist_ok=True)
+        bundle_path = write_extracted_text_dir / _bundle_filename(pdf_path.name)
+        bundle_path.write_bytes(bundle_bytes)
+    source = bundle["source"]
+    return ExtractedSource(
+        file=str(source["file"]),
+        url=str(source["url"]),
+        sha256=str(source["sha256"]),
+        size_bytes=int(source["size_bytes"]),
+        pages=tuple(pages),
+        extracted_text_file=_bundle_repository_path(pdf_path.name),
+        extracted_text_sha256=hashlib.sha256(bundle_bytes).hexdigest(),
+    )
+
+
+def _source_from_bundle(bundle_path: Path) -> ExtractedSource:
+    raw = bundle_path.read_bytes()
+    try:
+        bundle = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid extracted-text JSON: {bundle_path}: {exc}") from exc
+    if bundle.get("schema_version") != _EXTRACTED_TEXT_SCHEMA:
+        raise ValueError(f"Unsupported extracted-text schema: {bundle_path}")
+    extraction = bundle.get("extraction")
+    if extraction != {
+        "engine": _EXTRACTION_ENGINE,
+        "version": _EXTRACTION_ENGINE_VERSION,
+    }:
+        raise ValueError(f"Unexpected extraction engine metadata: {bundle_path}")
+    source = bundle.get("source")
+    page_entries = bundle.get("pages")
+    if not isinstance(source, dict) or not isinstance(page_entries, list):
+        raise ValueError(f"Malformed extracted-text bundle: {bundle_path}")
+    expected_pages = list(range(1, len(page_entries) + 1))
+    actual_pages = [
+        item.get("page") if isinstance(item, dict) else None for item in page_entries
+    ]
+    if actual_pages != expected_pages:
+        raise ValueError(f"Extracted-text pages are not contiguous: {bundle_path}")
+    pages = tuple(
+        str(item.get("text", ""))
+        for item in page_entries
+        if isinstance(item, dict)
+    )
+    if int(source.get("page_count", -1)) != len(pages):
+        raise ValueError(f"Extracted-text page count mismatch: {bundle_path}")
+    canonical = _canonical_json(bundle).encode("utf-8")
+    if raw != canonical:
+        raise ValueError(f"Extracted-text bundle is not canonical JSON: {bundle_path}")
+    file_name = str(source.get("file", ""))
+    return ExtractedSource(
+        file=file_name,
+        url=str(source.get("url", "")),
+        sha256=str(source.get("sha256", "")),
+        size_bytes=int(source.get("size_bytes", 0)),
+        pages=pages,
+        extracted_text_file=_bundle_repository_path(file_name),
+        extracted_text_sha256=hashlib.sha256(raw).hexdigest(),
+    )
+
+
+def _load_extracted_sources(
+    sources_dir: Path,
+    *,
+    write_extracted_text_dir: Path | None = None,
+) -> list[ExtractedSource]:
+    pdf_files = sorted(sources_dir.glob("*.pdf"))
+    if pdf_files:
+        return [
+            _source_from_pdf(
+                pdf_path,
+                write_extracted_text_dir=write_extracted_text_dir,
+            )
+            for pdf_path in pdf_files
+        ]
+    bundle_files = sorted(sources_dir.glob("*.pages.json"))
+    if bundle_files:
+        if write_extracted_text_dir is not None:
+            raise ValueError("--write-extracted-text requires PDF sources")
+        return [_source_from_bundle(path) for path in bundle_files]
+    raise FileNotFoundError(
+        f"No PDF files or extracted-text bundles found in {sources_dir}"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
 
-# Matches an XML example line like:  <Source Type="DipTrace-PCB" ...>
-_XML_EXAMPLE_RE = re.compile(r"<(\w+)(?:\s[^>]*)?\s*/?>")
+# Matches a literal XML example at the start of a line. Prose that merely
+# mentions ``<Element>`` must never re-anchor the parser.
+_XML_EXAMPLE_RE = re.compile(
+    r"^<([A-Za-z_][A-Za-z0-9_.:-]*)(?:\s+[^<>]*)?\s*/?>"
+    r"(?:\s*[–—-]\s*.*)?$"
+)
+_XML_CLOSE_RE = re.compile(
+    r"^</([A-Za-z_][A-Za-z0-9_.:-]*)\s*>(?:\s*[–—-]\s*.*)?$"
+)
+_XML_SCALAR_RE = re.compile(
+    r"^<(?P<name>[A-Za-z_][A-Za-z0-9_.:-]*)(?:\s[^>]*)?>"
+    r"(?P<text>.*?)</(?P=name)>\s*$"
+)
+_SECTION_HEADING_RE = re.compile(
+    r"^(?P<section>(?:\d+\.)+\d+\.?|\d+\.)\s+"
+)
+_HEADING_ELEMENT_RE = re.compile(
+    r"<([A-Za-z_][A-Za-z0-9_.:-]*)>\.?\s*$"
+)
+_PLACEHOLDER_CHILD_RE = re.compile(
+    r"\{\s*\.\.\.\s*\}.*\(([A-Za-z_][A-Za-z0-9_.:-]*)\)"
+)
+_ROOT_PROSE_ATTR_RE = re.compile(
+    r'^([A-Za-z_][A-Za-z0-9_.:-]*)="([^"]*)"\s*[–—-]\s*(.+)$'
+)
+_SAME_AS_ELEMENT_RE = re.compile(
+    r"\bSame as\b.*<([A-Za-z_][A-Za-z0-9_.:-]*)>\.?\s*$",
+    re.IGNORECASE,
+)
+_SAME_AS_SECTION_RE = re.compile(
+    r"\bSame as\b.*\((\d+(?:\.\d+)+)\)\.?\s*$",
+    re.IGNORECASE,
+)
 
 # Matches an attribute definition line like:    Type Text "DipTrace-PCB" – file created in ...
 # or:                                Id Int Component identifier (Id).
 _ATTR_LINE_RE = re.compile(
-    r"^(\w+)\s+(Int|Real|Text|Bool)\s+(.+)$"
+    r"^(\w+)\s+(Int|Real|Text|Bool)\s*(.+)$"
+)
+_TEXT_CONTENT_LINE_RE = re.compile(r"^(Int|Real|Text|Bool)\s+(.+)$")
+_MISSING_TYPE_ATTRIBUTE_RE = re.compile(
+    r"^([A-Za-z_][A-Za-z0-9_.:-]*)\s+(.+)$"
 )
 
 # Matches an enum value line like:   "Y" – enabled;
 # or:                                "N" – disabled.
-_ENUM_VALUE_RE = re.compile(r'"([^"]+)"\s*[–—-]\s*(.+?)(?:;|\s*$)')
+_ENUM_VALUE_RE = re.compile(r'"([^"]+)"(?=\s*(?:[;.]|[–—-]))')
 
 # Known element names that appear as children in the spec
 _KNOWN_ELEMENTS = frozenset([
@@ -216,23 +417,57 @@ def _parse_xml_example_attrs(xml_line: str) -> dict[str, str]:
 
 def _parse_attribute_line(line: str) -> tuple[str, str, str] | None:
     """Parse ``AttrName Type Description`` and return (name, type, description)."""
-    m = _ATTR_LINE_RE.match(line.strip())
+    stripped = line.strip()
+    m = _ATTR_LINE_RE.match(stripped)
     if m:
         return m.group(1), m.group(2), m.group(3).strip()
+    # pypdf 4 can glue either side of the type token. Prefer the right-most
+    # plausible token so PointerTextText... becomes PointerText / Text rather
+    # than Pointer / Text.
+    candidates: list[tuple[str, str, str]] = []
+    for type_match in re.finditer(r"(Int|Real|Text|Bool)", stripped):
+        name = stripped[: type_match.start()]
+        description = stripped[type_match.end() :]
+        if (
+            re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.:-]*", name)
+            and description.strip()
+        ):
+            candidates.append(
+                (
+                    name,
+                    type_match.group(1),
+                    description.strip(),
+                )
+            )
+    if candidates:
+        return candidates[-1]
     return None
 
 
 def _extract_enum_values_from_block(text_block: str) -> list[str]:
     """Extract enumerated values from a text block following an attribute definition."""
     values: list[str] = []
-    for m in _ENUM_VALUE_RE.finditer(text_block):
-        values.append(m.group(1))
+    for line in text_block.splitlines():
+        stripped = line.strip()
+        # Quoted examples embedded in prose ("Conductor", "Separate Trace",
+        # etc.) are references, not enum declarations. Specification enum
+        # rows consistently begin with the quoted value.
+        if not stripped.startswith('"'):
+            continue
+        for match in _ENUM_VALUE_RE.finditer(stripped):
+            value = match.group(1)
+            if value not in values:
+                values.append(value)
     return values
 
 
 def _detect_element_name_from_example(line: str) -> str | None:
     """Extract the element name from an XML example line."""
-    m = _XML_EXAMPLE_RE.search(line)
+    stripped = line.strip()
+    scalar = _XML_SCALAR_RE.match(stripped)
+    if scalar:
+        return scalar.group("name")
+    m = _XML_EXAMPLE_RE.match(stripped)
     if m:
         return m.group(1)
     return None
@@ -241,6 +476,61 @@ def _detect_element_name_from_example(line: str) -> str | None:
 def _is_toc_line(line: str) -> bool:
     """Check if a line is from the table of contents."""
     return "..." in line and line.count(".") > 3
+
+
+def _logical_page_lines(
+    pages: list[str],
+    page_offset: int,
+) -> list[tuple[int, str]]:
+    """Return page-tagged lines, joining XML openings even across page breaks."""
+    physical_lines = [
+        (page_idx + page_offset, line.strip())
+        for page_idx, page_text in enumerate(pages)
+        for line in page_text.splitlines()
+    ]
+    result: list[tuple[int, str]] = []
+    index = 0
+    while index < len(physical_lines):
+        page_num, stripped = physical_lines[index]
+        if (
+            _SECTION_HEADING_RE.match(stripped)
+            and stripped.endswith(",")
+            and index + 1 < len(physical_lines)
+            and re.fullmatch(
+                r"<[A-Za-z_][A-Za-z0-9_.:-]*>",
+                physical_lines[index + 1][1],
+            )
+        ):
+            index += 1
+            stripped = f"{stripped} {physical_lines[index][1]}"
+        if (
+            stripped.startswith("<")
+            and not stripped.startswith(("</", "<!", "<?"))
+            and ">" not in stripped
+        ):
+            parts = [stripped]
+            while index + 1 < len(physical_lines) and not any(
+                ">" in part for part in parts
+            ):
+                index += 1
+                _, continuation = physical_lines[index]
+                if continuation.startswith("©"):
+                    continue
+                parts.append(continuation)
+            stripped = " ".join(part for part in parts if part)
+        result.append((page_num, stripped))
+        index += 1
+    return result
+
+
+def _new_element_record(document_type: str, page_num: int) -> dict[str, Any]:
+    return {
+        "documents": [document_type],
+        "pages": [page_num],
+        "attributes": {},
+        "text_content": [],
+        "children": [],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -258,111 +548,372 @@ def _parse_spec_pages(
     attributes, and children.
     """
     elements: dict[str, dict[str, Any]] = {}
+    definition_element: str | None = None
+    definition_is_scalar = False
+    definition_inline_attributes: set[str] = set()
+    definition_inline_values: dict[str, str] = {}
+    example_stack: list[str] = []
+    awaiting_primary_example = True
+    prefer_next_literal = False
+    list_parent: str | None = None
+    pending: dict[str, Any] | None = None
+    root_units_documented = False
+    current_section: str | None = None
+    section_elements: dict[str, str] = {}
+    same_as_elements: list[tuple[str, str]] = []
 
-    current_element: str | None = None
-    current_attr_name: str | None = None
-    attr_enum_buffer: list[str] = []
+    def register_element(name: str, page_num: int) -> dict[str, Any]:
+        element = elements.setdefault(
+            name,
+            _new_element_record(document_type, page_num),
+        )
+        if document_type not in element["documents"]:
+            element["documents"].append(document_type)
+        if page_num not in element["pages"]:
+            element["pages"].append(page_num)
+        return element
 
-    for page_idx, page_text in enumerate(pages):
-        page_num = page_idx + page_offset
-        lines = page_text.split("\n")
+    def flush_pending() -> None:
+        nonlocal pending, root_units_documented
+        if pending is None:
+            return
+        element_name = str(pending["element"])
+        element = elements[element_name]
+        description = " ".join(
+            part.strip() for part in pending["description_parts"] if part.strip()
+        ).strip()
+        enum_values = list(dict.fromkeys(pending["enum_values"]))
+        metadata = {
+            "type": pending["type"],
+            "description": description,
+            "enum": enum_values or None,
+            "units": _infer_units(
+                str(pending["name"]),
+                description,
+                element_name,
+            ),
+            "omitted_when": _detect_omitted_when(description),
+        }
+        if (
+            element_name in {"Source", "Library"}
+            and pending["name"] == "Units"
+            and _documents_root_units(description)
+        ):
+            metadata = _document_units_metadata()
+            root_units_documented = True
+        if pending["text_content"]:
+            text_entry = {
+                "source_name": pending["name"],
+                **metadata,
+                "documents": [document_type],
+                "pages": [pending["page"]],
+            }
+            if text_entry not in element["text_content"]:
+                element["text_content"].append(text_entry)
+        else:
+            name = str(pending["name"])
+            existing = element["attributes"].get(name)
+            if (
+                existing is None
+                or "from XML example" in str(existing.get("description", ""))
+            ):
+                element["attributes"][name] = metadata
+            elif existing != metadata:
+                alternatives = existing.setdefault("alternatives", [])
+                if metadata not in alternatives:
+                    alternatives.append(metadata)
+                merged_enum = list(
+                    dict.fromkeys(
+                        [
+                            *(existing.get("enum") or []),
+                            *(metadata.get("enum") or []),
+                        ]
+                    )
+                )
+                existing["enum"] = merged_enum or None
+                if (
+                    existing.get("omitted_when") is None
+                    and metadata.get("omitted_when") is not None
+                ):
+                    existing["omitted_when"] = metadata["omitted_when"]
+        pending = None
 
-        for line in lines:
-            stripped = line.strip()
-            if not stripped:
-                continue
+    for page_num, stripped in _logical_page_lines(pages, page_offset):
+        if not stripped or _is_toc_line(stripped) or stripped.startswith("©"):
+            continue
 
-            # Skip TOC lines
-            if _is_toc_line(stripped):
-                continue
+        heading = _SECTION_HEADING_RE.match(stripped)
+        if heading:
+            flush_pending()
+            current_section = heading.group("section").rstrip(".")
+            heading_element = _HEADING_ELEMENT_RE.search(stripped)
+            if heading_element:
+                section_elements[current_section] = heading_element.group(1)
+                # A heading is only a boundary hint. It must never introduce
+                # an element by itself; the following literal XML example does.
+                definition_element = None
+                definition_is_scalar = False
+                definition_inline_attributes.clear()
+                definition_inline_values.clear()
+                example_stack.clear()
+                awaiting_primary_example = True
+                prefer_next_literal = False
+            else:
+                prefer_next_literal = True
+            continue
 
-            # --- Try to detect an XML example line introducing an element ---
-            elem_name = _detect_element_name_from_example(stripped)
-            if elem_name and not stripped.startswith("<!"):
-                if elem_name in ("?xml",):
-                    continue
+        closing = _XML_CLOSE_RE.match(stripped)
+        if closing:
+            flush_pending()
+            closing_name = closing.group(1)
+            if list_parent == closing_name:
+                list_parent = None
+            if closing_name in example_stack:
+                while example_stack:
+                    popped = example_stack.pop()
+                    if popped == closing_name:
+                        break
+            continue
 
-                # Register the element
-                if elem_name not in elements:
-                    elements[elem_name] = {
-                        "documents": [],
-                        "pages": [],
-                        "attributes": {},
-                        "children": [],
-                    }
-                if document_type not in elements[elem_name]["documents"]:
-                    elements[elem_name]["documents"].append(document_type)
-                if page_num not in elements[elem_name]["pages"]:
-                    elements[elem_name]["pages"].append(page_num)
-
-                # Parse inline attributes from the XML example
-                inline_attrs = _parse_xml_example_attrs(stripped)
-                for attr_name, attr_value in inline_attrs.items():
-                    if attr_name not in elements[elem_name]["attributes"]:
-                        # Try to infer type from value
-                        attr_type = _infer_type(attr_value)
-                        units = _infer_units(attr_name, "", elem_name)
-                        elements[elem_name]["attributes"][attr_name] = {
-                            "type": attr_type,
-                            "description": f'Attribute of <{elem_name}> (from XML example)',
-                            "enum": None,
-                            "units": units,
-                            "omitted_when": None,
-                        }
-
-                current_element = elem_name
-                current_attr_name = None
-                attr_enum_buffer = []
-                continue
-
-            # --- Try to parse an attribute definition line ---
-            if current_element and current_element in elements:
-                attr = _parse_attribute_line(stripped)
-                if attr:
-                    # Flush any pending enum values
-                    if current_attr_name and attr_enum_buffer:
-                        attrs = elements[current_element]["attributes"]
-                        attrs[current_attr_name]["enum"] = attr_enum_buffer
-                    attr_enum_buffer = []
-
-                    attr_name, attr_type, attr_desc = attr
-                    units = _infer_units(attr_name, attr_desc, current_element)
-                    omitted = _detect_omitted_when(attr_desc)
-
-                    current_attr_name = attr_name
-                    elements[current_element]["attributes"][attr_name] = {
-                        "type": attr_type,
-                        "description": attr_desc,
+        elem_name = _detect_element_name_from_example(stripped)
+        if elem_name:
+            flush_pending()
+            scalar_match = _XML_SCALAR_RE.match(stripped)
+            self_closing = stripped.partition(">")[0].rstrip().endswith("/")
+            if example_stack:
+                parent_name = example_stack[-1]
+                parent = register_element(parent_name, page_num)
+                if elem_name not in parent["children"]:
+                    parent["children"].append(elem_name)
+            elif list_parent is not None and elem_name != list_parent:
+                parent = register_element(list_parent, page_num)
+                if elem_name not in parent["children"]:
+                    parent["children"].append(elem_name)
+            element = register_element(elem_name, page_num)
+            inline_attrs = _parse_xml_example_attrs(stripped)
+            for attr_name, attr_value in inline_attrs.items():
+                description = (
+                    f"Attribute of <{elem_name}> (from XML example)"
+                )
+                if elem_name == "Library" and attr_name == "Type":
+                    description = (
+                        "Library file type shown in the specification's "
+                        "literal XML example."
+                    )
+                elif elem_name == "Library" and attr_name == "Version":
+                    description = (
+                        "Library file-format version shown in the "
+                        "specification's literal XML example."
+                    )
+                element["attributes"].setdefault(
+                    attr_name,
+                    {
+                        "type": _infer_type(attr_value),
+                        "description": description,
                         "enum": None,
-                        "units": units,
-                        "omitted_when": omitted,
-                    }
-                    continue
+                        "units": _infer_units(attr_name, "", elem_name),
+                        "omitted_when": None,
+                    },
+                )
+            if (
+                awaiting_primary_example
+                or prefer_next_literal
+                or not example_stack
+            ):
+                definition_element = elem_name
+                definition_is_scalar = scalar_match is not None
+                definition_inline_attributes = set(inline_attrs)
+                definition_inline_values = inline_attrs
+                awaiting_primary_example = False
+                prefer_next_literal = False
+                if current_section is not None:
+                    section_elements[current_section] = elem_name
+            if "start of" in stripped.casefold():
+                list_parent = elem_name
+            if scalar_match is None and not self_closing:
+                example_stack.append(elem_name)
+            continue
 
-                # --- Try to parse enum values immediately following an attribute ---
-                if current_attr_name and current_element in elements:
-                    enum_m = _ENUM_VALUE_RE.match(stripped)
-                    if enum_m:
-                        attr_enum_buffer.append(enum_m.group(1))
-                        continue
+        placeholder = _PLACEHOLDER_CHILD_RE.search(stripped)
+        if placeholder and list_parent is not None:
+            child_name = placeholder.group(1)
+            parent = register_element(list_parent, page_num)
+            register_element(child_name, page_num)
+            if child_name not in parent["children"]:
+                parent["children"].append(child_name)
+            continue
 
-                # --- Detect child elements listed in prose ---
-                if (current_element in elements
-                        and ("list of" in stripped.lower()
-                             or "start of" in stripped.lower())):
-                    for child_m in re.finditer(r"\((\w+)\)", stripped):
-                        child_name = child_m.group(1)
-                        if (child_name in _KNOWN_ELEMENTS
-                                and child_name not in elements[current_element]["children"]):
-                            elements[current_element]["children"].append(child_name)
+        same_as_target = _SAME_AS_ELEMENT_RE.search(stripped)
+        if definition_element is not None and same_as_target:
+            same_as_elements.append(
+                (definition_element, same_as_target.group(1))
+            )
+            continue
+        same_as_section = _SAME_AS_SECTION_RE.search(stripped)
+        if definition_element is not None and same_as_section:
+            target = section_elements.get(same_as_section.group(1))
+            if target is not None:
+                same_as_elements.append((definition_element, target))
+            continue
 
-    # Flush any pending enum from the last attribute
-    if current_attr_name and attr_enum_buffer:
-        attrs = elements.get(current_element, {}).get("attributes", {})
-        if current_attr_name in attrs:
-            attrs[current_attr_name]["enum"] = attr_enum_buffer
+        if definition_element is None:
+            continue
+
+        root_prose = _ROOT_PROSE_ATTR_RE.match(stripped)
+        if root_prose and definition_element in {"Source", "Library"}:
+            prefer_next_literal = False
+            flush_pending()
+            pending = {
+                "element": definition_element,
+                "name": root_prose.group(1),
+                "type": _infer_type(root_prose.group(2)),
+                "description_parts": [root_prose.group(3)],
+                "enum_values": [],
+                "enum_mode": False,
+                "text_content": False,
+                "page": page_num,
+            }
+            continue
+
+        text_content = (
+            _TEXT_CONTENT_LINE_RE.match(stripped)
+            if definition_is_scalar
+            else None
+        )
+        if text_content:
+            prefer_next_literal = False
+            flush_pending()
+            pending = {
+                "element": definition_element,
+                "name": definition_element,
+                "type": text_content.group(1),
+                "description_parts": [text_content.group(2)],
+                "enum_values": _extract_enum_values_from_block(
+                    text_content.group(2)
+                ),
+                "enum_mode": (
+                    text_content.group(2).rstrip().endswith(":")
+                    or text_content.group(2).lstrip().startswith('"')
+                ),
+                "text_content": True,
+                "page": page_num,
+            }
+            continue
+
+        attr = _parse_attribute_line(stripped)
+        if attr:
+            prefer_next_literal = False
+            flush_pending()
+            attr_name, attr_type, attr_desc = attr
+            pending = {
+                "element": definition_element,
+                "name": attr_name,
+                "type": attr_type,
+                "description_parts": [attr_desc],
+                "enum_values": _extract_enum_values_from_block(attr_desc),
+                "enum_mode": (
+                    attr_desc.rstrip().endswith(":")
+                    or attr_desc.lstrip().startswith('"')
+                ),
+                "text_content": (
+                    definition_is_scalar
+                    and attr_name not in definition_inline_attributes
+                ),
+                "page": page_num,
+            }
+            continue
+
+        missing_type_attr = _MISSING_TYPE_ATTRIBUTE_RE.match(stripped)
+        if (
+            missing_type_attr
+            and missing_type_attr.group(1) in definition_inline_attributes
+        ):
+            prefer_next_literal = False
+            flush_pending()
+            attr_name = missing_type_attr.group(1)
+            attr_desc = missing_type_attr.group(2)
+            pending = {
+                "element": definition_element,
+                "name": attr_name,
+                "type": _infer_type(definition_inline_values[attr_name]),
+                "description_parts": [attr_desc],
+                "enum_values": _extract_enum_values_from_block(attr_desc),
+                "enum_mode": (
+                    attr_desc.rstrip().endswith(":")
+                    or attr_desc.lstrip().startswith('"')
+                ),
+                "text_content": False,
+                "page": page_num,
+            }
+            continue
+
+        if pending is not None:
+            enum_values = _extract_enum_values_from_block(stripped)
+            if enum_values and (
+                pending["enum_mode"]
+                or pending["enum_values"]
+            ):
+                pending["enum_values"].extend(enum_values)
+                pending["enum_mode"] = True
+            else:
+                pending["description_parts"].append(stripped)
+
+    flush_pending()
+
+    for source_name, target_name in same_as_elements:
+        source = elements.get(source_name)
+        target = elements.get(target_name)
+        if (
+            target is not None
+            and not target["attributes"]
+            and len(target["children"]) == 1
+        ):
+            target = elements.get(target["children"][0])
+        if source is None or target is None:
+            continue
+        for attr_name, metadata in target["attributes"].items():
+            existing = source["attributes"].get(attr_name)
+            if (
+                existing is None
+                or "from XML example"
+                in str(existing.get("description", ""))
+            ):
+                source["attributes"][attr_name] = copy.deepcopy(metadata)
+
+    if root_units_documented:
+        for element_name in ("Source", "Library"):
+            element = elements.get(element_name)
+            if element is None or "Units" not in element["attributes"]:
+                continue
+            element["attributes"]["Units"] = _document_units_metadata()
 
     return elements
+
+
+def _documents_root_units(description: str) -> bool:
+    normalized = " ".join(description.casefold().split())
+    return (
+        "measurement units of dimensions in the file" in normalized
+        and "mm" in normalized
+        and "millimetres" in normalized
+        and "inch" in normalized
+        and "inches" in normalized
+        and "mil" in normalized
+        and "mils" in normalized
+    )
+
+
+def _document_units_metadata() -> dict[str, Any]:
+    return {
+        "type": "Text",
+        "description": (
+            "Measurement units of dimensions in the file: "
+            "mm – millimetres; inch – inches; mil – mils."
+        ),
+        "enum": ["mm", "inch", "mil"],
+        "units": "document_units",
+        "omitted_when": None,
+    }
 
 
 def _infer_type(value: str) -> str:
@@ -416,19 +967,17 @@ def _infer_units(attr_name: str, attr_desc: str, element_name: str) -> str:
 
 def _detect_omitted_when(desc: str) -> str | None:
     """Detect if the spec says the attribute is omitted under some condition."""
-    desc_lower = desc.lower() if desc else ""
-    if "absent" in desc_lower or "omitted" in desc_lower:
-        m = re.search(r"(?:absent|omitted)\s+(?:when|if)\s+(.+?)(?:\.|$)", desc_lower)
-        if m:
-            return m.group(1).strip()
-        if "absent" in desc_lower:
-            return "absent when not set"
-    if "not used" in desc_lower:
-        return "not used"
-    if "only if" in desc_lower or "only when" in desc_lower:
-        m = re.search(r"(only (?:if|when)\s+.+?)(?:\.|$)", desc_lower)
-        if m:
-            return m.group(1).strip()
+    if not desc:
+        return None
+    match = re.search(
+        r"\b(?:parameter\s+is\s+)?(?:absent|omitted)\s+(.+?)(?:\.|$)",
+        desc,
+        flags=re.IGNORECASE,
+    )
+    if match:
+        # Preserve the source clause instead of replacing an unknown
+        # condition with a generic assumption.
+        return match.group(1).strip()
     return None
 
 
@@ -446,21 +995,22 @@ def _source_url(filename: str) -> str:
     return url_map.get(filename, f"https://diptrace.com/books/{filename}")
 
 
-def build_inventory(sources_dir: Path) -> dict[str, Any]:
-    """Build the complete spec inventory from the PDFs in sources_dir."""
+def build_inventory(
+    sources_dir: Path,
+    *,
+    write_extracted_text_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Build the inventory from pinned PDF extraction or committed page bundles."""
     sources_info: list[dict[str, Any]] = []
     all_elements: dict[str, dict[str, Any]] = {}
 
-    pdf_files = sorted(sources_dir.glob("*.pdf"))
-    if not pdf_files:
-        raise FileNotFoundError(f"No PDF files found in {sources_dir}")
-
-    for pdf_path in pdf_files:
-        sha256 = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
-        size_bytes = pdf_path.stat().st_size
-
+    sources = _load_extracted_sources(
+        sources_dir,
+        write_extracted_text_dir=write_extracted_text_dir,
+    )
+    for source in sources:
         # Determine document type from filename
-        name_lower = pdf_path.name.lower()
+        name_lower = source.file.lower()
         if "pcb" in name_lower:
             doc_type = "pcb"
         elif "schematic" in name_lower:
@@ -468,13 +1018,19 @@ def build_inventory(sources_dir: Path) -> dict[str, Any]:
         elif "plugin" in name_lower:
             # Plugins spec describes settings.xml, not the XML format elements
             sources_info.append({
-                "file": pdf_path.name,
-                "url": _source_url(pdf_path.name),
-                "sha256": sha256,
-                "pages": len(_extract_pages(pdf_path)),
+                "file": source.file,
+                "url": source.url,
+                "sha256": source.sha256,
+                "pages": len(source.pages),
                 "document_format_version": "4.3.0.3",
                 "published": "2023",
-                "size_bytes": size_bytes,
+                "size_bytes": source.size_bytes,
+                "extracted_text_file": source.extracted_text_file,
+                "extracted_text_sha256": source.extracted_text_sha256,
+                "extraction_engine": {
+                    "name": _EXTRACTION_ENGINE,
+                    "version": _EXTRACTION_ENGINE_VERSION,
+                },
                 "note": (
                     "Plug-in specification; describes settings.xml, "
                     "not the XML format elements"
@@ -484,17 +1040,23 @@ def build_inventory(sources_dir: Path) -> dict[str, Any]:
         else:
             doc_type = "unknown"
 
-        pages = _extract_pages(pdf_path)
+        pages = list(source.pages)
         elements = _parse_spec_pages(pages, doc_type, 1)
 
         sources_info.append({
-            "file": pdf_path.name,
-            "url": _source_url(pdf_path.name),
-            "sha256": sha256,
+            "file": source.file,
+            "url": source.url,
+            "sha256": source.sha256,
             "pages": len(pages),
             "document_format_version": "4.3.0.3",
             "published": "2023",
-            "size_bytes": size_bytes,
+            "size_bytes": source.size_bytes,
+            "extracted_text_file": source.extracted_text_file,
+            "extracted_text_sha256": source.extracted_text_sha256,
+            "extraction_engine": {
+                "name": _EXTRACTION_ENGINE,
+                "version": _EXTRACTION_ENGINE_VERSION,
+            },
         })
 
         # Merge elements
@@ -513,6 +1075,10 @@ def build_inventory(sources_dir: Path) -> dict[str, Any]:
                 for attr_name, attr_data in elem_data["attributes"].items():
                     if attr_name not in all_elements[elem_name]["attributes"]:
                         all_elements[elem_name]["attributes"][attr_name] = attr_data
+                # Keep scalar element content distinct from XML attributes.
+                for text_entry in elem_data["text_content"]:
+                    if text_entry not in all_elements[elem_name]["text_content"]:
+                        all_elements[elem_name]["text_content"].append(text_entry)
                 # Merge children
                 for child in elem_data["children"]:
                     if child not in all_elements[elem_name]["children"]:
@@ -536,18 +1102,40 @@ def build_inventory(sources_dir: Path) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract DipTrace XML spec inventory")
-    parser.add_argument("--sources", required=True, help="Directory containing spec PDFs")
+    parser.add_argument(
+        "--sources",
+        required=True,
+        help="Directory containing spec PDFs or committed *.pages.json bundles",
+    )
     parser.add_argument("--out", required=True, help="Output JSON path")
+    parser.add_argument(
+        "--write-extracted-text",
+        help="Write canonical per-page text bundles to this directory (PDF mode only)",
+    )
     parser.add_argument("--check", action="store_true", help="Verify committed file matches")
     args = parser.parse_args()
 
     sources_dir = Path(args.sources)
     out_path = Path(args.out)
+    extracted_text_dir = (
+        Path(args.write_extracted_text) if args.write_extracted_text is not None else None
+    )
 
-    inventory = build_inventory(sources_dir)
+    inventory = build_inventory(
+        sources_dir,
+        write_extracted_text_dir=extracted_text_dir,
+    )
+    try:
+        validate_inventory(
+            inventory,
+            repository_root=Path(__file__).resolve().parents[1],
+        )
+    except ValueError as exc:
+        print(f"FAIL: generated inventory failed integrity checks: {exc}", file=sys.stderr)
+        return 1
 
     # Deterministic JSON output
-    output_json = json.dumps(inventory, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
+    output_json = _canonical_json(inventory)
 
     if args.check:
         if not out_path.exists():

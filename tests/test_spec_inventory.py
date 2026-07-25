@@ -33,10 +33,14 @@ class TestSpecInventory:
         inventory = _load_inventory()
         assert len(inventory["sources"]) >= 2  # PCB + Schematic specs
 
-    def test_inventory_has_elements(self) -> None:
-        """The inventory must contain at least 50 elements."""
+    def test_inventory_has_measured_floor(self) -> None:
+        """The inventory must not silently lose most elements or attributes."""
         inventory = _load_inventory()
-        assert len(inventory["elements"]) >= 50
+        assert len(inventory["elements"]) >= 250
+        assert sum(
+            len(element["attributes"])
+            for element in inventory["elements"].values()
+        ) >= 500
 
     def test_inventory_elements_have_required_fields(self) -> None:
         """Every element must have documents, pages, attributes, and children."""
@@ -45,6 +49,7 @@ class TestSpecInventory:
             assert "documents" in elem, f"Element {name} missing 'documents'"
             assert "pages" in elem, f"Element {name} missing 'pages'"
             assert "attributes" in elem, f"Element {name} missing 'attributes'"
+            assert "text_content" in elem, f"Element {name} missing 'text_content'"
             assert "children" in elem, f"Element {name} missing 'children'"
             assert isinstance(elem["documents"], list), f"Element {name} documents not a list"
             assert len(elem["documents"]) > 0, f"Element {name} has no documents"
@@ -61,6 +66,50 @@ class TestSpecInventory:
                 assert "description" in attr, f"{elem_name}.{attr_name} missing 'description'"
                 assert "units" in attr, f"{elem_name}.{attr_name} missing 'units'"
                 assert "omitted_when" in attr, f"{elem_name}.{attr_name} missing 'omitted_when'"
+
+    def test_text_content_is_not_modelled_as_same_name_attribute(self) -> None:
+        """Scalar element values must not inflate the attribute denominator."""
+        inventory = _load_inventory()
+        collisions = {
+            name
+            for name, element in inventory["elements"].items()
+            if name in element["attributes"]
+        }
+        assert collisions == set()
+
+    def test_documented_unit_sentinels(self) -> None:
+        """Keep the three explicit unit facts and the one unknown distinct."""
+        elements = _load_inventory()["elements"]
+        expected_units = {
+            ("Source", "Units"): "document_units",
+            ("Library", "Units"): "document_units",
+            ("Component", "Angle"): "unknown",
+            ("Shape", "Angle"): "radians",
+            ("Table", "Orientation"): "degrees",
+        }
+        for (element, attribute), units in expected_units.items():
+            assert elements[element]["attributes"][attribute]["units"] == units
+        assert elements["Source"]["attributes"]["Units"]["enum"] == [
+            "mm",
+            "inch",
+            "mil",
+        ]
+
+    def test_only_source_documented_omission_clauses_are_recorded(self) -> None:
+        """Do not invent absent/default rules missing from the public PDFs."""
+        inventory = _load_inventory()
+        omissions = {
+            (element_name, attribute_name)
+            for element_name, element in inventory["elements"].items()
+            for attribute_name, attribute in element["attributes"].items()
+            if attribute["omitted_when"] is not None
+        }
+        assert omissions == {
+            ("Component", "Type"),
+            ("Component", "Angle"),
+            ("Component", "PlacementClearance"),
+            ("Net", "MeanderGap"),
+        }
 
     def test_key_elements_present(self) -> None:
         """Key elements from both PCB and Schematic specs must be present."""
