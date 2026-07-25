@@ -1,3 +1,5 @@
+* text=auto
+
 # DipTrace XML fixtures are checksum-bound evidence. Never let Git rewrite
 # their line endings on Windows checkouts.
 *.xml -text
@@ -5,3 +7,7 @@
 *.dch -text
 *.eli -text
 *.lib -text
+*.dsn -text
+*.ses -text
+*.json -text
+*.svg -text
