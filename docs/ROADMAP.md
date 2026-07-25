@@ -169,13 +169,13 @@ The first useful recommendation system should select among **existing** patterns
 | 2 | complete v1 | millimeter-normalized geometry, transforms/mirroring/arcs, spatial index, SVG/JSON preview |
 | 3 | complete v1 | semantic compiler, persistent transactions, policy, SHA/preview/commit/rollback |
 | 4 | complete v1 | component/part/text/rule/test-point edits, pattern swap, groups, library read/validate |
-| 5 | complete v1 | registry DRC/ERC/connectivity/geometry findings and persistent reports |
+| 5 | partial v1 | persistent registry findings and skips for a bounded DRC/ERC subset; the review coverage matrix records missing and approximate categories |
 | 6 | complete v1 | deterministic silkscreen candidates, plans, previews, and apply |
 | 7 | complete v1 | bounded local placement candidates, scoring, legalization, and apply |
 | 8 | complete v2 | trace/via primitives, bounded multi-layer 45-degree A*, and symmetric vias |
 | 9 | complete v1 | bounded DSN export, Freerouting job, SES inspect/import, and post-review |
 | 10 | complete v3 | coupled-pair routing, lengths/skew, microstrip and IPC-2141 symmetric stripline impedance |
-| 11 | complete v1 | return-path/plane heuristics, BOM/design comparison, DFM/DFA/DFT, and thermal skips |
+| 11 | partial v1 | return-path/plane heuristics, BOM/design comparison, and bounded DFM/DFA/DFT/thermal metadata checks with explicit skips |
 | 12 | partial v2 | library validation, generic release manifests, typed optional openEMS jobs; library mutation and native fabrication remain unavailable |
 | 13 | complete v1 | workflow prompts, skill contracts, CI matrix, benchmark harness, truthful discovery |
 | 14 | complete v1 | project scaffolding: new schematic/PCB XML documents with stackup, rules, and sheets |
@@ -208,6 +208,9 @@ Native library create/update and attach-pattern mutation are intentionally unava
 
 ## Review and Manufacturing Limits
 
+- The representative [review coverage matrix](REVIEW_ENGINE.md) is the authoritative
+  summary of implemented, partial, and missing offline checks. A zero-finding report is
+  incomplete unless its skips and uncovered categories were also reviewed.
 - Copper-pour handling now applies layer-aware, same-net-exempt boundary obstacles to
   trace clearance review and local A*. Findings and route results disclose
   `pour_geometry: "boundary_only"`; authoritative DipTrace 5.3 refill geometry remains

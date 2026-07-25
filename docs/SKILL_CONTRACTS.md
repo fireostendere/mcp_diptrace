@@ -9,7 +9,10 @@ SHA, show a preview, and run post-write checks.
 
 `review_board_before_release`: information/capabilities -> board/connectivity/stackup ->
 DRC, board, manufacturing, assembly, testability, BOM, and return-path review -> model
-synthesis. Stop on blocking findings, skipped mandatory checks, or an incomplete stackup.
+synthesis. Compare the result with the
+[implemented/partial/missing coverage matrix](REVIEW_ENGINE.md). Stop on blocking
+findings, skipped mandatory checks, an uncovered mandatory category, or an incomplete
+stackup.
 
 `review_schematic_before_layout`: schematic/connectivity -> ERC/schematic review -> BOM
 and PCB comparison when available. Stop on ambiguous hierarchy or mapping, or missing patterns.
@@ -47,9 +50,9 @@ dry-run -> commit -> recheck. Locked labels are neither moved nor hidden.
 selection -> dry-run -> testability/DRC -> commit. Accessibility remains an estimate and
 is labeled accordingly.
 
-`prepare_fabrication_export`: all release checks -> generic manifest only. Stop because
-the MCP server does not generate Gerber or NC Drill; the bundle must not be described as
-fabrication-ready.
+`prepare_fabrication_export`: applicable registered release checks -> explicit review of
+skips and missing categories -> generic manifest only. Stop because the MCP server does
+not generate Gerber or NC Drill; the bundle must not be described as fabrication-ready.
 
 `prepare_assembly_export`: assembly/BOM/silkscreen -> generic BOM/placement. The model
 selects the assembly variant. Stop on DNP ambiguity or an unknown assembler coordinate convention.

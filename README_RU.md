@@ -34,7 +34,8 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 - move/rotate/side/lock/property/pattern/alignment/distribution/group operations для компонентов и частей;
 - board-text edits, документированные NetClass rules и standalone-pad test points;
 - чтение и validation Component/Pattern Libraries, включая pin-to-pad checks;
-- registry-based offline DRC/ERC review с persistent structured findings;
+- ограниченные registry-based offline DRC/ERC review с persistent findings,
+  structured skips и явной [матрицей implemented/partial/missing](docs/REVIEW_ENGINE.md);
 - deterministic silkscreen planner и bounded local placement planner;
 - explicit trace/via operations, bounded multi-layer 45-degree A* и symmetric via insertion;
 - congestion-ordered multi-net routing с bounded rip-up/retry (`route_connections`) и read-only priority evidence (`analyze_routing_congestion`);
@@ -43,7 +44,9 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 - stackup, net length/skew, differential-pair geometry, return-path heuristics и preliminary analytical impedance: Hammerstad-Jensen microstrip (single/differential) и IPC-2141 centered symmetric stripline;
 - ngspice batch adapter для пользовательских netlists с typed log results;
 - optional typed openEMS-runner adapter для frequency-dependent centered/off-center stripline с bounded jobs и строгим parsing результата;
-- BOM, DFM/DFA/DFT, thermal-metadata, assembly и design-comparison reviews;
+- ограниченные профили BOM, DFM/DFA/DFT, thermal-metadata, assembly и
+  design-comparison review; их ограничения по геометрии и evidence описаны явно, и они
+  не являются fabrication- или assembly-sign-off;
 - generic BOM, fabrication-review и assembly-review manifests;
 - policy profiles `read_only`, `review`, `interactive_edit`, `automation`, `manufacturing`;
 - live- и offline-работа через MCP stdio или Streamable HTTP.
@@ -106,7 +109,8 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
 ```
 
-Для exact polygon/ellipse/obround/swept-trace geometry и spatial DRC установите optional GEOS backend:
+Для exact polygon/ellipse/obround/swept-trace geometry и поддерживаемых exact
+spatial-clearance путей установите optional GEOS backend:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[geometry]"
@@ -178,7 +182,8 @@ High-level writes по умолчанию работают в preview/dry-run р
 1. загрузить документ и зафиксировать SHA-256;
 2. создать или staged scoped semantic operations;
 3. проверить diff и SVG/JSON preview;
-4. проверить connectivity и локальный DRC/ERC;
+4. повторно запустить применимые ограниченные connectivity/DRC/ERC checks и проверить
+   каждый skip;
 5. commit с `expected_sha256`;
 6. повторно распарсить изменённый XML и выполнить post-write checks;
 7. явно применить live session либо выполнить rollback/cancel.

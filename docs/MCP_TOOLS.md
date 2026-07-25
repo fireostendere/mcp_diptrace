@@ -51,7 +51,11 @@ wire does not promise a structured `code` or `suggested_action` payload.
 - `route_connections` for congestion-ordered multi-net routing with bounded batch-local rip-up/retry;
 - `plan_diff_pair_route` and `route_diff_pair` for coupled centerline-based differential-pair routing.
 
-High-level writes use dry-run or transaction planning, expected source SHA, preview, reparse, targeted connectivity/DRC/ERC regression checks, commit, backup, and rollback. `apply_xml_edits` remains an expert escape hatch rather than the preferred API.
+High-level writes use dry-run or transaction planning, expected source SHA, preview,
+reparse, targeted connectivity/DRC/ERC regression checks, commit, backup, and rollback.
+Those checks cover a bounded subset and may skip unavailable geometry or rules; see the
+[review coverage matrix](REVIEW_ENGINE.md). `apply_xml_edits` remains an expert escape
+hatch rather than the preferred API.
 
 ## Trust and Verification Caveat
 
@@ -68,8 +72,10 @@ These operations may be implemented and tested while still lacking the same trus
 
 ## Analysis and Review
 
-- registry-based DRC, ERC, connectivity, board, and schematic review;
-- manufacturing, assembly, testability, BOM, and thermal profiles;
+- bounded registry-based DRC, ERC, connectivity, board, and schematic review with
+  structured skips;
+- partial manufacturing, assembly, testability, BOM, and thermal profiles whose
+  uncovered categories remain explicit;
 - silkscreen and bounded local placement planners;
 - return-path and plane-continuity heuristics;
 - BOM and schematic/PCB comparison;

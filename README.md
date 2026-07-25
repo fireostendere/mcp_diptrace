@@ -36,7 +36,8 @@ See [the roadmap](docs/ROADMAP.md) for the current priority order and exit crite
 - component/part move, rotate, side, lock, property, pattern, alignment, distribution, and grouping operations;
 - board-text edits, documented NetClass rules, and standalone-pad test points;
 - Component/Pattern Library reading, validation, and pin-to-pad checks;
-- registry-based offline DRC/ERC reviews with persistent structured findings;
+- bounded, registry-based offline DRC/ERC reviews with persistent findings, structured
+  skips, and an explicit [implemented/partial/missing coverage matrix](docs/REVIEW_ENGINE.md);
 - deterministic silkscreen and bounded local placement planners;
 - explicit trace/via operations, bounded multi-layer 45-degree A*, and symmetric via insertion;
 - congestion-ordered multi-net routing with bounded rip-up/retry (`route_connections`) and read-only priority evidence (`analyze_routing_congestion`);
@@ -45,7 +46,9 @@ See [the roadmap](docs/ROADMAP.md) for the current priority order and exit crite
 - stackup, net length/skew, differential-pair geometry, return-path heuristics, and preliminary analytical impedance: Hammerstad-Jensen microstrip (single and differential) plus IPC-2141 centered symmetric stripline;
 - ngspice batch adapter for user-supplied netlists with typed log results;
 - typed optional openEMS-runner adapter for frequency-dependent centered/off-center stripline results, with bounded jobs and strict result parsing;
-- BOM, DFM/DFA/DFT, thermal-metadata, assembly, and design-comparison reviews;
+- bounded BOM, DFM/DFA/DFT, thermal-metadata, assembly, and design-comparison review
+  profiles; their geometry and evidence limits are explicit and they are not fabrication
+  or assembly sign-off;
 - generic BOM, fabrication-review, and assembly-review manifests;
 - policy profiles: `read_only`, `review`, `interactive_edit`, `automation`, and `manufacturing`;
 - live and offline operation over MCP stdio or Streamable HTTP.
@@ -108,7 +111,8 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
 ```
 
-Install the optional GEOS geometry backend when exact polygon, ellipse, obround, swept-trace geometry, and spatial DRC are needed:
+Install the optional GEOS geometry backend when exact polygon, ellipse, obround,
+swept-trace geometry, and the supported exact spatial-clearance paths are needed:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[geometry]"
@@ -180,7 +184,7 @@ High-level writes default to preview/dry-run behavior. A safe workflow is:
 1. load the document and record its SHA-256;
 2. create or stage scoped semantic operations;
 3. inspect the diff and SVG/JSON preview;
-4. validate connectivity and localized DRC/ERC;
+4. rerun the applicable bounded connectivity/DRC/ERC checks and inspect every skip;
 5. commit with `expected_sha256`;
 6. reparse the modified XML and run post-write checks;
 7. apply the live session explicitly, or roll back/cancel.
