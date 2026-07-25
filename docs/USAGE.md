@@ -388,6 +388,9 @@ list_nets(path="BoardA/controller.xml", query="GND")
 ```
 
 Relative paths are resolved from `DIPTRACE_MCP_WORKSPACE`.
+Paths supplied in MCP calls are literal: `$NAME`, `%NAME%`, and `~` are not expanded.
+Environment and home expansion applies only to operator-owned configuration such as
+`DIPTRACE_MCP_WORKSPACE`, `DIPTRACE_MCP_ALLOWED_ROOTS`, and configured executable paths.
 
 ### 7.4 Collect Operator Evidence
 
@@ -472,6 +475,22 @@ pin whose mapping cannot be proven. Library and PCB units must match when a patt
 copied. New components receive deterministic grid coordinates; run placement legalization before
 routing. Commit the returned transaction with its PCB source SHA-256.
 
+### 8.2 External Jobs and the Specctra Boundary
+
+Freerouting, ngspice, and openEMS jobs share a global concurrency limit, bounded
+streaming logs/results, isolated job directories, explicit timeouts, and terminal
+cancellation. POSIX jobs are terminated as process groups. Windows jobs use a
+kill-on-close Job Object, including the case where the root process exits while a child
+still holds inherited output handles. Root processes are waited and reaped.
+
+DSN export currently accepts only quoted values that can be emitted literally as
+printable ASCII without a quote or backslash. Values requiring escaping, control
+characters, or a non-ASCII encoding convention produce an explicit capability error.
+SES input must be UTF-8; backslash escapes and literal control characters in quoted
+tokens are refused. Do not normalize those refusals away: the project does not yet have
+a committed real DipTrace DSN/SES pair that establishes broader conventions. See
+[OPEN_QUESTIONS.md](OPEN_QUESTIONS.md#q17-what-dsnses-conventions-does-diptrace-use-on-a-real-routed-design).
+
 ## 9. Low-Level XML Operations
 
 `apply_xml_edits` supports:
@@ -485,6 +504,20 @@ routing. Commit the returned transaction with its PCB source SHA-256.
 
 Use this API only when a verified semantic tool is unavailable. Every edit must include
 an exact `expected_matches` guard.
+
+For supported UTF-8 (with or without BOM), UTF-16LE/BE, US-ASCII, and ISO-8859-1
+inputs, replacements use the detected source codec and retain the BOM and untouched
+bytes. Clean UTF-32 input currently fails closed. The output is not accepted
+merely because it parses: each raw edit is compared with the requested semantic element
+tree, and raw-preserving semantic compilation has the same equality gate. The project
+still needs DipTrace experiments to establish which encodings the application itself
+emits and imports; see
+[OPEN_QUESTIONS.md](OPEN_QUESTIONS.md#q8-which-encoding-bom-and-line-endings-does-diptrace-export).
+
+Typed request models and normalized XML/SES readers reject `NaN` and positive or
+negative infinity before those values can participate in geometry or rule comparisons.
+Where available, the typed error identifies the XML element/attribute and byte offset,
+or the SES token character offset.
 
 ### 9.1 Change a Component Value
 
@@ -601,8 +634,8 @@ Deleting or replacing the `<Source>` root is prohibited.
 | `DIPTRACE_MCP_MAX_EXTERNAL_PROCESSES` | `2` | Maximum concurrently running external adapter processes |
 | `DIPTRACE_MCP_MAX_EXTERNAL_RESULT_BYTES` | `16777216` | Maximum typed solver-result artifact size |
 | `DIPTRACE_MCP_MAX_EXTERNAL_LOG_BYTES` | `4194304` | Maximum retained or returned external-job log size |
-| `DIPTRACE_MCP_RETENTION_MAX_RECORDS` | `500` | Maximum terminal records retained per state store or offline-backup target |
-| `DIPTRACE_MCP_RETENTION_MAX_AGE_DAYS` | `180` | Maximum age of terminal state records and offline backups |
+| `DIPTRACE_MCP_RETENTION_MAX_RECORDS` | `500` | Count cleanup target for validated terminal records per state store or offline-backup target; not a hard quota |
+| `DIPTRACE_MCP_RETENTION_MAX_AGE_DAYS` | `180` | Age cleanup target for validated terminal records and offline backups; not a hard quota |
 
 Example with multiple Windows roots:
 
@@ -651,14 +684,21 @@ the hash in its filename before it is treated as a recovery point. Pruning one t
 does not inspect or delete another target's history, and the newest valid recovery
 point for each target is retained.
 
-At store construction, terminal artifacts older than the configured age or beyond the
-configured per-store count are removed as whole records. A transaction record includes
-its snapshot and internal backup; a session record includes its original, working, and
-live-backup files. Planned, staged, queued, running, active, committed-but-rollbackable,
-and `active.json`-referenced records are protected even when limits are exceeded.
-Corrupt records, embedded-ID mismatches, symbolic links, junctions, and paths outside
-the state directory are skipped rather than followed or deleted. Retention is
-best-effort: a deletion failure does not make startup destructive or unavailable.
+Before an existing target is replaced, its original bytes are captured in the central
+state tree: direct offline writes use the per-target history, transaction commits keep
+recovery bytes in the authenticated transaction record, and live writes use the
+protected session record. A newly created target has no previous content and therefore
+reports `backup: null`; replacing an existing target through an overwrite path does
+create a backup.
+
+At store construction, validated terminal artifacts older than the configured age or
+beyond the configured per-store count are eligible for whole-record cleanup. Active or
+nonterminal records and the state required to recover them are protected even when a
+threshold is exceeded. Corrupt records, embedded-ID mismatches, symbolic links,
+junctions, and paths outside the state directory are skipped rather than followed or
+deleted. Retention is best-effort and the thresholds are not storage quotas: protected
+or unverifiable records may keep the stored count above them, and a deletion failure
+does not make startup destructive or unavailable.
 
 ## 12. Troubleshooting
 
@@ -688,7 +728,9 @@ bridge window.
 ### The Server Rejects a Path
 
 The file is outside `DIPTRACE_MCP_WORKSPACE` and `DIPTRACE_MCP_ALLOWED_ROOTS`. Add only
-the required directory, restart the MCP server, and retry.
+the required directory, restart the MCP server, and retry. If the path contains an
+environment placeholder or `~`, expand it in the server configuration or supply the
+literal resolved path; MCP call arguments deliberately do not expand those forms.
 
 ### `Expected <Source> root`
 
