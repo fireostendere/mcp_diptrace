@@ -52,6 +52,11 @@ jobs:
       - run: python -m ruff check --no-cache src tests benchmarks scripts
       - run: python -m mypy --no-incremental src/diptrace_mcp
       - run: python scripts/generate_pcb_skills.py --check
+      - run: >-
+          python scripts/extract_spec_inventory.py
+          --sources reference/diptrace-xml/extracted_text
+          --out reference/diptrace-xml/spec_inventory.json
+          --check
       - run: python scripts/report_format_coverage.py --check
 
   test-macos:

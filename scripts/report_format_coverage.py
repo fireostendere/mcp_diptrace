@@ -19,6 +19,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+if __package__:
+    from .spec_inventory_integrity import validate_inventory
+else:
+    from spec_inventory_integrity import validate_inventory
+
 _READER_MODULES = frozenset(
     {
         "adapters.py",
@@ -360,10 +365,32 @@ def compute_coverage(
     mentioned_count = len(classes["mentioned_only"])
     pass_count = len(classes["passthrough"])
     coverage_pct = ((norm_count + written_count) / total * 100) if total > 0 else 0
+    attribute_count = sum(
+        len(element.get("attributes", {})) for element in elements.values()
+    )
+    text_content_count = sum(
+        len(element.get("text_content", [])) for element in elements.values()
+    )
+    omitted_when_count = sum(
+        attribute.get("omitted_when") is not None
+        for element in elements.values()
+        for attribute in element.get("attributes", {}).values()
+    )
+    parent_count = sum(
+        bool(element.get("children")) for element in elements.values()
+    )
+    child_edge_count = sum(
+        len(element.get("children", [])) for element in elements.values()
+    )
 
     return {
         "summary": {
             "total_elements": total,
+            "total_attributes": attribute_count,
+            "text_content_definitions": text_content_count,
+            "explicit_omission_clauses": omitted_when_count,
+            "parents_with_children": parent_count,
+            "child_edges": child_edge_count,
             "normalized": norm_count,
             "written": written_count,
             "mentioned_only": mentioned_count,
@@ -393,11 +420,36 @@ def _format_coverage_markdown(
         "| Metric | Value |",
         "| --- | --- |",
         f"| Total elements in spec | {summary['total_elements']} |",
+        f"| XML attributes in spec | {summary['total_attributes']} |",
+        f"| Element text-content definitions | {summary['text_content_definitions']} |",
+        f"| Explicit attribute omission clauses | {summary['explicit_omission_clauses']} |",
+        (
+            "| Documented parent/child relationships | "
+            f"{summary['child_edges']} across {summary['parents_with_children']} parents |"
+        ),
         f"| Normalized (reader produces typed field) | {summary['normalized']} |",
         f"| Written only (writer can create/modify) | {summary['written']} |",
         f"| Mentioned only (literal, not an XML call) | {summary['mentioned_only']} |",
         f"| Passthrough (unknown XML, kept byte-for-byte) | {summary['passthrough']} |",
         f"| **Coverage** | **{summary['coverage_percent']}%** |",
+        "",
+        "## Inventory Provenance",
+        "",
+        "The inventory is generated from the three official PDFs named in",
+        "[`spec_inventory.json`](../reference/diptrace-xml/spec_inventory.json). The PDFs",
+        "are not redistributed. Canonical per-page text extracted with the pinned",
+        "`pypdf==6.14.2` is committed under",
+        "[`reference/diptrace-xml/extracted_text/`](../reference/diptrace-xml/extracted_text/),",
+        "with both PDF and intermediate SHA-256 values recorded in the inventory.",
+        "CI regenerates the inventory from that offline intermediate before computing this",
+        "report. A maintainer with the original PDFs can independently re-extract the same",
+        "intermediate and compare it byte-for-byte.",
+        "",
+        "Only literal XML examples introduce element names. Scalar element content is",
+        "recorded separately from attributes, and prose that merely mentions `<Element>`",
+        "does not change parser ownership. The public PDFs contain four explicit",
+        "attribute-level absence clauses; no additional `omitted_when` conditions are",
+        "inferred.",
         "",
         "## Normalized Elements",
         "",
@@ -502,7 +554,15 @@ def main() -> int:
               file=sys.stderr)
         return 1
 
-    inventory = _load_inventory(inventory_path)
+    try:
+        inventory = _load_inventory(inventory_path)
+        validate_inventory(
+            inventory,
+            repository_root=Path(__file__).resolve().parents[1],
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        print(f"FAIL: invalid specification inventory: {exc}", file=sys.stderr)
+        return 1
     coverage = compute_coverage(inventory, src_dir)
     report_md = _format_coverage_markdown(coverage, inventory)
 

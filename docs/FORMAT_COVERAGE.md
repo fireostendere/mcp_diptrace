@@ -4,12 +4,34 @@
 
 | Metric | Value |
 | --- | --- |
-| Total elements in spec | 294 |
-| Normalized (reader produces typed field) | 61 |
-| Written only (writer can create/modify) | 22 |
-| Mentioned only (literal, not an XML call) | 20 |
-| Passthrough (unknown XML, kept byte-for-byte) | 191 |
-| **Coverage** | **28.2%** |
+| Total elements in spec | 270 |
+| XML attributes in spec | 727 |
+| Element text-content definitions | 232 |
+| Explicit attribute omission clauses | 4 |
+| Documented parent/child relationships | 90 across 80 parents |
+| Normalized (reader produces typed field) | 58 |
+| Written only (writer can create/modify) | 19 |
+| Mentioned only (literal, not an XML call) | 19 |
+| Passthrough (unknown XML, kept byte-for-byte) | 174 |
+| **Coverage** | **28.5%** |
+
+## Inventory Provenance
+
+The inventory is generated from the three official PDFs named in
+[`spec_inventory.json`](../reference/diptrace-xml/spec_inventory.json). The PDFs
+are not redistributed. Canonical per-page text extracted with the pinned
+`pypdf==6.14.2` is committed under
+[`reference/diptrace-xml/extracted_text/`](../reference/diptrace-xml/extracted_text/),
+with both PDF and intermediate SHA-256 values recorded in the inventory.
+CI regenerates the inventory from that offline intermediate before computing this
+report. A maintainer with the original PDFs can independently re-extract the same
+intermediate and compare it byte-for-byte.
+
+Only literal XML examples introduce element names. Scalar element content is
+recorded separately from attributes, and prose that merely mentions `<Element>`
+does not change parser ownership. The public PDFs contain four explicit
+attribute-level absence clauses; no additional `omitted_when` conditions are
+inferred.
 
 ## Normalized Elements
 
@@ -59,14 +81,11 @@
 - `Points`
 - `Ratline`
 - `Ratlines`
-- `Routing`
 - `Segment`
 - `Segments`
-- `Settings`
 - `Shape`
 - `Shapes`
 - `Sheet`
-- `SheetSettings`
 - `Sheets`
 - `Trace`
 - `Traces`
@@ -78,7 +97,6 @@
 ## Written-Only Elements
 
 - `ActiveSheet`
-- `Board`
 - `GNDTemplate`
 - `Group`
 - `Groups`
@@ -86,12 +104,10 @@
 - `LayerName`
 - `LayerStackName`
 - `Name`
-- `Origin`
 - `Panel`
 - `PartName`
 - `PartRefDes`
 - `RefDes`
-- `Schematic`
 - `Source`
 - `Text`
 - `TextLine`
@@ -112,7 +128,6 @@
 - `NameMarking`
 - `NegPoint`
 - `NegPoints`
-- `PatternMarking`
 - `Polygon`
 - `PosPoint`
 - `PosPoints`
@@ -139,12 +154,9 @@
 - `BlockId`
 - `BoardClearance`
 - `Border`
-- `BorderZones`
 - `BottomComponentLock`
-- `BottomLeftBlock`
 - `BottomMargin`
 - `BottomRightBlock`
-- `BusConnections`
 - `BusConnector`
 - `BusConnectors`
 - `CTC_Cells`
@@ -163,7 +175,6 @@
 - `ConnectedTeardrops`
 - `CustomSpoke`
 - `CustomSpokes`
-- `DCTransferFunc`
 - `DRCDone`
 - `DatasheetGlobal`
 - `DesignCache`
@@ -175,8 +186,6 @@
 - `DisplaySheet`
 - `DisplayTitles`
 - `EditInactiveLayer`
-- `ExtBottomLeftBlock`
-- `ExtTopLeftBlock`
 - `FanoutLength`
 - `Field`
 - `Fields`
@@ -191,7 +200,6 @@
 - `FontVector`
 - `FontWidth`
 - `GndNetName`
-- `Grid`
 - `HSheet`
 - `HidePower`
 - `HideRingLay`
@@ -199,7 +207,6 @@
 - `HierarchySheets`
 - `HorzBorderSize`
 - `HorzZones`
-- `Index`
 - `IntCon`
 - `InternalConnections`
 - `JumperLayer`
@@ -211,18 +218,14 @@
 - `LengthRule`
 - `LengthRules`
 - `Lib`
-- `LibPath`
 - `Libs`
-- `LineWidth`
 - `LockNetStructure`
 - `MainLengthRule`
 - `ManufacturerGlobal`
-- `Markings`
 - `NameGlobal`
 - `NegSeparateTraces`
 - `NegTrace`
 - `NodeSize`
-- `Noise`
 - `NonSignal`
 - `NonSignals`
 - `NumberOfPoints`
@@ -245,7 +248,7 @@
 - `RealTimeMode`
 - `RefDesGlobal`
 - `ReferenceNet`
-- `RelatedSchem`
+- `RemovedDifferentialPair`
 - `RemovedDifferentialPairs`
 - `RightMargin`
 - `RouteLayers`
@@ -270,7 +273,6 @@
 - `Signals`
 - `Simulator`
 - `Size`
-- `SmallSignalAC`
 - `Snap`
 - `SolderMaskSwell`
 - `SourceRefDes`
@@ -290,15 +292,11 @@
 - `Teardrop`
 - `TeardropParams`
 - `Teardrops`
-- `Title`
 - `Titles`
 - `TopComponentLock`
-- `TopLeftBlock`
 - `TopMargin`
-- `TopRightBlock`
 - `TraceClearance`
 - `TraceWidth`
-- `Transient`
 - `UId`
 - `UpdateIds`
 - `UsePartFontColor`
