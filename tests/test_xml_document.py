@@ -59,6 +59,61 @@ def test_dtd_is_rejected() -> None:
         DipTraceDocument.from_bytes(Path("unsafe.xml"), payload)
 
 
+def test_utf16_be_bom_dtd_is_rejected() -> None:
+    """UTF-16 BE BOM + DOCTYPE must be caught by encoding-aware detection."""
+    from diptrace_mcp.xml_document import _detect_encoding_and_check
+
+    text = '<!DOCTYPE Source [<!ENTITY x "boom">]><Source Type="DipTrace-PCB">&x;</Source>'
+    payload = b"\xfe\xff" + text.encode("utf-16-be")
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        _detect_encoding_and_check(payload)
+
+
+def test_utf16_le_bom_entity_is_rejected() -> None:
+    """UTF-16 LE BOM + ENTITY must be caught."""
+    from diptrace_mcp.xml_document import _detect_encoding_and_check
+
+    text = '<Source Type="DipTrace-PCB"><!ENTITY x "boom"></Source>'
+    payload = b"\xff\xfe" + text.encode("utf-16-le")
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        _detect_encoding_and_check(payload)
+
+
+def test_utf32_be_bom_dtd_is_rejected() -> None:
+    """UTF-32 BE BOM + DOCTYPE must be caught."""
+    from diptrace_mcp.xml_document import _detect_encoding_and_check
+
+    text = '<!DOCTYPE Source><Source Type="DipTrace-PCB"/>'
+    payload = b"\x00\x00\xfe\xff" + text.encode("utf-32-be")
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        _detect_encoding_and_check(payload)
+
+
+def test_utf32_le_bom_entity_is_rejected() -> None:
+    """UTF-32 LE BOM + ENTITY must be caught."""
+    from diptrace_mcp.xml_document import _detect_encoding_and_check
+
+    text = '<Source Type="DipTrace-PCB"><!ENTITY x "boom"/></Source>'
+    payload = b"\xff\xfe\x00\x00" + text.encode("utf-32-le")
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        _detect_encoding_and_check(payload)
+
+
+def test_clean_utf16_no_forbidden_pattern() -> None:
+    """A clean UTF-16 document with no DTD/ENTITY must not be rejected by the guard."""
+    from diptrace_mcp.xml_document import _detect_encoding_and_check
+
+    text = '<Source Type="DipTrace-PCB"><Board/></Source>'
+    payload = b"\xfe\xff" + text.encode("utf-16-be")
+
+    # Should NOT raise - no forbidden patterns
+    _detect_encoding_and_check(payload)
+
+
 def test_raw_patch_preserves_bom_declaration_empty_tags_and_unknown_sections() -> None:
     payload = (
         b'\xef\xbb\xbf<?xml version="1.0" encoding="utf-8"?>\r\n'

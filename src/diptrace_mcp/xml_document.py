@@ -40,19 +40,27 @@ def _detect_encoding_and_check(data: bytes) -> None:
     This function detects the encoding, decodes a bounded prefix, and applies
     the check on the decoded text.
     """
-    # Detect BOM
-    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
-        # UTF-16 with BOM
-        encoding = "utf-16"
+    # Detect BOM — use explicit BE/LE codec names because the BOM is stripped
+    # before decoding, and the generic "utf-16"/"utf-32" codecs fall back to
+    # system endianness when no BOM is present in the slice.
+    # Check 4-byte BOMs first (UTF-32) since their leading 2 bytes can
+    # collide with the UTF-16 BOMs.
+    if data[:4] == b"\x00\x00\xfe\xff":
+        encoding = "utf-32-be"
+        bom_len = 4
+    elif data[:4] == b"\xff\xfe\x00\x00":
+        encoding = "utf-32-le"
+        bom_len = 4
+    elif data[:2] == b"\xfe\xff":
+        encoding = "utf-16-be"
+        bom_len = 2
+    elif data[:2] == b"\xff\xfe":
+        encoding = "utf-16-le"
         bom_len = 2
     elif data[:3] == b"\xef\xbb\xbf":
         # UTF-8 with BOM
         encoding = "utf-8-sig"
         bom_len = 3
-    elif data[:4] in (b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff"):
-        # UTF-32 with BOM
-        encoding = "utf-32"
-        bom_len = 4
     else:
         # Try to detect from XML declaration
         # Read a bounded prefix to find the encoding
