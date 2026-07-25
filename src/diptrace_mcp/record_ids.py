@@ -45,6 +45,58 @@ class InvalidRecordPath(ValueError):
     """A persisted record path is redirected or leaves its owning store."""
 
 
+def prepare_safe_store_root(state_root: Path, store_root: Path) -> Path:
+    """Create and validate one direct, non-redirected state-store directory.
+
+    The state directory may be absent on first use.  It is validated before
+    the child store is created so an existing state-root symlink or junction
+    cannot redirect that creation.
+    """
+
+    try:
+        state_root.mkdir(parents=True, exist_ok=True)
+        if is_link_like(state_root) or not state_root.is_dir():
+            raise InvalidRecordPath(f"State root is not a safe directory: {state_root}")
+        if store_root.parent != state_root:
+            raise InvalidRecordPath(
+                f"Store root is not a direct child of the state root: {store_root}"
+            )
+        if is_link_like(store_root):
+            raise InvalidRecordPath(f"Store root is redirected: {store_root}")
+        store_root.mkdir(exist_ok=True)
+    except InvalidRecordPath:
+        raise
+    except OSError as exc:
+        raise InvalidRecordPath(f"Store root cannot be prepared safely: {store_root}") from exc
+    return require_safe_store_root(state_root, store_root)
+
+
+def require_safe_store_root(state_root: Path, store_root: Path) -> Path:
+    """Return a direct state-store root only when it is not redirected."""
+
+    try:
+        if (
+            store_root.parent != state_root
+            or is_link_like(state_root)
+            or not state_root.is_dir()
+            or is_link_like(store_root)
+            or not store_root.is_dir()
+        ):
+            raise InvalidRecordPath(f"Store root is not a safe directory: {store_root}")
+        resolved_state = state_root.resolve(strict=True)
+        resolved_store = store_root.resolve(strict=True)
+        resolved_store.relative_to(resolved_state)
+        if resolved_store.parent != resolved_state:
+            raise InvalidRecordPath(
+                f"Store root is not a direct child of the state root: {store_root}"
+            )
+    except InvalidRecordPath:
+        raise
+    except (OSError, ValueError) as exc:
+        raise InvalidRecordPath(f"Store root is not safely confined: {store_root}") from exc
+    return store_root
+
+
 def require_record_id(value: str, kind: RecordIdKind) -> str:
     """Return an exact generated record id or reject it before path construction."""
 

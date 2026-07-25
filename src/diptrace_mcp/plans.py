@@ -14,8 +14,10 @@ from .record_ids import (
     InvalidRecordId,
     InvalidRecordPath,
     iter_valid_record_files,
+    prepare_safe_store_root,
     require_confined_record_file,
     require_record_id,
+    require_safe_store_root,
 )
 from .retention import (
     Clock,
@@ -40,9 +42,12 @@ class PlanStore:
 
     def __post_init__(self) -> None:
         self.plans_dir = self.state_dir / "plans"
-        self.plans_dir.mkdir(parents=True, exist_ok=True)
+        prepare_safe_store_root(self.state_dir, self.plans_dir)
         self._lock = threading.RLock()
         self.last_retention_report = self._prune_retention()
+
+    def _require_safe_root(self) -> None:
+        require_safe_store_root(self.state_dir, self.plans_dir)
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -137,6 +142,7 @@ class PlanStore:
             limitations=limitations,
         )
         with self._lock:
+            self._require_safe_root()
             self.plan_dir(record.plan_id).mkdir(parents=True, exist_ok=False)
             self.write(record)
         return record
@@ -167,6 +173,7 @@ class PlanStore:
         return record
 
     def write(self, record: PlanRecord) -> None:
+        self._require_safe_root()
         payload = json.dumps(
             record.model_dump(mode="json"), ensure_ascii=False, indent=2, sort_keys=True
         ).encode("utf-8")
@@ -200,6 +207,7 @@ class PlanStore:
         geometry: dict[str, Any],
         diff: str,
     ) -> list[str]:
+        self._require_safe_root()
         atomic_write_bytes(self.preview_svg_path(plan_id), svg.encode("utf-8"))
         atomic_write_bytes(
             self.preview_json_path(plan_id),

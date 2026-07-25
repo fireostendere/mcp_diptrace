@@ -18,10 +18,12 @@ from .record_ids import (
     InvalidRecordPath,
     is_link_like,
     iter_valid_record_files,
+    prepare_safe_store_root,
     require_confined_record_artifact,
     require_confined_record_directory,
     require_confined_record_file,
     require_record_id,
+    require_safe_store_root,
 )
 from .retention import (
     RetentionCandidate,
@@ -63,11 +65,14 @@ class ExportStore:
     ):
         self.state_dir = state_dir
         self.root = state_dir / "exports"
-        self.root.mkdir(parents=True, exist_ok=True)
+        prepare_safe_store_root(self.state_dir, self.root)
         self.max_artifact_bytes = max_artifact_bytes
         self.retention = retention or RetentionPolicy()
         self.clock = clock
         self.last_retention_report = self._prune_retention()
+
+    def _require_safe_root(self) -> None:
+        require_safe_store_root(self.state_dir, self.root)
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -144,6 +149,7 @@ class ExportStore:
         manifest: dict[str, object],
         limitations: list[str],
     ) -> ExportRecord:
+        self._require_safe_root()
         export_id = f"export_{uuid.uuid4().hex}"
         directory = self._directory(export_id)
         directory.mkdir(parents=True, exist_ok=False)
@@ -157,6 +163,7 @@ class ExportStore:
             raise ValueError("Export directory is redirected or outside its store") from exc
         artifact_resources: dict[str, str] = {}
         for name, payload in artifacts.items():
+            self._require_safe_root()
             if Path(name).name != name or not name:
                 raise ValueError(f"Invalid export artifact name: {name!r}")
             if len(payload) > self.max_artifact_bytes:
@@ -186,6 +193,7 @@ class ExportStore:
             manifest=dict(manifest),
             limitations=limitations,
         )
+        self._require_safe_root()
         try:
             directory = require_confined_record_directory(
                 self.root,

@@ -15,9 +15,11 @@ from .record_ids import (
     InvalidRecordPath,
     is_link_like,
     iter_valid_record_files,
+    prepare_safe_store_root,
     require_confined_file,
     require_confined_record_file,
     require_record_id,
+    require_safe_store_root,
 )
 from .retention import (
     Clock,
@@ -78,8 +80,11 @@ class SessionStore:
         self.max_document_bytes = max_document_bytes
         self.retention = retention or RetentionPolicy()
         self.clock = clock
-        self.sessions_dir.mkdir(parents=True, exist_ok=True)
+        prepare_safe_store_root(self.state_dir, self.sessions_dir)
         self.last_retention_report = self._prune_retention()
+
+    def _require_safe_root(self) -> None:
+        require_safe_store_root(self.state_dir, self.sessions_dir)
 
     def _prune_retention(self) -> RetentionReport:
         active_reference_valid, active_session_id = self._retention_active_session_id()
@@ -156,8 +161,6 @@ class SessionStore:
                 or working.stat().st_size > self.max_document_bytes
                 or metadata.get("original_sha256") != sha256_bytes(original.read_bytes())
                 or metadata.get("working_sha256") != sha256_bytes(working.read_bytes())
-                or Path(str(metadata.get("working_path"))).resolve(strict=True)
-                != working.resolve(strict=True)
             ):
                 return None
         except (InvalidRecordPath, OSError, ValueError):
@@ -258,6 +261,7 @@ class SessionStore:
     def update_metadata(self, session_id: str, **updates: Any) -> dict[str, Any]:
         metadata = self.read_metadata(session_id)
         metadata.update(updates)
+        self._require_safe_root()
         _atomic_write_json(self.metadata_path(session_id), metadata)
         return metadata
 
@@ -283,6 +287,7 @@ class SessionStore:
         document = DipTraceDocument.load(exchange_path, self.max_document_bytes)
         session_id = str(uuid.uuid4())
         directory = self.session_dir(session_id)
+        self._require_safe_root()
         directory.mkdir(parents=True, exist_ok=False)
         original = self.original_path(session_id)
         working = self.working_path(session_id)
@@ -303,6 +308,7 @@ class SessionStore:
             "working_sha256": document.sha256,
             "edit_count": 0,
         }
+        self._require_safe_root()
         _atomic_write_json(self.metadata_path(session_id), metadata)
         _atomic_write_json(self.active_file, {"session_id": session_id})
         return metadata
@@ -339,6 +345,7 @@ class SessionStore:
             finish_requested=action,
             finish_requested_at=request["requested_at"],
         )
+        self._require_safe_root()
         _atomic_write_json(self.control_path(session_id), request)
         return {"session_id": session_id, **request}
 

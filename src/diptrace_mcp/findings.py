@@ -15,8 +15,10 @@ from .record_ids import (
     InvalidRecordId,
     InvalidRecordPath,
     iter_valid_record_files,
+    prepare_safe_store_root,
     require_confined_record_file,
     require_record_id,
+    require_safe_store_root,
 )
 from .retention import (
     RetentionCandidate,
@@ -142,10 +144,13 @@ class FindingStore:
     ):
         self.state_dir = state_dir
         self.reports_dir = state_dir / "reviews"
-        self.reports_dir.mkdir(parents=True, exist_ok=True)
+        prepare_safe_store_root(self.state_dir, self.reports_dir)
         self.retention = retention or RetentionPolicy()
         self.clock = clock
         self.last_retention_report = self._prune_retention()
+
+    def _require_safe_root(self) -> None:
+        require_safe_store_root(self.state_dir, self.reports_dir)
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -185,6 +190,7 @@ class FindingStore:
         return self.reports_dir / f"{validated}.json"
 
     def store(self, report: ReviewReport) -> None:
+        self._require_safe_root()
         payload = json.dumps(
             report.model_dump(mode="json"), ensure_ascii=False, indent=2
         ).encode("utf-8")

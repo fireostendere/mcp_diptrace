@@ -36,7 +36,10 @@ _SCHEMA_VERSION = 1
 def canonical_target_path(path: Path) -> str:
     """Return the stable filesystem identity used to isolate backup histories."""
 
-    return os.path.normcase(os.fspath(path.resolve(strict=True)))
+    # ``strict=False`` keeps the same key usable after the design is deleted.
+    # Do not lowercase paths on POSIX/WSL: distinct case-sensitive files must
+    # not share a history merely because their spelling differs.
+    return os.path.normcase(os.fspath(path.resolve(strict=False)))
 
 
 def backup_target_key(canonical_path: str) -> str:
@@ -68,9 +71,8 @@ class BackupStore:
         """Back up an existing target, replace it atomically, then prune its history."""
 
         original = path.read_bytes()
-        canonical_path = canonical_target_path(path)
-        key = backup_target_key(canonical_path)
         with self._lock:
+            key, canonical_path = self._target_binding(path)
             target_dir = self.root / key
             self._prepare_target_dir(target_dir, key, canonical_path)
             created_at = self._next_backup_timestamp(target_dir, key, canonical_path)
@@ -102,16 +104,44 @@ class BackupStore:
     def backups_for(self, path: Path) -> tuple[Path, ...]:
         """Return integrity-validated backups for one target, newest first."""
 
-        canonical_path = canonical_target_path(path)
-        key = backup_target_key(canonical_path)
-        target_dir = self.root / key
         with self._lock:
+            key, canonical_path = self._target_binding(path)
+            target_dir = self.root / key
             candidates = self._validated_candidates(target_dir, key, canonical_path)
         candidates.sort(
             key=lambda candidate: (candidate.timestamp, candidate.identifier),
             reverse=True,
         )
         return tuple(candidate.path for candidate in candidates)
+
+    def _target_binding(self, path: Path) -> tuple[str, str]:
+        """Reuse a proven existing identity without case-folding POSIX paths."""
+
+        canonical_path = canonical_target_path(path)
+        key = backup_target_key(canonical_path)
+        direct = self.root / key
+        # A corrupt or redirected direct binding must remain visible to
+        # _prepare_target_dir rather than being bypassed via another history.
+        if direct.exists() or is_link_like(direct) or not self._safe_root():
+            return key, canonical_path
+        try:
+            path_exists = path.exists()
+            directories = tuple(self.root.iterdir())
+        except OSError:
+            return key, canonical_path
+        if not path_exists:
+            return key, canonical_path
+        for target_dir in directories:
+            metadata = self._validated_target_metadata(target_dir, target_dir.name)
+            if metadata is None:
+                continue
+            recorded_path = metadata["canonical_target_path"]
+            try:
+                if os.path.samefile(path, recorded_path):
+                    return target_dir.name, recorded_path
+            except OSError:
+                continue
+        return key, canonical_path
 
     def _prepare_target_dir(
         self,
@@ -175,22 +205,63 @@ class BackupStore:
         canonical_path: str,
     ) -> RetentionReport:
         candidates = self._validated_candidates(target_dir, key, canonical_path)
-        newest = max(
-            candidates,
-            key=lambda candidate: (candidate.timestamp, candidate.identifier),
-            default=None,
-        )
-        # Internal transaction/session backups live in protected record
-        # directories and are deliberately outside this store.
-        protected = (newest.path,) if newest is not None else ()
-        return prune_terminal_records(
+        # The limit is per target history. Age expiry applies even to the sole
+        # or newest backup; retaining it unconditionally would make max_age
+        # advisory rather than enforced.
+        report = prune_terminal_records(
             state_root=self.state_dir,
             store_root=target_dir,
             candidates=candidates,
             policy=self.retention,
             clock=self.clock,
-            protected_paths=protected,
         )
+        self._remove_empty_history(target_dir, key, canonical_path)
+        return report
+
+    def _remove_empty_history(
+        self,
+        target_dir: Path,
+        key: str,
+        canonical_path: str,
+    ) -> None:
+        """Remove a validated history directory after its last backup expires."""
+
+        if self._validated_target_metadata(target_dir, key, canonical_path) is None:
+            return
+        metadata_path = target_dir / _TARGET_METADATA
+        metadata_bytes: bytes | None = None
+        try:
+            entries = tuple(target_dir.iterdir())
+            if (
+                entries != (metadata_path,)
+                or is_link_like(metadata_path)
+                or not metadata_path.is_file()
+            ):
+                return
+            metadata_bytes = metadata_path.read_bytes()
+            metadata_path.unlink()
+            target_dir.rmdir()
+        except OSError:
+            # Retention is fail-safe. A concurrent addition or disappearance
+            # is not an error and must not trigger broader cleanup. Restore the
+            # binding if the directory remained and is still safely confined.
+            try:
+                if (
+                    metadata_bytes is not None
+                    and self._safe_root()
+                    and target_dir.parent == self.root
+                    and not is_link_like(target_dir)
+                    and target_dir.is_dir()
+                    and not metadata_path.exists()
+                    and not is_link_like(metadata_path)
+                ):
+                    target_dir.resolve(strict=True).relative_to(
+                        self.root.resolve(strict=True)
+                    )
+                    atomic_write_bytes(metadata_path, metadata_bytes)
+            except (OSError, ValueError):
+                pass
+            return
 
     def _validated_candidates(
         self,

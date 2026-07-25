@@ -113,9 +113,22 @@ def prune_terminal_records(
 
 def _safe_store_root(state_root: Path, store_root: Path) -> bool:
     try:
-        if is_link_like(store_root) or not store_root.is_dir():
+        if (
+            is_link_like(state_root)
+            or not state_root.is_dir()
+            or is_link_like(store_root)
+            or not store_root.is_dir()
+        ):
             return False
         store_root.resolve(strict=True).relative_to(state_root.resolve(strict=True))
+        current = store_root
+        while current != state_root:
+            if is_link_like(current):
+                return False
+            parent = current.parent
+            if parent == current:
+                return False
+            current = parent
     except (OSError, ValueError):
         return False
     return True

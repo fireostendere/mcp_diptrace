@@ -15,10 +15,12 @@ from .record_ids import (
     InvalidRecordId,
     InvalidRecordPath,
     iter_valid_record_files,
+    prepare_safe_store_root,
     require_confined_record_artifact,
     require_confined_record_directory,
     require_confined_record_file,
     require_record_id,
+    require_safe_store_root,
 )
 from .retention import (
     Clock,
@@ -73,9 +75,12 @@ class TransactionStore:
 
     def __post_init__(self) -> None:
         self.transactions_dir = self.state_dir / "transactions"
-        self.transactions_dir.mkdir(parents=True, exist_ok=True)
+        prepare_safe_store_root(self.state_dir, self.transactions_dir)
         self._lock = threading.RLock()
         self.last_retention_report = self._prune_retention()
+
+    def _require_safe_root(self) -> None:
+        require_safe_store_root(self.state_dir, self.transactions_dir)
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -88,12 +93,17 @@ class TransactionStore:
         ):
             try:
                 record = TransactionRecord.model_validate(_read_json(path))
-            except (OSError, ValueError, TransactionConflictError):
+            except (
+                OSError,
+                ValueError,
+                TransactionConflictError,
+                TransactionNotFoundError,
+            ):
                 continue
             timestamp = parse_retention_timestamp(record.updated_at)
             if (
                 record.txid != path_txid
-                or record.status != "rolled_back"
+                or record.status not in {"committed", "rolled_back", "failed"}
                 or timestamp is None
             ):
                 continue
@@ -148,6 +158,7 @@ class TransactionStore:
     ) -> TransactionRecord:
         txid = f"tx_{uuid.uuid4()}"
         with self._lock:
+            self._require_safe_root()
             self.tx_dir(txid).mkdir(parents=True, exist_ok=False)
             record = TransactionRecord(
                 txid=txid,
@@ -199,6 +210,7 @@ class TransactionStore:
         return record
 
     def write(self, record: TransactionRecord) -> None:
+        self._require_safe_root()
         _atomic_write_json(self.record_path(record.txid), record.model_dump(mode="json"))
 
     def update(self, txid: str, **changes: Any) -> TransactionRecord:
@@ -232,6 +244,7 @@ class TransactionStore:
         return items
 
     def store_snapshot(self, txid: str, raw_bytes: bytes) -> Path:
+        self._require_safe_root()
         try:
             directory = require_confined_record_directory(
                 self.transactions_dir,
@@ -248,11 +261,13 @@ class TransactionStore:
         return path
 
     def store_preview(self, txid: str, svg: str, preview: dict[str, Any], diff: str) -> None:
+        self._require_safe_root()
         atomic_write_bytes(self.preview_svg_path(txid), svg.encode("utf-8"))
         _atomic_write_json(self.preview_json_path(txid), preview)
         atomic_write_bytes(self.diff_path(txid), diff.encode("utf-8"))
 
     def store_backup(self, txid: str, raw_bytes: bytes) -> Path:
+        self._require_safe_root()
         try:
             directory = require_confined_record_directory(
                 self.transactions_dir,
@@ -269,6 +284,7 @@ class TransactionStore:
         return path
 
     def store_provenance_backup(self, txid: str, raw_bytes: bytes) -> Path:
+        self._require_safe_root()
         try:
             directory = require_confined_record_directory(
                 self.transactions_dir,

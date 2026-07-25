@@ -23,6 +23,7 @@ from diptrace_mcp.exports import ExportStore
 from diptrace_mcp.findings import FindingStore
 from diptrace_mcp.jobs import JobStore
 from diptrace_mcp.plans import PlanStore
+from diptrace_mcp.record_ids import InvalidRecordPath
 from diptrace_mcp.retention import RetentionPolicy
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.sessions import SessionStore
@@ -275,6 +276,71 @@ def _store_case(kind: str, tmp_path: Path) -> StoreCase:
     raise AssertionError(f"Unknown store kind: {kind}")
 
 
+def _case_store_root(case: StoreCase, kind: str) -> Path:
+    if kind == "finding":
+        return case.record_path.parent
+    return case.record_path.parent.parent
+
+
+def _tree_bytes(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ["transaction", "job", "plan", "export", "finding", "session"],
+)
+def test_each_store_refuses_writes_through_redirected_root(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    case = _store_case(kind, tmp_path)
+    store_root = _case_store_root(case, kind)
+    outside = tmp_path / f"outside-{kind}"
+    store_root.replace(outside)
+    try:
+        store_root.symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"Symlinks are unavailable on this platform: {exc}")
+    before = _tree_bytes(outside)
+
+    with pytest.raises(InvalidRecordPath, match="Store root"):
+        case.create_peer()
+
+    assert _tree_bytes(outside) == before
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ["transaction", "job", "plan", "export", "finding", "session"],
+)
+def test_each_store_refuses_writes_through_junction_like_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+) -> None:
+    case = _store_case(kind, tmp_path)
+    store_root = _case_store_root(case, kind)
+    before = _tree_bytes(store_root)
+    original = getattr(Path, "is_junction", None)
+
+    def fake_is_junction(path: Path) -> bool:
+        if path == store_root:
+            return True
+        return bool(original(path)) if original is not None else False
+
+    monkeypatch.setattr(Path, "is_junction", fake_is_junction, raising=False)
+
+    with pytest.raises(InvalidRecordPath, match="Store root"):
+        case.create_peer()
+
+    assert _tree_bytes(store_root) == before
+
+
 @pytest.mark.parametrize(
     ("kind", "timestamp_field"),
     [
@@ -469,6 +535,87 @@ def test_nonterminal_records_and_their_backups_survive_retention(
     assert live_backup.read_bytes() == b"recover"
 
 
+def test_transaction_retention_bounds_every_terminal_status(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    store = TransactionStore(state)
+    snapshot = _snapshot()
+    directories: dict[str, Path] = {}
+    timestamps = {
+        "committed": "2026-01-27T00:00:00+00:00",
+        "rolled_back": "2026-01-28T00:00:00+00:00",
+        "failed": "2026-01-30T00:00:00+00:00",
+        "planned": OLD,
+        "staged": OLD,
+        "validated": OLD,
+    }
+    for status, timestamp in timestamps.items():
+        record = store.create(
+            snapshot.info,
+            FIXTURES / "pcb.xml",
+            source_sha256=snapshot.info.sha256,
+        )
+        _patch_json(
+            store.record_path(record.txid),
+            status=status,
+            updated_at=timestamp,
+        )
+        directories[status] = store.tx_dir(record.txid)
+
+    TransactionStore(
+        state,
+        retention=RetentionPolicy(max_records=1, max_age_days=30),
+        clock=_clock(),
+    )
+
+    assert not directories["committed"].exists()
+    assert not directories["rolled_back"].exists()
+    assert directories["failed"].exists()
+    assert directories["planned"].exists()
+    assert directories["staged"].exists()
+    assert directories["validated"].exists()
+
+
+def test_transaction_retention_ignores_a_record_that_disappears_during_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import diptrace_mcp.transactions as transactions_module
+
+    state = tmp_path / "state"
+    store = TransactionStore(state)
+    snapshot = _snapshot()
+    record = store.create(
+        snapshot.info,
+        FIXTURES / "pcb.xml",
+        source_sha256=snapshot.info.sha256,
+    )
+    store.mark_failed(record.txid, {"code": "test"})
+    path = store.record_path(record.txid)
+    original_read_json = transactions_module._read_json
+    disappeared = False
+
+    def disappear_then_read(candidate: Path) -> dict[str, Any]:
+        nonlocal disappeared
+        if candidate == path and not disappeared:
+            disappeared = True
+            candidate.unlink()
+        return original_read_json(candidate)
+
+    monkeypatch.setattr(transactions_module, "_read_json", disappear_then_read)
+
+    reopened = TransactionStore(
+        state,
+        retention=RetentionPolicy(max_records=1, max_age_days=1),
+        clock=_clock(FUTURE),
+    )
+
+    assert disappeared is True
+    assert reopened.last_retention_report.removed == ()
+    assert store.tx_dir(record.txid).is_dir()
+
+
 def test_active_json_protects_referenced_terminal_session(
     tmp_path: Path,
 ) -> None:
@@ -570,6 +717,31 @@ def test_active_json_metadata_id_mismatch_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(SessionError, match="does not match"):
         reopened.active_metadata()
     assert store.metadata_path(second_id).read_bytes() == second_bytes
+
+
+def test_session_retention_uses_derived_working_path_across_runtimes(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    store = SessionStore(state, 10_000_000)
+    metadata = store.create(FIXTURES / "pcb.xml")
+    session_id = str(metadata["session_id"])
+    store.finalize(session_id, "cancel")
+    directory = store.session_dir(session_id)
+    _patch_json(
+        store.metadata_path(session_id),
+        finished_at=OLD,
+        working_path=rf"C:\Users\operator\AppData\Local\DipTraceMCP\{session_id}\working.xml",
+    )
+
+    SessionStore(
+        state,
+        10_000_000,
+        retention=RetentionPolicy(max_records=1, max_age_days=1),
+        clock=_clock(FUTURE),
+    )
+
+    assert not directory.exists()
 
 
 def test_backup_store_is_outside_design_and_restores_original_bytes(
@@ -683,6 +855,81 @@ def test_backup_pruning_is_counted_per_target_without_sleeps(
     assert store.backups_for(first) == (newest,)
     # A write/prune for the first target never mutates the second history.
     assert store.backups_for(second) == second_before
+
+
+def test_backup_age_prunes_the_only_backup_and_empty_history(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    target = tmp_path / "board.xml"
+    target.write_bytes(b"original")
+    store = BackupStore(
+        state,
+        retention=RetentionPolicy(max_records=10, max_age_days=1),
+        clock=_clock(),
+    )
+    backup = store.write_with_backup(target, b"changed")
+    history = backup.parent
+
+    reopened = BackupStore(
+        state,
+        retention=RetentionPolicy(max_records=10, max_age_days=1),
+        clock=_clock(FUTURE),
+    )
+
+    assert not backup.exists()
+    assert not history.exists()
+    assert reopened.backups_for(target) == ()
+
+
+def test_backups_for_deleted_target_uses_stable_non_strict_key(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "board.xml"
+    target.write_bytes(b"original")
+    store = BackupStore(tmp_path / "state", clock=_clock())
+    backup = store.write_with_backup(target, b"changed")
+    target.unlink()
+
+    assert store.backups_for(target) == (backup,)
+
+
+def test_backup_history_reuses_a_filesystem_identity_proven_by_samefile(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "Board.xml"
+    alias = tmp_path / "board-alias.xml"
+    target.write_bytes(b"original")
+    store = BackupStore(tmp_path / "state", clock=_clock())
+    backup = store.write_with_backup(target, b"changed")
+    try:
+        alias.hardlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"Hard links are unavailable on this platform: {exc}")
+
+    assert alias.samefile(target)
+    assert store.backups_for(alias) == (backup,)
+    alias_backup = store.write_with_backup(alias, b"alias-changed")
+    assert alias_backup.parent == backup.parent
+    assert store.backups_for(target) == (alias_backup, backup)
+
+
+def test_backup_histories_do_not_lowercase_distinct_case_sensitive_paths(
+    tmp_path: Path,
+) -> None:
+    upper = tmp_path / "Board.xml"
+    lower = tmp_path / "board.xml"
+    upper.write_bytes(b"upper")
+    lower.write_bytes(b"lower")
+    if upper.samefile(lower):
+        pytest.skip("The test filesystem is case-insensitive")
+    store = BackupStore(tmp_path / "state", clock=_clock())
+    upper_backup = store.write_with_backup(upper, b"upper-changed")
+    lower_backup = store.write_with_backup(lower, b"lower-changed")
+
+    assert upper_backup.parent != lower_backup.parent
+    assert store.backups_for(upper) == (upper_backup,)
+    assert store.backups_for(lower) == (lower_backup,)
 
 
 def test_service_routes_offline_backup_to_state_directory(tmp_path: Path) -> None:

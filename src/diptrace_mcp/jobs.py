@@ -15,10 +15,12 @@ from .record_ids import (
     InvalidRecordPath,
     is_link_like,
     iter_valid_record_files,
+    prepare_safe_store_root,
     require_confined_file,
     require_confined_record_directory,
     require_confined_record_file,
     require_record_id,
+    require_safe_store_root,
 )
 from .retention import (
     Clock,
@@ -43,12 +45,15 @@ class JobStore:
 
     def __post_init__(self) -> None:
         self.jobs_dir = self.state_dir / "jobs"
-        self.jobs_dir.mkdir(parents=True, exist_ok=True)
+        prepare_safe_store_root(self.state_dir, self.jobs_dir)
         self._lock = threading.RLock()
         # Inspect persisted status before interrupted running jobs are failed:
         # queued/running records must survive this construction cycle.
         self.last_retention_report = self._prune_retention()
         self._fail_interrupted_jobs()
+
+    def _require_safe_root(self) -> None:
+        require_safe_store_root(self.state_dir, self.jobs_dir)
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -145,6 +150,7 @@ class JobStore:
             target_path=str(target_path) if target_path is not None else None,
         )
         with self._lock:
+            self._require_safe_root()
             self.job_dir(record.jobid).mkdir(parents=True, exist_ok=False)
             self.write(record)
         return record
@@ -182,6 +188,7 @@ class JobStore:
         return record
 
     def write(self, record: JobRecord) -> None:
+        self._require_safe_root()
         payload = json.dumps(
             record.model_dump(mode="json"), ensure_ascii=False, indent=2, sort_keys=True
         ).encode("utf-8")
@@ -218,6 +225,7 @@ class JobStore:
         return records
 
     def store_artifact(self, jobid: str, name: str, data: bytes) -> Path:
+        self._require_safe_root()
         path = self.artifact_path(jobid, name)
         atomic_write_bytes(path, data)
         return path
