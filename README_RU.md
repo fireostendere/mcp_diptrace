@@ -185,13 +185,16 @@ High-level writes по умолчанию работают в preview/dry-run р
 
 `apply_xml_edits` остаётся expert escape hatch. Он требует exact match counts, сохраняет bytes вне target nodes, reparses результат, создаёт backup перед commit и отклоняет SHA conflicts.
 
-XML с `DOCTYPE` или `ENTITY` отклоняется. Доступ к файловой системе ограничен configured roots. Внешние процессы запускаются только через typed allowlisted adapters.
+XML с `DOCTYPE` или `ENTITY` отклоняется. Переданные клиентом пути design/source
+ограничены configured roots; server state и executable paths являются отдельными
+operator-owned settings. Внешние процессы запускаются только через typed allowlisted
+adapters.
 
 ### WO-11 safety checkpoint — 2026-07-25
 
 - Пути из MCP calls интерпретируются буквально: переменные окружения и `~` не
-  подставляются. Expansion применяется только к operator-owned конфигурации сервера,
-  после чего выполняется allowed-root check.
+  подставляются. Expansion применяется только к operator-owned конфигурации сервера;
+  переданные клиентом пути design/source остаются под allowed-root check.
 - Поддерживаемые XML writes сохраняют обнаруженные source codec/BOM и untouched
   bytes. Raw edits и raw-preserving semantic edits повторно парсятся и должны
   совпадать с запрошенным semantic element tree; чистый UTF-32 input сейчас
@@ -207,8 +210,8 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Доступ к фай�
 - Offline backups находятся в центральном state directory и изолированы по hash
   канонического target path. Existing target сохраняется в backup до замены; у нового
   target ещё нет исходных bytes для backup. Retention удаляет validated terminal
-  records, защищает active/nonterminal state и считает count/age thresholds целями
-  cleanup, а не жёсткими квотами.
+  records и истёкшие per-target backup histories, защищает active/nonterminal state и
+  считает count/age thresholds целями cleanup, а не жёсткими квотами.
 
 ## Модель доверия
 

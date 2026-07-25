@@ -681,8 +681,9 @@ transient Windows metadata sharing errors.
 Offline backups are never written next to the design file. `target.json` binds each
 history to the SHA-256 of its canonical target path; backup content is checked against
 the hash in its filename before it is treated as a recovery point. Pruning one target
-does not inspect or delete another target's history, and the newest valid recovery
-point for each target is retained.
+does not inspect or delete another target's history. The count threshold is per target;
+age expiry applies even to the sole or newest backup, and an empty validated history
+directory is removed.
 
 Before an existing target is replaced, its original bytes are captured in the central
 state tree: direct offline writes use the per-target history, transaction commits keep
@@ -692,13 +693,16 @@ reports `backup: null`; replacing an existing target through an overwrite path d
 create a backup.
 
 At store construction, validated terminal artifacts older than the configured age or
-beyond the configured per-store count are eligible for whole-record cleanup. Active or
-nonterminal records and the state required to recover them are protected even when a
-threshold is exceeded. Corrupt records, embedded-ID mismatches, symbolic links,
-junctions, and paths outside the state directory are skipped rather than followed or
-deleted. Retention is best-effort and the thresholds are not storage quotas: protected
-or unverifiable records may keep the stored count above them, and a deletion failure
-does not make startup destructive or unavailable.
+beyond the configured per-store count are eligible for whole-record cleanup.
+Transaction statuses `committed`, `rolled_back`, and `failed` are terminal;
+`planned`, `staged`, and `validated` are protected. Other active or nonterminal records
+and the state required to recover them are protected even when a threshold is exceeded.
+Offline backup histories are also pruned after a successful replacement. Corrupt
+records, embedded-ID mismatches, symbolic links, junctions, and paths outside the state
+directory are skipped rather than followed or deleted. Retention is best-effort and the
+thresholds are not storage quotas: protected or unverifiable records may keep the
+stored count above them, and a deletion failure does not make startup destructive or
+unavailable.
 
 ## 12. Troubleshooting
 

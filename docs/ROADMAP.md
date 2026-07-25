@@ -21,7 +21,8 @@ The main remaining risk is no longer missing MCP surface area. It is the gap bet
 The human-free input/write hardening baseline now includes:
 
 - literal caller-supplied paths, with environment/home expansion limited to
-  server-owned configuration before allowed-root enforcement;
+  server-owned configuration and caller design/source paths kept behind allowed-root
+  enforcement;
 - layered DTD/entity rejection and source-codec/BOM preservation for supported
   UTF-8, UTF-16LE/BE, US-ASCII, and ISO-8859-1 raw and semantic writes;
 - reparsing plus semantic-tree equality checks for low-level raw edits and
@@ -34,9 +35,10 @@ The human-free input/write hardening baseline now includes:
 - bounded external-process streaming, one cross-adapter concurrency limit, POSIX
   process-group cleanup, and Windows kill-on-close Job Objects with explicit
   root-process reaping;
+- strict generated identifiers and non-redirected roots for all six persistent stores;
 - central per-target offline backup histories plus count/age cleanup of validated
-  terminal records. Active/nonterminal state is protected, and cleanup thresholds
-  are soft targets rather than storage quotas.
+  terminal records and expired backups. Active/nonterminal state is protected, and
+  cleanup thresholds are soft targets rather than storage quotas.
 
 For an existing target, the original bytes are captured before replacement. A
 brand-new target has no previous content and therefore has no backup; an explicit

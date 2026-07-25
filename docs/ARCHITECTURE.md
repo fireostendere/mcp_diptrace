@@ -18,8 +18,9 @@ and prompts. It contains no file-format logic; calls are delegated to `DipTraceS
 - forwarding `apply` or `cancel` to the bridge process.
 
 Caller-supplied paths do not expand environment variables or `~`. Expansion is limited
-to server-owned path configuration loaded from the environment, before the ordinary
-allowed-root check is applied.
+to server-owned path configuration loaded from the environment. Caller-supplied design
+and source paths then pass the ordinary allowed-root check; configured executable paths
+remain a separate typed operator boundary.
 
 ### XML Layer
 
@@ -146,13 +147,14 @@ the cross-process commit marker. JSON reads use a short bounded retry for transi
 Windows sharing violations; malformed or persistently unreadable state still fails the
 session explicitly.
 
-Each store applies a count-and-age cleanup policy at construction. Only validated
-terminal records with an embedded identifier matching their confined path are
-candidates. Active and nonterminal records are protected. Redirected, corrupt,
-unknown-status, or otherwise unverifiable state is left untouched. The configured
-thresholds are cleanup targets rather than hard storage quotas, so protected state may
-remain above them. Offline backup histories are isolated by canonical target-path hash
-and are stored here rather than in the design directory.
+The six persistent record stores apply a count-and-age cleanup policy at construction.
+Only validated terminal records with an embedded identifier matching their confined
+path are candidates. Active and nonterminal records are protected. Redirected, corrupt,
+unknown-status, or otherwise unverifiable state is left untouched. Offline backup
+histories are isolated by canonical target-path hash, pruned at construction and after
+successful replacement, and removed when their final valid backup expires. The
+configured thresholds are cleanup targets rather than hard storage quotas, so protected
+or unverifiable state may remain above them.
 
 ## Safety Invariants
 

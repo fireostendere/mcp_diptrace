@@ -187,13 +187,16 @@ High-level writes default to preview/dry-run behavior. A safe workflow is:
 
 `apply_xml_edits` remains an expert escape hatch. It requires exact match counts, preserves bytes outside targets, reparses the result, creates a backup before commit, and rejects SHA conflicts.
 
-XML containing `DOCTYPE` or `ENTITY` is rejected. Filesystem access is constrained to configured roots. External processes are available only through typed allowlisted adapters.
+XML containing `DOCTYPE` or `ENTITY` is rejected. Caller-supplied design and source
+paths are constrained to configured roots; server state and executable paths are
+separate operator-owned settings. External processes are available only through typed
+allowlisted adapters.
 
 ### WO-11 safety checkpoint — 2026-07-25
 
 - Paths supplied in MCP calls are literal: environment variables and `~` are not
-  expanded. Expansion is reserved for operator-owned server configuration, followed
-  by allowed-root enforcement.
+  expanded. Expansion is reserved for operator-owned server configuration;
+  caller-supplied design and source paths remain subject to allowed-root enforcement.
 - Supported XML writes preserve the detected source codec/BOM and untouched bytes.
   Raw edits and raw-preserving semantic edits are reparsed and must equal the
   requested semantic element tree; clean UTF-32 input currently fails closed.
@@ -206,9 +209,9 @@ XML containing `DOCTYPE` or `ENTITY` is rejected. Filesystem access is constrain
   descendants, and root processes are explicitly reaped.
 - Offline backups live under the central state directory, isolated by canonical
   target-path hash. Existing targets are backed up before replacement; new targets
-  have no previous bytes to back up. Retention prunes validated terminal records,
-  protects active/nonterminal state, and treats count/age thresholds as cleanup
-  targets rather than hard quotas.
+  have no previous bytes to back up. Retention prunes validated terminal records and
+  expired per-target backup histories, protects active/nonterminal state, and treats
+  count/age thresholds as cleanup targets rather than hard quotas.
 
 ## Trust Model
 

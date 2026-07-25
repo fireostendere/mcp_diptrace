@@ -85,13 +85,18 @@ session record. In each case an existing target is captured before replacement.
 Creating a new target produces no pre-existing-content backup; overwrite operations do.
 
 Count-and-age retention runs when a store is constructed. It deletes only fully
-parsed, validated terminal records confined to that store. Active or nonterminal
-records and the state needed to recover them are protected. The newest valid offline
-backup per target is also retained. A corrupt record, unknown status, ID mismatch,
-symbolic link, junction, or path outside the state tree fails closed: it is neither
-followed nor deleted. The configured count and age values are cleanup targets, not
-storage quotas: protected or unverifiable records can keep the on-disk count above a
-threshold, and cleanup failure does not make startup destructive.
+parsed, validated terminal records confined to that store. For transactions,
+`committed`, `rolled_back`, and `failed` are terminal cleanup candidates;
+`planned`, `staged`, and `validated` remain protected. Other active or nonterminal
+records and the state needed to recover them are protected as well.
+
+Valid offline backups are pruned per target at construction and after replacement.
+Age expiry applies even to the sole or newest backup, and an empty validated history
+directory is removed. A corrupt record, unknown status, ID mismatch, symbolic link,
+junction, or path outside the state tree fails closed: it is neither followed nor
+deleted. The configured count and age values are cleanup targets, not storage quotas:
+protected or unverifiable records can keep the on-disk count above a threshold, and
+cleanup failure does not make startup destructive.
 
 ## Trust Boundary
 
