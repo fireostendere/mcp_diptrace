@@ -315,8 +315,8 @@ def schema_annotation(schema: dict[str, Any], path: str) -> Any:
 
 def test_skill_catalog_and_packages_are_discoverable() -> None:
     entries = catalog()
-    assert len(entries) == 57
-    assert [entry["id"] for entry in entries] == list(range(1, 58))
+    assert entries
+    assert [entry["id"] for entry in entries] == list(range(1, len(entries) + 1))
     slugs = [entry["slug"] for entry in entries]
     assert len(slugs) == len(set(slugs))
     assert set(slugs) == {
@@ -927,4 +927,4 @@ def test_generated_skill_packages_are_current() -> None:
         text=True,
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
-    assert completed.stdout.strip() == "verified 57 PCB skill packages"
+    assert completed.stdout.strip() == f"verified {len(catalog())} PCB skill packages"
