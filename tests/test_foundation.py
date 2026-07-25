@@ -6,9 +6,15 @@ import pytest
 from pydantic import ValidationError
 
 from diptrace_mcp.adapters import build_snapshot
+from diptrace_mcp.capability_model import MAX_TRANSACTION_OPERATIONS
 from diptrace_mcp.config import Settings
 from diptrace_mcp.domain import ObjectRecord, QueryRequest, QuerySelector
-from diptrace_mcp.errors import Sha256MismatchError, TransactionConflictError
+from diptrace_mcp.errors import (
+    ConfirmationRequiredError,
+    EditError,
+    Sha256MismatchError,
+    TransactionConflictError,
+)
 from diptrace_mcp.operations import MoveComponentsOperation, SetComponentValueOperation
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.service import DipTraceService
@@ -214,6 +220,114 @@ def test_transaction_append_validation_and_conflict_safe_rollback(tmp_path: Path
     with pytest.raises(Sha256MismatchError):
         service.rollback_transaction(txid, commit_sha)
     assert sha256_bytes(path.read_bytes()) != commit_sha
+
+
+def test_transaction_limit_is_enforced_by_stage_operations(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "board.dip").write_bytes((FIXTURES / "pcb.xml").read_bytes())
+    service = service_for(project, tmp_path / "state")
+    txid = service.begin_transaction("board.dip")["transaction"]["txid"]
+    operations = [
+        {
+            "kind": "set_component_value",
+            "selector": {"refdes": ["R1"]},
+            "value": f"value-{index}",
+        }
+        for index in range(MAX_TRANSACTION_OPERATIONS)
+    ]
+
+    staged = service.stage_operations(txid, operations)
+
+    assert staged["result"]["staged_count"] == MAX_TRANSACTION_OPERATIONS
+    with pytest.raises(EditError, match=rf"{MAX_TRANSACTION_OPERATIONS + 1} staged"):
+        service.stage_operations(
+            txid,
+            [
+                {
+                    "kind": "set_component_value",
+                    "selector": {"refdes": ["R1"]},
+                    "value": "one-too-many",
+                }
+            ],
+        )
+    assert len(service.transactions.read(txid).operations) == MAX_TRANSACTION_OPERATIONS
+
+
+def test_transaction_limit_is_enforced_by_semantic_write_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "board.dip").write_bytes((FIXTURES / "pcb.xml").read_bytes())
+    service = service_for(project, tmp_path / "state")
+    txid = service.begin_transaction("board.dip")["transaction"]["txid"]
+    monkeypatch.setattr(
+        service,
+        "preview_transaction",
+        lambda current_txid: {"ok": True, "transaction": {"txid": current_txid}},
+    )
+
+    for index in range(MAX_TRANSACTION_OPERATIONS):
+        service.set_component_value(
+            {"refdes": ["R1"]},
+            f"value-{index}",
+            txid=txid,
+            dry_run=True,
+        )
+
+    assert len(service.transactions.read(txid).operations) == MAX_TRANSACTION_OPERATIONS
+    with pytest.raises(EditError, match=rf"{MAX_TRANSACTION_OPERATIONS + 1} staged"):
+        service.set_component_value(
+            {"refdes": ["R1"]},
+            "one-too-many",
+            txid=txid,
+            dry_run=True,
+        )
+    assert len(service.transactions.read(txid).operations) == MAX_TRANSACTION_OPERATIONS
+
+
+def test_oversized_semantic_batch_does_not_create_transaction(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "board.dip").write_bytes((FIXTURES / "pcb.xml").read_bytes())
+    service = service_for(project, tmp_path / "state")
+    testpoints = [
+        {
+            "net": "VCC",
+            "x": float(index),
+            "y": 0.0,
+            "pad_diameter": 1.0,
+            "refdes": f"TP{index}",
+        }
+        for index in range(MAX_TRANSACTION_OPERATIONS + 1)
+    ]
+
+    with pytest.raises(EditError, match=rf"{MAX_TRANSACTION_OPERATIONS + 1} staged"):
+        service.add_testpoints(testpoints, path="board.dip", dry_run=True)
+
+    assert service.transactions.list() == []
+
+
+def test_semantic_write_requires_caller_sha(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    board = project / "board.dip"
+    original = (FIXTURES / "pcb.xml").read_bytes()
+    board.write_bytes(original)
+    service = service_for(project, tmp_path / "state")
+
+    with pytest.raises(ConfirmationRequiredError, match="expected_sha256"):
+        service.set_component_value(
+            {"refdes": ["R1"]},
+            "47k",
+            path="board.dip",
+            dry_run=False,
+        )
+
+    assert service.transactions.list() == []
+    assert board.read_bytes() == original
 
 
 def test_rolling_back_uncommitted_plan_does_not_touch_document(tmp_path: Path) -> None:
