@@ -160,13 +160,20 @@ class ExternalProcessRunner:
                 )
             if on_started is not None:
                 on_started(process)
-            reader = threading.Thread(
+            candidate_reader = threading.Thread(
                 target=_drain_output,
                 args=(process.stdout, capture, reader_error, log_path),
                 name=f"diptrace-output-{jobid}",
                 daemon=True,
             )
-            reader.start()
+            try:
+                candidate_reader.start()
+            except (OSError, RuntimeError) as exc:
+                raise ExternalToolFailedError(
+                    f"Could not start external process output reader: {exc}",
+                    jobid=jobid,
+                ) from exc
+            reader = candidate_reader
 
             while process.poll() is None:
                 elapsed = time.monotonic() - started
@@ -201,15 +208,17 @@ class ExternalProcessRunner:
                 self._terminate_process_tree(process)
             raise
         finally:
-            if process is not None:
-                if process.poll() is None:
-                    self._terminate_process_tree(process)
-                process.wait()
-                self._finish_reader(process, reader)
             try:
-                atomic_write_bytes(log_path, capture.render())
+                if process is not None:
+                    if process.poll() is None:
+                        self._terminate_process_tree(process)
+                    process.wait()
+                    self._finish_reader(process, reader)
             finally:
-                reservation.release()
+                try:
+                    atomic_write_bytes(log_path, capture.render())
+                finally:
+                    reservation.release()
 
     def _finish_reader(
         self,

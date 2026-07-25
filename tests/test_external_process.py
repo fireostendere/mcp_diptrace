@@ -280,6 +280,31 @@ def test_slot_is_released_even_if_bounded_log_write_fails(
     reservation.release()
 
 
+def test_output_reader_start_failure_is_typed_and_releases_slot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _runner()
+
+    def fail_start(_thread: threading.Thread) -> None:
+        raise RuntimeError("simulated thread resource exhaustion")
+
+    monkeypatch.setattr(external_process_module.threading.Thread, "start", fail_start)
+    with pytest.raises(
+        ExternalToolFailedError,
+        match="Could not start external process output reader",
+    ):
+        _run_command(
+            runner,
+            tmp_path,
+            [sys.executable, "-c", "import time; time.sleep(5)"],
+        )
+
+    assert runner.active_slots == 0
+    recovered = runner.reserve(jobid="job_after_reader_failure")
+    recovered.release()
+
+
 def test_windows_process_creation_and_tree_kill_are_explicit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
