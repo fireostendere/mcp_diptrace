@@ -144,8 +144,10 @@ def check_component_edge(snapshot: DocumentSnapshot) -> tuple[list[Finding], dic
     return findings, {"objects_checked": checked}
 
 
-@registry.register("pcb.unrouted_net", "connectivity", "pcb")
-def check_unrouted_nets(snapshot: DocumentSnapshot) -> tuple[list[Finding], dict[str, Any]]:
+@registry.register("pcb.net_without_traces", "connectivity", "pcb")
+def check_nets_without_traces(
+    snapshot: DocumentSnapshot,
+) -> tuple[list[Finding], dict[str, Any]]:
     assert snapshot.board is not None
     findings: list[Finding] = []
     for net in snapshot.board.nets:
@@ -154,7 +156,7 @@ def check_unrouted_nets(snapshot: DocumentSnapshot) -> tuple[list[Finding], dict
         if endpoint_count > 1 and trace_count == 0:
             findings.append(
                 make_finding(
-                    "pcb.unrouted_net",
+                    "pcb.net_without_traces",
                     "connectivity",
                     "error",
                     "Net has no routed trace",
@@ -168,8 +170,10 @@ def check_unrouted_nets(snapshot: DocumentSnapshot) -> tuple[list[Finding], dict
     return findings, {"nets_checked": len(snapshot.board.nets)}
 
 
-@registry.register("pcb.dangling_trace", "connectivity", "pcb")
-def check_dangling_traces(snapshot: DocumentSnapshot) -> tuple[list[Finding], dict[str, Any]]:
+@registry.register("pcb.degenerate_trace_path", "connectivity", "pcb")
+def check_degenerate_trace_paths(
+    snapshot: DocumentSnapshot,
+) -> tuple[list[Finding], dict[str, Any]]:
     assert snapshot.board is not None
     findings: list[Finding] = []
     for trace in snapshot.board.traces:
@@ -178,11 +182,11 @@ def check_dangling_traces(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
         if len(points) < 2 or length <= 0:
             findings.append(
                 make_finding(
-                    "pcb.dangling_trace",
+                    "pcb.degenerate_trace_path",
                     "connectivity",
                     "error",
-                    "Trace has no usable path",
-                    "Trace contains fewer than two distinct path points.",
+                    "Trace path has no usable length",
+                    "Trace contains fewer than two points or has zero path length.",
                     object_ids=[trace.stable_id],
                     net_ids=[trace.parent_id] if trace.parent_id else [],
                     layer=trace.layer,

@@ -395,7 +395,7 @@ def create_release_manifest(
             "layer_count": len(snapshot.board.layers),
             "component_count": len(snapshot.board.components),
             "net_count": len(snapshot.board.nets),
-            "unrouted_net_count": sum(
+            "nets_without_traces_count": sum(
                 int(net.attributes.get("endpoint_count", 0)) > 1
                 and int(net.attributes.get("trace_count", 0)) == 0
                 for net in snapshot.board.nets

@@ -10,7 +10,9 @@ report keyed by document SHA.
 - trace-to-trace clearance, trace-to-edge clearance, and minimum width;
 - STRtree-filtered trace-to-pad and trace-to-via clearance using exact Shapely shape distance;
 - via drill size and annular ring;
-- unrouted nets and dangling or useless trace topology;
+- nets with multiple exported endpoints but no trace records, and trace records with fewer
+  than two points or zero path length; these narrow structural checks do not prove full
+  connectivity or detect electrically dangling trace endpoints;
 - silkscreen overlap; silkscreen-to-pad clearance is not implemented and is reported as
   a structured `not_implemented` skip;
 - stackup completeness and differential-pair rules;

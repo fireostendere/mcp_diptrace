@@ -41,12 +41,38 @@ def test_registry_runs_real_board_connectivity_checks() -> None:
         },
     ]
     codes = [finding.check_id for finding in findings]
-    assert "pcb.unrouted_net" in codes
-    unrouted = next(item for item in findings if item.check_id == "pcb.unrouted_net")
-    assert unrouted.severity == "error"
-    assert unrouted.net_ids
-    assert metrics["pcb.unrouted_net"]["nets_checked"] == 2
+    assert "pcb.net_without_traces" in codes
+    without_traces = next(
+        item for item in findings if item.check_id == "pcb.net_without_traces"
+    )
+    assert without_traces.severity == "error"
+    assert without_traces.net_ids
+    assert metrics["pcb.net_without_traces"]["nets_checked"] == 2
     assert "pcb.component_overlap" in registry.ids()
+
+
+def test_degenerate_trace_check_does_not_claim_connectivity_analysis() -> None:
+    original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    points = root.find("./Board/Nets/Net/Traces/Trace/Points")
+    assert points is not None
+    for point in list(points)[1:]:
+        points.remove(point)
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+    findings, metrics, _, _ = run_checks(
+        build_snapshot(document), categories={"connectivity"}
+    )
+
+    finding = next(
+        item for item in findings if item.check_id == "pcb.degenerate_trace_path"
+    )
+    assert "dangling" not in finding.title.lower()
+    assert finding.object_ids
+    assert metrics["pcb.degenerate_trace_path"]["traces_checked"] >= 1
 
 
 def test_capabilities_are_derived_from_review_registry() -> None:
@@ -175,15 +201,18 @@ def test_review_service_persists_report_and_resources(tmp_path: Path) -> None:
     finding_id = next(
         item["finding_id"]
         for item in result["result"]["findings"]
-        if item["check_id"] == "pcb.unrouted_net"
+        if item["check_id"] == "pcb.net_without_traces"
     )
 
     stored = service.get_findings(report_id)
     assert any(item["finding_id"] == finding_id for item in stored["findings"])
-    assert service.get_finding(finding_id)["finding"]["check_id"] == "pcb.unrouted_net"
+    assert (
+        service.get_finding(finding_id)["finding"]["check_id"]
+        == "pcb.net_without_traces"
+    )
     resource = service.review_resource(report_id)
     assert report_id in resource
-    assert "pcb.unrouted_net" in resource
+    assert "pcb.net_without_traces" in resource
 
 
 def test_review_discloses_unimplemented_silk_to_pad_with_pad_geometry(

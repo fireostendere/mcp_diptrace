@@ -47,6 +47,8 @@ def test_release_manifest_is_explicitly_not_native_fabrication(tmp_path: Path) -
     manifest = result["result"]["export"]["manifest"]
 
     assert manifest["kind"] == "fabrication_manifest"
+    assert "nets_without_traces_count" in manifest["board"]
+    assert "unrouted_net_count" not in manifest["board"]
     assert "gerber" in manifest["not_generated"]
     assert any("not fabrication-ready" in item for item in result["limitations"])
 

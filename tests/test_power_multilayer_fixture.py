@@ -120,5 +120,5 @@ def test_power_multilayer_expected_offline_drc_contract() -> None:
     errors = [finding for finding in findings if finding.severity == "error"]
     assert skipped == []
     assert [(finding.check_id, finding.net_ids) for finding in errors] == [
-        ("pcb.unrouted_net", ["net_88cfb1fd0bfebd02"])
+        ("pcb.net_without_traces", ["net_88cfb1fd0bfebd02"])
     ]
