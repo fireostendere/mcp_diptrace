@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import re
+import stat
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any, Literal
@@ -52,10 +54,19 @@ def require_record_id(value: str, kind: RecordIdKind) -> str:
 
 
 def is_link_like(path: Path) -> bool:
-    """Return true for symbolic links and Windows directory junctions."""
+    """Return true for symbolic links and Windows reparse-point redirects."""
 
     if path.is_symlink():
         return True
+    if os.name == "nt":
+        try:
+            attributes = int(getattr(path.lstat(), "st_file_attributes", 0))
+        except FileNotFoundError:
+            attributes = 0
+        except OSError:
+            return True
+        if attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+            return True
     junction_check: Any = getattr(path, "is_junction", None)
     if callable(junction_check):
         try:

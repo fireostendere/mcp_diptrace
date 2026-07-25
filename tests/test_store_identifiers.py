@@ -269,7 +269,9 @@ def test_export_store_rejects_prefix_and_length_path_escape(tmp_path: Path) -> N
     store = ExportStore(tmp_path / "state", max_artifact_bytes=1024)
     exploit = "export_" + "../" * 10 + ".."
     assert len(exploit) == 39
-    assert (store.root / exploit).resolve() == Path((store.root / exploit).anchor)
+    escaped = (store.root / exploit).resolve()
+    with pytest.raises(ValueError):
+        escaped.relative_to(store.root.resolve())
 
     with pytest.raises(ObjectNotFoundError, match=r"^Invalid export id$"):
         store.read(exploit)

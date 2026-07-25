@@ -411,12 +411,12 @@ def test_junction_like_record_directory_is_rejected_and_retained(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _store_case("transaction", tmp_path)
-    original = Path.is_junction
+    original = getattr(Path, "is_junction", lambda _path: False)
 
     def fake_is_junction(path: Path) -> bool:
         return path == case.directory or original(path)
 
-    monkeypatch.setattr(Path, "is_junction", fake_is_junction)
+    monkeypatch.setattr(Path, "is_junction", fake_is_junction, raising=False)
     case.reopen(
         RetentionPolicy(max_records=1, max_age_days=1),
         _clock(FUTURE),
