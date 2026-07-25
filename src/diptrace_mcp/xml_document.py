@@ -25,11 +25,61 @@ EditOperation = Literal[
 ]
 
 _FORBIDDEN_XML = re.compile(br"<!\s*(?:DOCTYPE|ENTITY)", re.IGNORECASE)
+_FORBIDDEN_XML_TEXT = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)", re.IGNORECASE)
 _XML_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.:-]*$")
 
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _detect_encoding_and_check(data: bytes) -> None:
+    """Detect XML encoding from BOM/declaration and check for forbidden DTD/ENTITY.
+
+    The byte-level regex misses UTF-16 encoded DOCTYPE/ENTITY declarations.
+    This function detects the encoding, decodes a bounded prefix, and applies
+    the check on the decoded text.
+    """
+    # Detect BOM
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        # UTF-16 with BOM
+        encoding = "utf-16"
+        bom_len = 2
+    elif data[:3] == b"\xef\xbb\xbf":
+        # UTF-8 with BOM
+        encoding = "utf-8-sig"
+        bom_len = 3
+    elif data[:4] in (b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff"):
+        # UTF-32 with BOM
+        encoding = "utf-32"
+        bom_len = 4
+    else:
+        # Try to detect from XML declaration
+        # Read a bounded prefix to find the encoding
+        prefix = data[:256]
+        enc_match = re.search(rb'encoding=["\']([^"\']+)["\']', prefix)
+        if enc_match:
+            encoding = enc_match.group(1).decode("ascii", errors="replace")
+            bom_len = 0
+        else:
+            # Default to UTF-8
+            encoding = "utf-8"
+            bom_len = 0
+
+    # Decode a bounded prefix (first 64 KiB) and check for forbidden patterns
+    check_limit = min(len(data), 65536)
+    try:
+        text_prefix = data[bom_len:check_limit].decode(encoding, errors="replace")
+    except (LookupError, UnicodeDecodeError):
+        # If we can't decode, fall back to the byte-level check
+        if _FORBIDDEN_XML.search(data[:check_limit]):
+            raise DocumentError(
+                "DTD and ENTITY declarations are not allowed"
+            ) from None
+        return
+
+    if _FORBIDDEN_XML_TEXT.search(text_prefix):
+        raise DocumentError("DTD and ENTITY declarations are not allowed")
 
 
 def utc_now() -> str:
@@ -51,8 +101,7 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
 
 
 def _parse_root(data: bytes) -> ET.Element:
-    if _FORBIDDEN_XML.search(data):
-        raise DocumentError("DTD and ENTITY declarations are not allowed")
+    _detect_encoding_and_check(data)
     try:
         parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
         return ET.fromstring(data, parser=parser)
@@ -477,8 +526,7 @@ def _scan_start_tag_end(data: bytes, start: int) -> int:
 
 
 def _raw_element_spans(data: bytes) -> list[_RawElementSpan]:
-    if _FORBIDDEN_XML.search(data):
-        raise EditError("DTD and ENTITY declarations are not allowed")
+    _detect_encoding_and_check(data)
     spans: list[_RawElementSpan] = []
     stack: list[int] = []
     parser = expat.ParserCreate()
@@ -749,8 +797,7 @@ def _parse_fragment(index: int, value: str | None) -> ET.Element:
 
 
 def _parse_root_fragment(data: bytes) -> ET.Element:
-    if _FORBIDDEN_XML.search(data):
-        raise EditError("DTD and ENTITY declarations are not allowed in XML fragments")
+    _detect_encoding_and_check(data)
     try:
         return ET.fromstring(b"<McpFragment>" + data + b"</McpFragment>")
     except ET.ParseError as exc:
