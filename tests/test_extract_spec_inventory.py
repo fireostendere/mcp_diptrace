@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import copy
 import sys
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
+import scripts.extract_spec_inventory as extractor
 from scripts.extract_spec_inventory import (
     _canonical_json,
     _extract_enum_values_from_block,
@@ -18,6 +19,17 @@ from scripts.report_format_coverage import main as coverage_main
 
 ROOT = Path(__file__).parents[1]
 EXTRACTED_TEXT = ROOT / "reference/diptrace-xml/extracted_text"
+
+
+def test_bundle_repository_path_is_platform_independent(monkeypatch) -> None:
+    monkeypatch.setattr(
+        extractor,
+        "_EXTRACTED_TEXT_REPOSITORY_DIR",
+        PureWindowsPath("reference/diptrace-xml/extracted_text"),
+    )
+    assert extractor._bundle_repository_path("DipTraceXML_Pcb_En.pdf") == (
+        "reference/diptrace-xml/extracted_text/DipTraceXML_Pcb_En.pages.json"
+    )
 
 
 def test_glued_attribute_rows_from_pdf_text_are_parsed() -> None:

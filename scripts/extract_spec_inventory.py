@@ -71,7 +71,11 @@ def _bundle_filename(pdf_name: str) -> str:
 
 
 def _bundle_repository_path(pdf_name: str) -> str:
-    return str(_EXTRACTED_TEXT_REPOSITORY_DIR / _bundle_filename(pdf_name))
+    # Inventory paths are repository identifiers, not host-native filesystem
+    # paths. Keep their serialized form stable on Windows as well as POSIX.
+    return (
+        _EXTRACTED_TEXT_REPOSITORY_DIR / _bundle_filename(pdf_name)
+    ).as_posix()
 
 
 def _extracted_text_bundle(pdf_path: Path, pages: list[str]) -> dict[str, Any]:
