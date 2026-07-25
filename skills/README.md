@@ -1,6 +1,6 @@
 # PCB Skills for DipTrace MCP
 
-This catalog contains 57 permanent skill packages spanning a PCB project from requirements intake and architecture through engineering reviews, release artifacts, bring-up, and regression control. [catalog.json](catalog.json) is the source of truth for the package inventory and workflow-specific content.
+This catalog contains the skill packages selected by [catalog.json](catalog.json), which is the source of truth for package inventory and workflow-specific content.
 
 ## Package Structure
 
@@ -40,7 +40,7 @@ From the repository root:
 .venv/bin/python -m pytest -q tests/test_skill_packages.py
 ```
 
-`--check` verifies that all 57 packages are reproducible from their sources and contain no hand-edited drift. Pytest is the only executable skill test suite; it validates structure, schemas, examples, capability mappings, scenarios, and eval assertions. Files under each package's `evals/` directory are test data consumed by that central suite, not a second test runner.
+`--check` verifies that every catalog-selected package is reproducible from its sources and contains no hand-edited drift. Pytest is the only executable skill test suite; it validates structure, schemas, examples, capability mappings, scenarios, and eval assertions. Files under each package's `evals/` directory are test data consumed by that central suite, not a second test runner.
 
 For an additional frontmatter and naming check, run `quick_validate.py` from an installed `skill-creator` package:
 

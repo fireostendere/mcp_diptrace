@@ -90,29 +90,25 @@ def test_session_state_read_retries_transient_os_errors(
     assert attempts == 2
 
 
-def test_stale_active_json_is_ignored_when_session_not_active(
+def test_new_session_allowed_after_clean_finalize(
     tmp_path: Path,
 ) -> None:
-    """If the process crashed leaving active.json, a new session should work."""
+    """A cleanly finalized session does not block the next session."""
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "pcb.xml").read_bytes())
     store = SessionStore(tmp_path / "state", 10_000_000)
     metadata = store.create(exchange)
     session_id = metadata["session_id"]
 
-    # Simulate crash: finalize without cleaning active.json
     store.finalize(session_id, "cancel")
 
-    # active.json still references the old (now cancelled) session.
-    # New session creation should succeed because active_metadata()
-    # checks status == "active" and finds "cancelled".
+    # TODO(WO-15): exercise active.json left behind by an abrupt bridge crash.
     metadata2 = store.create(exchange)
     assert metadata2["session_id"] != session_id
     assert metadata2["status"] == "active"
 
 
-def test_double_finish_is_idempotent(tmp_path: Path) -> None:
-    """Calling finalize twice on the same session raises on the second call."""
+def test_second_finalize_is_rejected(tmp_path: Path) -> None:
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "pcb.xml").read_bytes())
     store = SessionStore(tmp_path / "state", 10_000_000)

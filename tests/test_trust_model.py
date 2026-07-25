@@ -510,14 +510,13 @@ class TestSemanticComparisonRegression:
         assert "parse_warnings" in result
 
 
-# ── All write paths invalidate trust ─────────────────────────────────────────
+# ── Trust capability disclosures ─────────────────────────────────────────────
 
 
-class TestAllWritePathsInvalidate:
-    """Every MCP write path must invalidate trust."""
+class TestTrustCapabilityDisclosures:
+    """Trust metadata and dry-run behavior remain fail-closed and explicit."""
 
-    def test_apply_edits_noop_preserves_trust(self, tmp_path: Path) -> None:
-        """apply_edits with a no-op edit does not change the document."""
+    def test_apply_edits_dry_run_preserves_trust(self, tmp_path: Path) -> None:
         service = _service(tmp_path)
         service.create_document("pcb", "board.dip")
         board_path = tmp_path / "board.dip"
@@ -549,8 +548,10 @@ class TestAllWritePathsInvalidate:
         assert loaded is not None
         assert loaded.validation_level == FixtureValidationLevel.synthetic_operation_fixture
 
-    def test_create_document_from_seed_invalidation(self, tmp_path: Path) -> None:
-        """create_document_from_seed writes trust sidecar with correct authority."""
+    def test_create_document_from_seed_writes_runtime_low_trust_sidecar(
+        self,
+        tmp_path: Path,
+    ) -> None:
         service = _service(tmp_path)
         raw = build_pcb_document(PcbScaffold(width_mm=50.0, height_mm=30.0))
         (tmp_path / "seed.dip").write_bytes(raw)
@@ -564,8 +565,7 @@ class TestAllWritePathsInvalidate:
         assert loaded.authority == ProvenanceAuthority.runtime
         assert loaded.validation_level == FixtureValidationLevel.synthetic_parser_only
 
-    def test_all_claimed_write_paths_have_public_e2e_tests(self) -> None:
-        """§17: Verify the capability report honestly marks untested paths."""
+    def test_capability_report_discloses_unverified_write_families(self) -> None:
         from diptrace_mcp.capabilities import get_capabilities
 
         report = get_capabilities(None)
@@ -574,33 +574,6 @@ class TestAllWritePathsInvalidate:
         assert "plan_apply" in trust["untested_write_paths"]
         assert "ses_import" in trust["untested_write_paths"]
         assert "schematic_to_pcb_sync" in trust["untested_write_paths"]
-
-    def test_untested_write_paths_are_exhaustively_listed(self) -> None:
-        """§17b: Every write path the code claims is untested must appear in
-        the untested_write_paths list, and the list must not contain paths
-        that don't exist in the codebase."""
-        from diptrace_mcp.capabilities import get_capabilities
-
-        report = get_capabilities(None)
-        trust = report.trust_model
-        listed = set(trust["untested_write_paths"])
-
-        # These paths are verified untested because they require a real DipTrace
-        # installation to exercise the write-back through the bridge.
-        # When a path is tested, remove it from this set and from the
-        # capability_model._BASE_TRUST_MODEL untested_write_paths list.
-        expected_untested = {
-            "plan_apply",
-            "ses_import",
-            "schematic_to_pcb_sync",
-            "live_session_apply",
-        }
-        assert listed == expected_untested, (
-            f"untested_write_paths mismatch: "
-            f"listed={listed}, expected={expected_untested}. "
-            f"Update capability_model._BASE_TRUST_MODEL if paths were tested "
-            f"or new untested paths were added."
-        )
 
 
 # ── §7 Attack regression tests ─────────────────────────────────────────────

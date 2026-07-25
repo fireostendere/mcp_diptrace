@@ -1749,11 +1749,11 @@ def initialize_skill(entry: dict[str, Any], init_script: Path) -> None:
 
 
 def validate_catalog(catalog: list[dict[str, Any]]) -> None:
-    if len(catalog) != 57:
-        raise ValueError(f"Expected 57 skills, got {len(catalog)}")
+    if not catalog:
+        raise ValueError("Skill catalog must not be empty")
     ids = [entry["id"] for entry in catalog]
-    if ids != list(range(1, 58)):
-        raise ValueError("Skill IDs must be contiguous from 1 through 57")
+    if ids != list(range(1, len(catalog) + 1)):
+        raise ValueError("Skill IDs must be contiguous from 1 through the catalog size")
     slugs = [entry["slug"] for entry in catalog]
     if len(slugs) != len(set(slugs)):
         raise ValueError("Skill slugs must be unique")
