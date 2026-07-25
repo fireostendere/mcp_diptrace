@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing_extensions import TypedDict
 
 from .capability_model import MAX_TRANSACTION_OPERATIONS
+from .record_ids import TRANSACTION_ID_PATTERN
 
 StableId = str
 _MM_FIELD_DESCRIPTION = "Distance in millimetres."
@@ -112,7 +113,11 @@ _TRUSTED_EVIDENCE_AUTHORITIES = frozenset(
 
 
 class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        allow_inf_nan=False,
+    )
 
 
 def requires_diptrace_verification(level: FixtureValidationLevel) -> bool:
@@ -1191,7 +1196,7 @@ class TransactionRisk(StrictModel):
 
 
 class TransactionRecord(StrictModel):
-    txid: str = Field(pattern=r"^tx_[0-9a-f-]{36}$")
+    txid: str = Field(pattern=rf"^{TRANSACTION_ID_PATTERN}$")
     document_id: str
     status: TransactionStatus
     source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -1242,7 +1247,10 @@ class PlanRecord(StrictModel):
     warnings: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     preview_resources: list[str] = Field(default_factory=list)
-    transaction_id: str | None = Field(default=None, pattern=r"^tx_[0-9a-f-]{36}$")
+    transaction_id: str | None = Field(
+        default=None,
+        pattern=rf"^{TRANSACTION_ID_PATTERN}$",
+    )
 
 
 class ResolvedCopperLayer:

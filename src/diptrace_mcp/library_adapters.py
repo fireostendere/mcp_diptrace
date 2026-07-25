@@ -20,6 +20,12 @@ from .domain import (
 from .errors import AmbiguousSelectorError, DocumentError, ObjectNotFoundError
 from .geometry import BBox, Point, Transform, bbox_union, to_mm
 from .geometry_backend import offset_shape, shape_bbox
+from .numeric_inputs import (
+    require_finite_number,
+    translate_validation_errors,
+    xml_number,
+    xml_number_mm,
+)
 from .xml_document import DipTraceDocument
 
 
@@ -27,16 +33,30 @@ def _text(element: ET.Element, path: str) -> str:
     return (element.findtext(path) or "").strip()
 
 
-def _number(element: ET.Element, attribute: str, default: float = 0.0) -> float:
-    raw = element.get(attribute)
-    if raw is None or raw == "":
-        return default
-    try:
-        return float(raw)
-    except ValueError as exc:
-        raise DocumentError(
-            f"Invalid numeric attribute {attribute}={raw!r} on <{element.tag}>"
-        ) from exc
+def _number(
+    document: DipTraceDocument,
+    element: ET.Element,
+    attribute: str,
+    default: float = 0.0,
+) -> float:
+    return xml_number(document, element, attribute, default)
+
+
+def _number_mm(
+    document: DipTraceDocument,
+    element: ET.Element,
+    attribute: str,
+    units: str,
+    default: float = 0.0,
+) -> float:
+    if units == document.units:
+        return xml_number_mm(document, element, attribute, default)
+    return require_finite_number(
+        to_mm(_number(document, element, attribute, default), units),
+        context=f"converted attribute {attribute} on <{element.tag}>",
+        offset=document.element_byte_offset(element),
+        details={"element": str(element.tag), "attribute": attribute},
+    )
 
 
 def _additional_fields(element: ET.Element) -> dict[str, str]:
@@ -177,7 +197,11 @@ def _pattern_library_root(document: DipTraceDocument) -> ET.Element | None:
     return None
 
 
-def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
+def _pad_styles(
+    document: DipTraceDocument,
+    root: ET.Element | None,
+    units: str,
+) -> list[LibraryPadStyle]:
     if root is None:
         return []
     styles: list[LibraryPadStyle] = []
@@ -189,22 +213,34 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
             height = 0.0
         else:
             shape = main.get("Shape", "")
-            width = to_mm(_number(main, "Width"), units)
+            width = _number_mm(document, main, "Width", units)
             height = (
                 width
                 if shape.casefold().replace(" ", "") == "fiducial"
-                else to_mm(_number(main, "Height"), units)
+                else _number_mm(document, main, "Height", units)
             )
         is_fiducial = shape.casefold().replace(" ", "") == "fiducial"
         hole = element.get("Hole")
         hole_height = element.get("HoleH")
-        hole_width_mm = to_mm(float(hole), units) if hole else None
-        hole_height_mm = to_mm(float(hole_height), units) if hole_height else None
+        hole_width_mm = (
+            _number_mm(document, element, "Hole", units) if hole else None
+        )
+        hole_height_mm = (
+            _number_mm(document, element, "HoleH", units) if hole_height else None
+        )
         mask = element.find("./MaskPaste")
         swell_value = mask.get("CustomSwell") if mask is not None else None
         shrink_value = mask.get("CustomShrink") if mask is not None else None
-        swell_raw = float(swell_value) if swell_value is not None else None
-        shrink_raw = float(shrink_value) if shrink_value is not None else None
+        swell_raw = (
+            _number(document, mask, "CustomSwell")
+            if mask is not None and swell_value is not None
+            else None
+        )
+        shrink_raw = (
+            _number(document, mask, "CustomShrink")
+            if mask is not None and shrink_value is not None
+            else None
+        )
         custom_swell = (
             None
             if swell_raw is None or math.isclose(swell_raw, -1000.0)
@@ -218,8 +254,8 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
         polygon_points = (
             [
                 {
-                    "x": to_mm(_number(point, "X"), units),
-                    "y": to_mm(_number(point, "Y"), units),
+                    "x": _number_mm(document, point, "X", units),
+                    "y": _number_mm(document, point, "Y", units),
                 }
                 for point in _point_elements(main)
             ]
@@ -231,7 +267,7 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
             for side, tag in (("Top", "TopSegments"), ("Bottom", "BotSegments")):
                 items = [
                     {
-                        key.casefold(): to_mm(_number(item, key), units)
+                        key.casefold(): _number_mm(document, item, key, units)
                         for key in ("X1", "Y1", "X2", "Y2")
                     }
                     for item in mask.findall(f"./{tag}/Item")
@@ -246,13 +282,25 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
                 shape=shape,
                 width=width,
                 height=height,
-                x_offset=(to_mm(_number(main, "XOff"), units) if main is not None else 0.0),
-                y_offset=(
-                    to_mm(_number(main, "YOff", _number(main, "Yoff")), units)
+                x_offset=(
+                    _number_mm(document, main, "XOff", units)
                     if main is not None
                     else 0.0
                 ),
-                corner_percent=(_number(main, "Corner") if main is not None else 0.0),
+                y_offset=(
+                    _number_mm(
+                        document,
+                        main,
+                        "YOff",
+                        units,
+                        _number(document, main, "Yoff"),
+                    )
+                    if main is not None
+                    else 0.0
+                ),
+                corner_percent=(
+                    _number(document, main, "Corner") if main is not None else 0.0
+                ),
                 polygon_points=polygon_points,
                 hole_type=element.get("HoleType"),
                 hole_width=(
@@ -280,6 +328,7 @@ def _pad_styles(root: ET.Element | None, units: str) -> list[LibraryPadStyle]:
 
 
 def _pattern_bbox(
+    document: DipTraceDocument,
     pads: list[LibraryPad],
     pattern: ET.Element,
     units: str,
@@ -288,15 +337,18 @@ def _pattern_bbox(
     for shape in pattern.findall("./Shapes/Shape"):
         points = _point_elements(shape)
         coordinates = [
-            Point(to_mm(_number(point, "X"), units), to_mm(_number(point, "Y"), units))
+            Point(
+                _number_mm(document, point, "X", units),
+                _number_mm(document, point, "Y", units),
+            )
             for point in points
         ]
         if coordinates:
             boxes.append(BBox.from_points(coordinates))
     for hole in pattern.findall("./Holes/Hole"):
-        x = to_mm(_number(hole, "X"), units)
-        y = to_mm(_number(hole, "Y"), units)
-        diameter = to_mm(_number(hole, "Diam"), units)
+        x = _number_mm(document, hole, "X", units)
+        y = _number_mm(document, hole, "Y", units)
+        diameter = _number_mm(document, hole, "Diam", units)
         boxes.append(_center_bbox(x, y, diameter, diameter))
     return _bbox_dict(bbox_union(boxes)) if boxes else None
 
@@ -323,9 +375,9 @@ def _patterns(
             xml_id = pad.get("Id", str(pad_index))
             style_name = pad.get("Style", default_style)
             style = style_by_name.get(style_name)
-            x = to_mm(_number(pad, "X"), document.units)
-            y = to_mm(_number(pad, "Y"), document.units)
-            rotation_deg = math.degrees(_number(pad, "Angle"))
+            x = _number_mm(document, pad, "X", document.units)
+            y = _number_mm(document, pad, "Y", document.units)
+            rotation_deg = math.degrees(_number(document, pad, "Angle"))
             geometry = _pad_geometry(style, x, y, rotation_deg)
             pad_box = shape_bbox(geometry) if geometry is not None else None
             mask_geometry, paste_geometry = _mask_paste_geometry(
@@ -350,29 +402,32 @@ def _patterns(
         holes = [
             {
                 **dict(hole.attrib),
-                "x_mm": to_mm(_number(hole, "X"), document.units),
-                "y_mm": to_mm(_number(hole, "Y"), document.units),
-                "diameter_mm": to_mm(_number(hole, "Diam"), document.units),
-                "hole_diameter_mm": to_mm(_number(hole, "HoleDiam"), document.units),
+                "x_mm": _number_mm(document, hole, "X", document.units),
+                "y_mm": _number_mm(document, hole, "Y", document.units),
+                "diameter_mm": _number_mm(document, hole, "Diam", document.units),
+                "hole_diameter_mm": _number_mm(
+                    document, hole, "HoleDiam", document.units
+                ),
             }
             for hole in element.findall("./Holes/Hole")
         ]
+        shape_elements = element.findall("./Shapes/Shape")
         shapes: list[dict[str, Any]] = [
             {
                 "attributes": dict(shape.attrib),
                 "points": [
                     {
-                        "x": to_mm(_number(point, "X"), document.units),
-                        "y": to_mm(_number(point, "Y"), document.units),
+                        "x": _number_mm(document, point, "X", document.units),
+                        "y": _number_mm(document, point, "Y", document.units),
                     }
                     for point in _point_elements(shape)
                 ],
                 "lines": [item.text or "" for item in shape.findall("./Lines/Item")],
             }
-            for shape in element.findall("./Shapes/Shape")
+            for shape in shape_elements
         ]
         courtyard_geometry: dict[str, list[GeometryShape]] = {}
-        for shape_data in shapes:
+        for shape_data, shape in zip(shapes, shape_elements, strict=True):
             attributes = shape_data["attributes"]
             layer = str(attributes.get("Layer", ""))
             if "Courtyard" not in layer:
@@ -383,7 +438,12 @@ def _patterns(
             if shape_type == "Polygon" and len(points) >= 3:
                 courtyard_shape = GeometryShape(kind="polygon", points=points)
             elif shape_type == "Line" and len(points) >= 2:
-                line_width = to_mm(float(attributes.get("LineWidth", "0")), document.units)
+                line_width = _number_mm(
+                    document,
+                    shape,
+                    "LineWidth",
+                    document.units,
+                )
                 if line_width > 0.0:
                     courtyard_shape = GeometryShape(
                         kind="line",
@@ -426,7 +486,7 @@ def _patterns(
                 else None
             ),
         )
-        pattern.bbox = _pattern_bbox(pads, element, document.units)
+        pattern.bbox = _pattern_bbox(document, pads, element, document.units)
         patterns.append(pattern)
     return patterns
 
@@ -459,10 +519,10 @@ def _components(document: DipTraceDocument) -> list[LibraryComponent]:
                         electrical_type=pin.get("ElectricType", "Undefined"),
                         pin_type=pin.get("Type", "Default"),
                         position={
-                            "x": to_mm(_number(pin, "X"), document.units),
-                            "y": to_mm(_number(pin, "Y"), document.units),
+                            "x": _number_mm(document, pin, "X", document.units),
+                            "y": _number_mm(document, pin, "Y", document.units),
                         },
-                        orientation_deg=_number(pin, "Orientation"),
+                        orientation_deg=_number(document, pin, "Orientation"),
                         locked=pin.get("Locked", "N") == "Y",
                     )
                 )
@@ -489,6 +549,7 @@ def _components(document: DipTraceDocument) -> list[LibraryComponent]:
     return components
 
 
+@translate_validation_errors
 def get_library_model(document: DipTraceDocument) -> LibraryModel:
     if document.source_type not in {
         "DipTrace-ComponentLibrary",
@@ -496,7 +557,7 @@ def get_library_model(document: DipTraceDocument) -> LibraryModel:
     }:
         raise DocumentError("Library model requires a Component or Pattern Library XML document")
     pattern_root = _pattern_library_root(document)
-    styles = _pad_styles(pattern_root, document.units)
+    styles = _pad_styles(document, pattern_root, document.units)
     patterns = _patterns(document, pattern_root, styles)
     return LibraryModel(
         document_id=document_id_for(document),

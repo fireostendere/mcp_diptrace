@@ -29,7 +29,9 @@ See [the roadmap](docs/ROADMAP.md) for the current priority order and exit crite
 - normalized PCB, schematic, Component Library, and Pattern Library domain models;
 - stable object references, structured selectors, connectivity graphs, and spatial queries;
 - millimeter-normalized geometry, transforms, mirroring, arcs, optional exact GEOS geometry, and SVG/JSON previews;
-- raw-preserving XML patches that retain unknown XML, BOM, line endings, and formatting outside targeted nodes;
+- raw-preserving XML patches for supported UTF-8/UTF-16LE/BE/ASCII/Latin-1
+  sources that retain unknown XML, the source BOM, line endings, and formatting
+  outside targeted nodes; unsupported encodings fail closed;
 - semantic transactions with plan, preview, validation, expected SHA-256, commit, backup, and rollback;
 - component/part move, rotate, side, lock, property, pattern, alignment, distribution, and grouping operations;
 - board-text edits, documented NetClass rules, and standalone-pad test points;
@@ -186,6 +188,27 @@ High-level writes default to preview/dry-run behavior. A safe workflow is:
 `apply_xml_edits` remains an expert escape hatch. It requires exact match counts, preserves bytes outside targets, reparses the result, creates a backup before commit, and rejects SHA conflicts.
 
 XML containing `DOCTYPE` or `ENTITY` is rejected. Filesystem access is constrained to configured roots. External processes are available only through typed allowlisted adapters.
+
+### WO-11 safety checkpoint — 2026-07-25
+
+- Paths supplied in MCP calls are literal: environment variables and `~` are not
+  expanded. Expansion is reserved for operator-owned server configuration, followed
+  by allowed-root enforcement.
+- Supported XML writes preserve the detected source codec/BOM and untouched bytes.
+  Raw edits and raw-preserving semantic edits are reparsed and must equal the
+  requested semantic element tree; clean UTF-32 input currently fails closed.
+- Typed request data, normalized XML numbers, and SES numeric tokens reject `NaN`
+  and infinities. DSN output refuses quoted values requiring unverified escaping or
+  non-ASCII encoding, while SES input refuses backslash escapes and literal controls
+  in quoted tokens. The real DipTrace conventions remain open evidence questions.
+- External adapters have bounded streaming logs/results and a global concurrency
+  limit. POSIX process groups and Windows kill-on-close Job Objects contain
+  descendants, and root processes are explicitly reaped.
+- Offline backups live under the central state directory, isolated by canonical
+  target-path hash. Existing targets are backed up before replacement; new targets
+  have no previous bytes to back up. Retention prunes validated terminal records,
+  protects active/nonterminal state, and treats count/age thresholds as cleanup
+  targets rather than hard quotas.
 
 ## Trust Model
 

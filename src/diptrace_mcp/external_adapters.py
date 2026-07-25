@@ -7,6 +7,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,13 +15,18 @@ from typing import Any
 from .config import Settings
 from .domain import DocumentInfo, FieldSolverRequest, FieldSolverResult, JobRecord
 from .errors import (
+    DipTraceMcpError,
     ExternalToolFailedError,
     ExternalToolUnavailableError,
     JobCancelledError,
     JobTimeoutError,
 )
+from .external_process import (
+    ExternalProcessReservation,
+    ExternalProcessRunner,
+)
 from .jobs import JobStore, job_resources
-from .xml_document import atomic_write_bytes, sha256_bytes, utc_now
+from .xml_document import sha256_bytes, utc_now
 
 _NET_CLASS = re.compile(r"^[A-Za-z0-9_.:+/ -]{1,128}$")
 
@@ -288,6 +294,10 @@ class ExternalJobManager:
         self.freerouting = FreeroutingAdapter(settings)
         self.ngspice = NgSpiceAdapter(settings)
         self.openems = OpenEmsAdapter(settings)
+        self._runner = ExternalProcessRunner(
+            max_concurrent=settings.max_external_processes,
+            max_log_bytes=settings.max_external_log_bytes,
+        )
         self._processes: dict[str, subprocess.Popen[bytes]] = {}
         self._cancel: dict[str, threading.Event] = {}
         self._lock = threading.RLock()
@@ -306,25 +316,29 @@ class ExternalJobManager:
             source_sha256=info.sha256,
             target_path=target_path,
         )
-        self.store.store_artifact(record.jobid, "input.dsn", dsn)
-        self.store.store_artifact(
-            record.jobid,
-            "manifest.json",
-            json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
-        )
-        return self.store.update(
-            record.jobid,
-            status="completed",
-            phase="exported",
-            progress=1.0,
-            started_at=record.created_at,
-            completed_at=utc_now(),
-            artifacts={
-                "dsn": f"diptrace://job/{record.jobid}/input.dsn",
-                "manifest": f"diptrace://job/{record.jobid}/manifest.json",
-            },
-            result={"dsn_sha256": sha256_bytes(dsn), "size_bytes": len(dsn)},
-        )
+        try:
+            self.store.store_artifact(record.jobid, "input.dsn", dsn)
+            self.store.store_artifact(
+                record.jobid,
+                "manifest.json",
+                json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
+            )
+            return self.store.update(
+                record.jobid,
+                status="completed",
+                phase="exported",
+                progress=1.0,
+                started_at=record.created_at,
+                completed_at=utc_now(),
+                artifacts={
+                    "dsn": f"diptrace://job/{record.jobid}/input.dsn",
+                    "manifest": f"diptrace://job/{record.jobid}/manifest.json",
+                },
+                result={"dsn_sha256": sha256_bytes(dsn), "size_bytes": len(dsn)},
+            )
+        except Exception as exc:
+            self._record_setup_failure(record, exc)
+            raise
 
     def start_freerouting(
         self,
@@ -353,51 +367,49 @@ class ExternalJobManager:
             source_sha256=info.sha256,
             target_path=target_path,
         )
-        input_path = self.store.store_artifact(record.jobid, "input.dsn", dsn)
-        output_path = self.store.artifact_path(record.jobid, "output.ses")
-        command = self.freerouting.command(
-            input_path,
-            output_path,
-            max_passes=max_passes,
-            threads=threads,
-            ignore_net_classes=ignore_net_classes,
-        )
-        manifest = {
-            "adapter": "freerouting",
-            "document_id": info.document_id,
-            "source_sha256": info.sha256,
-            "dsn_sha256": sha256_bytes(dsn),
-            "options": {
-                "max_passes": max_passes,
-                "threads": threads,
-                "timeout_seconds": timeout,
-                "ignore_net_classes": ignore_net_classes,
-            },
-        }
-        self.store.store_artifact(
-            record.jobid,
-            "manifest.json",
-            json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
-        )
-        record = self.store.update(
-            record.jobid,
-            command=command,
-            artifacts={
-                "dsn": f"diptrace://job/{record.jobid}/input.dsn",
-                "manifest": f"diptrace://job/{record.jobid}/manifest.json",
-            },
-        )
-        cancel = threading.Event()
-        with self._lock:
-            self._cancel[record.jobid] = cancel
-        thread = threading.Thread(
+        try:
+            input_path = self.store.store_artifact(record.jobid, "input.dsn", dsn)
+            output_path = self.store.artifact_path(record.jobid, "output.ses")
+            command = self.freerouting.command(
+                input_path,
+                output_path,
+                max_passes=max_passes,
+                threads=threads,
+                ignore_net_classes=ignore_net_classes,
+            )
+            manifest = {
+                "adapter": "freerouting",
+                "document_id": info.document_id,
+                "source_sha256": info.sha256,
+                "dsn_sha256": sha256_bytes(dsn),
+                "options": {
+                    "max_passes": max_passes,
+                    "threads": threads,
+                    "timeout_seconds": timeout,
+                    "ignore_net_classes": ignore_net_classes,
+                },
+            }
+            self.store.store_artifact(
+                record.jobid,
+                "manifest.json",
+                json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
+            )
+            record = self.store.update(
+                record.jobid,
+                command=command,
+                artifacts={
+                    "dsn": f"diptrace://job/{record.jobid}/input.dsn",
+                    "manifest": f"diptrace://job/{record.jobid}/manifest.json",
+                },
+            )
+        except Exception as exc:
+            self._record_setup_failure(record, exc)
+            raise
+        return self._launch_worker(
+            record,
             target=self._run,
-            args=(record.jobid, command, output_path, timeout, cancel),
-            name=f"diptrace-{record.jobid}",
-            daemon=True,
+            args=(record.jobid, command, output_path, timeout),
         )
-        thread.start()
-        return record
 
     def start_ngspice(
         self,
@@ -425,39 +437,37 @@ class ExternalJobManager:
             source_sha256=info.sha256 if info is not None else None,
             target_path=target_path,
         )
-        input_path = self.store.store_artifact(record.jobid, "input.cir", netlist)
-        command = self.ngspice.command(input_path)
-        manifest = {
-            "adapter": "ngspice",
-            "document_id": info.document_id if info is not None else None,
-            "source_sha256": info.sha256 if info is not None else None,
-            "netlist_sha256": sha256_bytes(netlist),
-            "options": {"timeout_seconds": timeout},
-        }
-        self.store.store_artifact(
-            record.jobid,
-            "manifest.json",
-            json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
-        )
-        record = self.store.update(
-            record.jobid,
-            command=command,
-            artifacts={
-                "netlist": f"diptrace://job/{record.jobid}/input.cir",
-                "manifest": f"diptrace://job/{record.jobid}/manifest.json",
-            },
-        )
-        cancel = threading.Event()
-        with self._lock:
-            self._cancel[record.jobid] = cancel
-        thread = threading.Thread(
+        try:
+            input_path = self.store.store_artifact(record.jobid, "input.cir", netlist)
+            command = self.ngspice.command(input_path)
+            manifest = {
+                "adapter": "ngspice",
+                "document_id": info.document_id if info is not None else None,
+                "source_sha256": info.sha256 if info is not None else None,
+                "netlist_sha256": sha256_bytes(netlist),
+                "options": {"timeout_seconds": timeout},
+            }
+            self.store.store_artifact(
+                record.jobid,
+                "manifest.json",
+                json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
+            )
+            record = self.store.update(
+                record.jobid,
+                command=command,
+                artifacts={
+                    "netlist": f"diptrace://job/{record.jobid}/input.cir",
+                    "manifest": f"diptrace://job/{record.jobid}/manifest.json",
+                },
+            )
+        except Exception as exc:
+            self._record_setup_failure(record, exc)
+            raise
+        return self._launch_worker(
+            record,
             target=self._run_ngspice,
-            args=(record.jobid, command, timeout, cancel),
-            name=f"diptrace-{record.jobid}",
-            daemon=True,
+            args=(record.jobid, command, timeout),
         )
-        thread.start()
-        return record
 
     def start_openems(
         self,
@@ -483,55 +493,159 @@ class ExternalJobManager:
             source_sha256=info.sha256 if info is not None else None,
             target_path=target_path,
         )
-        input_bytes = request.model_dump_json(indent=2).encode("utf-8")
-        input_path = self.store.store_artifact(record.jobid, "field_solver_input.json", input_bytes)
-        output_path = self.store.artifact_path(record.jobid, "field_solver_result.json")
-        command = self.openems.command(input_path, output_path)
-        manifest = {
-            "adapter": "openems",
-            "protocol": request.schema_version,
-            "document_id": info.document_id if info is not None else None,
-            "source_sha256": info.sha256 if info is not None else None,
-            "request_sha256": sha256_bytes(input_bytes),
-            "options": {"timeout_seconds": timeout},
-        }
-        self.store.store_artifact(
-            record.jobid,
-            "manifest.json",
-            json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
-        )
-        record = self.store.update(
-            record.jobid,
-            command=command,
-            artifacts={
-                "input": f"diptrace://job/{record.jobid}/field_solver_input.json",
-                "manifest": f"diptrace://job/{record.jobid}/manifest.json",
-            },
-        )
-        cancel = threading.Event()
-        with self._lock:
-            self._cancel[record.jobid] = cancel
-        thread = threading.Thread(
+        try:
+            input_bytes = request.model_dump_json(indent=2).encode("utf-8")
+            input_path = self.store.store_artifact(
+                record.jobid,
+                "field_solver_input.json",
+                input_bytes,
+            )
+            output_path = self.store.artifact_path(record.jobid, "field_solver_result.json")
+            command = self.openems.command(input_path, output_path)
+            manifest = {
+                "adapter": "openems",
+                "protocol": request.schema_version,
+                "document_id": info.document_id if info is not None else None,
+                "source_sha256": info.sha256 if info is not None else None,
+                "request_sha256": sha256_bytes(input_bytes),
+                "options": {"timeout_seconds": timeout},
+            }
+            self.store.store_artifact(
+                record.jobid,
+                "manifest.json",
+                json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
+            )
+            record = self.store.update(
+                record.jobid,
+                command=command,
+                artifacts={
+                    "input": f"diptrace://job/{record.jobid}/field_solver_input.json",
+                    "manifest": f"diptrace://job/{record.jobid}/manifest.json",
+                },
+            )
+        except Exception as exc:
+            self._record_setup_failure(record, exc)
+            raise
+        return self._launch_worker(
+            record,
             target=self._run_openems,
-            args=(record.jobid, command, output_path, request, timeout, cancel),
-            name=f"diptrace-{record.jobid}",
-            daemon=True,
+            args=(record.jobid, command, output_path, request, timeout),
         )
-        thread.start()
-        return record
+
+    def _launch_worker(
+        self,
+        record: JobRecord,
+        *,
+        target: Callable[..., None],
+        args: tuple[Any, ...],
+    ) -> JobRecord:
+        with self._lock:
+            current = self.store.read(record.jobid)
+            if current.status in {"completed", "failed", "cancelled"}:
+                return current
+            if current.phase == "cancelling":
+                return self.store.update(
+                    record.jobid,
+                    status="cancelled",
+                    phase="cancelled",
+                    completed_at=utc_now(),
+                    error=JobCancelledError(
+                        "External job was cancelled before launch",
+                        jobid=record.jobid,
+                    ).payload.as_dict(),
+                )
+            try:
+                reservation = self._runner.reserve(jobid=record.jobid)
+            except ExternalToolFailedError as exc:
+                self.store.update(
+                    record.jobid,
+                    status="failed",
+                    phase="failed",
+                    completed_at=utc_now(),
+                    error=exc.payload.as_dict(),
+                )
+                raise
+            try:
+                cancel = threading.Event()
+                thread = threading.Thread(
+                    target=target,
+                    args=(*args, cancel, reservation),
+                    name=f"diptrace-{record.jobid}",
+                    daemon=True,
+                )
+                self._cancel[record.jobid] = cancel
+                thread.start()
+            except Exception as exc:
+                reservation.release()
+                self._cancel.pop(record.jobid, None)
+                error = ExternalToolFailedError(
+                    f"Could not start external job worker: {exc}",
+                    jobid=record.jobid,
+                )
+                self.store.update(
+                    record.jobid,
+                    status="failed",
+                    phase="failed",
+                    completed_at=utc_now(),
+                    error=error.payload.as_dict(),
+                )
+                raise error from exc
+        return self.store.read(record.jobid)
+
+    def _record_setup_failure(self, record: JobRecord, exc: Exception) -> None:
+        current = self.store.read(record.jobid)
+        if current.status in {"completed", "failed", "cancelled"}:
+            return
+        error = (
+            exc
+            if isinstance(exc, DipTraceMcpError)
+            else ExternalToolFailedError(
+                f"Could not prepare external job: {exc}",
+                jobid=record.jobid,
+            )
+        )
+        self.store.update(
+            record.jobid,
+            status="failed",
+            phase="failed",
+            completed_at=utc_now(),
+            error=error.payload.as_dict(),
+        )
 
     def cancel(self, jobid: str) -> JobRecord:
-        record = self.store.read(jobid)
-        if record.status in {"completed", "failed", "cancelled"}:
-            return record
         with self._lock:
+            record = self.store.read(jobid)
+            if record.status in {"completed", "failed", "cancelled"}:
+                return record
             event = self._cancel.get(jobid)
-            process = self._processes.get(jobid)
-        if event is not None:
+            if event is None:
+                return self.store.update(
+                    jobid,
+                    status="cancelled",
+                    phase="cancelled",
+                    completed_at=utc_now(),
+                    error=JobCancelledError(
+                        "External job was cancelled before launch",
+                        jobid=jobid,
+                    ).payload.as_dict(),
+                )
             event.set()
-        if process is not None and process.poll() is None:
-            process.terminate()
-        return self.store.update(jobid, phase="cancelling")
+            return self.store.update(jobid, phase="cancelling")
+
+    @staticmethod
+    def _allowed_environment() -> dict[str, str]:
+        return {
+            key: value
+            for key, value in os.environ.items()
+            if key in {"PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP"}
+        }
+
+    def _track_process(self, jobid: str, process: subprocess.Popen[bytes]) -> None:
+        with self._lock:
+            self._processes[jobid] = process
+
+    def _update_external_progress(self, jobid: str, elapsed: float) -> None:
+        self.store.update(jobid, elapsed_seconds=elapsed, progress=0.1)
 
     def _run(
         self,
@@ -540,58 +654,34 @@ class ExternalJobManager:
         output_path: Path,
         timeout: int,
         cancel: threading.Event,
+        reservation: ExternalProcessReservation,
     ) -> None:
         started = time.monotonic()
         log_path = self.store.artifact_path(jobid, "log.txt")
-        self.store.update(
-            jobid,
-            status="running",
-            phase="external_execution",
-            progress=0.05,
-            started_at=utc_now(),
-        )
-        allowed_env = {
-            key: value
-            for key, value in os.environ.items()
-            if key in {"PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP"}
-        }
         try:
-            if cancel.is_set():
-                raise JobCancelledError("External autorouter job was cancelled", jobid=jobid)
-            with log_path.open("wb") as log:
-                process = subprocess.Popen(
-                    command,
-                    cwd=self.store.job_dir(jobid),
-                    stdin=subprocess.DEVNULL,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    shell=False,
-                    env=allowed_env,
-                )
-                with self._lock:
-                    self._processes[jobid] = process
-                while process.poll() is None:
-                    elapsed = time.monotonic() - started
-                    if cancel.is_set():
-                        process.terminate()
-                        try:
-                            process.wait(timeout=5)
-                        except subprocess.TimeoutExpired:
-                            process.kill()
-                        raise JobCancelledError(
-                            "External autorouter job was cancelled", jobid=jobid
-                        )
-                    if elapsed > timeout:
-                        process.kill()
-                        raise JobTimeoutError(
-                            f"External autorouter exceeded {timeout} seconds", jobid=jobid
-                        )
-                    self.store.update(jobid, elapsed_seconds=elapsed, progress=0.1)
-                    time.sleep(0.1)
-                if cancel.is_set():
-                    raise JobCancelledError("External autorouter job was cancelled", jobid=jobid)
-                return_code = process.returncode
-            elapsed = time.monotonic() - started
+            self.store.update(
+                jobid,
+                status="running",
+                phase="external_execution",
+                progress=0.05,
+                started_at=utc_now(),
+            )
+            process_result = self._runner.run(
+                reservation,
+                command,
+                cwd=self.store.job_dir(jobid),
+                env=self._allowed_environment(),
+                log_path=log_path,
+                timeout_seconds=timeout,
+                cancel=cancel,
+                jobid=jobid,
+                cancellation_message="External autorouter job was cancelled",
+                timeout_message=f"External autorouter exceeded {timeout} seconds",
+                on_started=lambda process: self._track_process(jobid, process),
+                on_progress=lambda elapsed: self._update_external_progress(jobid, elapsed),
+            )
+            return_code = process_result.return_code
+            elapsed = process_result.elapsed_seconds
             if return_code != 0:
                 raise ExternalToolFailedError(
                     f"Freerouting exited with status {return_code}",
@@ -604,7 +694,6 @@ class ExternalJobManager:
                 )
             if output_path.stat().st_size > self.settings.max_document_bytes:
                 raise ExternalToolFailedError("Freerouting SES output exceeds the size limit")
-            self._bound_log(log_path)
             self.store.update(
                 jobid,
                 status="completed",
@@ -625,7 +714,6 @@ class ExternalJobManager:
                 },
             )
         except (JobCancelledError, JobTimeoutError, ExternalToolFailedError) as exc:
-            self._bound_log(log_path)
             status = "cancelled" if isinstance(exc, JobCancelledError) else "failed"
             self.store.update(
                 jobid,
@@ -635,7 +723,7 @@ class ExternalJobManager:
                 completed_at=utc_now(),
                 error=exc.payload.as_dict(),
             )
-        except OSError as exc:
+        except Exception as exc:
             self.store.update(
                 jobid,
                 status="failed",
@@ -647,6 +735,7 @@ class ExternalJobManager:
                 ).payload.as_dict(),
             )
         finally:
+            reservation.release()
             with self._lock:
                 self._processes.pop(jobid, None)
                 self._cancel.pop(jobid, None)
@@ -657,57 +746,35 @@ class ExternalJobManager:
         command: list[str],
         timeout: int,
         cancel: threading.Event,
+        reservation: ExternalProcessReservation,
     ) -> None:
         started = time.monotonic()
         log_path = self.store.artifact_path(jobid, "log.txt")
-        self.store.update(
-            jobid,
-            status="running",
-            phase="external_execution",
-            progress=0.05,
-            started_at=utc_now(),
-        )
-        allowed_env = {
-            key: value
-            for key, value in os.environ.items()
-            if key in {"PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP"}
-        }
         try:
-            if cancel.is_set():
-                raise JobCancelledError("ngspice job was cancelled", jobid=jobid)
-            with log_path.open("wb") as log:
-                process = subprocess.Popen(
-                    command,
-                    cwd=self.store.job_dir(jobid),
-                    stdin=subprocess.DEVNULL,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    shell=False,
-                    env=allowed_env,
-                )
-                with self._lock:
-                    self._processes[jobid] = process
-                while process.poll() is None:
-                    elapsed = time.monotonic() - started
-                    if cancel.is_set():
-                        process.terminate()
-                        try:
-                            process.wait(timeout=5)
-                        except subprocess.TimeoutExpired:
-                            process.kill()
-                        raise JobCancelledError("ngspice job was cancelled", jobid=jobid)
-                    if elapsed > timeout:
-                        process.kill()
-                        raise JobTimeoutError(f"ngspice exceeded {timeout} seconds", jobid=jobid)
-                    self.store.update(jobid, elapsed_seconds=elapsed, progress=0.1)
-                    time.sleep(0.1)
-                if cancel.is_set():
-                    raise JobCancelledError("ngspice job was cancelled", jobid=jobid)
-                return_code = process.returncode
-            elapsed = time.monotonic() - started
-            self._bound_log(log_path)
-            log_bytes = log_path.read_bytes() if log_path.is_file() else b""
-            summary = parse_ngspice_log(log_bytes)
+            self.store.update(
+                jobid,
+                status="running",
+                phase="external_execution",
+                progress=0.05,
+                started_at=utc_now(),
+            )
+            process_result = self._runner.run(
+                reservation,
+                command,
+                cwd=self.store.job_dir(jobid),
+                env=self._allowed_environment(),
+                log_path=log_path,
+                timeout_seconds=timeout,
+                cancel=cancel,
+                jobid=jobid,
+                cancellation_message="ngspice job was cancelled",
+                timeout_message=f"ngspice exceeded {timeout} seconds",
+                on_started=lambda process: self._track_process(jobid, process),
+                on_progress=lambda elapsed: self._update_external_progress(jobid, elapsed),
+            )
+            elapsed = process_result.elapsed_seconds
+            summary = parse_ngspice_log(process_result.log_bytes)
+            return_code = process_result.return_code
             if return_code != 0 or summary["error_lines"]:
                 raise ExternalToolFailedError(
                     "ngspice reported a simulation failure",
@@ -735,7 +802,6 @@ class ExternalJobManager:
                 },
             )
         except (JobCancelledError, JobTimeoutError, ExternalToolFailedError) as exc:
-            self._bound_log(log_path)
             status = "cancelled" if isinstance(exc, JobCancelledError) else "failed"
             self.store.update(
                 jobid,
@@ -745,7 +811,7 @@ class ExternalJobManager:
                 completed_at=utc_now(),
                 error=exc.payload.as_dict(),
             )
-        except OSError as exc:
+        except Exception as exc:
             self.store.update(
                 jobid,
                 status="failed",
@@ -757,6 +823,7 @@ class ExternalJobManager:
                 ).payload.as_dict(),
             )
         finally:
+            reservation.release()
             with self._lock:
                 self._processes.pop(jobid, None)
                 self._cancel.pop(jobid, None)
@@ -769,55 +836,34 @@ class ExternalJobManager:
         request: FieldSolverRequest,
         timeout: int,
         cancel: threading.Event,
+        reservation: ExternalProcessReservation,
     ) -> None:
         started = time.monotonic()
         log_path = self.store.artifact_path(jobid, "log.txt")
-        self.store.update(
-            jobid,
-            status="running",
-            phase="external_execution",
-            progress=0.05,
-            started_at=utc_now(),
-        )
-        allowed_env = {
-            key: value
-            for key, value in os.environ.items()
-            if key in {"PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP"}
-        }
         try:
-            if cancel.is_set():
-                raise JobCancelledError("openEMS job was cancelled", jobid=jobid)
-            with log_path.open("wb") as log:
-                process = subprocess.Popen(
-                    command,
-                    cwd=self.store.job_dir(jobid),
-                    stdin=subprocess.DEVNULL,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    shell=False,
-                    env=allowed_env,
-                )
-                with self._lock:
-                    self._processes[jobid] = process
-                while process.poll() is None:
-                    elapsed = time.monotonic() - started
-                    if cancel.is_set():
-                        process.terminate()
-                        try:
-                            process.wait(timeout=5)
-                        except subprocess.TimeoutExpired:
-                            process.kill()
-                        raise JobCancelledError("openEMS job was cancelled", jobid=jobid)
-                    if elapsed > timeout:
-                        process.kill()
-                        raise JobTimeoutError(f"openEMS exceeded {timeout} seconds", jobid=jobid)
-                    self.store.update(jobid, elapsed_seconds=elapsed, progress=0.1)
-                    time.sleep(0.1)
-                if cancel.is_set():
-                    raise JobCancelledError("openEMS job was cancelled", jobid=jobid)
-                return_code = process.returncode
-            elapsed = time.monotonic() - started
-            self._bound_log(log_path)
+            self.store.update(
+                jobid,
+                status="running",
+                phase="external_execution",
+                progress=0.05,
+                started_at=utc_now(),
+            )
+            process_result = self._runner.run(
+                reservation,
+                command,
+                cwd=self.store.job_dir(jobid),
+                env=self._allowed_environment(),
+                log_path=log_path,
+                timeout_seconds=timeout,
+                cancel=cancel,
+                jobid=jobid,
+                cancellation_message="openEMS job was cancelled",
+                timeout_message=f"openEMS exceeded {timeout} seconds",
+                on_started=lambda process: self._track_process(jobid, process),
+                on_progress=lambda elapsed: self._update_external_progress(jobid, elapsed),
+            )
+            elapsed = process_result.elapsed_seconds
+            return_code = process_result.return_code
             if return_code != 0:
                 raise ExternalToolFailedError(
                     f"openEMS runner exited with status {return_code}",
@@ -857,7 +903,6 @@ class ExternalJobManager:
                 warnings=result.warnings,
             )
         except (JobCancelledError, JobTimeoutError, ExternalToolFailedError) as exc:
-            self._bound_log(log_path)
             status = "cancelled" if isinstance(exc, JobCancelledError) else "failed"
             self.store.update(
                 jobid,
@@ -867,7 +912,7 @@ class ExternalJobManager:
                 completed_at=utc_now(),
                 error=exc.payload.as_dict(),
             )
-        except OSError as exc:
+        except Exception as exc:
             self.store.update(
                 jobid,
                 status="failed",
@@ -879,14 +924,7 @@ class ExternalJobManager:
                 ).payload.as_dict(),
             )
         finally:
+            reservation.release()
             with self._lock:
                 self._processes.pop(jobid, None)
                 self._cancel.pop(jobid, None)
-
-    def _bound_log(self, path: Path) -> None:
-        if not path.exists() or path.stat().st_size <= self.settings.max_external_log_bytes:
-            return
-        with path.open("rb") as stream:
-            stream.seek(-self.settings.max_external_log_bytes, os.SEEK_END)
-            tail = stream.read()
-        atomic_write_bytes(path, b"[log truncated to bounded tail]\n" + tail)

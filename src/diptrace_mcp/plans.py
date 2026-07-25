@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import threading
 import uuid
 from dataclasses import dataclass
@@ -11,26 +10,81 @@ from typing import Any
 
 from .domain import PlanRecord, PlanStatus
 from .errors import ObjectNotFoundError
+from .record_ids import (
+    InvalidRecordId,
+    InvalidRecordPath,
+    iter_valid_record_files,
+    require_confined_record_file,
+    require_record_id,
+)
+from .retention import (
+    Clock,
+    RetentionCandidate,
+    RetentionPolicy,
+    RetentionReport,
+    parse_retention_timestamp,
+    prune_terminal_records,
+    system_clock,
+)
 from .xml_document import atomic_write_bytes, utc_now
-
-_PLAN_ID = re.compile(r"^plan_[0-9a-f]{32}$")
 
 
 @dataclass(slots=True)
 class PlanStore:
     state_dir: Path
+    retention: RetentionPolicy = dataclass_field(default_factory=RetentionPolicy)
+    clock: Clock = dataclass_field(default=system_clock, repr=False)
     plans_dir: Path = dataclass_field(init=False)
+    last_retention_report: RetentionReport = dataclass_field(init=False)
     _lock: threading.RLock = dataclass_field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.plans_dir = self.state_dir / "plans"
         self.plans_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
+        self.last_retention_report = self._prune_retention()
+
+    def _prune_retention(self) -> RetentionReport:
+        candidates: list[RetentionCandidate] = []
+        paths = sorted(self.plans_dir.glob("plan_*/plan.json"))
+        for path_plan_id, path in iter_valid_record_files(
+            self.plans_dir,
+            paths,
+            kind="plan",
+            record_filename="plan.json",
+        ):
+            try:
+                record = PlanRecord.model_validate_json(path.read_bytes())
+            except (OSError, ValueError):
+                continue
+            timestamp = parse_retention_timestamp(record.updated_at)
+            if (
+                record.plan_id != path_plan_id
+                or record.status not in {"committed", "obsolete"}
+                or timestamp is None
+            ):
+                continue
+            candidates.append(
+                RetentionCandidate(
+                    identifier=record.plan_id,
+                    path=path.parent,
+                    timestamp=timestamp,
+                )
+            )
+        return prune_terminal_records(
+            state_root=self.state_dir,
+            store_root=self.plans_dir,
+            candidates=candidates,
+            policy=self.retention,
+            clock=self.clock,
+        )
 
     def plan_dir(self, plan_id: str) -> Path:
-        if not _PLAN_ID.fullmatch(plan_id):
-            raise ObjectNotFoundError(f"Invalid plan id: {plan_id}")
-        return self.plans_dir / plan_id
+        try:
+            validated = require_record_id(plan_id, "plan")
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid plan id") from None
+        return self.plans_dir / validated
 
     def record_path(self, plan_id: str) -> Path:
         return self.plan_dir(plan_id) / "plan.json"
@@ -88,11 +142,29 @@ class PlanStore:
         return record
 
     def read(self, plan_id: str) -> PlanRecord:
-        path = self.record_path(plan_id)
         try:
-            return PlanRecord.model_validate_json(path.read_bytes())
+            path = require_confined_record_file(
+                self.plans_dir,
+                plan_id,
+                kind="plan",
+                record_filename="plan.json",
+            )
+            record = PlanRecord.model_validate_json(path.read_bytes())
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid plan id") from None
         except FileNotFoundError as exc:
             raise ObjectNotFoundError(f"Plan was not found: {plan_id}") from exc
+        except InvalidRecordPath as exc:
+            raise ObjectNotFoundError(
+                "Plan state path is redirected or outside its store"
+            ) from exc
+        except (OSError, ValueError) as exc:
+            raise ObjectNotFoundError("Plan state is corrupt") from exc
+        if record.plan_id != plan_id:
+            raise ObjectNotFoundError(
+                "Plan state id does not match the requested plan"
+            )
+        return record
 
     def write(self, record: PlanRecord) -> None:
         payload = json.dumps(

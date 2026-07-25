@@ -27,7 +27,9 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 - нормализованные domain models для PCB, schematic, Component Library и Pattern Library;
 - стабильные object references, structured selectors, connectivity graph и spatial queries;
 - геометрия в миллиметрах, transforms, mirroring, arcs, optional exact GEOS geometry и SVG/JSON preview;
-- raw-preserving XML patches: unknown XML, BOM, line endings и форматирование вне изменяемых узлов сохраняются;
+- raw-preserving XML patches для поддерживаемых UTF-8/UTF-16LE/BE/ASCII/Latin-1
+  sources: unknown XML, исходный BOM, line endings и форматирование вне изменяемых
+  узлов сохраняются; неподдерживаемые кодировки приводят к fail-closed результату;
 - semantic transactions с plan, preview, validation, expected SHA-256, commit, backup и rollback;
 - move/rotate/side/lock/property/pattern/alignment/distribution/group operations для компонентов и частей;
 - board-text edits, документированные NetClass rules и standalone-pad test points;
@@ -184,6 +186,29 @@ High-level writes по умолчанию работают в preview/dry-run р
 `apply_xml_edits` остаётся expert escape hatch. Он требует exact match counts, сохраняет bytes вне target nodes, reparses результат, создаёт backup перед commit и отклоняет SHA conflicts.
 
 XML с `DOCTYPE` или `ENTITY` отклоняется. Доступ к файловой системе ограничен configured roots. Внешние процессы запускаются только через typed allowlisted adapters.
+
+### WO-11 safety checkpoint — 2026-07-25
+
+- Пути из MCP calls интерпретируются буквально: переменные окружения и `~` не
+  подставляются. Expansion применяется только к operator-owned конфигурации сервера,
+  после чего выполняется allowed-root check.
+- Поддерживаемые XML writes сохраняют обнаруженные source codec/BOM и untouched
+  bytes. Raw edits и raw-preserving semantic edits повторно парсятся и должны
+  совпадать с запрошенным semantic element tree; чистый UTF-32 input сейчас
+  отклоняется fail closed.
+- Typed request data, нормализованные XML numbers и числовые SES tokens отклоняют
+  `NaN` и бесконечности. DSN output отклоняет quoted values, которым нужны
+  непроверенные escaping или non-ASCII encoding, а SES input отклоняет backslash
+  escapes и literal controls в quoted tokens. Реальные конвенции DipTrace остаются
+  открытыми evidence questions.
+- У external adapters есть bounded streaming logs/results и общий concurrency limit.
+  POSIX process groups и Windows kill-on-close Job Objects ограничивают дочерние
+  процессы, а завершение root processes явно ожидается.
+- Offline backups находятся в центральном state directory и изолированы по hash
+  канонического target path. Existing target сохраняется в backup до замены; у нового
+  target ещё нет исходных bytes для backup. Retention удаляет validated terminal
+  records, защищает active/nonterminal state и считает count/age thresholds целями
+  cleanup, а не жёсткими квотами.
 
 ## Модель доверия
 

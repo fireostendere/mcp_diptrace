@@ -69,9 +69,13 @@ with machine-readable errors.
 ## DSN/SES and Freerouting
 
 The bounded DSN serializer first checks geometry compatibility and rejects cutouts,
-unsupported pad shapes, pours, or keepouts that cannot be preserved correctly. A job
-stores the DSN, manifest, bounded log, SES, versioned options, and source SHA in an
-isolated directory.
+unsupported pad shapes, pours, or keepouts that cannot be preserved correctly. Until
+Q17 is resolved with real DipTrace evidence, quoted tokens are limited to printable
+ASCII excluding quote and backslash; spaces are supported by the declared
+`space_in_quoted_tokens on` parser mode. Incoming SES quoted tokens containing
+backslashes or literal control characters are refused instead of being decoded with an
+assumed escape convention. A job stores the DSN, manifest, bounded log, SES, versioned
+options, and source SHA in an isolated directory.
 
 Freerouting is started with a fixed argument vector (`shell=false`) and supports timeout
 and cancellation. The SES parser creates typed route operations. Import is available

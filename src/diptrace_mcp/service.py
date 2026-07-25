@@ -18,6 +18,7 @@ from .adapters import (
     get_board_model,
     get_schematic_model,
 )
+from .backups import BackupStore
 from .bom import compare_bom_records, extract_bom, group_bom, review_bom
 from .capabilities import capability_report as build_capability_report
 from .capability_model import MAX_TRANSACTION_OPERATIONS
@@ -672,12 +673,22 @@ class DipTraceService:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.policy = Policy(settings.active_policy)
-        self.sessions = SessionStore(settings.state_dir, settings.max_document_bytes)
-        self.transactions = TransactionStore(settings.state_dir)
-        self.plans = PlanStore(settings.state_dir)
-        self.findings = FindingStore(settings.state_dir)
-        self.jobs = JobStore(settings.state_dir)
-        self.exports = ExportStore(settings.state_dir, settings.max_document_bytes)
+        retention = settings.retention_policy
+        self.sessions = SessionStore(
+            settings.state_dir,
+            settings.max_document_bytes,
+            retention=retention,
+        )
+        self.transactions = TransactionStore(settings.state_dir, retention=retention)
+        self.plans = PlanStore(settings.state_dir, retention=retention)
+        self.findings = FindingStore(settings.state_dir, retention=retention)
+        self.jobs = JobStore(settings.state_dir, retention=retention)
+        self.exports = ExportStore(
+            settings.state_dir,
+            settings.max_document_bytes,
+            retention=retention,
+        )
+        self.backups = BackupStore(settings.state_dir, retention=retention)
         self.external_jobs = ExternalJobManager(settings, self.jobs)
         self.models = ModelCache()
         self._document_targets: dict[str, DocumentTarget] = {}
@@ -1136,7 +1147,7 @@ class DipTraceService:
                     "feature": "autorouter_dsn_export",
                     "code": "capability_unavailable",
                     "message": (
-                        "Current document lacks geometry required by the bounded DSN serializer."
+                        "Current document cannot be represented by the bounded DSN serializer."
                     ),
                     "details": {"reasons": dsn_reasons},
                 }
@@ -1153,7 +1164,10 @@ class DipTraceService:
         report["external_adapters"]["openems"] = openems_probe.as_dict()
         report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
         report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
+        report["limits"]["max_external_processes"] = self.settings.max_external_processes
         report["limits"]["max_external_result_bytes"] = self.settings.max_external_result_bytes
+        report["limits"]["retention_max_records"] = self.settings.retention_max_records
+        report["limits"]["retention_max_age_days"] = self.settings.retention_max_age_days
         report["policy"].update(self.policy.capability_payload())
         if probe.available:
             report["reasons_unavailable"] = [
@@ -1754,11 +1768,12 @@ class DipTraceService:
             result["written"] = False
             return result
 
+        backup_destination: Path | BackupStore
         if target.live_session_id:
-            backup_dir = self.sessions.backups_dir(target.live_session_id)
+            backup_destination = self.sessions.backups_dir(target.live_session_id)
         else:
-            backup_dir = target.path.parent / ".diptrace-mcp-backups"
-        backup = write_with_backup(target.path, after, backup_dir)
+            backup_destination = self.backups
+        backup = write_with_backup(target.path, after, backup_destination)
         DipTraceDocument.load(target.path, self.settings.max_document_bytes)
         if target.live_session_id:
             self.sessions.record_edit(target.live_session_id, after_sha256, backup)
@@ -1812,8 +1827,7 @@ class DipTraceService:
         candidate = DipTraceDocument.from_bytes(target, raw)
         snapshot = build_snapshot(candidate)
         if target.exists():
-            backup_dir = target.parent / ".diptrace-mcp-backups"
-            written = write_with_backup(target, raw, backup_dir)
+            written = write_with_backup(target, raw, self.backups)
             backup: str | None = str(written)
         else:
             atomic_write_bytes(target, raw)
@@ -1909,8 +1923,7 @@ class DipTraceService:
             )
         # Copy seed bytes verbatim — do not modify unknown XML
         if target.exists():
-            backup_dir = target.parent / ".diptrace-mcp-backups"
-            written = write_with_backup(target, seed_bytes, backup_dir)
+            written = write_with_backup(target, seed_bytes, self.backups)
             backup: str | None = str(written)
         else:
             atomic_write_bytes(target, seed_bytes)
@@ -2047,11 +2060,12 @@ class DipTraceService:
         provenance_backup: str | None = None
         provenance_backup_sha: str | None = None
         if sidecar_path.exists():
-            prov_backup_dir = self.transactions.tx_dir(record.txid)
-            prov_backup = prov_backup_dir / f"provenance_{record.txid}.json"
             try:
                 prov_bytes = sidecar_path.read_bytes()
-                prov_backup.write_bytes(prov_bytes)
+                prov_backup = self.transactions.store_provenance_backup(
+                    record.txid,
+                    prov_bytes,
+                )
                 provenance_backup = str(prov_backup)
                 provenance_backup_sha = sha256_bytes(prov_bytes)
             except OSError:
@@ -2268,23 +2282,26 @@ class DipTraceService:
                     },
                     txid=txid,
                 )
-            if not record.backup_path:
-                raise TransactionConflictError("Transaction backup is missing", txid=txid)
-            backup_path = Path(record.backup_path)
-            if not backup_path.is_file():
+            backup_path = self.transactions.require_backup(txid)
+            backup_bytes = backup_path.read_bytes()
+            backup_sha256 = sha256_bytes(backup_bytes)
+            if backup_sha256 != record.source_sha256:
                 raise TransactionConflictError(
-                    f"Transaction backup is missing: {backup_path}",
+                    "Transaction backup does not match its source SHA-256",
+                    details={
+                        "expected_sha256": record.source_sha256,
+                        "backup_sha256": backup_sha256,
+                    },
                     txid=txid,
                 )
-            backup_bytes = backup_path.read_bytes()
             DipTraceDocument.from_bytes(target_path, backup_bytes)
             atomic_write_bytes(target_path, backup_bytes)
-            restored_sha256 = sha256_bytes(backup_bytes)
+            restored_sha256 = backup_sha256
             # Section #6: Restore provenance sidecar from backup
             sidecar_path = target_path.with_suffix(target_path.suffix + ".provenance.json")
-            if record.provenance_backup_path:
-                prov_backup = Path(record.provenance_backup_path)
-                if prov_backup.is_file():
+            if record.provenance_backup_sha256:
+                try:
+                    prov_backup = self.transactions.require_provenance_backup(txid)
                     try:
                         prov_bytes = prov_backup.read_bytes()
                         # Verify provenance backup SHA if recorded
@@ -2317,7 +2334,7 @@ class DipTraceService:
                             last_modified_by="mcp_rollback_transaction",
                         )
                         self._write_provenance_sidecar(target_path, sidecar)
-                else:
+                except TransactionConflictError:
                     # Backup file missing → create synthetic fallback
                     sidecar = DocumentProvenance(
                         provenance="mcp_rollback_no_backup",
@@ -4722,6 +4739,8 @@ class DipTraceService:
                 "assumptions": [
                     "DipTrace board coordinates are emitted directly in Specctra millimetres.",
                     "Only embedded pattern shapes accepted by capability validation are emitted.",
+                    "Quoted tokens use only printable ASCII excluding quote and backslash; "
+                    "no escape convention is assumed.",
                 ],
             },
         )
@@ -4731,7 +4750,7 @@ class DipTraceService:
             resources=job_resources(record.jobid),
             limitations=[
                 "The bounded serializer rejects cutouts, keepouts, pours and unsupported "
-                "pad shapes."
+                "pad shapes, plus identifiers requiring unverified escaping or encoding."
             ],
         )
         response["job"] = record.model_dump(mode="json")
@@ -5632,8 +5651,7 @@ class DipTraceService:
 
     def findings_resource(self, document_id: str) -> str:
         reports = []
-        for path in sorted(self.findings.reports_dir.glob("report_*.json")):
-            report = self.findings.read(path.stem)
+        for report in reversed(self.findings.list_reports()):
             if report.document_id == document_id:
                 reports.append(report.model_dump())
         return json.dumps({"document_id": document_id, "reports": reports}, indent=2)
@@ -5945,12 +5963,18 @@ class DipTraceService:
         }
 
     def _load_snapshot_record(self, record: TransactionRecord) -> DipTraceDocument:
-        if not record.snapshot_path:
-            raise EditError(f"Transaction does not contain a snapshot: {record.txid}")
-        snapshot_path = Path(record.snapshot_path)
-        if not snapshot_path.exists():
-            raise EditError(f"Transaction snapshot is missing: {snapshot_path}")
-        return DipTraceDocument.load(snapshot_path, self.settings.max_document_bytes)
+        snapshot_path = self.transactions.require_snapshot(record.txid)
+        snapshot = DipTraceDocument.load(snapshot_path, self.settings.max_document_bytes)
+        if snapshot.sha256 != record.source_sha256:
+            raise TransactionConflictError(
+                "Transaction snapshot does not match its source SHA-256",
+                details={
+                    "expected_sha256": record.source_sha256,
+                    "snapshot_sha256": snapshot.sha256,
+                },
+                txid=record.txid,
+            )
+        return snapshot
 
     def _session_id_from_working(self, path: Path) -> str | None:
         active = self.sessions.active_metadata()

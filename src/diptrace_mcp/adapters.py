@@ -30,6 +30,11 @@ from .domain import (
 from .errors import DocumentError
 from .geometry import BBox, Point, Transform, distance, to_mm, trace_path_length
 from .geometry_backend import shape_bbox, transform_shape
+from .numeric_inputs import (
+    require_finite_number,
+    translate_validation_errors,
+    xml_number_mm,
+)
 from .xml_document import DipTraceDocument, XmlEdit
 
 _XML_ID = re.compile(r"[^A-Za-z0-9._-]+")
@@ -95,28 +100,55 @@ def _bool_attr(element: ET.Element, name: str, default: str = "N") -> bool:
     return element.get(name, default).upper() == "Y"
 
 
-def _float_attr(element: ET.Element, name: str) -> float | None:
+def _float_attr(
+    document: DipTraceDocument,
+    element: ET.Element,
+    name: str,
+) -> float | None:
     value = element.get(name)
     if value is None or value == "":
         return None
     try:
-        return float(value)
+        parsed = float(value)
     except ValueError:
         return None
+    return require_finite_number(
+        parsed,
+        context=f"attribute {name}={value!r} on <{element.tag}>",
+        offset=document.element_byte_offset(element),
+        details={"element": str(element.tag), "attribute": name},
+    )
 
 
-def _float_text(value: str | None, default: float) -> float:
+def _float_text(
+    document: DipTraceDocument,
+    element: ET.Element,
+    field_name: str,
+    value: str | None,
+    default: float,
+) -> float:
     try:
-        return float(value) if value is not None else default
+        parsed = float(value) if value is not None else default
     except ValueError:
         return default
+    return require_finite_number(
+        parsed,
+        context=f"numeric field {field_name} on <{element.tag}>",
+        offset=document.element_byte_offset(element),
+        details={"element": str(element.tag), "field": field_name},
+    )
 
 
 def _float_attr_mm(document: DipTraceDocument, element: ET.Element, name: str) -> float | None:
-    value = _float_attr(element, name)
+    value = _float_attr(document, element, name)
     if value is None:
         return None
-    return to_mm(value, document.units)
+    return require_finite_number(
+        to_mm(value, document.units),
+        context=f"converted attribute {name} on <{element.tag}>",
+        offset=document.element_byte_offset(element),
+        details={"element": str(element.tag), "attribute": name},
+    )
 
 
 def _first_float_attr_mm(
@@ -219,7 +251,7 @@ def _component_records(
             x = _float_attr_mm(document, component, "X")
             y = _float_attr_mm(document, component, "Y")
             side = component.get("Side", "Top")
-            angle_rad = _float_attr(component, "Angle") or 0.0
+            angle_rad = _float_attr(document, component, "Angle") or 0.0
             rotation_deg = math.degrees(angle_rad)
             pattern_style = component.get("PatternStyle", "")
             pattern = patterns_by_style.get(pattern_style)
@@ -264,10 +296,22 @@ def _component_records(
                     or _bbox_from_center(
                         x,
                         y,
-                        _float_text(additional_fields.get("MCP.TestpointDiameterMm"), 1.0)
+                        _float_text(
+                            document,
+                            component,
+                            "MCP.TestpointDiameterMm",
+                            additional_fields.get("MCP.TestpointDiameterMm"),
+                            1.0,
+                        )
                         if is_testpoint
                         else 1.0,
-                        _float_text(additional_fields.get("MCP.TestpointDiameterMm"), 1.0)
+                        _float_text(
+                            document,
+                            component,
+                            "MCP.TestpointDiameterMm",
+                            additional_fields.get("MCP.TestpointDiameterMm"),
+                            1.0,
+                        )
                         if is_testpoint
                         else 1.0,
                     )
@@ -429,9 +473,9 @@ def _component_records(
                 )
             if pattern is not None and component_transform is not None:
                 for hole_index, hole in enumerate(pattern.holes):
-                    local = Point(float(hole["x_mm"]), float(hole["y_mm"]))
+                    local = Point(hole["x_mm"], hole["y_mm"])
                     position = component_transform.apply_point(local)
-                    diameter = float(hole.get("hole_diameter_mm") or hole.get("diameter_mm") or 0.0)
+                    diameter = hole.get("hole_diameter_mm") or hole.get("diameter_mm") or 0.0
                     if diameter <= 0:
                         continue
                     hole_id = stable_id(
@@ -514,7 +558,9 @@ def _component_records(
                                     1.0,
                                 )
                             ),
-                            rotation_deg=math.degrees(_float_attr(settings, "Angle") or 0.0),
+                            rotation_deg=math.degrees(
+                                _float_attr(document, settings, "Angle") or 0.0
+                            ),
                             mirrored=parent_record.side == "Bottom",
                             geometry_source="xml-component-marking",
                             confidence=0.65,
@@ -587,7 +633,7 @@ def _component_records(
             value = _text(part, "Value")
             x = _float_attr_mm(document, part, "X")
             y = _float_attr_mm(document, part, "Y")
-            angle_rad = _float_attr(part, "Angle") or 0.0
+            angle_rad = _float_attr(document, part, "Angle") or 0.0
             stable = stable_id(
                 "part",
                 document.source_type,
@@ -1111,7 +1157,7 @@ def _net_class_pair_rules(
     return DifferentialPairRules(
         max_uncoupled_length_mm=_float_attr_mm(document, net_class, "MaxUncoupledLength"),
         length_tolerance_mm=_float_attr_mm(document, net_class, "Tolerance"),
-        phase_tolerance=_float_attr(net_class, "Phase"),
+        phase_tolerance=_float_attr(document, net_class, "Phase"),
         phase_error_length_mm=_float_attr_mm(document, net_class, "Phase_ErrorLength"),
         check_length=_bool_attr(net_class, "CheckLength"),
         fixed_length_mm=_float_attr_mm(document, net_class, "FixedLength"),
@@ -1283,7 +1329,7 @@ def _board_stackup(document: DipTraceDocument) -> StackupModel:
             material_type = "dielectric"
         else:
             material_type = "unknown"
-        constant = _float_attr(material, "Constant")
+        constant = _float_attr(document, material, "Constant")
         dielectric_constant = (
             constant
             if material_type == "dielectric" and constant is not None and constant > 1.0
@@ -1392,7 +1438,8 @@ def _board_copper_pour_records(document: DipTraceDocument) -> list[ObjectRecord]
                     "clearance_mm": _float_attr_mm(document, pour, "Clearance"),
                     "board_clearance_mm": _float_attr_mm(document, pour, "BoardClearance"),
                     "minimum_area_mm2": (
-                        to_mm(1.0, document.units) ** 2 * (_float_attr(pour, "MinimumArea") or 0.0)
+                        to_mm(1.0, document.units) ** 2
+                        * (_float_attr(document, pour, "MinimumArea") or 0.0)
                     ),
                 },
                 relationships={"net": [connected_net[0]] if connected_net is not None else []},
@@ -1444,7 +1491,9 @@ def _board_shape_records(document: DipTraceDocument) -> list[ObjectRecord]:
                     selected=_bool_attr(shape, "Selected"),
                     position=_point_dict(position),
                     bbox=_bbox_dict(bbox),
-                    rotation_deg=math.degrees(_float_attr(shape, "Angle") or 0.0),
+                    rotation_deg=math.degrees(
+                        _float_attr(document, shape, "Angle") or 0.0
+                    ),
                     mirrored=_bool_attr(shape, "Inverted"),
                     geometry_source="xml-board-shape",
                     confidence=0.65,
@@ -1676,6 +1725,7 @@ def _matches_selector(item: ObjectRecord, selector: QuerySelector) -> bool:
     return True
 
 
+@translate_validation_errors
 def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) -> DocumentSnapshot:
     document_id = document_id_for(document)
     warnings: list[str] = []
@@ -1825,7 +1875,7 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
             rules={
                 "drc": _element_data(document.container.find("./DRC")),
                 "connectivity_check": _element_data(document.container.find("./ConnectivityCheck")),
-                "routing_defaults": _element_data(document.container.find("./Settings/Routing")),
+                "routing_defaults": _routing_defaults_data(document),
             },
             stackup=_board_stackup(document),
             warnings=warnings,
@@ -2072,6 +2122,19 @@ def _element_data(element: ET.Element | None, depth: int = 3) -> Any:
         if len(children) > 200:
             result["children_truncated"] = len(children) - 200
     return result
+
+
+def _routing_defaults_data(document: DipTraceDocument) -> Any:
+    routing = document.container.find("./Settings/Routing")
+    if routing is None:
+        return None
+    # Older accepted exports carry these dimensions as attributes. They remain
+    # raw in the generic rules payload, but must be finite before any later
+    # consumer (notably DSN export) converts or compares them.
+    for attribute in ("TraceWidth", "TraceClearance", "ViaSize", "ViaHole"):
+        if routing.get(attribute) not in {None, ""}:
+            xml_number_mm(document, routing, attribute)
+    return _element_data(routing)
 
 
 def get_document_info(document: DipTraceDocument, *, live_session: bool = False) -> DocumentInfo:

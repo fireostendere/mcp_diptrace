@@ -23,9 +23,9 @@ from .geometry import (
     point_to_segment_distance,
     segment_distance,
     segment_intersects_bbox,
-    to_mm,
 )
 from .geometry_backend import line_to_shape_distance, shapely_available
+from .numeric_inputs import xml_number_mm
 from .operations import (
     AddDifferentialPairRouteOperation,
     AddTraceOperation,
@@ -260,7 +260,7 @@ def _endpoint(
 def _minimum_width(document: DipTraceDocument, layer_id: str) -> float | None:
     for item in document.container.findall("./DRC/LaySizes/LaySize"):
         if item.get("Lay") == layer_id and item.get("MinTrace") is not None:
-            return to_mm(float(item.get("MinTrace", "0")), document.units)
+            return xml_number_mm(document, item, "MinTrace")
     return None
 
 
@@ -271,10 +271,10 @@ def _clearance(
         return requested
     for item in document.container.findall("./DRC/LayClearances/LayClearance"):
         if item.get("Lay") == layer_id and item.get("TraceToTrace") is not None:
-            return to_mm(float(item.get("TraceToTrace", "0")), document.units)
+            return xml_number_mm(document, item, "TraceToTrace")
     routing = document.container.find("./Settings/Routing")
     if routing is not None and routing.get("TraceClearance") is not None:
-        return to_mm(float(routing.get("TraceClearance", "0")), document.units)
+        return xml_number_mm(document, routing, "TraceClearance")
     return 0.0
 
 
@@ -1132,7 +1132,7 @@ def _set_trace_width(
                     "Trace width is below the DRC minimum",
                     details={"measured": operation.width, "required": minimum},
                 )
-            previous[segment_index] = to_mm(float(point.get("Width", "0")), document.units)
+            previous[segment_index] = xml_number_mm(document, point, "Width")
             point.set("Width", f"{from_mm(operation.width, document.units):.9g}")
             patches += 1
         before.append({"id": trace.stable_id, "segment_widths": previous})
@@ -1170,8 +1170,8 @@ def _add_via(
     elements = container.findall("./Point")
     points = [
         Point(
-            to_mm(float(item.get("X", "0")), document.units),
-            to_mm(float(item.get("Y", "0")), document.units),
+            xml_number_mm(document, item, "X"),
+            xml_number_mm(document, item, "Y"),
         )
         for item in elements
     ]

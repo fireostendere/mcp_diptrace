@@ -2,14 +2,22 @@
 
 ## Invariants
 
-- paths resolve only within the workspace or explicitly allowed roots;
+- caller-supplied paths are interpreted literally and resolve only within the workspace or
+  explicitly allowed roots; environment and home expansion is reserved for server-owned
+  configuration;
 - document, artifact, and log sizes are bounded;
 - `DOCTYPE` and `ENTITY` declarations are rejected;
-- UTF-8 handling is explicit, writes are atomic, backups are created, and modified XML is reparsed;
+- supported source encodings and BOMs are detected and preserved; raw and semantic XML
+  output is reparsed and checked against the requested semantic tree before it can be
+  written;
+- non-finite numeric values are rejected in typed inputs, normalized XML data, and
+  Specctra sessions rather than entering geometry or rule comparisons;
 - commits and rollbacks use SHA-256 optimistic concurrency;
+- persisted record and job/export artifact reads require confined non-redirected paths, and embedded record identifiers must match the requested identifiers;
+- transaction snapshots and rollback backups are derived from the transaction identifier and hash-checked instead of trusting persisted path strings;
 - locked objects are preserved by default unless an operation explicitly allows otherwise;
 - only one live DipTrace bridge session may be active;
-- external processes use fixed typed argument vectors, `shell=false`, isolated job directories, bounded logs/results, timeouts, and terminal cancellation;
+- external processes use fixed typed argument vectors, `shell=false`, isolated job directories, bounded streaming logs/results, a global concurrency cap, process-tree timeouts, terminal cancellation, and explicit reaping;
 - the core does not expose arbitrary shell execution supplied by an LLM;
 - high-level write tools default to preview/dry-run behavior and must not silently convert unavailable capabilities into success.
 
@@ -36,6 +44,54 @@ The server is designed as a trusted local single-user engineering tool.
 Streamable HTTP listens on loopback by default. There is no built-in OAuth, multi-user isolation, or remote authentication. Exposing the HTTP endpoint outside the local machine requires a separate authenticated reverse proxy and is outside the core security model.
 
 Filesystem restrictions reduce accidental reach but do not make an LLM an engineering authority. A model can still request a structurally valid but electrically incorrect change. Visual review, ERC/DRC, and engineering judgment remain mandatory for consequential edits.
+
+Paths supplied in MCP calls are not passed through environment-variable or home-directory
+expansion: `$NAME`, `%NAME%`, and `~` remain literal path components. Operator-controlled
+configuration such as `DIPTRACE_MCP_WORKSPACE`, `DIPTRACE_MCP_ALLOWED_ROOTS`, and executable
+paths may be expanded when settings are loaded. This distinction prevents a caller from
+using path errors as an environment-variable disclosure channel.
+
+## XML and Numeric Input Boundary
+
+The XML loader records the detected codec, byte order, and BOM. Guarded writes preserve
+UTF-8 (with or without BOM), UTF-16LE/BE, US-ASCII, and ISO-8859-1 source representation,
+encode only the replacement spans, and preserve untouched bytes. Clean UTF-32 input is
+currently unsupported and fails closed. Every raw edit and raw-preserving
+semantic compilation is reparsed and compared with the intended in-memory element tree;
+passing XML syntax alone is not sufficient.
+
+The DTD/entity guard combines a whole-document byte scan, allowlisted decoded scans, and
+Expat declaration callbacks. XML and SES numeric parsers report typed errors for `NaN` and
+infinities with available element/attribute or character-offset context, and typed request
+models disallow non-finite floats.
+
+The DSN serializer intentionally supports only quoted tokens that need no unverified
+escaping or character encoding: printable ASCII without quotes or backslashes. It refuses
+control characters, quotes, backslashes, and non-ASCII quoted values. The SES reader
+requires UTF-8 and refuses backslash escapes and literal control characters in quoted
+tokens. These refusals remain in place until the real DipTrace DSN/SES conventions in
+[OPEN_QUESTIONS.md](OPEN_QUESTIONS.md#q17-what-dsnses-conventions-does-diptrace-use-on-a-real-routed-design)
+are established.
+
+## Local State and Retention
+
+Offline backups are held under `DIPTRACE_MCP_STATE_DIR/offline_backups`, keyed by the
+SHA-256 of the canonical target path. They are not placed in the user's design
+directory. Backup metadata binds the opaque directory key to one target and the
+backup filename binds it to the original content hash. Direct offline replacements use
+this per-target history; semantic transaction commits keep their authenticated recovery
+bytes inside the central transaction record, and live writes keep them inside the
+session record. In each case an existing target is captured before replacement.
+Creating a new target produces no pre-existing-content backup; overwrite operations do.
+
+Count-and-age retention runs when a store is constructed. It deletes only fully
+parsed, validated terminal records confined to that store. Active or nonterminal
+records and the state needed to recover them are protected. The newest valid offline
+backup per target is also retained. A corrupt record, unknown status, ID mismatch,
+symbolic link, junction, or path outside the state tree fails closed: it is neither
+followed nor deleted. The configured count and age values are cleanup targets, not
+storage quotas: protected or unverifiable records can keep the on-disk count above a
+threshold, and cleanup failure does not make startup destructive.
 
 ## Trust Boundary
 
@@ -73,6 +129,9 @@ Required properties include:
 - isolated job workspace;
 - sanitized/bounded environment and arguments;
 - explicit timeout, result-size, and log-size limits;
+- a configured cross-adapter concurrency limit;
+- POSIX process-group termination and Windows Job Objects configured with
+  `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, followed by root-process reaping;
 - structured status/result parsing;
 - terminal cancellation semantics;
 - explicit `external_tool_unavailable`, timeout, malformed-output, or non-convergence failures instead of fabricated fallback output.

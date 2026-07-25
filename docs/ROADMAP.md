@@ -16,6 +16,38 @@ The project has moved beyond a parser/MCP prototype. The strongest areas are rea
 
 The main remaining risk is no longer missing MCP surface area. It is the gap between synthetic/fixture-tested writer behavior and broad, redistributable, automated evidence from real DipTrace 5.3 open/save/re-export cycles.
 
+### WO-11 input and write-safety checkpoint — 2026-07-25
+
+The human-free input/write hardening baseline now includes:
+
+- literal caller-supplied paths, with environment/home expansion limited to
+  server-owned configuration before allowed-root enforcement;
+- layered DTD/entity rejection and source-codec/BOM preservation for supported
+  UTF-8, UTF-16LE/BE, US-ASCII, and ISO-8859-1 raw and semantic writes;
+- reparsing plus semantic-tree equality checks for low-level raw edits and
+  raw-preserving semantic compilation;
+- typed rejection of `NaN` and infinities in request models, normalized XML
+  numbers, and SES numeric tokens;
+- a deliberately narrow DSN writer that refuses unverified escaping/non-ASCII
+  conventions, and an SES reader that refuses unverified backslash escaping and
+  literal controls in quoted tokens;
+- bounded external-process streaming, one cross-adapter concurrency limit, POSIX
+  process-group cleanup, and Windows kill-on-close Job Objects with explicit
+  root-process reaping;
+- central per-target offline backup histories plus count/age cleanup of validated
+  terminal records. Active/nonterminal state is protected, and cleanup thresholds
+  are soft targets rather than storage quotas.
+
+For an existing target, the original bytes are captured before replacement. A
+brand-new target has no previous content and therefore has no backup; an explicit
+overwrite of an existing target does.
+
+This checkpoint is an implemented safety boundary, not evidence of additional DipTrace
+format compatibility. [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) Q8/Q9 still require human
+experiments for DipTrace's emitted/accepted encoding and BOM behavior, and Q17 still
+requires a real DipTrace-generated DSN/SES pair. Refusals remain until that evidence is
+available.
+
 ### Format Coverage (measured from official specifications)
 
 The reproducible inventory extracted from the official DipTrace XML specifications (PCB and

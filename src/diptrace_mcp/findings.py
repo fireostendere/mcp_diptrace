@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -9,6 +11,21 @@ from pydantic import Field
 
 from .domain import StrictModel
 from .errors import ObjectNotFoundError
+from .record_ids import (
+    InvalidRecordId,
+    InvalidRecordPath,
+    iter_valid_record_files,
+    require_confined_record_file,
+    require_record_id,
+)
+from .retention import (
+    RetentionCandidate,
+    RetentionPolicy,
+    RetentionReport,
+    parse_retention_timestamp,
+    prune_terminal_records,
+    system_clock,
+)
 from .xml_document import atomic_write_bytes, utc_now
 
 
@@ -116,29 +133,116 @@ def make_finding(
 
 
 class FindingStore:
-    def __init__(self, state_dir: Path):
+    def __init__(
+        self,
+        state_dir: Path,
+        *,
+        retention: RetentionPolicy | None = None,
+        clock: Callable[[], datetime] = system_clock,
+    ):
+        self.state_dir = state_dir
         self.reports_dir = state_dir / "reviews"
         self.reports_dir.mkdir(parents=True, exist_ok=True)
+        self.retention = retention or RetentionPolicy()
+        self.clock = clock
+        self.last_retention_report = self._prune_retention()
+
+    def _prune_retention(self) -> RetentionReport:
+        candidates: list[RetentionCandidate] = []
+        paths = sorted(self.reports_dir.glob("report_*.json"))
+        for path_report_id, path in iter_valid_record_files(
+            self.reports_dir,
+            paths,
+            kind="report",
+        ):
+            try:
+                report = ReviewReport.model_validate_json(path.read_bytes())
+            except (OSError, ValueError):
+                continue
+            timestamp = parse_retention_timestamp(report.created_at)
+            if report.report_id != path_report_id or timestamp is None:
+                continue
+            candidates.append(
+                RetentionCandidate(
+                    identifier=report.report_id,
+                    path=path,
+                    timestamp=timestamp,
+                )
+            )
+        return prune_terminal_records(
+            state_root=self.state_dir,
+            store_root=self.reports_dir,
+            candidates=candidates,
+            policy=self.retention,
+            clock=self.clock,
+        )
+
+    def report_path(self, report_id: str) -> Path:
+        try:
+            validated = require_record_id(report_id, "report")
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid report id") from None
+        return self.reports_dir / f"{validated}.json"
 
     def store(self, report: ReviewReport) -> None:
         payload = json.dumps(
             report.model_dump(mode="json"), ensure_ascii=False, indent=2
         ).encode("utf-8")
-        atomic_write_bytes(self.reports_dir / f"{report.report_id}.json", payload)
+        atomic_write_bytes(self.report_path(report.report_id), payload)
 
     def read(self, report_id: str) -> ReviewReport:
-        path = self.reports_dir / f"{report_id}.json"
-        if not path.is_file():
-            raise ObjectNotFoundError(f"Review report was not found: {report_id}")
-        return ReviewReport.model_validate_json(path.read_bytes())
+        try:
+            path = require_confined_record_file(
+                self.reports_dir,
+                report_id,
+                kind="report",
+            )
+            report = ReviewReport.model_validate_json(path.read_bytes())
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid report id") from None
+        except FileNotFoundError as exc:
+            raise ObjectNotFoundError(
+                f"Review report was not found: {report_id}"
+            ) from exc
+        except InvalidRecordPath as exc:
+            raise ObjectNotFoundError(
+                "Review report path is redirected or outside its store"
+            ) from exc
+        except (OSError, ValueError) as exc:
+            raise ObjectNotFoundError("Review report state is corrupt") from exc
+        if report.report_id != report_id:
+            raise ObjectNotFoundError(
+                "Review report id does not match the requested report"
+            )
+        return report
 
     def get_finding(self, finding_id: str) -> Finding:
-        for path in sorted(self.reports_dir.glob("report_*.json"), reverse=True):
-            report = ReviewReport.model_validate_json(path.read_bytes())
+        try:
+            require_record_id(finding_id, "finding")
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid finding id") from None
+        for report in self.list_reports():
             for finding in report.findings:
                 if finding.finding_id == finding_id:
                     return finding
         raise ObjectNotFoundError(f"Finding was not found: {finding_id}")
+
+    def list_reports(self) -> list[ReviewReport]:
+        reports: list[ReviewReport] = []
+        paths = sorted(self.reports_dir.glob("report_*.json"), reverse=True)
+        for path_report_id, path in iter_valid_record_files(
+            self.reports_dir,
+            paths,
+            kind="report",
+        ):
+            try:
+                report = ReviewReport.model_validate_json(path.read_bytes())
+            except (OSError, ValueError):
+                continue
+            if report.report_id != path_report_id:
+                continue
+            reports.append(report)
+        return reports
 
     def create_report(
         self,

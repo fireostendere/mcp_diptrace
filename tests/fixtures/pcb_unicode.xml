@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic MCP regression fixture; this file does not claim DipTrace provenance. -->
+<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">
+  <Board>
+    <Components>
+      <Component Id="0" X="10" Y="10" Side="Top" Locked="N">
+        <RefDes>R1</RefDes>
+        <Value>Резистор µ Ω ° ±</Value>
+      </Component>
+    </Components>
+    <FutureExtension Note="Кириллица µ Ω ° ±">
+      <Text>Проверка кодировки</Text>
+    </FutureExtension>
+  </Board>
+</Source>

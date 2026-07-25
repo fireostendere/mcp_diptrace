@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import Literal, cast
 
 from .errors import ConfigurationError, PathAccessError
+from .retention import (
+    DEFAULT_RETENTION_MAX_AGE_DAYS,
+    DEFAULT_RETENTION_MAX_RECORDS,
+    RetentionPolicy,
+)
 
 _WINDOWS_PATH = re.compile(r"^([A-Za-z]):[\\/](.*)$")
 _WSL_USER_PATH = re.compile(
@@ -27,7 +32,9 @@ _POLICY_PROFILES = {
 
 
 def platform_path(value: str | os.PathLike[str]) -> Path:
-    raw = os.path.expandvars(os.path.expanduser(os.fspath(value)))
+    """Translate path syntax without expanding caller-controlled placeholders."""
+
+    raw = os.fspath(value)
     match = _WINDOWS_PATH.match(raw)
     if os.name != "nt" and match:
         drive, tail = match.groups()
@@ -36,10 +43,17 @@ def platform_path(value: str | os.PathLike[str]) -> Path:
     return Path(raw)
 
 
+def _configured_platform_path(value: str | os.PathLike[str]) -> Path:
+    """Expand server-owned configuration before applying platform translation."""
+
+    configured = os.path.expandvars(os.path.expanduser(os.fspath(value)))
+    return platform_path(configured)
+
+
 def _default_state_dir(workspace: Path) -> Path:
     configured = os.environ.get("DIPTRACE_MCP_STATE_DIR")
     if configured:
-        return platform_path(configured).resolve()
+        return _configured_platform_path(configured).resolve()
 
     if os.name == "nt":
         local_app_data = os.environ.get("LOCALAPPDATA")
@@ -108,34 +122,45 @@ class Settings:
     ngspice_executable: Path | None = None
     openems_runner: Path | None = None
     external_timeout_seconds: int = 3600
+    max_external_processes: int = 2
     max_external_result_bytes: int = 16 * 1024 * 1024
     max_external_log_bytes: int = 4 * 1024 * 1024
+    retention_max_records: int = DEFAULT_RETENTION_MAX_RECORDS
+    retention_max_age_days: int = DEFAULT_RETENTION_MAX_AGE_DAYS
     active_policy: PolicyProfile = "interactive_edit"
 
     @classmethod
     def from_env(cls) -> Settings:
-        workspace = platform_path(
+        workspace = _configured_platform_path(
             os.environ.get("DIPTRACE_MCP_WORKSPACE", os.getcwd())
         ).resolve()
         roots = [workspace]
         configured_roots = os.environ.get("DIPTRACE_MCP_ALLOWED_ROOTS")
         if configured_roots:
             roots.extend(
-                platform_path(item).resolve()
+                _configured_platform_path(item).resolve()
                 for item in configured_roots.split(os.pathsep)
                 if item.strip()
             )
         unique_roots = tuple(dict.fromkeys(roots))
         freerouting_raw = os.environ.get("DIPTRACE_MCP_FREEROUTING")
-        freerouting = platform_path(freerouting_raw).resolve() if freerouting_raw else None
+        freerouting = (
+            _configured_platform_path(freerouting_raw).resolve()
+            if freerouting_raw
+            else None
+        )
         java_raw = os.environ.get("DIPTRACE_MCP_JAVA")
         java_found = java_raw or shutil.which("java")
-        java = platform_path(java_found).resolve() if java_found else None
+        java = _configured_platform_path(java_found).resolve() if java_found else None
         ngspice_raw = os.environ.get("DIPTRACE_MCP_NGSPICE")
         ngspice_found = ngspice_raw or shutil.which("ngspice")
-        ngspice = platform_path(ngspice_found).resolve() if ngspice_found else None
+        ngspice = (
+            _configured_platform_path(ngspice_found).resolve() if ngspice_found else None
+        )
         openems_raw = os.environ.get("DIPTRACE_MCP_OPENEMS_RUNNER")
-        openems_runner = platform_path(openems_raw).resolve() if openems_raw else None
+        openems_runner = (
+            _configured_platform_path(openems_raw).resolve() if openems_raw else None
+        )
         return cls(
             workspace=workspace,
             allowed_roots=unique_roots,
@@ -151,13 +176,31 @@ class Settings:
             external_timeout_seconds=_positive_int(
                 "DIPTRACE_MCP_EXTERNAL_TIMEOUT", 3600
             ),
+            max_external_processes=_positive_int(
+                "DIPTRACE_MCP_MAX_EXTERNAL_PROCESSES", 2
+            ),
             max_external_result_bytes=_positive_int(
                 "DIPTRACE_MCP_MAX_EXTERNAL_RESULT_BYTES", 16 * 1024 * 1024
             ),
             max_external_log_bytes=_positive_int(
                 "DIPTRACE_MCP_MAX_EXTERNAL_LOG_BYTES", 4 * 1024 * 1024
             ),
+            retention_max_records=_positive_int(
+                "DIPTRACE_MCP_RETENTION_MAX_RECORDS",
+                DEFAULT_RETENTION_MAX_RECORDS,
+            ),
+            retention_max_age_days=_positive_int(
+                "DIPTRACE_MCP_RETENTION_MAX_AGE_DAYS",
+                DEFAULT_RETENTION_MAX_AGE_DAYS,
+            ),
             active_policy=_policy_profile(),
+        )
+
+    @property
+    def retention_policy(self) -> RetentionPolicy:
+        return RetentionPolicy(
+            max_records=self.retention_max_records,
+            max_age_days=self.retention_max_age_days,
         )
 
     def resolve_allowed_path(
@@ -191,7 +234,10 @@ class Settings:
             ),
             "openems_runner": str(self.openems_runner) if self.openems_runner else None,
             "external_timeout_seconds": self.external_timeout_seconds,
+            "max_external_processes": self.max_external_processes,
             "max_external_result_bytes": self.max_external_result_bytes,
             "max_external_log_bytes": self.max_external_log_bytes,
+            "retention_max_records": self.retention_max_records,
+            "retention_max_age_days": self.retention_max_age_days,
             "active_policy": self.active_policy,
         }

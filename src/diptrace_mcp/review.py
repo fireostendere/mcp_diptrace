@@ -9,8 +9,9 @@ from .adapters import DocumentSnapshot
 from .advanced_review import register_advanced_checks
 from .domain import ObjectRecord
 from .findings import Finding, make_finding
-from .geometry import BBox, Point, point_in_polygon, segment_distance, to_mm
+from .geometry import BBox, Point, point_in_polygon, segment_distance
 from .geometry_backend import line_to_shape_distance, shapely_available
+from .numeric_inputs import xml_number_mm
 from .spatial import SpatialIndex
 
 CheckFunction = Callable[[DocumentSnapshot], tuple[list[Finding], dict[str, Any]]]
@@ -195,8 +196,10 @@ def check_dangling_traces(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
 def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], dict[str, Any]]:
     assert snapshot.board is not None
     clearance_by_layer = {
-        element.get("Lay", ""): to_mm(
-            float(element.get("TraceToTrace", "0")), snapshot.document.units
+        element.get("Lay", ""): xml_number_mm(
+            snapshot.document,
+            element,
+            "TraceToTrace",
         )
         for element in snapshot.document.container.findall("./DRC/LayClearances/LayClearance")
         if element.get("TraceToTrace") is not None
@@ -285,9 +288,9 @@ def check_trace_object_clearance(
     assert snapshot.board is not None
     rules = {
         element.get("Lay", ""): {
-            key: to_mm(float(value), snapshot.document.units)
+            key: xml_number_mm(snapshot.document, element, key)
             for key in ("TraceToPad", "TraceToVia")
-            if (value := element.get(key)) is not None
+            if element.get(key) is not None
         }
         for element in snapshot.document.container.findall("./DRC/LayClearances/LayClearance")
     }
