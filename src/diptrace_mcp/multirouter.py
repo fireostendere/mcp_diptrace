@@ -50,6 +50,7 @@ class RoutingPriority:
     index: int
     net: str
     score: float
+    score_terms: dict[str, float]
     obstacle_count: int
     corridor_occupancy: float
     direct_length_mm: float
@@ -62,6 +63,8 @@ class RoutingPriority:
             "index": self.index,
             "net": self.net,
             "score": self.score,
+            "score_kind": "uncalibrated_heuristic",
+            "score_terms": dict(self.score_terms),
             "obstacle_count": self.obstacle_count,
             "corridor_occupancy": self.corridor_occupancy,
             "direct_length_mm": self.direct_length_mm,
@@ -186,18 +189,20 @@ def _routing_priority(
             )
         ),
     )
-    score = (
-        len(obstacles) * 10.0
-        + occupancy * 5.0
-        + (1.0 / config.max_detour) * 3.0
-        + (1.0 / layer_options) * 2.0
-        + min(direct_length / 100.0, 2.0)
-        + (1.0 if config.max_vias == 0 else 0.0)
-    )
+    score_terms = {
+        "obstacle_count": len(obstacles) * 10.0,
+        "corridor_occupancy": occupancy * 5.0,
+        "detour_constraint": (1.0 / config.max_detour) * 3.0,
+        "layer_constraint": (1.0 / layer_options) * 2.0,
+        "direct_length": min(direct_length / 100.0, 2.0),
+        "no_via_constraint": 1.0 if config.max_vias == 0 else 0.0,
+    }
+    score = sum(score_terms.values())
     return RoutingPriority(
         index=index,
         net=config.net,
         score=score,
+        score_terms=score_terms,
         obstacle_count=len(obstacles),
         corridor_occupancy=occupancy,
         direct_length_mm=direct_length,

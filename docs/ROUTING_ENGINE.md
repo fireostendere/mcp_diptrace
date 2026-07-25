@@ -40,6 +40,11 @@ Limitations: no push-and-shove, curves, free-angle routing, or dynamic neck-down
 
 `analyze_routing_congestion` scores each direct corridor from obstacle count, occupied
 bounding-box area, detour allowance, layer options, via constraints, and direct length.
+The payload labels this value `score_kind: "uncalibrated_heuristic"` and reports every
+arithmetic contribution in `score_terms`. It is an ordering aid, not a physical
+congestion measurement or a value that can be compared across boards. In particular,
+the existing obstacle-count term contributes 10 points per object and can dominate all
+other terms.
 `route_connections` uses that deterministic most-constrained-first order by default (or
 caller order with `ordering="input"`) for a bounded list of connections (up to 64) against
 an evolving document: every routed connection immediately becomes an obstacle for the

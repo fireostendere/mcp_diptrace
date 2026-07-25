@@ -3,6 +3,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import pytest
+
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
 from diptrace_mcp.multirouter import synthesize_routes_with_retry
@@ -210,5 +212,9 @@ def test_analyze_routing_congestion_is_read_only(tmp_path: Path) -> None:
     )
 
     assert response["result"]["routing_order"] == [1, 0]
-    assert response["result"]["priorities"][1]["corridor_bbox"]
+    priority = response["result"]["priorities"][1]
+    assert priority["corridor_bbox"]
+    assert priority["score_kind"] == "uncalibrated_heuristic"
+    assert priority["score"] == pytest.approx(sum(priority["score_terms"].values()))
+    assert priority["score_terms"]["obstacle_count"] == priority["obstacle_count"] * 10.0
     assert target.read_bytes() == document.raw_bytes
