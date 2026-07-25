@@ -27,7 +27,9 @@ _POLICY_PROFILES = {
 
 
 def platform_path(value: str | os.PathLike[str]) -> Path:
-    raw = os.path.expandvars(os.path.expanduser(os.fspath(value)))
+    """Translate path syntax without expanding caller-controlled placeholders."""
+
+    raw = os.fspath(value)
     match = _WINDOWS_PATH.match(raw)
     if os.name != "nt" and match:
         drive, tail = match.groups()
@@ -36,10 +38,17 @@ def platform_path(value: str | os.PathLike[str]) -> Path:
     return Path(raw)
 
 
+def _configured_platform_path(value: str | os.PathLike[str]) -> Path:
+    """Expand server-owned configuration before applying platform translation."""
+
+    configured = os.path.expandvars(os.path.expanduser(os.fspath(value)))
+    return platform_path(configured)
+
+
 def _default_state_dir(workspace: Path) -> Path:
     configured = os.environ.get("DIPTRACE_MCP_STATE_DIR")
     if configured:
-        return platform_path(configured).resolve()
+        return _configured_platform_path(configured).resolve()
 
     if os.name == "nt":
         local_app_data = os.environ.get("LOCALAPPDATA")
@@ -114,28 +123,36 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
-        workspace = platform_path(
+        workspace = _configured_platform_path(
             os.environ.get("DIPTRACE_MCP_WORKSPACE", os.getcwd())
         ).resolve()
         roots = [workspace]
         configured_roots = os.environ.get("DIPTRACE_MCP_ALLOWED_ROOTS")
         if configured_roots:
             roots.extend(
-                platform_path(item).resolve()
+                _configured_platform_path(item).resolve()
                 for item in configured_roots.split(os.pathsep)
                 if item.strip()
             )
         unique_roots = tuple(dict.fromkeys(roots))
         freerouting_raw = os.environ.get("DIPTRACE_MCP_FREEROUTING")
-        freerouting = platform_path(freerouting_raw).resolve() if freerouting_raw else None
+        freerouting = (
+            _configured_platform_path(freerouting_raw).resolve()
+            if freerouting_raw
+            else None
+        )
         java_raw = os.environ.get("DIPTRACE_MCP_JAVA")
         java_found = java_raw or shutil.which("java")
-        java = platform_path(java_found).resolve() if java_found else None
+        java = _configured_platform_path(java_found).resolve() if java_found else None
         ngspice_raw = os.environ.get("DIPTRACE_MCP_NGSPICE")
         ngspice_found = ngspice_raw or shutil.which("ngspice")
-        ngspice = platform_path(ngspice_found).resolve() if ngspice_found else None
+        ngspice = (
+            _configured_platform_path(ngspice_found).resolve() if ngspice_found else None
+        )
         openems_raw = os.environ.get("DIPTRACE_MCP_OPENEMS_RUNNER")
-        openems_runner = platform_path(openems_raw).resolve() if openems_raw else None
+        openems_runner = (
+            _configured_platform_path(openems_raw).resolve() if openems_raw else None
+        )
         return cls(
             workspace=workspace,
             allowed_roots=unique_roots,

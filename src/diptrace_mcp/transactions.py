@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import builtins
 import json
-import re
 import threading
 import uuid
 from dataclasses import dataclass
@@ -12,11 +11,9 @@ from typing import Any, Literal
 
 from .domain import DocumentInfo, RiskClass, TransactionRecord, TransactionRisk
 from .errors import TransactionConflictError, TransactionNotFoundError
+from .record_ids import InvalidRecordId, require_record_id
 from .xml_document import atomic_write_bytes, sha256_bytes, utc_now
 
-_TXID = re.compile(
-    r"^tx_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-)
 _TRANSITIONS: dict[str, frozenset[str]] = {
     "planned": frozenset({"staged", "rolled_back", "failed"}),
     "staged": frozenset({"staged", "validated", "rolled_back", "failed"}),
@@ -60,9 +57,11 @@ class TransactionStore:
         self._lock = threading.RLock()
 
     def tx_dir(self, txid: str) -> Path:
-        if not _TXID.fullmatch(txid):
-            raise TransactionNotFoundError(f"Invalid transaction id: {txid}", txid=txid)
-        return self.transactions_dir / txid
+        try:
+            validated = require_record_id(txid, "transaction")
+        except InvalidRecordId:
+            raise TransactionNotFoundError("Invalid transaction id") from None
+        return self.transactions_dir / validated
 
     def record_path(self, txid: str) -> Path:
         return self.tx_dir(txid) / "transaction.json"

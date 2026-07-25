@@ -11,6 +11,7 @@ from .adapters import DocumentSnapshot
 from .bom import extract_bom, group_bom
 from .domain import ExportRecord
 from .errors import ObjectNotFoundError
+from .record_ids import InvalidRecordId, require_record_id
 from .xml_document import atomic_write_bytes, utc_now
 
 ExportType = Literal["bom", "fabrication_manifest", "assembly_manifest", "si_geometry"]
@@ -39,9 +40,11 @@ class ExportStore:
         self.max_artifact_bytes = max_artifact_bytes
 
     def _directory(self, export_id: str) -> Path:
-        if not export_id.startswith("export_") or len(export_id) != 39:
-            raise ObjectNotFoundError(f"Invalid export id: {export_id}")
-        return self.root / export_id
+        try:
+            validated = require_record_id(export_id, "export")
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid export id") from None
+        return self.root / validated
 
     def _record_path(self, export_id: str) -> Path:
         return self._directory(export_id) / "record.json"

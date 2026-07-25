@@ -9,6 +9,7 @@ from pydantic import Field
 
 from .domain import StrictModel
 from .errors import ObjectNotFoundError
+from .record_ids import InvalidRecordId, require_record_id
 from .xml_document import atomic_write_bytes, utc_now
 
 
@@ -120,19 +121,30 @@ class FindingStore:
         self.reports_dir = state_dir / "reviews"
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
+    def report_path(self, report_id: str) -> Path:
+        try:
+            validated = require_record_id(report_id, "report")
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid report id") from None
+        return self.reports_dir / f"{validated}.json"
+
     def store(self, report: ReviewReport) -> None:
         payload = json.dumps(
             report.model_dump(mode="json"), ensure_ascii=False, indent=2
         ).encode("utf-8")
-        atomic_write_bytes(self.reports_dir / f"{report.report_id}.json", payload)
+        atomic_write_bytes(self.report_path(report.report_id), payload)
 
     def read(self, report_id: str) -> ReviewReport:
-        path = self.reports_dir / f"{report_id}.json"
+        path = self.report_path(report_id)
         if not path.is_file():
             raise ObjectNotFoundError(f"Review report was not found: {report_id}")
         return ReviewReport.model_validate_json(path.read_bytes())
 
     def get_finding(self, finding_id: str) -> Finding:
+        try:
+            require_record_id(finding_id, "finding")
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid finding id") from None
         for path in sorted(self.reports_dir.glob("report_*.json"), reverse=True):
             report = ReviewReport.model_validate_json(path.read_bytes())
             for finding in report.findings:

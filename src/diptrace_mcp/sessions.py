@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from .errors import SessionError
+from .record_ids import InvalidRecordId, require_record_id
 from .xml_document import (
     DipTraceDocument,
     atomic_write_bytes,
@@ -53,9 +54,11 @@ class SessionStore:
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
 
     def session_dir(self, session_id: str) -> Path:
-        if not session_id or any(character not in "0123456789abcdef-" for character in session_id):
-            raise SessionError("Invalid session id")
-        return self.sessions_dir / session_id
+        try:
+            validated = require_record_id(session_id, "session")
+        except InvalidRecordId:
+            raise SessionError("Invalid session id") from None
+        return self.sessions_dir / validated
 
     def metadata_path(self, session_id: str) -> Path:
         return self.session_dir(session_id) / "metadata.json"

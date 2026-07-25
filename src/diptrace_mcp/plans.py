@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import threading
 import uuid
 from dataclasses import dataclass
@@ -11,9 +10,8 @@ from typing import Any
 
 from .domain import PlanRecord, PlanStatus
 from .errors import ObjectNotFoundError
+from .record_ids import InvalidRecordId, require_record_id
 from .xml_document import atomic_write_bytes, utc_now
-
-_PLAN_ID = re.compile(r"^plan_[0-9a-f]{32}$")
 
 
 @dataclass(slots=True)
@@ -28,9 +26,11 @@ class PlanStore:
         self._lock = threading.RLock()
 
     def plan_dir(self, plan_id: str) -> Path:
-        if not _PLAN_ID.fullmatch(plan_id):
-            raise ObjectNotFoundError(f"Invalid plan id: {plan_id}")
-        return self.plans_dir / plan_id
+        try:
+            validated = require_record_id(plan_id, "plan")
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid plan id") from None
+        return self.plans_dir / validated
 
     def record_path(self, plan_id: str) -> Path:
         return self.plan_dir(plan_id) / "plan.json"

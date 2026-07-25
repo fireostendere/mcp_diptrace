@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import threading
 import uuid
 from dataclasses import dataclass
@@ -11,9 +10,8 @@ from typing import Any
 
 from .domain import JobRecord, JobStatus
 from .errors import ObjectNotFoundError
+from .record_ids import InvalidRecordId, require_record_id
 from .xml_document import atomic_write_bytes, utc_now
-
-_JOB_ID = re.compile(r"^job_[0-9a-f]{32}$")
 
 
 @dataclass(slots=True)
@@ -29,9 +27,11 @@ class JobStore:
         self._fail_interrupted_jobs()
 
     def job_dir(self, jobid: str) -> Path:
-        if not _JOB_ID.fullmatch(jobid):
-            raise ObjectNotFoundError(f"Invalid job id: {jobid}", jobid=jobid)
-        return self.jobs_dir / jobid
+        try:
+            validated = require_record_id(jobid, "job")
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid job id") from None
+        return self.jobs_dir / validated
 
     def record_path(self, jobid: str) -> Path:
         return self.job_dir(jobid) / "job.json"
