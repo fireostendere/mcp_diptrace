@@ -34,6 +34,9 @@ _XML_DECLARATION_ENCODING_TEXT = re.compile(
     r"^\s*<\?xml\b[^>]*?\bencoding\s*=\s*([\"'])([^\"']+)\1",
     re.IGNORECASE,
 )
+_INVALID_XML_10_CHARACTER = re.compile(
+    "[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]"
+)
 _ALLOWED_XML_ENCODINGS = frozenset(
     {
         "utf-8",
@@ -932,6 +935,16 @@ def _patch_start_tag(
 def _serialize_new_element(element: ET.Element, encoding: str) -> bytes:
     clone = deepcopy(element)
     clone.tail = None
+    for descendant in clone.iter():
+        if descendant.text:
+            _require_valid_xml_characters(descendant.text, "XML element text")
+        if descendant.tail:
+            _require_valid_xml_characters(descendant.tail, "XML element tail")
+        for attribute, value in descendant.attrib.items():
+            _require_valid_xml_characters(
+                value,
+                f"XML attribute {attribute}",
+            )
     rendered = ET.tostring(
         clone,
         encoding="unicode",
@@ -958,15 +971,33 @@ def _semantic_tree(element: ET.Element) -> tuple[object, ...]:
 
 
 def _escape_xml_text(value: str, encoding: str) -> bytes:
+    _require_valid_xml_characters(value, "XML text replacement")
     escaped = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     escaped = escaped.replace("\t", "&#9;").replace("\n", "&#10;").replace("\r", "&#13;")
     return _encode_xml_fragment(escaped, encoding)
 
 
 def _escape_xml_attribute(value: str, quote: str) -> str:
+    _require_valid_xml_characters(value, "XML attribute replacement")
     escaped = value.replace("&", "&amp;").replace("<", "&lt;")
     escaped = escaped.replace('"', "&quot;") if quote == '"' else escaped.replace("'", "&apos;")
     return escaped.replace("\t", "&#9;").replace("\n", "&#10;").replace("\r", "&#13;")
+
+
+def _require_valid_xml_characters(value: str, context: str) -> None:
+    match = _INVALID_XML_10_CHARACTER.search(value)
+    if match is None:
+        return
+    code_point = ord(match.group())
+    raise EditError(
+        f"{context} contains XML 1.0-forbidden character U+{code_point:04X} "
+        f"at character offset {match.start()}",
+        details={
+            "context": context,
+            "character_offset": match.start(),
+            "code_point": f"U+{code_point:04X}",
+        },
+    )
 
 
 def _attribute_match(start_tag: str, name: str) -> re.Match[str] | None:
@@ -1185,6 +1216,7 @@ def _apply_expected_tree_edit(
 def _parse_fragment(index: int, value: str | None) -> ET.Element:
     if not value:
         raise EditError(f"Edit {index}: XML fragment is required")
+    _require_valid_xml_characters(value, f"Edit {index} XML fragment")
     wrapper = _parse_root_fragment(value.encode("utf-8"))
     children = list(wrapper)
     if (

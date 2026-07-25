@@ -290,6 +290,45 @@ def test_public_append_fragment_rejects_content_outside_or_invisible_to_semantic
         )
 
 
+@pytest.mark.parametrize(
+    "edit",
+    [
+        XmlEdit(
+            operation="append_xml",
+            xpath="./Board/Box",
+            value="<New>\ud800</New>",
+        ),
+        XmlEdit(
+            operation="set_text",
+            xpath="./Board/Box",
+            value="\ud800",
+        ),
+        XmlEdit(
+            operation="set_attribute",
+            xpath="./Board/Box",
+            attribute="Label",
+            value="\x01",
+        ),
+    ],
+)
+def test_public_edits_reject_xml_forbidden_characters_with_write_error(
+    edit: XmlEdit,
+) -> None:
+    payload = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        b'<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">'
+        b"<Board><Box /></Board></Source>"
+    )
+    document = DipTraceDocument.from_bytes(Path("invalid-character.xml"), payload)
+
+    with pytest.raises(EditError, match="XML 1.0-forbidden character") as caught:
+        document.apply_edits([edit])
+
+    assert caught.value.payload.code == "schema_write_error"
+    assert caught.value.details["code_point"] in {"U+0001", "U+D800"}
+    assert isinstance(caught.value.details["character_offset"], int)
+
+
 def test_utf16_diff_is_decoded_with_the_source_codec() -> None:
     payload = _encoded_source("utf-16-le", b"\xff\xfe")
     document = DipTraceDocument.from_bytes(Path("encoded.xml"), payload)
