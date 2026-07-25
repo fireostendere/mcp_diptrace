@@ -34,7 +34,6 @@ See [the roadmap](docs/ROADMAP.md) for the current priority order and exit crite
 - component/part move, rotate, side, lock, property, pattern, alignment, distribution, and grouping operations;
 - board-text edits, documented NetClass rules, and standalone-pad test points;
 - Component/Pattern Library reading, validation, and pin-to-pad checks;
-- a machine-readable serializer reference for exact XML enums, defaults, aliases, and import semantics derived from supplied documentation archives; it is reference-only and cannot grant DipTrace round-trip trust;
 - registry-based offline DRC/ERC reviews with persistent structured findings;
 - deterministic silkscreen and bounded local placement planners;
 - explicit trace/via operations, bounded multi-layer 45-degree A*, and symmetric via insertion;
@@ -70,7 +69,7 @@ Synthetic 4.3 fixtures cover PCB, schematic, Component Library, Pattern Library,
 - persistence of all 41 coordinates and unchanged normalized sheet/part/pin/net/bus/differential-pair counts;
 - no new offline ERC errors after the round trip.
 
-This is strong evidence for the tested paths, not a claim of complete compatibility with every DipTrace version or XML object. The bundled serializer reference constrains parser behavior but does not replace real DipTrace open/save/re-export evidence.
+This is strong evidence for the tested paths, not a claim of complete compatibility with every DipTrace version or XML object.
 
 ## Architecture
 
@@ -195,7 +194,6 @@ The server distinguishes provenance from authority. A client may submit evidence
 - **Synthetic MCP-generated**: XML created by `create_schematic_document` or `create_pcb_document` is classified as `synthetic_parser_only` until stronger independently verified evidence exists.
 - **Seed-based**: XML copied by `create_document_from_seed` from a real DipTrace export preserves seed provenance but does not create round-trip authority.
 - **Recorded evidence**: `record_roundtrip_evidence` binds before/after files, exact paths, source type, SHA-256 values, and semantic comparison. User-supplied evidence is useful for audit/regression but is not a trusted root.
-- **Serializer reference**: the bundled rule set fingerprints and distills XML documentation. It constrains parser/writer implementation and tests but has no trust effect.
 - **High trust**: promotion to `diptrace_roundtrip_verified` or `external_tool_roundtrip_verified` is intentionally unavailable until the project has an authenticated server-owned registry, signature verifier, or committed allowlist.
 
 Trust invalidation is implemented for the main verified mutation paths, but the capability layer intentionally does **not** claim complete coverage for every write path yet. Current explicitly reported gaps are `plan_apply`, `ses_import`, `schematic_to_pcb_sync`, and `live_session_apply`. Closing these fail-closed trust paths is a near-term roadmap priority.

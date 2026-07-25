@@ -1,6 +1,6 @@
 ---
 name: diptrace-xml-reference
-description: "Reference skill for implementing, reviewing, or debugging DipTrace XML parsers, writers, plug-in exchange, and bridge behavior. Use it to resolve exact XML enums/defaults/import semantics before changing MCP code. It is reference-only and never grants DipTrace compatibility or round-trip trust."
+description: "Reference skill for implementing, reviewing, or debugging DipTrace XML parsers, writers, plug-in exchange, and bridge behavior. Consult the extracted public-spec inventory and measured coverage before changing MCP code, and preserve unknowns where the sources are silent."
 ---
 
 # DipTrace XML Reference
@@ -8,24 +8,28 @@ description: "Reference skill for implementing, reviewing, or debugging DipTrace
 ## Purpose
 
 Use this skill when changing the MCP's DipTrace XML parser/compiler, library adapters, bridge,
-fixture generator, semantic transactions, or any code that emits XML. The canonical machine rules
-are in `../../src/diptrace_mcp/data/serializer_reference.json`; read `REFERENCE.md` for a compact
-human-oriented map.
+fixture generator, semantic transactions, or any code that emits XML. Consult the extracted
+[specification inventory](spec_inventory.json), its measured
+[format coverage](../../docs/FORMAT_COVERAGE.md), and [REFERENCE.md](REFERENCE.md). These artifacts
+describe the public sources and current implementation coverage; they do not turn undocumented
+behavior into a fact.
 
 ## Trust boundary
 
-The supplied documents state that they were generated/verified against a DipTrace serializer
-repository revision 7276. This repository does not independently authenticate that claim. Treat
-them as `user_supplied_reference` with `trust_effect=none`.
+The inventory records source URLs, hashes, and page provenance from the public DipTrace
+specifications. That provenance does not authenticate behavior in a particular DipTrace build and
+does not replace open/save/re-export evidence.
 
-They may constrain parser/writer behavior and regression tests. They may not promote a document to
-`diptrace_exported`, `diptrace_open_save_verified`, or `diptrace_roundtrip_verified`, and they may
-not unblock native Pattern/Component Library writers without independent DipTrace 5.3 fixtures.
+The specifications may constrain parser/writer behavior and regression tests. They may not promote
+a document to `diptrace_exported`, `diptrace_open_save_verified`, or
+`diptrace_roundtrip_verified`, and they may not unblock native Pattern/Component Library writers
+without independent DipTrace 5.3 fixtures.
 
 ## Mandatory workflow
 
 1. Identify the exact XML dialect and element/attribute being changed.
-2. Look up the stable machine rule ID before implementing an enum/default/write condition.
+2. Look up the inventory entry and its cited source page before implementing an
+   enum/default/write condition; if the source is silent, record the gap as an open question.
 3. Check cross-cutting behaviors before touching import, deletion, IDs, or nested lists.
 4. Preserve unknown attributes/elements and existing IDs unless the semantic operation explicitly
    requires a change.
@@ -36,8 +40,10 @@ not unblock native Pattern/Component Library writers without independent DipTrac
 
 ## High-risk rules
 
-- Ordinary `Angle` values are radians counter-clockwise. Pin and Pattern `Orientation` are discrete
-  `0/90/180/270`; `Model3D/Rotate` is degrees.
+- `Shape/@Angle` for text and pictures is documented in radians counter-clockwise.
+  `Component/@Angle` is assumed to be radians by the current code but is unverified; see
+  [OPEN_QUESTIONS.md Q1](../../docs/OPEN_QUESTIONS.md#q1-is-componentangle-in-radians-or-degrees).
+  Pin and Pattern `Orientation` are discrete `0/90/180/270`; `Model3D/Rotate` is degrees.
 - `Enabled="N"` is an edit-import delete flag, not visibility.
 - Under `Edit`, keep an existing top-level object's `Id`; omit `Id` for a new object.
 - With a PCB/Schematic `Selected` import filter, unselected incoming objects are skipped entirely.
