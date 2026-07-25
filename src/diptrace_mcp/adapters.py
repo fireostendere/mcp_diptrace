@@ -30,7 +30,11 @@ from .domain import (
 from .errors import DocumentError
 from .geometry import BBox, Point, Transform, distance, to_mm, trace_path_length
 from .geometry_backend import shape_bbox, transform_shape
-from .numeric_inputs import require_finite_number, translate_validation_errors
+from .numeric_inputs import (
+    require_finite_number,
+    translate_validation_errors,
+    xml_number_mm,
+)
 from .xml_document import DipTraceDocument, XmlEdit
 
 _XML_ID = re.compile(r"[^A-Za-z0-9._-]+")
@@ -1871,7 +1875,7 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
             rules={
                 "drc": _element_data(document.container.find("./DRC")),
                 "connectivity_check": _element_data(document.container.find("./ConnectivityCheck")),
-                "routing_defaults": _element_data(document.container.find("./Settings/Routing")),
+                "routing_defaults": _routing_defaults_data(document),
             },
             stackup=_board_stackup(document),
             warnings=warnings,
@@ -2118,6 +2122,19 @@ def _element_data(element: ET.Element | None, depth: int = 3) -> Any:
         if len(children) > 200:
             result["children_truncated"] = len(children) - 200
     return result
+
+
+def _routing_defaults_data(document: DipTraceDocument) -> Any:
+    routing = document.container.find("./Settings/Routing")
+    if routing is None:
+        return None
+    # Older accepted exports carry these dimensions as attributes. They remain
+    # raw in the generic rules payload, but must be finite before any later
+    # consumer (notably DSN export) converts or compares them.
+    for attribute in ("TraceWidth", "TraceClearance", "ViaSize", "ViaHole"):
+        if routing.get(attribute) not in {None, ""}:
+            xml_number_mm(document, routing, attribute)
+    return _element_data(routing)
 
 
 def get_document_info(document: DipTraceDocument, *, live_session: bool = False) -> DocumentInfo:

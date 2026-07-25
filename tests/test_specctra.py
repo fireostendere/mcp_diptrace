@@ -158,6 +158,33 @@ def test_dsn_export_requires_and_uses_exact_embedded_pattern_geometry(tmp_path: 
 
 
 @pytest.mark.parametrize(
+    ("old", "new", "attribute"),
+    [
+        (b'TraceWidth="0.25"', b'TraceWidth="NaN"', "TraceWidth"),
+        (b'TraceClearance="0.2"', b'TraceClearance="1e309"', "TraceClearance"),
+    ],
+)
+def test_public_dsn_export_rejects_nonfinite_routing_defaults_with_xml_location(
+    tmp_path: Path,
+    old: bytes,
+    new: bytes,
+    attribute: str,
+) -> None:
+    raw = _embedded_board_bytes()
+    assert raw.count(old) == 1
+    board_path = tmp_path / "nonfinite-routing.xml"
+    board_path.write_bytes(raw.replace(old, new, 1))
+    service = _service(tmp_path, tmp_path / "state")
+
+    with pytest.raises(DocumentError) as caught:
+        service.export_autorouter_dsn(str(board_path))
+
+    assert caught.value.details["element"] == "Routing"
+    assert caught.value.details["attribute"] == attribute
+    assert isinstance(caught.value.details["byte_offset"], int)
+
+
+@pytest.mark.parametrize(
     ("value", "expected"),
     [
         ("", '""'),
@@ -264,6 +291,27 @@ def test_dsn_export_preflights_quoted_identifiers_from_document(
     with pytest.raises(CapabilityUnavailableError) as exc_info:
         export_dsn(snapshot)
     assert exc_info.value.payload.details["reasons"] == limitations
+
+
+@pytest.mark.parametrize(
+    ("quoted_name", "message"),
+    [
+        (b'"A\\\\nB"', "Backslash escaping"),
+        (b'"A\nB"', "Control characters"),
+        (b'"A\tB"', "Control characters"),
+    ],
+)
+def test_ses_parser_refuses_unverified_quoted_token_conventions(
+    quoted_name: bytes,
+    message: str,
+) -> None:
+    payload = _simple_ses().replace(b'"VCC"', quoted_name, 1)
+
+    with pytest.raises(DocumentError, match=message) as caught:
+        parse_ses(payload)
+
+    assert caught.value.details["context"] == "quoted token"
+    assert isinstance(caught.value.details["character_offset"], int)
 
 
 def test_ses_parser_and_simple_route_conversion() -> None:

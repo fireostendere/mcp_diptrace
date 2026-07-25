@@ -536,18 +536,30 @@ class _SExprParser:
         self.index += 1
         result: list[str] = []
         while self.index < len(self.text):
+            character_offset = self.index
             char = self.text[self.index]
             self.index += 1
             if char == '"':
                 return _Token("".join(result), start)
             if char == "\\":
-                if self.index >= len(self.text):
-                    break
-                escaped = self.text[self.index]
-                self.index += 1
-                result.append({"n": "\n", "r": "\r", "t": "\t"}.get(escaped, escaped))
-            else:
-                result.append(char)
+                raise DocumentError(
+                    "Backslash escaping in Specctra quoted tokens is not verified "
+                    f"at character offset {character_offset}",
+                    details={
+                        "context": "quoted token",
+                        "character_offset": character_offset,
+                    },
+                )
+            if ord(char) < 0x20 or ord(char) == 0x7F:
+                raise DocumentError(
+                    "Control characters in Specctra quoted tokens are not supported "
+                    f"at character offset {character_offset}",
+                    details={
+                        "context": "quoted token",
+                        "character_offset": character_offset,
+                    },
+                )
+            result.append(char)
         raise DocumentError("Unclosed quoted string in Specctra file")
 
 
