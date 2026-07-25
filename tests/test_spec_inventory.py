@@ -106,6 +106,7 @@ class TestFormatCoverage:
         assert "Total elements in spec" in content
         assert "Normalized" in content
         assert "Written" in content
+        assert "Mentioned only" in content
         assert "Passthrough" in content
         assert "Coverage" in content
 
