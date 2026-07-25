@@ -1,0 +1,9 @@
+{
+  "diptrace_build": "REPLACE_WITH_BUILD_SHOWN_BY_DIPTRACE",
+  "diptrace_version": "REPLACE_WITH_VERSION_SHOWN_BY_DIPTRACE",
+  "notes": "Replace every placeholder before a real capture.",
+  "operating_system": "Windows 11 REPLACE_WITH_VERSION",
+  "operator_label": "REPLACE_WITH_NON_PERSONAL_LABEL",
+  "redistribution_basis": "",
+  "redistribution_permitted": false
+}

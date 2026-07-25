@@ -1,0 +1,43 @@
+{
+  "expected_source_type": "DipTrace-PCB",
+  "operator_checklist": [
+    {
+      "id": "requested_objects_visible",
+      "prompt": "Confirm every object named in required_features is present and visible in DipTrace before the source export.",
+      "required": true,
+      "stage": "source"
+    },
+    {
+      "id": "control_objects_visible",
+      "prompt": "Confirm the unchanged control objects are present in the same design.",
+      "required": true,
+      "stage": "source"
+    },
+    {
+      "id": "open_save_completed",
+      "prompt": "Open the captured source in DipTrace, save it under a new filename, and do not make an intentional design edit.",
+      "required": true,
+      "stage": "open_save"
+    },
+    {
+      "id": "fresh_reexport_completed",
+      "prompt": "Export fresh XML from the saved design under a third filename.",
+      "required": true,
+      "stage": "reexport"
+    },
+    {
+      "id": "unexpected_ui_change",
+      "prompt": "Record any unexpected visible change in the operator note.",
+      "required": false,
+      "stage": "reexport"
+    }
+  ],
+  "purpose": "Collect a source/open-save/re-export triple for one explicitly documented format question.",
+  "recipe_id": "pcb-format-question-template",
+  "required_features": [
+    "Replace this line with the exact object/setting combination under investigation.",
+    "Include at least one unchanged control object selected by the experiment author."
+  ],
+  "schema_version": "diptrace-capture-recipe-v1",
+  "title": "PCB format question evidence capture"
+}

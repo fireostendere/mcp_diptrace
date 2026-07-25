@@ -30,6 +30,10 @@ states no unit for `Component/@Angle`.
 and export XML without passing the file through MCP. Read the literal value. Approximately
 `1.5708` means radians; `90` means degrees.
 
+The repository provides a stricter two-component control/probe
+[operator capture recipe](evidence_capture/q1-component-angle.recipe.json). It records the literal
+values and UI observations without treating either convention as the expected answer.
+
 **Who can perform:** Human with a licensed DipTrace installation.
 
 ---
