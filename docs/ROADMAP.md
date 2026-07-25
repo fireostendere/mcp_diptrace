@@ -40,6 +40,29 @@ See [FORMAT_COVERAGE.md](FORMAT_COVERAGE.md) for the full element-by-element inv
 [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) for the current maintained set of high-impact unresolved
 compatibility questions.
 
+### Local reference-material audit (not shipped evidence)
+
+An operator-supplied, untracked directory of generated format notes and legacy Component/Pattern
+library binaries was reviewed in
+[REFERENCE_MATERIALS_AUDIT.md](REFERENCE_MATERIALS_AUDIT.md). It is not bundled, indexed by the
+runtime, counted as a fixture pack, or used by the specification generator. The generated notes
+lack a reproducible source revision and redistribution grant; the libraries lack an origin/version
+manifest and contain legacy binary data rather than XML. Consequently, the audit changes probe
+priorities and documentation wording, but supplies no production convention and closes no open
+question.
+
+The useful next gates are human/evidence work:
+
+1. verify source identity, author, license, and redistribution permission before reusing any local
+   document or binary;
+2. extend candidate capture with typed `input_artifacts` hashes so a private binary input can be
+   associated with its exported XML without copying the binary into Git;
+3. use licensed Component/Pattern Editors to export minimal sanitized examples, with one
+   intentional GUI change and unchanged controls per experiment;
+4. capture source/open-save/re-export roles, keeping screenshots supporting-only;
+5. independently review and explicitly allowlist a redistributable candidate before it can become
+   a CI fixture or change the structured inventory.
+
 Current practical classification:
 
 | Area | Status | Main remaining gap |

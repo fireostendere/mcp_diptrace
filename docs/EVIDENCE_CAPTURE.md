@@ -90,6 +90,30 @@ The [Q1 Component angle recipe](evidence_capture/q1-component-angle.recipe.json)
 experiment derived from `docs/OPEN_QUESTIONS.md`; it records the literal result and does not assume
 whether the value is radians or degrees.
 
+## Designing a controlled recipe
+
+For a before/after format experiment, make one intentional GUI change per probe. If two settings
+must change together, document why they cannot be isolated; otherwise split them into separate
+recipes. A broad “representative library” capture is useful for vocabulary discovery but cannot
+answer which setting caused a byte or semantic difference.
+
+Include unchanged controls in the same prepared design:
+
+- use two otherwise equivalent objects when one is the probe and one is the control;
+- record the source role before the intentional change;
+- leave the control object's relevant settings untouched through open/save/re-export;
+- state the single intended difference in the recipe and record every additional observed
+  difference as a discrepancy, not as part of the expected result.
+
+Screenshots may support the operator's report of the selected object, dialog, field value, warning,
+or application build. They are never the authoritative format artifact: XML role copies, hashes,
+the recipe snapshot, and explicit attestations remain the machine-reviewable candidate evidence.
+A screenshot must not be used to fill a missing XML role, infer an undocumented unit, or upgrade
+the candidate's trust level.
+
+If the GUI cannot reproduce the prepared state or isolate the intended change, stop the session
+with a review blocker. Do not repair the exported bytes by hand.
+
 ## Storage and trust boundary
 
 Given `--root C:\capture-work` (or the corresponding WSL path), the script creates:
