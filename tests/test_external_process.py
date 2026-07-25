@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ctypes
 import os
 import signal
 import subprocess
@@ -113,6 +114,36 @@ def _cleanup_processes(pids: list[int]) -> None:
                 os.kill(pid, signal.SIGKILL)
 
 
+def _is_live_windows_process(pid: int) -> bool:
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    open_process = kernel32.OpenProcess
+    open_process.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
+    open_process.restype = ctypes.c_void_p
+    get_exit_code = kernel32.GetExitCodeProcess
+    get_exit_code.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong)]
+    get_exit_code.restype = ctypes.c_int
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = [ctypes.c_void_p]
+    close_handle.restype = ctypes.c_int
+    handle = open_process(0x1000, False, pid)
+    if not handle:
+        return False
+    try:
+        exit_code = ctypes.c_ulong()
+        if not get_exit_code(handle, ctypes.byref(exit_code)):
+            return True
+        return exit_code.value == 259
+    finally:
+        close_handle(handle)
+
+
+def _assert_windows_process_stopped(pid: int, timeout: float = 3.0) -> None:
+    deadline = time.monotonic() + timeout
+    while _is_live_windows_process(pid) and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert not _is_live_windows_process(pid), f"process {pid} remained alive"
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX process-group and waitpid assertion")
 def test_timeout_kills_child_and_grandchild_and_reaps_root(tmp_path: Path) -> None:
     runner = _runner()
@@ -177,6 +208,39 @@ def test_cancellation_kills_child_and_grandchild(tmp_path: Path) -> None:
         cancel.set()
         worker.join(timeout=2)
         _cleanup_processes(tree_pids)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows Job Object assertion")
+def test_windows_normal_root_exit_kills_inherited_output_child(tmp_path: Path) -> None:
+    runner = _runner()
+    child_pid_path = tmp_path / "windows-child.pid"
+    child_code = "import time; time.sleep(60)"
+    root_code = f"""\
+import subprocess
+import sys
+from pathlib import Path
+
+child = subprocess.Popen([{sys.executable!r}, "-c", {child_code!r}])
+Path({str(child_pid_path)!r}).write_text(str(child.pid), encoding="ascii")
+print("root-complete", flush=True)
+"""
+    started = time.monotonic()
+    result = _run_command(
+        runner,
+        tmp_path,
+        [sys.executable, "-c", root_code],
+    )
+    elapsed = time.monotonic() - started
+    _wait_for_path(child_pid_path)
+    child_pid = int(child_pid_path.read_text(encoding="ascii"))
+    try:
+        assert result.return_code == 0
+        assert result.log_bytes.splitlines() == [b"root-complete"]
+        assert elapsed < 5
+        _assert_windows_process_stopped(child_pid)
+    finally:
+        if _is_live_windows_process(child_pid):
+            os.kill(child_pid, signal.SIGTERM)
 
 
 def test_high_output_is_drained_to_bounded_tail_during_execution(tmp_path: Path) -> None:
@@ -306,21 +370,52 @@ def test_output_reader_start_failure_is_typed_and_releases_slot(
     recovered.release()
 
 
-def test_windows_process_creation_and_tree_kill_are_explicit(
+def test_windows_process_is_suspended_assigned_then_resumed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     popen_calls: list[dict[str, object]] = []
-    run_calls: list[tuple[list[str], dict[str, object]]] = []
-    sentinel = object()
+    events: list[object] = []
 
-    def fake_popen(_command: list[str], **kwargs: object) -> object:
+    class FakeStdout:
+        def close(self) -> None:
+            events.append("stdout-close")
+
+    class FakeProcess:
+        pid = 1234
+        stdout = FakeStdout()
+
+        def poll(self) -> int | None:
+            return None
+
+        def kill(self) -> None:
+            events.append("kill")
+
+        def wait(self) -> int:
+            events.append("wait")
+            return 1
+
+    process = FakeProcess()
+
+    class FakeJob:
+        @classmethod
+        def create(cls) -> FakeJob:
+            events.append("create-job")
+            return cls()
+
+        def assign(self, pid: int) -> None:
+            events.append(("assign", pid))
+
+        def terminate_and_close(self) -> None:
+            events.append("close-job")
+
+    def fake_popen(_command: list[str], **kwargs: object) -> FakeProcess:
         popen_calls.append(kwargs)
-        return sentinel
+        events.append("popen")
+        return process
 
-    def fake_run(command: list[str], **kwargs: object) -> object:
-        run_calls.append((command, kwargs))
-        return object()
+    def fake_resume(pid: int) -> None:
+        events.append(("resume", pid))
 
     monkeypatch.setattr(external_process_module.os, "name", "nt")
     monkeypatch.setattr(
@@ -329,21 +424,124 @@ def test_windows_process_creation_and_tree_kill_are_explicit(
         512,
         raising=False,
     )
+    monkeypatch.setattr(
+        external_process_module.subprocess,
+        "CREATE_SUSPENDED",
+        4,
+        raising=False,
+    )
+    monkeypatch.setattr(external_process_module, "KillOnCloseJob", FakeJob)
+    monkeypatch.setattr(external_process_module, "resume_suspended_process", fake_resume)
     monkeypatch.setattr(external_process_module.subprocess, "Popen", fake_popen)
-    monkeypatch.setattr(external_process_module.subprocess, "run", fake_run)
 
-    process = external_process_module._start_process(
+    started_process = external_process_module._start_process(
         ["solver.exe"],
         cwd=tmp_path,
         env={"PATH": "C:\\Windows"},
     )
-    external_process_module._taskkill_process_tree(1234)
+    external_process_module._close_windows_job(started_process)
 
-    assert process is sentinel
-    assert popen_calls[0]["creationflags"] == 512
+    assert started_process is process
+    assert popen_calls[0]["creationflags"] == 516
     assert popen_calls[0]["shell"] is False
-    assert run_calls[0][0] == ["taskkill.exe", "/PID", "1234", "/T", "/F"]
-    assert run_calls[0][1]["shell"] is False
+    assert events == [
+        "create-job",
+        "popen",
+        ("assign", 1234),
+        ("resume", 1234),
+        "close-job",
+    ]
+
+
+def test_windows_assignment_failure_kills_suspended_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+
+    class FakeStdout:
+        def close(self) -> None:
+            events.append("stdout-close")
+
+    class FakeProcess:
+        pid = 4321
+        stdout = FakeStdout()
+        killed = False
+
+        def poll(self) -> int | None:
+            return 1 if self.killed else None
+
+        def kill(self) -> None:
+            self.killed = True
+            events.append("kill-root")
+
+        def wait(self) -> int:
+            events.append("wait-root")
+            return 1
+
+    class FailingJob:
+        @classmethod
+        def create(cls) -> FailingJob:
+            events.append("create-job")
+            return cls()
+
+        def assign(self, _pid: int) -> None:
+            events.append("assign-failed")
+            raise OSError("simulated assignment failure")
+
+        def terminate_and_close(self) -> None:
+            events.append("close-job")
+
+    monkeypatch.setattr(external_process_module.os, "name", "nt")
+    monkeypatch.setattr(external_process_module, "KillOnCloseJob", FailingJob)
+    monkeypatch.setattr(
+        external_process_module.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: FakeProcess(),
+    )
+
+    with pytest.raises(OSError, match="simulated assignment failure"):
+        external_process_module._start_process(
+            ["solver.exe"],
+            cwd=tmp_path,
+            env={"PATH": "C:\\Windows"},
+        )
+
+    assert events == [
+        "create-job",
+        "assign-failed",
+        "close-job",
+        "kill-root",
+        "wait-root",
+        "stdout-close",
+    ]
+
+
+def test_process_start_failure_is_typed_and_releases_slot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _runner()
+
+    def fail_start(
+        _command: list[str],
+        *,
+        cwd: Path,
+        env: dict[str, str],
+    ) -> subprocess.Popen[bytes]:
+        del cwd, env
+        raise OSError("simulated Windows Job Object setup failure")
+
+    monkeypatch.setattr(external_process_module, "_start_process", fail_start)
+
+    with pytest.raises(
+        ExternalToolFailedError,
+        match="Could not start external process.*Job Object setup failure",
+    ) as exc_info:
+        _run_command(runner, tmp_path, ["solver.exe"])
+
+    assert exc_info.value.payload.code == "external_tool_failed"
+    assert runner.active_slots == 0
 
 
 def test_configured_process_cap_is_reported(

@@ -16,9 +16,12 @@ from .errors import (
     JobCancelledError,
     JobTimeoutError,
 )
+from .windows_job import KillOnCloseJob, resume_suspended_process
 from .xml_document import atomic_write_bytes
 
 _LOG_TRUNCATION_MARKER = b"[log truncated to bounded tail]\n"
+_WINDOWS_JOBS: dict[subprocess.Popen[bytes], KillOnCloseJob] = {}
+_WINDOWS_JOBS_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,7 +155,13 @@ class ExternalProcessRunner:
             atomic_write_bytes(log_path, b"")
             if cancel.is_set():
                 raise JobCancelledError(cancellation_message, jobid=jobid)
-            process = _start_process(command, cwd=cwd, env=env)
+            try:
+                process = _start_process(command, cwd=cwd, env=env)
+            except (OSError, ValueError) as exc:
+                raise ExternalToolFailedError(
+                    f"Could not start external process: {exc}",
+                    jobid=jobid,
+                ) from exc
             if process.stdout is None:
                 raise ExternalToolFailedError(
                     "External process did not expose its output pipe",
@@ -212,6 +221,8 @@ class ExternalProcessRunner:
                 if process is not None:
                     if process.poll() is None:
                         self._terminate_process_tree(process)
+                    elif os.name == "nt":
+                        _close_windows_job(process)
                     process.wait()
                     self._finish_reader(process, reader)
             finally:
@@ -230,7 +241,7 @@ class ExternalProcessRunner:
         reader.join(timeout=self.termination_grace_seconds)
         if reader.is_alive():
             # A descendant can inherit stdout and outlive a root process that
-            # exited normally. Tear down that process group before closing the
+            # exited normally. Tear down the process tree before closing the
             # local pipe so the drain thread cannot keep the job alive.
             self._signal_process_tree(process, force=True)
             reader.join(timeout=self.termination_grace_seconds)
@@ -240,7 +251,7 @@ class ExternalProcessRunner:
 
     def _terminate_process_tree(self, process: subprocess.Popen[bytes]) -> None:
         if os.name == "nt":
-            _taskkill_process_tree(process.pid)
+            _close_windows_job(process)
             if process.poll() is None:
                 process.kill()
             process.wait()
@@ -257,14 +268,16 @@ class ExternalProcessRunner:
 
     def _stop_remaining_descendants(self, process: subprocess.Popen[bytes]) -> None:
         if os.name == "nt":
-            _taskkill_process_tree(process.pid)
+            _close_windows_job(process)
         else:
             self._signal_process_tree(process, force=True)
 
     @staticmethod
     def _signal_process_tree(process: subprocess.Popen[bytes], *, force: bool) -> None:
         if os.name == "nt":
-            _taskkill_process_tree(process.pid)
+            _close_windows_job(process)
+            if process.poll() is None:
+                process.kill()
             return
         process_signal = signal.SIGKILL if force else signal.SIGTERM
         try:
@@ -284,16 +297,34 @@ def _start_process(
 ) -> subprocess.Popen[bytes]:
     if os.name == "nt":
         creation_flag = int(getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
-        return subprocess.Popen(
-            list(command),
-            cwd=cwd,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            shell=False,
-            env=dict(env),
-            creationflags=creation_flag,
-        )
+        suspended_flag = int(getattr(subprocess, "CREATE_SUSPENDED", 0x00000004))
+        job = KillOnCloseJob.create()
+        process: subprocess.Popen[bytes] | None = None
+        try:
+            process = subprocess.Popen(
+                list(command),
+                cwd=cwd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                shell=False,
+                env=dict(env),
+                creationflags=creation_flag | suspended_flag,
+            )
+            job.assign(process.pid)
+            resume_suspended_process(process.pid)
+        except BaseException:
+            job.terminate_and_close()
+            if process is not None:
+                if process.poll() is None:
+                    process.kill()
+                process.wait()
+                if process.stdout is not None:
+                    process.stdout.close()
+            raise
+        with _WINDOWS_JOBS_LOCK:
+            _WINDOWS_JOBS[process] = job
+        return process
     return subprocess.Popen(
         list(command),
         cwd=cwd,
@@ -306,19 +337,11 @@ def _start_process(
     )
 
 
-def _taskkill_process_tree(pid: int) -> None:
-    try:
-        subprocess.run(
-            ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            shell=False,
-            check=False,
-            timeout=5,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return
+def _close_windows_job(process: subprocess.Popen[bytes]) -> None:
+    with _WINDOWS_JOBS_LOCK:
+        job = _WINDOWS_JOBS.pop(process, None)
+    if job is not None:
+        job.terminate_and_close()
 
 
 def _drain_output(

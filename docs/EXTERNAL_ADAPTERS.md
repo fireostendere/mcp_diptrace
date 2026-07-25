@@ -7,10 +7,12 @@ a discovered Java runtime or an explicit `DIPTRACE_MCP_JAVA` path. The capabilit
 checks the file and execution mode. Jobs use a fixed argument vector, `shell=false`, a
 sanitized environment, an isolated job directory, a timeout, cancellation, and output
 that is drained continuously into a bounded tail. POSIX jobs run in a new session so
-timeout and cancellation terminate the complete process group; Windows uses a new
-process group and `taskkill /T /F` when available. Every stopped root process is waited
-and reaped. Cancellation is terminal: a process exit racing the worker loop cannot
-overwrite `cancelled` with `failed`. DSN and SES artifacts are tied to the source SHA.
+timeout and cancellation terminate the complete process group. On Windows, each root is
+created suspended, assigned to a Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`,
+and resumed only after assignment; closing the owned job handle terminates descendants
+even when the root already exited normally. Every stopped root process is waited and
+reaped. Cancellation is terminal: a process exit racing the worker loop cannot overwrite
+`cancelled` with `failed`. DSN and SES artifacts are tied to the source SHA.
 
 ## Solver Adapters
 
