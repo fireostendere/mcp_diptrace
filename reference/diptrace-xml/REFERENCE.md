@@ -1,7 +1,9 @@
 # DipTrace XML Implementation Reference
 
-This is the coding-agent summary of the machine-readable rules in
-`../../src/diptrace_mcp/data/serializer_reference.json`.
+This is a coding-agent guide to the extracted public
+[specification inventory](spec_inventory.json) and measured
+[format coverage](../../docs/FORMAT_COVERAGE.md). Missing or unknown entries remain unknown; this
+guide does not supply facts that the cited specifications do not state.
 
 ## Exchange lifecycle
 
@@ -19,7 +21,9 @@ when present. `Enabled="N"` is an import delete flag on objects that support it.
 
 - Root `Units`: `mm`, `inch`, `mil`.
 - Canonical decimal separator: dot.
-- Ordinary `Angle`: radians CCW.
+- `Shape/@Angle` for text and pictures: radians CCW.
+- `Component/@Angle`: assumed to be radians by the current code, but unverified; see
+  [OPEN_QUESTIONS.md Q1](../../docs/OPEN_QUESTIONS.md#q1-is-componentangle-in-radians-or-degrees).
 - Discrete `Orientation`: `0`, `90`, `180`, `270` where documented.
 - `Model3D/Rotate`: degrees.
 - Preserve unknown XML and existing IDs.
@@ -42,7 +46,7 @@ A fiducial is special:
 `MainStack/Height` is omitted; `Width` is copper diameter. `PadStyle/Hole` means fiducial keepout
 diameter rather than drill geometry.
 
-MainStack shapes documented by the supplied serializer reference are `Ellipse`, `Obround`,
+The public specification inventory records these MainStack shapes: `Ellipse`, `Obround`,
 `Rectangle`, `Polygon`, `D-shape`, and `Fiducial`.
 
 Mask modes: `Common`, `Open`, `Tented`, `By Paste`. Paste modes: `Common`, `Solder`, `No Solder`,

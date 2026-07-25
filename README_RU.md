@@ -32,7 +32,6 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 - move/rotate/side/lock/property/pattern/alignment/distribution/group operations для компонентов и частей;
 - board-text edits, документированные NetClass rules и standalone-pad test points;
 - чтение и validation Component/Pattern Libraries, включая pin-to-pad checks;
-- machine-readable serializer reference с XML enums, defaults, aliases и import semantics, извлечёнными из документации; reference ограничивает parser/writer поведение, но сам по себе не создаёт DipTrace round-trip trust;
 - registry-based offline DRC/ERC review с persistent structured findings;
 - deterministic silkscreen planner и bounded local placement planner;
 - explicit trace/via operations, bounded multi-layer 45-degree A* и symmetric via insertion;
@@ -68,7 +67,7 @@ Synthetic 4.3 fixtures покрывают PCB, schematic, Component Library, Pat
 - сохранение всех 41 координат и неизменность нормализованных количеств sheet/part/pin/net/bus/differential-pair;
 - отсутствие новых offline ERC errors после round trip.
 
-Это сильное доказательство для проверенных путей, но не обещание полной совместимости со всеми версиями DipTrace и всеми XML objects. Serializer reference дополнительно ограничивает parser behavior, но не заменяет реальные DipTrace open/save/re-export fixtures.
+Это сильное доказательство для проверенных путей, но не обещание полной совместимости со всеми версиями DipTrace и всеми XML objects.
 
 ## Архитектура
 
@@ -193,7 +192,6 @@ XML с `DOCTYPE` или `ENTITY` отклоняется. Доступ к фай�
 - **Synthetic MCP-generated**: XML из `create_schematic_document`/`create_pcb_document` имеет `synthetic_parser_only`, пока нет более сильного независимо проверенного evidence.
 - **Seed-based**: `create_document_from_seed` копирует реальный DipTrace export и сохраняет provenance, но копирование само по себе не создаёт round-trip authority.
 - **Recorded evidence**: `record_roundtrip_evidence` связывает before/after files, точные paths, source type, SHA-256 и semantic comparison. User-supplied evidence полезен для audit/regression, но не является trusted root.
-- **Serializer reference**: bundled rule set фиксирует и нормализует правила из XML documentation. Он ограничивает parser/writer implementation и tests, но не влияет на trust level.
 - **High trust**: повышение до `diptrace_roundtrip_verified`/`external_tool_roundtrip_verified` недоступно до появления authenticated server-owned registry, signature verifier или committed allowlist.
 
 Trust invalidation после MCP write реализован для основных проверенных путей, но capability layer намеренно **не заявляет полное покрытие всех write paths**. Отдельно остаются неполностью закрытыми `plan_apply`, `ses_import`, `schematic_to_pcb_sync` и `live_session_apply`; их полное fail-closed trust invalidation входит в ближайший roadmap. Поэтому `get_capabilities` имеет приоритет над более общими описаниями документации.

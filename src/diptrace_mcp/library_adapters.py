@@ -509,9 +509,8 @@ def get_library_model(document: DipTraceDocument) -> LibraryModel:
         patterns=patterns,
         pad_styles=styles,
         warnings=[
-            "Parser coverage for newer library fields is constrained by the bundled "
-            "serializer-derived reference; unknown fields are preserved and real DipTrace "
-            "round-trip verification is still required."
+            "Parser coverage for newer library fields is incomplete; unknown fields are "
+            "preserved and real DipTrace round-trip verification is still required."
         ]
         if document.version and not document.version.startswith("4.3")
         else [],
