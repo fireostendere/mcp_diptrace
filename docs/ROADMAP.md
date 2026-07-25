@@ -23,10 +23,11 @@ The official DipTrace XML specifications (PCB and Schematic, v4.3.0.3, 2023) def
 | Metric | Value |
 | --- | --- |
 | Total elements in spec | 294 |
-| Normalized (reader produces typed field) | 48 |
-| Written (writer can create/modify) | 66 |
-| Passthrough (unknown XML, kept byte-for-byte) | 180 |
-| **Coverage** | **38.8%** |
+| Normalized (reader produces typed field) | 61 |
+| Written only (writer can create/modify) | 22 |
+| Mentioned only (literal, not an XML call) | 20 |
+| Passthrough (unknown XML, kept byte-for-byte) | 191 |
+| **Coverage** | **28.2%** |
 
 See [FORMAT_COVERAGE.md](FORMAT_COVERAGE.md) for the full element-by-element inventory, and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) for facts the specification does not settle.
 

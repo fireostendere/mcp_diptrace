@@ -5,89 +5,34 @@
 | Metric | Value |
 | --- | --- |
 | Total elements in spec | 294 |
-| Normalized (reader produces typed field) | 48 |
-| Written (writer can create/modify) | 66 |
-| Passthrough (unknown XML, kept byte-for-byte) | 180 |
-| **Coverage** | **38.8%** |
+| Normalized (reader produces typed field) | 61 |
+| Written only (writer can create/modify) | 22 |
+| Mentioned only (literal, not an XML call) | 20 |
+| Passthrough (unknown XML, kept byte-for-byte) | 191 |
+| **Coverage** | **28.2%** |
 
 ## Normalized Elements
 
-- `Assy`
-- `BoardClearance`
-- `BotSegments`
-- `Courtyard`
-- `DatasheetMarking`
-- `GNDTemplate`
-- `Id`
-- `Item`
-- `Lay`
-- `LayerName`
-- `LayerStackItems`
-- `LayerStackName`
-- `Library`
-- `LineWidth`
-- `ManufacturerMarking`
-- `Name`
-- `NameMarking`
-- `NegTrace`
-- `NetClass`
-- `Pad`
-- `PadId`
-- `Pads`
-- `Part`
-- `PartName`
-- `PartRefDes`
-- `PatternMarking`
-- `Pin`
-- `Pins`
-- `Point`
-- `Polygon`
-- `PosTrace`
-- `RefDes`
-- `RefDesMarking`
-- `Segments`
-- `Shape`
-- `Sheet`
-- `Silk`
-- `Size`
-- `Text`
-- `TopSegments`
-- `TraceWidth`
-- `Type`
-- `VCCTemplate`
-- `Value`
-- `ValueMarking`
-- `ViaStyle`
-- `X`
-- `Y`
-
-## Written Elements
-
-- `ActiveSheet`
 - `AddField`
 - `AddFields`
-- `Board`
 - `BoardOutline`
 - `Bus`
 - `Buses`
 - `CenterPoint`
 - `CenterPoints`
-- `Columns`
+- `ClearanceDetails`
 - `Component`
 - `Components`
 - `ConnectivityCheck`
 - `CopperLayers`
+- `CopperPour`
 - `CopperPours`
 - `DRC`
+- `DifferentialPair`
 - `DifferentialPairs`
 - `ERC`
-- `FontScale`
-- `FontSize`
-- `FontVector`
-- `FontWidth`
-- `Group`
-- `Groups`
-- `HorzTabsX`
+- `Item`
+- `Lay`
 - `LayClearance`
 - `LayClearances`
 - `LayProperties`
@@ -95,40 +40,88 @@
 - `LaySize`
 - `LaySizes`
 - `LayerStackItem`
+- `LayerStackItems`
+- `Library`
+- `MaskPaste`
 - `Material`
-- `NegPoint`
-- `NegPoints`
 - `Net`
+- `NetClass`
 - `NetClasses`
 - `Nets`
-- `Origin`
-- `Panel`
+- `Pad`
+- `PadPoint`
+- `PadPoints`
+- `Pads`
+- `Part`
+- `Pin`
+- `Pins`
+- `Point`
 - `Points`
-- `PosPoint`
-- `PosPoints`
 - `Ratline`
 - `Ratlines`
 - `Routing`
-- `Schematic`
 - `Segment`
+- `Segments`
 - `Settings`
+- `Shape`
 - `Shapes`
+- `Sheet`
 - `SheetSettings`
 - `Sheets`
-- `Show`
-- `Signal`
-- `Source`
-- `TextLine`
-- `TextLines`
 - `Trace`
-- `TraceClearance`
 - `Traces`
-- `VertTabsY`
-- `ViaHole`
-- `ViaSize`
+- `ViaStyle`
 - `ViaStyles`
 - `Wire`
 - `Wires`
+
+## Written-Only Elements
+
+- `ActiveSheet`
+- `Board`
+- `GNDTemplate`
+- `Group`
+- `Groups`
+- `Id`
+- `LayerName`
+- `LayerStackName`
+- `Name`
+- `Origin`
+- `Panel`
+- `PartName`
+- `PartRefDes`
+- `RefDes`
+- `Schematic`
+- `Source`
+- `Text`
+- `TextLine`
+- `TextLines`
+- `Type`
+- `VCCTemplate`
+- `Value`
+
+## Mentioned-Only Elements
+
+- `Assy`
+- `BotSegments`
+- `Columns`
+- `Courtyard`
+- `DatasheetMarking`
+- `HorzTabsX`
+- `ManufacturerMarking`
+- `NameMarking`
+- `NegPoint`
+- `NegPoints`
+- `PatternMarking`
+- `Polygon`
+- `PosPoint`
+- `PosPoints`
+- `RefDesMarking`
+- `Signal`
+- `Silk`
+- `TopSegments`
+- `ValueMarking`
+- `VertTabsY`
 
 ## Passthrough Elements
 
@@ -144,6 +137,7 @@
 - `AxisColor`
 - `BlindLay`
 - `BlockId`
+- `BoardClearance`
 - `Border`
 - `BorderZones`
 - `BottomComponentLock`
@@ -160,7 +154,6 @@
 - `Cell`
 - `Cells`
 - `ClassToClass`
-- `ClearanceDetails`
 - `ColWidths`
 - `Column`
 - `ColumnWidths`
@@ -168,7 +161,6 @@
 - `CompOutline`
 - `CompRotate`
 - `ConnectedTeardrops`
-- `CopperPour`
 - `CustomSpoke`
 - `CustomSpokes`
 - `DCTransferFunc`
@@ -177,7 +169,6 @@
 - `DesignCache`
 - `DesignError`
 - `DesignErrors`
-- `DifferentialPair`
 - `Dimension`
 - `Dimensions`
 - `DisplayName`
@@ -195,6 +186,10 @@
 - `FontColor`
 - `FontLineWidth`
 - `FontName`
+- `FontScale`
+- `FontSize`
+- `FontVector`
+- `FontWidth`
 - `GndNetName`
 - `Grid`
 - `HSheet`
@@ -218,21 +213,21 @@
 - `Lib`
 - `LibPath`
 - `Libs`
+- `LineWidth`
 - `LockNetStructure`
 - `MainLengthRule`
 - `ManufacturerGlobal`
 - `Markings`
-- `MaskPaste`
 - `NameGlobal`
 - `NegSeparateTraces`
+- `NegTrace`
 - `NodeSize`
 - `Noise`
 - `NonSignal`
 - `NonSignals`
 - `NumberOfPoints`
 - `OutputNet`
-- `PadPoint`
-- `PadPoints`
+- `PadId`
 - `PasteMaskShrink`
 - `Path`
 - `PatternGlobal`
@@ -243,6 +238,7 @@
 - `PointsPerSummary`
 - `Polygons`
 - `PosSeparateTraces`
+- `PosTrace`
 - `Position`
 - `ProjectDir`
 - `ProjectLibs`
@@ -267,11 +263,13 @@
 - `Separator`
 - `SheetHeight`
 - `SheetWidth`
+- `Show`
 - `ShowCompFiducials`
 - `ShowList`
 - `SignalDelayLength`
 - `Signals`
 - `Simulator`
+- `Size`
 - `SmallSignalAC`
 - `Snap`
 - `SolderMaskSwell`
@@ -298,6 +296,8 @@
 - `TopLeftBlock`
 - `TopMargin`
 - `TopRightBlock`
+- `TraceClearance`
+- `TraceWidth`
 - `Transient`
 - `UId`
 - `UpdateIds`
@@ -307,23 +307,34 @@
 - `Variation`
 - `VertBorderSize`
 - `VertZones`
+- `ViaHole`
+- `ViaSize`
 - `Visible`
+- `X`
 - `XPos`
+- `Y`
 - `YIdentical`
 - `YPos`
 - `YSize`
 
 ## What Passthrough Means
 
-Passthrough elements survive byte-for-byte **only** while no operation regenerates
-their parent subtree. The following operations regenerate whole subtrees and will
-destroy any passthrough data within them:
+Passthrough elements survive byte-for-byte **only** while no operation removes or
+regenerates their parent subtree. The list below is derived from writer call sites
+that iterate existing children and remove them. A value of `none` means no child
+currently classified as passthrough was named by the inventory or removal path; it
+does not make undocumented children safe.
 
-- `routing_compiler.py` `_write_points` — regenerates trace point lists
-- Ratlines rewrite — regenerates the entire `<Ratlines>` section
-- Copper pour refill (if implemented) — regenerates `<CopperPour>` content
+- `routing_compiler.py::_prune_satisfied_ratlines` may remove `<Ratline>` from `<Ratlines>`; known passthrough children: none.
+- `routing_compiler.py::_write_points` clears all children of `<Points>` (inventory children: `<Item>`, `<Point>`); known passthrough children: none.
+- `semantic_compiler.py::_apply_remove_testpoints` may remove `<PadStyle>` from `<PadStyles>`; known passthrough children: none.
+- `semantic_compiler.py::_apply_remove_testpoints` may remove `<Item>` from `<Pads>`; known passthrough children: none.
+- `semantic_compiler.py::_apply_remove_testpoints` may remove `<Pattern>` from `<Patterns>`; known passthrough children: none.
+- `semantic_compiler.py::_apply_sync_schematic_to_pcb` may remove `<Item>` from `<Pads>`; known passthrough children: none.
+- `semantic_compiler.py::_apply_sync_schematic_to_pcb` may remove `<Ratline>` from `<Ratlines>`; known passthrough children: none.
+- `semantic_compiler.py::_apply_ungroup_components` may remove `<Group>` from `<Groups>`; known passthrough children: none.
 
-Any edit to a passthrough element's parent container that triggers a full rewrite
-will silently lose the passthrough data. This is the expected behaviour: the tool
-only preserves what it understands.
+Any operation listed above can discard matching passthrough children rather than
+preserve their original bytes. Unlisted dynamic removal sites remain unavailable
+to this static detector and must not be assumed safe.
 
