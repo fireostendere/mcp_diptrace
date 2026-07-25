@@ -49,6 +49,8 @@ class Finding(StrictModel):
     delta: float | None = None
     units: str | None = None
     rule_source: str | None = None
+    pour_geometry: Literal["boundary_only"] | None = None
+    geometry_accuracy: Literal["exact", "approximate"] | None = None
     suggested_actions: list[str] = Field(default_factory=list)
     preview_uri: str | None = None
     suppressed: bool = False
@@ -103,14 +105,14 @@ def make_finding(
     required: float | None = None,
     units: str | None = None,
     rule_source: str | None = None,
+    pour_geometry: Literal["boundary_only"] | None = None,
+    geometry_accuracy: Literal["exact", "approximate"] | None = None,
     suggested_actions: list[str] | None = None,
 ) -> Finding:
     objects = sorted(object_ids or [])
     nets = sorted(net_ids or [])
     location_key = json.dumps(location or bbox or {}, sort_keys=True)
-    finding_id = deterministic_id(
-        "finding", check_id, *objects, *nets, layer or "", location_key
-    )
+    finding_id = deterministic_id("finding", check_id, *objects, *nets, layer or "", location_key)
     delta = measured - required if measured is not None and required is not None else None
     return Finding(
         finding_id=finding_id,
@@ -130,6 +132,8 @@ def make_finding(
         delta=delta,
         units=units,
         rule_source=rule_source,
+        pour_geometry=pour_geometry,
+        geometry_accuracy=geometry_accuracy,
         suggested_actions=list(suggested_actions or []),
     )
 
@@ -191,9 +195,9 @@ class FindingStore:
 
     def store(self, report: ReviewReport) -> None:
         self._require_safe_root()
-        payload = json.dumps(
-            report.model_dump(mode="json"), ensure_ascii=False, indent=2
-        ).encode("utf-8")
+        payload = json.dumps(report.model_dump(mode="json"), ensure_ascii=False, indent=2).encode(
+            "utf-8"
+        )
         atomic_write_bytes(self.report_path(report.report_id), payload)
 
     def read(self, report_id: str) -> ReviewReport:
@@ -207,9 +211,7 @@ class FindingStore:
         except InvalidRecordId:
             raise ObjectNotFoundError("Invalid report id") from None
         except FileNotFoundError as exc:
-            raise ObjectNotFoundError(
-                f"Review report was not found: {report_id}"
-            ) from exc
+            raise ObjectNotFoundError(f"Review report was not found: {report_id}") from exc
         except InvalidRecordPath as exc:
             raise ObjectNotFoundError(
                 "Review report path is redirected or outside its store"
@@ -217,9 +219,7 @@ class FindingStore:
         except (OSError, ValueError) as exc:
             raise ObjectNotFoundError("Review report state is corrupt") from exc
         if report.report_id != report_id:
-            raise ObjectNotFoundError(
-                "Review report id does not match the requested report"
-            )
+            raise ObjectNotFoundError("Review report id does not match the requested report")
         return report
 
     def get_finding(self, finding_id: str) -> Finding:

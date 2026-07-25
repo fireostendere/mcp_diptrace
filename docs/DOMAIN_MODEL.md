@@ -42,7 +42,10 @@ unknown sections are preserved.
 ## Limitations
 
 - A bounding box may be an estimate when the XML does not contain body or courtyard geometry.
-- A copper pour contains its boundary, not the final refilled copper geometry.
+- A copper pour contains a normalized polygon for its exported boundary, layer, and net
+  identity, not the final refilled copper geometry. Clearance and routing consumers must
+  disclose `boundary_only`; GEOS polygon distance is exact only with respect to that
+  boundary, while the no-Shapely fallback is a conservative AABB approximation.
 - Cross-document pin-to-pad mapping uses explicitly documented assumptions.
 - `via_count` is the number of normalized physical vias on a net, while
   `layer_transition_count` counts only routed layer changes; standalone static vias

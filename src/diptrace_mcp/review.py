@@ -35,9 +35,7 @@ class CheckRegistry:
         def decorator(function: CheckFunction) -> CheckFunction:
             if check_id in self._checks:
                 raise ValueError(f"Duplicate review check: {check_id}")
-            self._checks[check_id] = RegisteredCheck(
-                check_id, category, source_kind, function
-            )
+            self._checks[check_id] = RegisteredCheck(check_id, category, source_kind, function)
             return function
 
         return decorator
@@ -220,9 +218,7 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
         for segment_index, (start, end) in enumerate(zip(points, points[1:], strict=False)):
             width = widths[segment_index] if segment_index < len(widths) else 0.0
             layer = str(layers[segment_index]) if segment_index < len(layers) else trace.layer or ""
-            digest = hashlib.sha256(
-                f"{trace.stable_id}:{segment_index}".encode()
-            ).hexdigest()[:16]
+            digest = hashlib.sha256(f"{trace.stable_id}:{segment_index}".encode()).hexdigest()[:16]
             segment_id = f"trace-segment_{digest}"
             box = BBox.from_points([start, end]).expand(width / 2.0 + maximum_clearance)
             segment_records.append(
@@ -293,20 +289,25 @@ def check_trace_object_clearance(
     rules = {
         element.get("Lay", ""): {
             key: xml_number_mm(snapshot.document, element, key)
-            for key in ("TraceToPad", "TraceToVia")
+            for key in ("TraceToPad", "TraceToVia", "TraceToCopper")
             if element.get(key) is not None
         }
         for element in snapshot.document.container.findall("./DRC/LayClearances/LayClearance")
     }
     maximum = max(
-        (value for layer in rules.values() for value in layer.values()), default=0.0
+        (value for layer in rules.values() for value in layer.values()),
+        default=0.0,
     )
     if maximum <= 0.0:
-        return [], {"skipped": "trace_to_pad_via_rules_unavailable"}
+        return [], {"skipped": "trace_to_copper_rules_unavailable"}
     obstacles = [
         item
-        for item in [*snapshot.board.pads, *snapshot.board.vias]
-        if item.bbox is not None and item.geometry is not None
+        for item in [
+            *snapshot.board.pads,
+            *snapshot.board.vias,
+            *snapshot.board.copper_pours,
+        ]
+        if item.bbox is not None and (item.geometry is not None or item.kind == "copper_pour")
     ]
     index_records = [
         item.model_copy(update={"bbox": BBox(**item.bbox).expand(maximum).as_dict()})
@@ -317,6 +318,8 @@ def check_trace_object_clearance(
     findings: list[Finding] = []
     candidates = 0
     skipped_geometry = 0
+    pour_candidates = 0
+    pour_boundary_count = len(snapshot.board.copper_pours)
     for trace in snapshot.board.traces:
         points = [Point(**item) for item in trace.attributes.get("points", [])]
         widths = [float(item) for item in trace.attributes.get("segment_widths_mm", [])]
@@ -324,9 +327,7 @@ def check_trace_object_clearance(
         for segment_index, (start, end) in enumerate(zip(points, points[1:], strict=False)):
             width = widths[segment_index] if segment_index < len(widths) else 0.0
             layer_id = (
-                str(layers[segment_index])
-                if segment_index < len(layers)
-                else trace.layer or ""
+                str(layers[segment_index]) if segment_index < len(layers) else trace.layer or ""
             )
             search_box = BBox.from_points([start, end]).expand(width / 2.0 + maximum)
             for indexed in index.query(search_box):
@@ -335,15 +336,25 @@ def check_trace_object_clearance(
                     snapshot, obstacle, layer_id
                 ):
                     continue
-                rule_name = "TraceToVia" if obstacle.kind == "via" else "TraceToPad"
-                required = rules.get(layer_id, {}).get(rule_name)
+                if obstacle.kind == "copper_pour":
+                    rule_name = "TraceToCopper"
+                    required = rules.get(layer_id, {}).get(rule_name)
+                    rule_source = "DRC/LayClearances/LayClearance.TraceToCopper"
+                else:
+                    rule_name = "TraceToVia" if obstacle.kind == "via" else "TraceToPad"
+                    required = rules.get(layer_id, {}).get(rule_name)
+                    rule_source = f"DRC/LayClearances/LayClearance.{rule_name}"
                 if required is None:
                     continue
-                assert obstacle.geometry is not None
-                if not shapely_available() and obstacle.geometry.kind not in {"circle"}:
+                if obstacle.geometry is None:
+                    skipped_geometry += 1
+                    continue
+                if not shapely_available() and obstacle.geometry.kind not in {"circle", "polygon"}:
                     skipped_geometry += 1
                     continue
                 candidates += 1
+                if obstacle.kind == "copper_pour":
+                    pour_candidates += 1
                 measured = line_to_shape_distance(start, end, width, obstacle.geometry)
                 if measured + 1e-9 >= required:
                     continue
@@ -352,19 +363,37 @@ def check_trace_object_clearance(
                         "pcb.trace_object_clearance",
                         "clearance",
                         "error",
-                        f"Trace-to-{obstacle.kind} clearance violation",
+                        (
+                            "Trace-to-copper-pour clearance violation"
+                            if obstacle.kind == "copper_pour"
+                            else f"Trace-to-{obstacle.kind} clearance violation"
+                        ),
                         f"Copper edge clearance is {measured:.4g} mm; "
                         f"{required:.4g} mm is required.",
                         object_ids=[trace.stable_id, obstacle.stable_id],
-                        net_ids=[
-                            value for value in (trace.parent_id, obstacle.net_id) if value
-                        ],
+                        net_ids=[value for value in (trace.parent_id, obstacle.net_id) if value],
                         layer=layer_id,
                         measured=measured,
                         required=required,
                         units="mm",
-                        rule_source=f"DRC/LayClearances/LayClearance.{rule_name}",
-                        confidence=1.0 if shapely_available() else 0.95,
+                        rule_source=rule_source,
+                        confidence=(
+                            min(trace.confidence, obstacle.confidence)
+                            if obstacle.kind == "copper_pour" and shapely_available()
+                            else 0.5
+                            if obstacle.kind == "copper_pour"
+                            else 1.0
+                            if shapely_available()
+                            else 0.95
+                        ),
+                        pour_geometry=("boundary_only" if obstacle.kind == "copper_pour" else None),
+                        geometry_accuracy=(
+                            "exact"
+                            if obstacle.kind == "copper_pour" and shapely_available()
+                            else "approximate"
+                            if obstacle.kind == "copper_pour"
+                            else None
+                        ),
                         suggested_actions=[
                             "Reroute the segment or change the applicable clearance rule."
                         ],
@@ -373,6 +402,20 @@ def check_trace_object_clearance(
     return findings, {
         "obstacles_indexed": len(obstacles),
         "candidate_pairs_checked": candidates,
+        "pour_boundaries_indexed": pour_boundary_count,
+        "pour_candidate_pairs_checked": pour_candidates,
+        "pour_boundaries_without_trace_to_copper_rule": sum(
+            rules.get(str(item.layer or ""), {}).get("TraceToCopper") is None
+            for item in snapshot.board.copper_pours
+        ),
+        "pour_geometry": "boundary_only" if pour_boundary_count else None,
+        "pour_geometry_accuracy": (
+            "exact"
+            if pour_boundary_count and shapely_available()
+            else "aabb_approximate"
+            if pour_boundary_count
+            else None
+        ),
         "skipped_geometry": skipped_geometry,
         "geometry_backend": "shapely_geos" if shapely_available() else "pure_python",
     }
@@ -385,6 +428,8 @@ def _copper_on_layer(
 ) -> bool:
     if obstacle.kind == "via":
         return True
+    if obstacle.kind == "copper_pour":
+        return obstacle.layer == layer_id
     style = obstacle.attributes.get("pad_style") or {}
     if str(style.get("pad_type", "")).casefold() != "surface":
         return True
@@ -395,9 +440,7 @@ def _copper_on_layer(
     )
     return bool(
         layer is not None
-        and str(layer.get("name", "")).casefold().startswith(
-            (obstacle.side or "Top").casefold()
-        )
+        and str(layer.get("name", "")).casefold().startswith((obstacle.side or "Top").casefold())
     )
 
 

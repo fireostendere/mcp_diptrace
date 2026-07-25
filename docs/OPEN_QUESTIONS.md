@@ -237,8 +237,9 @@ exchange format?
 
 **Why the code depends on it:** `src/diptrace_mcp/adapters.py::_board_copper_pour_records`
 models only the boundary polygon and explicitly warns that it is not the final refilled
-region. Clearance, routing, and DFM logic cannot treat that boundary as authoritative
-copper.
+region. Clearance review and local routing may use that polygon as a conservative
+`boundary_only` obstacle, but clearance, routing, and DFM logic cannot treat it as
+authoritative copper or infer thermals, cutouts, and islands from it.
 
 **Experiment:** In DipTrace 5.3, create a pour with thermal spokes, a cutout, an island,
 and an obstacle, refill it, and export before and after refill. Inspect every

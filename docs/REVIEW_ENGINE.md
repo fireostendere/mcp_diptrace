@@ -8,7 +8,10 @@ report keyed by document SHA.
 
 - component overlap and edge clearance, with conservative bounding-box placement checks;
 - trace-to-trace clearance, trace-to-edge clearance, and minimum width;
-- STRtree-filtered trace-to-pad and trace-to-via clearance using exact Shapely shape distance;
+- spatially filtered trace-to-pad, trace-to-via, and trace-to-copper-pour
+  clearance. Pour checks use the exported boundary polygon and the applicable
+  DRC `TraceToCopper` value; same-net and other-layer pours are excluded, and a
+  missing layer rule is disclosed rather than inferred;
 - via drill size and annular ring;
 - nets with multiple exported endpoints but no trace records, and trace records with fewer
   than two points or zero path length; these narrow structural checks do not prove full
@@ -43,6 +46,10 @@ skipped checks, completeness information, and a resource URI.
 - Thermal checks are skipped when explicit power metadata is unavailable.
 
 Without the `geometry` extra, complex rotated-pad pairs are explicitly skipped rather
-than reported with a false exact result. Exact shorts, isolated refill, mask dams, paste,
-tombstoning, complete thermal analysis, and complete SI analysis are not implemented.
+than reported with a false exact result. Pour boundaries use exact GEOS polygon distance
+when the extra is installed and a conservative AABB fallback otherwise. Pour findings
+always carry `pour_geometry: "boundary_only"` and identify exact versus approximate
+geometry; they do not claim that the boundary equals refilled copper. Exact shorts,
+isolated refill, mask dams, paste, tombstoning, complete thermal analysis, and complete
+SI analysis are not implemented.
 Offline review does not replace DipTrace DRC/ERC or fabrication-house checks.

@@ -1428,6 +1428,17 @@ def _board_copper_pour_records(document: DipTraceDocument) -> list[ObjectRecord]
                 locked=_bool_attr(pour, "Locked"),
                 selected=_bool_attr(pour, "Selected"),
                 bbox=BBox.from_points(points).as_dict() if points else None,
+                geometry=(
+                    GeometryShape(
+                        kind="polygon",
+                        points=[point.as_dict() for point in points],
+                        approximation=(
+                            "Exported CopperPour boundary; not authoritative refilled copper"
+                        ),
+                    )
+                    if len(points) >= 3
+                    else None
+                ),
                 geometry_source="xml-copper-pour-boundary",
                 confidence=0.8 if points else 0.3,
                 attributes={
@@ -1436,6 +1447,7 @@ def _board_copper_pour_records(document: DipTraceDocument) -> list[ObjectRecord]
                     "poured": _bool_attr(pour, "Poured"),
                     "regions_done": _bool_attr(pour, "RegionsDone"),
                     "clearance_mm": _float_attr_mm(document, pour, "Clearance"),
+                    "use_net_clearance": _bool_attr(pour, "UseNetClearance"),
                     "board_clearance_mm": _float_attr_mm(document, pour, "BoardClearance"),
                     "minimum_area_mm2": (
                         to_mm(1.0, document.units) ** 2
@@ -1491,9 +1503,7 @@ def _board_shape_records(document: DipTraceDocument) -> list[ObjectRecord]:
                     selected=_bool_attr(shape, "Selected"),
                     position=_point_dict(position),
                     bbox=_bbox_dict(bbox),
-                    rotation_deg=math.degrees(
-                        _float_attr(document, shape, "Angle") or 0.0
-                    ),
+                    rotation_deg=math.degrees(_float_attr(document, shape, "Angle") or 0.0),
                     mirrored=_bool_attr(shape, "Inverted"),
                     geometry_source="xml-board-shape",
                     confidence=0.65,

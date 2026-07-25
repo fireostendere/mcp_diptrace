@@ -208,7 +208,10 @@ Native library create/update and attach-pattern mutation are intentionally unava
 
 ## Review and Manufacturing Limits
 
-- Copper-pour handling reads the boundary, not authoritative refilled copper geometry.
+- Copper-pour handling now applies layer-aware, same-net-exempt boundary obstacles to
+  trace clearance review and local A*. Findings and route results disclose
+  `pour_geometry: "boundary_only"`; authoritative DipTrace 5.3 refill geometry remains
+  human-gated by `OPEN_QUESTIONS.md` Q10.
 - Return-path analysis is a geometry heuristic with confidence reporting, not full-wave SI.
 - Generic fabrication manifests are not Gerber/NC Drill/ODB++/IPC-2581 packages.
 - Generic placement CSV must be mapped to the selected assembler's coordinate convention.

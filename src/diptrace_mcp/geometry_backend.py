@@ -155,11 +155,45 @@ def line_to_shape_distance(
     return _bbox_distance(shape_bbox(line), shape_bbox(shape))
 
 
+def segment_to_shape_distance(
+    start: Point,
+    end: Point,
+    shape: GeometryShape,
+) -> float:
+    """Measure an unbuffered segment to a shape.
+
+    Shapely supplies the exact polygon distance when installed. The bbox result is
+    intentionally conservative: callers may report a false obstacle, but must not
+    silently route through geometry they could not evaluate exactly.
+    """
+
+    if shapely_available():
+        from shapely.geometry import LineString  # type: ignore[import-untyped]
+
+        obstacle = _to_shapely(shape)
+        if obstacle is not None:
+            line = LineString([(start.x, start.y), (end.x, end.y)])
+            return float(line.distance(obstacle))
+    return _bbox_distance(BBox.from_points([start, end]), shape_bbox(shape))
+
+
+def point_to_shape_distance(point: Point, shape: GeometryShape) -> float:
+    """Measure a point to a shape, with a conservative bbox fallback."""
+
+    if shapely_available():
+        from shapely.geometry import Point as ShapelyPoint
+
+        obstacle = _to_shapely(shape)
+        if obstacle is not None:
+            return float(ShapelyPoint(point.x, point.y).distance(obstacle))
+    return _bbox_distance(BBox(point.x, point.y, point.x, point.y), shape_bbox(shape))
+
+
 def _to_shapely(shape: GeometryShape) -> Any | None:
     if not shapely_available():
         return None
     from shapely import affinity
-    from shapely.geometry import (  # type: ignore[import-untyped]
+    from shapely.geometry import (
         LineString,
         Polygon,
         box,

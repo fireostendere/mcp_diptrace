@@ -17,6 +17,8 @@ The router uses bounded deterministic eight-neighbor A*:
 - layer-aware state `(x, y, layer, direction, via_count)`;
 - bend, via, and detour costs;
 - swept-segment obstacle expansion;
+- different-net copper-pour boundary obstacles on the active layer, with same-net
+  exemption;
 - explicit preferred, start, and end layers, via style, and maximum-via budget;
 - via clearance checks on every layer within the physical `Lay1`/`Lay2` span;
 - node, time, and detour budgets;
@@ -34,7 +36,16 @@ The adapter accepts documented `Size`/`HoleSize` attributes and observed
 transitions only within the normalized span. The compiler repeats this check
 independently for route plans, `add_via`, and `set_via_style`.
 
-Limitations: no push-and-shove, curves, free-angle routing, or dynamic neck-down.
+When Shapely is installed, A* measures candidate segments against the exported pour
+polygon. Without it, the router uses the expanded pour AABB as a conservative obstacle
+and reports `pour_geometry_backend: "aabb_approximate"`. Route results affected by a
+pour report `pour_geometry: "boundary_only"`. An explicit `CopperPour/@Clearance`
+can only enlarge the obstacle when `UseNetClearance="N"`; otherwise the requested
+route clearance applies. Neither path reconstructs thermals, cutouts, islands, or
+DipTrace 5.3 refill data.
+
+Limitations: no push-and-shove, curves, free-angle routing, dynamic neck-down, or
+authoritative copper-refill geometry.
 
 ## Multi-Net Routing with Rip-Up/Retry
 

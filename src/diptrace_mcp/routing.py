@@ -12,6 +12,7 @@ from .adapters import DocumentSnapshot
 from .domain import (
     DifferentialPairModel,
     DifferentialPairPadPair,
+    GeometryShape,
     ObjectRecord,
     StrictModel,
 )
@@ -29,6 +30,11 @@ from .geometry import (
     point_in_polygon,
     polyline_length,
     segment_intersects_bbox,
+)
+from .geometry_backend import (
+    point_to_shape_distance,
+    segment_to_shape_distance,
+    shapely_available,
 )
 from .operations import (
     AddDifferentialPairRouteOperation,
@@ -60,12 +66,8 @@ class RouteConnectionConfig(StrictModel):
     end_layer: str | None = Field(default=None, min_length=1, max_length=256)
     preferred_layers: list[str] = Field(default_factory=list, max_length=64)
     width: float = Field(gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
-    clearance: float = Field(
-        default=0.2, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION
-    )
-    grid: float = Field(
-        default=0.5, gt=0.0, le=10.0, description=_MM_FIELD_DESCRIPTION
-    )
+    clearance: float = Field(default=0.2, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION)
+    grid: float = Field(default=0.5, gt=0.0, le=10.0, description=_MM_FIELD_DESCRIPTION)
     bend_cost: float = Field(default=0.2, ge=0.0, le=1_000.0)
     via_style: str | None = Field(default=None, min_length=1, max_length=256)
     max_vias: int = Field(default=0, ge=0, le=32)
@@ -81,9 +83,7 @@ class RouteConnectionConfig(StrictModel):
             raise ValueError("layer, start_layer or preferred_layers is required")
         if self.max_vias and self.via_style is None:
             raise ValueError("via_style is required when max_vias is greater than zero")
-        if self.preferred_layers and len(set(self.preferred_layers)) != len(
-            self.preferred_layers
-        ):
+        if self.preferred_layers and len(set(self.preferred_layers)) != len(self.preferred_layers):
             raise ValueError("preferred_layers must not contain duplicates")
         return self
 
@@ -110,12 +110,8 @@ class DifferentialPairRouteConfig(StrictModel):
     gap: float | None = Field(
         default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
     )
-    clearance: float = Field(
-        default=0.2, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION
-    )
-    grid: float = Field(
-        default=0.025, gt=0.0, le=10.0, description=_MM_FIELD_DESCRIPTION
-    )
+    clearance: float = Field(default=0.2, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION)
+    grid: float = Field(default=0.025, gt=0.0, le=10.0, description=_MM_FIELD_DESCRIPTION)
     bend_cost: float = Field(default=0.2, ge=0.0, le=1_000.0)
     via_style: str | None = Field(default=None, min_length=1, max_length=256)
     max_vias: int = Field(default=0, ge=0, le=32)
@@ -152,6 +148,8 @@ class _Obstacle:
     object_id: str
     bbox: BBox
     kind: str
+    geometry: GeometryShape | None = None
+    geometry_clearance: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,8 +210,10 @@ def synthesize_route(
             "Different endpoint layers require an enabled via style",
             details={"start_layer": start_layer, "end_layer": end_layer},
         )
-    if start_layer != end_layer and via is not None and (
-        start_layer not in via.layer_ids or end_layer not in via.layer_ids
+    if (
+        start_layer != end_layer
+        and via is not None
+        and (start_layer not in via.layer_ids or end_layer not in via.layer_ids)
     ):
         raise RoutingError(
             "Selected via style cannot connect the endpoint routing layers",
@@ -235,6 +235,7 @@ def synthesize_route(
             net,
             layer_id,
             expansion=expansion,
+            copper_radius=config.width / 2.0,
             excluded_components=endpoint_parents,
             avoid_component_bodies=config.avoid_component_bodies,
         )
@@ -291,6 +292,8 @@ def synthesize_route(
     layer_sequence = _layer_sequence(nodes)
     via_count = sum(node.via_style is not None for node in nodes)
     bends = _bend_count(nodes)
+    pour_obstacle_count = _pour_obstacle_count(obstacles)
+    pour_backend = _pour_geometry_backend(pour_obstacle_count)
     return RouteSynthesisResult(
         operation=operation,
         points=points,
@@ -310,19 +313,40 @@ def synthesize_route(
             "detour": detour,
             "elapsed_ms": (time.monotonic() - started) * 1_000.0,
             "obstacle_count": sum(len(items) for items in obstacles.values()),
+            "pour_obstacle_count": pour_obstacle_count,
+            "pour_geometry": "boundary_only" if pour_obstacle_count else None,
+            "pour_geometry_backend": pour_backend,
         },
         assumptions=[
             "Routing uses an 8-neighbor fixed grid and generates only 45-degree segments.",
             "Via clearance is checked on every copper layer in its normalized span.",
         ],
-        warnings=(
-            ["Via span was omitted on a two-layer board and resolved to both layers."]
-            if via is not None and via.span_source == "implicit_two_layer"
-            else []
-        ),
+        warnings=[
+            *(
+                ["Via span was omitted on a two-layer board and resolved to both layers."]
+                if via is not None and via.span_source == "implicit_two_layer"
+                else []
+            ),
+            *(
+                [
+                    "Copper-pour boundaries use conservative AABB obstacles because "
+                    "Shapely is unavailable."
+                ]
+                if pour_backend == "aabb_approximate"
+                else []
+            ),
+        ],
         limitations=[
             "This router does not implement push-and-shove or rip-up/retry.",
             "Component bodies use embedded pattern bounds when explicit courtyard is absent.",
+            *(
+                [
+                    "Copper-pour obstacles use exported boundary polygons; final refill "
+                    "geometry is unavailable."
+                ]
+                if pour_obstacle_count
+                else []
+            ),
         ],
     )
 
@@ -341,12 +365,8 @@ def synthesize_differential_pair_route(
     negative_start = _pair_pad(
         snapshot, start_pair.negative_component_id, start_pair.negative_pad_id
     )
-    positive_end = _pair_pad(
-        snapshot, end_pair.positive_component_id, end_pair.positive_pad_id
-    )
-    negative_end = _pair_pad(
-        snapshot, end_pair.negative_component_id, end_pair.negative_pad_id
-    )
+    positive_end = _pair_pad(snapshot, end_pair.positive_component_id, end_pair.positive_pad_id)
+    negative_end = _pair_pad(snapshot, end_pair.negative_component_id, end_pair.negative_pad_id)
     endpoints = [positive_start, negative_start, positive_end, negative_end]
     if any(item.position is None for item in endpoints):
         raise CapabilityUnavailableError(
@@ -363,9 +383,7 @@ def synthesize_differential_pair_route(
     spacing = width + gap
     start_spacing = distance(positive_start_point, negative_start_point)
     end_spacing = distance(positive_end_point, negative_end_point)
-    start_matches = math.isclose(
-        start_spacing, spacing, abs_tol=config.endpoint_tolerance
-    )
+    start_matches = math.isclose(start_spacing, spacing, abs_tol=config.endpoint_tolerance)
     end_matches = math.isclose(end_spacing, spacing, abs_tol=config.endpoint_tolerance)
     if not start_matches or not end_matches:
         raise GeometryError(
@@ -450,6 +468,7 @@ def synthesize_differential_pair_route(
             positive_net,
             layer_id,
             expansion=envelope_width / 2.0 + config.clearance,
+            copper_radius=envelope_width / 2.0,
             excluded_components=endpoint_parents,
             avoid_component_bodies=config.avoid_component_bodies,
             ignored_net_xml_ids=ignored_nets,
@@ -472,9 +491,7 @@ def synthesize_differential_pair_route(
         start_directions=directions,
         end_directions=directions,
     )
-    center_nodes = _simplify_nodes(
-        _collapse_states(states, layer_ids, config.grid, virtual_via)
-    )
+    center_nodes = _simplify_nodes(_collapse_states(states, layer_ids, config.grid, virtual_via))
     center_points = [node.point for node in center_nodes]
     positive_side = _offset_side(center_points[0], center_points[1], start_vector)
     positive_points = _offset_polyline(center_points, spacing / 2.0, positive_side)
@@ -515,6 +532,8 @@ def synthesize_differential_pair_route(
     positive_length = polyline_length(positive_points)
     negative_length = polyline_length(negative_points)
     via_count = sum(node.via_style is not None for node in center_nodes)
+    pour_obstacle_count = _pour_obstacle_count(obstacles)
+    pour_backend = _pour_geometry_backend(pour_obstacle_count)
     operation = AddDifferentialPairRouteOperation(
         pair=pair.stable_id,
         positive_net=positive_net.stable_id,
@@ -553,23 +572,46 @@ def synthesize_differential_pair_route(
             "symmetric_via_count": via_count * 2,
             "layer_sequence": _layer_sequence(center_nodes),
             "elapsed_ms": (time.monotonic() - started) * 1_000.0,
+            "pour_obstacle_count": pour_obstacle_count,
+            "pour_geometry": "boundary_only" if pour_obstacle_count else None,
+            "pour_geometry_backend": pour_backend,
         },
         assumptions=[
             "Both traces are generated from one centerline with a constant edge gap.",
             "Every layer transition inserts the same via style at symmetric pair offsets.",
             "Via clearance is checked on every copper layer in its normalized span.",
         ],
-        warnings=(
-            ["Via span was omitted on a two-layer board and resolved to both layers."]
-            if via is not None and via.span_source == "implicit_two_layer"
-            else []
-        ),
+        warnings=[
+            *(
+                ["Via span was omitted on a two-layer board and resolved to both layers."]
+                if via is not None and via.span_source == "implicit_two_layer"
+                else []
+            ),
+            *(
+                [
+                    "Copper-pour boundaries use conservative AABB obstacles because "
+                    "Shapely is unavailable."
+                ]
+                if pour_backend == "aabb_approximate"
+                else []
+            ),
+        ],
         limitations=[
             "Endpoint escapes must already match the requested coupled spacing and orientation.",
             "The planner rejects offset miters above 4x pair half-spacing.",
             "Push-and-shove, dynamic neck-down and phase tuning are not implemented.",
+            *(
+                [
+                    "Copper-pour obstacles use exported boundary polygons; final refill "
+                    "geometry is unavailable."
+                ]
+                if pour_obstacle_count
+                else []
+            ),
         ],
     )
+
+
 def _find_pair(snapshot: DocumentSnapshot, value: str) -> DifferentialPairModel:
     assert snapshot.board is not None
     matches = [
@@ -657,8 +699,10 @@ def _pair_geometry(
         None,
     )
     width = config.width or (layer_rules.width_mm if layer_rules is not None else None)
-    gap = config.gap if config.gap is not None else (
-        layer_rules.gap_mm if layer_rules is not None else None
+    gap = (
+        config.gap
+        if config.gap is not None
+        else (layer_rules.gap_mm if layer_rules is not None else None)
     )
     if width is None or gap is None:
         raise CapabilityUnavailableError(
@@ -757,9 +801,7 @@ def _paired_trace_points(
             x=point.x,
             y=point.y,
             layer=node.incoming_layer,
-            via_style=(
-                via.style_id if node.via_style is not None and via is not None else None
-            ),
+            via_style=(via.style_id if node.via_style is not None and via is not None else None),
         )
         for point, node in zip(points[1:], center_nodes[1:], strict=True)
     )
@@ -792,9 +834,7 @@ def _find_net(snapshot: DocumentSnapshot, value: str) -> ObjectRecord:
     return matches[0]
 
 
-def _endpoint(
-    snapshot: DocumentSnapshot, object_id: str, net: ObjectRecord
-) -> ObjectRecord:
+def _endpoint(snapshot: DocumentSnapshot, object_id: str, net: ObjectRecord) -> ObjectRecord:
     endpoint = snapshot.get_object(object_id)
     if endpoint.kind != "pad":
         raise CapabilityUnavailableError(
@@ -883,9 +923,7 @@ def _via_style(snapshot: DocumentSnapshot, value: str) -> _ViaStyle:
     style = select_via_style(snapshot.board, value)
     diameter, hole = validate_via_geometry(style)
     span = resolve_via_span(snapshot.board, style)
-    span_source = (
-        "implicit_two_layer" if style.span_source == "unspecified" else style.span_source
-    )
+    span_source = "implicit_two_layer" if style.span_source == "unspecified" else style.span_source
     return _ViaStyle(style.id, style.name or value, diameter, hole, span, span_source)
 
 
@@ -895,6 +933,7 @@ def _obstacles(
     layer_id: str,
     *,
     expansion: float,
+    copper_radius: float,
     excluded_components: set[str | None],
     avoid_component_bodies: bool,
     ignored_net_xml_ids: set[str | None] | None = None,
@@ -924,8 +963,28 @@ def _obstacles(
             continue
         if item.kind == "pad" and not _pad_on_layer(snapshot, item, layer_id):
             continue
+        obstacles.append(_Obstacle(item.stable_id, BBox(**item.bbox).expand(expansion), item.kind))
+    for pour in snapshot.board.copper_pours:
+        if (
+            pour.bbox is None
+            or pour.layer != layer_id
+            or pour.net_id in (ignored_net_xml_ids or {net.xml_id})
+        ):
+            continue
+        pour_clearance = (
+            0.0
+            if pour.attributes.get("use_net_clearance") is True
+            else float(pour.attributes.get("clearance_mm") or 0.0)
+        )
+        boundary_clearance = max(expansion, copper_radius + pour_clearance)
         obstacles.append(
-            _Obstacle(item.stable_id, BBox(**item.bbox).expand(expansion), item.kind)
+            _Obstacle(
+                pour.stable_id,
+                BBox(**pour.bbox).expand(boundary_clearance),
+                pour.kind,
+                geometry=pour.geometry,
+                geometry_clearance=boundary_clearance,
+            )
         )
     if avoid_component_bodies:
         for item in snapshot.board.components:
@@ -1031,8 +1090,10 @@ def _a_star(
         current = _point_from_key((x, y), config.grid)
         layer_id = layer_ids[layer_index]
         for direction_index, (dx, dy) in enumerate(_DIRECTIONS):
-            if (x, y) == start_key and start_directions is not None and (
-                direction_index not in start_directions
+            if (
+                (x, y) == start_key
+                and start_directions is not None
+                and (direction_index not in start_directions)
             ):
                 continue
             next_key = (x + dx, y + dy)
@@ -1070,8 +1131,11 @@ def _a_star(
             and previous_direction >= 0
             and (x, y) not in {start_key, end_key}
         )
-        if via is not None and can_via and layer_id in via.layer_ids and not _via_blocked(
-            current, via, config.width, obstacles
+        if (
+            via is not None
+            and can_via
+            and layer_id in via.layer_ids
+            and not _via_blocked(current, via, config.width, obstacles)
         ):
             for target_index in range(len(layer_ids)):
                 if target_index == layer_index:
@@ -1123,7 +1187,19 @@ def _queue_state(
 
 
 def _segment_blocked(start: Point, end: Point, obstacles: list[_Obstacle]) -> bool:
-    return any(segment_intersects_bbox(start, end, item.bbox) for item in obstacles)
+    for item in obstacles:
+        if not segment_intersects_bbox(start, end, item.bbox):
+            continue
+        if (
+            item.kind == "copper_pour"
+            and item.geometry is not None
+            and shapely_available()
+            and segment_to_shape_distance(start, end, item.geometry)
+            > item.geometry_clearance + 1e-9
+        ):
+            continue
+        return True
+    return False
 
 
 def _via_blocked(
@@ -1134,11 +1210,34 @@ def _via_blocked(
 ) -> bool:
     extra = max(0.0, (via.diameter - route_width) / 2.0)
     via_box = BBox(point.x, point.y, point.x, point.y).expand(extra)
-    return any(
-        via_box.intersects(obstacle.bbox)
-        for layer_id in via.layer_ids
-        for obstacle in obstacles[layer_id]
+    for layer_id in via.layer_ids:
+        for obstacle in obstacles[layer_id]:
+            if not via_box.intersects(obstacle.bbox):
+                continue
+            if (
+                obstacle.kind == "copper_pour"
+                and obstacle.geometry is not None
+                and shapely_available()
+                and point_to_shape_distance(point, obstacle.geometry)
+                > obstacle.geometry_clearance + extra + 1e-9
+            ):
+                continue
+            return True
+    return False
+
+
+def _pour_obstacle_count(obstacles: dict[str, list[_Obstacle]]) -> int:
+    return sum(
+        item.kind == "copper_pour"
+        for layer_obstacles in obstacles.values()
+        for item in layer_obstacles
     )
+
+
+def _pour_geometry_backend(pour_obstacle_count: int) -> str | None:
+    if not pour_obstacle_count:
+        return None
+    return "shapely_geos" if shapely_available() else "aabb_approximate"
 
 
 def _collapse_states(
@@ -1190,9 +1289,7 @@ def _simplify_nodes(nodes: list[_RouteNode]) -> list[_RouteNode]:
         if current.incoming_layer != following.incoming_layer:
             result.append(current)
             continue
-        if _direction(previous.point, current.point) != _direction(
-            current.point, following.point
-        ):
+        if _direction(previous.point, current.point) != _direction(current.point, following.point):
             result.append(current)
     result.append(nodes[-1])
     return result

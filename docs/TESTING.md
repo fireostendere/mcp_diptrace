@@ -46,7 +46,8 @@ The maintained suite covers:
 - external-job state, timeout, log bounds, malformed output, and terminal cancellation behavior;
 - stackup, length/skew/differential-pair analysis, and analytical impedance golden cases;
 - typed openEMS runner protocol, synthetic result parsing, centered analytical sanity checks, unavailable backend, malformed/non-converged output, and timeout handling;
-- return-path/pour-boundary heuristics, BOM review, schematic/PCB comparison, and generic exports;
+- return-path/pour-boundary heuristics, exact and conservative-fallback pour obstacles
+  for clearance/A*, BOM review, schematic/PCB comparison, and generic exports;
 - CSV-injection protection;
 - MCP tool/resource/prompt contracts;
 - generated PCB skill packages, strict schemas/examples, dependency contracts, write-order guards, and false-success rejection.
