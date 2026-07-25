@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from . import __version__
 from .adapters import capability_report
+from .capability_model import get_trust_model
 from .domain import CapabilityReport
 from .geometry_backend import backend_report
 from .xml_document import DipTraceDocument
@@ -226,35 +227,6 @@ def get_capabilities(
                     "synchronize_schematic_to_pcb",
                 )
             ],
-            trust_model={
-                "seed_based_creation": True,
-                "seed_trust_auto_upgrade": False,
-                "client_can_assign_validation_level": False,
-                "runtime_sidecar_can_grant_high_trust": False,
-                "user_supplied_evidence_grants_high_trust": False,
-                "trusted_manifest_is_revalidated_on_read": True,
-                "evidence_manifest_sha_binding": True,
-                "roundtrip_success_path_tested": False,
-                "semantic_digest_version": "1.2",
-                "semantic_comparison_fail_closed": True,
-                "rollback_provenance_safe": True,
-                "all_write_paths_invalidate_trust": False,
-                "untested_write_paths": [
-                    "plan_apply",
-                    "ses_import",
-                    "schematic_to_pcb_sync",
-                    "live_session_apply",
-                ],
-                "roundtrip_authority": "user_supplied_evidence_recorded",
-                "high_trust_authority": "unavailable_no_trusted_bridge",
-                "roundtrip_evidence_validation": {
-                    "user_supplied_recorded": True,
-                    "user_supplied_high_trust_denied": True,
-                },
-                "plane_layer_routing": False,
-                "external_pattern_resolution": False,
-                "provenance_sidecar": True,
-                "trust_invalidated_after_mcp_write": True,
-            },
+            trust_model=get_trust_model(),
         )
     return capability_report(document, live_session=live_session)
