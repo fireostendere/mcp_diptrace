@@ -206,8 +206,12 @@ def test_analyze_routing_congestion_is_read_only(tmp_path: Path) -> None:
     target.write_bytes(document.raw_bytes)
     service = _service(tmp_path, tmp_path / ".state")
 
+    connections = [
+        item.model_dump(exclude={"clearance"})
+        for item in _configs(document, signal_detour=1.0)
+    ]
     response = service.analyze_routing_congestion(
-        [item.model_dump() for item in _configs(document, signal_detour=1.0)],
+        connections,
         path="board.dip",
     )
 

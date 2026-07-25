@@ -36,6 +36,7 @@ from .geometry_backend import (
     segment_to_shape_distance,
     shapely_available,
 )
+from .numeric_inputs import xml_number_mm
 from .operations import (
     AddDifferentialPairRouteOperation,
     AddTraceOperation,
@@ -55,6 +56,10 @@ _DIRECTIONS = (
     (-1, 1),
 )
 _MM_FIELD_DESCRIPTION = "Distance in millimetres."
+_CLEARANCE_FIELD_DESCRIPTION = (
+    "Distance in millimetres. Omit to use the maximum applicable "
+    "DRC TraceToTrace rule from the document."
+)
 
 
 class RouteConnectionConfig(StrictModel):
@@ -66,7 +71,13 @@ class RouteConnectionConfig(StrictModel):
     end_layer: str | None = Field(default=None, min_length=1, max_length=256)
     preferred_layers: list[str] = Field(default_factory=list, max_length=64)
     width: float = Field(gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
-    clearance: float = Field(default=0.2, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION)
+    clearance: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=100.0,
+        allow_inf_nan=False,
+        description=_CLEARANCE_FIELD_DESCRIPTION,
+    )
     grid: float = Field(default=0.5, gt=0.0, le=10.0, description=_MM_FIELD_DESCRIPTION)
     bend_cost: float = Field(default=0.2, ge=0.0, le=1_000.0)
     via_style: str | None = Field(default=None, min_length=1, max_length=256)
@@ -110,7 +121,13 @@ class DifferentialPairRouteConfig(StrictModel):
     gap: float | None = Field(
         default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
     )
-    clearance: float = Field(default=0.2, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION)
+    clearance: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=100.0,
+        allow_inf_nan=False,
+        description=_CLEARANCE_FIELD_DESCRIPTION,
+    )
     grid: float = Field(default=0.025, gt=0.0, le=10.0, description=_MM_FIELD_DESCRIPTION)
     bend_cost: float = Field(default=0.2, ge=0.0, le=1_000.0)
     via_style: str | None = Field(default=None, min_length=1, max_length=256)
@@ -200,6 +217,10 @@ def synthesize_route(
             object_ids=[start.stable_id, end.stable_id],
         )
     layer_ids, start_layer, end_layer = _route_layers(snapshot, config)
+    clearance_source = (
+        "caller" if config.clearance is not None else "document_drc_trace_to_trace"
+    )
+    clearance = _resolve_clearance(snapshot, layer_ids, config.clearance)
     # Validate that no routing layer is a plane or unknown type.
     # Through-via spans across plane layers are allowed, but active trace
     # segments on plane layers are not.
@@ -225,7 +246,7 @@ def synthesize_route(
             },
         )
     endpoint_parents = {start.parent_id, end.parent_id}
-    expansion = config.width / 2.0 + config.clearance
+    expansion = config.width / 2.0 + clearance
     obstacle_layer_ids = list(
         dict.fromkeys([*layer_ids, *(via.layer_ids if via is not None else ())])
     )
@@ -286,7 +307,7 @@ def synthesize_route(
         points=path,
         layer=start_layer,
         width=config.width,
-        clearance=config.clearance,
+        clearance=clearance,
     )
     used_layers = list(dict.fromkeys(node.active_layer for node in nodes))
     layer_sequence = _layer_sequence(nodes)
@@ -311,6 +332,8 @@ def synthesize_route(
             "length_mm": route_length,
             "direct_length_mm": direct_length,
             "detour": detour,
+            "clearance_mm": clearance,
+            "clearance_source": clearance_source,
             "elapsed_ms": (time.monotonic() - started) * 1_000.0,
             "obstacle_count": sum(len(items) for items in obstacles.values()),
             "pour_obstacle_count": pour_obstacle_count,
@@ -441,6 +464,10 @@ def synthesize_differential_pair_route(
         avoid_component_bodies=config.avoid_component_bodies,
     )
     layer_ids, start_layer, end_layer = _route_layers(snapshot, route_config)
+    clearance_source = (
+        "caller" if config.clearance is not None else "document_drc_trace_to_trace"
+    )
+    clearance = _resolve_clearance(snapshot, layer_ids, config.clearance)
     # Validate that no routing layer is a plane or unknown type.
     _validate_no_plane_layers(snapshot, layer_ids, context="diff_pair_route")
     via = _via_style(snapshot, config.via_style) if config.via_style else None
@@ -467,7 +494,7 @@ def synthesize_differential_pair_route(
             snapshot,
             positive_net,
             layer_id,
-            expansion=envelope_width / 2.0 + config.clearance,
+            expansion=envelope_width / 2.0 + clearance,
             copper_radius=envelope_width / 2.0,
             excluded_components=endpoint_parents,
             avoid_component_bodies=config.avoid_component_bodies,
@@ -549,7 +576,7 @@ def synthesize_differential_pair_route(
         end_pad_point_id=end_pair.xml_id or "",
         layer=start_layer,
         width=width,
-        clearance=config.clearance,
+        clearance=clearance,
     )
     return DifferentialPairRouteResult(
         operation=operation,
@@ -568,6 +595,8 @@ def synthesize_differential_pair_route(
             "width_mm": width,
             "gap_mm": gap,
             "center_spacing_mm": spacing,
+            "clearance_mm": clearance,
+            "clearance_source": clearance_source,
             "via_count_per_net": via_count,
             "symmetric_via_count": via_count * 2,
             "layer_sequence": _layer_sequence(center_nodes),
@@ -878,6 +907,48 @@ def _route_layers(
         if layer_id not in layer_ids:
             layer_ids.append(layer_id)
     return layer_ids, start, end
+
+
+def resolve_route_clearance(
+    snapshot: DocumentSnapshot,
+    config: RouteConnectionConfig,
+) -> float:
+    """Resolve an explicit clearance or fail closed on incomplete document DRC."""
+
+    layer_ids, _start, _end = _route_layers(snapshot, config)
+    return _resolve_clearance(snapshot, layer_ids, config.clearance)
+
+
+def _resolve_clearance(
+    snapshot: DocumentSnapshot,
+    layer_ids: list[str],
+    requested: float | None,
+) -> float:
+    if requested is not None:
+        return requested
+    rules = {
+        element.get("Lay", ""): xml_number_mm(
+            snapshot.document,
+            element,
+            "TraceToTrace",
+        )
+        for element in snapshot.document.container.findall(
+            "./DRC/LayClearances/LayClearance"
+        )
+        if element.get("TraceToTrace") is not None
+    }
+    missing = [layer_id for layer_id in layer_ids if layer_id not in rules]
+    if missing:
+        raise CapabilityUnavailableError(
+            "Routing clearance was omitted, but applicable DRC TraceToTrace "
+            "rules are unavailable",
+            details={
+                "missing_layer_ids": missing,
+                "requested_layer_ids": layer_ids,
+                "rule_source": "DRC/LayClearances/LayClearance.TraceToTrace",
+            },
+        )
+    return max(rules[layer_id] for layer_id in layer_ids)
 
 
 def _layer_type(snapshot: DocumentSnapshot, layer_id: str) -> str:

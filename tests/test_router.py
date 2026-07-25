@@ -14,6 +14,7 @@ from diptrace_mcp.geometry import distance
 from diptrace_mcp.routing import (
     DifferentialPairRouteConfig,
     RouteConnectionConfig,
+    resolve_route_clearance,
     synthesize_differential_pair_route,
     synthesize_route,
 )
@@ -219,6 +220,78 @@ def test_router_synthesizes_direct_45_degree_compatible_path() -> None:
     ]
     assert result.metrics["bend_count"] == 0
     assert result.metrics["detour"] == 1
+    assert result.metrics["clearance_mm"] == pytest.approx(0.2)
+    assert result.metrics["clearance_source"] == "caller"
+
+
+def test_router_defaults_clearance_to_document_drc() -> None:
+    original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    rule = root.find("./Board/DRC/LayClearances/LayClearance[@Lay='0']")
+    assert rule is not None
+    rule.set("TraceToTrace", "0.37")
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+    result = synthesize_route(
+        build_snapshot(document),
+        _config(document).model_copy(update={"clearance": None}),
+    )
+
+    assert result.operation.clearance == pytest.approx(0.37)
+    assert result.metrics["clearance_mm"] == pytest.approx(0.37)
+    assert result.metrics["clearance_source"] == "document_drc_trace_to_trace"
+
+
+def test_router_refuses_missing_drc_clearance_instead_of_using_setup_default() -> None:
+    original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    rule = root.find("./Board/DRC/LayClearances/LayClearance[@Lay='0']")
+    assert rule is not None
+    rule.attrib.pop("TraceToTrace")
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+    with pytest.raises(
+        CapabilityUnavailableError,
+        match="applicable DRC TraceToTrace rules are unavailable",
+    ) as error:
+        synthesize_route(
+            build_snapshot(document),
+            _config(document).model_copy(update={"clearance": None}),
+        )
+
+    assert error.value.payload.details["missing_layer_ids"] == ["0"]
+    # Settings/Routing/@TraceClearance remains present in the fixture; it is not
+    # silently substituted for the missing DRC rule.
+
+
+def test_multilayer_default_clearance_uses_maximum_applicable_drc_rule() -> None:
+    original = DipTraceDocument.load(FIXTURES / "pcb_4layer.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    top = root.find("./Board/DRC/LayClearances/LayClearance[@Lay='0']")
+    inner = root.find("./Board/DRC/LayClearances/LayClearance[@Lay='1']")
+    assert top is not None and inner is not None
+    top.set("TraceToTrace", "0.15")
+    inner.set("TraceToTrace", "0.45")
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+    config = _config(document).model_copy(
+        update={
+            "clearance": None,
+            "preferred_layers": ["Top", "Inner 1"],
+        }
+    )
+
+    assert resolve_route_clearance(build_snapshot(document), config) == pytest.approx(
+        0.45
+    )
 
 
 def test_router_avoids_keepout_deterministically_and_compiles() -> None:
@@ -391,6 +464,10 @@ def test_route_plan_commit_review_details_and_rollback(tmp_path: Path) -> None:
     plan = planned["result"]["plan"]
     assert plan["metrics"]["connection_count"] == 1
     assert plan["metrics"]["total_length_mm"] == 10
+    assert plan["config"]["clearance"] == pytest.approx(0.2)
+    assert plan["candidates"][0]["metrics"]["clearance_source"] == (
+        "document_drc_trace_to_trace"
+    )
     assert len(planned["resources"]) == 4
 
     committed = service.apply_route_plan(

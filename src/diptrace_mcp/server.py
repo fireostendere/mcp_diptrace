@@ -1913,7 +1913,7 @@ def create_server(
         end_object_id: str,
         layer: str,
         width: float,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.5,
         bend_cost: float = 0.2,
         preferred_layers: list[str] | None = None,
@@ -1931,7 +1931,10 @@ def create_server(
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        """Route one pad-to-pad connection with bounded deterministic 45-degree A*."""
+        """Route one pad-to-pad connection with bounded deterministic 45-degree A*.
+
+        Omit clearance to use the applicable document DRC TraceToTrace rule.
+        """
         return service.route_connection(
             net=net,
             start_object_id=start_object_id,
@@ -1962,7 +1965,7 @@ def create_server(
         net: str,
         layer: str,
         width: float,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.5,
         preferred_layers: list[str] | None = None,
         via_style: str | None = None,
@@ -1973,7 +1976,7 @@ def create_server(
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        """Route exported ratline connections for one net transactionally."""
+        """Route exported ratlines; omitted clearance comes from document DRC."""
         return service.route_net(
             net,
             layer=layer,
@@ -2033,7 +2036,7 @@ def create_server(
         preferred_layers: list[str] | None = None,
         width: float | None = None,
         gap: float | None = None,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.025,
         via_style: str | None = None,
         max_vias: int = 0,
@@ -2046,7 +2049,7 @@ def create_server(
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        """Route both nets from one coupled centerline with symmetric via insertion."""
+        """Route a coupled pair; omitted clearance comes from document DRC."""
         return service.route_diff_pair(
             pair,
             layer=layer,
@@ -2074,7 +2077,7 @@ def create_server(
         preferred_layers: list[str] | None = None,
         width: float | None = None,
         gap: float | None = None,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.025,
         via_style: str | None = None,
         max_vias: int = 0,
@@ -2084,7 +2087,7 @@ def create_server(
         end_pad_point_id: str | None = None,
         path: str | None = None,
     ) -> dict[str, Any]:
-        """Persist a coupled differential-pair route plan and deterministic preview."""
+        """Plan a coupled route; omitted clearance comes from document DRC."""
         return service.plan_diff_pair_route(
             pair,
             layer=layer,
@@ -2107,7 +2110,7 @@ def create_server(
         nets: list[str],
         layer: str,
         width: float,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.5,
         preferred_layers: list[str] | None = None,
         via_style: str | None = None,
@@ -2115,7 +2118,7 @@ def create_server(
         via_cost: float = 5.0,
         path: str | None = None,
     ) -> dict[str, Any]:
-        """Persist a sequential bounded local route plan for up to 20 connections."""
+        """Plan bounded routes; omitted clearance comes from document DRC."""
         return service.plan_route_nets(
             nets,
             layer=layer,

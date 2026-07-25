@@ -18,7 +18,11 @@ from .adapters import build_snapshot
 from .errors import DipTraceMcpError, RoutingError
 from .geometry import BBox, Point
 from .operations import AddTraceOperation, DeleteTraceOperation, SemanticOperation
-from .routing import RouteConnectionConfig, synthesize_route
+from .routing import (
+    RouteConnectionConfig,
+    resolve_route_clearance,
+    synthesize_route,
+)
 from .semantic_compiler import apply_semantic_operations
 from .xml_document import DipTraceDocument
 
@@ -136,7 +140,8 @@ def _routing_priority(
         )
     start_point = Point(**start.position)
     end_point = Point(**end.position)
-    expansion = max(config.grid, config.width / 2.0 + config.clearance)
+    clearance = resolve_route_clearance(snapshot, config)
+    expansion = max(config.grid, config.width / 2.0 + clearance)
     corridor = BBox.from_points([start_point, end_point]).expand(expansion)
     corridor_area = max(
         (corridor.max_x - corridor.min_x) * (corridor.max_y - corridor.min_y),

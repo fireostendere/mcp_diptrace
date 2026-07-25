@@ -4348,7 +4348,7 @@ class DipTraceService:
         end_object_id: str,
         layer: str,
         width: float,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.5,
         bend_cost: float = 0.2,
         preferred_layers: list[str] | None = None,
@@ -4409,7 +4409,7 @@ class DipTraceService:
         *,
         layer: str,
         width: float,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.5,
         preferred_layers: list[str] | None = None,
         via_style: str | None = None,
@@ -4465,7 +4465,7 @@ class DipTraceService:
         preferred_layers: list[str] | None = None,
         width: float | None = None,
         gap: float | None = None,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.025,
         via_style: str | None = None,
         max_vias: int = 0,
@@ -4521,7 +4521,7 @@ class DipTraceService:
         preferred_layers: list[str] | None = None,
         width: float | None = None,
         gap: float | None = None,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.025,
         via_style: str | None = None,
         max_vias: int = 0,
@@ -4549,13 +4549,16 @@ class DipTraceService:
             max_detour=max_detour,
         )
         route = synthesize_differential_pair_route(snapshot, config)
+        resolved_config = config.model_copy(
+            update={"clearance": route.operation.clearance}
+        )
         preview = self._preview_semantic_operations(document, [route.operation])
         record = self.plans.create(
             plan_type="diff_pair_route",
             document_id=snapshot.info.document_id,
             source_sha256=snapshot.info.sha256,
             target_path=target.path,
-            config=config.model_dump(mode="json"),
+            config=resolved_config.model_dump(mode="json"),
             operations=[route.operation.model_dump(mode="json")],
             changed_ids=[
                 route.operation.pair,
@@ -4597,7 +4600,7 @@ class DipTraceService:
         *,
         layer: str,
         width: float,
-        clearance: float = 0.2,
+        clearance: float | None = None,
         grid: float = 0.5,
         preferred_layers: list[str] | None = None,
         via_style: str | None = None,
@@ -4650,6 +4653,7 @@ class DipTraceService:
             working_snapshot = build_snapshot(working, live_session=target.is_live)
         preview = self._preview_semantic_operations(document, operations)
         total_length = sum(float(item["metrics"]["length_mm"]) for item in candidates)
+        resolved_clearance = float(candidates[0]["metrics"]["clearance_mm"])
         record = self.plans.create(
             plan_type="route_nets",
             document_id=snapshot.info.document_id,
@@ -4659,7 +4663,7 @@ class DipTraceService:
                 "nets": nets,
                 "layer": layer,
                 "width": width,
-                "clearance": clearance,
+                "clearance": resolved_clearance,
                 "grid": grid,
                 "preferred_layers": preferred_layers or [],
                 "via_style": via_style,
