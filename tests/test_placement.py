@@ -3,6 +3,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import pytest
+
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
 from diptrace_mcp.domain import QuerySelector
@@ -86,6 +88,57 @@ def test_locked_illegal_component_is_unresolved_and_not_moved(tmp_path: Path) ->
     assert planned.operations == []
     assert planned.unresolved[0]["reason"] == "locked_component_illegal"
     assert planned.candidates[0]["status"] == "locked_unchanged"
+
+
+def test_candidates_preserve_off_origin_rotated_footprint_geometry() -> None:
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "pcb_patterns.xml", 10_000_000)
+    )
+    assert snapshot.board is not None
+    component = next(item for item in snapshot.board.components if item.refdes == "R1")
+
+    # Exercise placement against already-normalized geometry. This deliberately avoids
+    # asserting a DipTrace XML Angle convention, which remains an open question.
+    component.position = {"x": 10.0, "y": 10.0}
+    component.rotation_deg = 90.0
+    component.bbox = {
+        "min_x": 9.6,
+        "min_y": 11.55,
+        "max_x": 10.4,
+        "max_y": 14.45,
+    }
+    config = PlacementConfig(
+        selector=QuerySelector(ids=[component.stable_id]),
+        region={
+            "min_x": 9.0,
+            "min_y": 8.0,
+            "max_x": 12.0,
+            "max_y": 12.0,
+        },
+        allowed_rotations=[0.0, 90.0],
+        board_edge_clearance=0.0,
+        search_steps=1,
+    )
+
+    result = generate_placement_candidates(snapshot, config)
+    at_anchor = [
+        candidate
+        for candidate in result[0]["candidates"]
+        if candidate["position"] == {"x": 10.0, "y": 10.0}
+    ]
+    by_rotation = {candidate["rotation_deg"]: candidate for candidate in at_anchor}
+
+    assert by_rotation[90.0]["bbox"] == component.bbox
+    assert by_rotation[90.0]["legal"] is False
+    assert "containment:requested_region" in by_rotation[90.0]["reasons"]
+    assert by_rotation[0.0]["bbox"] == pytest.approx(
+        {
+            "min_x": 11.55,
+            "min_y": 9.6,
+            "max_x": 14.45,
+            "max_y": 10.4,
+        }
+    )
 
 
 def test_score_proposal_rejects_overlap_with_large_penalty(tmp_path: Path) -> None:

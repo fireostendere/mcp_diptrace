@@ -530,18 +530,25 @@ def _evaluate_candidates(
 
 def _transformed_bbox(current: _Placed, point: Point, rotation: float) -> BBox:
     radians = math.radians(rotation - current.rotation_deg)
-    width = abs(current.bbox.width * math.cos(radians)) + abs(
-        current.bbox.height * math.sin(radians)
+    cos_v = math.cos(radians)
+    sin_v = math.sin(radians)
+    corners = (
+        Point(current.bbox.min_x, current.bbox.min_y),
+        Point(current.bbox.min_x, current.bbox.max_y),
+        Point(current.bbox.max_x, current.bbox.min_y),
+        Point(current.bbox.max_x, current.bbox.max_y),
     )
-    height = abs(current.bbox.width * math.sin(radians)) + abs(
-        current.bbox.height * math.cos(radians)
-    )
-    return BBox(
-        point.x - width / 2.0,
-        point.y - height / 2.0,
-        point.x + width / 2.0,
-        point.y + height / 2.0,
-    )
+    transformed = []
+    for corner in corners:
+        relative_x = corner.x - current.position.x
+        relative_y = corner.y - current.position.y
+        transformed.append(
+            Point(
+                point.x + relative_x * cos_v - relative_y * sin_v,
+                point.y + relative_x * sin_v + relative_y * cos_v,
+            )
+        )
+    return BBox.from_points(transformed)
 
 
 def _static_legality(

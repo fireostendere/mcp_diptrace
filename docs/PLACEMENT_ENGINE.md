@@ -13,6 +13,10 @@ Legality checks include:
 - placement keepouts;
 - preservation of locked objects.
 
+Candidate bounds retain the normalized footprint's offset from its component anchor.
+Moves translate that bound, and rotation candidates rotate it about the real anchor
+instead of re-centering the bound on the anchor.
+
 The score reports separate weighted contributions for overlap, containment, keepout,
 ratsnest wire length, movement, rotation, and side changes, together with raw overlap
 area, wire length, and movement. Ratsnest distance is currently measured between
@@ -35,6 +39,8 @@ rejected with `drc_regression`.
 
 - This is greedy/local legalization, not global placement.
 - Bounding-box confidence is limited without footprint body or courtyard geometry.
+- A rotation candidate transforms the current axis-aligned bound. This is conservative
+  when the exact footprint outline is unavailable.
 - There are no terms for functional groups, thermal clustering, decoupling, accessibility,
   or routing channels. Those decisions remain with the model until verified data is available.
 - `deterministic_seed` remains part of the contract; the current algorithm does not use randomness.
