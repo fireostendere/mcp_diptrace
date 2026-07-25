@@ -61,7 +61,12 @@ from .routing_compiler import (
     ROUTING_OPERATION_TYPES,
     apply_routing_operation,
 )
-from .xml_document import DipTraceDocument, RawTreeSnapshot, sha256_bytes
+from .xml_document import (
+    DipTraceDocument,
+    RawTreeSnapshot,
+    parse_xml_definition,
+    sha256_bytes,
+)
 
 
 @dataclass(slots=True)
@@ -1508,7 +1513,7 @@ def _apply_sync_schematic_to_pcb(
         (item.get("Name") or "").casefold() for item in pad_styles.findall("./PadStyle")
     }
     for raw in operation.pad_style_xml:
-        element = ET.fromstring(raw)
+        element = parse_xml_definition(raw)
         if element.tag != "PadStyle" or not element.get("Name"):
             raise EditError("Schematic sync contains an invalid PadStyle definition")
         key = str(element.get("Name")).casefold()
@@ -1517,7 +1522,7 @@ def _apply_sync_schematic_to_pcb(
             existing_pad_styles.add(key)
             patch_count += 1
     for raw in operation.pattern_xml:
-        element = ET.fromstring(raw)
+        element = parse_xml_definition(raw)
         style = element.get("PatternStyle") or element.get("Style")
         if element.tag != "Pattern" or not style:
             raise EditError("Schematic sync contains an invalid Pattern definition")

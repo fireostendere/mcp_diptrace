@@ -44,7 +44,12 @@ _ALLOWED_XML_ENCODINGS = frozenset(
         "iso-8859-1",
     }
 )
-_FORBIDDEN_XML_MESSAGE = "DTD and ENTITY declarations are not allowed"
+ForbiddenXmlContext = Literal["document", "fragment", "pattern_definition"]
+_FORBIDDEN_XML_MESSAGES: dict[ForbiddenXmlContext, str] = {
+    "document": "DTD and ENTITY declarations are not allowed",
+    "fragment": "DTD and ENTITY declarations are not allowed in XML fragments",
+    "pattern_definition": "DTD and ENTITY declarations are forbidden in pattern definitions",
+}
 _XML_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.:-]*$")
 
 
@@ -92,12 +97,29 @@ def _encoding_candidates(data: bytes) -> tuple[tuple[str, int], ...]:
     return ((encoding, 0),)
 
 
-def _detect_encoding_and_check(data: bytes) -> None:
-    """Reject DTD/entity declarations through byte and allowlisted text scans."""
+class _ForbiddenXmlDeclaration(Exception):
+    """Internal signal raised from Expat declaration callbacks."""
+
+
+def reject_forbidden_xml_declarations(
+    data: bytes | str,
+    *,
+    error_type: type[Exception],
+    context: ForbiddenXmlContext = "document",
+) -> None:
+    """Reject DTD/entity declarations with the caller's public error contract."""
+    message = _FORBIDDEN_XML_MESSAGES[context]
+    if isinstance(data, str):
+        # Python text has already been decoded, so it has no UTF-16 byte-layout
+        # hole. This is the guard used by the operation-model validation layer.
+        if _FORBIDDEN_XML_TEXT.search(data):
+            raise error_type(message)
+        return
+
     # This unconditional whole-document pass covers every single-byte encoding.
     # Decoding below is an additional pass for NUL-interleaved UTF-16/32 input.
     if _FORBIDDEN_XML.search(data):
-        raise DocumentError(_FORBIDDEN_XML_MESSAGE)
+        raise error_type(message)
 
     for encoding, bom_len in _encoding_candidates(data):
         try:
@@ -105,15 +127,10 @@ def _detect_encoding_and_check(data: bytes) -> None:
         except (LookupError, UnicodeError, ValueError):
             continue
         if _FORBIDDEN_XML_TEXT.search(text):
-            raise DocumentError(_FORBIDDEN_XML_MESSAGE)
+            raise error_type(message)
 
-
-class _ForbiddenXmlDeclaration(Exception):
-    """Internal signal raised from Expat declaration callbacks."""
-
-
-def _reject_forbidden_xml_at_parser_level(data: bytes) -> None:
-    """Use Expat callbacks so DTD rejection is independent of byte position."""
+    # Expat callbacks make the final rejection independent of byte position and
+    # encoding whenever the input is otherwise parseable by the XML parser.
     parser = expat.ParserCreate()
 
     def reject_doctype(
@@ -149,7 +166,7 @@ def _reject_forbidden_xml_at_parser_level(data: bytes) -> None:
     try:
         parser.Parse(data, True)
     except _ForbiddenXmlDeclaration:
-        raise DocumentError(_FORBIDDEN_XML_MESSAGE) from None
+        raise error_type(message) from None
     except expat.ExpatError:
         # ElementTree below preserves the public Invalid XML error contract for
         # ordinary syntax and unsupported-encoding failures.
@@ -175,13 +192,25 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
 
 
 def _parse_root(data: bytes) -> ET.Element:
-    _detect_encoding_and_check(data)
-    _reject_forbidden_xml_at_parser_level(data)
+    reject_forbidden_xml_declarations(data, error_type=DocumentError)
     try:
         parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
         return ET.fromstring(data, parser=parser)
     except ET.ParseError as exc:
         raise DocumentError(f"Invalid XML: {exc}") from exc
+
+
+def parse_xml_definition(data: str) -> ET.Element:
+    """Parse an embedded pattern definition through the shared write guard."""
+    reject_forbidden_xml_declarations(
+        data,
+        error_type=EditError,
+        context="pattern_definition",
+    )
+    try:
+        return ET.fromstring(data)
+    except (ET.ParseError, ValueError) as exc:
+        raise EditError(f"Invalid embedded XML definition: {exc}") from exc
 
 
 @dataclass(frozen=True)
@@ -601,7 +630,7 @@ def _scan_start_tag_end(data: bytes, start: int) -> int:
 
 
 def _raw_element_spans(data: bytes) -> list[_RawElementSpan]:
-    _detect_encoding_and_check(data)
+    reject_forbidden_xml_declarations(data, error_type=EditError)
     spans: list[_RawElementSpan] = []
     stack: list[int] = []
     parser = expat.ParserCreate()
@@ -872,7 +901,11 @@ def _parse_fragment(index: int, value: str | None) -> ET.Element:
 
 
 def _parse_root_fragment(data: bytes) -> ET.Element:
-    _detect_encoding_and_check(data)
+    reject_forbidden_xml_declarations(
+        data,
+        error_type=EditError,
+        context="fragment",
+    )
     try:
         return ET.fromstring(b"<McpFragment>" + data + b"</McpFragment>")
     except ET.ParseError as exc:
