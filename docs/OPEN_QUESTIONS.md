@@ -194,9 +194,11 @@ does each DipTrace editor emit?
 
 **Why the code depends on it:** The parser
 `src/diptrace_mcp/xml_document.py::DipTraceDocument.from_bytes` accepts several encodings,
-while full-tree output from
-`src/diptrace_mcp/xml_document.py::DipTraceDocument.serialize` is UTF-8. Exact untouched
-byte preservation and independent DipTrace canonicalization must not be conflated.
+records the detected codec and exact BOM, and reuses them for guarded raw and semantic
+edits. That preservation policy prevents MCP from silently changing a supported source
+encoding; it does not establish which encodings or line endings DipTrace itself emits.
+Exact untouched-byte preservation and independent DipTrace canonicalization must not be
+conflated.
 
 **Experiment:** Export minimal PCB, schematic, Component Library, and Pattern Library
 documents directly from DipTrace. Inspect raw bytes for BOM, declaration encoding, and
@@ -211,11 +213,12 @@ LF/CRLF. Include non-ASCII text such as Cyrillic plus `µ`, `Ω`, `°`, and `±`
 **Question:** Which loaded encodings can be returned after an edit without DipTrace
 rejecting or corrupting the exchange, and must the original BOM/declaration be preserved?
 
-**Why the code depends on it:** Raw replacements in
-`src/diptrace_mcp/xml_document.py::DipTraceDocument.apply_edits` retain surrounding bytes,
-but `src/diptrace_mcp/xml_document.py::_serialize_new_element` emits UTF-8 and the document
-model does not retain an explicit source-encoding field. Structural edits to UTF-16/32
-input can therefore produce an invalid mixed-encoding result.
+**Why the code depends on it:** Guarded writes in
+`src/diptrace_mcp/xml_document.py::DipTraceDocument.apply_edits` now retain surrounding
+bytes and encode replacements with the detected source codec for supported UTF-8,
+UTF-16LE/BE, US-ASCII, and ISO-8859-1 inputs. UTF-32 and unsupported declarations fail
+closed with a typed error. This is an MCP safety policy backed by byte-preservation tests,
+not evidence that every accepted encoding can be imported by DipTrace.
 
 **Experiment:** For clean UTF-8, UTF-8-with-BOM, UTF-16LE/BE, and any encoding DipTrace
 itself exports, apply one raw attribute edit and one structural insertion. Import each

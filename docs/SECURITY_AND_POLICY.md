@@ -5,7 +5,7 @@
 - paths resolve only within the workspace or explicitly allowed roots;
 - document, artifact, and log sizes are bounded;
 - `DOCTYPE` and `ENTITY` declarations are rejected;
-- UTF-8 handling is explicit, writes are atomic, backups are created, and modified XML is reparsed;
+- supported source encodings and BOMs are detected and preserved, writes are atomic, backups are created, and modified XML is reparsed;
 - commits and rollbacks use SHA-256 optimistic concurrency;
 - locked objects are preserved by default unless an operation explicitly allows otherwise;
 - only one live DipTrace bridge session may be active;
