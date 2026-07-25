@@ -8,7 +8,7 @@ from pydantic import Field, model_validator
 
 from .domain import StrictModel
 from .errors import AmbiguousSelectorError, DocumentError, EditError, ObjectNotFoundError
-from .geometry import to_mm
+from .numeric_inputs import xml_integer, xml_number_mm
 from .operations import SyncSchematicToPcbOperation
 from .xml_document import DipTraceDocument
 
@@ -135,8 +135,8 @@ def _existing_components(pcb: DipTraceDocument) -> dict[str, ET.Element]:
 
 def _board_origin(pcb: DipTraceDocument, placement: SyncPlacement) -> tuple[float, float]:
     points = pcb.container.findall("./BoardOutline/Points/Point")
-    xs = [to_mm(float(item.get("X", "0")), pcb.units) for item in points]
-    ys = [to_mm(float(item.get("Y", "0")), pcb.units) for item in points]
+    xs = [xml_number_mm(pcb, item, "X") for item in points]
+    ys = [xml_number_mm(pcb, item, "Y") for item in points]
     default_x = min(xs) + 5.0 if xs else 5.0
     default_y = min(ys) + 5.0 if ys else 5.0
     return (
@@ -258,7 +258,10 @@ def build_sync_plan(
     for component_index, key in enumerate(sorted(parts_by_refdes)):
         parts = sorted(
             parts_by_refdes[key],
-            key=lambda item: (int(item.get("PartNumber", "0")), item.get("Id", "")),
+            key=lambda item: (
+                xml_integer(schematic, item, "PartNumber"),
+                item.get("Id", ""),
+            ),
         )
         refdes = _text(parts[0], "RefDes")
         mapping = mapping_by_refdes.get(key)
@@ -339,8 +342,8 @@ def build_sync_plan(
                         f"{refdes}: field {field_name!r} differs between units; first value kept"
                     )
         if target is not None:
-            x = to_mm(float(target.get("X", "0")), pcb.units)
-            y = to_mm(float(target.get("Y", "0")), pcb.units)
+            x = xml_number_mm(pcb, target, "X")
+            y = xml_number_mm(pcb, target, "Y")
             side = target.get("Side", "Top")
         else:
             column = component_index % placement.columns

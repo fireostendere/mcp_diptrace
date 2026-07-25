@@ -7,7 +7,7 @@ import re
 import tempfile
 import xml.etree.ElementTree as ET
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, cast
@@ -606,6 +606,12 @@ class DipTraceDocument:
     encoding: str = "utf-8"
     bom: bytes = b""
     declared_encoding: str | None = None
+    _element_byte_offsets: tuple[int, dict[int, int]] | None = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     @classmethod
     def load(cls, path: Path, max_bytes: int) -> DipTraceDocument:
@@ -684,6 +690,36 @@ class DipTraceDocument:
     @property
     def sha256(self) -> str:
         return sha256_bytes(self.raw_bytes)
+
+    def element_byte_offset(self, element: ET.Element) -> int | None:
+        """Return the Expat byte offset for an ElementTree node when available."""
+
+        root_id = id(self.root)
+        if self._element_byte_offsets is None or self._element_byte_offsets[0] != root_id:
+            offsets: list[int] = []
+            parser = expat.ParserCreate()
+
+            def start_element(_name: str, _attributes: dict[str, str]) -> None:
+                offsets.append(parser.CurrentByteIndex)
+
+            parser.StartElementHandler = start_element
+            try:
+                parser.Parse(self.raw_bytes, True)
+            except expat.ExpatError:
+                return None
+            elements = [
+                item for item in self.root.iter() if isinstance(item.tag, str)
+            ]
+            if len(elements) != len(offsets):
+                return None
+            self._element_byte_offsets = (
+                root_id,
+                {
+                    id(item): offset
+                    for item, offset in zip(elements, offsets, strict=True)
+                },
+            )
+        return self._element_byte_offsets[1].get(id(element))
 
     def serialize(self) -> bytes:
         rendered = cast(

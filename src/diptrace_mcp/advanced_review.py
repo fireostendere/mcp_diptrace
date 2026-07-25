@@ -5,8 +5,9 @@ from typing import Any, Protocol
 
 from .adapters import DocumentSnapshot
 from .findings import Finding, make_finding
-from .geometry import Point, segment_distance, to_mm
+from .geometry import Point, segment_distance
 from .lengths import analyze_differential_pair
+from .numeric_inputs import xml_number_mm
 
 
 class _Registry(Protocol):
@@ -20,7 +21,11 @@ def _layer_sizes(snapshot: DocumentSnapshot) -> dict[str, dict[str, float]]:
         for attribute in ("MinTrace", "MinDrill", "MinRing"):
             raw = item.get(attribute)
             if raw is not None:
-                values[attribute] = to_mm(float(raw), snapshot.document.units)
+                values[attribute] = xml_number_mm(
+                    snapshot.document,
+                    item,
+                    attribute,
+                )
         result[item.get("Lay", "")] = values
     return result
 
@@ -33,7 +38,16 @@ def _trace_board_clearance(snapshot: DocumentSnapshot) -> dict[str, float]:
         if raw is None and details is not None:
             raw = details.get("TraceToBoard")
         if raw is not None:
-            result[item.get("Lay", "")] = to_mm(float(raw), snapshot.document.units)
+            source = (
+                details
+                if item.get("TraceToBoard") is None and details is not None
+                else item
+            )
+            result[item.get("Lay", "")] = xml_number_mm(
+                snapshot.document,
+                source,
+                "TraceToBoard",
+            )
     return result
 
 

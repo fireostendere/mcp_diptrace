@@ -11,6 +11,7 @@ from .adapters import DocumentSnapshot
 from .domain import ObjectRecord, SpecctraNetRoute, SpecctraSession, SpecctraVia, SpecctraWire
 from .errors import CapabilityUnavailableError, DocumentError, GeometryError
 from .geometry import Point, distance, to_mm
+from .numeric_inputs import require_finite_number, translate_validation_errors
 from .operations import AddTraceOperation, TracePathPoint
 from .via_styles import resolve_via_span, validate_via_geometry
 
@@ -319,6 +320,17 @@ def export_dsn(snapshot: DocumentSnapshot, *, design_name: str | None = None) ->
     return "\n".join(lines).encode("utf-8")
 
 
+class _Token(str):
+    __slots__ = ("character_offset",)
+
+    character_offset: int
+
+    def __new__(cls, value: str, character_offset: int) -> _Token:
+        token = super().__new__(cls, value)
+        token.character_offset = character_offset
+        return token
+
+
 class _SExprParser:
     def __init__(self, text: str, *, max_tokens: int, max_depth: int) -> None:
         self.text = text
@@ -376,16 +388,17 @@ class _SExprParser:
             self.index += 1
         if start == self.index:
             raise DocumentError(f"Invalid Specctra token at character {self.index}")
-        return self.text[start : self.index]
+        return _Token(self.text[start : self.index], start)
 
-    def _quoted(self) -> str:
+    def _quoted(self) -> _Token:
+        start = self.index
         self.index += 1
         result: list[str] = []
         while self.index < len(self.text):
             char = self.text[self.index]
             self.index += 1
             if char == '"':
-                return "".join(result)
+                return _Token("".join(result), start)
             if char == "\\":
                 if self.index >= len(self.text):
                     break
@@ -406,12 +419,36 @@ def _scopes(value: list[Any], name: str) -> Iterator[list[Any]]:
 def _number(value: Any, context: str) -> float:
     if not isinstance(value, str):
         raise DocumentError(f"Expected a number in {context}")
+    offset = value.character_offset if isinstance(value, _Token) else None
     try:
-        return float(value)
+        parsed = float(value)
     except ValueError as exc:
-        raise DocumentError(f"Invalid number {value!r} in {context}") from exc
+        location = f" at character offset {offset}" if offset is not None else ""
+        raise DocumentError(
+            f"Invalid number {value!r} in {context}{location}",
+            details={"context": context, "character_offset": offset},
+        ) from exc
+    return require_finite_number(
+        parsed,
+        context=f"{context} token {value!r}",
+        offset=offset,
+        offset_unit="character",
+        details={"context": context},
+    )
 
 
+def _scaled_number(value: Any, context: str, scale: float) -> float:
+    offset = value.character_offset if isinstance(value, _Token) else None
+    return require_finite_number(
+        _number(value, context) * scale,
+        context=f"scaled {context}",
+        offset=offset,
+        offset_unit="character",
+        details={"context": context},
+    )
+
+
+@translate_validation_errors
 def parse_ses(data: bytes, *, max_bytes: int = 128 * 1024 * 1024) -> SpecctraSession:
     if len(data) > max_bytes:
         raise DocumentError(f"SES file exceeds {max_bytes} bytes")
@@ -438,7 +475,18 @@ def parse_ses(data: bytes, *, max_bytes: int = 128 * 1024 * 1024) -> SpecctraSes
     resolution = _number(resolution_scope[2], "resolution")
     if unit not in _UNIT_TO_MM or resolution <= 0:
         raise DocumentError(f"Unsupported SES resolution unit: {unit}")
-    scale = _UNIT_TO_MM[unit] / resolution
+    resolution_offset = (
+        resolution_scope[2].character_offset
+        if isinstance(resolution_scope[2], _Token)
+        else None
+    )
+    scale = require_finite_number(
+        _UNIT_TO_MM[unit] / resolution,
+        context="SES resolution scale",
+        offset=resolution_offset,
+        offset_unit="character",
+        details={"context": "resolution"},
+    )
     library_scope = next(_scopes(routes_scope, "library_out"), None)
     padstacks = [
         str(item[1])
@@ -468,12 +516,13 @@ def parse_ses(data: bytes, *, max_bytes: int = 128 * 1024 * 1024) -> SpecctraSes
             if len(path_scope) < 7 or (len(path_scope) - 3) % 2:
                 raise DocumentError(f"SES wire for net {net_scope[1]!r} has an invalid path")
             coordinates = [
-                _number(item, f"wire for net {net_scope[1]}") * scale for item in path_scope[3:]
+                _scaled_number(item, f"wire for net {net_scope[1]}", scale)
+                for item in path_scope[3:]
             ]
             wires.append(
                 SpecctraWire(
                     layer=str(path_scope[1]),
-                    width_mm=_number(path_scope[2], "wire width") * scale,
+                    width_mm=_scaled_number(path_scope[2], "wire width", scale),
                     points=[
                         {"x": coordinates[index], "y": coordinates[index + 1]}
                         for index in range(0, len(coordinates), 2)
@@ -487,8 +536,8 @@ def parse_ses(data: bytes, *, max_bytes: int = 128 * 1024 * 1024) -> SpecctraSes
                 SpecctraVia(
                     padstack=str(via_scope[1]),
                     position={
-                        "x": _number(via_scope[2], "via x") * scale,
-                        "y": _number(via_scope[3], "via y") * scale,
+                        "x": _scaled_number(via_scope[2], "via x", scale),
+                        "y": _scaled_number(via_scope[3], "via y", scale),
                     },
                 )
             )
