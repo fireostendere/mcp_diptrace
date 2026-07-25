@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from diptrace_mcp.errors import DocumentError, EditError
-from diptrace_mcp.xml_document import DipTraceDocument, XmlEdit
+from diptrace_mcp.xml_document import DipTraceDocument, RawTreeSnapshot, XmlEdit
 
 FIXTURES = Path(__file__).parent / "fixtures"
 ENTITY_BOMB = (
@@ -147,7 +147,10 @@ def test_clean_utf16_fixture_loads(bom: bytes, encoding: str) -> None:
 def test_apply_edits_rejects_entity_declaration_in_fragment() -> None:
     document = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
 
-    with pytest.raises((DocumentError, EditError), match="DTD and ENTITY"):
+    with pytest.raises(
+        EditError,
+        match="DTD and ENTITY declarations are not allowed in XML fragments",
+    ):
         document.apply_edits(
             [
                 XmlEdit(
@@ -160,6 +163,20 @@ def test_apply_edits_rejects_entity_declaration_in_fragment() -> None:
                 )
             ]
         )
+
+
+def test_raw_span_guard_preserves_write_error_contract() -> None:
+    document = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    document.raw_bytes = (
+        b'<!DOCTYPE Source [<!ENTITY x "boom">]>'
+        b'<Source Type="DipTrace-PCB"><Board>&x;</Board></Source>'
+    )
+
+    with pytest.raises(
+        EditError,
+        match=r"^DTD and ENTITY declarations are not allowed$",
+    ):
+        RawTreeSnapshot.capture(document)
 
 
 def test_raw_patch_preserves_bom_declaration_empty_tags_and_unknown_sections() -> None:

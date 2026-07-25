@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import Field, field_validator, model_validator
 
 from .domain import QuerySelector, StrictModel
+from .xml_document import reject_forbidden_xml_declarations
 
 
 class SemanticOperation(StrictModel):
@@ -462,11 +463,12 @@ class SyncSchematicToPcbOperation(SemanticOperation):
         definitions = [*self.pattern_xml, *self.pad_style_xml]
         if sum(len(item) for item in definitions) > 64 * 1024 * 1024:
             raise ValueError("embedded pattern definitions exceed 64 MiB")
-        if any(
-            "<!doctype" in item.casefold() or "<!entity" in item.casefold()
-            for item in definitions
-        ):
-            raise ValueError("DTD and ENTITY declarations are forbidden in pattern definitions")
+        for definition in definitions:
+            reject_forbidden_xml_declarations(
+                definition,
+                error_type=ValueError,
+                context="pattern_definition",
+            )
         return self
 
 

@@ -8,6 +8,7 @@ import pytest
 
 from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import EditError, LockedObjectError
+from diptrace_mcp.operations import SyncSchematicToPcbOperation
 from diptrace_mcp.scaffolding import build_pcb_document
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.service import DipTraceService
@@ -34,6 +35,24 @@ def _mapping() -> list[ComponentSyncMapping]:
             ],
         ),
     ]
+
+
+def test_sync_compiler_rejects_entity_in_pattern_xml_even_if_model_is_bypassed() -> None:
+    pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    operation = SyncSchematicToPcbOperation.model_construct(
+        schematic_sha256="0" * 64,
+        components=[],
+        pattern_xml=[
+            '<!DOCTYPE Pattern [<!ENTITY x "boom">]>'
+            '<Pattern PatternStyle="unsafe">&x;</Pattern>'
+        ],
+    )
+
+    with pytest.raises(
+        EditError,
+        match="DTD and ENTITY declarations are forbidden in pattern definitions",
+    ):
+        apply_semantic_operations(pcb, [operation])
 
 
 def test_sync_populates_empty_pcb_and_copies_patterns() -> None:
