@@ -179,6 +179,18 @@ def test_coupled_microstrip_physical_invariants() -> None:
         dielectric_constant=4.1,
     )
     result = calculate_impedance(v)
+    tolerance_result = calculate_impedance(
+        v.model_copy(
+            update={
+                "target_ohm": result.estimated_impedance_ohm,
+                "tolerance_ohm": 0.0,
+            }
+        )
+    )
+
+    assert tolerance_result.within_tolerance is True
+    assert result.validity["inside_published_range"] is True
+    assert result.sensitivity_ohm_per_percent["gap_mm"] > 0.0
 
     # INVARIANT 1: eps_eff ordering — odd < single < even
     # The odd mode has MORE field in air, so its eps_eff must be the LOWEST.

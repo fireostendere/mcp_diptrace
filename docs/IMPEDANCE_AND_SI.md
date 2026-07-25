@@ -13,9 +13,17 @@ Reference equations: Qucs Technical Papers, transmission-line chapter, equations
 `structure="differential_microstrip"` uses the Hammerstad-Jensen parallel-coupled
 microstrip model: even and odd modes, `Zdiff=2*Zodd`, validity range
 `0.1<=W/h<=10`, and `gap/h>=0.01`. Modal impedances and effective permittivity are
-returned in `validity`. The golden case is checked against Qucs-core
-`mscoupled::analysQuasiStatic`:
-<https://qucs.sourceforge.net/doxygen/0.0.18/qucs-core/mscoupled_8cpp_source.html>.
+returned in `validity`. The equations and all three bounds come from the
+[Qucs Hammerstad-Jensen coupled-microstrip section](https://qucs.sourceforge.net/tech/node77.html).
+The `0.1<=gap/h<=10` range shown earlier on that page belongs to the different
+Kirschning-Jansen model and is not presented as a bound for this implementation.
+
+The [swept physical-invariant suite](../tests/test_impedance_invariants.py) checks
+3,360 combinations of width, gap, height, dielectric constant, and the three requested
+test thicknesses. It checks modal-permittivity ordering only inside the published band,
+checks width/height/gap monotonicity, and checks the far-separation permittivity and
+`Zdiff -> 2*Z0` limits. The last impedance limit is intentionally restricted to zero
+thickness because the coupled branch does not implement a thickness correction.
 
 The coupled implementation is a zero-thickness quasi-static model. Non-zero copper
 thickness is not silently ignored: the tool returns a warning and `confidence="low"`.

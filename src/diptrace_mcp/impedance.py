@@ -7,10 +7,36 @@ from .domain import ImpedanceInput, ImpedanceResult, StackupModel
 from .errors import CapabilityUnavailableError, InsufficientStackupDataError
 
 _FREE_SPACE_IMPEDANCE_OHM = 376.730313668
+_COUPLED_MICROSTRIP_VALIDITY_REFERENCE = (
+    "https://qucs.sourceforge.net/tech/node77.html"
+)
+_COUPLED_MIN_WIDTH_OVER_HEIGHT = 0.1
+_COUPLED_MAX_WIDTH_OVER_HEIGHT = 10.0
+_COUPLED_MIN_GAP_OVER_HEIGHT = 0.01
 
 
 def _sech(value: float) -> float:
     return 1.0 / math.cosh(value)
+
+
+def _inside_coupled_published_range(width_ratio: float, gap_ratio: float) -> bool:
+    width_at_or_above_minimum = (
+        width_ratio >= _COUPLED_MIN_WIDTH_OVER_HEIGHT
+        or math.isclose(width_ratio, _COUPLED_MIN_WIDTH_OVER_HEIGHT, rel_tol=1e-12)
+    )
+    width_at_or_below_maximum = (
+        width_ratio <= _COUPLED_MAX_WIDTH_OVER_HEIGHT
+        or math.isclose(width_ratio, _COUPLED_MAX_WIDTH_OVER_HEIGHT, rel_tol=1e-12)
+    )
+    gap_at_or_above_minimum = (
+        gap_ratio >= _COUPLED_MIN_GAP_OVER_HEIGHT
+        or math.isclose(gap_ratio, _COUPLED_MIN_GAP_OVER_HEIGHT, rel_tol=1e-12)
+    )
+    return (
+        width_at_or_above_minimum
+        and width_at_or_below_maximum
+        and gap_at_or_above_minimum
+    )
 
 
 def _air_impedance(normalized_width: float) -> float:
@@ -252,7 +278,10 @@ def calculate_impedance(values: ImpedanceInput) -> ImpedanceResult:
     elif values.structure == "differential_microstrip":
         assert values.gap_mm is not None
         normalized_gap = values.gap_mm / values.dielectric_height_mm
-        within_validity = 0.1 <= normalized_width <= 10.0 and normalized_gap >= 0.01
+        within_validity = _inside_coupled_published_range(
+            normalized_width,
+            normalized_gap,
+        )
         if not within_validity:
             warnings.append(
                 "Width/height or gap/height is outside the published coupled-model range."
@@ -268,9 +297,23 @@ def calculate_impedance(values: ImpedanceInput) -> ImpedanceResult:
             "normalized_width": normalized_width,
             "normalized_gap": normalized_gap,
             "published_range": {
-                "min_width_over_height": 0.1,
-                "max_width_over_height": 10.0,
-                "min_gap_over_height": 0.01,
+                "min_width_over_height": _COUPLED_MIN_WIDTH_OVER_HEIGHT,
+                "max_width_over_height": _COUPLED_MAX_WIDTH_OVER_HEIGHT,
+                "min_gap_over_height": _COUPLED_MIN_GAP_OVER_HEIGHT,
+            },
+            "published_range_citations": {
+                "min_width_over_height": (
+                    f"{_COUPLED_MICROSTRIP_VALIDITY_REFERENCE} — Hammerstad and Jensen "
+                    "validation range before equation 11.156"
+                ),
+                "max_width_over_height": (
+                    f"{_COUPLED_MICROSTRIP_VALIDITY_REFERENCE} — Hammerstad and Jensen "
+                    "validation range before equation 11.156"
+                ),
+                "min_gap_over_height": (
+                    f"{_COUPLED_MICROSTRIP_VALIDITY_REFERENCE} — Hammerstad and Jensen "
+                    "validation range before equation 11.156"
+                ),
             },
             "inside_published_range": within_validity,
             **modal,
