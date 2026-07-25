@@ -6,7 +6,9 @@ the single source of truth in this module.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
+
+MAX_TRANSACTION_OPERATIONS: Final = 100
 
 # The trust model is a single dict that both entry points produce.
 # When a document is present, additional document-specific keys are merged in.

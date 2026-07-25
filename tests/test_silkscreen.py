@@ -93,7 +93,11 @@ def test_silkscreen_plan_preview_commit_and_rollback(tmp_path: Path) -> None:
     )
     assert '"candidates"' in service.plan_resource(plan_id, "preview.json")
 
-    committed = service.apply_silkscreen_plan(plan_id, dry_run=False)
+    committed = service.apply_silkscreen_plan(
+        plan_id,
+        dry_run=False,
+        expected_sha256=plan["source_sha256"],
+    )
     assert committed["transaction"]["status"] == "committed"
     assert committed["plan"]["status"] == "committed"
     committed_sha = committed["transaction"]["committed_sha256"]

@@ -20,6 +20,7 @@ from .adapters import (
 )
 from .bom import compare_bom_records, extract_bom, group_bom, review_bom
 from .capabilities import get_capabilities as build_capabilities
+from .capability_model import MAX_TRANSACTION_OPERATIONS
 from .config import Settings
 from .connectivity import build_connectivity_graph
 from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
@@ -217,6 +218,14 @@ def same_file_role(path_a: Path, path_b: Path) -> bool:
         left = os.path.normcase(os.path.abspath(path_a))
         right = os.path.normcase(os.path.abspath(path_b))
     return left == right
+
+
+def _require_transaction_capacity(operation_count: int) -> None:
+    if operation_count > MAX_TRANSACTION_OPERATIONS:
+        raise EditError(
+            "Transaction would exceed "
+            f"{MAX_TRANSACTION_OPERATIONS} operations limit ({operation_count} staged)"
+        )
 
 
 # ── Effective trust resolution ───────────────────────────────────────────
@@ -2071,10 +2080,7 @@ class DipTraceService:
         if not parsed:
             raise EditError("At least one semantic operation is required")
         staged = [*record.operations, *(operation.model_dump() for operation in parsed)]
-        if len(staged) > 100:
-            raise EditError(
-                f"Transaction would exceed 100 operations limit ({len(staged)} staged)"
-            )
+        _require_transaction_capacity(len(staged))
         updated = self.transactions.update(
             txid,
             status="staged",
@@ -2869,7 +2875,7 @@ class DipTraceService:
             operations,
             path,
             dry_run,
-            expected_sha256 or snapshot.info.sha256,
+            expected_sha256,
             txid,
         )
 
@@ -2962,7 +2968,7 @@ class DipTraceService:
             operations,
             path,
             dry_run,
-            expected_sha256 or snapshot.info.sha256,
+            expected_sha256,
             txid,
         )
 
@@ -5501,7 +5507,7 @@ class DipTraceService:
             operations,
             str(target_path),
             dry_run,
-            expected_sha256 or plan.source_sha256,
+            expected_sha256,
             txid,
         )
         transaction = response.get("transaction") or {}
@@ -5776,6 +5782,13 @@ class DipTraceService:
             dry_run=dry_run,
             operation=operations[0].kind if len(operations) == 1 else "semantic_operations",
         )
+        if not dry_run and expected_sha256 is None:
+            raise ConfirmationRequiredError(
+                "expected_sha256 is required for semantic writes",
+                txid=txid,
+            )
+        incoming_operations = [operation.model_dump() for operation in operations]
+        _require_transaction_capacity(len(incoming_operations))
         if txid is None:
             document, target = self.load(path)
             snapshot = build_snapshot(document, live_session=target.is_live)
@@ -5799,7 +5812,7 @@ class DipTraceService:
             self.transactions.update(
                 txid,
                 status="staged",
-                operations=[operation.model_dump() for operation in operations],
+                operations=incoming_operations,
                 compiled_patch_count=len(operations),
                 snapshot_path=str(self.transactions.snapshot_path(txid)),
             )
@@ -5821,9 +5834,9 @@ class DipTraceService:
                         },
                         txid=txid,
                     )
-            incoming_operations = [operation.model_dump() for operation in operations]
             if existing.operations != incoming_operations:
                 combined_operations = [*existing.operations, *incoming_operations]
+                _require_transaction_capacity(len(combined_operations))
                 self.transactions.update(
                     txid,
                     status="staged",
@@ -5835,10 +5848,9 @@ class DipTraceService:
         preview = self.preview_transaction(txid)
         if dry_run:
             return preview
-        record = self.transactions.read(txid)
         return self.commit_transaction(
             txid,
-            expected_sha256=expected_sha256 or record.source_sha256,
+            expected_sha256=expected_sha256,
         )
 
     def _preview_semantic_operations(

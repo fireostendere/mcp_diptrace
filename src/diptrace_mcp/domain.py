@@ -8,6 +8,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .capability_model import MAX_TRANSACTION_OPERATIONS
+
 StableId = str
 SourceType = Literal[
     "DipTrace-PCB",
@@ -1170,7 +1172,10 @@ class TransactionRecord(StrictModel):
     status: TransactionStatus
     source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     target_path: str
-    operations: list[dict[str, Any]] = Field(default_factory=list, max_length=10_000)
+    operations: list[dict[str, Any]] = Field(
+        default_factory=list,
+        max_length=MAX_TRANSACTION_OPERATIONS,
+    )
     created_at: str
     updated_at: str
     expected_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")

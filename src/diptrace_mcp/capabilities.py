@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from . import __version__
 from .adapters import capability_report
-from .capability_model import get_trust_model
+from .capability_model import MAX_TRANSACTION_OPERATIONS, get_trust_model
 from .domain import CapabilityReport
 from .geometry_backend import backend_report
 from .xml_document import DipTraceDocument
@@ -143,7 +143,10 @@ def get_capabilities(
             },
             geometry_backend=backend_report(),
             preview_formats=["svg", "json", "diff"],
-            limits={"max_transaction_operations": 100, "max_query_results": 500},
+            limits={
+                "max_transaction_operations": MAX_TRANSACTION_OPERATIONS,
+                "max_query_results": 500,
+            },
             policy={
                 "active_profile": "interactive_edit",
                 "default_write_mode": "dry_run",

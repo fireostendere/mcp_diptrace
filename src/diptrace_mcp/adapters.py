@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from typing import Any, Literal
 
-from .capability_model import get_trust_model
+from .capability_model import MAX_TRANSACTION_OPERATIONS, get_trust_model
 from .domain import (
     BoardModel,
     CapabilityReport,
@@ -2588,7 +2588,7 @@ def capability_report(
         limits={
             "max_document_bytes": None,
             "max_query_results": 500,
-            "max_transaction_operations": 100,
+            "max_transaction_operations": MAX_TRANSACTION_OPERATIONS,
         },
         policy={
             "default_write_mode": "dry_run",
