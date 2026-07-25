@@ -2071,6 +2071,10 @@ class DipTraceService:
         if not parsed:
             raise EditError("At least one semantic operation is required")
         staged = [*record.operations, *(operation.model_dump() for operation in parsed)]
+        if len(staged) > 100:
+            raise EditError(
+                f"Transaction would exceed 100 operations limit ({len(staged)} staged)"
+            )
         updated = self.transactions.update(
             txid,
             status="staged",

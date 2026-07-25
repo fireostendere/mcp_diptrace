@@ -6,6 +6,15 @@ from diptrace_mcp.errors import DocumentError, EditError
 from diptrace_mcp.xml_document import DipTraceDocument, XmlEdit
 
 FIXTURES = Path(__file__).parent / "fixtures"
+ENTITY_BOMB = (
+    '<!DOCTYPE Source [<!ENTITY a "AAAAAAAAAA">'
+    '<!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">'
+    '<!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;">]>'
+)
+ENTITY_BODY = (
+    '<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">'
+    "<X>&c;</X></Source>"
+)
 
 
 def test_guarded_set_text_and_append() -> None:
@@ -57,6 +66,100 @@ def test_dtd_is_rejected() -> None:
 
     with pytest.raises(DocumentError, match="DTD and ENTITY"):
         DipTraceDocument.from_bytes(Path("unsafe.xml"), payload)
+
+
+def test_utf16_be_bom_dtd_is_rejected() -> None:
+    text = '<!DOCTYPE Source [<!ENTITY x "boom">]><Source Type="DipTrace-PCB">&x;</Source>'
+    payload = b"\xfe\xff" + text.encode("utf-16-be")
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        DipTraceDocument.from_bytes(Path("unsafe-utf16-be.xml"), payload)
+
+
+def test_utf16_le_bom_entity_is_rejected() -> None:
+    text = '<Source Type="DipTrace-PCB"><!ENTITY x "boom"></Source>'
+    payload = b"\xff\xfe" + text.encode("utf-16-le")
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        DipTraceDocument.from_bytes(Path("unsafe-utf16-le.xml"), payload)
+
+
+def test_utf32_be_bom_dtd_is_rejected() -> None:
+    text = '<!DOCTYPE Source><Source Type="DipTrace-PCB"/>'
+    payload = b"\x00\x00\xfe\xff" + text.encode("utf-32-be")
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        DipTraceDocument.from_bytes(Path("unsafe-utf32-be.xml"), payload)
+
+
+def test_utf32_le_bom_entity_is_rejected() -> None:
+    text = '<Source Type="DipTrace-PCB"><!ENTITY x "boom"/></Source>'
+    payload = b"\xff\xfe\x00\x00" + text.encode("utf-32-le")
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        DipTraceDocument.from_bytes(Path("unsafe-utf32-le.xml"), payload)
+
+
+def test_utf16_be_without_bom_dtd_is_rejected() -> None:
+    text = '<?xml version="1.0" encoding="UTF-16"?>' + ENTITY_BOMB + ENTITY_BODY
+    payload = text.encode("utf-16-be")
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        DipTraceDocument.from_bytes(Path("unsafe-utf16-be-no-bom.xml"), payload)
+
+
+@pytest.mark.parametrize(
+    "comment",
+    ['encoding="utf-16"', 'encoding="cp037"', 'encoding="idna"'],
+)
+def test_encoding_name_in_comment_cannot_bypass_guard(comment: str) -> None:
+    text = f'<?xml version="1.0"?><!--{comment}-->{ENTITY_BOMB}{ENTITY_BODY}'
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        DipTraceDocument.from_bytes(Path("unsafe-comment.xml"), text.encode())
+
+
+def test_doctype_after_large_comment_is_rejected() -> None:
+    text = (
+        '<?xml version="1.0"?><!-- '
+        + ("P" * 70_000)
+        + f" -->{ENTITY_BOMB}{ENTITY_BODY}"
+    )
+
+    with pytest.raises(DocumentError, match="DTD and ENTITY"):
+        DipTraceDocument.from_bytes(Path("unsafe-late-doctype.xml"), text.encode())
+
+
+@pytest.mark.parametrize(
+    ("bom", "encoding"),
+    [(b"\xfe\xff", "utf-16-be"), (b"\xff\xfe", "utf-16-le")],
+)
+def test_clean_utf16_fixture_loads(bom: bytes, encoding: str) -> None:
+    text = (FIXTURES / "pcb.xml").read_text(encoding="utf-8")
+    text = text.replace('encoding="UTF-8"', 'encoding="UTF-16"', 1)
+    payload = bom + text.encode(encoding)
+
+    document = DipTraceDocument.from_bytes(Path("clean-utf16.xml"), payload)
+
+    assert document.source_type == "DipTrace-PCB"
+
+
+def test_apply_edits_rejects_entity_declaration_in_fragment() -> None:
+    document = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+
+    with pytest.raises((DocumentError, EditError), match="DTD and ENTITY"):
+        document.apply_edits(
+            [
+                XmlEdit(
+                    operation="append_xml",
+                    xpath="./Board",
+                    value=(
+                        '<!DOCTYPE Child [<!ENTITY x "boom">]>'
+                        "<Child>&x;</Child>"
+                    ),
+                )
+            ]
+        )
 
 
 def test_raw_patch_preserves_bom_declaration_empty_tags_and_unknown_sections() -> None:

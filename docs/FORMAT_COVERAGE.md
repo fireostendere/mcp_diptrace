@@ -1,0 +1,329 @@
+# DipTrace XML Format Coverage
+
+## Summary
+
+| Metric | Value |
+| --- | --- |
+| Total elements in spec | 294 |
+| Normalized (reader produces typed field) | 48 |
+| Written (writer can create/modify) | 66 |
+| Passthrough (unknown XML, kept byte-for-byte) | 180 |
+| **Coverage** | **38.8%** |
+
+## Normalized Elements
+
+- `Assy`
+- `BoardClearance`
+- `BotSegments`
+- `Courtyard`
+- `DatasheetMarking`
+- `GNDTemplate`
+- `Id`
+- `Item`
+- `Lay`
+- `LayerName`
+- `LayerStackItems`
+- `LayerStackName`
+- `Library`
+- `LineWidth`
+- `ManufacturerMarking`
+- `Name`
+- `NameMarking`
+- `NegTrace`
+- `NetClass`
+- `Pad`
+- `PadId`
+- `Pads`
+- `Part`
+- `PartName`
+- `PartRefDes`
+- `PatternMarking`
+- `Pin`
+- `Pins`
+- `Point`
+- `Polygon`
+- `PosTrace`
+- `RefDes`
+- `RefDesMarking`
+- `Segments`
+- `Shape`
+- `Sheet`
+- `Silk`
+- `Size`
+- `Text`
+- `TopSegments`
+- `TraceWidth`
+- `Type`
+- `VCCTemplate`
+- `Value`
+- `ValueMarking`
+- `ViaStyle`
+- `X`
+- `Y`
+
+## Written Elements
+
+- `ActiveSheet`
+- `AddField`
+- `AddFields`
+- `Board`
+- `BoardOutline`
+- `Bus`
+- `Buses`
+- `CenterPoint`
+- `CenterPoints`
+- `Columns`
+- `Component`
+- `Components`
+- `ConnectivityCheck`
+- `CopperLayers`
+- `CopperPours`
+- `DRC`
+- `DifferentialPairs`
+- `ERC`
+- `FontScale`
+- `FontSize`
+- `FontVector`
+- `FontWidth`
+- `Group`
+- `Groups`
+- `HorzTabsX`
+- `LayClearance`
+- `LayClearances`
+- `LayProperties`
+- `LayProperty`
+- `LaySize`
+- `LaySizes`
+- `LayerStackItem`
+- `Material`
+- `NegPoint`
+- `NegPoints`
+- `Net`
+- `NetClasses`
+- `Nets`
+- `Origin`
+- `Panel`
+- `Points`
+- `PosPoint`
+- `PosPoints`
+- `Ratline`
+- `Ratlines`
+- `Routing`
+- `Schematic`
+- `Segment`
+- `Settings`
+- `Shapes`
+- `SheetSettings`
+- `Sheets`
+- `Show`
+- `Signal`
+- `Source`
+- `TextLine`
+- `TextLines`
+- `Trace`
+- `TraceClearance`
+- `Traces`
+- `VertTabsY`
+- `ViaHole`
+- `ViaSize`
+- `ViaStyles`
+- `Wire`
+- `Wires`
+
+## Passthrough Elements
+
+- `AddFieldsGlobal`
+- `AllowedVias`
+- `Assembly`
+- `AssemblyExclude`
+- `AssemblyName`
+- `AssemblyVariant`
+- `AssemblyVariants`
+- `AutoUpdate`
+- `Autorouting`
+- `AxisColor`
+- `BlindLay`
+- `BlockId`
+- `Border`
+- `BorderZones`
+- `BottomComponentLock`
+- `BottomLeftBlock`
+- `BottomMargin`
+- `BottomRightBlock`
+- `BusConnections`
+- `BusConnector`
+- `BusConnectors`
+- `CTC_Cells`
+- `Category`
+- `CategoryType`
+- `CategoryTypes`
+- `Cell`
+- `Cells`
+- `ClassToClass`
+- `ClearanceDetails`
+- `ColWidths`
+- `Column`
+- `ColumnWidths`
+- `CompBorders`
+- `CompOutline`
+- `CompRotate`
+- `ConnectedTeardrops`
+- `CopperPour`
+- `CustomSpoke`
+- `CustomSpokes`
+- `DCTransferFunc`
+- `DRCDone`
+- `DatasheetGlobal`
+- `DesignCache`
+- `DesignError`
+- `DesignErrors`
+- `DifferentialPair`
+- `Dimension`
+- `Dimensions`
+- `DisplayName`
+- `DisplaySheet`
+- `DisplayTitles`
+- `EditInactiveLayer`
+- `ExtBottomLeftBlock`
+- `ExtTopLeftBlock`
+- `FanoutLength`
+- `Field`
+- `Fields`
+- `FlipTextAuto`
+- `Folder`
+- `Folders`
+- `FontColor`
+- `FontLineWidth`
+- `FontName`
+- `GndNetName`
+- `Grid`
+- `HSheet`
+- `HidePower`
+- `HideRingLay`
+- `HierarchyPath`
+- `HierarchySheets`
+- `HorzBorderSize`
+- `HorzZones`
+- `Index`
+- `IntCon`
+- `InternalConnections`
+- `JumperLayer`
+- `LayerClearances`
+- `LayerDisplayMode`
+- `LayerPanel`
+- `Lays`
+- `LeftMargin`
+- `LengthRule`
+- `LengthRules`
+- `Lib`
+- `LibPath`
+- `Libs`
+- `LockNetStructure`
+- `MainLengthRule`
+- `ManufacturerGlobal`
+- `Markings`
+- `MaskPaste`
+- `NameGlobal`
+- `NegSeparateTraces`
+- `NodeSize`
+- `Noise`
+- `NonSignal`
+- `NonSignals`
+- `NumberOfPoints`
+- `OutputNet`
+- `PadPoint`
+- `PadPoints`
+- `PasteMaskShrink`
+- `Path`
+- `PatternGlobal`
+- `PictureFile`
+- `PictureVector`
+- `PinNumbers`
+- `PointerText`
+- `PointsPerSummary`
+- `Polygons`
+- `PosSeparateTraces`
+- `Position`
+- `ProjectDir`
+- `ProjectLibs`
+- `RealTimeMode`
+- `RefDesGlobal`
+- `ReferenceNet`
+- `RelatedSchem`
+- `RemovedDifferentialPairs`
+- `RightMargin`
+- `RouteLayers`
+- `Router`
+- `RowHeights`
+- `Rule`
+- `Rules`
+- `Scale`
+- `SecondSource`
+- `SecondSourceRefDes`
+- `SecondSourceType`
+- `SecondStartValue`
+- `SecondStep`
+- `SecondStopValue`
+- `Separator`
+- `SheetHeight`
+- `SheetWidth`
+- `ShowCompFiducials`
+- `ShowList`
+- `SignalDelayLength`
+- `Signals`
+- `Simulator`
+- `SmallSignalAC`
+- `Snap`
+- `SolderMaskSwell`
+- `SourceRefDes`
+- `SourceType`
+- `StackLength`
+- `Standard`
+- `StartFrequency`
+- `StartTime`
+- `StartValue`
+- `Step`
+- `StopFrequency`
+- `StopTime`
+- `StopValue`
+- `SubType`
+- `Table`
+- `Tables`
+- `Teardrop`
+- `TeardropParams`
+- `Teardrops`
+- `Title`
+- `Titles`
+- `TopComponentLock`
+- `TopLeftBlock`
+- `TopMargin`
+- `TopRightBlock`
+- `Transient`
+- `UId`
+- `UpdateIds`
+- `UsePartFontColor`
+- `ValueGlobal`
+- `Var`
+- `Variation`
+- `VertBorderSize`
+- `VertZones`
+- `Visible`
+- `XPos`
+- `YIdentical`
+- `YPos`
+- `YSize`
+
+## What Passthrough Means
+
+Passthrough elements survive byte-for-byte **only** while no operation regenerates
+their parent subtree. The following operations regenerate whole subtrees and will
+destroy any passthrough data within them:
+
+- `routing_compiler.py` `_write_points` — regenerates trace point lists
+- Ratlines rewrite — regenerates the entire `<Ratlines>` section
+- Copper pour refill (if implemented) — regenerates `<CopperPour>` content
+
+Any edit to a passthrough element's parent container that triggers a full rewrite
+will silently lose the passthrough data. This is the expected behaviour: the tool
+only preserves what it understands.
+

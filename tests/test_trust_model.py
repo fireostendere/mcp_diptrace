@@ -575,6 +575,33 @@ class TestAllWritePathsInvalidate:
         assert "ses_import" in trust["untested_write_paths"]
         assert "schematic_to_pcb_sync" in trust["untested_write_paths"]
 
+    def test_untested_write_paths_are_exhaustively_listed(self) -> None:
+        """§17b: Every write path the code claims is untested must appear in
+        the untested_write_paths list, and the list must not contain paths
+        that don't exist in the codebase."""
+        from diptrace_mcp.capabilities import get_capabilities
+
+        report = get_capabilities(None)
+        trust = report.trust_model
+        listed = set(trust["untested_write_paths"])
+
+        # These paths are verified untested because they require a real DipTrace
+        # installation to exercise the write-back through the bridge.
+        # When a path is tested, remove it from this set and from the
+        # capability_model._BASE_TRUST_MODEL untested_write_paths list.
+        expected_untested = {
+            "plan_apply",
+            "ses_import",
+            "schematic_to_pcb_sync",
+            "live_session_apply",
+        }
+        assert listed == expected_untested, (
+            f"untested_write_paths mismatch: "
+            f"listed={listed}, expected={expected_untested}. "
+            f"Update capability_model._BASE_TRUST_MODEL if paths were tested "
+            f"or new untested paths were added."
+        )
+
 
 # ── §7 Attack regression tests ─────────────────────────────────────────────
 

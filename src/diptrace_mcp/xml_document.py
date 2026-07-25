@@ -25,11 +25,135 @@ EditOperation = Literal[
 ]
 
 _FORBIDDEN_XML = re.compile(br"<!\s*(?:DOCTYPE|ENTITY)", re.IGNORECASE)
+_FORBIDDEN_XML_TEXT = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)", re.IGNORECASE)
+_XML_DECLARATION_ENCODING = re.compile(
+    rb"^\s*<\?xml\b[^>]*?\bencoding\s*=\s*([\"'])([^\"']+)\1",
+    re.IGNORECASE,
+)
+_ALLOWED_XML_ENCODINGS = frozenset(
+    {
+        "utf-8",
+        "utf-8-sig",
+        "utf-16",
+        "utf-16-le",
+        "utf-16-be",
+        "utf-32",
+        "utf-32-le",
+        "utf-32-be",
+        "us-ascii",
+        "iso-8859-1",
+    }
+)
+_FORBIDDEN_XML_MESSAGE = "DTD and ENTITY declarations are not allowed"
 _XML_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.:-]*$")
 
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _encoding_candidates(data: bytes) -> tuple[tuple[str, int], ...]:
+    """Return allowlisted decodings that can expose forbidden XML declarations."""
+    if data[:4] == b"\x00\x00\xfe\xff":
+        return (("utf-32-be", 4),)
+    if data[:4] == b"\xff\xfe\x00\x00":
+        return (("utf-32-le", 4),)
+    if data[:2] == b"\xfe\xff":
+        return (("utf-16-be", 2),)
+    if data[:2] == b"\xff\xfe":
+        return (("utf-16-le", 2),)
+    if data[:3] == b"\xef\xbb\xbf":
+        return (("utf-8-sig", 0),)
+
+    # A BOM-less UTF-16/32 declaration is itself NUL-interleaved, so an ASCII
+    # declaration regex cannot identify its byte order. Scan both byte orders;
+    # the parser-level guard below remains authoritative for the full document.
+    if b"\x00" in data[:16]:
+        return (
+            ("utf-16-le", 0),
+            ("utf-16-be", 0),
+            ("utf-32-le", 0),
+            ("utf-32-be", 0),
+        )
+
+    declaration = _XML_DECLARATION_ENCODING.search(data[:256])
+    if declaration is None:
+        return (("utf-8", 0),)
+    try:
+        encoding = declaration.group(2).decode("ascii").lower().replace("_", "-")
+    except (LookupError, UnicodeError, ValueError):
+        return ()
+    if encoding not in _ALLOWED_XML_ENCODINGS:
+        return ()
+    if encoding == "utf-16":
+        return (("utf-16-le", 0), ("utf-16-be", 0))
+    if encoding == "utf-32":
+        return (("utf-32-le", 0), ("utf-32-be", 0))
+    return ((encoding, 0),)
+
+
+def _detect_encoding_and_check(data: bytes) -> None:
+    """Reject DTD/entity declarations through byte and allowlisted text scans."""
+    # This unconditional whole-document pass covers every single-byte encoding.
+    # Decoding below is an additional pass for NUL-interleaved UTF-16/32 input.
+    if _FORBIDDEN_XML.search(data):
+        raise DocumentError(_FORBIDDEN_XML_MESSAGE)
+
+    for encoding, bom_len in _encoding_candidates(data):
+        try:
+            text = data[bom_len:].decode(encoding, errors="replace")
+        except (LookupError, UnicodeError, ValueError):
+            continue
+        if _FORBIDDEN_XML_TEXT.search(text):
+            raise DocumentError(_FORBIDDEN_XML_MESSAGE)
+
+
+class _ForbiddenXmlDeclaration(Exception):
+    """Internal signal raised from Expat declaration callbacks."""
+
+
+def _reject_forbidden_xml_at_parser_level(data: bytes) -> None:
+    """Use Expat callbacks so DTD rejection is independent of byte position."""
+    parser = expat.ParserCreate()
+
+    def reject_doctype(
+        _doctype_name: str,
+        _system_id: str | None,
+        _public_id: str | None,
+        _has_internal_subset: int,
+    ) -> None:
+        raise _ForbiddenXmlDeclaration
+
+    def reject_entity(
+        _entity_name: str,
+        _is_parameter_entity: int,
+        _value: str | None,
+        _base: str | None,
+        _system_id: str | None,
+        _public_id: str | None,
+        _notation_name: str | None,
+    ) -> None:
+        raise _ForbiddenXmlDeclaration
+
+    def reject_external_entity(
+        _context: str,
+        _base: str | None,
+        _system_id: str | None,
+        _public_id: str | None,
+    ) -> int:
+        raise _ForbiddenXmlDeclaration
+
+    parser.StartDoctypeDeclHandler = reject_doctype
+    parser.EntityDeclHandler = reject_entity
+    parser.ExternalEntityRefHandler = reject_external_entity
+    try:
+        parser.Parse(data, True)
+    except _ForbiddenXmlDeclaration:
+        raise DocumentError(_FORBIDDEN_XML_MESSAGE) from None
+    except expat.ExpatError:
+        # ElementTree below preserves the public Invalid XML error contract for
+        # ordinary syntax and unsupported-encoding failures.
+        return
 
 
 def utc_now() -> str:
@@ -51,8 +175,8 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
 
 
 def _parse_root(data: bytes) -> ET.Element:
-    if _FORBIDDEN_XML.search(data):
-        raise DocumentError("DTD and ENTITY declarations are not allowed")
+    _detect_encoding_and_check(data)
+    _reject_forbidden_xml_at_parser_level(data)
     try:
         parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
         return ET.fromstring(data, parser=parser)
@@ -477,8 +601,7 @@ def _scan_start_tag_end(data: bytes, start: int) -> int:
 
 
 def _raw_element_spans(data: bytes) -> list[_RawElementSpan]:
-    if _FORBIDDEN_XML.search(data):
-        raise EditError("DTD and ENTITY declarations are not allowed")
+    _detect_encoding_and_check(data)
     spans: list[_RawElementSpan] = []
     stack: list[int] = []
     parser = expat.ParserCreate()
@@ -749,8 +872,7 @@ def _parse_fragment(index: int, value: str | None) -> ET.Element:
 
 
 def _parse_root_fragment(data: bytes) -> ET.Element:
-    if _FORBIDDEN_XML.search(data):
-        raise EditError("DTD and ENTITY declarations are not allowed in XML fragments")
+    _detect_encoding_and_check(data)
     try:
         return ET.fromstring(b"<McpFragment>" + data + b"</McpFragment>")
     except ET.ParseError as exc:

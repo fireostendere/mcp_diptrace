@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from typing import Any, Literal
 
+from .capability_model import get_trust_model
 from .domain import (
     BoardModel,
     CapabilityReport,
@@ -2587,7 +2588,7 @@ def capability_report(
         limits={
             "max_document_bytes": None,
             "max_query_results": 500,
-            "max_transaction_operations": 10_000,
+            "max_transaction_operations": 100,
         },
         policy={
             "default_write_mode": "dry_run",
@@ -2668,6 +2669,7 @@ def capability_report(
                 "synchronize_schematic_to_pcb",
             )
         ],
+        trust_model=get_trust_model(document_kind=document.kind),
     )
 
 

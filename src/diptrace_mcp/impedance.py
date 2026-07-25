@@ -111,6 +111,17 @@ def _coupled_microstrip_quasi_static(
     f_odd = f_odd_base * math.exp(
         p * math.log(u) + q * math.sin(math.pi * math.log10(u))
     )
+    # Apply the (1 + 10/u)^(-a*b) factor from Hammerstad-Jensen.
+    # This is the same factor used in _effective_dielectric_constant for
+    # the single-line case; it ensures the odd mode has MORE field in air
+    # (lower eps_eff) than the single line.
+    a = (
+        1.0
+        + math.log((u**4 + (u / 52.0) ** 2) / (u**4 + 0.432)) / 49.0
+        + math.log(1.0 + (u / 18.1) ** 3) / 18.7
+    )
+    b = 0.564 * ((er - 0.9) / (er + 3.0)) ** 0.053
+    f_odd = f_odd * (1.0 + 10.0 / u) ** (-a * b)
 
     mu = g * math.exp(-g) + u * (20.0 + g**2.0) / (10.0 + g**2.0)
     f_even = _filling_factor(mu, er)

@@ -235,7 +235,6 @@ Native Pattern/Component Library creation or mutation remains blocked until cont
 ## Documentation
 
 - [Roadmap and actual status](docs/ROADMAP.md)
-- [Serializer reference](docs/SERIALIZER_REFERENCE.md)
 - [XML compatibility](docs/XML_COMPATIBILITY.md)
 - [Complete usage guide](docs/USAGE.md)
 - [Architecture](docs/ARCHITECTURE.md)
