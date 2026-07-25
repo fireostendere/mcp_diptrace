@@ -1186,10 +1186,21 @@ def _parse_fragment(index: int, value: str | None) -> ET.Element:
     if not value:
         raise EditError(f"Edit {index}: XML fragment is required")
     wrapper = _parse_root_fragment(value.encode("utf-8"))
-    children = [child for child in wrapper if isinstance(child.tag, str)]
-    if len(children) != 1 or (wrapper.text and wrapper.text.strip()):
+    children = list(wrapper)
+    if (
+        len(children) != 1
+        or not isinstance(children[0].tag, str)
+        or (wrapper.text and wrapper.text.strip())
+        or (children[0].tail and children[0].tail.strip())
+    ):
         raise EditError(f"Edit {index}: XML fragment must contain exactly one root element")
-    return children[0]
+    root = children[0]
+    if any(
+        cast(object, element.tag) is cast(object, ET.ProcessingInstruction)
+        for element in root.iter()
+    ):
+        raise EditError(f"Edit {index}: XML processing instructions are not supported in fragments")
+    return root
 
 
 def _parse_root_fragment(data: bytes) -> ET.Element:
@@ -1199,7 +1210,13 @@ def _parse_root_fragment(data: bytes) -> ET.Element:
         context="fragment",
     )
     try:
-        return ET.fromstring(b"<McpFragment>" + data + b"</McpFragment>")
+        parser = ET.XMLParser(
+            target=ET.TreeBuilder(insert_comments=True, insert_pis=True),
+        )
+        return ET.fromstring(
+            b"<McpFragment>" + data + b"</McpFragment>",
+            parser=parser,
+        )
     except ET.ParseError as exc:
         raise EditError(f"Invalid XML fragment: {exc}") from exc
 

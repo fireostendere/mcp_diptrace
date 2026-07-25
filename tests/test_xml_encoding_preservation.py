@@ -238,7 +238,7 @@ def test_public_apply_edits_rejects_semantically_wrong_raw_output(
         )
 
 
-def test_public_semantic_gate_detects_significant_fragment_tail_mismatch() -> None:
+def test_public_fragment_parser_rejects_significant_tail() -> None:
     payload = (
         b'<?xml version="1.0" encoding="UTF-8"?>'
         b'<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">'
@@ -246,13 +246,45 @@ def test_public_semantic_gate_detects_significant_fragment_tail_mismatch() -> No
     )
     document = DipTraceDocument.from_bytes(Path("fragment-tail.xml"), payload)
 
-    with pytest.raises(EditError, match="does not match the requested semantic edit"):
+    with pytest.raises(EditError, match="exactly one root element"):
         document.apply_edits(
             [
                 XmlEdit(
                     operation="replace_xml",
                     xpath="./Board/Old",
                     value="<New />INJECTED",
+                )
+            ]
+        )
+
+
+@pytest.mark.parametrize(
+    ("fragment", "message"),
+    [
+        ("<New />INJECTED", "exactly one root element"),
+        ("<?mcp hidden?><New />", "exactly one root element"),
+        ("<!--outside--><New />", "exactly one root element"),
+        ("<New><?mcp hidden?></New>", "processing instructions"),
+    ],
+)
+def test_public_append_fragment_rejects_content_outside_or_invisible_to_semantic_gate(
+    fragment: str,
+    message: str,
+) -> None:
+    payload = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        b'<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">'
+        b"<Board><Box /></Board></Source>"
+    )
+    document = DipTraceDocument.from_bytes(Path("append-fragment.xml"), payload)
+
+    with pytest.raises(EditError, match=message):
+        document.apply_edits(
+            [
+                XmlEdit(
+                    operation="append_xml",
+                    xpath="./Board/Box",
+                    value=fragment,
                 )
             ]
         )
