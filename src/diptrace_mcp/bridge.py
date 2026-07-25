@@ -15,7 +15,11 @@ from .xml_document import sha256_bytes
 
 class BridgeController:
     def __init__(self, exchange_path: Path, settings: Settings):
-        self.store = SessionStore(settings.state_dir, settings.max_document_bytes)
+        self.store = SessionStore(
+            settings.state_dir,
+            settings.max_document_bytes,
+            retention=settings.retention_policy,
+        )
         self.metadata = self.store.create(exchange_path)
         self.session_id = str(self.metadata["session_id"])
         self.finished = False

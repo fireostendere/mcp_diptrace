@@ -7,6 +7,8 @@
 - `DOCTYPE` and `ENTITY` declarations are rejected;
 - supported source encodings and BOMs are detected and preserved, writes are atomic, backups are created, and modified XML is reparsed;
 - commits and rollbacks use SHA-256 optimistic concurrency;
+- persisted record and job/export artifact reads require confined non-redirected paths, and embedded record identifiers must match the requested identifiers;
+- transaction snapshots and rollback backups are derived from the transaction identifier and hash-checked instead of trusting persisted path strings;
 - locked objects are preserved by default unless an operation explicitly allows otherwise;
 - only one live DipTrace bridge session may be active;
 - external processes use fixed typed argument vectors, `shell=false`, isolated job directories, bounded streaming logs/results, a global concurrency cap, process-tree timeouts, terminal cancellation, and explicit reaping;
@@ -36,6 +38,20 @@ The server is designed as a trusted local single-user engineering tool.
 Streamable HTTP listens on loopback by default. There is no built-in OAuth, multi-user isolation, or remote authentication. Exposing the HTTP endpoint outside the local machine requires a separate authenticated reverse proxy and is outside the core security model.
 
 Filesystem restrictions reduce accidental reach but do not make an LLM an engineering authority. A model can still request a structurally valid but electrically incorrect change. Visual review, ERC/DRC, and engineering judgment remain mandatory for consequential edits.
+
+## Local State and Retention
+
+Offline backups are held under `DIPTRACE_MCP_STATE_DIR/offline_backups`, keyed by the
+SHA-256 of the canonical target path. They are not placed in the user's design
+directory. Backup metadata binds the opaque directory key to one target and the
+backup filename binds it to the original content hash.
+
+Count-and-age retention runs when a store is constructed. It deletes only fully
+parsed terminal records confined to that store. Nonterminal transactions, plans and
+jobs, active sessions, sessions referenced by `active.json`, and their internal
+backups are never retention candidates. The newest valid offline backup per target is
+also retained. A corrupt record, unknown status, ID mismatch, symbolic link, junction,
+or path outside the state tree fails closed: it is neither followed nor deleted.
 
 ## Trust Boundary
 

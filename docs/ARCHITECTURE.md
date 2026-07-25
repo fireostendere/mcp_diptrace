@@ -107,6 +107,14 @@ owned by DipTrace.
 ```text
 DipTraceMCP/
   active.json
+  offline_backups/<canonical-target-sha256>/
+    target.json
+    backup.<timestamp>.<content-sha256>.<nonce>.bak
+  transactions/
+  jobs/
+  plans/
+  exports/
+  reviews/
   sessions/<session-id>/
     metadata.json
     original.xml
@@ -121,6 +129,13 @@ by `os.replace`. This prevents readers from observing a partially written file.
 the cross-process commit marker. JSON reads use a short bounded retry for transient
 Windows sharing violations; malformed or persistently unreadable state still fails the
 session explicitly.
+
+Each store applies the same count-and-age retention policy at construction. Only
+schema-valid terminal records with an embedded identifier matching their confined
+path are candidates. Nonterminal and active-session records are protected. Redirected,
+corrupt, unknown-status, or otherwise unverifiable state is left untouched. Offline
+backup histories are isolated by canonical target-path hash and are stored here rather
+than in the design directory.
 
 ## Safety Invariants
 

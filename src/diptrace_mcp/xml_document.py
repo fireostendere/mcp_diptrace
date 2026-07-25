@@ -10,7 +10,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal, Protocol, cast
 from xml.parsers import expat
 
 from .errors import DocumentError, EditError
@@ -1289,11 +1289,21 @@ def unified_xml_diff(before: bytes, after: bytes, max_lines: int = 200) -> str:
     return "\n".join(lines)
 
 
-def write_with_backup(path: Path, data: bytes, backup_dir: Path) -> Path:
+class BackupWriter(Protocol):
+    def write_with_backup(self, path: Path, data: bytes) -> Path: ...
+
+
+def write_with_backup(
+    path: Path,
+    data: bytes,
+    destination: Path | BackupWriter,
+) -> Path:
+    if not isinstance(destination, Path):
+        return destination.write_with_backup(path, data)
     original = path.read_bytes()
-    backup_dir.mkdir(parents=True, exist_ok=True)
+    destination.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
-    backup = backup_dir / f"{path.name}.{stamp}.{sha256_bytes(original)[:12]}.bak"
+    backup = destination / f"{path.name}.{stamp}.{sha256_bytes(original)[:12]}.bak"
     atomic_write_bytes(backup, original)
     atomic_write_bytes(path, data)
     return backup

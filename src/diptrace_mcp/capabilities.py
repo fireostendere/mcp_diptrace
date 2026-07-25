@@ -199,6 +199,8 @@ def capability_report(
             "max_external_result_bytes": None,
             "max_query_results": 500,
             "max_transaction_operations": MAX_TRANSACTION_OPERATIONS,
+            "retention_max_records": None,
+            "retention_max_age_days": None,
         },
         policy={
             "active_profile": None,

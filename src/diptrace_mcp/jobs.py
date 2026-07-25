@@ -10,21 +10,80 @@ from typing import Any
 
 from .domain import JobRecord, JobStatus
 from .errors import ObjectNotFoundError
-from .record_ids import InvalidRecordId, iter_valid_record_files, require_record_id
+from .record_ids import (
+    InvalidRecordId,
+    InvalidRecordPath,
+    is_link_like,
+    iter_valid_record_files,
+    require_confined_file,
+    require_confined_record_directory,
+    require_confined_record_file,
+    require_record_id,
+)
+from .retention import (
+    Clock,
+    RetentionCandidate,
+    RetentionPolicy,
+    RetentionReport,
+    parse_retention_timestamp,
+    prune_terminal_records,
+    system_clock,
+)
 from .xml_document import atomic_write_bytes, utc_now
 
 
 @dataclass(slots=True)
 class JobStore:
     state_dir: Path
+    retention: RetentionPolicy = dataclass_field(default_factory=RetentionPolicy)
+    clock: Clock = dataclass_field(default=system_clock, repr=False)
     jobs_dir: Path = dataclass_field(init=False)
+    last_retention_report: RetentionReport = dataclass_field(init=False)
     _lock: threading.RLock = dataclass_field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.jobs_dir = self.state_dir / "jobs"
         self.jobs_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
+        # Inspect persisted status before interrupted running jobs are failed:
+        # queued/running records must survive this construction cycle.
+        self.last_retention_report = self._prune_retention()
         self._fail_interrupted_jobs()
+
+    def _prune_retention(self) -> RetentionReport:
+        candidates: list[RetentionCandidate] = []
+        paths = sorted(self.jobs_dir.glob("job_*/job.json"))
+        for path_jobid, path in iter_valid_record_files(
+            self.jobs_dir,
+            paths,
+            kind="job",
+            record_filename="job.json",
+        ):
+            try:
+                record = JobRecord.model_validate_json(path.read_bytes())
+            except (OSError, ValueError):
+                continue
+            timestamp = parse_retention_timestamp(record.completed_at)
+            if (
+                record.jobid != path_jobid
+                or record.status not in {"completed", "failed", "cancelled"}
+                or timestamp is None
+            ):
+                continue
+            candidates.append(
+                RetentionCandidate(
+                    identifier=record.jobid,
+                    path=path.parent,
+                    timestamp=timestamp,
+                )
+            )
+        return prune_terminal_records(
+            state_root=self.state_dir,
+            store_root=self.jobs_dir,
+            candidates=candidates,
+            policy=self.retention,
+            clock=self.clock,
+        )
 
     def job_dir(self, jobid: str) -> Path:
         try:
@@ -47,7 +106,24 @@ class JobStore:
             "manifest.json",
         }:
             raise ObjectNotFoundError(f"Unknown job artifact: {name}", jobid=jobid)
-        return self.job_dir(jobid) / name
+        self.read(jobid)
+        try:
+            directory = require_confined_record_directory(
+                self.jobs_dir,
+                jobid,
+                kind="job",
+            )
+            path = directory / name
+            if is_link_like(path):
+                raise InvalidRecordPath(f"Job artifact is redirected: {path}")
+            if path.exists():
+                require_confined_file(self.jobs_dir, path)
+        except (InvalidRecordId, InvalidRecordPath, OSError) as exc:
+            raise ObjectNotFoundError(
+                "Job artifact path is redirected or outside its store",
+                jobid=jobid,
+            ) from exc
+        return path
 
     def create(
         self,
@@ -75,14 +151,35 @@ class JobStore:
 
     def read(self, jobid: str) -> JobRecord:
         try:
+            path = require_confined_record_file(
+                self.jobs_dir,
+                jobid,
+                kind="job",
+                record_filename="job.json",
+            )
             # Windows does not permit opening the destination while os.replace()
             # is swapping an atomic-write temporary file into place. Serialize
             # reads with updates so callers never observe that transient lock.
             with self._lock:
-                payload = self.record_path(jobid).read_bytes()
-            return JobRecord.model_validate_json(payload)
+                payload = path.read_bytes()
+            record = JobRecord.model_validate_json(payload)
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid job id", jobid=jobid) from None
         except FileNotFoundError as exc:
             raise ObjectNotFoundError(f"Job was not found: {jobid}", jobid=jobid) from exc
+        except InvalidRecordPath as exc:
+            raise ObjectNotFoundError(
+                "Job state path is redirected or outside its store",
+                jobid=jobid,
+            ) from exc
+        except (OSError, ValueError) as exc:
+            raise ObjectNotFoundError("Job state is corrupt", jobid=jobid) from exc
+        if record.jobid != jobid:
+            raise ObjectNotFoundError(
+                "Job state id does not match the requested job",
+                jobid=jobid,
+            )
+        return record
 
     def write(self, record: JobRecord) -> None:
         payload = json.dumps(

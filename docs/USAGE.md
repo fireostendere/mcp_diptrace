@@ -601,6 +601,8 @@ Deleting or replacing the `<Source>` root is prohibited.
 | `DIPTRACE_MCP_MAX_EXTERNAL_PROCESSES` | `2` | Maximum concurrently running external adapter processes |
 | `DIPTRACE_MCP_MAX_EXTERNAL_RESULT_BYTES` | `16777216` | Maximum typed solver-result artifact size |
 | `DIPTRACE_MCP_MAX_EXTERNAL_LOG_BYTES` | `4194304` | Maximum retained or returned external-job log size |
+| `DIPTRACE_MCP_RETENTION_MAX_RECORDS` | `500` | Maximum terminal records retained per state store or offline-backup target |
+| `DIPTRACE_MCP_RETENTION_MAX_AGE_DAYS` | `180` | Maximum age of terminal state records and offline backups |
 
 Example with multiple Windows roots:
 
@@ -610,10 +612,12 @@ DIPTRACE_MCP_ALLOWED_ROOTS=C:\Projects\Boards;D:\Archive\DipTrace
 
 ## 11. Backups and State Directory
 
-Offline backup:
+Offline backup (the directory name is the SHA-256 of the canonical target path):
 
 ```text
-<XML directory>\.diptrace-mcp-backups\<name>.<UTC>.<hash>.bak
+%LOCALAPPDATA%\DipTraceMCP\offline_backups\<target-sha256>\
+  target.json
+  backup.<UTC>.<content-sha256>.<nonce>.bak
 ```
 
 Live state:
@@ -621,6 +625,11 @@ Live state:
 ```text
 %LOCALAPPDATA%\DipTraceMCP\
   active.json
+  transactions\tx_<uuid>\
+  jobs\job_<id>\
+  plans\plan_<id>\
+  exports\export_<id>\
+  reviews\report_<id>.json
   sessions\<uuid>\
     metadata.json
     original.xml
@@ -635,6 +644,21 @@ Live state:
 The control payload contains only `apply` or `cancel` and the expected working-file
 hash. The bridge verifies that hash before finalization and uses bounded retries for
 transient Windows metadata sharing errors.
+
+Offline backups are never written next to the design file. `target.json` binds each
+history to the SHA-256 of its canonical target path; backup content is checked against
+the hash in its filename before it is treated as a recovery point. Pruning one target
+does not inspect or delete another target's history, and the newest valid recovery
+point for each target is retained.
+
+At store construction, terminal artifacts older than the configured age or beyond the
+configured per-store count are removed as whole records. A transaction record includes
+its snapshot and internal backup; a session record includes its original, working, and
+live-backup files. Planned, staged, queued, running, active, committed-but-rollbackable,
+and `active.json`-referenced records are protected even when limits are exceeded.
+Corrupt records, embedded-ID mismatches, symbolic links, junctions, and paths outside
+the state directory are skipped rather than followed or deleted. Retention is
+best-effort: a deletion failure does not make startup destructive or unavailable.
 
 ## 12. Troubleshooting
 

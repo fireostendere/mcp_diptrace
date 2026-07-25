@@ -11,7 +11,24 @@ from typing import Any, Literal
 
 from .domain import DocumentInfo, RiskClass, TransactionRecord, TransactionRisk
 from .errors import TransactionConflictError, TransactionNotFoundError
-from .record_ids import InvalidRecordId, iter_valid_record_files, require_record_id
+from .record_ids import (
+    InvalidRecordId,
+    InvalidRecordPath,
+    iter_valid_record_files,
+    require_confined_record_artifact,
+    require_confined_record_directory,
+    require_confined_record_file,
+    require_record_id,
+)
+from .retention import (
+    Clock,
+    RetentionCandidate,
+    RetentionPolicy,
+    RetentionReport,
+    parse_retention_timestamp,
+    prune_terminal_records,
+    system_clock,
+)
 from .xml_document import atomic_write_bytes, sha256_bytes, utc_now
 
 _TRANSITIONS: dict[str, frozenset[str]] = {
@@ -48,13 +65,52 @@ def _read_json(path: Path) -> dict[str, Any]:
 @dataclass(slots=True)
 class TransactionStore:
     state_dir: Path
+    retention: RetentionPolicy = dataclass_field(default_factory=RetentionPolicy)
+    clock: Clock = dataclass_field(default=system_clock, repr=False)
     transactions_dir: Path = dataclass_field(init=False)
+    last_retention_report: RetentionReport = dataclass_field(init=False)
     _lock: threading.RLock = dataclass_field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.transactions_dir = self.state_dir / "transactions"
         self.transactions_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
+        self.last_retention_report = self._prune_retention()
+
+    def _prune_retention(self) -> RetentionReport:
+        candidates: list[RetentionCandidate] = []
+        paths = sorted(self.transactions_dir.glob("tx_*/transaction.json"))
+        for path_txid, path in iter_valid_record_files(
+            self.transactions_dir,
+            paths,
+            kind="transaction",
+            record_filename="transaction.json",
+        ):
+            try:
+                record = TransactionRecord.model_validate(_read_json(path))
+            except (OSError, ValueError, TransactionConflictError):
+                continue
+            timestamp = parse_retention_timestamp(record.updated_at)
+            if (
+                record.txid != path_txid
+                or record.status != "rolled_back"
+                or timestamp is None
+            ):
+                continue
+            candidates.append(
+                RetentionCandidate(
+                    identifier=record.txid,
+                    path=path.parent,
+                    timestamp=timestamp,
+                )
+            )
+        return prune_terminal_records(
+            state_root=self.state_dir,
+            store_root=self.transactions_dir,
+            candidates=candidates,
+            policy=self.retention,
+            clock=self.clock,
+        )
 
     def tx_dir(self, txid: str) -> Path:
         try:
@@ -108,7 +164,39 @@ class TransactionStore:
         return record
 
     def read(self, txid: str) -> TransactionRecord:
-        return TransactionRecord.model_validate(_read_json(self.record_path(txid)))
+        try:
+            path = require_confined_record_file(
+                self.transactions_dir,
+                txid,
+                kind="transaction",
+                record_filename="transaction.json",
+            )
+        except InvalidRecordId:
+            raise TransactionNotFoundError("Invalid transaction id", txid=txid) from None
+        except FileNotFoundError as exc:
+            raise TransactionNotFoundError(
+                f"Transaction does not exist: {txid}",
+                txid=txid,
+            ) from exc
+        except InvalidRecordPath as exc:
+            raise TransactionConflictError(
+                "Transaction state path is redirected or outside its store",
+                txid=txid,
+            ) from exc
+        try:
+            record = TransactionRecord.model_validate(_read_json(path))
+        except (OSError, ValueError, TransactionConflictError) as exc:
+            raise TransactionConflictError(
+                "Transaction state is corrupt",
+                txid=txid,
+            ) from exc
+        if record.txid != txid:
+            raise TransactionConflictError(
+                "Transaction state id does not match the requested transaction",
+                details={"requested_txid": txid, "record_txid": record.txid},
+                txid=txid,
+            )
+        return record
 
     def write(self, record: TransactionRecord) -> None:
         _atomic_write_json(self.record_path(record.txid), record.model_dump(mode="json"))
@@ -144,7 +232,18 @@ class TransactionStore:
         return items
 
     def store_snapshot(self, txid: str, raw_bytes: bytes) -> Path:
-        path = self.snapshot_path(txid)
+        try:
+            directory = require_confined_record_directory(
+                self.transactions_dir,
+                txid,
+                kind="transaction",
+            )
+        except (InvalidRecordId, InvalidRecordPath) as exc:
+            raise TransactionConflictError(
+                "Transaction directory is redirected or outside its store",
+                txid=txid,
+            ) from exc
+        path = directory / "snapshot.xml"
         atomic_write_bytes(path, raw_bytes)
         return path
 
@@ -154,9 +253,59 @@ class TransactionStore:
         atomic_write_bytes(self.diff_path(txid), diff.encode("utf-8"))
 
     def store_backup(self, txid: str, raw_bytes: bytes) -> Path:
-        path = self.backup_path(txid)
+        try:
+            directory = require_confined_record_directory(
+                self.transactions_dir,
+                txid,
+                kind="transaction",
+            )
+        except (InvalidRecordId, InvalidRecordPath) as exc:
+            raise TransactionConflictError(
+                "Transaction directory is redirected or outside its store",
+                txid=txid,
+            ) from exc
+        path = directory / "backup.xml"
         atomic_write_bytes(path, raw_bytes)
         return path
+
+    def store_provenance_backup(self, txid: str, raw_bytes: bytes) -> Path:
+        try:
+            directory = require_confined_record_directory(
+                self.transactions_dir,
+                txid,
+                kind="transaction",
+            )
+        except (InvalidRecordId, InvalidRecordPath) as exc:
+            raise TransactionConflictError(
+                "Transaction directory is redirected or outside its store",
+                txid=txid,
+            ) from exc
+        path = directory / f"provenance_{txid}.json"
+        atomic_write_bytes(path, raw_bytes)
+        return path
+
+    def require_snapshot(self, txid: str) -> Path:
+        return self._require_artifact(txid, "snapshot.xml")
+
+    def require_backup(self, txid: str) -> Path:
+        return self._require_artifact(txid, "backup.xml")
+
+    def require_provenance_backup(self, txid: str) -> Path:
+        return self._require_artifact(txid, f"provenance_{txid}.json")
+
+    def _require_artifact(self, txid: str, name: str) -> Path:
+        try:
+            return require_confined_record_artifact(
+                self.transactions_dir,
+                txid,
+                name,
+                kind="transaction",
+            )
+        except (InvalidRecordId, InvalidRecordPath, FileNotFoundError) as exc:
+            raise TransactionConflictError(
+                f"Transaction artifact is missing or unsafe: {name}",
+                txid=txid,
+            ) from exc
 
     def mark_committed(
         self,

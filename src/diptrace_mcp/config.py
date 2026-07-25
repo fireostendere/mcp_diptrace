@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import Literal, cast
 
 from .errors import ConfigurationError, PathAccessError
+from .retention import (
+    DEFAULT_RETENTION_MAX_AGE_DAYS,
+    DEFAULT_RETENTION_MAX_RECORDS,
+    RetentionPolicy,
+)
 
 _WINDOWS_PATH = re.compile(r"^([A-Za-z]):[\\/](.*)$")
 _WSL_USER_PATH = re.compile(
@@ -120,6 +125,8 @@ class Settings:
     max_external_processes: int = 2
     max_external_result_bytes: int = 16 * 1024 * 1024
     max_external_log_bytes: int = 4 * 1024 * 1024
+    retention_max_records: int = DEFAULT_RETENTION_MAX_RECORDS
+    retention_max_age_days: int = DEFAULT_RETENTION_MAX_AGE_DAYS
     active_policy: PolicyProfile = "interactive_edit"
 
     @classmethod
@@ -178,7 +185,22 @@ class Settings:
             max_external_log_bytes=_positive_int(
                 "DIPTRACE_MCP_MAX_EXTERNAL_LOG_BYTES", 4 * 1024 * 1024
             ),
+            retention_max_records=_positive_int(
+                "DIPTRACE_MCP_RETENTION_MAX_RECORDS",
+                DEFAULT_RETENTION_MAX_RECORDS,
+            ),
+            retention_max_age_days=_positive_int(
+                "DIPTRACE_MCP_RETENTION_MAX_AGE_DAYS",
+                DEFAULT_RETENTION_MAX_AGE_DAYS,
+            ),
             active_policy=_policy_profile(),
+        )
+
+    @property
+    def retention_policy(self) -> RetentionPolicy:
+        return RetentionPolicy(
+            max_records=self.retention_max_records,
+            max_age_days=self.retention_max_age_days,
         )
 
     def resolve_allowed_path(
@@ -215,5 +237,7 @@ class Settings:
             "max_external_processes": self.max_external_processes,
             "max_external_result_bytes": self.max_external_result_bytes,
             "max_external_log_bytes": self.max_external_log_bytes,
+            "retention_max_records": self.retention_max_records,
+            "retention_max_age_days": self.retention_max_age_days,
             "active_policy": self.active_policy,
         }

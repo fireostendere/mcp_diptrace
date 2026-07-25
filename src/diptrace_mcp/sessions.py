@@ -5,11 +5,29 @@ import os
 import shutil
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
 from .errors import SessionError
-from .record_ids import InvalidRecordId, require_record_id
+from .record_ids import (
+    InvalidRecordId,
+    InvalidRecordPath,
+    is_link_like,
+    iter_valid_record_files,
+    require_confined_file,
+    require_confined_record_file,
+    require_record_id,
+)
+from .retention import (
+    Clock,
+    RetentionCandidate,
+    RetentionPolicy,
+    RetentionReport,
+    parse_retention_timestamp,
+    prune_terminal_records,
+    system_clock,
+)
 from .xml_document import (
     DipTraceDocument,
     atomic_write_bytes,
@@ -46,12 +64,137 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 class SessionStore:
-    def __init__(self, state_dir: Path, max_document_bytes: int = 128 * 1024 * 1024):
+    def __init__(
+        self,
+        state_dir: Path,
+        max_document_bytes: int = 128 * 1024 * 1024,
+        *,
+        retention: RetentionPolicy | None = None,
+        clock: Clock = system_clock,
+    ):
         self.state_dir = state_dir
         self.sessions_dir = state_dir / "sessions"
         self.active_file = state_dir / "active.json"
         self.max_document_bytes = max_document_bytes
+        self.retention = retention or RetentionPolicy()
+        self.clock = clock
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
+        self.last_retention_report = self._prune_retention()
+
+    def _prune_retention(self) -> RetentionReport:
+        active_reference_valid, active_session_id = self._retention_active_session_id()
+        if not active_reference_valid:
+            # A corrupt or redirected active.json means we cannot prove which
+            # session is safe to remove, so retain every session.
+            return RetentionReport()
+        candidates: list[RetentionCandidate] = []
+        paths = sorted(self.sessions_dir.glob("*/metadata.json"))
+        for path_session_id, path in iter_valid_record_files(
+            self.sessions_dir,
+            paths,
+            kind="session",
+            record_filename="metadata.json",
+        ):
+            try:
+                metadata = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(metadata, dict):
+                continue
+            timestamp = self._validated_terminal_timestamp(
+                path_session_id,
+                path,
+                metadata,
+            )
+            if timestamp is None or path_session_id == active_session_id:
+                continue
+            candidates.append(
+                RetentionCandidate(
+                    identifier=path_session_id,
+                    path=path.parent,
+                    timestamp=timestamp,
+                )
+            )
+        return prune_terminal_records(
+            state_root=self.state_dir,
+            store_root=self.sessions_dir,
+            candidates=candidates,
+            policy=self.retention,
+            clock=self.clock,
+        )
+
+    def _validated_terminal_timestamp(
+        self,
+        session_id: str,
+        metadata_path: Path,
+        metadata: dict[str, Any],
+    ) -> datetime | None:
+        if (
+            metadata.get("session_id") != session_id
+            or metadata.get("status") not in {"applied", "cancelled"}
+            or not isinstance(metadata.get("exchange_path"), str)
+            or not isinstance(metadata.get("source_type"), str)
+            or not isinstance(metadata.get("version"), str)
+            or not isinstance(metadata.get("units"), str)
+            or not isinstance(metadata.get("bridge_pid"), int)
+            or not isinstance(metadata.get("edit_count"), int)
+            or parse_retention_timestamp(metadata.get("created_at")) is None
+            or parse_retention_timestamp(metadata.get("updated_at")) is None
+        ):
+            return None
+        finished_at = parse_retention_timestamp(metadata.get("finished_at"))
+        if finished_at is None:
+            return None
+        directory = metadata_path.parent
+        original = directory / "original.xml"
+        working = directory / "working.xml"
+        try:
+            require_confined_file(directory, original)
+            require_confined_file(directory, working)
+            if (
+                original.stat().st_size > self.max_document_bytes
+                or working.stat().st_size > self.max_document_bytes
+                or metadata.get("original_sha256") != sha256_bytes(original.read_bytes())
+                or metadata.get("working_sha256") != sha256_bytes(working.read_bytes())
+                or Path(str(metadata.get("working_path"))).resolve(strict=True)
+                != working.resolve(strict=True)
+            ):
+                return None
+        except (InvalidRecordPath, OSError, ValueError):
+            return None
+        return finished_at
+
+    def _retention_active_session_id(self) -> tuple[bool, str | None]:
+        if not self.active_file.exists() and not is_link_like(self.active_file):
+            return True, None
+        try:
+            if is_link_like(self.active_file):
+                return False, None
+            require_confined_file(self.state_dir, self.active_file)
+            payload = json.loads(self.active_file.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return False, None
+            session_id = payload.get("session_id")
+            if not isinstance(session_id, str):
+                return False, None
+            validated = require_record_id(session_id, "session")
+            metadata_path = require_confined_record_file(
+                self.sessions_dir,
+                validated,
+                kind="session",
+                record_filename="metadata.json",
+            )
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            if not isinstance(metadata, dict) or metadata.get("session_id") != validated:
+                return False, None
+            return True, validated
+        except (
+            InvalidRecordId,
+            InvalidRecordPath,
+            OSError,
+            ValueError,
+        ):
+            return False, None
 
     def session_dir(self, session_id: str) -> Path:
         try:
@@ -76,7 +219,41 @@ class SessionStore:
         return self.session_dir(session_id) / "backups"
 
     def read_metadata(self, session_id: str) -> dict[str, Any]:
-        return _read_json(self.metadata_path(session_id))
+        try:
+            path = require_confined_record_file(
+                self.sessions_dir,
+                session_id,
+                kind="session",
+                record_filename="metadata.json",
+            )
+        except InvalidRecordId:
+            raise SessionError("Invalid session id") from None
+        except FileNotFoundError as exc:
+            raise SessionError(f"Session was not found: {session_id}") from exc
+        except InvalidRecordPath as exc:
+            raise SessionError(
+                "Session state path is redirected or outside its store"
+            ) from exc
+        metadata = _read_json(path)
+        if metadata.get("session_id") != session_id:
+            raise SessionError(
+                "Session state id does not match the requested session"
+            )
+        return metadata
+
+    def _read_active(self) -> dict[str, Any]:
+        try:
+            path = require_confined_file(self.state_dir, self.active_file)
+            active = _read_json(path)
+            session_id = active.get("session_id")
+            if not isinstance(session_id, str):
+                raise SessionError("active.json does not contain a valid session_id")
+            require_record_id(session_id, "session")
+        except FileNotFoundError as exc:
+            raise SessionError("active.json disappeared while it was being read") from exc
+        except (InvalidRecordId, InvalidRecordPath) as exc:
+            raise SessionError("active.json contains unsafe session state") from exc
+        return active
 
     def update_metadata(self, session_id: str, **updates: Any) -> dict[str, Any]:
         metadata = self.read_metadata(session_id)
@@ -85,12 +262,10 @@ class SessionStore:
         return metadata
 
     def active_metadata(self) -> dict[str, Any] | None:
-        if not self.active_file.exists():
+        if not self.active_file.exists() and not is_link_like(self.active_file):
             return None
-        active = _read_json(self.active_file)
-        session_id = active.get("session_id")
-        if not isinstance(session_id, str):
-            raise SessionError("active.json does not contain a valid session_id")
+        active = self._read_active()
+        session_id = str(active["session_id"])
         metadata = self.read_metadata(session_id)
         if metadata.get("status") != "active":
             return None
@@ -209,7 +384,7 @@ class SessionStore:
         )
         self.clear_finish_request(session_id)
         if self.active_file.exists():
-            active = _read_json(self.active_file)
+            active = self._read_active()
             if active.get("session_id") == session_id:
                 self.active_file.unlink(missing_ok=True)
         return metadata

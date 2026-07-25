@@ -4,6 +4,8 @@ import csv
 import io
 import json
 import uuid
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -11,7 +13,24 @@ from .adapters import DocumentSnapshot
 from .bom import extract_bom, group_bom
 from .domain import ExportRecord
 from .errors import ObjectNotFoundError
-from .record_ids import InvalidRecordId, iter_valid_record_files, require_record_id
+from .record_ids import (
+    InvalidRecordId,
+    InvalidRecordPath,
+    is_link_like,
+    iter_valid_record_files,
+    require_confined_record_artifact,
+    require_confined_record_directory,
+    require_confined_record_file,
+    require_record_id,
+)
+from .retention import (
+    RetentionCandidate,
+    RetentionPolicy,
+    RetentionReport,
+    parse_retention_timestamp,
+    prune_terminal_records,
+    system_clock,
+)
 from .xml_document import atomic_write_bytes, utc_now
 
 ExportType = Literal["bom", "fabrication_manifest", "assembly_manifest", "si_geometry"]
@@ -34,10 +53,78 @@ def _csv_bytes(rows: list[dict[str, object]], fields: list[str]) -> bytes:
 
 
 class ExportStore:
-    def __init__(self, state_dir: Path, max_artifact_bytes: int):
+    def __init__(
+        self,
+        state_dir: Path,
+        max_artifact_bytes: int,
+        *,
+        retention: RetentionPolicy | None = None,
+        clock: Callable[[], datetime] = system_clock,
+    ):
+        self.state_dir = state_dir
         self.root = state_dir / "exports"
         self.root.mkdir(parents=True, exist_ok=True)
         self.max_artifact_bytes = max_artifact_bytes
+        self.retention = retention or RetentionPolicy()
+        self.clock = clock
+        self.last_retention_report = self._prune_retention()
+
+    def _prune_retention(self) -> RetentionReport:
+        candidates: list[RetentionCandidate] = []
+        paths = sorted(self.root.glob("export_*/record.json"))
+        for path_export_id, path in iter_valid_record_files(
+            self.root,
+            paths,
+            kind="export",
+            record_filename="record.json",
+        ):
+            try:
+                record = ExportRecord.model_validate_json(path.read_bytes())
+            except (OSError, ValueError):
+                continue
+            timestamp = parse_retention_timestamp(record.created_at)
+            if (
+                record.export_id != path_export_id
+                or timestamp is None
+                or not self._artifacts_complete(record)
+            ):
+                continue
+            candidates.append(
+                RetentionCandidate(
+                    identifier=record.export_id,
+                    path=path.parent,
+                    timestamp=timestamp,
+                )
+            )
+        return prune_terminal_records(
+            state_root=self.state_dir,
+            store_root=self.root,
+            candidates=candidates,
+            policy=self.retention,
+            clock=self.clock,
+        )
+
+    def _artifacts_complete(self, record: ExportRecord) -> bool:
+        for name, resource in record.artifacts.items():
+            if (
+                Path(name).name != name
+                or resource != f"diptrace://export/{record.export_id}/{name}"
+            ):
+                return False
+            try:
+                require_confined_record_artifact(
+                    self.root,
+                    record.export_id,
+                    name,
+                    kind="export",
+                )
+            except (
+                InvalidRecordId,
+                InvalidRecordPath,
+                FileNotFoundError,
+            ):
+                return False
+        return True
 
     def _directory(self, export_id: str) -> Path:
         try:
@@ -60,13 +147,33 @@ class ExportStore:
         export_id = f"export_{uuid.uuid4().hex}"
         directory = self._directory(export_id)
         directory.mkdir(parents=True, exist_ok=False)
+        try:
+            require_confined_record_directory(
+                self.root,
+                export_id,
+                kind="export",
+            )
+        except (InvalidRecordId, InvalidRecordPath) as exc:
+            raise ValueError("Export directory is redirected or outside its store") from exc
         artifact_resources: dict[str, str] = {}
         for name, payload in artifacts.items():
             if Path(name).name != name or not name:
                 raise ValueError(f"Invalid export artifact name: {name!r}")
             if len(payload) > self.max_artifact_bytes:
                 raise ValueError(f"Export artifact exceeds size limit: {name}")
+            try:
+                directory = require_confined_record_directory(
+                    self.root,
+                    export_id,
+                    kind="export",
+                )
+            except (InvalidRecordId, InvalidRecordPath) as exc:
+                raise ValueError(
+                    "Export directory is redirected or outside its store"
+                ) from exc
             path = directory / name
+            if is_link_like(path):
+                raise ValueError(f"Export artifact path is redirected: {name}")
             atomic_write_bytes(path, payload)
             artifact_resources[name] = f"diptrace://export/{export_id}/{name}"
         record = ExportRecord(
@@ -79,17 +186,47 @@ class ExportStore:
             manifest=dict(manifest),
             limitations=limitations,
         )
+        try:
+            directory = require_confined_record_directory(
+                self.root,
+                export_id,
+                kind="export",
+            )
+        except (InvalidRecordId, InvalidRecordPath) as exc:
+            raise ValueError("Export directory is redirected or outside its store") from exc
+        record_path = directory / "record.json"
+        if is_link_like(record_path):
+            raise ValueError("Export record path is redirected")
         atomic_write_bytes(
-            self._record_path(export_id),
+            record_path,
             json.dumps(record.model_dump(mode="json"), indent=2).encode("utf-8"),
         )
         return record
 
     def read(self, export_id: str) -> ExportRecord:
-        path = self._record_path(export_id)
-        if not path.is_file():
-            raise ObjectNotFoundError(f"Export was not found: {export_id}")
-        return ExportRecord.model_validate_json(path.read_bytes())
+        try:
+            path = require_confined_record_file(
+                self.root,
+                export_id,
+                kind="export",
+                record_filename="record.json",
+            )
+            record = ExportRecord.model_validate_json(path.read_bytes())
+        except InvalidRecordId:
+            raise ObjectNotFoundError("Invalid export id") from None
+        except FileNotFoundError as exc:
+            raise ObjectNotFoundError(f"Export was not found: {export_id}") from exc
+        except InvalidRecordPath as exc:
+            raise ObjectNotFoundError(
+                "Export state path is redirected or outside its store"
+            ) from exc
+        except (OSError, ValueError) as exc:
+            raise ObjectNotFoundError("Export state is corrupt") from exc
+        if record.export_id != export_id:
+            raise ObjectNotFoundError(
+                "Export state id does not match the requested export"
+            )
+        return record
 
     def artifact(self, export_id: str, name: str) -> bytes:
         record = self.read(export_id)
@@ -97,8 +234,22 @@ class ExportStore:
             raise ObjectNotFoundError(
                 f"Export artifact was not found: {export_id}/{name}"
             )
-        path = self._directory(export_id) / name
-        payload = path.read_bytes()
+        try:
+            path = require_confined_record_artifact(
+                self.root,
+                export_id,
+                name,
+                kind="export",
+            )
+            payload = path.read_bytes()
+        except (
+            InvalidRecordId,
+            InvalidRecordPath,
+            OSError,
+        ) as exc:
+            raise ObjectNotFoundError(
+                f"Export artifact was not found: {export_id}/{name}"
+            ) from exc
         if len(payload) > self.max_artifact_bytes:
             raise ValueError(f"Export artifact exceeds read limit: {name}")
         return payload
