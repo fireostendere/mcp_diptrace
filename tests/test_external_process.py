@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+import diptrace_mcp.external_adapters as external_adapters_module
 import diptrace_mcp.external_process as external_process_module
 from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import (
@@ -357,6 +358,129 @@ def test_configured_process_cap_is_reported(
 
     assert settings.max_external_processes == 3
     assert settings.as_dict()["max_external_processes"] == 3
+
+
+def test_worker_thread_construction_failure_releases_reservation_and_fails_job(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = DipTraceService(
+        Settings(
+            workspace=tmp_path,
+            allowed_roots=(tmp_path,),
+            state_dir=tmp_path / "state",
+            max_external_processes=1,
+        )
+    )
+    record = service.jobs.create(job_type="constructor_failure")
+
+    def fail_thread(*_args: object, **_kwargs: object) -> threading.Thread:
+        raise RuntimeError("simulated thread constructor failure")
+
+    monkeypatch.setattr(external_adapters_module.threading, "Thread", fail_thread)
+    with pytest.raises(ExternalToolFailedError, match="Could not start external job worker"):
+        service.external_jobs._launch_worker(
+            record,
+            target=lambda *_args: None,
+            args=(),
+        )
+
+    failed = service.jobs.read(record.jobid)
+    assert failed.status == "failed"
+    assert failed.phase == "failed"
+    assert service.external_jobs._runner.active_slots == 0
+    assert record.jobid not in service.external_jobs._cancel
+
+
+def test_cancel_before_worker_registration_is_terminal_and_prevents_launch(
+    tmp_path: Path,
+) -> None:
+    service = DipTraceService(
+        Settings(
+            workspace=tmp_path,
+            allowed_roots=(tmp_path,),
+            state_dir=tmp_path / "state",
+            max_external_processes=1,
+        )
+    )
+    record = service.jobs.create(job_type="cancel_before_launch")
+    invoked = threading.Event()
+
+    cancelled = service.external_jobs.cancel(record.jobid)
+    relaunched = service.external_jobs._launch_worker(
+        cancelled,
+        target=lambda *_args: invoked.set(),
+        args=(),
+    )
+
+    assert cancelled.status == "cancelled"
+    assert relaunched.status == "cancelled"
+    assert not invoked.is_set()
+    assert service.external_jobs._runner.active_slots == 0
+    assert record.jobid not in service.external_jobs._cancel
+
+
+def test_post_create_setup_failure_does_not_leave_queued_job(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executable = tmp_path / "fake_ngspice.py"
+    executable.write_text("print('No. of Data Rows : 1')\n")
+    service = DipTraceService(
+        Settings(
+            workspace=tmp_path,
+            allowed_roots=(tmp_path,),
+            state_dir=tmp_path / "state",
+            ngspice_executable=executable,
+            active_policy="automation",
+        )
+    )
+
+    def fail_command(_path: Path) -> list[str]:
+        raise RuntimeError("simulated executable race")
+
+    monkeypatch.setattr(service.external_jobs.ngspice, "command", fail_command)
+    with pytest.raises(RuntimeError, match="simulated executable race"):
+        service.run_ngspice_simulation(netlist="* setup failure\n.end\n")
+
+    records = service.jobs.list()
+    assert len(records) == 1
+    assert records[0].status == "failed"
+    assert records[0].phase == "failed"
+    assert records[0].error is not None
+
+
+def test_unexpected_runner_failure_is_persisted_as_failed_job(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executable = tmp_path / "fake_ngspice.py"
+    executable.write_text("print('No. of Data Rows : 1')\n")
+    service = DipTraceService(
+        Settings(
+            workspace=tmp_path,
+            allowed_roots=(tmp_path,),
+            state_dir=tmp_path / "state",
+            ngspice_executable=executable,
+            active_policy="automation",
+        )
+    )
+
+    def fail_runner(*_args: object, **_kwargs: object) -> ExternalProcessResult:
+        raise RuntimeError("simulated runner failure")
+
+    monkeypatch.setattr(service.external_jobs._runner, "run", fail_runner)
+    response = service.run_ngspice_simulation(netlist="* runner failure\n.end\n")
+    jobid = response["job"]["jobid"]
+    deadline = time.monotonic() + 3
+    while service.jobs.read(jobid).status not in {"failed", "cancelled"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+
+    failed = service.jobs.read(jobid)
+    assert failed.status == "failed"
+    assert failed.error is not None
+    assert "simulated runner failure" in failed.error["message"]
 
 
 def test_service_refuses_over_cap_and_recovers_after_cancel(tmp_path: Path) -> None:
