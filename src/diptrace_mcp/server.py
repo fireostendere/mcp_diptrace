@@ -6,10 +6,24 @@ import os
 from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .config import Settings
+from .domain import QuerySelector
+from .operations import (
+    AddTestpointOperation,
+    PinEndpoint,
+    SetPanelizationOperation,
+    StagedOperationInput,
+    TracePathPoint,
+    WireEndpoint,
+    WirePathPoint,
+)
+from .placement import PlacementProposal
+from .routing import RouteConnectionConfig
+from .scaffolding import PcbScaffold
 from .service import DipTraceService
+from .synchronization import ComponentSyncMapping, SyncPlacement
 from .xml_document import XmlEdit
 
 
@@ -28,16 +42,157 @@ class XmlEditInput(BaseModel):
     expected_matches: int = Field(default=1, ge=1, le=1000)
 
 
-def create_server(settings: Settings | None = None) -> FastMCP:
+class ExternalBomRecordInput(BaseModel):
+    """Flexible external BOM row with typed identity fields."""
+
+    model_config = ConfigDict(extra="allow")
+
+    refdes: str | list[str]
+    value: str = ""
+    pattern: str = ""
+    manufacturer: str = ""
+    mpn: str = ""
+
+
+class ImpedanceConstraintInput(BaseModel):
+    """Explicit controlled-impedance target for one net and layer."""
+
+    net: str = Field(min_length=1, max_length=1_000)
+    layer: str = Field(min_length=1, max_length=256)
+    target_ohm: float = Field(gt=0.0, allow_inf_nan=False)
+    tolerance_ohm: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    width_mm: float | None = Field(
+        default=None,
+        gt=0.0,
+        allow_inf_nan=False,
+        description="Distance in millimetres.",
+    )
+
+
+DISTANCE_UNITS_DESCRIPTION = (
+    "All distances are in millimetres, regardless of the document's own Units attribute."
+)
+_INPUT_SCHEMA_RESOURCE = "diptrace://schemas/tool-inputs"
+_GEOMETRIC_FIELD_NAMES = {
+    "absolute_x",
+    "absolute_y",
+    "board_edge_clearance",
+    "clearance",
+    "differential_gap",
+    "dx",
+    "dy",
+    "fixed_length",
+    "font_width",
+    "gap",
+    "grid",
+    "grid_snap",
+    "hole_diameter",
+    "length_delta",
+    "max_distance",
+    "max_uncoupled_length",
+    "max_width",
+    "min_width",
+    "neck_width",
+    "pad_diameter",
+    "probe_diameter",
+    "spacing",
+    "stitching_radius",
+    "width",
+    "x",
+    "y",
+}
+_GENERIC_SCHEMA_TOOLS = {
+    "analyze_routing_congestion",
+    "create_pcb_document",
+    "route_connections",
+    "set_panelization",
+    "stage_operations",
+    "sync_schematic_to_pcb",
+}
+_COMPATIBILITY_ALIAS_DESCRIPTIONS = {
+    "analyze_controlled_impedance": "Alias: validate_impedance_constraints.",
+    "check_silkscreen": "Alias: run_silkscreen_check.",
+    "legalize_component_placement": "Preset: plan_component_placement.",
+    "run_assembly_review": "Assembly review profile.",
+    "run_board_review": "Complete registered PCB review profile.",
+    "run_bom_review": "BOM review profile.",
+    "run_component_clearance_check": "Placement-clearance review profile.",
+    "run_connectivity_check": "Connectivity review profile.",
+    "run_drc": "PCB placement, connectivity and clearance profile.",
+    "run_erc": "Schematic connectivity and metadata profile.",
+    "run_manufacturing_geometry_check": "Manufacturing-geometry review profile.",
+    "run_manufacturing_review": "Manufacturing review profile.",
+    "run_schematic_review": "Complete registered schematic review profile.",
+    "run_silkscreen_check": "Silkscreen review profile.",
+    "run_testability_review": "Testability review profile.",
+    "run_thermal_review": "Thermal-metadata review profile.",
+    "set_component_fields": "Custom-field-only component update.",
+    "set_diff_pair_rules": "Net-class differential-pair preset.",
+    "set_length_constraints": "Net-class length preset.",
+    "unlock_components": "Unlock selected components.",
+}
+
+
+def _schema_property_names(schema: Any) -> set[str]:
+    names: set[str] = set()
+    if isinstance(schema, dict):
+        properties = schema.get("properties")
+        if isinstance(properties, dict):
+            names.update(str(name) for name in properties)
+        for value in schema.values():
+            names.update(_schema_property_names(value))
+    elif isinstance(schema, list):
+        for value in schema:
+            names.update(_schema_property_names(value))
+    return names
+
+
+def _finalize_tool_descriptions(mcp: FastMCP) -> None:
+    """Add shared schema and unit disclosures to the concrete MCP surface."""
+
+    for tool in mcp._tool_manager._tools.values():
+        property_names = _schema_property_names(tool.parameters)
+        has_selector = "selector" in tool.parameters.get("properties", {})
+        has_geometric_input = (
+            has_selector
+            or tool.name in _GENERIC_SCHEMA_TOOLS
+            or any(
+                name in _GEOMETRIC_FIELD_NAMES or name.endswith("_mm")
+                for name in property_names
+            )
+        )
+        description = _COMPATIBILITY_ALIAS_DESCRIPTIONS.get(
+            tool.name,
+            (tool.description or "").strip(),
+        )
+        if has_geometric_input and DISTANCE_UNITS_DESCRIPTION not in description:
+            description = f"{description} {DISTANCE_UNITS_DESCRIPTION}".strip()
+        if (has_selector or tool.name in _GENERIC_SCHEMA_TOOLS) and (
+            _INPUT_SCHEMA_RESOURCE not in description
+        ):
+            description = f"{description} Input schema: {_INPUT_SCHEMA_RESOURCE}.".strip()
+        tool.description = description
+
+
+def create_server(
+    settings: Settings | None = None,
+    *,
+    host: str = "127.0.0.1",
+    port: int = 8765,
+) -> FastMCP:
     service = DipTraceService(settings or Settings.from_env())
     mcp = FastMCP(
         name="DipTrace MCP",
         instructions=(
             "Inspect and safely edit DipTrace XML. Without a path, tools use the active live "
             "DipTrace bridge session. Prefer semantic tools with preview/commit/rollback. "
-            "Low-level XML edits remain available for expert use."
+            "Low-level XML edits remain available for expert use. Stable object ids come from "
+            "query_objects or normalized model/list tools; transaction, plan, report, export and "
+            "job ids come from their corresponding create/run tools."
         ),
         json_response=True,
+        host=host,
+        port=port,
     )
 
     @mcp.tool()
@@ -150,10 +305,14 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.tool()
     def compare_bom_to_design(
-        external_records: list[dict[str, Any]], path: str | None = None
+        external_records: list[ExternalBomRecordInput],
+        path: str | None = None,
     ) -> dict[str, Any]:
         """Compare typed external BOM rows with normalized design records by RefDes."""
-        return service.compare_bom_to_design(external_records, path=path)
+        return service.compare_bom_to_design(
+            [record.model_dump() for record in external_records],
+            path=path,
+        )
 
     @mcp.tool()
     def find_missing_component_fields(
@@ -352,7 +511,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     def create_schematic_document(
         path: str,
         sheets: list[str] | None = None,
-        units: str = "mm",
+        units: Literal["mm", "inch", "mil"] = "mm",
         overwrite: bool = False,
     ) -> dict[str, Any]:
         """Create a new DipTrace Schematic XML document inside the workspace."""
@@ -364,7 +523,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     def create_pcb_document(
         path: str,
         pcb: dict[str, Any] | None = None,
-        units: str = "mm",
+        units: Literal["mm", "inch", "mil"] = "mm",
         overwrite: bool = False,
     ) -> dict[str, Any]:
         """Create a new DipTrace PCB XML document (outline, layers, stackup, rules).
@@ -382,20 +541,11 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         expected_seed_sha256: str | None = None,
         overwrite: bool = False,
     ) -> dict[str, Any]:
-        """Create a new project document by copying an existing DipTrace-shaped XML seed.
+        """Copy a valid DipTrace-shaped XML seed while preserving unknown XML.
 
-        The seed must be valid DipTrace XML (PCB, Schematic, ComponentLibrary, or
-        PatternLibrary). The copy preserves all unknown XML, line endings, and
-        unsupported sections.
-
-        Trust model: The client cannot assign a validation level. Trust is derived
-        exclusively from verifiable metadata (provenance sidecar) found alongside
-        the seed. If no metadata is present, the copy defaults to
-        synthetic_parser_only.
-
-        This is the recommended way to start a new project when DipTrace
-        compatibility is required, as opposed to create_pcb_document/create_schematic_document
-        which produce synthetic MCP-generated XML.
+        Validation is derived only from a verified provenance sidecar; without one,
+        the copy is synthetic_parser_only. Prefer a real export seed when DipTrace
+        compatibility matters.
         """
         return service.create_document_from_seed(
             seed_path,
@@ -414,9 +564,15 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         return service.begin_transaction(path, expected_sha256, notes)
 
     @mcp.tool()
-    def stage_operations(txid: str, operations: list[dict[str, Any]]) -> dict[str, Any]:
-        """Attach semantic operations to an existing transaction."""
-        return service.stage_operations(txid, operations)
+    def stage_operations(
+        txid: str,
+        operations: list[StagedOperationInput],
+    ) -> dict[str, Any]:
+        """Attach registered semantic operations to an existing transaction."""
+        return service.stage_operations(
+            txid,
+            [operation.model_dump() for operation in operations],
+        )
 
     @mcp.tool()
     def preview_transaction(txid: str) -> dict[str, Any]:
@@ -443,7 +599,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.tool()
     def list_transactions() -> dict[str, Any]:
-        """List known transactions."""
+        """List persisted transaction ids, document hashes, states and operation counts."""
         return service.list_transactions()
 
     @mcp.tool()
@@ -906,7 +1062,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     @mcp.tool()
     def connect_pins(
         net: str,
-        pins: list[dict[str, Any]],
+        pins: list[PinEndpoint],
         allow_reconnect: bool = False,
         path: str | None = None,
         dry_run: bool = True,
@@ -915,7 +1071,13 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     ) -> dict[str, Any]:
         """Connect part pins to a net; the net is created when missing."""
         return service.connect_pins(
-            net, pins, allow_reconnect, path, dry_run, expected_sha256, txid
+            net,
+            [pin.model_dump() for pin in pins],
+            allow_reconnect,
+            path,
+            dry_run,
+            expected_sha256,
+            txid,
         )
 
     @mcp.tool()
@@ -932,9 +1094,9 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     @mcp.tool()
     def add_wire(
         net: str,
-        points: list[dict[str, Any]],
-        start: dict[str, Any],
-        end: dict[str, Any],
+        points: list[WirePathPoint],
+        start: WireEndpoint,
+        end: WireEndpoint,
         sheet: int = 0,
         hidden_power: bool = False,
         path: str | None = None,
@@ -944,7 +1106,16 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     ) -> dict[str, Any]:
         """Add a wire to a schematic net (official Wire/Points XML structure)."""
         return service.add_wire(
-            net, points, start, end, sheet, hidden_power, path, dry_run, expected_sha256, txid
+            net,
+            [point.model_dump() for point in points],
+            start.model_dump(),
+            end.model_dump(),
+            sheet,
+            hidden_power,
+            path,
+            dry_run,
+            expected_sha256,
+            txid,
         )
 
     @mcp.tool()
@@ -1123,7 +1294,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.tool()
     def add_testpoints(
-        testpoints: list[dict[str, Any]],
+        testpoints: list[AddTestpointOperation],
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1131,7 +1302,11 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     ) -> dict[str, Any]:
         """Add explicit standalone-pad testpoints and connect them to existing nets atomically."""
         return service.add_testpoints(
-            testpoints, path, dry_run, expected_sha256, txid
+            [testpoint.model_dump() for testpoint in testpoints],
+            path,
+            dry_run,
+            expected_sha256,
+            txid,
         )
 
     @mcp.tool()
@@ -1284,7 +1459,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.tool()
     def score_placement(
-        placements: list[dict[str, Any]],
+        placements: list[PlacementProposal],
         path: str | None = None,
         spacing: float = 0.2,
         board_edge_clearance: float = 0.5,
@@ -1292,7 +1467,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     ) -> dict[str, Any]:
         """Score an explicit component placement proposal without editing XML."""
         return service.score_placement(
-            placements,
+            [placement.model_dump() for placement in placements],
             path,
             spacing=spacing,
             board_edge_clearance=board_edge_clearance,
@@ -1375,7 +1550,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         net: str,
         start_object_id: str,
         end_object_id: str,
-        points: list[dict[str, Any]],
+        points: list[TracePathPoint],
         layer: str,
         width: float,
         clearance: float | None = None,
@@ -1389,7 +1564,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
             net=net,
             start_object_id=start_object_id,
             end_object_id=end_object_id,
-            points=points,
+            points=[point.model_dump() for point in points],
             layer=layer,
             width=width,
             clearance=clearance,
@@ -1402,7 +1577,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
     @mcp.tool()
     def replace_trace(
         trace_id: str,
-        points: list[dict[str, Any]],
+        points: list[TracePathPoint],
         layer: str,
         width: float,
         clearance: float | None = None,
@@ -1414,7 +1589,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         """Replace trace geometry while preserving both connected endpoints."""
         return service.replace_trace(
             trace_id,
-            points,
+            [point.model_dump() for point in points],
             layer=layer,
             width=width,
             clearance=clearance,
@@ -1684,17 +1859,25 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.tool()
     def validate_impedance_constraints(
-        constraints: list[dict[str, Any]], path: str | None = None
+        constraints: list[ImpedanceConstraintInput],
+        path: str | None = None,
     ) -> dict[str, Any]:
         """Validate explicit net/layer/target constraints against routed widths and stackup."""
-        return service.validate_impedance_constraints(constraints, path=path)
+        return service.validate_impedance_constraints(
+            [constraint.model_dump() for constraint in constraints],
+            path=path,
+        )
 
     @mcp.tool()
     def analyze_controlled_impedance(
-        constraints: list[dict[str, Any]], path: str | None = None
+        constraints: list[ImpedanceConstraintInput],
+        path: str | None = None,
     ) -> dict[str, Any]:
         """Analyze explicit controlled-impedance nets; no target is inferred silently."""
-        return service.analyze_controlled_impedance_nets(constraints, path=path)
+        return service.analyze_controlled_impedance_nets(
+            [constraint.model_dump() for constraint in constraints],
+            path=path,
+        )
 
     @mcp.tool()
     def list_copper_pours(
@@ -2196,6 +2379,22 @@ def create_server(settings: Settings | None = None) -> FastMCP:
         """Current capability discovery payload."""
         return json.dumps(service.get_capabilities(), ensure_ascii=False, indent=2)
 
+    @mcp.resource(_INPUT_SCHEMA_RESOURCE, mime_type="application/json")
+    def tool_input_schemas_resource() -> str:
+        """Catalog of schemas for intentionally non-inlined high-cost tool inputs."""
+        return json.dumps(
+            {
+                "query_selector": QuerySelector.model_json_schema(),
+                "pcb_scaffold": PcbScaffold.model_json_schema(),
+                "component_sync_mapping": ComponentSyncMapping.model_json_schema(),
+                "sync_placement": SyncPlacement.model_json_schema(),
+                "panelization": SetPanelizationOperation.model_json_schema(),
+                "route_connection": RouteConnectionConfig.model_json_schema(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
     @mcp.resource(
         "diptrace://document/{document_id}/summary",
         mime_type="application/json",
@@ -2398,28 +2597,35 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def review_board_before_release(scope: str = "full") -> str:
+        """Review a requested PCB scope before release using available checks."""
         return (
-            "Review the board before release. Start with get_capabilities, summarize_design, "
+            f"Review the board before release. Review scope: {scope}. "
+            "Start with get_capabilities, summarize_design, "
             "get_board_model, get_design_rules and a focused query_objects pass. Stop if any "
             "capability is unavailable."
         )
 
     @mcp.prompt()
     def place_selected_components_safely(scope: str = "selected") -> str:
+        """Plan and preview bounded component placement for a requested scope."""
         return (
-            "Place selected components safely. Inspect the current model, build a transaction, "
+            f"Place components safely. Placement scope: {scope}. "
+            "Inspect the current model, build a transaction, "
             "preview it, review the diff and commit only after confirming no locked parts move."
         )
 
     @mcp.prompt()
     def review_schematic_before_layout(scope: str = "full") -> str:
+        """Review a requested schematic scope before PCB layout begins."""
         return (
-            "Review the schematic before layout. Inspect components, nets, ERC settings and "
+            f"Review the schematic before layout. Review scope: {scope}. "
+            "Inspect components, nets, ERC settings and "
             "the connection graph, then summarize blocking issues and missing metadata."
         )
 
     @mcp.prompt()
     def place_decoupling_network(component_selector: str, region: str = "local") -> str:
+        """Plan a bounded decoupling-network placement around selected components."""
         return (
             f"Required inputs: target selector={component_selector}; allowed region={region}. "
             "Call get_capabilities, query_objects, get_connectivity_graph, analyze_placement, "
@@ -2431,6 +2637,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def route_critical_net(net: str, constraints: str = "use exported rules") -> str:
+        """Plan a bounded route for one explicitly named critical net."""
         return (
             f"Required net={net}; constraints={constraints}. Call get_capabilities, get_stackup, "
             "list_unrouted_connections and get_route_details. Use route_connection or "
@@ -2443,6 +2650,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def route_diff_pair_with_constraints(pair: str) -> str:
+        """Plan a differential-pair route using explicit stackup and pair constraints."""
         return (
             f"Required differential pair={pair}. Call get_capabilities, get_stackup, "
             "get_differential_pair, analyze_differential_pair and analyze_stackup_for_impedance. "
@@ -2455,6 +2663,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def clean_silkscreen_for_manufacturing(scope: str = "whole board") -> str:
+        """Plan and validate silkscreen cleanup for the requested board scope."""
         return (
             f"Required scope={scope}. Call check_silkscreen, plan_silkscreen, inspect the "
             "plan score, "
@@ -2466,6 +2675,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def add_testpoints_for_fixture(target_nets: str, side: str = "Top") -> str:
+        """Plan guarded testpoint coverage for explicitly selected nets."""
         return (
             f"Required target nets={target_nets}; probe side={side}. Call get_connectivity_graph, "
             "list_testpoints, review_testpoint_coverage and find_testpoint_candidates. The model "
@@ -2477,6 +2687,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def review_return_paths(nets: str) -> str:
+        """Review geometry-based return-path heuristics for selected nets."""
         return (
             f"Required nets={nets}. Call get_stackup, list_copper_pours, analyze_plane_continuity "
             "and analyze_return_path. Treat results as geometry-based heuristics, not "
@@ -2487,6 +2698,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def prepare_fabrication_export(scope: str = "whole board") -> str:
+        """Review release readiness before creating a generic fabrication manifest."""
         return (
             f"Required release scope={scope}. Run board, manufacturing, connectivity and stackup "
             "reviews first. Stop on blocking findings or incomplete stackup. Call "
@@ -2498,6 +2710,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def prepare_assembly_export(variant: str = "default") -> str:
+        """Review one assembly variant before creating generic assembly artifacts."""
         return (
             f"Required variant={variant}. Run assembly, BOM and silkscreen reviews, then call "
             "export_assembly_outputs for generic placement/BOM artifacts. Stop on DNP ambiguity, "
@@ -2508,6 +2721,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt(name="review_bom")
     def review_bom_workflow(variant: str = "all") -> str:
+        """Review BOM metadata and consistency for the requested variant."""
         return (
             f"Required variant={variant}. Call get_bom, review_bom, find_missing_component_fields, "
             "validate_mpn_consistency and validate_value_pattern_consistency. The model decides "
@@ -2516,6 +2730,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def compare_schematic_and_pcb(schematic_path: str, pcb_path: str) -> str:
+        """Compare an explicit schematic and PCB without applying changes."""
         return (
             f"Required schematic={schematic_path}; PCB={pcb_path}. Read both document infos, call "
             "compare_schematic_to_pcb and inspect RefDes, value, net and endpoint deltas. The "
@@ -2526,6 +2741,7 @@ def create_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.prompt()
     def synchronize_schematic_to_pcb(schematic_path: str, pcb_path: str) -> str:
+        """Plan a guarded schematic-to-PCB synchronization workflow."""
         return (
             f"Synchronize schematic={schematic_path} into PCB={pcb_path}. First call "
             "compare_schematic_to_pcb and inspect component libraries. Supply explicit "
@@ -2535,6 +2751,8 @@ def create_server(settings: Settings | None = None) -> FastMCP:
             "Then legalize placement and rerun connectivity and DRC."
         )
 
+    _finalize_tool_descriptions(mcp)
+    service.set_workflow_prompt_names(tuple(mcp._prompt_manager._prompts))
     return mcp
 
 
@@ -2552,9 +2770,7 @@ def main(argv: list[str] | None = None) -> None:
         default=int(os.environ.get("DIPTRACE_MCP_PORT", "8765")),
     )
     args = parser.parse_args(argv)
-    server = create_server()
-    server.settings.host = args.host
-    server.settings.port = args.port
+    server = create_server(host=args.host, port=args.port)
     server.run(transport=args.transport)
 
 

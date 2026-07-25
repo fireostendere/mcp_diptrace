@@ -4,6 +4,26 @@ The complete runtime tool list must be requested through MCP `tools/list`. Actua
 
 A registered tool is not the same as a DipTrace-verified write path. The project intentionally distinguishes implementation, runtime availability, and real DipTrace round-trip evidence.
 
+## Input Schemas, Units, and Errors
+
+All geometric tool descriptions state the normalization rule used by the API: all distances are
+in millimetres, regardless of the document's own `Units` attribute. High-value compact payloads
+use typed schemas directly. In particular, `stage_operations` publishes all 39 registered
+operation `kind` values as an enum.
+
+The full `QuerySelector`, PCB scaffold, synchronization, panelization, and route-connection
+schemas are available once in the JSON schema catalog at `diptrace://schemas/tool-inputs`. They
+are referenced instead of being duplicated across dozens of tool schemas, keeping `tools/list`
+within its measured token budget.
+
+Opaque IDs are provenance-bound: object/stable IDs come from `query_objects` or normalized
+model/list tools; transaction, plan, report, export, and job IDs come from the corresponding
+create/run tool. Callers must not invent them.
+
+MCP tool failures currently use the transport's error response and human-readable message.
+Exception classes retain internal codes for service tests and persisted job failures, but the MCP
+wire does not promise a structured `code` or `suggested_action` payload.
+
 ## Read and Query
 
 - status, document information, scanning, summaries, and capabilities;
@@ -69,7 +89,7 @@ Generic manifests do **not** generate Gerber, NC Drill, ODB++, IPC-2581, or vend
 
 ## Resources
 
-- `diptrace://status`, `diptrace://capabilities`;
+- `diptrace://status`, `diptrace://capabilities`, `diptrace://schemas/tool-inputs`;
 - document summary, board, schematic, stackup, connectivity, library, review, and findings resources;
 - transaction/plan summary, operations, diff, SVG, and JSON previews;
 - job status, result, log, DSN, SES, and field-solver resources;

@@ -48,6 +48,7 @@ _DIRECTIONS = (
     (0, 1),
     (-1, 1),
 )
+_MM_FIELD_DESCRIPTION = "Distance in millimetres."
 
 
 class RouteConnectionConfig(StrictModel):
@@ -58,9 +59,13 @@ class RouteConnectionConfig(StrictModel):
     start_layer: str | None = Field(default=None, min_length=1, max_length=256)
     end_layer: str | None = Field(default=None, min_length=1, max_length=256)
     preferred_layers: list[str] = Field(default_factory=list, max_length=64)
-    width: float = Field(gt=0.0, allow_inf_nan=False)
-    clearance: float = Field(default=0.2, ge=0.0, le=100.0)
-    grid: float = Field(default=0.5, gt=0.0, le=10.0)
+    width: float = Field(gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    clearance: float = Field(
+        default=0.2, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION
+    )
+    grid: float = Field(
+        default=0.5, gt=0.0, le=10.0, description=_MM_FIELD_DESCRIPTION
+    )
     bend_cost: float = Field(default=0.2, ge=0.0, le=1_000.0)
     via_style: str | None = Field(default=None, min_length=1, max_length=256)
     max_vias: int = Field(default=0, ge=0, le=32)
@@ -99,10 +104,18 @@ class DifferentialPairRouteConfig(StrictModel):
     end_pad_point_id: str | None = Field(default=None, min_length=1, max_length=256)
     layer: str = Field(min_length=1, max_length=256)
     preferred_layers: list[str] = Field(default_factory=list, max_length=64)
-    width: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
-    gap: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
-    clearance: float = Field(default=0.2, ge=0.0, le=100.0)
-    grid: float = Field(default=0.025, gt=0.0, le=10.0)
+    width: float | None = Field(
+        default=None, gt=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    gap: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
+    )
+    clearance: float = Field(
+        default=0.2, ge=0.0, le=100.0, description=_MM_FIELD_DESCRIPTION
+    )
+    grid: float = Field(
+        default=0.025, gt=0.0, le=10.0, description=_MM_FIELD_DESCRIPTION
+    )
     bend_cost: float = Field(default=0.2, ge=0.0, le=1_000.0)
     via_style: str | None = Field(default=None, min_length=1, max_length=256)
     max_vias: int = Field(default=0, ge=0, le=32)
@@ -110,7 +123,9 @@ class DifferentialPairRouteConfig(StrictModel):
     max_detour: float = Field(default=3.0, ge=1.0, le=100.0)
     max_nodes: int = Field(default=200_000, ge=100, le=1_000_000)
     time_budget_ms: int = Field(default=10_000, ge=100, le=30_000)
-    endpoint_tolerance: float = Field(default=0.01, gt=0.0, le=1.0)
+    endpoint_tolerance: float = Field(
+        default=0.01, gt=0.0, le=1.0, description=_MM_FIELD_DESCRIPTION
+    )
     avoid_component_bodies: bool = True
 
     @model_validator(mode="after")

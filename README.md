@@ -193,7 +193,7 @@ The server distinguishes provenance from authority. A client may submit evidence
 
 - **Synthetic MCP-generated**: XML created by `create_schematic_document` or `create_pcb_document` is classified as `synthetic_parser_only` until stronger independently verified evidence exists.
 - **Seed-based**: XML copied by `create_document_from_seed` from a real DipTrace export preserves seed provenance but does not create round-trip authority.
-- **Recorded evidence**: `record_roundtrip_evidence` binds before/after files, exact paths, source type, SHA-256 values, and semantic comparison. User-supplied evidence is useful for audit/regression but is not a trusted root.
+- **Recorded evidence (service-only today)**: the internal `record_roundtrip_evidence` method binds before/after files, exact paths, source type, SHA-256 values, and semantic comparison. It is not registered on the MCP surface yet; the Phase 7 evidence harness must make intake reachable before clients can rely on it. User-supplied evidence is not a trusted root.
 - **High trust**: promotion to `diptrace_roundtrip_verified` or `external_tool_roundtrip_verified` is intentionally unavailable until the project has an authenticated server-owned registry, signature verifier, or committed allowlist.
 
 Trust invalidation is implemented for the main verified mutation paths, but the capability layer intentionally does **not** claim complete coverage for every write path yet. Current explicitly reported gaps are `plan_apply`, `ses_import`, `schematic_to_pcb_sync`, and `live_session_apply`. Closing these fail-closed trust paths is a near-term roadmap priority.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import timedelta
 from pathlib import Path
 
@@ -78,11 +79,35 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert board.structuredContent["ok"] is True
             assert board.structuredContent["result"]["traces"][0]["kind"] == "trace"
 
+            impedance = await session.call_tool(
+                "validate_impedance_constraints",
+                {
+                    "path": "diff_pair_pcb.xml",
+                    "constraints": [
+                        {
+                            "net": "USB_D+",
+                            "layer": "0",
+                            "target_ohm": 75.0,
+                            "tolerance_ohm": 1.0,
+                            "width_mm": 0.18,
+                        }
+                    ],
+                },
+            )
+            assert not impedance.isError
+            estimate = impedance.structuredContent["result"]["items"][0]["estimates"][0]
+            assert estimate["inputs"]["width_mm"] == 0.18
+
             resources = await session.list_resources()
             assert {str(item.uri) for item in resources.resources} == {
                 "diptrace://status",
                 "diptrace://capabilities",
+                "diptrace://schemas/tool-inputs",
             }
+            schema_resource = await session.read_resource("diptrace://schemas/tool-inputs")
+            schemas = json.loads(schema_resource.contents[0].text)
+            assert "max_distance" in schemas["query_selector"]["properties"]
+            assert "kind" in schemas["panelization"]["properties"]
             templates = await session.list_resource_templates()
             template_uris = {item.uriTemplate for item in templates.resourceTemplates}
             assert "diptrace://document/{document_id}/board-model" in template_uris
@@ -94,8 +119,11 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
 
             prompts = await session.list_prompts()
             prompt_names = {item.name for item in prompts.prompts}
-            assert {
+            assert prompt_names == {
+                "review_diptrace_design",
                 "review_board_before_release",
+                "review_schematic_before_layout",
+                "place_selected_components_safely",
                 "place_decoupling_network",
                 "route_critical_net",
                 "route_diff_pair_with_constraints",
@@ -106,6 +134,31 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
                 "prepare_assembly_export",
                 "review_bom",
                 "compare_schematic_and_pcb",
-            } <= prompt_names
+                "synchronize_schematic_to_pcb",
+            }
+            assert all(item.description for item in prompts.prompts)
+            assert {
+                item["name"]
+                for item in caps.structuredContent["workflow_prompts"]
+            } == prompt_names
+
+            prompt = await session.get_prompt(
+                "review_board_before_release",
+                {"scope": "selected power stage"},
+            )
+            assert "Review scope: selected power stage" in prompt.messages[0].content.text
 
     asyncio.run(verify())
+
+
+def test_http_host_and_port_are_applied_at_server_construction(tmp_path: Path) -> None:
+    settings = Settings(
+        workspace=FIXTURES,
+        allowed_roots=(FIXTURES,),
+        state_dir=tmp_path,
+    )
+
+    server = create_server(settings, host="0.0.0.0", port=9187)
+
+    assert server.settings.host == "0.0.0.0"
+    assert server.settings.port == 9187

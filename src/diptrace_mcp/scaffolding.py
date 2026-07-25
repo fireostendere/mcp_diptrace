@@ -27,6 +27,7 @@ DEFAULT_FORMAT_VERSION = "4.3.0.3"
 MAX_SHEETS = 256
 MAX_LAYERS = 32
 MAX_DIMENSION_MM = 2_000.0
+_MM_FIELD_DESCRIPTION = "Distance in millimetres."
 
 _DEFAULT_LAYER_NAMES = {
     1: ("Top",),
@@ -58,21 +59,85 @@ class LayerSpec(StrictModel):
 class PcbScaffold(StrictModel):
     """Options for a new PCB document."""
 
-    width_mm: float = Field(default=50.0, gt=0.1, le=MAX_DIMENSION_MM, allow_inf_nan=False)
-    height_mm: float = Field(default=50.0, gt=0.1, le=MAX_DIMENSION_MM, allow_inf_nan=False)
+    width_mm: float = Field(
+        default=50.0,
+        gt=0.1,
+        le=MAX_DIMENSION_MM,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    height_mm: float = Field(
+        default=50.0,
+        gt=0.1,
+        le=MAX_DIMENSION_MM,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
     layers: list[LayerSpec] = Field(default_factory=list, max_length=MAX_LAYERS)
-    trace_width_mm: float = Field(default=0.25, gt=0.01, le=10.0, allow_inf_nan=False)
-    clearance_mm: float = Field(default=0.2, ge=0.0, le=10.0, allow_inf_nan=False)
-    min_trace_mm: float = Field(default=0.15, gt=0.01, le=10.0, allow_inf_nan=False)
-    min_drill_mm: float = Field(default=0.2, gt=0.05, le=10.0, allow_inf_nan=False)
-    min_ring_mm: float = Field(default=0.1, ge=0.0, le=10.0, allow_inf_nan=False)
-    via_diameter_mm: float = Field(default=0.6, gt=0.1, le=10.0, allow_inf_nan=False)
-    via_hole_mm: float = Field(default=0.3, gt=0.05, le=10.0, allow_inf_nan=False)
+    trace_width_mm: float = Field(
+        default=0.25,
+        gt=0.01,
+        le=10.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    clearance_mm: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=10.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    min_trace_mm: float = Field(
+        default=0.15,
+        gt=0.01,
+        le=10.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    min_drill_mm: float = Field(
+        default=0.2,
+        gt=0.05,
+        le=10.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    min_ring_mm: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=10.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    via_diameter_mm: float = Field(
+        default=0.6,
+        gt=0.1,
+        le=10.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
+    via_hole_mm: float = Field(
+        default=0.3,
+        gt=0.05,
+        le=10.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
     dielectric_thickness_mm: float = Field(
-        default=1.6, gt=0.01, le=20.0, allow_inf_nan=False
+        default=1.6,
+        gt=0.01,
+        le=20.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
     )
     dielectric_constant: float = Field(default=4.5, gt=1.0, le=100.0, allow_inf_nan=False)
-    copper_thickness_mm: float = Field(default=0.035, gt=0.001, le=1.0, allow_inf_nan=False)
+    copper_thickness_mm: float = Field(
+        default=0.035,
+        gt=0.001,
+        le=1.0,
+        allow_inf_nan=False,
+        description=_MM_FIELD_DESCRIPTION,
+    )
     stackup_name: str = Field(default="Custom", min_length=1, max_length=256)
 
     @model_validator(mode="after")

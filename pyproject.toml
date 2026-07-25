@@ -12,6 +12,7 @@ authors = [{ name = "DipTrace MCP contributors" }]
 dependencies = [
   "mcp>=1.28.1,<2",
   "pydantic>=2.11,<3",
+  "typing-extensions>=4.12,<5",
 ]
 
 [project.optional-dependencies]
