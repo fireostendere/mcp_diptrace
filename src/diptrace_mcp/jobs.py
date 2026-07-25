@@ -10,7 +10,7 @@ from typing import Any
 
 from .domain import JobRecord, JobStatus
 from .errors import ObjectNotFoundError
-from .record_ids import InvalidRecordId, require_record_id
+from .record_ids import InvalidRecordId, iter_valid_record_files, require_record_id
 from .xml_document import atomic_write_bytes, utc_now
 
 
@@ -30,7 +30,7 @@ class JobStore:
         try:
             validated = require_record_id(jobid, "job")
         except InvalidRecordId:
-            raise ObjectNotFoundError("Invalid job id") from None
+            raise ObjectNotFoundError("Invalid job id", jobid=jobid) from None
         return self.jobs_dir / validated
 
     def record_path(self, jobid: str) -> Path:
@@ -101,12 +101,20 @@ class JobStore:
 
     def list(self, *, status: JobStatus | None = None) -> list[JobRecord]:
         records: list[JobRecord] = []
-        for path in sorted(self.jobs_dir.glob("job_*/job.json")):
+        paths = sorted(self.jobs_dir.glob("job_*/job.json"))
+        for path_jobid, path in iter_valid_record_files(
+            self.jobs_dir,
+            paths,
+            kind="job",
+            record_filename="job.json",
+        ):
             try:
                 with self._lock:
                     payload = path.read_bytes()
                 record = JobRecord.model_validate_json(payload)
             except (OSError, ValueError):
+                continue
+            if record.jobid != path_jobid:
                 continue
             if status is None or record.status == status:
                 records.append(record)

@@ -238,6 +238,26 @@ def test_public_apply_edits_rejects_semantically_wrong_raw_output(
         )
 
 
+def test_public_semantic_gate_detects_significant_fragment_tail_mismatch() -> None:
+    payload = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        b'<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">'
+        b"<Board><Old /></Board></Source>"
+    )
+    document = DipTraceDocument.from_bytes(Path("fragment-tail.xml"), payload)
+
+    with pytest.raises(EditError, match="does not match the requested semantic edit"):
+        document.apply_edits(
+            [
+                XmlEdit(
+                    operation="replace_xml",
+                    xpath="./Board/Old",
+                    value="<New />INJECTED",
+                )
+            ]
+        )
+
+
 def test_utf16_diff_is_decoded_with_the_source_codec() -> None:
     payload = _encoded_source("utf-16-le", b"\xff\xfe")
     document = DipTraceDocument.from_bytes(Path("encoded.xml"), payload)

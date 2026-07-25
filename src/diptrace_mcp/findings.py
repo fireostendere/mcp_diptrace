@@ -9,7 +9,7 @@ from pydantic import Field
 
 from .domain import StrictModel
 from .errors import ObjectNotFoundError
-from .record_ids import InvalidRecordId, require_record_id
+from .record_ids import InvalidRecordId, iter_valid_record_files, require_record_id
 from .xml_document import atomic_write_bytes, utc_now
 
 
@@ -145,12 +145,28 @@ class FindingStore:
             require_record_id(finding_id, "finding")
         except InvalidRecordId:
             raise ObjectNotFoundError("Invalid finding id") from None
-        for path in sorted(self.reports_dir.glob("report_*.json"), reverse=True):
-            report = ReviewReport.model_validate_json(path.read_bytes())
+        for report in self.list_reports():
             for finding in report.findings:
                 if finding.finding_id == finding_id:
                     return finding
         raise ObjectNotFoundError(f"Finding was not found: {finding_id}")
+
+    def list_reports(self) -> list[ReviewReport]:
+        reports: list[ReviewReport] = []
+        paths = sorted(self.reports_dir.glob("report_*.json"), reverse=True)
+        for path_report_id, path in iter_valid_record_files(
+            self.reports_dir,
+            paths,
+            kind="report",
+        ):
+            try:
+                report = ReviewReport.model_validate_json(path.read_bytes())
+            except (OSError, ValueError):
+                continue
+            if report.report_id != path_report_id:
+                continue
+            reports.append(report)
+        return reports
 
     def create_report(
         self,

@@ -945,11 +945,14 @@ def _serialize_new_element(element: ET.Element, encoding: str) -> bytes:
 def _semantic_tree(element: ET.Element) -> tuple[object, ...]:
     text = element.text
     normalized_text = None if text is None or not text.strip() else text
+    tail = element.tail
+    normalized_tail = None if tail is None or not tail.strip() else tail
     tag = element.tag if isinstance(element.tag, str) else "#comment"
     return (
         tag,
         tuple(sorted(element.attrib.items())),
         normalized_text,
+        normalized_tail,
         tuple(_semantic_tree(child) for child in element),
     )
 

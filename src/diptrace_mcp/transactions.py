@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from .domain import DocumentInfo, RiskClass, TransactionRecord, TransactionRisk
 from .errors import TransactionConflictError, TransactionNotFoundError
-from .record_ids import InvalidRecordId, require_record_id
+from .record_ids import InvalidRecordId, iter_valid_record_files, require_record_id
 from .xml_document import atomic_write_bytes, sha256_bytes, utc_now
 
 _TRANSITIONS: dict[str, frozenset[str]] = {
@@ -60,7 +60,7 @@ class TransactionStore:
         try:
             validated = require_record_id(txid, "transaction")
         except InvalidRecordId:
-            raise TransactionNotFoundError("Invalid transaction id") from None
+            raise TransactionNotFoundError("Invalid transaction id", txid=txid) from None
         return self.transactions_dir / validated
 
     def record_path(self, txid: str) -> Path:
@@ -127,11 +127,20 @@ class TransactionStore:
 
     def list(self) -> list[TransactionRecord]:
         items: list[TransactionRecord] = []
-        for path in sorted(self.transactions_dir.glob("tx_*/transaction.json")):
+        paths = sorted(self.transactions_dir.glob("tx_*/transaction.json"))
+        for path_txid, path in iter_valid_record_files(
+            self.transactions_dir,
+            paths,
+            kind="transaction",
+            record_filename="transaction.json",
+        ):
             try:
-                items.append(TransactionRecord.model_validate(_read_json(path)))
+                record = TransactionRecord.model_validate(_read_json(path))
             except (OSError, ValueError):
                 continue
+            if record.txid != path_txid:
+                continue
+            items.append(record)
         return items
 
     def store_snapshot(self, txid: str, raw_bytes: bytes) -> Path:

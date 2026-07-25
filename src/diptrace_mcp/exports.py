@@ -11,7 +11,7 @@ from .adapters import DocumentSnapshot
 from .bom import extract_bom, group_bom
 from .domain import ExportRecord
 from .errors import ObjectNotFoundError
-from .record_ids import InvalidRecordId, require_record_id
+from .record_ids import InvalidRecordId, iter_valid_record_files, require_record_id
 from .xml_document import atomic_write_bytes, utc_now
 
 ExportType = Literal["bom", "fabrication_manifest", "assembly_manifest", "si_geometry"]
@@ -105,8 +105,20 @@ class ExportStore:
 
     def list(self) -> list[ExportRecord]:
         records: list[ExportRecord] = []
-        for path in sorted(self.root.glob("export_*/record.json"), reverse=True):
-            records.append(ExportRecord.model_validate_json(path.read_bytes()))
+        paths = sorted(self.root.glob("export_*/record.json"), reverse=True)
+        for path_export_id, path in iter_valid_record_files(
+            self.root,
+            paths,
+            kind="export",
+            record_filename="record.json",
+        ):
+            try:
+                record = ExportRecord.model_validate_json(path.read_bytes())
+            except (OSError, ValueError):
+                continue
+            if record.export_id != path_export_id:
+                continue
+            records.append(record)
         return records
 
 

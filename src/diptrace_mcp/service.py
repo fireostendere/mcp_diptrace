@@ -5632,8 +5632,7 @@ class DipTraceService:
 
     def findings_resource(self, document_id: str) -> str:
         reports = []
-        for path in sorted(self.findings.reports_dir.glob("report_*.json")):
-            report = self.findings.read(path.stem)
+        for report in reversed(self.findings.list_reports()):
             if report.document_id == document_id:
                 reports.append(report.model_dump())
         return json.dumps({"document_id": document_id, "reports": reports}, indent=2)
