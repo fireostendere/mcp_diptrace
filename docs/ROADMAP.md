@@ -16,6 +16,20 @@ The project has moved beyond a parser/MCP prototype. The strongest areas are rea
 
 The main remaining risk is no longer missing MCP surface area. It is the gap between synthetic/fixture-tested writer behavior and broad, redistributable, automated evidence from real DipTrace 5.3 open/save/re-export cycles.
 
+### Format Coverage (measured from official specifications)
+
+The official DipTrace XML specifications (PCB and Schematic, v4.3.0.3, 2023) define **294 elements** with **806 attributes**. Current coverage against these specifications:
+
+| Metric | Value |
+| --- | --- |
+| Total elements in spec | 294 |
+| Normalized (reader produces typed field) | 48 |
+| Written (writer can create/modify) | 66 |
+| Passthrough (unknown XML, kept byte-for-byte) | 180 |
+| **Coverage** | **38.8%** |
+
+See [FORMAT_COVERAGE.md](FORMAT_COVERAGE.md) for the full element-by-element inventory, and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) for facts the specification does not settle.
+
 Current practical classification:
 
 | Area | Status | Main remaining gap |

@@ -52,6 +52,7 @@ jobs:
       - run: python -m ruff check --no-cache src tests benchmarks scripts
       - run: python -m mypy --no-incremental src/diptrace_mcp
       - run: python scripts/generate_pcb_skills.py --check
+      - run: python scripts/report_format_coverage.py --check
 
   test-macos:
     runs-on: macos-latest

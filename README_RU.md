@@ -233,7 +233,6 @@ Persistent feedback/recommendation tools — `record_pattern_example`, `accept_p
 ## Документация
 
 - [Roadmap и фактический статус](docs/ROADMAP.md)
-- [Serializer reference](docs/SERIALIZER_REFERENCE.md)
 - [XML compatibility](docs/XML_COMPATIBILITY.md)
 - [Полное руководство](docs/USAGE.md)
 - [Архитектура](docs/ARCHITECTURE.md)

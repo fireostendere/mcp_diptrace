@@ -12,3 +12,4 @@ plugin/dist/
 *.spec
 .diptrace-mcp-backups/
 docs/private/
+reference/diptrace-xml/sources/*.pdf
