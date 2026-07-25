@@ -1,0 +1,57 @@
+{
+  "expected_source_type": "DipTrace-PCB",
+  "operator_checklist": [
+    {
+      "id": "same_component_definition",
+      "prompt": "Confirm in DipTrace that U_CTRL and U_PROBE are two instances of the same component and pattern, with matching non-rotation properties.",
+      "required": true,
+      "stage": "source"
+    },
+    {
+      "id": "control_refdes_and_angle",
+      "prompt": "Confirm the control component has RefDes U_CTRL and the DipTrace UI shows rotation 0 degrees.",
+      "required": true,
+      "stage": "source"
+    },
+    {
+      "id": "probe_refdes_and_angle",
+      "prompt": "Confirm the probe component has RefDes U_PROBE and the DipTrace UI shows rotation 90 degrees.",
+      "required": true,
+      "stage": "source"
+    },
+    {
+      "id": "direct_source_export",
+      "prompt": "Confirm source.xml was exported directly by DipTrace after the UI checks, without MCP, hand editing, or another XML writer.",
+      "required": true,
+      "stage": "source"
+    },
+    {
+      "id": "open_save_without_design_edit",
+      "prompt": "Confirm source.xml was opened and saved under a distinct filename in DipTrace without an intentional design edit.",
+      "required": true,
+      "stage": "open_save"
+    },
+    {
+      "id": "fresh_reexport",
+      "prompt": "Confirm reexport.xml is a fresh DipTrace XML export of the open/save result under a third filename.",
+      "required": true,
+      "stage": "reexport"
+    },
+    {
+      "id": "literal_values_not_interpreted",
+      "prompt": "Record the literal Component/@Angle values for U_CTRL and U_PROBE in the operator note without converting or interpreting either value.",
+      "required": true,
+      "stage": "reexport"
+    }
+  ],
+  "purpose": "Collect independent evidence for OPEN_QUESTIONS Q1 by recording literal Component/@Angle values for a 0-degree control and a 90-degree probe without assuming radians or degrees.",
+  "recipe_id": "q1-component-angle",
+  "required_features": [
+    "One PCB containing exactly two instances of the same component definition and pattern.",
+    "Control RefDes U_CTRL shown as 0 degrees in the DipTrace UI.",
+    "Probe RefDes U_PROBE shown as 90 degrees in the DipTrace UI.",
+    "No intentional difference between the two instances other than RefDes, placement, and rotation."
+  ],
+  "schema_version": "diptrace-capture-recipe-v1",
+  "title": "Q1 Component Angle unit evidence"
+}

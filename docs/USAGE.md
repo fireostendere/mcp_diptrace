@@ -389,6 +389,13 @@ list_nets(path="BoardA/controller.xml", query="GND")
 
 Relative paths are resolved from `DIPTRACE_MCP_WORKSPACE`.
 
+### 7.4 Collect Operator Evidence
+
+Project maintainers investigating an unresolved format question can use the
+[operator-assisted evidence capture workflow](EVIDENCE_CAPTURE.md). The collector quarantines
+three operator-supplied XML roles and emits a review-only candidate manifest. It does not grant
+fixture trust or copy anything into the acceptance tree.
+
 ## 8. Tools and Resources
 
 The runtime source of truth is MCP `tools/list`, together with `get_capabilities` for the
