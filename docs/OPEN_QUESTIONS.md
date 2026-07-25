@@ -252,22 +252,46 @@ identify its envelope and compression only from reproducible decode evidence.
 ## Q11: What are the standalone Component and Pattern Editor XML mutation semantics?
 
 **Question:** What complete XML structures, identity rules, and replacement behavior do
-the standalone Component and Pattern Editors require for safe library mutation?
+the standalone Component and Pattern Editors require for safe library mutation? In
+particular, is `UID32` persistent identity or a value regenerated during save/export, and
+how do full-library saves differ from partial/current-object exports?
 
 **Why the code depends on it:** `src/diptrace_mcp/library_adapters.py::get_library_model`
 and `src/diptrace_mcp/library_adapters.py::_components` read observed library structures,
-but there is no public Component/Pattern XML format specification and no native library
-writer. Reader success does not prove mutation semantics.
+but the repository's reproducible inventory has no standalone Component/Pattern format
+source and there is no native library writer. Reader success does not prove mutation
+semantics. A local
+[reference-material audit](REFERENCE_MATERIALS_AUDIT.md#contradictions-and-unsupported-claims)
+also found mutually contradictory, unverified statements about `UID32`; neither statement
+is promoted here.
 
 **What is documented:** The public plug-in specification documents editor export/import
 modes such as `Library All`, `Library Add`, `Library Insert`, `Component All`, `Part All`,
 and `Edit`. It does not document the complete library XML schema or identity/canonicalization
 rules.
 
-**Experiment:** Export minimal Component and Pattern libraries, then vary one setting at a
-time: multi-part structure, pin and pad identity, pattern attachment, mask, paste,
-courtyard, additional fields, and embedded graphics. For each, retain export → import →
-save → re-export pairs and compare identity references and object counts.
+**Experiment:** Use separate disposable copies of minimal Component and Pattern libraries
+and capture these controls without assuming an answer:
+
+1. hash the exact legacy binary input before opening it, record the editor/build and GUI
+   export steps, and retain the source export, open/save result, and re-export as separate
+   artifacts; until the collector has a typed `input_artifacts` field, record the binary
+   SHA-256 in operator notes and an independent lab record and do not call that association
+   a machine-enforced provenance binding;
+2. export the same untouched library twice, then open/save without an intentional semantic
+   change; compare every `UID32` occurrence and its referenced object path to determine
+   whether values survive export, save, copy, and re-export;
+3. from the same source library, compare `Library All` with partial/current-component or
+   current-part export. Record every root attribute (`Type`, `Version`, `Units`, and any
+   additional attributes), top-level container, object ID, `UID32`, ordering, and omitted
+   subtree. Import each only into a disposable copy and perform a full-save/re-export;
+4. only after those controls, vary one GUI setting at a time: multi-part structure, pin and
+   pad identity, pattern attachment, mask, paste, courtyard, additional fields, and embedded
+   graphics. Retain export → import → save → re-export roles and compare identity
+   references and object counts.
+
+The binary-input hash identifies the local starting bytes; it does not prove authorship,
+redistribution permission, or that DipTrace bound a particular XML export to those bytes.
 
 **Who can perform:** Human with licensed Component and Pattern Editors and permission to
 share sanitized fixtures.

@@ -9,6 +9,9 @@ from pathlib import Path
 _INVENTORY_PATH = Path("reference/diptrace-xml/spec_inventory.json")
 _COVERAGE_PATH = Path("docs/FORMAT_COVERAGE.md")
 _OPEN_QUESTIONS_PATH = Path("docs/OPEN_QUESTIONS.md")
+_XML_COMPATIBILITY_PATH = Path("docs/XML_COMPATIBILITY.md")
+_IMPLEMENTATION_REFERENCE_PATH = Path("reference/diptrace-xml/REFERENCE.md")
+_EVIDENCE_CAPTURE_PATH = Path("docs/EVIDENCE_CAPTURE.md")
 
 
 def _open_question_blocks() -> list[tuple[int, str, str]]:
@@ -183,6 +186,42 @@ class TestFormatCoverage:
         assert "Coverage" in content
 
 
+class TestDocumentationEvidenceClasses:
+    """Keep source authority separate from observations and open questions."""
+
+    def test_compatibility_baseline_labels_each_evidence_class(self) -> None:
+        content = _XML_COMPATIBILITY_PATH.read_text(encoding="utf-8")
+        for heading in (
+            "### Public specification evidence",
+            "### Observed compatibility evidence",
+            "### Open unknowns",
+        ):
+            assert heading in content
+        assert "standalone Component Library or Pattern Library XML format reference" in content
+        assert "official standalone `<Library>` root validation" not in content
+
+    def test_implementation_reference_labels_unverified_semantics(self) -> None:
+        content = _IMPLEMENTATION_REFERENCE_PATH.read_text(encoding="utf-8")
+        for label in (
+            "**Public specification:**",
+            "**Observed compatibility:**",
+            "**Open question / safety model:**",
+        ):
+            assert label in content
+        assert "`ImpMode=All` replaces lists." not in content
+        assert "public specification inventory records these MainStack shapes" not in content
+        assert "**Writer policy:** preserve unknown XML and existing IDs." not in content
+        assert "outside the operation-owned region" in content
+
+    def test_capture_guidance_keeps_gui_controls_and_screenshots_bounded(self) -> None:
+        content = _EVIDENCE_CAPTURE_PATH.read_text(encoding="utf-8")
+        assert "## Designing a controlled recipe" in content
+        assert "one intentional GUI change per probe" in content
+        assert "unchanged controls" in content
+        assert "Screenshots may support" in content
+        assert "never the authoritative format artifact" in content
+
+
 class TestOpenQuestions:
     """Tests for the open questions document."""
 
@@ -251,6 +290,22 @@ class TestOpenQuestions:
             assert phrase in content
         assert "does not state whether selection/highlighting persists" in content
         assert "16 trace-point" in content
+
+    def test_library_question_keeps_identity_and_source_binding_open(self) -> None:
+        """Q11 must cover each unresolved library-evidence boundary."""
+        question_eleven = next(
+            block
+            for number, _, block in _open_question_blocks()
+            if number == 11
+        )
+        for phrase in (
+            "`UID32`",
+            "partial/current-component",
+            "full-save/re-export",
+            "`input_artifacts`",
+        ):
+            assert phrase in question_eleven
+        assert re.search(r"binary\s+SHA-256", question_eleven)
 
     def test_answered_and_duplicate_questions_are_absent(self) -> None:
         """Do not retain questions answered by the spec or duplicate numeric format."""

@@ -15,7 +15,34 @@ Standalone Component/Pattern Libraries are currently supported for normalized re
 
 ## Official Format Evidence
 
-The implementation is constrained by the official DipTrace XML and plug-in specifications plus controlled observed exports. The maintained references include PCB, Schematic, Component Editor, Pattern Editor, and executable plug-in XML documentation.
+The implementation uses three evidence classes; they are not interchangeable.
+
+### Public specification evidence
+
+The reproducible [specification inventory](../reference/diptrace-xml/spec_inventory.json) is
+generated from exactly three maintained public sources:
+
+- the PCB XML specification;
+- the Schematic XML specification;
+- the executable plug-in settings specification.
+
+The committed [per-page text bundles](../reference/diptrace-xml/extracted_text/) record the source
+URL and hashes used by the offline generator check. The plug-in specification documents
+Component Editor and Pattern Editor *exchange settings* and import/export mode names. It is not a
+standalone Component Library or Pattern Library XML format reference. No such standalone format
+source is part of the reproducible inventory.
+
+### Observed compatibility evidence
+
+Controlled exports and live acceptance runs may establish behavior for the exact captured
+DipTrace build and artifacts. Observations that are not retained as provenance-bearing,
+redistributable fixtures cannot become CI gates and are labelled as local observations below.
+
+### Open unknowns
+
+Standalone Component/Pattern Library identity, canonicalization, and safe mutation semantics remain
+open in [OPEN_QUESTIONS.md Q11](OPEN_QUESTIONS.md#q11-what-are-the-standalone-component-and-pattern-editor-xml-mutation-semantics).
+Reader support and a successful local parse do not close those writer questions.
 
 `Version` is preserved in document identity and compatibility reports, but it is not the sole compatibility gate. Readers use feature detection, tolerate documented optional/default fields, preserve unknown sections, and require each writer to validate the structures it needs.
 
@@ -23,7 +50,8 @@ A live import/re-export acceptance run with DipTrace 5.3 has confirmed real Sche
 
 ## Implemented Readers
 
-- `<Source>` and official standalone `<Library>` root validation;
+- `<Source>` root validation and feature-detected standalone `<Library>` root validation
+  (observed compatibility, not a standalone public format contract);
 - rejection of `DOCTYPE` and `ENTITY` declarations;
 - PCB outline, components, pads, holes, nets, ratlines, copper layers, physical stackup, and rules;
 - trace arcs, segment width/layer, vias, pour boundaries, text, keepouts, and differential pairs;
