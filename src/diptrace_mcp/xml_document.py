@@ -30,6 +30,10 @@ _XML_DECLARATION_ENCODING = re.compile(
     rb"^\s*<\?xml\b[^>]*?\bencoding\s*=\s*([\"'])([^\"']+)\1",
     re.IGNORECASE,
 )
+_XML_DECLARATION_ENCODING_TEXT = re.compile(
+    r"^\s*<\?xml\b[^>]*?\bencoding\s*=\s*([\"'])([^\"']+)\1",
+    re.IGNORECASE,
+)
 _ALLOWED_XML_ENCODINGS = frozenset(
     {
         "utf-8",
@@ -44,6 +48,19 @@ _ALLOWED_XML_ENCODINGS = frozenset(
         "iso-8859-1",
     }
 )
+_XML_BOMS: tuple[tuple[bytes, str], ...] = (
+    (b"\x00\x00\xfe\xff", "utf-32-be"),
+    (b"\xff\xfe\x00\x00", "utf-32-le"),
+    (b"\xef\xbb\xbf", "utf-8"),
+    (b"\xfe\xff", "utf-16-be"),
+    (b"\xff\xfe", "utf-16-le"),
+)
+_XML_BYTE_SIGNATURES: tuple[tuple[bytes, str], ...] = (
+    (b"\x00\x00\x00<", "utf-32-be"),
+    (b"<\x00\x00\x00", "utf-32-le"),
+    (b"\x00<\x00?", "utf-16-be"),
+    (b"<\x00?\x00", "utf-16-le"),
+)
 ForbiddenXmlContext = Literal["document", "fragment", "pattern_definition"]
 _FORBIDDEN_XML_MESSAGES: dict[ForbiddenXmlContext, str] = {
     "document": "DTD and ENTITY declarations are not allowed",
@@ -55,6 +72,123 @@ _XML_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.:-]*$")
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class _XmlEncoding:
+    codec: str
+    bom: bytes = b""
+    declared_name: str | None = None
+
+
+def _canonical_encoding_name(value: str) -> str:
+    return value.strip().lower().replace("_", "-")
+
+
+def _declaration_from_prefix(data: bytes, codec: str, bom: bytes) -> str | None:
+    body = data[len(bom) :] if bom and data.startswith(bom) else data
+    unit_size = 4 if codec.startswith("utf-32") else 2 if codec.startswith("utf-16") else 1
+    prefix_size = min(len(body), 4096)
+    prefix_size -= prefix_size % unit_size
+    try:
+        prefix = body[:prefix_size].decode(codec, errors="strict")
+    except (LookupError, UnicodeError, ValueError):
+        return None
+    match = _XML_DECLARATION_ENCODING_TEXT.search(prefix)
+    return match.group(2) if match is not None else None
+
+
+def _declaration_matches_codec(declared: str, codec: str) -> bool:
+    normalized = _canonical_encoding_name(declared)
+    if normalized == "utf-16":
+        return codec in {"utf-16-le", "utf-16-be"}
+    if normalized == "utf-32":
+        return codec in {"utf-32-le", "utf-32-be"}
+    if normalized == "utf-8-sig":
+        return codec == "utf-8"
+    return normalized == codec
+
+
+def _expat_encoding_hint(codec: str) -> str | None:
+    """Use Expat's generic multibyte names without trusting an XML declaration."""
+    if codec.startswith("utf-16"):
+        return "utf-16"
+    if codec.startswith("utf-32"):
+        return "utf-32"
+    return None
+
+
+def _expat_byte_encoding_hint(data: bytes) -> str | None:
+    for bom, codec in _XML_BOMS:
+        if data.startswith(bom):
+            return _expat_encoding_hint(codec)
+    for signature, codec in _XML_BYTE_SIGNATURES:
+        if data.startswith(signature):
+            return _expat_encoding_hint(codec)
+    return None
+
+
+def _detect_xml_encoding(data: bytes) -> _XmlEncoding:
+    """Detect the source codec without trusting an arbitrary declaration codec."""
+
+    for bom, codec in _XML_BOMS:
+        if not data.startswith(bom):
+            continue
+        declared = _declaration_from_prefix(data, codec, bom)
+        if declared is not None:
+            normalized = _canonical_encoding_name(declared)
+            if normalized not in _ALLOWED_XML_ENCODINGS:
+                raise DocumentError(f"Unsupported XML encoding declaration: {declared!r}")
+            if not _declaration_matches_codec(declared, codec):
+                raise DocumentError(
+                    f"XML declaration encoding {declared!r} conflicts with the byte-order mark"
+                )
+        return _XmlEncoding(codec=codec, bom=bom, declared_name=declared)
+
+    for signature, codec in _XML_BYTE_SIGNATURES:
+        if not data.startswith(signature):
+            continue
+        declared = _declaration_from_prefix(data, codec, b"")
+        if declared is not None:
+            normalized = _canonical_encoding_name(declared)
+            if normalized not in _ALLOWED_XML_ENCODINGS:
+                raise DocumentError(f"Unsupported XML encoding declaration: {declared!r}")
+            if not _declaration_matches_codec(declared, codec):
+                raise DocumentError(
+                    f"XML declaration encoding {declared!r} conflicts with the byte order"
+                )
+        return _XmlEncoding(codec=codec, declared_name=declared)
+
+    declaration = _XML_DECLARATION_ENCODING.search(data[:4096])
+    if declaration is None:
+        return _XmlEncoding(codec="utf-8")
+    try:
+        declared = declaration.group(2).decode("ascii")
+    except (LookupError, UnicodeError, ValueError) as exc:
+        raise DocumentError("XML encoding declaration must use an ASCII codec name") from exc
+    normalized = _canonical_encoding_name(declared)
+    if normalized not in _ALLOWED_XML_ENCODINGS:
+        raise DocumentError(f"Unsupported XML encoding declaration: {declared!r}")
+    if normalized in {"utf-16", "utf-32"}:
+        raise DocumentError(
+            f"XML encoding {declared!r} requires a BOM or an encoded byte-order signature"
+        )
+    codec = "utf-8" if normalized == "utf-8-sig" else normalized
+    return _XmlEncoding(codec=codec, declared_name=declared)
+
+
+def _encode_xml_fragment(value: str, codec: str) -> bytes:
+    try:
+        return value.encode(codec, errors="xmlcharrefreplace")
+    except (LookupError, UnicodeError, ValueError) as exc:
+        raise EditError(f"Cannot encode XML replacement as {codec}: {exc}") from exc
+
+
+def _decode_xml_fragment(value: bytes, codec: str) -> str:
+    try:
+        return value.decode(codec, errors="strict")
+    except (LookupError, UnicodeError, ValueError) as exc:
+        raise EditError(f"Cannot decode XML source bytes as {codec}: {exc}") from exc
 
 
 def _encoding_candidates(data: bytes) -> tuple[tuple[str, int], ...]:
@@ -131,7 +265,7 @@ def reject_forbidden_xml_declarations(
 
     # Expat callbacks make the final rejection independent of byte position and
     # encoding whenever the input is otherwise parseable by the XML parser.
-    parser = expat.ParserCreate()
+    parser = expat.ParserCreate(_expat_byte_encoding_hint(data))
 
     def reject_doctype(
         _doctype_name: str,
@@ -167,7 +301,7 @@ def reject_forbidden_xml_declarations(
         parser.Parse(data, True)
     except _ForbiddenXmlDeclaration:
         raise error_type(message) from None
-    except expat.ExpatError:
+    except (expat.ExpatError, LookupError, UnicodeError, ValueError):
         # ElementTree below preserves the public Invalid XML error contract for
         # ordinary syntax and unsupported-encoding failures.
         return
@@ -194,9 +328,13 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
 def _parse_root(data: bytes) -> ET.Element:
     reject_forbidden_xml_declarations(data, error_type=DocumentError)
     try:
-        parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+        source_encoding = _detect_xml_encoding(data)
+        parser = ET.XMLParser(
+            target=ET.TreeBuilder(insert_comments=True),
+            encoding=_expat_encoding_hint(source_encoding.codec),
+        )
         return ET.fromstring(data, parser=parser)
-    except ET.ParseError as exc:
+    except (ET.ParseError, LookupError, UnicodeError, ValueError) as exc:
         raise DocumentError(f"Invalid XML: {exc}") from exc
 
 
@@ -252,6 +390,7 @@ class RawTreeSnapshot:
     root_id: int
     spans: tuple[_RawElementSpan, ...]
     states: dict[int, _TreeElementState]
+    encoding: str
 
     @classmethod
     def capture(cls, document: DipTraceDocument) -> RawTreeSnapshot:
@@ -282,6 +421,7 @@ class RawTreeSnapshot:
             root_id=id(document.root),
             spans=tuple(spans),
             states=states,
+            encoding=document.encoding,
         )
 
     def compile(self, root: ET.Element, path: Path) -> bytes:
@@ -364,16 +504,21 @@ class RawTreeSnapshot:
             state = self.states[element_id]
             span = self.spans[state.span_index]
             start_tag = self.raw_bytes[span.start : span.start_tag_end]
-            start_tag = _patch_start_tag(start_tag, state.attributes, current[element_id].attrib)
-            rendered = _open_self_closing_tag(start_tag)
+            start_tag = _patch_start_tag(
+                start_tag,
+                state.attributes,
+                current[element_id].attrib,
+                self.encoding,
+            )
+            rendered = _open_self_closing_tag(start_tag, self.encoding)
             if current[element_id].text:
-                rendered += _escape_xml_text(current[element_id].text or "")
+                rendered += _escape_xml_text(current[element_id].text or "", self.encoding)
             rendered += b"".join(
-                _serialize_new_element(child)
+                _serialize_new_element(child, self.encoding)
                 for child in current[element_id]
                 if isinstance(child.tag, str)
             )
-            rendered += f"</{state.tag}>".encode()
+            rendered += _encode_xml_fragment(f"</{state.tag}>", self.encoding)
             replacements.append((span.start, span.end, rendered))
 
         for element_id in existing - replaced:
@@ -383,7 +528,12 @@ class RawTreeSnapshot:
             element = current[element_id]
             span = self.spans[state.span_index]
             start_tag = self.raw_bytes[span.start : span.start_tag_end]
-            patched_start_tag = _patch_start_tag(start_tag, state.attributes, element.attrib)
+            patched_start_tag = _patch_start_tag(
+                start_tag,
+                state.attributes,
+                element.attrib,
+                self.encoding,
+            )
             if patched_start_tag != start_tag:
                 replacements.append((span.start, span.start_tag_end, patched_start_tag))
             if state.text != element.text:
@@ -395,7 +545,7 @@ class RawTreeSnapshot:
                     (
                         span.start_tag_end,
                         text_end,
-                        _escape_xml_text(element.text or ""),
+                        _escape_xml_text(element.text or "", self.encoding),
                     )
                 )
 
@@ -433,7 +583,7 @@ class RawTreeSnapshot:
                     else parent_span.content_end
                 )
                 insertions.setdefault(offset, []).append(
-                    (index, _serialize_new_element(current[child_id]))
+                    (index, _serialize_new_element(current[child_id], self.encoding))
                 )
         for offset, values in insertions.items():
             rendered = b"".join(value for _, value in sorted(values))
@@ -453,6 +603,9 @@ class DipTraceDocument:
     path: Path
     root: ET.Element
     raw_bytes: bytes
+    encoding: str = "utf-8"
+    bom: bytes = b""
+    declared_encoding: str | None = None
 
     @classmethod
     def load(cls, path: Path, max_bytes: int) -> DipTraceDocument:
@@ -471,6 +624,7 @@ class DipTraceDocument:
     @classmethod
     def from_bytes(cls, path: Path, data: bytes) -> DipTraceDocument:
         root = _parse_root(data)
+        source_encoding = _detect_xml_encoding(data)
         source_type = root.get("Type", "")
         valid_root = root.tag == "Source" or (
             root.tag == "Library"
@@ -481,7 +635,14 @@ class DipTraceDocument:
             raise DocumentError(f"Expected a DipTrace <Source> or <Library> root, got <{root.tag}>")
         if not source_type.startswith("DipTrace-"):
             raise DocumentError(f"Unsupported DipTrace XML type: {source_type or '<empty>'}")
-        return cls(path=path, root=root, raw_bytes=data)
+        return cls(
+            path=path,
+            root=root,
+            raw_bytes=data,
+            encoding=source_encoding.codec,
+            bom=source_encoding.bom,
+            declared_encoding=source_encoding.declared_name,
+        )
 
     @property
     def source_type(self) -> str:
@@ -525,15 +686,16 @@ class DipTraceDocument:
         return sha256_bytes(self.raw_bytes)
 
     def serialize(self) -> bytes:
-        return cast(
+        rendered = cast(
             bytes,
             ET.tostring(
                 self.root,
-                encoding="utf-8",
+                encoding=self.encoding,
                 xml_declaration=True,
                 short_empty_elements=True,
             ),
         )
+        return self.bom + rendered
 
     def _normalize_xpath(self, xpath: str) -> str:
         value = xpath.strip()
@@ -591,7 +753,12 @@ class DipTraceDocument:
                 )
             before = [_short_xml(element) for element in matches]
             working = _apply_raw_edit(current, index, edit, matches)
+            _apply_expected_tree_edit(current, index, edit, matches)
             updated = DipTraceDocument.from_bytes(self.path, working)
+            if _semantic_tree(updated.root) != _semantic_tree(current.root):
+                raise EditError(
+                    f"Edit {index}: raw XML output does not match the requested semantic edit"
+                )
             previews.append(
                 {
                     "index": index,
@@ -612,34 +779,49 @@ class DipTraceDocument:
             raise EditError("The edit changed the DipTrace document type")
         self.root = validated.root
         self.raw_bytes = working
+        self.encoding = validated.encoding
+        self.bom = validated.bom
+        self.declared_encoding = validated.declared_encoding
         return working, previews
 
 
-def _scan_start_tag_end(data: bytes, start: int) -> int:
-    quote: int | None = None
-    for position in range(start + 1, len(data)):
-        value = data[position]
+def _scan_start_tag_end(data: bytes, start: int, encoding: str) -> int:
+    unit_size = (
+        4
+        if encoding.startswith("utf-32")
+        else 2
+        if encoding.startswith("utf-16")
+        else 1
+    )
+    quote: bytes | None = None
+    double_quote = _encode_xml_fragment('"', encoding)
+    single_quote = _encode_xml_fragment("'", encoding)
+    closing = _encode_xml_fragment(">", encoding)
+    for position in range(start + unit_size, len(data), unit_size):
+        value = data[position : position + unit_size]
+        if len(value) != unit_size:
+            break
         if quote is not None:
             if value == quote:
                 quote = None
-        elif value in {ord('"'), ord("'")}:
+        elif value in {double_quote, single_quote}:
             quote = value
-        elif value == ord(">"):
-            return position + 1
+        elif value == closing:
+            return position + unit_size
     raise EditError(f"Unterminated XML start tag at byte {start}")
 
 
-def _raw_element_spans(data: bytes) -> list[_RawElementSpan]:
+def _raw_element_spans(data: bytes, encoding: str) -> list[_RawElementSpan]:
     reject_forbidden_xml_declarations(data, error_type=EditError)
     spans: list[_RawElementSpan] = []
     stack: list[int] = []
-    parser = expat.ParserCreate()
+    parser = expat.ParserCreate(_expat_encoding_hint(encoding))
 
     def start_element(name: str, _attributes: dict[str, str]) -> None:
         start = parser.CurrentByteIndex
-        start_tag_end = _scan_start_tag_end(data, start)
+        start_tag_end = _scan_start_tag_end(data, start, encoding)
         start_tag = data[start:start_tag_end]
-        self_closing = start_tag.rstrip().endswith(b"/>")
+        self_closing = _decode_xml_fragment(start_tag, encoding).rstrip().endswith("/>")
         parent_index = stack[-1] if stack else None
         spans.append(
             _RawElementSpan(
@@ -662,13 +844,13 @@ def _raw_element_spans(data: bytes) -> list[_RawElementSpan]:
             return
         closing_start = parser.CurrentByteIndex
         span.content_end = closing_start
-        span.end = _scan_start_tag_end(data, closing_start)
+        span.end = _scan_start_tag_end(data, closing_start, encoding)
 
     parser.StartElementHandler = start_element
     parser.EndElementHandler = end_element
     try:
         parser.Parse(data, True)
-    except (expat.ExpatError, EditError) as exc:
+    except (expat.ExpatError, EditError, LookupError, UnicodeError, ValueError) as exc:
         raise EditError(f"Cannot map XML byte spans: {exc}") from exc
     if stack or any(span.end < 0 for span in spans):
         raise EditError("XML span parser did not close every element")
@@ -676,7 +858,7 @@ def _raw_element_spans(data: bytes) -> list[_RawElementSpan]:
 
 
 def _element_span_map(document: DipTraceDocument) -> tuple[list[_RawElementSpan], dict[int, int]]:
-    spans = _raw_element_spans(document.raw_bytes)
+    spans = _raw_element_spans(document.raw_bytes, document.encoding)
     elements = [element for element in document.root.iter() if isinstance(element.tag, str)]
     if len(elements) != len(spans):
         raise EditError(
@@ -699,28 +881,29 @@ def _patch_start_tag(
     start_tag: bytes,
     before: dict[str, str],
     after: dict[str, str],
+    encoding: str,
 ) -> bytes:
     patched = start_tag
     for name in before:
         if name not in after:
-            patched = _remove_raw_attribute(patched, name)
+            patched = _remove_raw_attribute(patched, name, encoding)
     for name, value in after.items():
         if before.get(name) != value:
-            patched = _set_raw_attribute(patched, name, value)
+            patched = _set_raw_attribute(patched, name, value, encoding)
     return patched
 
 
-def _serialize_new_element(element: ET.Element) -> bytes:
+def _serialize_new_element(element: ET.Element, encoding: str) -> bytes:
     clone = deepcopy(element)
     clone.tail = None
-    return cast(
-        bytes,
-        ET.tostring(
-            clone,
-            encoding="utf-8",
-            short_empty_elements=True,
-        ),
+    rendered = ET.tostring(
+        clone,
+        encoding="unicode",
+        short_empty_elements=True,
     )
+    # XML normalizes literal carriage returns in text nodes. Attribute controls
+    # are already emitted as character references by ElementTree.
+    return _encode_xml_fragment(rendered.replace("\r", "&#13;"), encoding)
 
 
 def _semantic_tree(element: ET.Element) -> tuple[object, ...]:
@@ -735,67 +918,74 @@ def _semantic_tree(element: ET.Element) -> tuple[object, ...]:
     )
 
 
-def _escape_xml_text(value: str) -> bytes:
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").encode(
-        "utf-8"
-    )
+def _escape_xml_text(value: str, encoding: str) -> bytes:
+    escaped = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    escaped = escaped.replace("\t", "&#9;").replace("\n", "&#10;").replace("\r", "&#13;")
+    return _encode_xml_fragment(escaped, encoding)
 
 
-def _escape_xml_attribute(value: str, quote: bytes) -> bytes:
+def _escape_xml_attribute(value: str, quote: str) -> str:
     escaped = value.replace("&", "&amp;").replace("<", "&lt;")
-    escaped = escaped.replace('"', "&quot;") if quote == b'"' else escaped.replace("'", "&apos;")
-    return escaped.encode("utf-8")
+    escaped = escaped.replace('"', "&quot;") if quote == '"' else escaped.replace("'", "&apos;")
+    return escaped.replace("\t", "&#9;").replace("\n", "&#10;").replace("\r", "&#13;")
 
 
-def _attribute_match(start_tag: bytes, name: str) -> re.Match[bytes] | None:
-    encoded = re.escape(name.encode("utf-8"))
+def _attribute_match(start_tag: str, name: str) -> re.Match[str] | None:
+    encoded = re.escape(name)
     pattern = re.compile(
-        rb"(?P<leading>\s)"
+        r"(?P<leading>\s)"
         + encoded
-        + rb"(?P<equals>\s*=\s*)(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
+        + r"(?P<equals>\s*=\s*)(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
         re.DOTALL,
     )
     return pattern.search(start_tag)
 
 
-def _set_raw_attribute(start_tag: bytes, name: str, value: str) -> bytes:
+def _set_raw_attribute(start_tag: bytes, name: str, value: str, encoding: str) -> bytes:
     if not _XML_NAME.fullmatch(name):
         raise EditError(f"Invalid XML attribute name: {name!r}")
-    match = _attribute_match(start_tag, name)
+    decoded = _decode_xml_fragment(start_tag, encoding)
+    match = _attribute_match(decoded, name)
     if match is not None:
         quote = match.group("quote")
         replacement = (
             match.group("leading")
-            + name.encode("utf-8")
+            + name
             + match.group("equals")
             + quote
             + _escape_xml_attribute(value, quote)
             + quote
         )
-        return start_tag[: match.start()] + replacement + start_tag[match.end() :]
-    insert_at = len(start_tag) - 1
-    if start_tag[:insert_at].rstrip().endswith(b"/"):
-        insert_at = start_tag.rfind(b"/", 0, insert_at)
-    addition = b" " + name.encode("utf-8") + b'="' + _escape_xml_attribute(value, b'"') + b'"'
-    return start_tag[:insert_at] + addition + start_tag[insert_at:]
+        decoded = decoded[: match.start()] + replacement + decoded[match.end() :]
+        return _encode_xml_fragment(decoded, encoding)
+    insert_at = len(decoded) - 1
+    if decoded[:insert_at].rstrip().endswith("/"):
+        insert_at = decoded.rfind("/", 0, insert_at)
+    addition = " " + name + '="' + _escape_xml_attribute(value, '"') + '"'
+    return _encode_xml_fragment(decoded[:insert_at] + addition + decoded[insert_at:], encoding)
 
 
-def _remove_raw_attribute(start_tag: bytes, name: str) -> bytes:
+def _remove_raw_attribute(start_tag: bytes, name: str, encoding: str) -> bytes:
     if not _XML_NAME.fullmatch(name):
         raise EditError(f"Invalid XML attribute name: {name!r}")
-    match = _attribute_match(start_tag, name)
+    decoded = _decode_xml_fragment(start_tag, encoding)
+    match = _attribute_match(decoded, name)
     if match is None:
         raise EditError(f"XML attribute {name!r} is missing")
     leading = match.group("leading")
-    preserved = leading if leading in {b"\r", b"\n"} else b""
-    return start_tag[: match.start()] + preserved + start_tag[match.end() :]
+    preserved = leading if leading in {"\r", "\n"} else ""
+    return _encode_xml_fragment(
+        decoded[: match.start()] + preserved + decoded[match.end() :],
+        encoding,
+    )
 
 
-def _open_self_closing_tag(start_tag: bytes) -> bytes:
-    closing = start_tag.rfind(b"/")
+def _open_self_closing_tag(start_tag: bytes, encoding: str) -> bytes:
+    decoded = _decode_xml_fragment(start_tag, encoding)
+    closing = decoded.rfind("/")
     if closing < 0:
         raise EditError("Expected a self-closing XML tag")
-    return start_tag[:closing].rstrip() + b">"
+    return _encode_xml_fragment(decoded[:closing].rstrip() + ">", encoding)
 
 
 def _apply_replacements(data: bytes, replacements: list[tuple[int, int, bytes]]) -> bytes:
@@ -834,7 +1024,7 @@ def _apply_raw_edit(
     if edit.operation in {"append_xml", "replace_xml"}:
         _parse_fragment(index, edit.value)
         assert edit.value is not None
-        fragment = edit.value.strip().encode("utf-8")
+        fragment = _encode_xml_fragment(edit.value.strip(), document.encoding)
 
     for element in matches:
         span_index = mapping[id(element)]
@@ -842,10 +1032,10 @@ def _apply_raw_edit(
         start_tag = document.raw_bytes[span.start : span.start_tag_end]
         if edit.operation == "set_text":
             assert edit.value is not None
-            escaped = _escape_xml_text(edit.value)
+            escaped = _escape_xml_text(edit.value, document.encoding)
             if span.self_closing:
-                replacement = _open_self_closing_tag(start_tag) + escaped
-                replacement += f"</{span.name}>".encode()
+                replacement = _open_self_closing_tag(start_tag, document.encoding) + escaped
+                replacement += _encode_xml_fragment(f"</{span.name}>", document.encoding)
                 replacements.append((span.start, span.end, replacement))
             else:
                 direct_children = [
@@ -859,7 +1049,12 @@ def _apply_raw_edit(
                 (
                     span.start,
                     span.start_tag_end,
-                    _set_raw_attribute(start_tag, edit.attribute, edit.value),
+                    _set_raw_attribute(
+                        start_tag,
+                        edit.attribute,
+                        edit.value,
+                        document.encoding,
+                    ),
                 )
             )
         elif edit.operation == "remove_attribute":
@@ -868,14 +1063,14 @@ def _apply_raw_edit(
                 (
                     span.start,
                     span.start_tag_end,
-                    _remove_raw_attribute(start_tag, edit.attribute),
+                    _remove_raw_attribute(start_tag, edit.attribute, document.encoding),
                 )
             )
         elif edit.operation == "append_xml":
             assert fragment is not None
             if span.self_closing:
-                replacement = _open_self_closing_tag(start_tag) + fragment
-                replacement += f"</{span.name}>".encode()
+                replacement = _open_self_closing_tag(start_tag, document.encoding) + fragment
+                replacement += _encode_xml_fragment(f"</{span.name}>", document.encoding)
                 replacements.append((span.start, span.end, replacement))
             else:
                 replacements.append((span.content_end, span.content_end, fragment))
@@ -888,6 +1083,64 @@ def _apply_raw_edit(
             raise EditError(f"Edit {index}: unsupported operation {edit.operation!r}")
 
     return _apply_replacements(document.raw_bytes, replacements)
+
+
+def _apply_expected_tree_edit(
+    document: DipTraceDocument,
+    index: int,
+    edit: XmlEdit,
+    matches: list[ET.Element],
+) -> None:
+    """Apply the requested mutation to the parsed tree for an independent equality gate."""
+
+    if edit.operation == "set_text":
+        assert edit.value is not None
+        for element in matches:
+            element.text = edit.value
+        return
+    if edit.operation == "set_attribute":
+        assert edit.attribute is not None and edit.value is not None
+        for element in matches:
+            element.set(edit.attribute, edit.value)
+        return
+    if edit.operation == "remove_attribute":
+        assert edit.attribute is not None
+        for element in matches:
+            element.attrib.pop(edit.attribute)
+        return
+
+    fragment = (
+        _parse_fragment(index, edit.value)
+        if edit.operation in {"append_xml", "replace_xml"}
+        else None
+    )
+    if edit.operation == "append_xml":
+        assert fragment is not None
+        for element in matches:
+            element.append(deepcopy(fragment))
+        return
+
+    parents = {
+        id(child): parent
+        for parent in document.root.iter()
+        for child in parent
+        if isinstance(child.tag, str)
+    }
+    for element in matches:
+        parent = parents.get(id(element))
+        if parent is None:
+            raise EditError(f"Edit {index}: cannot mutate the XML root")
+        child_index = list(parent).index(element)
+        if edit.operation == "replace_xml":
+            assert fragment is not None
+            replacement = deepcopy(fragment)
+            replacement.tail = element.tail
+            parent.remove(element)
+            parent.insert(child_index, replacement)
+        elif edit.operation == "delete_element":
+            parent.remove(element)
+        else:
+            raise EditError(f"Edit {index}: unsupported operation {edit.operation!r}")
 
 
 def _parse_fragment(index: int, value: str | None) -> ET.Element:
@@ -920,8 +1173,20 @@ def _short_xml(element: ET.Element, limit: int = 800) -> str:
 
 
 def unified_xml_diff(before: bytes, after: bytes, max_lines: int = 200) -> str:
-    before_lines = before.decode("utf-8", errors="replace").splitlines()
-    after_lines = after.decode("utf-8", errors="replace").splitlines()
+    before_encoding = _detect_xml_encoding(before)
+    after_encoding = _detect_xml_encoding(after)
+    before_body = (
+        before[len(before_encoding.bom) :]
+        if before_encoding.bom and before.startswith(before_encoding.bom)
+        else before
+    )
+    after_body = (
+        after[len(after_encoding.bom) :]
+        if after_encoding.bom and after.startswith(after_encoding.bom)
+        else after
+    )
+    before_lines = before_body.decode(before_encoding.codec, errors="replace").splitlines()
+    after_lines = after_body.decode(after_encoding.codec, errors="replace").splitlines()
     lines = list(
         difflib.unified_diff(
             before_lines,
