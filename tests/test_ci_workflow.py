@@ -48,3 +48,19 @@ def test_windows_job_runs_real_headless_bridge_handshake() -> None:
     commands = _job_commands(workflow["jobs"]["test-windows"])
 
     assert "python scripts/smoke_bridge_headless.py" in commands
+
+
+def test_static_analysis_covers_plugin_python_but_excludes_generated_dist() -> None:
+    workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    commands = _job_commands(workflow["jobs"]["static-analysis"])
+
+    assert "python -m ruff check --no-cache src tests benchmarks scripts plugin" in commands
+    assert "python -m mypy --no-incremental src/diptrace_mcp plugin" in commands
+
+    config = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'extend-exclude = ["plugin/dist"]' in config
+    assert 'exclude = ["^plugin/dist/"]' in config
+
+    # The checked directory contains the PyInstaller entry point today; using the
+    # directory in CI means future hand-maintained Python files need no CI edit.
+    assert (ROOT / "plugin/bridge_entry.py").is_file()

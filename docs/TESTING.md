@@ -7,8 +7,8 @@ The test strategy intentionally separates implementation correctness from real-D
 ```bash
 python scripts/generate_pcb_skills.py --check
 pytest -q
-ruff check --no-cache src tests benchmarks scripts
-mypy --no-incremental src/diptrace_mcp
+ruff check --no-cache src tests benchmarks scripts plugin
+mypy --no-incremental src/diptrace_mcp plugin
 pytest -q --cov=src/diptrace_mcp --cov-report=term \
   --cov-report=json:coverage.json --cov-fail-under=84
 python scripts/check_coverage.py coverage.json
@@ -25,7 +25,8 @@ CI responsibilities:
 - a separately named Linux/Python 3.12 job that removes Shapely, verifies it is
   absent, executes the real pure-Python geometry probe, and runs the
   fallback-focused regression files;
-- Ruff, strict Mypy, and generated-skill checks on Linux/Python 3.12;
+- Ruff and strict Mypy over the server plus hand-maintained `plugin/` Python,
+  and generated-skill checks on Linux/Python 3.12;
 - full pytest plus CLI and real headless bridge smoke tests on macOS/Python 3.12;
 - full pytest plus CLI and real headless bridge smoke tests on Windows/Python 3.12;
 - native Windows build and non-empty verification of `diptrace_mcp_bridge.exe`.

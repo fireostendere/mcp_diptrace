@@ -51,6 +51,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+extend-exclude = ["plugin/dist"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -63,4 +64,5 @@ known-third-party = ["mcp", "pydantic", "pytest"]
 python_version = "3.10"
 strict = true
 packages = ["diptrace_mcp"]
+exclude = ["^plugin/dist/"]
 warn_unreachable = true
