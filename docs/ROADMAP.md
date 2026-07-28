@@ -96,8 +96,17 @@ The useful next gates are human/evidence work:
 3. use licensed Component/Pattern Editors to export minimal sanitized examples, with one
    intentional GUI change and unchanged controls per experiment;
 4. capture source/open-save/re-export roles, keeping screenshots supporting-only;
-5. independently review and explicitly allowlist a redistributable candidate before it can become
-   a CI fixture or change the structured inventory.
+5. run the committed trust-neutral ingest validator to recheck candidate/detached/artifact hashes,
+   containment, fresh XML inventories, and prospective destination conflicts;
+6. independently review the first package-owned registry entry and a separate candidate-to-fixture
+   authorization before a redistributable candidate can become a CI fixture or change the
+   structured inventory.
+
+The ingest checkpoint is now executable in CI as
+`python scripts/ingest_fixtures.py --dry-run --synthetic --json`. It is intentionally
+non-promoting: it verifies that the embedded registry exists and currently contains zero approved
+entries, `--apply` is refused because fixture mutation is not implemented, the acceptance tree is
+untouched, and no validation level is granted.
 
 ### CI geometry and coverage checkpoint — 2026-07-28
 

@@ -425,6 +425,15 @@ Project maintainers investigating an unresolved format question can use the
 three operator-supplied XML roles and emits a review-only candidate manifest. It does not grant
 fixture trust or copy anything into the acceptance tree.
 
+Maintainers can pass that candidate to the same workflow's
+[`ingest_fixtures.py` dry-run](EVIDENCE_CAPTURE.md#review-only-ingest-checkpoint).
+It revalidates the detached and per-role hashes, containment, XML inventories,
+redistribution permission, and destination conflicts. It still writes nothing:
+the embedded repository-owned registry is checked and currently reports zero
+reviewed entries, while `--apply` refuses with
+`fixture_apply_not_implemented`. Registry existence alone is not an
+authorization to copy a candidate into the acceptance tree.
+
 ## 8. Tools and Resources
 
 The runtime source of truth is MCP `tools/list`, together with `get_capabilities` for the

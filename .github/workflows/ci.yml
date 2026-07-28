@@ -115,6 +115,8 @@ jobs:
           --check
       - run: python scripts/report_format_coverage.py --check
       - run: python scripts/make_probe_pack.py --check
+      - name: Exercise trust-neutral fixture ingest dry-run
+        run: python scripts/ingest_fixtures.py --dry-run --synthetic --json
 
   test-macos:
     runs-on: macos-latest

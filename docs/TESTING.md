@@ -12,6 +12,7 @@ mypy --no-incremental src/diptrace_mcp plugin
 pytest -q --cov=src/diptrace_mcp --cov-report=term \
   --cov-report=json:coverage.json --cov-fail-under=85
 python scripts/check_coverage.py coverage.json
+python scripts/ingest_fixtures.py --dry-run --synthetic --json
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 python -m benchmarks.benchmark_large_board --components 500
 ```
@@ -27,6 +28,9 @@ CI responsibilities:
   fallback-focused regression files;
 - Ruff and strict Mypy over the server plus hand-maintained `plugin/` Python,
   and generated-skill checks on Linux/Python 3.12;
+- a deterministic, temporary `ingest_fixtures.py --dry-run --synthetic` run
+  that validates the candidate/hash/path and embedded-registry inspection
+  pipeline without writing or granting trust;
 - full pytest plus CLI and real headless bridge smoke tests on macOS/Python 3.12;
 - full pytest plus CLI and real headless bridge smoke tests on Windows/Python 3.12;
 - native Windows build and non-empty verification of `diptrace_mcp_bridge.exe`.
@@ -228,6 +232,20 @@ cannot land without a matching manifest update.
 This SHA-256 manifest proves byte integrity only. It does **not** prove that a file
 came from DipTrace, raise its validation level, or replace the provenance rules
 above.
+
+The operator evidence path has a separate, read-only ingest gate:
+
+```bash
+python scripts/ingest_fixtures.py --dry-run --synthetic --json
+```
+
+CI's synthetic stand-in exists only under a temporary directory. The same command
+can validate a real capture when given explicit `--capture-root`, `--candidate`,
+`--destination-root`, and `--fixture-id` arguments. It rechecks manifest and
+detached hashes, contained artifact paths, byte hashes, XML inventories, source
+type, redistribution permission, and prospective destination conflicts.
+`--apply` remains a typed refusal and `validation_level_granted` remains null
+until a separately reviewed authenticated registry exists.
 
 ## Benchmarks
 

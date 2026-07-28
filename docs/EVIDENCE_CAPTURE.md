@@ -272,18 +272,66 @@ python scripts/capture_diptrace_evidence.py abort \
 
 Abort preserves state and quarantine artifacts. Start a new session id for the corrected run.
 
-## Review and promotion proposal
+## Review-only ingest checkpoint
 
 Repository integration should use two deliberately separate commands:
 
 1. **Capture (this script):** produces an untrusted candidate under an operator-owned allowed root.
-2. **Ingest/review (future, separately implemented command):** validates the manifest and detached
-   hash, compares every role, checks redistribution permission, shows a repository diff, and
-   requires a reviewed allowlist change before any fixture receives a trusted authority.
+2. **Ingest validation (`scripts/ingest_fixtures.py`):** strictly validates the candidate
+   manifest and detached hash, re-reads every quarantined role, checks its path/SHA/size/fresh XML
+   inventory, checks redistribution permission, and reports prospective destinations and
+   conflicts. It is currently a dry-run checkpoint only.
 
-The trusted mapping should be a committed `candidate manifest SHA-256 -> approved fixture roles`
-registry. Adding an entry is the repository-level assertion; the capture script must not be able to
-write it. CI can then verify the allowlist and fixture hashes without DipTrace.
+For a real capture:
+
+```bash
+python scripts/ingest_fixtures.py \
+  --dry-run \
+  --capture-root /mnt/c/capture-work \
+  --candidate .diptrace-capture/candidates/pcb-angle-001.candidate.json \
+  --destination-root tests/fixtures/acceptance/diptrace_5_3/seeds \
+  --fixture-id pcb-angle-001 \
+  --json
+```
+
+Candidate and artifact paths are relative to the explicit capture root; traversal, symlinks,
+hard-linked role reuse, changed files, source-type disagreement, unresolved review blockers, and
+unknown manifest fields fail closed. Existing destination files are never replaced: the plan marks
+an identical hash as `identical`, a different hash or unplanned entry as a conflict, and returns a
+non-zero status when conflicts exist.
+
+The repository now has a package-owned committed registry, and the validator
+loads it fail-closed. The production registry currently has zero independently
+reviewed entries. Every plan therefore reports
+`trusted_registry_exists: true`, `trusted_registry_checked: true`,
+`trusted_registry_entry_count: 0`, `trust_promoted: false`, and
+`validation_level_granted: null`.
+
+Registry existence does not imply fixture-ingest authorization. This command
+has no mutation implementation, so every plan also reports
+`apply_available: false` and
+`apply_unavailable_reason: fixture_apply_not_implemented`. Passing `--apply`
+is a typed refusal performed before any candidate or destination path is
+opened. The command does not write to `tests/fixtures/acceptance/`, create a
+provenance sidecar, or turn operator claims into trust.
+
+CI exercises the same validator with:
+
+```bash
+python scripts/ingest_fixtures.py --dry-run --synthetic --json
+```
+
+That mode constructs a schema-complete stand-in only inside a process-owned temporary directory,
+uses deterministic bytes, prints no temporary absolute paths, destroys the stand-in on return, and
+grants no trust. Its shape-only attestation fields are synthetic test inputs, not human or DipTrace
+claims.
+
+The committed registry binds reviewed evidence and document hashes; its first
+entry remains human-gated. A future ingest implementation would additionally
+need an independently reviewed mapping from a candidate manifest SHA-256 to
+approved fixture roles. Neither the capture script nor this dry-run validator
+may create that authorization. CI can inspect the empty registry and validate
+candidate hashes without DipTrace, but it cannot manufacture provenance.
 
 Promotion should also reject:
 
@@ -300,8 +348,10 @@ Promotion should also reject:
 
 ```text
 scripts/capture_diptrace_evidence.py
+scripts/ingest_fixtures.py
 scripts/make_probe_pack.py
 tests/test_capture_diptrace_evidence.py
+tests/test_ingest_fixtures.py
 tests/test_probe_pack.py
 docs/EVIDENCE_CAPTURE.md
 docs/PROBE_PACK.md
@@ -333,14 +383,21 @@ The test suite covers:
 - interactive answers and non-interactive required inputs;
 - a complete subprocess-driven `init` → three `record` stages → checklist → `finalize` example;
 - a no-redistribution candidate that remains untrusted and blocked.
+- deterministic temporary synthetic-ingest planning with no acceptance-tree mutation;
+- strict candidate/digest/artifact/inventory validation and path/hardlink/symlink refusals;
+- inspection of the existing empty embedded registry without trust promotion;
+- typed `--apply` refusal because fixture apply is not implemented;
+- prospective destination creation/identity/conflict reporting without writes.
 
 Run:
 
 ```bash
 ./.venv/bin/python -m pytest -q tests/test_capture_diptrace_evidence.py
+./.venv/bin/python -m pytest -q tests/test_ingest_fixtures.py
 ./.venv/bin/python -m ruff check --no-cache \
-  scripts/capture_diptrace_evidence.py tests/test_capture_diptrace_evidence.py
+  scripts/capture_diptrace_evidence.py scripts/ingest_fixtures.py \
+  tests/test_capture_diptrace_evidence.py tests/test_ingest_fixtures.py
 ./.venv/bin/python -m mypy --strict --no-incremental \
-  scripts/capture_diptrace_evidence.py
+  scripts/capture_diptrace_evidence.py scripts/ingest_fixtures.py
 ./.venv/bin/python scripts/make_probe_pack.py --check
 ```
