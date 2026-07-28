@@ -96,7 +96,28 @@ The maintained suite covers:
 
 ## MCP Protocol Coverage
 
-The test suite establishes an in-memory MCP client/server session and verifies that representative tools, resources, and prompts are actually registered and callable rather than only documented. This includes read/query, transactions, placement, routing, differential-pair, export, external-job, and capability surfaces.
+The test suite establishes in-memory MCP client/server sessions and verifies that
+representative tools, resources, and prompts are actually registered and
+callable rather than only documented.
+
+`tests/test_mcp_tool_chain.py` is a fixture-driven public-transport workflow,
+not a parametrized registry smoke test. Its current chain invokes **63 distinct
+wire tool names** across document discovery, PCB/schematic/library reads, BOM,
+exports, stable-id query/get, a bounded raw-edit preview, a SHA-bound semantic
+transaction, synthetic document creation, test-point inspection, routing
+inspection, differential-pair analysis, pour inspection, and stored review
+findings. IDs for objects, transactions, exports, pairs, raw-diff resources, and
+reports are obtained from the public response that creates or discovers them.
+The chain copies committed synthetic fixtures to a temporary allowed root,
+checks that both preview paths leave the source bytes unchanged, and never
+starts a live bridge or external executable. Impedance targets and
+manufacturing/clearance thresholds are deliberately absent: those require
+published inputs or operator evidence, not values invented by a transport test.
+
+The acceptance threshold is at least 40 successfully invoked distinct tools;
+the measured count above is descriptive and may move as the workflow evolves.
+The test records tool names at actual invocation time and rejects duplicate
+calls, so the threshold cannot be met by calling one wire tool repeatedly.
 
 `get_capabilities` remains the runtime source of truth; tests must reject documentation-style false success for unavailable capabilities.
 

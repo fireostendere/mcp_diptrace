@@ -130,6 +130,22 @@ code, not compatibility or performance with a real DipTrace 300+ component board
 Human-captured large-board evidence therefore remains open and keeps its distinct
 provenance requirements.
 
+### Public MCP workflow checkpoint — 2026-07-28
+
+CI now executes a fixture-driven in-memory MCP workflow through the public
+client/server transport. The current workflow reaches **63 distinct wire tool
+names**, exceeding the Phase-5 acceptance floor of 40 without enumerating all
+156 registered tools. It carries discovered stable ids and generated
+transaction/export/report/resource ids into dependent calls, binds preview
+operations to the fixture SHA, verifies bounded metadata/resources, and proves
+that raw and semantic previews do not change the source document.
+
+The workflow uses temporary copies of committed synthetic fixtures. It does not
+touch the acceptance fixture tree, promote fixture provenance, start a live
+bridge, invoke an external executable, or introduce impedance/fabrication
+thresholds. The measured scope and remaining evidence boundary are documented
+in [TESTING.md](TESTING.md).
+
 Current practical classification:
 
 | Area | Status | Main remaining gap |
