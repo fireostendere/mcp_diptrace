@@ -363,6 +363,19 @@ def test_creation_tool_schemas_expose_conditional_target_sha_gate() -> None:
         assert "current SHA" in (tool.description or "")
 
 
+def test_scaffold_tool_descriptions_disclose_synthetic_validation() -> None:
+    server = create_server()
+
+    for name in ("create_schematic_document", "create_pcb_document"):
+        description = server._tool_manager._tools[name].description or ""
+        assert "synthetic" in description.casefold()
+
+    schematic_description = (
+        server._tool_manager._tools["create_schematic_document"].description or ""
+    )
+    assert "not DipTrace-verified" in schematic_description
+
+
 def test_capabilities_disclose_sha_scope_and_live_exception(tmp_path: Path) -> None:
     service = _service(tmp_path)
     limits = service.get_capabilities()["limits"]

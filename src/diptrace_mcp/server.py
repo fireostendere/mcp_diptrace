@@ -565,7 +565,7 @@ def create_server(
         overwrite: bool = False,
         expected_sha256: ExpectedTargetSha256Input | None = None,
     ) -> dict[str, Any]:
-        """Create Schematic XML; replacing an existing target requires its current SHA."""
+        """Create synthetic, not DipTrace-verified Schematic XML; overwrite needs current SHA."""
         return service.create_document(
             "schematic",
             path,
