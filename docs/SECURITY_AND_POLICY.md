@@ -117,7 +117,12 @@ Clients are not trust authorities. Runtime sidecars, user-supplied evidence, fix
 
 Evidence is bound to exact file roles/paths, source type, before/after SHA-256 values, and required semantic-comparison categories. Rollback reparses and revalidates restored provenance/evidence rather than trusting stale metadata.
 
-High-trust promotion remains unavailable until the project has an authenticated server-owned registry, signature verifier, or committed allowlist.
+The package-owned, committed exact-hash registry is implemented, but it
+currently has **0 reviewed entries**. Therefore no current document can receive
+high trust through it. A future entry must bind reviewed evidence, document
+bytes, source type, and validation level as described in
+[TRUSTED_PROVENANCE_REGISTRY.md](TRUSTED_PROVENANCE_REGISTRY.md). User and
+workspace data cannot add entries.
 
 ## Write-Path Trust Invalidation
 

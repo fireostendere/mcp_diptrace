@@ -148,9 +148,9 @@ class TestDocumentProvenanceInvariants:
                 evidence_manifest_sha256="b" * 64,
             )
 
-    def test_trusted_registry_not_implemented(self) -> None:
-        """trusted_registry authority is not yet implemented."""
-        with pytest.raises(ValueError, match="trusted_registry authority is not yet implemented"):
+    def test_trusted_registry_sidecar_requires_registry_entry_id(self) -> None:
+        """A high-trust sidecar cannot omit its reviewed registry entry id."""
+        with pytest.raises(ValueError, match="requires trusted_registry_entry_id"):
             DocumentProvenance(
                 provenance="trusted_evidence",
                 validation_level=FixtureValidationLevel.diptrace_roundtrip_verified,

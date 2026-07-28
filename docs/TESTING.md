@@ -211,7 +211,10 @@ Fixtures and evidence are classified by what they actually prove:
 - `diptrace_roundtrip_verified` — opened, saved, re-exported, and semantically compared;
 - `external_tool_roundtrip_verified` — equivalent evidence including an external tool.
 
-User-controlled manifests/sidecars cannot grant high trust. Future high-trust promotion requires an authenticated server-owned registry, signature verifier, or committed allowlist in addition to exact version and semantic evidence.
+User-controlled manifests/sidecars cannot grant high trust. The package-owned
+exact-hash registry mechanism is implemented, but its committed registry has 0
+reviewed entries. The [first entry](TRUSTED_PROVENANCE_REGISTRY.md) requires
+independent human review in addition to exact version and semantic evidence.
 
 The synthetic `power_multilayer` fixture is an operation fixture, not proof of DipTrace 5.3 compatibility.
 

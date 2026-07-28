@@ -117,7 +117,8 @@ Generic manifests do **not** generate Gerber, NC Drill, ODB++, IPC-2581, or vend
 
 ## Resources
 
-- `diptrace://status`, `diptrace://capabilities`, `diptrace://schemas/tool-inputs`;
+- `diptrace://status`, `diptrace://capabilities`,
+  `diptrace://trusted-provenance-registry`, `diptrace://schemas/tool-inputs`;
 - document summary, board, schematic, stackup, connectivity, library, review, and findings resources;
 - transaction/plan summary, operations, diff, SVG, and JSON previews;
 - bounded raw-edit diffs at `diptrace://raw-preview/{preview_id}/diff`;

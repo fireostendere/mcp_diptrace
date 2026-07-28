@@ -158,6 +158,10 @@ from .plans import PlanStore
 from .policy import Policy
 from .preview import render_preview_json, render_preview_svg
 from .previews import RawPreviewStore
+from .provenance_registry import (
+    RegistryAuthorizationError,
+    TrustedProvenanceRegistry,
+)
 from .return_path import analyze_plane_continuity as analyze_plane_geometry
 from .return_path import analyze_return_path as analyze_return_geometry
 from .review import run_checks
@@ -989,6 +993,9 @@ class DipTraceService:
         self.backups = BackupStore(settings.state_dir, retention=retention)
         self.external_jobs = ExternalJobManager(settings, self.jobs)
         self.models = ModelCache(max_bytes=settings.model_cache_max_bytes)
+        # This package-owned file is the only production root for registry
+        # authority. Workspace and state-directory data cannot replace it.
+        self._trusted_provenance_registry = TrustedProvenanceRegistry.load_embedded()
         self._document_targets: dict[str, DocumentTarget] = {}
         self._workflow_prompt_names: tuple[str, ...] = ()
 
@@ -1206,6 +1213,42 @@ class DipTraceService:
             record=record_data,
         )
 
+    def _load_and_authorize_trusted_registry_evidence(
+        self,
+        document_path: Path,
+        provenance: DocumentProvenance,
+    ) -> ValidatedEvidence:
+        """Resolve high trust only through an exact embedded-registry binding."""
+
+        evidence = self._load_and_validate_evidence_manifest(document_path, provenance)
+        if evidence.authority != EvidenceAuthority.trusted_registry:
+            raise EditError(
+                "Trusted-registry sidecar references evidence from another authority",
+                code="trusted_registry_evidence_authority_mismatch",
+            )
+        entry_id = provenance.trusted_registry_entry_id
+        if entry_id is None:
+            # DocumentProvenance normally prevents this, but keep the trust
+            # boundary fail-closed if a caller bypasses model validation.
+            raise EditError(
+                "Trusted-registry sidecar has no registry entry id",
+                code="trusted_registry_entry_missing",
+            )
+        try:
+            self._trusted_provenance_registry.authorize(
+                entry_id=entry_id,
+                document_sha256=provenance.current_document_sha256,
+                evidence_manifest_sha256=evidence.manifest_sha256,
+                source_type=evidence.source_type,
+                validation_level=provenance.validation_level,
+            )
+        except RegistryAuthorizationError as exc:
+            raise EditError(
+                "Trusted provenance registry did not authorize this exact evidence binding",
+                code=exc.code,
+            ) from exc
+        return evidence
+
     def _write_provenance_sidecar(
         self,
         document_path: Path,
@@ -1305,7 +1348,7 @@ class DipTraceService:
             except EditError as exc:
                 return _fail_closed_trust(
                     reason=str(exc),
-                    warning_code=getattr(exc, "code", "evidence_validation_failed"),
+                    warning_code=exc.payload.code,
                 )
 
         # 6. Fixture-manifest is not an authenticated root of trust yet.
@@ -1324,11 +1367,28 @@ class DipTraceService:
                 ),
             )
 
-        # 7. Unknown authority: fail closed
-        return _fail_closed_trust(
-            reason=f"unknown_authority:{provenance.authority.value}",
-            warning_code="unknown_sidecar_authority",
-        )
+        # 7. Repository-owned registry authority: every document/evidence/type/
+        # level field must match a reviewed embedded entry.
+        if provenance.authority == ProvenanceAuthority.trusted_registry:
+            try:
+                evidence = self._load_and_authorize_trusted_registry_evidence(
+                    document_path,
+                    provenance,
+                )
+                return EffectiveTrust(
+                    validation_level=provenance.validation_level,
+                    authority=provenance.authority.value,
+                    requires_diptrace_verification=requires_diptrace_verification(
+                        provenance.validation_level
+                    ),
+                    evidence_manifest_path=str(evidence.manifest_path),
+                    evidence_manifest_sha256=evidence.manifest_sha256,
+                )
+            except EditError as exc:
+                return _fail_closed_trust(
+                    reason=str(exc),
+                    warning_code=exc.payload.code,
+                )
 
     def invalidate_document_trust_after_write(
         self,
@@ -1681,6 +1741,11 @@ class DipTraceService:
             )
         return report
 
+    def trusted_provenance_registry_report(self) -> dict[str, object]:
+        """Disclose the exact repository-owned high-trust registry state."""
+
+        return self._trusted_provenance_registry.report()
+
     def _add_runtime_capabilities(self, report: dict[str, Any]) -> dict[str, Any]:
         """Add configured adapter, resource-limit and policy state once."""
 
@@ -1708,6 +1773,13 @@ class DipTraceService:
         report["limits"]["max_diff_characters"] = DEFAULT_DIFF_CHARACTER_LIMIT
         report["limits"]["retention_max_records"] = self.settings.retention_max_records
         report["limits"]["retention_max_age_days"] = self.settings.retention_max_age_days
+        registry_report = self.trusted_provenance_registry_report()
+        report["trust_model"]["trusted_registry"] = registry_report
+        report["trust_model"]["high_trust_authority"] = (
+            "trusted_registry_exact_hash_allowlist"
+            if self._trusted_provenance_registry.entry_count > 0
+            else "trusted_registry_available_no_reviewed_entries"
+        )
         report["policy"].update(self.policy.capability_payload())
         if probe.available:
             report["reasons_unavailable"] = [
@@ -2743,10 +2815,21 @@ class DipTraceService:
                     trust_provenance = "seed_copy_evidence_validation_failed"
                     parent_level = seed_sidecar.validation_level
             elif seed_sidecar.authority == ProvenanceAuthority.trusted_registry:
-                # Not yet implemented
-                trust_level = FixtureValidationLevel.synthetic_parser_only
-                trust_provenance = "seed_copy_trusted_registry_not_implemented"
-                parent_level = seed_sidecar.validation_level
+                try:
+                    evidence = self._load_and_authorize_trusted_registry_evidence(
+                        seed,
+                        seed_sidecar,
+                    )
+                    # An exact byte copy does not preserve the manifest's
+                    # path-role binding. A new reviewed evidence entry for the
+                    # target is required before the copy may regain authority.
+                    trust_provenance = (
+                        "seed_copy_trusted_registry_requires_target_evidence"
+                    )
+                    parent_level = evidence.validation_level
+                except EditError:
+                    trust_provenance = "seed_copy_trusted_registry_validation_failed"
+                    parent_level = None
         # Write provenance sidecar for the new copy
         sidecar = DocumentProvenance(
             provenance=trust_provenance,
@@ -3242,6 +3325,11 @@ class DipTraceService:
                 raise ValueError("restored provenance document SHA mismatch")
             if restored_sidecar.authority == ProvenanceAuthority.user_supplied_evidence:
                 self._load_and_validate_evidence_manifest(target_path, restored_sidecar)
+            if restored_sidecar.authority == ProvenanceAuthority.trusted_registry:
+                self._load_and_authorize_trusted_registry_evidence(
+                    target_path,
+                    restored_sidecar,
+                )
             if (
                 restored_sidecar.authority == ProvenanceAuthority.fixture_manifest
                 and restored_sidecar.validation_level in _HIGH_TRUST_LEVELS

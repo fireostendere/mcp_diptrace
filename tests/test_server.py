@@ -133,8 +133,21 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert {str(item.uri) for item in resources.resources} == {
                 "diptrace://status",
                 "diptrace://capabilities",
+                "diptrace://trusted-provenance-registry",
                 "diptrace://schemas/tool-inputs",
             }
+            registry_resource = await session.read_resource(
+                "diptrace://trusted-provenance-registry"
+            )
+            registry = json.loads(registry_resource.contents[0].text)
+            assert registry["trusted_entry_count"] == 0
+            assert registry["high_trust_currently_available"] is False
+            assert (
+                caps.structuredContent["trust_model"]["trusted_registry"][
+                    "trusted_entry_count"
+                ]
+                == 0
+            )
             schema_resource = await session.read_resource("diptrace://schemas/tool-inputs")
             schemas = json.loads(schema_resource.contents[0].text)
             assert "max_distance" in schemas["query_selector"]["properties"]

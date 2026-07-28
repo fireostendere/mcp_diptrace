@@ -2456,6 +2456,19 @@ def create_server(
         """Current capability discovery payload."""
         return json.dumps(service.get_capabilities(), ensure_ascii=False, indent=2)
 
+    @mcp.resource(
+        "diptrace://trusted-provenance-registry",
+        mime_type="application/json",
+    )
+    def trusted_provenance_registry_resource() -> str:
+        """Repository-owned exact-hash trust registry and current entry count."""
+
+        return json.dumps(
+            service.trusted_provenance_registry_report(),
+            ensure_ascii=False,
+            indent=2,
+        )
+
     @mcp.resource(_INPUT_SCHEMA_RESOURCE, mime_type="application/json")
     def tool_input_schemas_resource() -> str:
         """Catalog of schemas for intentionally non-inlined high-cost tool inputs."""

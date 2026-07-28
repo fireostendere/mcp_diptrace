@@ -187,7 +187,17 @@ _BASE_TRUST_MODEL: dict[str, Any] = {
         "live_session_apply",
     ],
     "roundtrip_authority": "user_supplied_evidence_recorded",
-    "high_trust_authority": "unavailable_no_trusted_bridge",
+    "high_trust_authority": "trusted_registry_available_no_reviewed_entries",
+    "trusted_registry": {
+        "schema_version": "diptrace-trusted-provenance-registry-v1",
+        "authority": "repository_owned_committed_sha256_allowlist",
+        "source": "diptrace_mcp/data/trusted_provenance_registry.json",
+        "trusted_entry_count": 0,
+        "high_trust_currently_available": False,
+        "entries": [],
+        "every_entry_requires_human_review": True,
+        "first_entry_pending_human_review": True,
+    },
     "roundtrip_evidence_validation": {
         "user_supplied_recorded": True,
         "user_supplied_high_trust_denied": True,

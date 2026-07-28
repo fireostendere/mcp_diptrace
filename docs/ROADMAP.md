@@ -313,7 +313,10 @@ The following baseline must not be weakened by later feature work:
 
 - runtime state, user-supplied evidence, fixture labels, and trusted authority are separate concepts;
 - user-controlled JSON, sidecars, hashes, and fixture manifests cannot mint `diptrace_roundtrip_verified` or `external_tool_roundtrip_verified`;
-- high-trust promotion remains unavailable until an authenticated server-owned registry, signature verifier, or committed allowlist exists;
+- the package-owned exact-hash registry and MCP disclosure are implemented,
+  but the committed registry has 0 reviewed entries; the first entry remains
+  human-gated by the independent review procedure in
+  [TRUSTED_PROVENANCE_REGISTRY.md](TRUSTED_PROVENANCE_REGISTRY.md);
 - evidence is bound to exact document role/path, source type, before/after SHA-256, and required semantic-comparison categories;
 - rollback reparses and revalidates restored provenance/evidence;
 - PCB comparison covers components, pads, nets, trace endpoints, ordered points, widths, segment layers, via styles/spans, locks, and differential-pair membership;

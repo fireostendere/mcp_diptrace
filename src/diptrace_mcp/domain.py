@@ -47,9 +47,9 @@ class ProvenanceAuthority(str, Enum):
     - ``user_supplied_evidence``: evidence was supplied by the same public
       MCP client; it may record evidence but never grant authoritative
       DipTrace trust levels.
-    - ``trusted_registry``: evidence was validated against a server-owned
-      registry under ``state_dir``, inaccessible through ordinary workspace
-      write tools.  (Not yet implemented.)
+    - ``trusted_registry``: evidence was validated against the package-owned,
+      repository-reviewed exact-hash registry. Ordinary workspace and state
+      writes cannot add registry entries.
     """
 
     runtime = "runtime"
@@ -367,8 +367,8 @@ class DocumentProvenance(StrictModel):
     trust chain.
 
     A runtime sidecar (authority=runtime) can never grant a high-trust level.
-    High-trust promotion is unavailable until an authenticated server-owned
-    registry, trusted bridge, or signed/allowlisted fixture authority exists.
+    High-trust promotion requires an exact match in the repository-owned
+    registry, a trusted bridge, or a signed/allowlisted fixture authority.
 
     User-supplied evidence (authority=user_supplied_evidence) can record
     evidence but never grant authoritative DipTrace trust levels.
@@ -383,6 +383,10 @@ class DocumentProvenance(StrictModel):
     authority: ProvenanceAuthority = ProvenanceAuthority.runtime
     evidence_manifest_path: str | None = None
     evidence_manifest_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    trusted_registry_entry_id: str | None = Field(
+        default=None,
+        pattern=r"^[a-z0-9][a-z0-9._-]{0,127}$",
+    )
     last_modified_by: str | None = None
 
     @property
@@ -395,8 +399,8 @@ class DocumentProvenance(StrictModel):
         """Prevent runtime sidecars from granting high-trust levels.
 
         Runtime authority can only grant synthetic_parser_only or
-        synthetic_operation_fixture. High-trust promotion remains unavailable
-        until an authenticated authority is implemented.
+        synthetic_operation_fixture. High-trust resolution is separate and
+        requires an exact package-owned registry match.
 
         User-supplied evidence authority can only grant user-supplied
         evidence levels, never authoritative DipTrace trust.
@@ -405,8 +409,9 @@ class DocumentProvenance(StrictModel):
         allowlist or signature verifier is implemented; it cannot grant high
         trust from workspace-controlled JSON and SHA values.
 
-        trusted_registry authority is not yet implemented; high-trust
-        promotion from evidence remains unavailable.
+        trusted_registry sidecars carry only a registry entry id and exact
+        evidence bindings. Effective trust still requires the server-owned
+        registry resolver; constructing this model alone grants no authority.
         """
         if (
             self.authority == ProvenanceAuthority.runtime
@@ -431,10 +436,25 @@ class DocumentProvenance(StrictModel):
                     "user_supplied_evidence authority requires evidence_manifest_sha256"
                 )
         if self.authority == ProvenanceAuthority.trusted_registry:
-            # trusted_registry is not yet implemented
+            if self.validation_level not in _HIGH_TRUST_LEVELS:
+                raise ValueError(
+                    "trusted_registry authority requires a high-trust validation level"
+                )
+            if not self.trusted_registry_entry_id:
+                raise ValueError(
+                    "trusted_registry authority requires trusted_registry_entry_id"
+                )
+            if not self.evidence_manifest_path:
+                raise ValueError(
+                    "trusted_registry authority requires evidence_manifest_path"
+                )
+            if not self.evidence_manifest_sha256:
+                raise ValueError(
+                    "trusted_registry authority requires evidence_manifest_sha256"
+                )
+        elif self.trusted_registry_entry_id is not None:
             raise ValueError(
-                "trusted_registry authority is not yet implemented; "
-                "high-trust promotion from evidence is currently unavailable"
+                "trusted_registry_entry_id is only valid with trusted_registry authority"
             )
         if (
             self.authority == ProvenanceAuthority.fixture_manifest
