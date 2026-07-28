@@ -7,6 +7,7 @@ from . import __version__
 from .adapters import DocumentSnapshot, build_snapshot
 from .capability_model import (
     MAX_TRANSACTION_OPERATIONS,
+    MAX_WRITE_OBJECTS,
     get_trust_model,
     render_capability_tables,
 )
@@ -200,6 +201,15 @@ def capability_report(
             "max_external_result_bytes": None,
             "max_query_results": 500,
             "max_transaction_operations": MAX_TRANSACTION_OPERATIONS,
+            "max_write_objects": MAX_WRITE_OBJECTS,
+            "max_write_objects_scope": (
+                "semantic transactions, raw XML edits, document creation, seed copies, "
+                "and overwrites"
+            ),
+            "max_write_objects_exemptions": [
+                "exact conflict-checked transaction rollback",
+                "live-session external apply handshake (pending WO-15 enforcement)",
+            ],
             "retention_max_records": None,
             "retention_max_age_days": None,
         },

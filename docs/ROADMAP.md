@@ -230,6 +230,11 @@ Native library create/update and attach-pattern mutation are intentionally unava
 - Panelization writes official `Panel` parameters; tab coordinates are recomputed by DipTrace and MCP does not expand final panel geometry.
 - Exact schematic-to-PCB reconciliation is opt-in, refuses locked objects by default, and removes traces only when a synchronized net's endpoint set changes.
 - Multi-net rip-up/retry is limited to traces produced within the current routing batch.
+- Semantic transactions, raw XML edits, generated documents, seed copies, and overwrites
+  fail closed above 500 affected normalized objects or XML elements. The impact is
+  recomputed at commit. Exact conflict-checked rollback is the only implemented
+  restoration exemption; independent enforcement at the live external apply handshake
+  remains WO-15 work and is disclosed by `get_capabilities`.
 
 ## Trust, Semantic Comparison, and CI Baseline
 

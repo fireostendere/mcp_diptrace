@@ -61,6 +61,13 @@ Those checks cover a bounded subset and may skip unavailable geometry or rules; 
 [review coverage matrix](REVIEW_ENGINE.md). `apply_xml_edits` remains an expert escape
 hatch rather than the preferred API.
 
+Every semantic transaction, raw XML edit, generated document, seed copy, and overwrite
+is independently limited to 500 affected normalized objects or XML elements. The count
+is recomputed before transaction mutation and again at commit; it includes nested library
+patterns, pads, pins, holes, and shapes. Exact conflict-checked rollback is exempt because
+it restores the previously captured bytes. The live-session external apply handshake is
+not yet independently capped and remains disclosed by `get_capabilities` pending WO-15.
+
 ## Trust and Verification Caveat
 
 The capability layer intentionally does **not** claim that every write path has fully proven trust invalidation and real DipTrace round-trip coverage.

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Final
 
 MAX_TRANSACTION_OPERATIONS: Final = 100
+MAX_WRITE_OBJECTS: Final = 500
 
 
 @dataclass(frozen=True, slots=True)
