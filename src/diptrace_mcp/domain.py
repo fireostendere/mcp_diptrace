@@ -1085,9 +1085,21 @@ class QuerySelector(StrictModel):
     selected: bool | None = None
     locked: bool | None = None
     bbox: SelectorBBox | None = None
-    near: SelectorNear | None = None
+    near: SelectorNear | None = Field(
+        default=None,
+        description=(
+            "Point in millimetres used only with max_distance; both fields are required "
+            "together so a proximity selector is always spatially bounded."
+        ),
+    )
     max_distance: float | None = Field(
-        default=None, ge=0.0, description=_MM_FIELD_DESCRIPTION
+        default=None,
+        gt=0.0,
+        allow_inf_nan=False,
+        description=(
+            "Required positive search radius when near is supplied. "
+            + _MM_FIELD_DESCRIPTION
+        ),
     )
 
     @field_validator("refdes_regex", "name_regex")
@@ -1116,8 +1128,8 @@ class QuerySelector(StrictModel):
 
     @model_validator(mode="after")
     def validate_distance(self) -> QuerySelector:
-        if self.max_distance is not None and self.near is None:
-            raise ValueError("max_distance requires near")
+        if (self.near is None) != (self.max_distance is None):
+            raise ValueError("near and max_distance must be supplied together")
         return self
 
     def is_empty(self) -> bool:

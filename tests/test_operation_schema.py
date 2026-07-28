@@ -1,10 +1,20 @@
 from __future__ import annotations
 
+import math
 from typing import get_args
 
-from diptrace_mcp.domain import FieldSolverRequest, ImpedanceInput, QuerySelector
+import pytest
+from pydantic import ValidationError
+
+from diptrace_mcp.domain import (
+    FieldSolverRequest,
+    ImpedanceInput,
+    QueryRequest,
+    QuerySelector,
+)
 from diptrace_mcp.operations import (
     AddTestpointOperation,
+    MoveComponentsOperation,
     OperationKind,
     SetPanelizationOperation,
     TracePathPoint,
@@ -25,6 +35,7 @@ from diptrace_mcp.server import (
     ImpedanceConstraintInput,
     create_server,
 )
+from diptrace_mcp.silkscreen import SilkscreenPlanConfig
 from diptrace_mcp.synchronization import ComponentSyncMapping, SyncPlacement
 
 
@@ -78,6 +89,43 @@ def test_query_selector_schema_publishes_exact_spatial_shapes() -> None:
     assert set(bbox["required"]) == set(bbox["properties"])
     assert set(near["properties"]) == {"x", "y"}
     assert set(near["required"]) == set(near["properties"])
+    max_distance = schema["properties"]["max_distance"]
+    assert max_distance["anyOf"][0]["exclusiveMinimum"] == 0.0
+    assert "both fields are required together" in schema["properties"]["near"]["description"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"near": {"x": 0.0, "y": 0.0}},
+        {"max_distance": 1.0},
+        {"near": {"x": 0.0, "y": 0.0}, "max_distance": 0.0},
+        {"near": {"x": 0.0, "y": 0.0}, "max_distance": math.inf},
+        {"near": {"x": 0.0, "y": 0.0}, "max_distance": math.nan},
+    ],
+)
+def test_query_selector_refuses_unbounded_or_nonfinite_near(payload: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        QuerySelector.model_validate(payload)
+
+
+def test_query_selector_accepts_bounded_near() -> None:
+    selector = QuerySelector.model_validate({"near": {"x": 1.0, "y": 2.0}, "max_distance": 0.5})
+    assert selector.max_distance == 0.5
+
+
+def test_unbounded_near_is_rejected_by_every_nested_selector_consumer() -> None:
+    selector = {"near": {"x": 1.0, "y": 2.0}}
+    payloads = [
+        (QueryRequest, {"selector": selector}),
+        (MoveComponentsOperation, {"selector": selector, "dx": 1.0}),
+        (PlacementConfig, {"selector": selector}),
+        (SilkscreenPlanConfig, {"selector": selector}),
+    ]
+
+    for model, payload in payloads:
+        with pytest.raises(ValidationError):
+            model.model_validate(payload)
 
 
 def _property_names(value: object) -> set[str]:
