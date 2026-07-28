@@ -109,6 +109,10 @@ _GENERIC_SCHEMA_TOOLS = {
     "stage_operations",
     "sync_schematic_to_pcb",
 }
+_DRY_RUN_DESCRIPTION = (
+    "`dry_run=true` previews without writing. Set `dry_run=false` only after "
+    "inspecting the preview and pass its `expected_sha256`."
+)
 _COMPATIBILITY_ALIAS_DESCRIPTIONS = {
     "analyze_controlled_impedance": "Alias: validate_impedance_constraints.",
     "check_silkscreen": "Alias: run_silkscreen_check.",
@@ -171,6 +175,10 @@ def _finalize_tool_descriptions(mcp: FastMCP) -> None:
             _INPUT_SCHEMA_RESOURCE not in description
         ):
             description = f"{description} Input schema: {_INPUT_SCHEMA_RESOURCE}.".strip()
+        if "dry_run" in tool.parameters.get("properties", {}) and (
+            _DRY_RUN_DESCRIPTION not in description
+        ):
+            description = f"{description} {_DRY_RUN_DESCRIPTION}".strip()
         tool.description = description
 
 

@@ -11,6 +11,10 @@ in millimetres, regardless of the document's own `Units` attribute. High-value c
 use typed schemas directly. In particular, `stage_operations` publishes all 39 registered
 operation `kind` values as an enum.
 
+Every tool that accepts `dry_run` says so in its concrete `tools/list` description.
+`dry_run=true` is a preview and must not write; a real write requires `dry_run=false` plus
+the `expected_sha256` returned by the inspected preview.
+
 The full `QuerySelector`, PCB scaffold, synchronization, panelization, and route-connection
 schemas are available once in the JSON schema catalog at `diptrace://schemas/tool-inputs`. They
 are referenced instead of being duplicated across dozens of tool schemas, keeping `tools/list`

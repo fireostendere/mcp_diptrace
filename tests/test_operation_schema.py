@@ -15,6 +15,7 @@ from diptrace_mcp.placement import PlacementConfig, PlacementProposal
 from diptrace_mcp.routing import DifferentialPairRouteConfig, RouteConnectionConfig
 from diptrace_mcp.scaffolding import PcbScaffold
 from diptrace_mcp.server import (
+    _DRY_RUN_DESCRIPTION,
     DISTANCE_UNITS_DESCRIPTION,
     ImpedanceConstraintInput,
     create_server,
@@ -127,6 +128,21 @@ def test_geometric_tool_descriptions_disclose_millimetre_normalization() -> None
         "route_diff_pair",
         "calculate_impedance",
     } <= checked
+
+
+def test_every_write_tool_description_discloses_dry_run_contract() -> None:
+    server = create_server()
+    write_tools = {
+        name
+        for name, tool in server._tool_manager._tools.items()
+        if "dry_run" in tool.parameters.get("properties", {})
+    }
+
+    assert len(write_tools) == 53
+    for name in write_tools:
+        tool = server._tool_manager._tools[name]
+        assert _DRY_RUN_DESCRIPTION in (tool.description or ""), name
+        assert "expected_sha256" in tool.parameters["properties"], name
 
 
 def test_geometric_input_models_describe_distance_fields() -> None:
