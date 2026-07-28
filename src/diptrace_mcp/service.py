@@ -4051,6 +4051,12 @@ class DipTraceService:
                 "failed_check_count": sum(
                     1 for item in analyses for check in item.checks if not bool(check["passed"])
                 ),
+                "skipped_check_count": sum(
+                    len(item.skipped_checks) for item in analyses
+                ),
+                "incomplete_pair_count": sum(
+                    not item.fully_evaluated for item in analyses
+                ),
             },
             limitations=[
                 "Coupling and gap are geometry heuristics; this is not a field-solver result."
@@ -4060,8 +4066,18 @@ class DipTraceService:
     def validate_differential_pair(self, pair: str, path: str | None = None) -> dict[str, Any]:
         response = self.analyze_differential_pair(pair, path)
         checks = response["result"]["checks"]
-        response["result"]["valid"] = all(bool(check["passed"]) for check in checks)
+        fully_evaluated = bool(response["result"]["fully_evaluated"])
+        response["result"]["valid"] = fully_evaluated and all(
+            bool(check["passed"]) for check in checks
+        )
         response["result"]["evaluated_check_count"] = len(checks)
+        response["result"]["status"] = (
+            "valid"
+            if response["result"]["valid"]
+            else "incomplete"
+            if not fully_evaluated
+            else "invalid"
+        )
         return response
 
     def calculate_impedance(
@@ -4323,9 +4339,9 @@ class DipTraceService:
         self,
         path: str | None = None,
         *,
+        stitching_radius_mm: float,
         nets: list[str] | None = None,
         reference_nets: list[str] | None = None,
-        stitching_radius_mm: float = 2.0,
     ) -> dict[str, Any]:
         document, target = self.load(path)
         snapshot = self.models.get(document, live_session=target.is_live)

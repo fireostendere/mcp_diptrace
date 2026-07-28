@@ -8,7 +8,8 @@ import pytest
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
-from diptrace_mcp.domain import ImpedanceInput
+from diptrace_mcp.domain import ImpedanceInput, ObjectRecord
+from diptrace_mcp.errors import ObjectNotFoundError
 from diptrace_mcp.geometry import Point, arc_through_points_length, trace_path_length
 from diptrace_mcp.impedance import calculate_impedance, synthesize_microstrip_width
 from diptrace_mcp.lengths import analyze_differential_pair, measure_net_length
@@ -98,9 +99,9 @@ def test_same_layer_via_style_metadata_does_not_create_via_balance_failure() -> 
     assert pair.positive.via_count == 0
     assert pair.positive.layer_transition_count == 0
     assert pair.via_balance == 0
-    assert next(
-        check for check in pair.checks if check["check_id"] == "diff_pair.via_balance"
-    )["passed"] is True
+    assert not any(
+        check["check_id"] == "diff_pair.via_balance" for check in pair.checks
+    )
 
 
 def test_static_via_is_physical_but_not_a_routed_layer_transition() -> None:
@@ -131,6 +132,239 @@ def test_static_via_is_physical_but_not_a_routed_layer_transition() -> None:
     assert all(item.attributes.get("type") != "Via" for item in snapshot.board.components)
     assert positive.via_count == 1
     assert positive.layer_transition_count == 0
+
+
+def _synthetic_trace(
+    template: ObjectRecord,
+    *,
+    stable_id: str,
+    parent_id: str,
+    start: tuple[float, float],
+    end: tuple[float, float],
+    width: float | None = 0.2,
+) -> ObjectRecord:
+    # These records are synthetic structural test inputs. They are not DipTrace
+    # provenance and must never be moved into tests/fixtures/acceptance.
+    return template.model_copy(
+        update={
+            "stable_id": stable_id,
+            "parent_id": parent_id,
+            "attributes": {
+                "points": [
+                    {"x": start[0], "y": start[1]},
+                    {"x": end[0], "y": end[1]},
+                ],
+                "segment_widths_mm": [width],
+                "segment_layers": ["0"],
+                "point_arc_middle": [False, False],
+            },
+            "relationships": {"net": [parent_id], "vias": []},
+        }
+    )
+
+
+def test_duplicate_net_name_does_not_override_stable_or_xml_identity() -> None:
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    )
+    assert snapshot.board is not None
+    original = snapshot.board.nets[0]
+    duplicate = original.model_copy(
+        update={"stable_id": "net_duplicate", "xml_id": "99"}
+    )
+    snapshot.board.nets.append(duplicate)
+    snapshot.objects[duplicate.stable_id] = duplicate
+    foreign_via = snapshot.board.vias[0].model_copy(
+        update={
+            "stable_id": "via_duplicate_name",
+            "net_id": duplicate.xml_id,
+            "net_name": original.name,
+            "relationships": {"net": [duplicate.stable_id]},
+        }
+    ) if snapshot.board.vias else original.model_copy(
+        update={
+            "stable_id": "via_duplicate_name",
+            "kind": "via",
+            "net_id": duplicate.xml_id,
+            "net_name": original.name,
+            "relationships": {"net": [duplicate.stable_id]},
+        }
+    )
+    snapshot.board.vias.append(foreign_via)
+
+    by_stable = measure_net_length(snapshot, original.stable_id)
+    by_xml = measure_net_length(snapshot, original.xml_id or "")
+
+    assert "via_duplicate_name" not in by_stable.via_ids
+    assert by_xml.net_id == original.stable_id
+    with pytest.raises(ObjectNotFoundError):
+        measure_net_length(snapshot, original.name or "")
+
+
+def test_coupling_capacity_cannot_move_between_disjoint_intervals() -> None:
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    )
+    assert snapshot.board is not None
+    positive = snapshot.board.nets[0]
+    negative = snapshot.board.nets[1]
+    template = snapshot.board.traces[0]
+    traces = [
+        _synthetic_trace(
+            template,
+            stable_id="p0",
+            parent_id=positive.stable_id,
+            start=(0.0, 0.0),
+            end=(10.0, 0.0),
+        ),
+        _synthetic_trace(
+            template,
+            stable_id="p1",
+            parent_id=positive.stable_id,
+            start=(5.0, 0.7),
+            end=(10.0, 0.7),
+        ),
+        _synthetic_trace(
+            template,
+            stable_id="n0",
+            parent_id=negative.stable_id,
+            start=(0.0, 0.35),
+            end=(5.0, 0.35),
+        ),
+        _synthetic_trace(
+            template,
+            stable_id="n1",
+            parent_id=negative.stable_id,
+            start=(0.0, -0.35),
+            end=(5.0, -0.35),
+        ),
+        _synthetic_trace(
+            template,
+            stable_id="n2",
+            parent_id=negative.stable_id,
+            start=(5.0, 0.35),
+            end=(10.0, 0.35),
+        ),
+    ]
+    snapshot.board.traces = traces
+
+    result = analyze_differential_pair(snapshot, "USB_D")
+
+    assert result.coupled_length_mm == pytest.approx(10.0)
+    assert result.estimated_uncoupled_length_mm == pytest.approx(5.0)
+
+
+def test_diverging_segments_are_not_declared_parallel_coupling() -> None:
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    )
+    assert snapshot.board is not None
+    positive = snapshot.board.nets[0]
+    negative = snapshot.board.nets[1]
+    template = snapshot.board.traces[0]
+    snapshot.board.traces = [
+        _synthetic_trace(
+            template,
+            stable_id="p",
+            parent_id=positive.stable_id,
+            start=(0.0, 0.0),
+            end=(10.0, 0.0),
+        ),
+        _synthetic_trace(
+            template,
+            stable_id="n",
+            parent_id=negative.stable_id,
+            start=(0.0, 0.35),
+            end=(10.0, 0.35 + 10.0 * math.tan(math.radians(5.0))),
+        ),
+    ]
+
+    result = analyze_differential_pair(snapshot, "USB_D")
+
+    assert result.coupled_length_mm is None
+    assert {
+        item["reason"]
+        for item in result.skipped_checks
+        if item["check_id"] == "diff_pair.coupling_estimate"
+    } == {"parallel_projection_unavailable"}
+
+
+def test_coupling_complexity_limit_fails_closed_with_structured_skip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import diptrace_mcp.lengths as lengths
+
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    )
+    monkeypatch.setattr(lengths, "_MAX_COUPLING_PARTITION_POINTS", 2)
+
+    result = analyze_differential_pair(snapshot, "USB_D")
+
+    assert result.coupled_length_mm is None
+    assert {
+        (item["check_id"], item["reason"]) for item in result.skipped_checks
+    } >= {
+        (
+            "diff_pair.coupling_estimate",
+            "coupling_partition_limit_exceeded",
+        )
+    }
+
+
+def test_arc_only_active_layer_rule_is_structurally_skipped() -> None:
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    )
+    assert snapshot.board is not None
+    for trace in snapshot.board.traces:
+        trace.attributes["points"] = [
+            {"x": 0.0, "y": 0.0},
+            {"x": 5.0, "y": 1.0},
+            {"x": 10.0, "y": 0.0},
+        ]
+        trace.attributes["segment_layers"] = ["0", "0"]
+        trace.attributes["segment_widths_mm"] = [0.2, 0.2]
+        trace.attributes["point_arc_middle"] = [False, True, False]
+
+    result = analyze_differential_pair(snapshot, "USB_D")
+
+    assert {
+        (item["check_id"], item["reason"]) for item in result.skipped_checks
+    } >= {("diff_pair.gap.Top", "arc_geometry_not_supported")}
+
+
+def test_missing_dielectric_separation_makes_via_z_unavailable() -> None:
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    )
+    assert snapshot.board is not None
+    trace = snapshot.board.traces[0]
+    trace.attributes["points"] = [
+        {"x": 1.0, "y": 2.0},
+        {"x": 6.0, "y": 2.0},
+        {"x": 11.0, "y": 2.0},
+    ]
+    trace.attributes["segment_layers"] = ["0", "1"]
+    trace.attributes["segment_widths_mm"] = [0.2, 0.2]
+    trace.attributes["point_arc_middle"] = [False, False, False]
+    conductors = [
+        layer.model_copy(update={"index": index})
+        for index, layer in enumerate(
+            item
+            for item in snapshot.board.stackup.layers
+            if item.material.material_type in {"conductor", "plane"}
+        )
+    ]
+    snapshot.board.stackup.layers = conductors
+
+    result = measure_net_length(snapshot, snapshot.board.nets[0].stable_id)
+
+    assert result.layer_transition_count == 1
+    assert result.routed_length_status == "unavailable"
+    assert result.routed_length_unavailable_reasons == [
+        "dielectric_separation_missing"
+    ]
 
 
 def test_hammerstad_jensen_microstrip_golden_and_synthesis() -> None:
@@ -315,7 +549,8 @@ def test_phase10_service_contract(tmp_path: Path) -> None:
     assert stackup["ok"] is True
     assert stackup["result"]["completeness"] == "complete"
     assert lengths["result"]["matched_count"] == 2
-    assert pair["result"]["valid"] is True
+    assert pair["result"]["valid"] is False
+    assert pair["result"]["status"] == "incomplete"
     assert impedance_stackup["result"]["microstrip_candidates"][0]["signal_layer"] == "Top"
     assert impedance["result"]["evaluated_count"] == 1
     assert impedance["result"]["items"][0]["status"] == "evaluated"

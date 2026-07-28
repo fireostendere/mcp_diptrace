@@ -244,9 +244,20 @@ def check_differential_pairs(
     assert snapshot.board is not None
     findings: list[Finding] = []
     evaluated = 0
+    fully_evaluated = 0
+    skipped_checks: list[dict[str, str]] = []
     for pair in snapshot.board.differential_pairs:
         analysis = analyze_differential_pair(snapshot, pair.stable_id)
         evaluated += 1
+        fully_evaluated += int(analysis.fully_evaluated)
+        skipped_checks.extend(
+            {
+                "pair_id": pair.stable_id,
+                "check_id": item["check_id"],
+                "reason": item["reason"],
+            }
+            for item in analysis.skipped_checks
+        )
         for check in analysis.checks:
             if bool(check["passed"]):
                 continue
@@ -269,7 +280,14 @@ def check_differential_pairs(
                     rule_source=f"NetClasses/NetClass[{pair.net_class_id}]",
                 )
             )
-    return findings, {"pairs_checked": evaluated}
+    metrics: dict[str, Any] = {
+        "pairs_checked": evaluated,
+        "fully_evaluated_pairs": fully_evaluated,
+        "skipped_checks": skipped_checks,
+    }
+    if skipped_checks:
+        metrics["partial_skipped"] = "differential_pair_checks_incomplete"
+    return findings, metrics
 
 
 def check_testpoint_coverage(

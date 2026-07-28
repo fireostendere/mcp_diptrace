@@ -26,7 +26,12 @@ def test_copper_pour_and_return_path_use_exported_geometry() -> None:
     assert pour.attributes["poured"] is True
     plane = analyze_plane_continuity(snapshot)
     assert plane["items"][0]["boundary_area_mm2"] > 180
-    result = analyze_return_path(snapshot, nets=["USB_D+"], reference_nets=["GND"])
+    result = analyze_return_path(
+        snapshot,
+        stitching_radius_mm=2.0,
+        nets=["USB_D+"],
+        reference_nets=["GND"],
+    )
     assert result.segment_count == 1
     assert result.issues == []
     assert result.confidence == "low"
@@ -43,11 +48,95 @@ def test_return_path_reports_missing_reference_pour_without_false_full_wave_clai
     )
 
     result = analyze_return_path(
-        build_snapshot(document), nets=["USB_D+"], reference_nets=["GND"]
+        build_snapshot(document),
+        stitching_radius_mm=2.0,
+        nets=["USB_D+"],
+        reference_nets=["GND"],
     )
 
     assert result.issues[0].issue_type == "unreferenced_segment"
     assert "not a full-wave" in result.assumptions[-1]
+
+
+def test_reference_net_stable_identity_wins_over_duplicate_name() -> None:
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    )
+    assert snapshot.board is not None
+    reference = next(net for net in snapshot.board.nets if net.name == "GND")
+    duplicate = reference.model_copy(
+        update={"stable_id": "duplicate_gnd", "xml_id": "99"}
+    )
+    snapshot.board.nets.append(duplicate)
+    snapshot.objects[duplicate.stable_id] = duplicate
+
+    result = analyze_return_path(
+        snapshot,
+        stitching_radius_mm=2.0,
+        nets=["USB_D+"],
+        reference_nets=[reference.stable_id],
+    )
+
+    assert result.issues == []
+
+
+def test_equal_rank_reference_layers_are_reported_unknown() -> None:
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    )
+    assert snapshot.board is not None
+    top, dielectric, bottom = snapshot.board.stackup.layers
+    right_dielectric = dielectric.model_copy(update={"index": 3})
+    right_plane = bottom.model_copy(
+        update={"index": 4, "layer_id": "2", "layer_name": "Other plane"}
+    )
+    snapshot.board.stackup.layers = [
+        bottom.model_copy(update={"index": 0}),
+        dielectric.model_copy(update={"index": 1}),
+        top.model_copy(update={"index": 2}),
+        right_dielectric,
+        right_plane,
+    ]
+
+    result = analyze_return_path(
+        snapshot,
+        stitching_radius_mm=2.0,
+        nets=["USB_D+"],
+        reference_nets=["GND"],
+    )
+
+    assert result.issues
+    assert all(item.issue_type == "reference_unknown" for item in result.issues)
+    assert "More than one" in result.issues[0].explanation
+
+
+def test_observed_layer_change_is_not_hidden_when_normalized_via_is_missing() -> None:
+    snapshot = build_snapshot(
+        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    )
+    assert snapshot.board is not None
+    trace = snapshot.board.traces[0]
+    trace.attributes["points"] = [
+        {"x": 1.0, "y": 2.0},
+        {"x": 6.0, "y": 2.0},
+        {"x": 11.0, "y": 2.0},
+    ]
+    trace.attributes["segment_layers"] = ["0", "1"]
+
+    result = analyze_return_path(
+        snapshot,
+        stitching_radius_mm=2.0,
+        nets=["USB_D+"],
+        reference_nets=["GND"],
+    )
+
+    assert result.transition_count == 1
+    assert {
+        (item["check_id"], item["reason"]) for item in result.skipped
+    } >= {("return_path.layer_transition", "normalized_signal_via_missing")}
+    assert any(
+        item.issue_type == "transition_without_return_via" for item in result.issues
+    )
 
 
 def test_advanced_review_checks_diff_pair_and_manufacturing_rules() -> None:
@@ -62,7 +151,9 @@ def test_advanced_review_checks_diff_pair_and_manufacturing_rules() -> None:
         "pcb.min_trace_width",
         "pcb.via_drill_annular_ring",
         "pcb.trace_board_edge",
+        "pcb.differential_pair_rules",
     }
+    assert metrics["pcb.differential_pair_rules"]["skipped_checks"]
 
 
 def test_bom_deduplicates_schematic_units_and_groups_exact_identity() -> None:
@@ -101,10 +192,50 @@ def test_advanced_service_contract(tmp_path: Path) -> None:
     comparison = service.compare_schematic_to_pcb("schematic.xml", "pcb.xml")
     pours = service.list_copper_pours("diff_pair_pcb.xml")
     return_path = service.analyze_return_path(
-        "diff_pair_pcb.xml", nets=["USB_D+"], reference_nets=["GND"]
+        "diff_pair_pcb.xml",
+        stitching_radius_mm=2.0,
+        nets=["USB_D+"],
+        reference_nets=["GND"],
     )
 
     assert bom["result"]["record_count"] == 2
     assert comparison["result"]["difference_count"] >= 1
     assert pours["result"]["matched_count"] == 1
     assert return_path["result"]["issues"] == []
+
+
+def test_partial_differential_pair_checks_reduce_review_completeness(
+    tmp_path: Path,
+) -> None:
+    service = DipTraceService(
+        Settings(workspace=FIXTURES, allowed_roots=(FIXTURES,), state_dir=tmp_path)
+    )
+
+    review = service.run_review("diff_pair_pcb.xml", profile="default")
+
+    assert review["result"]["summary"]["completeness"] < 1.0
+    assert {
+        item["check_id"] for item in review["result"]["skipped_checks"]
+    } >= {"pcb.differential_pair_rules"}
+
+
+def test_partial_differential_pair_review_keeps_evaluated_findings() -> None:
+    original = DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    net_class = root.find("./Board/NetClasses/NetClass")
+    assert net_class is not None
+    net_class.set("Tolerance", "0.01")
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+    findings, metrics, skipped, _count = run_checks(build_snapshot(document))
+
+    assert any(
+        finding.check_id == "diff_pair.length_tolerance" for finding in findings
+    )
+    assert metrics["pcb.differential_pair_rules"]["skipped_checks"]
+    assert {
+        item["check_id"] for item in skipped
+    } >= {"pcb.differential_pair_rules"}

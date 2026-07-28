@@ -1893,17 +1893,21 @@ def create_server(
 
     @mcp.tool()
     def analyze_return_path(
+        stitching_radius_mm: float,
         path: str | None = None,
         nets: list[str] | None = None,
         reference_nets: list[str] | None = None,
-        stitching_radius_mm: float = 2.0,
     ) -> dict[str, Any]:
-        """Run geometry-based reference-plane and return-via heuristics."""
+        """Run low-confidence geometry heuristics with a caller-supplied radius.
+
+        All distances are in millimetres, regardless of the document's own Units
+        attribute.
+        """
         return service.analyze_return_path(
             path,
+            stitching_radius_mm=stitching_radius_mm,
             nets=nets,
             reference_nets=reference_nets,
-            stitching_radius_mm=stitching_radius_mm,
         )
 
     @mcp.tool()

@@ -777,6 +777,14 @@ class NetLengthMeasurement(StrictModel):
     net_xml_id: str | None = None
     net_name: str | None = None
     geometric_length_mm: float = Field(ge=0.0, allow_inf_nan=False)
+    routed_length_3d_mm: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False
+    )
+    via_barrel_length_mm: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False
+    )
+    routed_length_status: Literal["available", "unavailable"] = "unavailable"
+    routed_length_unavailable_reasons: list[str] = Field(default_factory=list)
     per_layer_length_mm: dict[str, float] = Field(default_factory=dict)
     trace_count: int = Field(ge=0)
     via_count: int = Field(ge=0)
@@ -795,12 +803,16 @@ class DifferentialPairAnalysis(StrictModel):
     negative: NetLengthMeasurement
     signed_skew_mm: float = Field(allow_inf_nan=False)
     absolute_skew_mm: float = Field(ge=0.0, allow_inf_nan=False)
-    coupled_length_mm: float = Field(ge=0.0, allow_inf_nan=False)
-    estimated_uncoupled_length_mm: float = Field(ge=0.0, allow_inf_nan=False)
+    coupled_length_mm: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+    estimated_uncoupled_length_mm: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False
+    )
     gap_mm: dict[str, float | None] = Field(default_factory=dict)
     via_balance: int
     per_layer_delta_mm: dict[str, float] = Field(default_factory=dict)
     checks: list[dict[str, Any]] = Field(default_factory=list)
+    skipped_checks: list[dict[str, str]] = Field(default_factory=list)
+    fully_evaluated: bool = True
     assumptions: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     confidence: Literal["low", "medium", "high"] = "medium"
@@ -830,6 +842,7 @@ class ReturnPathAnalysis(StrictModel):
     net_count: int = Field(ge=0)
     segment_count: int = Field(ge=0)
     transition_count: int = Field(ge=0)
+    unresolved_transition_count: int = Field(ge=0)
     issues: list[ReturnPathIssue] = Field(default_factory=list)
     suggested_stitching_locations: list[dict[str, float]] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)

@@ -524,9 +524,14 @@ def run_checks(
     for check in checks:
         check_findings, check_metrics = check.function(snapshot)
         reason = check_metrics.pop("skipped", None)
+        partial_reason = check_metrics.pop("partial_skipped", None)
         if reason is not None:
             skipped.append({"check_id": check.check_id, "reason": str(reason)})
         else:
             findings.extend(check_findings)
+            if partial_reason is not None:
+                skipped.append(
+                    {"check_id": check.check_id, "reason": str(partial_reason)}
+                )
         metrics[check.check_id] = check_metrics
     return findings, metrics, skipped, len(checks)
