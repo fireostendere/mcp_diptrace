@@ -295,7 +295,12 @@ def test_sync_service_produces_guarded_transaction_preview(tmp_path: Path) -> No
         dry_run=True,
     )
     assert response["ok"] is True
+    assert response["written"] is False
     assert response["transaction"]["status"] == "validated"
     assert response["result"]["schematic_source"]["sha256"]
-    assert "<Component" in response["preview"]["diff"]
+    assert response["preview"]["inline"] is False
+    diff_uri = response["preview"]["artifacts"]["diff"]["resource_uri"]
+    assert diff_uri.endswith("/diff")
+    txid = response["transaction"]["txid"]
+    assert "<Component" in service.transactions.diff_path(txid).read_text(encoding="utf-8")
     assert pcb_path.read_bytes() == build_pcb_document()

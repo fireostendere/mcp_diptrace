@@ -196,8 +196,8 @@ def test_route_connections_service_transaction(tmp_path: Path) -> None:
         txid=txid,
     )
     assert committed["transaction"]["status"] == "committed"
-    model = service.board_model("board.dip")
-    assert len(model["result"]["traces"]) == 2
+    model = service.board_model("board.dip", section="traces")
+    assert model["result"]["page"]["total_count"] == 2
 
 
 def test_analyze_routing_congestion_is_read_only(tmp_path: Path) -> None:

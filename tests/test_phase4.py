@@ -341,7 +341,8 @@ def test_semantic_tools_append_to_transaction_commit_and_rollback(
         "absolute",
         txid=txid,
     )
-    assert len(second["transaction"]["operations"]) == 2
+    assert second["transaction"]["operation_count"] == 2
+    assert "operations" not in second["transaction"]
     assert second["transaction"]["compiled_patch_count"] == 3
 
     committed = service.commit_transaction(txid, source_sha)
@@ -394,7 +395,7 @@ def test_align_and_distribute_compile_many_moves_as_one_transaction(
         path=str(board),
         expected_sha256=source_sha,
     )
-    assert len(aligned["transaction"]["operations"]) == 3
+    assert aligned["transaction"]["operation_count"] == 3
     committed = service.commit_transaction(aligned["transaction"]["txid"], source_sha)
     aligned_sha = committed["transaction"]["committed_sha256"]
 
@@ -405,7 +406,7 @@ def test_align_and_distribute_compile_many_moves_as_one_transaction(
         path=str(board),
         expected_sha256=aligned_sha,
     )
-    assert len(distributed["transaction"]["operations"]) == 3
+    assert distributed["transaction"]["operation_count"] == 3
     service.commit_transaction(distributed["transaction"]["txid"], aligned_sha)
     final = ET.parse(board).getroot()
     positions = {

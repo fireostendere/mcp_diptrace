@@ -1260,7 +1260,25 @@ def _short_xml(element: ET.Element, limit: int = 800) -> str:
     return f"{rendered[:limit]}..."
 
 
-def unified_xml_diff(before: bytes, after: bytes, max_lines: int = 200) -> str:
+DEFAULT_DIFF_LINE_LIMIT = 200
+DEFAULT_DIFF_CHARACTER_LIMIT = 200_000
+_DIFF_TRUNCATION_MARKER = "... diff truncated; see metadata for total size ..."
+
+
+def unified_xml_diff_preview(
+    before: bytes,
+    after: bytes,
+    max_lines: int = DEFAULT_DIFF_LINE_LIMIT,
+    max_characters: int = DEFAULT_DIFF_CHARACTER_LIMIT,
+) -> tuple[str, dict[str, int | bool]]:
+    """Return a prefix bounded by both stored lines and stored characters."""
+
+    if max_lines < 1:
+        raise ValueError("max_lines must be positive")
+    if max_characters < len(_DIFF_TRUNCATION_MARKER):
+        raise ValueError(
+            "max_characters must be large enough for the truncation disclosure"
+        )
     before_encoding = _detect_xml_encoding(before)
     after_encoding = _detect_xml_encoding(after)
     before_body = (
@@ -1275,18 +1293,82 @@ def unified_xml_diff(before: bytes, after: bytes, max_lines: int = 200) -> str:
     )
     before_lines = before_body.decode(before_encoding.codec, errors="replace").splitlines()
     after_lines = after_body.decode(after_encoding.codec, errors="replace").splitlines()
-    lines = list(
-        difflib.unified_diff(
-            before_lines,
-            after_lines,
-            fromfile="before.xml",
-            tofile="after.xml",
-            lineterm="",
-        )
+    diff_lines = difflib.unified_diff(
+        before_lines,
+        after_lines,
+        fromfile="before.xml",
+        tofile="after.xml",
+        lineterm="",
     )
-    if len(lines) > max_lines:
-        lines = lines[:max_lines] + [f"... diff truncated after {max_lines} lines ..."]
-    return "\n".join(lines)
+    stored_lines: list[str] = []
+    stored_characters = 0
+    total_line_count = 0
+    total_character_count = 0
+    prefix_open = True
+    for line in diff_lines:
+        if total_line_count:
+            total_character_count += 1
+        total_line_count += 1
+        total_character_count += len(line)
+        additional_characters = len(line) + (1 if stored_lines else 0)
+        if (
+            prefix_open
+            and len(stored_lines) < max_lines
+            and stored_characters + additional_characters <= max_characters
+        ):
+            stored_lines.append(line)
+            stored_characters += additional_characters
+        else:
+            prefix_open = False
+
+    truncated = (
+        len(stored_lines) < total_line_count
+        or stored_characters < total_character_count
+    )
+    if truncated:
+        while stored_lines and (
+            len(stored_lines) + 1 > max_lines
+            or stored_characters
+            + 1
+            + len(_DIFF_TRUNCATION_MARKER)
+            > max_characters
+        ):
+            removed = stored_lines.pop()
+            stored_characters -= len(removed)
+            if stored_lines:
+                stored_characters -= 1
+        marker_separator = 1 if stored_lines else 0
+        stored_lines.append(_DIFF_TRUNCATION_MARKER)
+        stored_characters += marker_separator + len(_DIFF_TRUNCATION_MARKER)
+
+    rendered = "\n".join(stored_lines)
+    metadata: dict[str, int | bool] = {
+        "truncated": truncated,
+        "truncated_by_lines": total_line_count > max_lines,
+        "truncated_by_characters": total_character_count > max_characters,
+        "line_limit": max_lines,
+        "character_limit": max_characters,
+        "total_line_count": total_line_count,
+        "total_character_count": total_character_count,
+        "stored_line_count": len(stored_lines),
+        "stored_character_count": len(rendered),
+    }
+    return rendered, metadata
+
+
+def unified_xml_diff(
+    before: bytes,
+    after: bytes,
+    max_lines: int = DEFAULT_DIFF_LINE_LIMIT,
+    max_characters: int = DEFAULT_DIFF_CHARACTER_LIMIT,
+) -> str:
+    diff, _ = unified_xml_diff_preview(
+        before,
+        after,
+        max_lines=max_lines,
+        max_characters=max_characters,
+    )
+    return diff
 
 
 class BackupWriter(Protocol):

@@ -63,6 +63,12 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert "export_assembly_outputs" in tool_names
             assert "list_exports" in tool_names
             assert "run_openems_stripline_analysis" in tool_names
+            board_schema = next(
+                tool.inputSchema for tool in tools.tools if tool.name == "get_board_model"
+            )
+            assert "cutouts" in board_schema["properties"]["section"]["enum"]
+            assert board_schema["properties"]["offset"]["minimum"] == 0
+            assert board_schema["properties"]["limit"]["maximum"] == 500
 
             result = await session.call_tool("summarize_design", {"path": "pcb.xml"})
             assert not result.isError
@@ -74,10 +80,35 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert not caps.isError
             assert caps.structuredContent["read_capabilities"]["board_model"] is True
 
-            board = await session.call_tool("get_board_model", {"path": "pcb.xml"})
+            board = await session.call_tool(
+                "get_board_model",
+                {"path": "pcb.xml", "section": "traces", "limit": 1},
+            )
             assert not board.isError
             assert board.structuredContent["ok"] is True
-            assert board.structuredContent["result"]["traces"][0]["kind"] == "trace"
+            assert board.structuredContent["result"]["items"][0]["kind"] == "trace"
+            assert board.structuredContent["result"]["page"]["returned_count"] == 1
+
+            raw_preview = await session.call_tool(
+                "apply_xml_edits",
+                {
+                    "path": "pcb.xml",
+                    "edits": [
+                        {
+                            "operation": "set_text",
+                            "xpath": "./Board/Components/Component[@Id='0']/Value",
+                            "value": "47k",
+                            "expected_matches": 1,
+                        }
+                    ],
+                },
+            )
+            assert not raw_preview.isError
+            diff_metadata = raw_preview.structuredContent["diff"]
+            assert diff_metadata["inline"] is False
+            raw_diff = await session.read_resource(diff_metadata["resource_uri"])
+            assert "+        <Value>47k</Value>" in raw_diff.contents[0].text
+            assert raw_diff.contents[0].mimeType == "text/plain"
 
             impedance = await session.call_tool(
                 "validate_impedance_constraints",
@@ -113,6 +144,13 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert "diptrace://document/{document_id}/board-model" in template_uris
             assert "diptrace://document/{document_id}/connectivity" in template_uris
             assert "diptrace://transaction/{txid}/preview.json" in template_uris
+            assert "diptrace://raw-preview/{preview_id}/diff" in template_uris
+            raw_preview_template = next(
+                item
+                for item in templates.resourceTemplates
+                if item.uriTemplate == "diptrace://raw-preview/{preview_id}/diff"
+            )
+            assert raw_preview_template.mimeType == "text/plain"
             assert "diptrace://plan/{plan_id}/preview.svg" in template_uris
             assert "diptrace://export/{export_id}/{artifact}" in template_uris
             assert "diptrace://job/{jobid}/field_solver_result.json" in template_uris

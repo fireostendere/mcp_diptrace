@@ -8,7 +8,8 @@ State machine: `planned -> staged -> validated -> committed`. A transaction may 
 1. `begin_transaction` records the document ID, source SHA, and immutable snapshot.
 2. `stage_operations` accepts only typed semantic operations.
 3. `preview_transaction` compiles changes against a clone into byte-span patches over the
-   original XML, reparses the result, and produces XML diff, SVG, and JSON previews.
+   original XML, reparses the result, stores XML diff, SVG, and JSON previews, and
+   returns their resource URIs without echoing operations or artifacts.
 4. Validation compares connectivity and DRC errors before and after the change.
 5. `commit_transaction` requires an exact expected SHA, creates a backup, and performs an atomic write.
 6. The document is reparsed after the write; the backup is restored if an exception occurs.
@@ -20,7 +21,9 @@ byte-for-byte. Existing attribute and text changes patch only their raw spans; n
 subtrees are serialized from typed operations. After compilation, the reparsed tree is
 compared with the mutated domain/XML model. A mismatch fails instead of being written.
 The low-level `apply_xml_edits` tool uses the same raw-preserving approach and remains a
-separate expert API limited to 50 edits.
+separate expert API limited to 50 edits. Its diff is stored under a
+`diptrace://raw-preview/{preview_id}/diff` resource. The response reports line and
+character caps, total and stored sizes, and whether either cap truncated the artifact.
 
 ## Semantic Operations v1
 
@@ -34,4 +37,8 @@ separate expert API limited to 50 edits.
 ## Resources
 
 `summary`, `operations`, `diff`, `preview.svg`, and `preview.json` are available at
-`diptrace://transaction/{txid}/...`. PNG output is not advertised.
+`diptrace://transaction/{txid}/...`. Transaction tool responses expose a bounded
+summary with `operation_count`; the operation payload is available only through the
+`operations` resource. Diff metadata includes separate total/stored line and character
+counts. The truncation marker is included in both stored caps. PNG output is not
+advertised.

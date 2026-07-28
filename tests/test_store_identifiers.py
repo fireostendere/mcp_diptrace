@@ -15,6 +15,7 @@ from diptrace_mcp.exports import ExportStore
 from diptrace_mcp.findings import FindingStore, ReviewReport, make_finding
 from diptrace_mcp.jobs import JobStore
 from diptrace_mcp.plans import PlanStore
+from diptrace_mcp.previews import RawPreviewStore
 from diptrace_mcp.record_ids import (
     RecordIdKind,
     iter_valid_record_files,
@@ -28,6 +29,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 UUID4 = "123e4567-e89b-42d3-a456-426614174000"
 VALID_IDS = {
     "transaction": f"tx_{UUID4}",
+    "preview": f"preview_{'0' * 32}",
     "job": f"job_{'1' * 32}",
     "plan": f"plan_{'2' * 32}",
     "export": f"export_{'3' * 32}",
@@ -45,6 +47,7 @@ def test_each_store_generated_identifier_passes_shared_validator(tmp_path: Path)
     exports = ExportStore(state, max_artifact_bytes=1024)
     sessions = SessionStore(state)
     transactions = TransactionStore(state)
+    previews = RawPreviewStore(state)
 
     document = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
     snapshot = build_snapshot(document)
@@ -72,6 +75,7 @@ def test_each_store_generated_identifier_passes_shared_validator(tmp_path: Path)
         tmp_path / "target.xml",
         source_sha256=snapshot.info.sha256,
     )
+    preview_id, _preview_uri = previews.store("", {})
     finding = make_finding(
         "identifier.test",
         "test",
@@ -92,6 +96,7 @@ def test_each_store_generated_identifier_passes_shared_validator(tmp_path: Path)
 
     generated_ids: dict[RecordIdKind, str] = {
         "transaction": transaction.txid,
+        "preview": preview_id,
         "job": job.jobid,
         "plan": plan.plan_id,
         "export": export.export_id,
@@ -108,6 +113,7 @@ def test_each_store_generated_identifier_passes_shared_validator(tmp_path: Path)
     assert exports._directory(export.export_id).parent == exports.root
     assert sessions.session_dir(str(session["session_id"])).parent == sessions.sessions_dir
     assert transactions.tx_dir(transaction.txid).parent == transactions.transactions_dir
+    assert previews.preview_dir(preview_id).parent == previews.previews_dir
 
 
 def test_store_lists_skip_invalid_paths_and_embedded_id_mismatches(
@@ -281,6 +287,7 @@ def test_export_store_rejects_prefix_and_length_path_escape(tmp_path: Path) -> N
     ("kind", "value"),
     [
         ("transaction", "tx_123e4567-e89b-12d3-a456-426614174000"),
+        ("preview", "preview_" + "../" * 10 + ".."),
         ("job", f"job_{'A' * 32}"),
         ("plan", f"plan_{'0' * 31}"),
         ("export", "export_" + "../" * 10 + ".."),

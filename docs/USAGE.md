@@ -324,7 +324,7 @@ Prefer semantic high-level tools and transactions. A suitable request is:
 
 For a structure not covered by semantic tools, use the low-level expert workflow:
 
-> Change the `Value` element of R1 from 10k to 22k. Run `apply_xml_edits` with `dry_run=true`, require exactly one XPath match, and show the diff. Then repeat the same edit with `dry_run=false` and `expected_sha256` from the preview.
+> Change the `Value` element of R1 from 10k to 22k. Run `apply_xml_edits` with `dry_run=true`, require exactly one XPath match, then read and show the returned diff resource. Repeat the same edit with `dry_run=false` and `expected_sha256` from the preview.
 
 After a successful write, the working XML copy has changed, but DipTrace has not yet
 imported it.
@@ -509,7 +509,9 @@ a committed real DipTrace DSN/SES pair that establishes broader conventions. See
 - `delete_element` — delete a matched element.
 
 Use this API only when a verified semantic tool is unavailable. Every edit must include
-an exact `expected_matches` guard.
+an exact `expected_matches` guard. The tool response does not inline the XML diff:
+read the returned `diptrace://raw-preview/{preview_id}/diff` resource. Its metadata
+discloses the line and character caps, total and stored sizes, and truncation reasons.
 
 For supported UTF-8 (with or without BOM), UTF-16LE/BE, US-ASCII, and ISO-8859-1
 inputs, replacements use the detected source codec and retain the BOM and untouched

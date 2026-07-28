@@ -9,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field
 
 from .config import Settings
-from .domain import QuerySelector
+from .domain import BoardModelSection, QuerySelector
 from .operations import (
     AddTestpointOperation,
     PinEndpoint,
@@ -232,9 +232,27 @@ def create_server(
         return service.document_info(path)
 
     @mcp.tool()
-    def get_board_model(path: str | None = None) -> dict[str, Any]:
-        """Return the normalized PCB model for a DipTrace board document."""
-        return service.board_model(path)
+    def get_board_model(
+        path: str | None = None,
+        section: Annotated[
+            BoardModelSection,
+            Field(description="Count-only summary or one normalized PCB collection."),
+        ] = "summary",
+        offset: Annotated[
+            int,
+            Field(ge=0, description="Zero-based record offset within the selected section."),
+        ] = 0,
+        limit: Annotated[
+            int,
+            Field(
+                ge=1,
+                le=500,
+                description="Computational record cap; not an engineering limit.",
+            ),
+        ] = 100,
+    ) -> dict[str, Any]:
+        """Return one strictly byte-bounded PCB page or a count-only summary."""
+        return service.board_model(path, section=section, offset=offset, limit=limit)
 
     @mcp.tool()
     def get_schematic_model(path: str | None = None) -> dict[str, Any]:
@@ -524,7 +542,7 @@ def create_server(
         dry_run: bool = True,
         expected_sha256: str | None = None,
     ) -> dict[str, Any]:
-        """Preview edits, or write them with the preview SHA-256, match guards and backups."""
+        """Store a bounded diff resource, or write with its SHA/match guards and a backup."""
         operations = [XmlEdit(**edit.model_dump()) for edit in edits]
         return service.apply_edits(operations, path, dry_run, expected_sha256)
 
@@ -611,12 +629,12 @@ def create_server(
 
     @mcp.tool()
     def preview_transaction(txid: str) -> dict[str, Any]:
-        """Render a transaction preview without writing to disk."""
+        """Store preview artifacts and return bounded metadata without changing the design."""
         return service.preview_transaction(txid)
 
     @mcp.tool()
     def validate_transaction(txid: str) -> dict[str, Any]:
-        """Validate a staged transaction and return the same preview payload."""
+        """Validate staged operations and return the same bounded preview metadata."""
         return service.validate_transaction(txid)
 
     @mcp.tool()
@@ -2510,11 +2528,7 @@ def create_server(
     )
     def transaction_summary_resource(txid: str) -> str:
         """Transaction summary JSON."""
-        return json.dumps(
-            service.transactions.read(txid).model_dump(),
-            ensure_ascii=False,
-            indent=2,
-        )
+        return service.transaction_summary_resource(txid)
 
     @mcp.resource(
         "diptrace://transaction/{txid}/operations",
@@ -2548,6 +2562,14 @@ def create_server(
         """Transaction preview geometry JSON."""
         path = service.transactions.preview_json_path(txid)
         return path.read_text(encoding="utf-8") if path.exists() else ""
+
+    @mcp.resource(
+        "diptrace://raw-preview/{preview_id}/diff",
+        mime_type="text/plain",
+    )
+    def raw_preview_diff_resource(preview_id: str) -> str:
+        """Bounded raw XML-edit diff stored outside the tool response."""
+        return service.raw_preview_diff_resource(preview_id)
 
     @mcp.resource("diptrace://plan/{plan_id}/summary", mime_type="application/json")
     def plan_summary_resource(plan_id: str) -> str:

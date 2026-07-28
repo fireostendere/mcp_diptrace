@@ -112,10 +112,29 @@ Generic manifests do **not** generate Gerber, NC Drill, ODB++, IPC-2581, or vend
 - `diptrace://status`, `diptrace://capabilities`, `diptrace://schemas/tool-inputs`;
 - document summary, board, schematic, stackup, connectivity, library, review, and findings resources;
 - transaction/plan summary, operations, diff, SVG, and JSON previews;
+- bounded raw-edit diffs at `diptrace://raw-preview/{preview_id}/diff`;
 - job status, result, log, DSN, SES, and field-solver resources;
 - `diptrace://export/{export_id}/{artifact}`.
 
-Large payloads are exposed through bounded resources. Preview formats are SVG, JSON geometry, and XML diff; PNG preview is not currently registered.
+Large payloads are exposed through explicit resources instead of being echoed by tool
+responses. Preview formats are SVG, JSON geometry, and XML diff; PNG preview is not
+currently registered.
+
+`get_board_model` defaults to a count-only summary. Select one collection, including
+`cutouts`, `components`, `traces`, or `warnings`, and use `offset`/`limit` to retrieve
+a page. The complete serialized response is capped at 256 KiB. A nested record larger
+than the 32 KiB per-item detail cap is replaced by an explicitly marked summary with
+its original byte count and the full-model resource URI; pagination still consumes
+that record. These are computational transport caps, not design limits.
+
+Transaction responses never echo staged operations or inline preview artifacts. They
+return a bounded transaction summary, counts, and URIs for the transaction summary,
+operations, SVG, JSON, and bounded diff resources. `written` is `false` for preview
+and `true` after a successful commit.
+
+`apply_xml_edits` also returns only diff metadata and a raw-preview resource URI. Its
+stored diff prefix is capped by both line and character counts, and reports the total
+and stored counts plus each truncation reason.
 
 ## Deliberately Not Registered
 

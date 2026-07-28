@@ -929,6 +929,52 @@ class BoardModel(StrictModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+BOARD_MODEL_COLLECTION_SECTIONS = (
+    "cutouts",
+    "components",
+    "pads",
+    "holes",
+    "nets",
+    "traces",
+    "vias",
+    "copper_pours",
+    "keepouts",
+    "layers",
+    "patterns",
+    "pad_styles",
+    "via_styles",
+    "net_classes",
+    "differential_pairs",
+    "ratlines",
+    "texts",
+    "testpoints",
+    "warnings",
+)
+
+BoardModelSection = Literal[
+    "summary",
+    "cutouts",
+    "components",
+    "pads",
+    "holes",
+    "nets",
+    "traces",
+    "vias",
+    "copper_pours",
+    "keepouts",
+    "layers",
+    "patterns",
+    "pad_styles",
+    "via_styles",
+    "net_classes",
+    "differential_pairs",
+    "ratlines",
+    "texts",
+    "testpoints",
+    "warnings",
+]
+
+
 class SchematicModel(StrictModel):
     document_id: str
     sheets: list[dict[str, Any]] = Field(default_factory=list)
@@ -1239,6 +1285,7 @@ class TransactionRecord(StrictModel):
     validation_before: dict[str, Any] = Field(default_factory=dict)
     validation_after_preview: dict[str, Any] = Field(default_factory=dict)
     preview_resources: list[str] = Field(default_factory=list)
+    preview_metadata: dict[str, Any] = Field(default_factory=dict)
     snapshot_path: str | None = None
     backup_path: str | None = None
     provenance_backup_path: str | None = None

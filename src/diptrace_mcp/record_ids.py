@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 RecordIdKind = Literal[
     "transaction",
+    "preview",
     "job",
     "plan",
     "export",
@@ -24,6 +25,7 @@ UUID4_PATTERN = (
 TRANSACTION_ID_PATTERN = rf"tx_{UUID4_PATTERN}"
 _RECORD_ID_PATTERNS: dict[RecordIdKind, re.Pattern[str]] = {
     "transaction": re.compile(TRANSACTION_ID_PATTERN),
+    "preview": re.compile(r"preview_[0-9a-f]{32}"),
     "job": re.compile(r"job_[0-9a-f]{32}"),
     "plan": re.compile(r"plan_[0-9a-f]{32}"),
     "export": re.compile(r"export_[0-9a-f]{32}"),

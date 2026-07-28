@@ -29,6 +29,8 @@ from .domain import (
     _HIGH_TRUST_LEVELS,
     _TRUSTED_EVIDENCE_AUTHORITIES,
     _USER_SUPPLIABLE_TRUST_LEVELS,
+    BOARD_MODEL_COLLECTION_SECTIONS,
+    BoardModelSection,
     DocumentInfo,
     DocumentProvenance,
     EvidenceAuthority,
@@ -154,6 +156,7 @@ from .placement import (
 from .plans import PlanStore
 from .policy import Policy
 from .preview import render_preview_json, render_preview_svg
+from .previews import RawPreviewStore
 from .return_path import analyze_plane_continuity as analyze_plane_geometry
 from .return_path import analyze_return_path as analyze_return_geometry
 from .review import run_checks
@@ -181,14 +184,21 @@ from .specctra import (
     session_to_operations,
 )
 from .synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan
-from .transactions import TransactionStore, default_risk, tx_preview_resources
+from .transactions import (
+    TransactionStore,
+    default_risk,
+    tx_preview_resources,
+    tx_summary_resources,
+)
 from .write_limits import require_write_impact, write_impact
 from .xml_document import (
+    DEFAULT_DIFF_CHARACTER_LIMIT,
+    DEFAULT_DIFF_LINE_LIMIT,
     DipTraceDocument,
     XmlEdit,
     atomic_write_bytes,
     sha256_bytes,
-    unified_xml_diff,
+    unified_xml_diff_preview,
     utc_now,
     write_with_backup,
 )
@@ -196,6 +206,166 @@ from .xml_document import (
 _CANDIDATE_SUFFIXES = {".xml", ".dip", ".dch", ".eli", ".lib"}
 _SOURCE_TAG = re.compile(rb"<(?:Source|Library)\b([^>]*)>", re.IGNORECASE)
 _SOURCE_ATTRIBUTE = re.compile(rb"([A-Za-z][A-Za-z0-9_-]*)\s*=\s*['\"]([^'\"]*)['\"]")
+BOARD_MODEL_RESPONSE_BYTE_LIMIT = 256 * 1024
+BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT = 32 * 1024
+TRANSACTION_CHANGED_ID_PREVIEW_LIMIT = 500
+TRANSACTION_MESSAGE_PREVIEW_LIMIT = 100
+TRANSACTION_MESSAGE_CHARACTER_LIMIT = 1_000
+
+
+def _json_size(value: Any) -> int:
+    return len(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode("utf-8")
+    )
+
+
+def _bounded_text(value: str, limit: int) -> tuple[str, bool]:
+    if len(value) <= limit:
+        return value, False
+    return value[:limit], True
+
+
+def _bounded_board_item(
+    item: Any,
+    *,
+    item_index: int,
+    full_model_resource: str,
+) -> tuple[Any, bool]:
+    rendered = (
+        item.model_dump(mode="json") if hasattr(item, "model_dump") else item
+    )
+    full_item_bytes = _json_size(rendered)
+    if full_item_bytes <= BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT:
+        return rendered, False
+
+    summary: dict[str, Any] = {}
+    if isinstance(rendered, dict):
+        for key in (
+            "stable_id",
+            "kind",
+            "id",
+            "xml_id",
+            "index",
+            "name",
+            "label",
+            "refdes",
+            "value",
+            "layer",
+            "side",
+        ):
+            scalar = rendered.get(key)
+            if isinstance(scalar, str):
+                summary[key], _ = _bounded_text(scalar, 512)
+            elif key in rendered and (
+                scalar is None or isinstance(scalar, (bool, int, float))
+            ):
+                summary[key] = scalar
+    elif isinstance(rendered, str):
+        summary["value_prefix"], _ = _bounded_text(rendered, 1_000)
+
+    payload_metadata: dict[str, Any] = {
+        "detail": "summary",
+        "item_index": item_index,
+        "full_item_bytes": full_item_bytes,
+        "detail_byte_limit": BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT,
+        "full_model_resource": full_model_resource,
+        "reason": "nested_item_exceeds_computational_payload_cap",
+    }
+    if isinstance(rendered, dict):
+        omitted_fields = [key for key in rendered if key not in summary]
+        payload_metadata["omitted_field_count"] = len(omitted_fields)
+        payload_metadata["omitted_fields"] = [
+            _bounded_text(str(key), 128)[0] for key in omitted_fields[:32]
+        ]
+        payload_metadata["omitted_fields_truncated"] = len(omitted_fields) > 32
+    elif isinstance(rendered, str):
+        payload_metadata["omitted_character_count"] = max(
+            0,
+            len(rendered) - len(summary.get("value_prefix", "")),
+        )
+    summary["_payload"] = payload_metadata
+    return summary, True
+
+
+def _validation_response_summary(value: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value[key]
+        for key in ("document_id", "kind", "sha256", "review_errors")
+        if key in value
+    }
+
+
+def _bounded_messages(values: list[str]) -> tuple[list[str], dict[str, Any]]:
+    rendered: list[str] = []
+    truncated_characters = False
+    for value in values[:TRANSACTION_MESSAGE_PREVIEW_LIMIT]:
+        bounded, truncated = _bounded_text(value, TRANSACTION_MESSAGE_CHARACTER_LIMIT)
+        rendered.append(bounded)
+        truncated_characters = truncated_characters or truncated
+    return rendered, {
+        "total_count": len(values),
+        "returned_count": len(rendered),
+        "truncated": len(rendered) < len(values) or truncated_characters,
+    }
+
+
+def _bounded_changed_ids(values: list[str]) -> dict[str, Any]:
+    rendered = values[:TRANSACTION_CHANGED_ID_PREVIEW_LIMIT]
+    return {
+        "changed_ids": rendered,
+        "changed_id_count": len(values),
+        "changed_ids_truncated": len(rendered) < len(values),
+    }
+
+
+def transaction_response_summary(record: TransactionRecord) -> dict[str, Any]:
+    """Return stable transaction state without echoing staged operation payloads."""
+
+    changed_id_summary = _bounded_changed_ids(record.changed_ids)
+    target_path, target_path_truncated = _bounded_text(record.target_path, 4_096)
+    error: dict[str, Any] | None = None
+    if record.error:
+        error = {}
+        if "code" in record.error:
+            error["code"] = record.error["code"]
+        message = record.error.get("message")
+        if isinstance(message, str):
+            error["message"], error["message_truncated"] = _bounded_text(
+                message,
+                TRANSACTION_MESSAGE_CHARACTER_LIMIT,
+            )
+    return {
+        "txid": record.txid,
+        "document_id": record.document_id,
+        "status": record.status,
+        "target_path": target_path,
+        "target_path_truncated": target_path_truncated,
+        "source_sha256": record.source_sha256,
+        "expected_sha256": record.expected_sha256,
+        "committed_sha256": record.committed_sha256,
+        "rolled_back_sha256": record.rolled_back_sha256,
+        "created_at": record.created_at,
+        "updated_at": record.updated_at,
+        "operation_count": len(record.operations),
+        "compiled_patch_count": record.compiled_patch_count,
+        **changed_id_summary,
+        "risk": record.risk.model_dump(mode="json"),
+        "validation_before": _validation_response_summary(record.validation_before),
+        "validation_after_preview": _validation_response_summary(
+            record.validation_after_preview
+        ),
+        "preview_resources": record.preview_resources,
+        "preview_metadata": record.preview_metadata,
+        "backup_available": record.backup_path is not None,
+        "error": error,
+        "note_count": len(record.notes),
+        "summary_resource": f"diptrace://transaction/{record.txid}/summary",
+        "operations_resource": f"diptrace://transaction/{record.txid}/operations",
+    }
 
 
 @dataclass(frozen=True)
@@ -706,6 +876,8 @@ class DipTraceService:
             retention=retention,
         )
         self.transactions = TransactionStore(settings.state_dir, retention=retention)
+        self._raw_preview_retention = retention
+        self._raw_previews: RawPreviewStore | None = None
         self.plans = PlanStore(settings.state_dir, retention=retention)
         self.findings = FindingStore(settings.state_dir, retention=retention)
         self.jobs = JobStore(settings.state_dir, retention=retention)
@@ -719,6 +891,17 @@ class DipTraceService:
         self.models = ModelCache(max_bytes=settings.model_cache_max_bytes)
         self._document_targets: dict[str, DocumentTarget] = {}
         self._workflow_prompt_names: tuple[str, ...] = ()
+
+    @property
+    def raw_previews(self) -> RawPreviewStore:
+        """Create the optional raw-preview store only when a raw diff is requested."""
+
+        if self._raw_previews is None:
+            self._raw_previews = RawPreviewStore(
+                self.settings.state_dir,
+                retention=self._raw_preview_retention,
+            )
+        return self._raw_previews
 
     def set_workflow_prompt_names(self, names: Sequence[str]) -> None:
         """Record the prompt names registered by the concrete MCP server."""
@@ -1195,6 +1378,14 @@ class DipTraceService:
         report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
         report["limits"]["max_external_processes"] = self.settings.max_external_processes
         report["limits"]["max_external_result_bytes"] = self.settings.max_external_result_bytes
+        report["limits"]["max_board_model_response_bytes"] = (
+            BOARD_MODEL_RESPONSE_BYTE_LIMIT
+        )
+        report["limits"]["max_board_model_item_detail_bytes"] = (
+            BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT
+        )
+        report["limits"]["max_diff_lines"] = DEFAULT_DIFF_LINE_LIMIT
+        report["limits"]["max_diff_characters"] = DEFAULT_DIFF_CHARACTER_LIMIT
         report["limits"]["retention_max_records"] = self.settings.retention_max_records
         report["limits"]["retention_max_age_days"] = self.settings.retention_max_age_days
         report["policy"].update(self.policy.capability_payload())
@@ -1229,19 +1420,142 @@ class DipTraceService:
             result["trust_warnings"] = effective.warnings
         return self._read_success(info, result)
 
-    def board_model(self, path: str | None = None) -> dict[str, Any]:
+    def board_model(
+        self,
+        path: str | None = None,
+        *,
+        section: BoardModelSection = "summary",
+        offset: int = 0,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        self._validate_page(offset, limit)
         document, target = self.load(path)
         snapshot = self.models.get(document, live_session=target.is_live)
         info = snapshot.info
         model = snapshot.board
         if model is None:
             raise DocumentError("PCB model is only available for PCB documents")
-        return self._read_success(
-            info,
-            model.model_dump(),
-            resources=[f"diptrace://document/{info.document_id}/board-model"],
-            warnings=model.warnings,
-        )
+        resource_uri = f"diptrace://document/{info.document_id}/board-model"
+        section_counts = {
+            name: len(getattr(model, name)) for name in BOARD_MODEL_COLLECTION_SECTIONS
+        }
+        limitations = list(info.compatibility.get("limitations", []))
+        if model.warnings and section != "warnings":
+            limitations.append(
+                "Board-model warnings are not duplicated inline; page section='warnings' "
+                "or read the full-model resource."
+            )
+        if section == "summary":
+            result: dict[str, Any] = {
+                "contract_version": 1,
+                "section": "summary",
+                "available_sections": ["summary", *BOARD_MODEL_COLLECTION_SECTIONS],
+                "section_counts": section_counts,
+                "outline_available": model.outline is not None,
+                "rules_available": bool(model.rules),
+                "stackup_completeness": model.stackup.completeness,
+                "response_byte_limit": BOARD_MODEL_RESPONSE_BYTE_LIMIT,
+                "item_detail_byte_limit": BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT,
+                "full_model_resource": resource_uri,
+            }
+            response = self._read_success(
+                info,
+                result,
+                resources=[resource_uri],
+                limitations=limitations,
+            )
+            for _ in range(4):
+                serialized_size = _json_size(response)
+                if result.get("serialized_response_bytes") == serialized_size:
+                    break
+                result["serialized_response_bytes"] = serialized_size
+            if _json_size(response) > BOARD_MODEL_RESPONSE_BYTE_LIMIT:
+                raise DocumentError("Board-model summary exceeds its payload cap")
+            return response
+        if section not in BOARD_MODEL_COLLECTION_SECTIONS:
+            raise DocumentError(f"Unknown board-model section: {section}")
+
+        section_items = getattr(model, section)
+        total_count = len(section_items)
+        requested_items = section_items[offset : offset + limit]
+        rendered_items: list[Any] = []
+        summarized_flags: list[bool] = []
+        summarized_count = 0
+        consumed_count = 0
+
+        def build_response(*, byte_limited: bool) -> dict[str, Any]:
+            next_offset = offset + consumed_count
+            has_more = next_offset < total_count
+            result = {
+                "contract_version": 1,
+                "section": section,
+                "page": {
+                    "offset": offset,
+                    "limit": limit,
+                    "returned_count": consumed_count,
+                    "total_count": total_count,
+                    "has_more": has_more,
+                    "next_offset": next_offset if has_more else None,
+                    "byte_limited": byte_limited,
+                    "detail_limited": summarized_count > 0,
+                    "summarized_item_count": summarized_count,
+                    "response_byte_limit": BOARD_MODEL_RESPONSE_BYTE_LIMIT,
+                    "item_detail_byte_limit": BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT,
+                    "serialized_response_bytes": 0,
+                },
+                "items": rendered_items,
+                "full_model_resource": resource_uri,
+            }
+            response = self._read_success(
+                info,
+                result,
+                resources=[resource_uri],
+                limitations=limitations,
+            )
+            page = response["result"]["page"]
+            for _ in range(4):
+                serialized_size = _json_size(response)
+                if page["serialized_response_bytes"] == serialized_size:
+                    break
+                page["serialized_response_bytes"] = serialized_size
+            return response
+
+        response = build_response(byte_limited=False)
+        for relative_index, item in enumerate(requested_items):
+            rendered, summarized = _bounded_board_item(
+                item,
+                item_index=offset + relative_index,
+                full_model_resource=resource_uri,
+            )
+            rendered_items.append(rendered)
+            summarized_flags.append(summarized)
+            consumed_count += 1
+            summarized_count += int(summarized)
+            candidate = build_response(byte_limited=False)
+            if _json_size(candidate) > BOARD_MODEL_RESPONSE_BYTE_LIMIT:
+                rendered_items.pop()
+                summarized_flags.pop()
+                consumed_count -= 1
+                summarized_count -= int(summarized)
+                response = build_response(byte_limited=True)
+                break
+            response = candidate
+        else:
+            response = build_response(byte_limited=False)
+
+        while (
+            _json_size(response) > BOARD_MODEL_RESPONSE_BYTE_LIMIT
+            and rendered_items
+        ):
+            rendered_items.pop()
+            removed_was_summarized = summarized_flags.pop()
+            consumed_count -= 1
+            if removed_was_summarized:
+                summarized_count -= 1
+            response = build_response(byte_limited=True)
+        if _json_size(response) > BOARD_MODEL_RESPONSE_BYTE_LIMIT:
+            raise DocumentError("Board-model response metadata exceeds its payload cap")
+        return response
 
     def schematic_model(self, path: str | None = None) -> dict[str, Any]:
         document, target = self.load(path)
@@ -1677,6 +1991,16 @@ class DipTraceService:
             )
         return json.dumps(payload, ensure_ascii=False, indent=2)
 
+    def transaction_summary_resource(self, txid: str) -> str:
+        return json.dumps(
+            transaction_response_summary(self.transactions.read(txid)),
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    def raw_preview_diff_resource(self, preview_id: str) -> str:
+        return self.raw_previews.read_diff(preview_id)
+
     def summarize(self, path: str | None = None) -> dict[str, Any]:
         document, target = self.load(path)
         return inspector.summarize(document, live_session=target.is_live)
@@ -1785,6 +2109,8 @@ class DipTraceService:
         require_write_impact(impact, operation="apply_xml_edits")
         after_sha256 = sha256_bytes(after)
         changed = before != after
+        diff, diff_metadata = unified_xml_diff_preview(before, after)
+        preview_id, diff_resource = self.raw_previews.store(diff, diff_metadata)
         result: dict[str, Any] = {
             "path": str(target.path),
             "live_session": target.is_live,
@@ -1796,7 +2122,14 @@ class DipTraceService:
             "operations": previews,
             "changed_ids": list(impact.changed_ids),
             "write_object_count": impact.object_count,
-            "diff": unified_xml_diff(before, after),
+            "diff": {
+                "inline": False,
+                "preview_id": preview_id,
+                "resource_uri": diff_resource,
+                "mime_type": "text/plain",
+                **diff_metadata,
+            },
+            "resources": [diff_resource],
         }
         if dry_run or not changed:
             result["written"] = False
@@ -2133,8 +2466,9 @@ class DipTraceService:
         )
         return {
             "ok": True,
+            "written": False,
             "document": snapshot.info.model_dump(),
-            "transaction": updated.model_dump(),
+            "transaction": transaction_response_summary(updated),
             "warnings": [],
             "limitations": [],
             "resources": [],
@@ -2165,12 +2499,15 @@ class DipTraceService:
             operations=staged,
             compiled_patch_count=len(staged),
             changed_ids=[],
+            validation_before={},
             validation_after_preview={},
             preview_resources=[],
+            preview_metadata={},
         )
         return {
             "ok": True,
-            "transaction": updated.model_dump(),
+            "written": False,
+            "transaction": transaction_response_summary(updated),
             "result": {"staged_count": len(staged)},
             "warnings": [],
             "limitations": [],
@@ -2190,7 +2527,29 @@ class DipTraceService:
         source = self._load_snapshot_record(record)
         operations = parse_semantic_operations(record.operations)
         preview = self._preview_semantic_operations(source, operations)
-        resources = tx_preview_resources(txid)
+        preview_resources = tx_preview_resources(txid)
+        response_resources = [
+            *tx_summary_resources(txid)[:2],
+            *preview_resources,
+        ]
+        preview_metadata = {
+            "inline": False,
+            "artifacts": {
+                "svg": {
+                    "resource_uri": preview_resources[0],
+                    "mime_type": "image/svg+xml",
+                },
+                "json": {
+                    "resource_uri": preview_resources[1],
+                    "mime_type": "application/json",
+                },
+                "diff": {
+                    "resource_uri": preview_resources[2],
+                    "mime_type": "text/plain",
+                    **preview["diff_metadata"],
+                },
+            },
+        }
         self.transactions.store_preview(
             txid,
             preview["svg"],
@@ -2203,26 +2562,32 @@ class DipTraceService:
             changed_ids=preview["changed_ids"],
             validation_before=preview["validation_before"],
             validation_after_preview=preview["validation_after_preview"],
-            preview_resources=resources,
+            preview_resources=preview_resources,
+            preview_metadata=preview_metadata,
             risk=default_risk("limited_write", "semantic operation preview generated"),
             compiled_patch_count=preview["patch_count"],
         )
+        warnings, warning_metadata = _bounded_messages(preview["warnings"])
+        limitations, limitation_metadata = _bounded_messages(preview["limitations"])
+        validation_before = _validation_response_summary(preview["validation_before"])
+        validation_after = _validation_response_summary(
+            preview["validation_after_preview"]
+        )
         return {
             "ok": True,
-            "transaction": updated.model_dump(),
+            "written": False,
+            "transaction": transaction_response_summary(updated),
             "result": {
-                "changed_ids": preview["changed_ids"],
-                "validation_before": preview["validation_before"],
-                "validation_after_preview": preview["validation_after_preview"],
+                **_bounded_changed_ids(preview["changed_ids"]),
+                "validation_before": validation_before,
+                "validation_after_preview": validation_after,
+                "warnings_metadata": warning_metadata,
+                "limitations_metadata": limitation_metadata,
             },
-            "warnings": preview["warnings"],
-            "limitations": preview["limitations"],
-            "resources": resources,
-            "preview": {
-                "svg": preview["svg"],
-                "json": preview["json"],
-                "diff": preview["diff"],
-            },
+            "warnings": warnings,
+            "limitations": limitations,
+            "resources": response_resources,
+            "preview": preview_metadata,
         }
 
     def validate_transaction(self, txid: str) -> dict[str, Any]:
@@ -2306,15 +2671,20 @@ class DipTraceService:
         self.invalidate_document_trust_after_write(
             target_path, committed_sha256, operation_name="mcp_transaction_commit"
         )
+        warnings, warning_metadata = _bounded_messages(applied.warnings)
+        limitations, limitation_metadata = _bounded_messages(preview["limitations"])
         return {
             "ok": True,
-            "transaction": updated.model_dump(),
+            "written": True,
+            "transaction": transaction_response_summary(updated),
             "result": {
-                "changed_ids": applied.changed_ids,
+                **_bounded_changed_ids(applied.changed_ids),
                 "compiled_patch_count": applied.patch_count,
+                "warnings_metadata": warning_metadata,
+                "limitations_metadata": limitation_metadata,
             },
-            "warnings": applied.warnings,
-            "limitations": preview["limitations"],
+            "warnings": warnings,
+            "limitations": limitations,
             "resources": tx_preview_resources(txid),
         }
 
@@ -2423,7 +2793,8 @@ class DipTraceService:
         )
         return {
             "ok": True,
-            "transaction": updated.model_dump(),
+            "written": restored_sha256 is not None,
+            "transaction": transaction_response_summary(updated),
             "result": {
                 "rolled_back": True,
                 "document_restored": restored_sha256 is not None,
@@ -2437,7 +2808,9 @@ class DipTraceService:
     def list_transactions(self) -> dict[str, Any]:
         return {
             "ok": True,
-            "transactions": [item.model_dump() for item in self.transactions.list()],
+            "transactions": [
+                transaction_response_summary(item) for item in self.transactions.list()
+            ],
         }
 
     def record_roundtrip_evidence(
@@ -5974,6 +6347,11 @@ class DipTraceService:
                     compiled_patch_count=len(combined_operations),
                     snapshot_path=existing.snapshot_path
                     or str(self.transactions.snapshot_path(txid)),
+                    changed_ids=[],
+                    validation_before={},
+                    validation_after_preview={},
+                    preview_resources=[],
+                    preview_metadata={},
                 )
         preview = self.preview_transaction(txid)
         if dry_run:
@@ -6040,11 +6418,15 @@ class DipTraceService:
             "errors_after": after_errors,
             "allow_connectivity_regression": allow_connectivity_regression,
         }
-        diff = unified_xml_diff(before.document.raw_bytes, result.raw_bytes)
+        diff, diff_metadata = unified_xml_diff_preview(
+            before.document.raw_bytes,
+            result.raw_bytes,
+        )
         return {
             "svg": svg,
             "json": preview_json,
             "diff": diff,
+            "diff_metadata": diff_metadata,
             "patch_count": result.patch_count,
             "changed_ids": result.changed_ids,
             "validation_before": {
