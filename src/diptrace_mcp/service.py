@@ -59,6 +59,7 @@ from .errors import (
     CapabilityUnavailableError,
     ConfirmationRequiredError,
     ConnectivityRegressionError,
+    DipTraceMcpError,
     DocumentError,
     DrcRegressionError,
     EditError,
@@ -1388,6 +1389,155 @@ class DipTraceService:
                 code="path_exists",
                 details={"path": str(target)},
             )
+
+    @staticmethod
+    def _read_optional_transaction_file(
+        path: Path,
+        *,
+        txid: str,
+        phase: str,
+    ) -> bytes | None:
+        try:
+            return path.read_bytes()
+        except FileNotFoundError:
+            return None
+        except OSError as exc:
+            raise TransactionConflictError(
+                f"Cannot read transaction-bound file during {phase}: {path}",
+                details={
+                    "phase": phase,
+                    "path": str(path),
+                    "current_sha256": None,
+                },
+                txid=txid,
+            ) from exc
+
+    @classmethod
+    def _require_optional_transaction_file_unchanged(
+        cls,
+        path: Path,
+        expected: bytes | None,
+        *,
+        txid: str,
+        phase: str,
+    ) -> None:
+        current = cls._read_optional_transaction_file(path, txid=txid, phase=phase)
+        if current != expected:
+            raise TransactionConflictError(
+                f"Transaction-bound file changed during {phase}: {path}",
+                details={
+                    "phase": phase,
+                    "path": str(path),
+                    "expected_sha256": (
+                        sha256_bytes(expected) if expected is not None else None
+                    ),
+                    "current_sha256": (
+                        sha256_bytes(current) if current is not None else None
+                    ),
+                },
+                txid=txid,
+            )
+
+    @classmethod
+    def _compensate_transaction_file(
+        cls,
+        path: Path,
+        *,
+        written: bytes,
+        previous: bytes | None,
+        txid: str,
+        phase: str,
+    ) -> None:
+        """Restore pre-call bytes only while this call still owns the current bytes."""
+
+        current = cls._read_optional_transaction_file(path, txid=txid, phase=phase)
+        if current == previous:
+            return
+        if current != written:
+            raise TransactionConflictError(
+                f"Refusing to overwrite unexpected bytes during {phase}: {path}",
+                details={
+                    "phase": phase,
+                    "path": str(path),
+                    "written_sha256": sha256_bytes(written),
+                    "previous_sha256": (
+                        sha256_bytes(previous) if previous is not None else None
+                    ),
+                    "current_sha256": (
+                        sha256_bytes(current) if current is not None else None
+                    ),
+                },
+                txid=txid,
+            )
+        try:
+            if previous is None:
+                path.unlink()
+            else:
+                atomic_write_bytes(path, previous)
+        except OSError as exc:
+            after_error = cls._read_optional_transaction_file(
+                path,
+                txid=txid,
+                phase=phase,
+            )
+            if after_error == previous:
+                return
+            raise TransactionConflictError(
+                f"Cannot restore transaction-bound file during {phase}: {path}",
+                details={
+                    "phase": phase,
+                    "path": str(path),
+                    "written_sha256": sha256_bytes(written),
+                    "previous_sha256": (
+                        sha256_bytes(previous) if previous is not None else None
+                    ),
+                    "current_sha256": (
+                        sha256_bytes(after_error) if after_error is not None else None
+                    ),
+                },
+                txid=txid,
+            ) from exc
+        cls._require_optional_transaction_file_unchanged(
+            path,
+            previous,
+            txid=txid,
+            phase=phase,
+        )
+
+    def _load_transaction_backup_bytes(
+        self,
+        txid: str,
+        *,
+        expected_sha256: str,
+        phase: str,
+    ) -> bytes:
+        backup_path = self.transactions.require_backup(txid)
+        try:
+            backup_bytes = backup_path.read_bytes()
+        except OSError as exc:
+            raise TransactionConflictError(
+                "Transaction backup cannot be read during recovery",
+                details={
+                    "phase": phase,
+                    "path": str(backup_path),
+                    "expected_sha256": expected_sha256,
+                    "current_sha256": None,
+                },
+                txid=txid,
+            ) from exc
+        backup_sha256 = sha256_bytes(backup_bytes)
+        if backup_sha256 != expected_sha256:
+            raise TransactionConflictError(
+                "Transaction backup does not match its source SHA-256",
+                details={
+                    "phase": phase,
+                    "path": str(backup_path),
+                    "expected_sha256": expected_sha256,
+                    "current_sha256": backup_sha256,
+                },
+                txid=txid,
+            )
+        return backup_bytes
 
     def load_document_id(self, document_id: str) -> tuple[DipTraceDocument, DocumentTarget]:
         try:
@@ -2802,7 +2952,8 @@ class DipTraceService:
             live_session=is_live,
         )
         self._require_current_target_sha256(target_path, expected)
-        backup = self.transactions.store_backup(txid, current.raw_bytes)
+        source_bytes = current.raw_bytes
+        backup = self.transactions.store_backup(txid, source_bytes)
         self._require_current_target_sha256(target_path, expected)
         try:
             atomic_write_bytes(target_path, applied.raw_bytes)
@@ -2813,27 +2964,167 @@ class DipTraceService:
                     "Committed XML SHA does not match compiled transaction output",
                     txid=txid,
                 )
+            self._require_current_target_sha256(target_path, committed_sha256)
         except Exception as exc:
-            atomic_write_bytes(target_path, backup.read_bytes())
-            self.transactions.mark_failed(
-                txid,
-                {
-                    "code": getattr(exc, "code", "schema_write_error"),
-                    "message": str(exc),
+            compensation_error: TransactionConflictError | None = None
+            try:
+                recovery_bytes = self._load_transaction_backup_bytes(
+                    txid,
+                    expected_sha256=expected,
+                    phase="commit_compensation",
+                )
+                self._compensate_transaction_file(
+                    target_path,
+                    written=applied.raw_bytes,
+                    previous=recovery_bytes,
+                    txid=txid,
+                    phase="commit_compensation",
+                )
+            except TransactionConflictError as recovery_exc:
+                compensation_error = recovery_exc
+            failure_payload = {
+                "code": getattr(exc, "code", "schema_write_error"),
+                "message": str(exc),
+                "phase": "commit_write",
+                "source_restored": compensation_error is None,
+            }
+            try:
+                failed_record = self.transactions.mark_failed(txid, failure_payload)
+            except Exception as state_exc:
+                try:
+                    latest = self.transactions.read(txid)
+                except DipTraceMcpError as read_exc:
+                    current_bytes = self._read_optional_transaction_file(
+                        target_path,
+                        txid=txid,
+                        phase="commit_failure_state_read",
+                    )
+                    raise TransactionConflictError(
+                        "Commit failed and transaction state is unreadable",
+                        details={
+                            "phase": "commit_failure_state_read",
+                            "source_restored": compensation_error is None,
+                            "current_sha256": (
+                                sha256_bytes(current_bytes)
+                                if current_bytes is not None
+                                else None
+                            ),
+                            "source_sha256": sha256_bytes(source_bytes),
+                            "attempted_sha256": sha256_bytes(applied.raw_bytes),
+                            "state_error": type(state_exc).__name__,
+                            "read_error": type(read_exc).__name__,
+                        },
+                        txid=txid,
+                    ) from state_exc
+                if latest.status != "failed":
+                    current_bytes = self._read_optional_transaction_file(
+                        target_path,
+                        txid=txid,
+                        phase="commit_failure_state",
+                    )
+                    raise TransactionConflictError(
+                        "Commit failed and its failure state could not be persisted",
+                        details={
+                            "phase": "commit_failure_state",
+                            "transaction_status": latest.status,
+                            "source_restored": compensation_error is None,
+                            "current_sha256": (
+                                sha256_bytes(current_bytes)
+                                if current_bytes is not None
+                                else None
+                            ),
+                            "source_sha256": sha256_bytes(source_bytes),
+                            "attempted_sha256": sha256_bytes(applied.raw_bytes),
+                            "state_error": type(state_exc).__name__,
+                        },
+                        txid=txid,
+                    ) from state_exc
+                failed_record = latest
+            if compensation_error is not None:
+                raise compensation_error from exc
+            if isinstance(exc, DipTraceMcpError):
+                raise
+            raise TransactionConflictError(
+                "Transaction commit write failed; authenticated source bytes were restored",
+                details={
+                    "phase": "commit_write",
+                    "transaction_status": failed_record.status,
+                    "source_restored": True,
+                    "current_sha256": sha256_bytes(source_bytes),
+                    "source_sha256": sha256_bytes(source_bytes),
+                    "attempted_sha256": sha256_bytes(applied.raw_bytes),
+                    "write_error": type(exc).__name__,
                 },
+                txid=txid,
+            ) from exc
+        try:
+            updated = self.transactions.mark_committed(
+                txid,
+                committed_sha256=committed_sha256,
+                changed_ids=applied.changed_ids,
+                compiled_patch_count=applied.patch_count,
+                preview_resources=tx_preview_resources(txid),
+                backup_path=backup,
             )
-            raise
+        except Exception as state_exc:
+            try:
+                latest = self.transactions.read(txid)
+            except DipTraceMcpError as read_exc:
+                current_bytes = self._read_optional_transaction_file(
+                    target_path,
+                    txid=txid,
+                    phase="commit_state_read",
+                )
+                raise TransactionConflictError(
+                    "Commit state write failed and transaction state is unreadable",
+                    details={
+                        "phase": "commit_state_read",
+                        "current_sha256": (
+                            sha256_bytes(current_bytes)
+                            if current_bytes is not None
+                            else None
+                        ),
+                        "source_sha256": sha256_bytes(source_bytes),
+                        "attempted_sha256": committed_sha256,
+                        "state_error": type(state_exc).__name__,
+                        "read_error": type(read_exc).__name__,
+                    },
+                    txid=txid,
+                ) from state_exc
+            if (
+                latest.status == "committed"
+                and latest.committed_sha256 == committed_sha256
+            ):
+                updated = latest
+            else:
+                recovery_bytes = self._load_transaction_backup_bytes(
+                    txid,
+                    expected_sha256=expected,
+                    phase="commit_state_compensation",
+                )
+                self._compensate_transaction_file(
+                    target_path,
+                    written=applied.raw_bytes,
+                    previous=recovery_bytes,
+                    txid=txid,
+                    phase="commit_state_compensation",
+                )
+                raise TransactionConflictError(
+                    "Commit state was not persisted; authenticated source bytes were restored",
+                    details={
+                        "phase": "commit_state_write",
+                        "transaction_status": latest.status,
+                        "source_restored": True,
+                        "current_sha256": sha256_bytes(source_bytes),
+                        "source_sha256": sha256_bytes(source_bytes),
+                        "attempted_sha256": committed_sha256,
+                        "state_error": type(state_exc).__name__,
+                    },
+                    txid=txid,
+                ) from state_exc
         session_id = self._session_id_from_working(target_path)
         if session_id is not None:
             self.sessions.record_edit(session_id, committed_sha256, backup)
-        updated = self.transactions.mark_committed(
-            txid,
-            committed_sha256=committed_sha256,
-            changed_ids=applied.changed_ids,
-            compiled_patch_count=applied.patch_count,
-            preview_resources=tx_preview_resources(txid),
-            backup_path=backup,
-        )
         # Invalidate trust after MCP modification
         self.invalidate_document_trust_after_write(
             target_path, committed_sha256, operation_name="mcp_transaction_commit"
@@ -2855,6 +3146,127 @@ class DipTraceService:
             "resources": tx_preview_resources(txid),
         }
 
+    @staticmethod
+    def _synthetic_rollback_provenance_bytes(
+        restored_sha256: str,
+        *,
+        provenance: str,
+    ) -> bytes:
+        sidecar = DocumentProvenance(
+            provenance=provenance,
+            validation_level=FixtureValidationLevel.synthetic_operation_fixture,
+            current_document_sha256=restored_sha256,
+            last_modified_by="mcp_rollback_transaction",
+        )
+        return sidecar.model_dump_json(indent=2).encode()
+
+    def _prepare_rollback_provenance_bytes(
+        self,
+        record: TransactionRecord,
+        target_path: Path,
+        restored_sha256: str,
+    ) -> bytes:
+        if not record.provenance_backup_sha256:
+            return self._synthetic_rollback_provenance_bytes(
+                restored_sha256,
+                provenance="mcp_rollback_no_backup",
+            )
+        try:
+            provenance_backup = self.transactions.require_provenance_backup(record.txid)
+        except TransactionConflictError:
+            return self._synthetic_rollback_provenance_bytes(
+                restored_sha256,
+                provenance="mcp_rollback_no_backup",
+            )
+        try:
+            provenance_bytes = provenance_backup.read_bytes()
+            if sha256_bytes(provenance_bytes) != record.provenance_backup_sha256:
+                raise ValueError("provenance backup SHA mismatch")
+            restored_sidecar = DocumentProvenance.model_validate_json(provenance_bytes)
+            if restored_sidecar.current_document_sha256 != restored_sha256:
+                raise ValueError("restored provenance document SHA mismatch")
+            if restored_sidecar.authority == ProvenanceAuthority.user_supplied_evidence:
+                self._load_and_validate_evidence_manifest(target_path, restored_sidecar)
+            if (
+                restored_sidecar.authority == ProvenanceAuthority.fixture_manifest
+                and restored_sidecar.validation_level in _HIGH_TRUST_LEVELS
+            ):
+                raise ValueError("unauthenticated fixture high trust cannot be restored")
+            return provenance_bytes
+        except (OSError, json.JSONDecodeError, ValueError, EditError):
+            return self._synthetic_rollback_provenance_bytes(
+                restored_sha256,
+                provenance="mcp_rollback_synthetic",
+            )
+
+    @staticmethod
+    def _transaction_file_sha256(path: Path) -> str | None:
+        try:
+            return sha256_bytes(path.read_bytes())
+        except OSError:
+            return None
+
+    def _compensate_rollback_files(
+        self,
+        *,
+        txid: str,
+        target_path: Path,
+        restored_document_bytes: bytes,
+        committed_document_bytes: bytes,
+        sidecar_path: Path,
+        restored_sidecar_bytes: bytes,
+        committed_sidecar_bytes: bytes | None,
+        cause: Exception,
+        phase: str,
+    ) -> None:
+        failures: list[dict[str, Any]] = []
+        for path, written, previous, file_phase in (
+            (
+                sidecar_path,
+                restored_sidecar_bytes,
+                committed_sidecar_bytes,
+                "rollback_sidecar_compensation",
+            ),
+            (
+                target_path,
+                restored_document_bytes,
+                committed_document_bytes,
+                "rollback_design_compensation",
+            ),
+        ):
+            try:
+                self._compensate_transaction_file(
+                    path,
+                    written=written,
+                    previous=previous,
+                    txid=txid,
+                    phase=file_phase,
+                )
+            except TransactionConflictError as exc:
+                failures.append(exc.payload.as_dict())
+        details = {
+            "phase": phase,
+            "compensated": not failures,
+            "cause_type": type(cause).__name__,
+            "cause_code": getattr(cause, "code", None),
+            "current_sha256": self._transaction_file_sha256(target_path),
+            "current_sidecar_sha256": self._transaction_file_sha256(sidecar_path),
+            "committed_sha256": sha256_bytes(committed_document_bytes),
+            "restored_sha256": sha256_bytes(restored_document_bytes),
+            "compensation_failures": failures,
+        }
+        if failures:
+            raise TransactionConflictError(
+                "Rollback failed and unexpected external bytes blocked compensation",
+                details=details,
+                txid=txid,
+            ) from cause
+        raise TransactionConflictError(
+            "Rollback failed; the exact pre-call document and provenance were restored",
+            details=details,
+            txid=txid,
+        ) from cause
+
     def rollback_transaction(
         self,
         txid: str,
@@ -2865,6 +3277,12 @@ class DipTraceService:
         if record.status == "rolled_back":
             raise TransactionConflictError("Transaction is already rolled back", txid=txid)
         restored_sha256: str | None = None
+        target_path: Path | None = None
+        committed_document_bytes: bytes | None = None
+        restored_document_bytes: bytes | None = None
+        sidecar_path: Path | None = None
+        committed_sidecar_bytes: bytes | None = None
+        restored_sidecar_bytes: bytes | None = None
         if record.status == "committed":
             if expected_sha256 is None:
                 raise ConfirmationRequiredError(
@@ -2883,82 +3301,121 @@ class DipTraceService:
                     },
                     txid=txid,
                 )
-            backup_path = self.transactions.require_backup(txid)
-            backup_bytes = backup_path.read_bytes()
-            backup_sha256 = sha256_bytes(backup_bytes)
-            if backup_sha256 != record.source_sha256:
+            restored_document_bytes = self._load_transaction_backup_bytes(
+                txid,
+                expected_sha256=record.source_sha256,
+                phase="rollback_prepare",
+            )
+            DipTraceDocument.from_bytes(target_path, restored_document_bytes)
+            restored_sha256 = sha256_bytes(restored_document_bytes)
+            committed_document_bytes = current.raw_bytes
+            sidecar_path = target_path.with_suffix(target_path.suffix + ".provenance.json")
+            committed_sidecar_bytes = self._read_optional_transaction_file(
+                sidecar_path,
+                txid=txid,
+                phase="rollback_prepare",
+            )
+            restored_sidecar_bytes = self._prepare_rollback_provenance_bytes(
+                record,
+                target_path,
+                restored_sha256,
+            )
+            try:
+                self._require_current_target_sha256(target_path, expected_sha256)
+                self._require_optional_transaction_file_unchanged(
+                    sidecar_path,
+                    committed_sidecar_bytes,
+                    txid=txid,
+                    phase="rollback_prewrite",
+                )
+                atomic_write_bytes(target_path, restored_document_bytes)
+                self._require_current_target_sha256(target_path, restored_sha256)
+                self._require_optional_transaction_file_unchanged(
+                    sidecar_path,
+                    committed_sidecar_bytes,
+                    txid=txid,
+                    phase="rollback_sidecar_prewrite",
+                )
+                atomic_write_bytes(sidecar_path, restored_sidecar_bytes)
+                self._require_optional_transaction_file_unchanged(
+                    sidecar_path,
+                    restored_sidecar_bytes,
+                    txid=txid,
+                    phase="rollback_sidecar_verify",
+                )
+            except Exception as exc:
+                self._compensate_rollback_files(
+                    txid=txid,
+                    target_path=target_path,
+                    restored_document_bytes=restored_document_bytes,
+                    committed_document_bytes=committed_document_bytes,
+                    sidecar_path=sidecar_path,
+                    restored_sidecar_bytes=restored_sidecar_bytes,
+                    committed_sidecar_bytes=committed_sidecar_bytes,
+                    cause=exc,
+                    phase="rollback_apply",
+                )
+        try:
+            updated = self.transactions.mark_rolled_back(
+                txid,
+                rolled_back_sha256=restored_sha256,
+                reason="explicit rollback",
+            )
+        except Exception as state_exc:
+            try:
+                latest = self.transactions.read(txid)
+            except DipTraceMcpError as read_exc:
                 raise TransactionConflictError(
-                    "Transaction backup does not match its source SHA-256",
+                    "Rollback state write failed and transaction state is unreadable",
                     details={
-                        "expected_sha256": record.source_sha256,
-                        "backup_sha256": backup_sha256,
+                        "phase": "rollback_state_read",
+                        "current_sha256": (
+                            self._transaction_file_sha256(target_path)
+                            if target_path is not None
+                            else None
+                        ),
+                        "current_sidecar_sha256": (
+                            self._transaction_file_sha256(sidecar_path)
+                            if sidecar_path is not None
+                            else None
+                        ),
+                        "state_error": type(state_exc).__name__,
+                        "read_error": type(read_exc).__name__,
                     },
                     txid=txid,
+                ) from state_exc
+            if latest.status == "rolled_back":
+                updated = latest
+            elif (
+                target_path is not None
+                and committed_document_bytes is not None
+                and restored_document_bytes is not None
+                and sidecar_path is not None
+                and restored_sidecar_bytes is not None
+            ):
+                self._compensate_rollback_files(
+                    txid=txid,
+                    target_path=target_path,
+                    restored_document_bytes=restored_document_bytes,
+                    committed_document_bytes=committed_document_bytes,
+                    sidecar_path=sidecar_path,
+                    restored_sidecar_bytes=restored_sidecar_bytes,
+                    committed_sidecar_bytes=committed_sidecar_bytes,
+                    cause=state_exc,
+                    phase="rollback_state_write",
                 )
-            DipTraceDocument.from_bytes(target_path, backup_bytes)
-            self._require_current_target_sha256(target_path, expected_sha256)
-            atomic_write_bytes(target_path, backup_bytes)
-            restored_sha256 = backup_sha256
-            # Section #6: Restore provenance sidecar from backup
-            sidecar_path = target_path.with_suffix(target_path.suffix + ".provenance.json")
-            if record.provenance_backup_sha256:
-                try:
-                    prov_backup = self.transactions.require_provenance_backup(txid)
-                    try:
-                        prov_bytes = prov_backup.read_bytes()
-                        # Verify provenance backup SHA if recorded
-                        if (
-                            record.provenance_backup_sha256
-                            and sha256_bytes(prov_bytes) != record.provenance_backup_sha256
-                        ):
-                            raise ValueError("provenance backup SHA mismatch")
-                        # Validate schema, document binding, and any referenced
-                        # evidence before restoring provenance atomically.
-                        restored_sidecar = DocumentProvenance.model_validate_json(prov_bytes)
-                        if restored_sidecar.current_document_sha256 != restored_sha256:
-                            raise ValueError("restored provenance document SHA mismatch")
-                        if restored_sidecar.authority == ProvenanceAuthority.user_supplied_evidence:
-                            self._load_and_validate_evidence_manifest(target_path, restored_sidecar)
-                        if (
-                            restored_sidecar.authority == ProvenanceAuthority.fixture_manifest
-                            and restored_sidecar.validation_level in _HIGH_TRUST_LEVELS
-                        ):
-                            raise ValueError(
-                                "unauthenticated fixture high trust cannot be restored"
-                            )
-                        atomic_write_bytes(sidecar_path, prov_bytes)
-                    except (OSError, json.JSONDecodeError, ValueError, EditError):
-                        # Corrupt or unauthenticated backup → create synthetic fallback
-                        sidecar = DocumentProvenance(
-                            provenance="mcp_rollback_synthetic",
-                            validation_level=FixtureValidationLevel.synthetic_operation_fixture,
-                            current_document_sha256=restored_sha256,
-                            last_modified_by="mcp_rollback_transaction",
-                        )
-                        self._write_provenance_sidecar(target_path, sidecar)
-                except TransactionConflictError:
-                    # Backup file missing → create synthetic fallback
-                    sidecar = DocumentProvenance(
-                        provenance="mcp_rollback_no_backup",
-                        validation_level=FixtureValidationLevel.synthetic_operation_fixture,
-                        current_document_sha256=restored_sha256,
-                        last_modified_by="mcp_rollback_transaction",
-                    )
-                    self._write_provenance_sidecar(target_path, sidecar)
             else:
-                # No provenance backup existed → create synthetic fallback
-                sidecar = DocumentProvenance(
-                    provenance="mcp_rollback_no_backup",
-                    validation_level=FixtureValidationLevel.synthetic_operation_fixture,
-                    current_document_sha256=restored_sha256,
-                    last_modified_by="mcp_rollback_transaction",
-                )
-                self._write_provenance_sidecar(target_path, sidecar)
-        updated = self.transactions.mark_rolled_back(
-            txid,
-            rolled_back_sha256=restored_sha256,
-            reason="explicit rollback",
-        )
+                raise TransactionConflictError(
+                    "Rollback state was not persisted",
+                    details={
+                        "phase": "rollback_state_write",
+                        "transaction_status": latest.status,
+                        "current_sha256": None,
+                        "current_sidecar_sha256": None,
+                        "state_error": type(state_exc).__name__,
+                    },
+                    txid=txid,
+                ) from state_exc
         return {
             "ok": True,
             "written": restored_sha256 is not None,
