@@ -149,6 +149,16 @@ bridge, invoke an external executable, or introduce impedance/fabrication
 thresholds. The measured scope and remaining evidence boundary are documented
 in [TESTING.md](TESTING.md).
 
+### Live-session concurrency checkpoint — 2026-07-28
+
+Session creation, finish requests, and finalization now share a state-root lock
+across threads and processes. Concurrent creators produce exactly one active
+session; concurrent finalizers produce one terminal transition; and a
+request/finalize race leaves canonical JSON state with no stale active or control
+marker. The lock file is validated as a regular, non-redirected file before use.
+Spawned-process and thread-barrier regressions exercise the maintained behavior
+without starting DipTrace.
+
 Current practical classification:
 
 | Area | Status | Main remaining gap |

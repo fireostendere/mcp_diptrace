@@ -84,6 +84,8 @@ The maintained suite covers:
 - preservation of unknown XML and raw bytes outside targeted semantic/raw patch regions;
 - byte-exact BOM/XML declaration/CRLF/empty-tag preservation where required;
 - transaction state, SHA preview/commit/rollback, policy, backups, and atomic writes;
+- thread- and spawned-process serialization of the single-active-session invariant,
+  finish requests, and finalization;
 - fail-closed authority tests for self-minted manifests, path/hardlink/symlink aliases, source-type/SHA binding, incomplete semantic comparisons, and rollback with corrupt evidence;
 - PCB semantic comparison of components, pads, nets, trace coordinates/order, widths, segment layers, endpoints, via styles/spans, locks, and differential-pair membership;
 - schematic semantic comparison of sheets/hierarchy, parts, values/patterns, pins, pin-to-net connectivity, wire geometry, labels, and buses;

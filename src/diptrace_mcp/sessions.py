@@ -3,8 +3,12 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
+import threading
 import time
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -41,6 +45,91 @@ SessionAction = Literal["apply", "cancel"]
 
 _JSON_READ_ATTEMPTS = 8
 _JSON_READ_RETRY_SECONDS = 0.025
+_SESSION_THREAD_LOCKS: dict[str, threading.RLock] = {}
+_SESSION_THREAD_LOCKS_GUARD = threading.Lock()
+
+
+def _thread_lock_for(path: Path) -> threading.RLock:
+    key = os.path.normcase(os.path.abspath(path))
+    with _SESSION_THREAD_LOCKS_GUARD:
+        return _SESSION_THREAD_LOCKS.setdefault(key, threading.RLock())
+
+
+def _lock_file_descriptor(file_descriptor: int) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        if os.fstat(file_descriptor).st_size == 0:
+            os.write(file_descriptor, b"\0")
+        os.lseek(file_descriptor, 0, os.SEEK_SET)
+        msvcrt.locking(  # type: ignore[attr-defined]
+            file_descriptor,
+            msvcrt.LK_LOCK,  # type: ignore[attr-defined]
+            1,
+        )
+        return
+
+    import fcntl
+
+    fcntl.flock(file_descriptor, fcntl.LOCK_EX)
+
+
+def _unlock_file_descriptor(file_descriptor: int) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        os.lseek(file_descriptor, 0, os.SEEK_SET)
+        msvcrt.locking(  # type: ignore[attr-defined]
+            file_descriptor,
+            msvcrt.LK_UNLCK,  # type: ignore[attr-defined]
+            1,
+        )
+        return
+
+    import fcntl
+
+    fcntl.flock(file_descriptor, fcntl.LOCK_UN)
+
+
+@contextmanager
+def _exclusive_session_lock(path: Path) -> Iterator[None]:
+    """Serialize session lifecycle mutations across threads and processes."""
+
+    thread_lock = _thread_lock_for(path)
+    with thread_lock:
+        if is_link_like(path):
+            raise SessionError("Session lock path is redirected")
+        flags = os.O_CREAT | os.O_RDWR
+        flags |= getattr(os, "O_NOFOLLOW", 0)
+        try:
+            file_descriptor = os.open(path, flags, 0o600)
+        except OSError as exc:
+            raise SessionError("Cannot open the session state lock") from exc
+        try:
+            try:
+                descriptor_stat = os.fstat(file_descriptor)
+                path_stat = path.stat(follow_symlinks=False)
+            except OSError as exc:
+                raise SessionError("Cannot validate the session state lock") from exc
+            if (
+                not stat.S_ISREG(descriptor_stat.st_mode)
+                or stat.S_ISLNK(path_stat.st_mode)
+                or descriptor_stat.st_nlink != 1
+                or path_stat.st_nlink != 1
+                or (descriptor_stat.st_dev, descriptor_stat.st_ino)
+                != (path_stat.st_dev, path_stat.st_ino)
+            ):
+                raise SessionError("Session lock path is redirected")
+            try:
+                _lock_file_descriptor(file_descriptor)
+            except OSError as exc:
+                raise SessionError("Cannot acquire the session state lock") from exc
+            try:
+                yield
+            finally:
+                _unlock_file_descriptor(file_descriptor)
+        finally:
+            os.close(file_descriptor)
 
 
 def _atomic_write_json(path: Path, value: dict[str, Any]) -> None:
@@ -77,6 +166,7 @@ class SessionStore:
         self.state_dir = state_dir
         self.sessions_dir = state_dir / "sessions"
         self.active_file = state_dir / "active.json"
+        self.lock_file = state_dir / "session.lock"
         self.max_document_bytes = max_document_bytes
         self.retention = retention or RetentionPolicy()
         self.clock = clock
@@ -279,6 +369,10 @@ class SessionStore:
         return metadata
 
     def create(self, exchange_path: Path) -> dict[str, Any]:
+        with _exclusive_session_lock(self.lock_file):
+            return self._create_unlocked(exchange_path)
+
+    def _create_unlocked(self, exchange_path: Path) -> dict[str, Any]:
         current = self.active_metadata()
         if current is not None:
             raise SessionError(
@@ -324,6 +418,10 @@ class SessionStore:
         )
 
     def request_finish(self, action: SessionAction) -> dict[str, Any]:
+        with _exclusive_session_lock(self.lock_file):
+            return self._request_finish_unlocked(action)
+
+    def _request_finish_unlocked(self, action: SessionAction) -> dict[str, Any]:
         metadata = self.active_metadata()
         if metadata is None:
             raise SessionError("There is no active DipTrace session")
@@ -363,6 +461,15 @@ class SessionStore:
         session_id: str,
         action: SessionAction,
         expected_sha256: str | None = None,
+    ) -> dict[str, Any]:
+        with _exclusive_session_lock(self.lock_file):
+            return self._finalize_unlocked(session_id, action, expected_sha256)
+
+    def _finalize_unlocked(
+        self,
+        session_id: str,
+        action: SessionAction,
+        expected_sha256: str | None,
     ) -> dict[str, Any]:
         metadata = self.read_metadata(session_id)
         if metadata.get("status") != "active":
