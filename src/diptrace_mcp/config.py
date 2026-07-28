@@ -22,6 +22,7 @@ _WSL_USER_PATH = re.compile(
 PolicyProfile = Literal[
     "read_only", "review", "interactive_edit", "automation", "manufacturing"
 ]
+DEFAULT_MODEL_CACHE_MAX_BYTES = 256 * 1024 * 1024
 _POLICY_PROFILES = {
     "read_only",
     "review",
@@ -116,6 +117,7 @@ class Settings:
     allowed_roots: tuple[Path, ...]
     state_dir: Path
     max_document_bytes: int = 128 * 1024 * 1024
+    model_cache_max_bytes: int = DEFAULT_MODEL_CACHE_MAX_BYTES
     max_scan_files: int = 500
     freerouting_executable: Path | None = None
     java_executable: Path | None = None
@@ -167,6 +169,10 @@ class Settings:
             state_dir=_default_state_dir(workspace),
             max_document_bytes=_positive_int(
                 "DIPTRACE_MCP_MAX_DOCUMENT_BYTES", 128 * 1024 * 1024
+            ),
+            model_cache_max_bytes=_positive_int(
+                "DIPTRACE_MCP_MODEL_CACHE_MAX_BYTES",
+                DEFAULT_MODEL_CACHE_MAX_BYTES,
             ),
             max_scan_files=_positive_int("DIPTRACE_MCP_MAX_SCAN_FILES", 500),
             freerouting_executable=freerouting,
@@ -224,6 +230,7 @@ class Settings:
             "allowed_roots": [str(root) for root in self.allowed_roots],
             "state_dir": str(self.state_dir),
             "max_document_bytes": self.max_document_bytes,
+            "model_cache_max_bytes": self.model_cache_max_bytes,
             "max_scan_files": self.max_scan_files,
             "freerouting_executable": (
                 str(self.freerouting_executable) if self.freerouting_executable else None

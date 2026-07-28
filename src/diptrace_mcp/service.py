@@ -690,7 +690,7 @@ class DipTraceService:
         )
         self.backups = BackupStore(settings.state_dir, retention=retention)
         self.external_jobs = ExternalJobManager(settings, self.jobs)
-        self.models = ModelCache()
+        self.models = ModelCache(max_bytes=settings.model_cache_max_bytes)
         self._document_targets: dict[str, DocumentTarget] = {}
         self._workflow_prompt_names: tuple[str, ...] = ()
 
@@ -1101,12 +1101,14 @@ class DipTraceService:
                 "working_path": str(working),
                 "working_sha256": sha256_bytes(working.read_bytes()),
             }
+        capabilities = self.get_capabilities()
         return {
             "server": "diptrace-mcp",
             "version": __version__,
             "configuration": self.settings.as_dict(),
             "active_session": active,
-            "capabilities": self.get_capabilities(),
+            "model_cache": self.models.stats(),
+            "capabilities": capabilities,
         }
 
     def get_capabilities(self, path: str | None = None) -> dict[str, Any]:
@@ -1163,6 +1165,7 @@ class DipTraceService:
         openems_probe = self.external_jobs.openems.probe()
         report["external_adapters"]["openems"] = openems_probe.as_dict()
         report["limits"]["max_document_bytes"] = self.settings.max_document_bytes
+        report["limits"]["max_model_cache_bytes"] = self.settings.model_cache_max_bytes
         report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
         report["limits"]["max_external_processes"] = self.settings.max_external_processes
         report["limits"]["max_external_result_bytes"] = self.settings.max_external_result_bytes

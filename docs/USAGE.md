@@ -621,6 +621,7 @@ Deleting or replacing the `<Source>` root is prohibited.
 | `DIPTRACE_MCP_STATE_DIR` | `%LOCALAPPDATA%\DipTraceMCP` on Windows | Shared live-session directory |
 | `DIPTRACE_MCP_POLICY` | project default | `read_only`, `review`, `interactive_edit`, `automation`, or `manufacturing` |
 | `DIPTRACE_MCP_MAX_DOCUMENT_BYTES` | `134217728` | Maximum size of one XML document |
+| `DIPTRACE_MCP_MODEL_CACHE_MAX_BYTES` | `268435456` | Conservative retained-payload budget for normalized model snapshots |
 | `DIPTRACE_MCP_MAX_SCAN_FILES` | `500` | Maximum number of scan candidates |
 | `DIPTRACE_MCP_SESSION_TIMEOUT` | `7200` | Bridge timeout in seconds |
 | `DIPTRACE_MCP_TRANSPORT` | `stdio` | `stdio` or `streamable-http` |

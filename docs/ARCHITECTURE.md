@@ -60,6 +60,16 @@ them.
 
 Unknown sections remain accessible through `read_xml_fragment`.
 
+### Normalized Model Cache
+
+`src/diptrace_mcp/model_cache.py` retains recently built normalized snapshots by
+resolved path, source SHA-256, and live-session state. LRU eviction enforces both an
+entry count and `DIPTRACE_MCP_MODEL_CACHE_MAX_BYTES`. The byte total is a recursive
+`sys.getsizeof` estimate over the retained source bytes, XML tree, indexes, and
+normalized models; it is an operational cache budget, not an exact process-RSS
+measurement. A single snapshot above the budget is returned to its caller but is not
+cached.
+
 ### Scaffolding
 
 `src/diptrace_mcp/scaffolding.py` generates brand-new schematic and PCB documents from

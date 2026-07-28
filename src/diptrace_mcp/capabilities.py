@@ -194,6 +194,7 @@ def capability_report(
         preview_formats=["svg", "json", "diff"],
         limits={
             "max_document_bytes": None,
+            "max_model_cache_bytes": None,
             "max_external_log_bytes": None,
             "max_external_processes": None,
             "max_external_result_bytes": None,
