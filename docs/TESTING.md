@@ -244,8 +244,9 @@ can validate a real capture when given explicit `--capture-root`, `--candidate`,
 `--destination-root`, and `--fixture-id` arguments. It rechecks manifest and
 detached hashes, contained artifact paths, byte hashes, XML inventories, source
 type, redistribution permission, and prospective destination conflicts.
-`--apply` remains a typed refusal and `validation_level_granted` remains null
-until a separately reviewed authenticated registry exists.
+The embedded registry is checked and currently contains zero reviewed entries.
+`--apply` remains a typed refusal because fixture mutation is not implemented,
+and `validation_level_granted` remains null.
 
 ## Benchmarks
 

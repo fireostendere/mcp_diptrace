@@ -265,7 +265,6 @@ class TrustedProvenanceRegistry:
                 for entry in self._registry.entries
             ],
             "every_entry_requires_human_review": True,
-            "first_entry_pending_human_review": self.entry_count == 0,
         }
 
     def authorize(

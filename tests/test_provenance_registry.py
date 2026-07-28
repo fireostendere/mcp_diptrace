@@ -99,7 +99,6 @@ def test_embedded_registry_is_packaged_canonical_and_empty() -> None:
     assert registry.entry_count == 0
     assert registry.report()["high_trust_currently_available"] is False
     assert registry.report()["every_entry_requires_human_review"] is True
-    assert registry.report()["first_entry_pending_human_review"] is True
     assert TrustedProvenanceRegistry.from_bytes(
         raw,
         source_label="packaged-test",
