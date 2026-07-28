@@ -952,18 +952,30 @@ def _serialize_new_element(element: ET.Element, encoding: str) -> bytes:
 
 
 def _semantic_tree(element: ET.Element) -> tuple[object, ...]:
-    text = element.text
-    normalized_text = None if text is None or not text.strip() else text
-    tail = element.tail
-    normalized_tail = None if tail is None or not tail.strip() else tail
-    tag = element.tag if isinstance(element.tag, str) else "#comment"
-    return (
-        tag,
-        tuple(sorted(element.attrib.items())),
-        normalized_text,
-        normalized_tail,
-        tuple(_semantic_tree(child) for child in element),
-    )
+    """Build the semantic comparison value without depending on Python recursion."""
+
+    pending: list[tuple[ET.Element, bool]] = [(element, False)]
+    rendered: dict[int, tuple[object, ...]] = {}
+    while pending:
+        current, children_ready = pending.pop()
+        if not children_ready:
+            pending.append((current, True))
+            pending.extend((child, False) for child in reversed(current))
+            continue
+
+        text = current.text
+        normalized_text = None if text is None or not text.strip() else text
+        tail = current.tail
+        normalized_tail = None if tail is None or not tail.strip() else tail
+        tag = current.tag if isinstance(current.tag, str) else "#comment"
+        rendered[id(current)] = (
+            tag,
+            tuple(sorted(current.attrib.items())),
+            normalized_text,
+            normalized_tail,
+            tuple(rendered[id(child)] for child in current),
+        )
+    return rendered[id(element)]
 
 
 def _escape_xml_text(value: str, encoding: str) -> bytes:

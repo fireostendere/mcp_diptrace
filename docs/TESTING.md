@@ -65,6 +65,9 @@ goal of at least 88% total coverage is not yet met.
 The maintained suite covers:
 
 - secure XML parsing, units, stable IDs, transforms, mirroring, arcs, bounding boxes, and spatial indexing;
+- a generated synthetic adversarial XML corpus plus Hypothesis properties for
+  typed DTD/entity/encoding refusal, deep-tree edit safety, XML 1.0 character
+  rejection, and byte-exact raw-patch locality;
 - normalized PCB, schematic, Component Library, and Pattern Library models;
 - preservation of unknown XML and raw bytes outside targeted semantic/raw patch regions;
 - byte-exact BOM/XML declaration/CRLF/empty-tag preservation where required;
