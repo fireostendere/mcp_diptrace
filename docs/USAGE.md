@@ -178,6 +178,14 @@ Remove the plug-in:
 
 Restart DipTrace and verify `Tools → Plugins → DipTrace MCP Bridge`.
 
+When the target is under `Program Files`, the installer now verifies that the
+PowerShell process is elevated before it creates or removes any plug-in folder.
+After every install it re-reads the bridge and `settings.xml`, compares their
+SHA-256 hashes with the selected source files, and reparses the installed
+settings. A failed copy therefore stops with an error instead of printing a
+successful installation message. A custom writable installation outside the
+protected `Program Files` roots does not require elevation.
+
 The official DipTrace plug-in contract launches the configured executable with the
 path to a temporary `plugin_exchange.xml` file. DipTrace waits for the process to exit
 and then imports the same file.

@@ -1,4 +1,6 @@
 import os
+import shutil
+import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -47,6 +49,50 @@ def test_installer_prefers_current_diptrace_directory() -> None:
     assert modes in script
     assert '"Plugins\\CompEdit\\DipTraceMCP"' in script
     assert '"Plugins\\PattEdit\\DipTraceMCP"' in script
+    assert "Test-IsElevated" in script
+    assert "Administrator elevation is required" in script
+    assert "Assert-CopiedFile" in script
+    assert "Get-FileHash -LiteralPath" in script
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native PowerShell installer execution")
+def test_installer_copies_and_hash_verifies_files_on_windows(tmp_path: Path) -> None:
+    root = Path(__file__).parents[1]
+    script = root / "plugin" / "install_plugin.ps1"
+    bridge = tmp_path / "bridge.exe"
+    diptrace_dir = tmp_path / "DipTrace5"
+    bridge.write_bytes(b"synthetic bridge executable for installer verification")
+    diptrace_dir.mkdir()
+    powershell = shutil.which("powershell.exe") or shutil.which("powershell")
+    assert powershell is not None
+
+    completed = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script),
+            "-DipTraceDir",
+            str(diptrace_dir),
+            "-Mode",
+            "PCB",
+            "-BridgeExe",
+            str(bridge),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    installed = diptrace_dir / "Plugins" / "Pcb" / "DipTraceMCP"
+    assert (installed / "diptrace_mcp_bridge.exe").read_bytes() == bridge.read_bytes()
+    assert (installed / "settings.xml").read_bytes() == (
+        root / "plugin" / "settings" / "pcb.settings.xml"
+    ).read_bytes()
+    ET.parse(installed / "settings.xml")
 
 
 @pytest.mark.skipif(os.name == "nt", reason="WSL path mapping is POSIX-only")
