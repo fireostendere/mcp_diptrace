@@ -17,6 +17,7 @@ The router uses bounded deterministic eight-neighbor A*:
 - layer-aware state `(x, y, layer, direction, via_count)`;
 - bend, via, and detour costs;
 - swept-segment obstacle expansion;
+- layer-local `SpatialIndex` candidate queries before exact segment and via checks;
 - different-net copper-pour boundary obstacles on the active layer, with same-net
   exemption;
 - explicit preferred, start, and end layers, via style, and maximum-via budget;
@@ -24,6 +25,15 @@ The router uses bounded deterministic eight-neighbor A*:
 - node, time, and detour budgets;
 - deterministic simplification;
 - sequential planning for small nets against an updated snapshot.
+
+Physical pad anchors for a single-net route do not need to coincide with the search
+grid. For each off-grid anchor, the router considers only the four surrounding grid
+nodes and the two orthogonal access paths to each node. It rejects access paths that
+leave the board or intersect an expanded obstacle, then includes the surviving access
+lengths in the bounded A* search. The emitted trace begins and ends at the exact
+normalized pad coordinates; the grid is not used to move or reinterpret a pad. The
+coupled differential-pair centerline still requires on-grid center anchors because
+arbitrary uncoupled pair escapes are not implemented.
 
 Route `clearance` is an explicit override. When omitted, the router reads
 `DRC/LayClearances/LayClearance/@TraceToTrace` for every requested routing layer and

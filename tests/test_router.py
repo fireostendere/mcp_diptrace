@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import diptrace_mcp.routing as routing_module
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.capabilities import get_capabilities
 from diptrace_mcp.config import Settings
@@ -43,6 +44,83 @@ def _document_with_keepout() -> DipTraceDocument:
     )
     points = ET.SubElement(keepout, "Points")
     for x, y in ((14, 8), (16, 8), (16, 10), (14, 10)):
+        ET.SubElement(points, "Point", {"X": str(x), "Y": str(y)})
+    return DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+
+def _document_with_far_keepouts(count: int = 100) -> DipTraceDocument:
+    original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    shapes = root.find("./Board/Shapes")
+    assert shapes is not None
+    for index in range(count):
+        x = 0.25 + (index % 50)
+        y = 24.0 + (index // 50)
+        keepout = ET.SubElement(
+            shapes,
+            "Shape",
+            {
+                "Id": str(index + 10),
+                "Type": "Polygon",
+                "Layer": "Route Keepout",
+                "Locked": "N",
+                "Selected": "N",
+            },
+        )
+        points = ET.SubElement(keepout, "Points")
+        for point_x, point_y in (
+            (x, y),
+            (x + 0.2, y),
+            (x + 0.2, y + 0.2),
+            (x, y + 0.2),
+        ):
+            ET.SubElement(
+                points,
+                "Point",
+                {"X": str(point_x), "Y": str(point_y)},
+            )
+    return DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+
+def _document_with_off_grid_ratline() -> DipTraceDocument:
+    original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    ratline = root.find("./Board/Ratlines/Ratline[@Id='0']")
+    assert ratline is not None
+    ratline.set("X1", "10.1")
+    ratline.set("Y1", "9.2")
+    ratline.set("X2", "20.3")
+    ratline.set("Y2", "9.1")
+    return DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+
+def _document_with_blocked_off_grid_ratline() -> DipTraceDocument:
+    original = _document_with_off_grid_ratline()
+    root = ET.fromstring(original.raw_bytes)
+    shapes = root.find("./Board/Shapes")
+    assert shapes is not None
+    keepout = ET.SubElement(
+        shapes,
+        "Shape",
+        {
+            "Id": "2",
+            "Type": "Polygon",
+            "Layer": "Route Keepout",
+            "Locked": "N",
+            "Selected": "N",
+        },
+    )
+    points = ET.SubElement(keepout, "Points")
+    for x, y in ((9.6, 8.6), (10.6, 8.6), (10.6, 9.6), (9.6, 9.6)):
         ET.SubElement(points, "Point", {"X": str(x), "Y": str(y)})
     return DipTraceDocument.from_bytes(
         original.path,
@@ -315,6 +393,80 @@ def test_router_avoids_keepout_deterministically_and_compiles() -> None:
     assert vcc.attributes["trace_count"] == 1
     routed_trace = next(item for item in snapshot.board.traces if item.net_name == "VCC")
     assert routed_trace.attributes["length_mm"] == first.metrics["length_mm"]
+
+
+def test_router_queries_spatial_index_instead_of_scanning_every_obstacle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    document = _document_with_far_keepouts()
+    query_count = 0
+    narrow_phase_count = 0
+    original_query = routing_module.SpatialIndex.query
+    original_intersection = routing_module.segment_intersects_bbox
+
+    def counted_query(*args: object, **kwargs: object) -> object:
+        nonlocal query_count
+        query_count += 1
+        return original_query(*args, **kwargs)
+
+    def counted_intersection(*args: object, **kwargs: object) -> bool:
+        nonlocal narrow_phase_count
+        narrow_phase_count += 1
+        return original_intersection(*args, **kwargs)
+
+    monkeypatch.setattr(routing_module.SpatialIndex, "query", counted_query)
+    monkeypatch.setattr(
+        routing_module,
+        "segment_intersects_bbox",
+        counted_intersection,
+    )
+
+    result = synthesize_route(build_snapshot(document), _config(document))
+
+    assert result.points == [
+        routing_module.Point(10.0, 9.0),
+        routing_module.Point(20.0, 9.0),
+    ]
+    assert query_count > 0
+    assert narrow_phase_count < 100
+
+
+def test_router_connects_real_off_grid_pad_anchors_deterministically() -> None:
+    document = _document_with_off_grid_ratline()
+    snapshot = build_snapshot(document)
+    config = _config(document)
+
+    first = synthesize_route(snapshot, config)
+    second = synthesize_route(snapshot, config)
+
+    assert first.points == second.points
+    assert first.points[0] == routing_module.Point(10.1, 9.2)
+    assert first.points[-1] == routing_module.Point(20.3, 9.1)
+    assert first.metrics["off_grid_endpoint_count"] == 2
+    assert first.metrics["endpoint_access_segment_count"] >= 2
+    for start, end in zip(first.points, first.points[1:], strict=False):
+        dx = abs(end.x - start.x)
+        dy = abs(end.y - start.y)
+        assert dx == 0 or dy == 0 or math.isclose(dx, dy)
+
+    applied = apply_semantic_operations(document, [first.operation])
+    routed = build_snapshot(applied.document)
+    assert routed.board is not None
+    vcc = next(item for item in routed.board.nets if item.name == "VCC")
+    trace = next(item for item in routed.board.traces if item.net_name == "VCC")
+    assert vcc.attributes["trace_count"] == 1
+    assert trace.attributes["points"][0] == first.points[0].as_dict()
+    assert trace.attributes["points"][-1] == first.points[-1].as_dict()
+
+
+def test_router_does_not_lower_clearance_for_off_grid_pad_access() -> None:
+    document = _document_with_blocked_off_grid_ratline()
+
+    with pytest.raises(
+        RoutingError,
+        match="No clearance-safe path connects the physical pad anchor",
+    ):
+        synthesize_route(build_snapshot(document), _config(document))
 
 
 def test_multilayer_router_inserts_valid_vias_and_roundtrips() -> None:

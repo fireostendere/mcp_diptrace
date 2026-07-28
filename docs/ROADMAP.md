@@ -197,7 +197,10 @@ Native library create/update and attach-pattern mutation are intentionally unava
 
 ## Routing and SI Limits
 
-- The local router supports bounded vias and multi-layer routing with orthogonal/45-degree segments.
+- The local router supports bounded vias and multi-layer routing with orthogonal/45-degree
+  segments and indexed obstacle candidates. Single-net routes add clearance-checked
+  orthogonal access from physical off-grid pad anchors to the fixed search grid;
+  coupled differential-pair center anchors remain on-grid.
 - `route_connections` provides congestion-aware ordering and bounded batch-local rip-up/retry.
 - It is not push-and-shove, free-angle, dynamic neck-down, or a global autorouter.
 - The DSN serializer rejects unsupported geometry rather than silently dropping data.

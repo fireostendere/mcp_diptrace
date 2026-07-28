@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
-from .adapters import DocumentSnapshot
+from .adapters import DocumentSnapshot, stable_id
 from .domain import (
     DifferentialPairModel,
     DifferentialPairPadPair,
@@ -43,6 +43,7 @@ from .operations import (
     DifferentialPairCenterPoint,
     TracePathPoint,
 )
+from .spatial import SpatialIndex
 from .via_styles import resolve_via_span, select_via_style, validate_via_geometry
 
 _DIRECTIONS = (
@@ -169,6 +170,73 @@ class _Obstacle:
     geometry_clearance: float = 0.0
 
 
+@dataclass(slots=True)
+class _ObstacleIndex:
+    layer_id: str
+    obstacles: tuple[_Obstacle, ...]
+    spatial: SpatialIndex
+    by_proxy_id: dict[str, _Obstacle]
+
+    @classmethod
+    def build(cls, layer_id: str, obstacles: list[_Obstacle]) -> _ObstacleIndex:
+        spatial = SpatialIndex(cell_size_mm=5.0)
+        by_proxy_id: dict[str, _Obstacle] = {}
+        for index, obstacle in enumerate(obstacles):
+            proxy_id = stable_id(
+                "route-obstacle",
+                layer_id,
+                str(index),
+                obstacle.object_id,
+            )
+            by_proxy_id[proxy_id] = obstacle
+            spatial.insert(
+                ObjectRecord(
+                    stable_id=proxy_id,
+                    kind=obstacle.kind,
+                    layer=layer_id,
+                    bbox=obstacle.bbox.as_dict(),
+                )
+            )
+        return cls(
+            layer_id=layer_id,
+            obstacles=tuple(obstacles),
+            spatial=spatial,
+            by_proxy_id=by_proxy_id,
+        )
+
+    def __len__(self) -> int:
+        return len(self.obstacles)
+
+    def query(self, region: BBox) -> list[_Obstacle]:
+        return [
+            self.by_proxy_id[record.stable_id]
+            for record in self.spatial.query(region, layers={self.layer_id})
+        ]
+
+
+@dataclass(frozen=True, slots=True)
+class _GridAccess:
+    """A checked orthogonal path from a physical endpoint to one grid node."""
+
+    points: tuple[Point, ...]
+
+    @property
+    def anchor(self) -> Point:
+        return self.points[-1]
+
+    @property
+    def length(self) -> float:
+        return polyline_length(self.points)
+
+
+@dataclass(frozen=True, slots=True)
+class _AStarResult:
+    states: list[_State]
+    visited: int
+    start_access: _GridAccess
+    end_access: _GridAccess
+
+
 @dataclass(frozen=True, slots=True)
 class _ViaStyle:
     style_id: str
@@ -206,16 +274,6 @@ def synthesize_route(
         )
     start_point = Point(**start.position)
     end_point = Point(**end.position)
-    if not _on_grid(start_point, config.grid) or not _on_grid(end_point, config.grid):
-        raise GeometryError(
-            "Endpoint anchors must lie on the requested routing grid",
-            details={
-                "grid_mm": config.grid,
-                "start": start_point.as_dict(),
-                "end": end_point.as_dict(),
-            },
-            object_ids=[start.stable_id, end.stable_id],
-        )
     layer_ids, start_layer, end_layer = _route_layers(snapshot, config)
     clearance_source = (
         "caller" if config.clearance is not None else "document_drc_trace_to_trace"
@@ -251,19 +309,36 @@ def synthesize_route(
         dict.fromkeys([*layer_ids, *(via.layer_ids if via is not None else ())])
     )
     obstacles = {
-        layer_id: _obstacles(
-            snapshot,
-            net,
+        layer_id: _ObstacleIndex.build(
             layer_id,
-            expansion=expansion,
-            copper_radius=config.width / 2.0,
-            excluded_components=endpoint_parents,
-            avoid_component_bodies=config.avoid_component_bodies,
+            _obstacles(
+                snapshot,
+                net,
+                layer_id,
+                expansion=expansion,
+                copper_radius=config.width / 2.0,
+                excluded_components=endpoint_parents,
+                avoid_component_bodies=config.avoid_component_bodies,
+            ),
         )
         for layer_id in obstacle_layer_ids
     }
+    start_accesses = _grid_access_paths(
+        snapshot,
+        start_point,
+        config.grid,
+        obstacles[start_layer],
+        endpoint_ids=[start.stable_id],
+    )
+    end_accesses = _grid_access_paths(
+        snapshot,
+        end_point,
+        config.grid,
+        obstacles[end_layer],
+        endpoint_ids=[end.stable_id],
+    )
     started = time.monotonic()
-    states, visited = _a_star(
+    search = _a_star(
         snapshot,
         start_point,
         end_point,
@@ -274,8 +349,19 @@ def synthesize_route(
         via,
         config,
         started,
+        start_accesses=start_accesses,
+        end_accesses=end_accesses,
     )
-    nodes = _simplify_nodes(_collapse_states(states, layer_ids, config.grid, via))
+    grid_nodes = _collapse_states(search.states, layer_ids, config.grid, via)
+    nodes = _simplify_nodes(
+        _attach_endpoint_access(
+            grid_nodes,
+            search.start_access,
+            search.end_access,
+            start_layer=start_layer,
+            end_layer=end_layer,
+        )
+    )
     points = [node.point for node in nodes]
     route_length = polyline_length(points)
     direct_length = distance(start_point, end_point)
@@ -321,9 +407,15 @@ def synthesize_route(
         metrics={
             "algorithm": "bounded_multilayer_a_star_8_neighbor",
             "routing_mode": "45_degree",
-            "visited_nodes": visited,
-            "raw_state_count": len(states),
+            "visited_nodes": search.visited,
+            "raw_state_count": len(search.states),
             "point_count": len(points),
+            "off_grid_endpoint_count": sum(
+                not _on_grid(point, config.grid) for point in (start_point, end_point)
+            ),
+            "endpoint_access_segment_count": (
+                len(search.start_access.points) + len(search.end_access.points) - 2
+            ),
             "bend_count": bends,
             "via_count": via_count,
             "via_style": via.name if via is not None and via_count else None,
@@ -343,6 +435,14 @@ def synthesize_route(
         assumptions=[
             "Routing uses an 8-neighbor fixed grid and generates only 45-degree segments.",
             "Via clearance is checked on every copper layer in its normalized span.",
+            *(
+                [
+                    "Off-grid physical pad anchors use bounded orthogonal access "
+                    "segments checked against the same board and clearance obstacles."
+                ]
+                if any(not _on_grid(point, config.grid) for point in (start_point, end_point))
+                else []
+            ),
         ],
         warnings=[
             *(
@@ -490,21 +590,24 @@ def synthesize_differential_pair_route(
         dict.fromkeys([*layer_ids, *(via.layer_ids if via is not None else ())])
     )
     obstacles = {
-        layer_id: _obstacles(
-            snapshot,
-            positive_net,
+        layer_id: _ObstacleIndex.build(
             layer_id,
-            expansion=envelope_width / 2.0 + clearance,
-            copper_radius=envelope_width / 2.0,
-            excluded_components=endpoint_parents,
-            avoid_component_bodies=config.avoid_component_bodies,
-            ignored_net_xml_ids=ignored_nets,
+            _obstacles(
+                snapshot,
+                positive_net,
+                layer_id,
+                expansion=envelope_width / 2.0 + clearance,
+                copper_radius=envelope_width / 2.0,
+                excluded_components=endpoint_parents,
+                avoid_component_bodies=config.avoid_component_bodies,
+                ignored_net_xml_ids=ignored_nets,
+            ),
         )
         for layer_id in obstacle_layer_ids
     }
     directions = _perpendicular_directions(start_vector)
     started = time.monotonic()
-    states, visited = _a_star(
+    search = _a_star(
         snapshot,
         start_center,
         end_center,
@@ -518,7 +621,9 @@ def synthesize_differential_pair_route(
         start_directions=directions,
         end_directions=directions,
     )
-    center_nodes = _simplify_nodes(_collapse_states(states, layer_ids, config.grid, virtual_via))
+    center_nodes = _simplify_nodes(
+        _collapse_states(search.states, layer_ids, config.grid, virtual_via)
+    )
     center_points = [node.point for node in center_nodes]
     positive_side = _offset_side(center_points[0], center_points[1], start_vector)
     positive_points = _offset_polyline(center_points, spacing / 2.0, positive_side)
@@ -586,7 +691,7 @@ def synthesize_differential_pair_route(
         metrics={
             "algorithm": "coupled_centerline_multilayer_a_star",
             "routing_mode": "45_degree_parallel_offset",
-            "visited_nodes": visited,
+            "visited_nodes": search.visited,
             "center_length_mm": polyline_length(center_points),
             "positive_length_mm": positive_length,
             "negative_length_mm": negative_length,
@@ -1106,6 +1211,117 @@ def _octile(left: tuple[int, int], right: tuple[int, int], grid: float) -> float
     return (max(dx, dy) + (math.sqrt(2.0) - 1.0) * min(dx, dy)) * grid
 
 
+def _grid_access_paths(
+    snapshot: DocumentSnapshot,
+    endpoint: Point,
+    grid: float,
+    obstacles: _ObstacleIndex,
+    *,
+    endpoint_ids: list[str],
+) -> list[_GridAccess]:
+    """Return bounded, checked orthogonal paths into the fixed search grid."""
+
+    assert snapshot.board is not None and snapshot.board.outline is not None
+    polygon = [Point(**item) for item in snapshot.board.outline.get("points", [])]
+    bounds = BBox(**snapshot.board.outline["bbox"])
+    if not bounds.contains_point(endpoint) or not point_in_polygon(endpoint, polygon):
+        raise GeometryError(
+            "Routing endpoint lies outside the board outline",
+            object_ids=endpoint_ids,
+        )
+    if _on_grid(endpoint, grid):
+        return [_GridAccess((endpoint,))]
+
+    x_keys = sorted({math.floor(endpoint.x / grid), math.ceil(endpoint.x / grid)})
+    y_keys = sorted({math.floor(endpoint.y / grid), math.ceil(endpoint.y / grid)})
+    candidates: set[tuple[Point, ...]] = set()
+    for x_key in x_keys:
+        for y_key in y_keys:
+            anchor = _point_from_key((x_key, y_key), grid)
+            for middle in (
+                Point(anchor.x, endpoint.y),
+                Point(endpoint.x, anchor.y),
+            ):
+                raw_path = (endpoint, middle, anchor)
+                path = tuple(
+                    point
+                    for index, point in enumerate(raw_path)
+                    if index == 0 or point != raw_path[index - 1]
+                )
+                if any(
+                    not bounds.contains_point(point) or not point_in_polygon(point, polygon)
+                    for point in path
+                ):
+                    continue
+                if any(
+                    _segment_blocked(start, end, obstacles)
+                    for start, end in zip(path, path[1:], strict=False)
+                ):
+                    continue
+                candidates.add(path)
+    if not candidates:
+        raise RoutingError(
+            "No clearance-safe path connects the physical pad anchor to the routing grid",
+            details={"endpoint": endpoint.as_dict(), "grid_mm": grid},
+            object_ids=endpoint_ids,
+        )
+    return [
+        _GridAccess(path)
+        for path in sorted(
+            candidates,
+            key=lambda path: (
+                polyline_length(path),
+                tuple((point.x, point.y) for point in path),
+            ),
+        )
+    ]
+
+
+def _direction_index(start: Point, end: Point) -> int:
+    direction = _direction(start, end)
+    try:
+        return _DIRECTIONS.index(direction)
+    except ValueError as exc:
+        raise RoutingError("Internal grid access path is not orthogonal or 45-degree") from exc
+
+
+def _attach_endpoint_access(
+    grid_nodes: list[_RouteNode],
+    start_access: _GridAccess,
+    end_access: _GridAccess,
+    *,
+    start_layer: str,
+    end_layer: str,
+) -> list[_RouteNode]:
+    if not grid_nodes:
+        raise RoutingError("Internal router produced an empty grid path")
+    result: list[_RouteNode] = []
+    start_points = start_access.points[:-1]
+    for index, point in enumerate(start_points):
+        result.append(
+            _RouteNode(
+                point=point,
+                incoming_layer=None if index == 0 else start_layer,
+                active_layer=start_layer,
+            )
+        )
+    if start_points:
+        grid_nodes = [
+            replace(grid_nodes[0], incoming_layer=start_layer),
+            *grid_nodes[1:],
+        ]
+    result.extend(grid_nodes)
+    result.extend(
+        _RouteNode(
+            point=point,
+            incoming_layer=end_layer,
+            active_layer=end_layer,
+        )
+        for point in reversed(end_access.points[:-1])
+    )
+    return result
+
+
 def _a_star(
     snapshot: DocumentSnapshot,
     start: Point,
@@ -1113,30 +1329,78 @@ def _a_star(
     layer_ids: list[str],
     start_layer: str,
     end_layer: str,
-    obstacles: dict[str, list[_Obstacle]],
+    obstacles: dict[str, _ObstacleIndex],
     via: _ViaStyle | None,
     config: RouteConnectionConfig,
     started: float,
     *,
     start_directions: set[int] | None = None,
     end_directions: set[int] | None = None,
-) -> tuple[list[_State], int]:
+    start_accesses: list[_GridAccess] | None = None,
+    end_accesses: list[_GridAccess] | None = None,
+) -> _AStarResult:
     assert snapshot.board is not None and snapshot.board.outline is not None
     polygon = [Point(**item) for item in snapshot.board.outline.get("points", [])]
     bounds = BBox(**snapshot.board.outline["bbox"])
-    start_key = _grid_key(start, config.grid)
-    end_key = _grid_key(end, config.grid)
     start_index = layer_ids.index(start_layer)
     end_index = layer_ids.index(end_layer)
-    start_state: _State = (start_key[0], start_key[1], start_index, -1, 0)
-    queue: list[tuple[float, float, _State]] = [
-        (_octile(start_key, end_key, config.grid), 0.0, start_state)
-    ]
-    costs = {start_state: 0.0}
+    start_accesses = start_accesses or [_GridAccess((start,))]
+    end_accesses = end_accesses or [_GridAccess((end,))]
+    end_by_key: dict[tuple[int, int], list[_GridAccess]] = {}
+    for access in end_accesses:
+        end_by_key.setdefault(_grid_key(access.anchor, config.grid), []).append(access)
+    for accesses in end_by_key.values():
+        accesses.sort(
+            key=lambda access: (
+                access.length,
+                tuple((point.x, point.y) for point in access.points),
+            )
+        )
+
+    def heuristic(key: tuple[int, int], layer_index: int) -> float:
+        route_cost = min(
+            _octile(key, end_key, config.grid) + access.length
+            for end_key, accesses in end_by_key.items()
+            for access in accesses[:1]
+        )
+        return route_cost + (config.via_cost if layer_index != end_index else 0.0)
+
+    queue: list[tuple[float, float, _State]] = []
+    costs: dict[_State, float] = {}
+    start_access_by_state: dict[_State, _GridAccess] = {}
+    for access in start_accesses:
+        start_key = _grid_key(access.anchor, config.grid)
+        previous_direction = (
+            _direction_index(access.points[-2], access.points[-1]) if len(access.points) > 1 else -1
+        )
+        start_state: _State = (
+            start_key[0],
+            start_key[1],
+            start_index,
+            previous_direction,
+            0,
+        )
+        start_cost = access.length
+        if start_cost + 1e-12 >= costs.get(start_state, math.inf):
+            continue
+        costs[start_state] = start_cost
+        start_access_by_state[start_state] = access
+        heapq.heappush(
+            queue,
+            (
+                start_cost + heuristic(start_key, start_index),
+                start_cost,
+                start_state,
+            ),
+        )
     parents: dict[_State, _State] = {}
+    start_states = set(start_access_by_state)
+    start_anchor_keys = {_grid_key(access.anchor, config.grid) for access in start_accesses}
+    end_anchor_keys = set(end_by_key)
     visited = 0
     deadline = started + config.time_budget_ms / 1_000.0
     goal: _State | None = None
+    goal_access: _GridAccess | None = None
     while queue:
         if time.monotonic() >= deadline:
             raise RoutingError(
@@ -1153,16 +1417,20 @@ def _a_star(
                 "Local routing node budget exhausted",
                 details={"visited_nodes": visited, "max_nodes": config.max_nodes},
             )
-        if (x, y, layer_index) == (end_key[0], end_key[1], end_index) and (
-            end_directions is None or previous_direction in end_directions
+        matching_end_accesses = end_by_key.get((x, y), [])
+        if (
+            layer_index == end_index
+            and matching_end_accesses
+            and (end_directions is None or previous_direction in end_directions)
         ):
             goal = state
+            goal_access = matching_end_accesses[0]
             break
         current = _point_from_key((x, y), config.grid)
         layer_id = layer_ids[layer_index]
         for direction_index, (dx, dy) in enumerate(_DIRECTIONS):
             if (
-                (x, y) == start_key
+                state in start_states
                 and start_directions is not None
                 and (direction_index not in start_directions)
             ):
@@ -1193,14 +1461,13 @@ def _a_star(
                 state,
                 next_state,
                 cost + step + bend,
-                _octile(next_key, end_key, config.grid)
-                + (config.via_cost if layer_index != end_index else 0.0),
+                heuristic(next_key, layer_index),
             )
         can_via = (
             via is not None
             and via_count < config.max_vias
             and previous_direction >= 0
-            and (x, y) not in {start_key, end_key}
+            and (x, y) not in start_anchor_keys | end_anchor_keys
         )
         if (
             via is not None
@@ -1221,10 +1488,9 @@ def _a_star(
                     state,
                     next_state,
                     cost + config.via_cost,
-                    _octile((x, y), end_key, config.grid)
-                    + (config.via_cost if target_index != end_index else 0.0),
+                    heuristic((x, y), target_index),
                 )
-    if goal is None:
+    if goal is None or goal_access is None:
         raise RoutingError(
             "No legal multi-layer 45-degree route was found within configured bounds",
             details={
@@ -1235,10 +1501,15 @@ def _a_star(
             },
         )
     states = [goal]
-    while states[-1] != start_state:
+    while states[-1] not in start_access_by_state:
         states.append(parents[states[-1]])
     states.reverse()
-    return states, visited
+    return _AStarResult(
+        states=states,
+        visited=visited,
+        start_access=start_access_by_state[states[0]],
+        end_access=goal_access,
+    )
 
 
 def _queue_state(
@@ -1257,8 +1528,9 @@ def _queue_state(
     heapq.heappush(queue, (cost + heuristic, cost, state))
 
 
-def _segment_blocked(start: Point, end: Point, obstacles: list[_Obstacle]) -> bool:
-    for item in obstacles:
+def _segment_blocked(start: Point, end: Point, obstacles: _ObstacleIndex) -> bool:
+    region = BBox.from_points([start, end])
+    for item in obstacles.query(region):
         if not segment_intersects_bbox(start, end, item.bbox):
             continue
         if (
@@ -1277,12 +1549,12 @@ def _via_blocked(
     point: Point,
     via: _ViaStyle,
     route_width: float,
-    obstacles: dict[str, list[_Obstacle]],
+    obstacles: dict[str, _ObstacleIndex],
 ) -> bool:
     extra = max(0.0, (via.diameter - route_width) / 2.0)
     via_box = BBox(point.x, point.y, point.x, point.y).expand(extra)
     for layer_id in via.layer_ids:
-        for obstacle in obstacles[layer_id]:
+        for obstacle in obstacles[layer_id].query(via_box):
             if not via_box.intersects(obstacle.bbox):
                 continue
             if (
@@ -1297,11 +1569,11 @@ def _via_blocked(
     return False
 
 
-def _pour_obstacle_count(obstacles: dict[str, list[_Obstacle]]) -> int:
+def _pour_obstacle_count(obstacles: dict[str, _ObstacleIndex]) -> int:
     return sum(
         item.kind == "copper_pour"
         for layer_obstacles in obstacles.values()
-        for item in layer_obstacles
+        for item in layer_obstacles.obstacles
     )
 
 
