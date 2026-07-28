@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import hashlib
+import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -88,10 +88,13 @@ def test_silkscreen_plan_preview_commit_and_rollback(tmp_path: Path) -> None:
     assert plan["metrics"]["changed_count"] == 1
     assert len(planned["resources"]) == 4
     preview_svg = service.plan_resource(plan_id, "preview.svg")
-    assert hashlib.sha256(preview_svg.encode()).hexdigest() == (
-        "489cd1e72c59d16b6f64b2f09baaf0645bcb95fd96801bc609ded7d015e6d807"
-    )
-    assert '"candidates"' in service.plan_resource(plan_id, "preview.json")
+    assert preview_svg.startswith("<svg ")
+    assert preview_svg.endswith("</svg>")
+    assert 'aria-label="DipTrace preview"' in preview_svg
+    assert 'data-kind="trace"' in preview_svg
+    preview_json = json.loads(service.plan_resource(plan_id, "preview.json"))
+    assert preview_json["candidates"]
+    assert preview_json["copper"]["after"]["trace_count"]["rendered"] == 1
 
     committed = service.apply_silkscreen_plan(
         plan_id,

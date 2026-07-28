@@ -279,7 +279,7 @@ The first useful recommendation system should select among **existing** patterns
 | --- | --- | --- |
 | 0 | complete | baseline contract, SDK/Pydantic/package audit, capability discovery |
 | 1 | complete v1 | PCB/schematic/library domain model, stable IDs, XML adapters, structured query |
-| 2 | complete v1 | millimeter-normalized geometry, transforms/mirroring/arcs, spatial index, SVG/JSON preview |
+| 2 | complete v2 | millimeter-normalized geometry, transforms/mirroring/arcs, spatial index, and bounded SVG/JSON preview with trace centerlines and explicitly boundary-only copper pours |
 | 3 | complete v1 | semantic compiler, persistent transactions, policy, SHA/preview/commit/rollback |
 | 4 | complete v1 | component/part/text/rule/test-point edits, pattern swap, groups, library read/validate |
 | 5 | partial v1 | persistent registry findings and skips for a bounded DRC/ERC subset; the review coverage matrix records missing and approximate categories |

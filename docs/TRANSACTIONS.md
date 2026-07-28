@@ -27,6 +27,19 @@ character caps, total and stored sizes, and whether either cap truncated the art
 Per-edit results contain bounded XPath and match-count metadata without before/after
 XML snippets, and the complete serialized response is capped at 128 KiB.
 
+PCB SVG/JSON previews include normalized trace centerlines and exported copper-pour
+boundaries even though those records have no single `position`. Changed trace geometry
+is shown before and after; removed geometry remains visible in the before layer. This is
+a review aid, not manufacturing artwork: arc triples are drawn as point-to-point chords,
+and a pour is only its exported boundary, never claimed as authoritative refill,
+thermals, cutouts, or islands.
+
+Copper rendering is bounded to 500 records and 10,000 normalized points per preview
+layer. `preview.json` reports the total, rendered, invalid, and omitted record counts,
+the two limits, and `complete`/`truncated`. The SVG carries the same completeness state
+in its `diptrace-copper-preview` metadata. A truncated or incomplete copper layer must
+not be interpreted as a complete visual review.
+
 ## Semantic Operations v1
 
 - component and part move, rotate, side, lock, value, fields, pattern, and group operations;
@@ -42,5 +55,6 @@ XML snippets, and the complete serialized response is capped at 128 KiB.
 `diptrace://transaction/{txid}/...`. Transaction tool responses expose a bounded
 summary with `operation_count`; the operation payload is available only through the
 `operations` resource. Diff metadata includes separate total/stored line and character
-counts. The truncation marker is included in both stored caps. PNG output is not
+counts. The truncation marker is included in both stored caps. Runtime capabilities
+publish `max_preview_copper_records` and `max_preview_copper_points`. PNG output is not
 advertised.

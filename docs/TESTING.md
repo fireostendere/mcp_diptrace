@@ -99,6 +99,9 @@ The maintained suite covers:
 - preservation of unknown XML and raw bytes outside targeted semantic/raw patch regions;
 - byte-exact BOM/XML declaration/CRLF/empty-tag preservation where required;
 - transaction state, SHA preview/commit/rollback, policy, backups, and atomic writes;
+- bounded transaction SVG/JSON copper previews, including positionless traces,
+  boundary-only pours, before/after trace geometry, and explicit point-budget
+  truncation;
 - thread- and spawned-process serialization of the single-active-session invariant,
   finish requests, and finalization;
 - fail-closed authority tests for self-minted manifests, path/hardlink/symlink aliases, source-type/SHA binding, incomplete semantic comparisons, and rollback with corrupt evidence;

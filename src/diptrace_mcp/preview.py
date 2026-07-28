@@ -1,17 +1,182 @@
 from __future__ import annotations
 
+import math
+from dataclasses import dataclass
 from html import escape
-from typing import Any
+from typing import Any, Literal
 
 from .adapters import DocumentSnapshot
+from .domain import ObjectRecord
 from .geometry import BBox, Point
 
+PREVIEW_COPPER_RECORD_LIMIT = 500
+PREVIEW_COPPER_POINT_LIMIT = 10_000
 
-def _all_points(snapshot: DocumentSnapshot) -> list[Point]:
+
+@dataclass(frozen=True, slots=True)
+class _CopperPrimitive:
+    object_id: str
+    kind: Literal["trace", "copper_pour"]
+    points: tuple[Point, ...]
+    layer: str | None
+    segment_widths_mm: tuple[float, ...]
+    segment_layers: tuple[str, ...]
+    changed: bool
+
+
+def _is_changed(record: ObjectRecord, changed_ids: set[str]) -> bool:
+    return record.stable_id in changed_ids
+
+
+def _normalized_points(record: ObjectRecord) -> tuple[Point, ...] | None:
+    raw_points = record.attributes.get("points")
+    if not isinstance(raw_points, list):
+        return None
+    points: list[Point] = []
+    for item in raw_points:
+        if not isinstance(item, dict) or "x" not in item or "y" not in item:
+            return None
+        x = item["x"]
+        y = item["y"]
+        if (
+            isinstance(x, bool)
+            or isinstance(y, bool)
+            or not isinstance(x, (int, float))
+            or not isinstance(y, (int, float))
+        ):
+            return None
+        x_value = float(x)
+        y_value = float(y)
+        if not math.isfinite(x_value) or not math.isfinite(y_value):
+            return None
+        points.append(Point(x_value, y_value))
+    return tuple(points)
+
+
+def _normalized_trace_style(
+    record: ObjectRecord,
+) -> tuple[tuple[float, ...], tuple[str, ...]] | None:
+    raw_widths = record.attributes.get("segment_widths_mm")
+    raw_layers = record.attributes.get("segment_layers")
+    if not isinstance(raw_widths, list) or not isinstance(raw_layers, list):
+        return None
+    widths: list[float] = []
+    for value in raw_widths:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        width = float(value)
+        if not math.isfinite(width) or width < 0.0:
+            return None
+        widths.append(width)
+    if any(not isinstance(value, str) for value in raw_layers):
+        return None
+    return tuple(widths), tuple(raw_layers)
+
+
+def _select_copper_primitives(
+    snapshot: DocumentSnapshot,
+    changed_ids: list[str],
+    *,
+    changed_only: bool = False,
+) -> tuple[list[_CopperPrimitive], dict[str, Any]]:
+    changed = set(changed_ids)
+    records: list[ObjectRecord] = []
+    if snapshot.board is not None:
+        records = [*snapshot.board.traces, *snapshot.board.copper_pours]
+    if changed_only:
+        records = [record for record in records if _is_changed(record, changed)]
+    records.sort(
+        key=lambda record: (
+            not _is_changed(record, changed),
+            record.kind,
+            record.stable_id,
+        )
+    )
+
+    primitives: list[_CopperPrimitive] = []
+    rendered_points = 0
+    invalid_geometry_count = 0
+    omitted_record_count = 0
+    rendered_by_kind = {"trace": 0, "copper_pour": 0}
+    total_by_kind = {
+        "trace": sum(record.kind == "trace" for record in records),
+        "copper_pour": sum(record.kind == "copper_pour" for record in records),
+    }
+    for record in records:
+        points = _normalized_points(record)
+        minimum_points = 2 if record.kind == "trace" else 3
+        if points is None or len(points) < minimum_points:
+            invalid_geometry_count += 1
+            continue
+        trace_style = (
+            _normalized_trace_style(record)
+            if record.kind == "trace"
+            else ((), ())
+        )
+        if trace_style is None:
+            invalid_geometry_count += 1
+            continue
+        if (
+            len(primitives) >= PREVIEW_COPPER_RECORD_LIMIT
+            or rendered_points + len(points) > PREVIEW_COPPER_POINT_LIMIT
+        ):
+            omitted_record_count += 1
+            continue
+        widths, layers = trace_style
+        kind: Literal["trace", "copper_pour"] = (
+            "trace" if record.kind == "trace" else "copper_pour"
+        )
+        primitive = _CopperPrimitive(
+            object_id=record.stable_id,
+            kind=kind,
+            points=points,
+            layer=record.layer,
+            segment_widths_mm=widths,
+            segment_layers=layers,
+            changed=_is_changed(record, changed),
+        )
+        primitives.append(primitive)
+        rendered_points += len(points)
+        rendered_by_kind[kind] += 1
+    metadata = {
+        "scope": "normalized_trace_centerlines_and_exported_pour_boundaries",
+        "record_limit": PREVIEW_COPPER_RECORD_LIMIT,
+        "point_limit": PREVIEW_COPPER_POINT_LIMIT,
+        "total_record_count": len(records),
+        "rendered_record_count": len(primitives),
+        "rendered_point_count": rendered_points,
+        "omitted_record_count": omitted_record_count,
+        "invalid_geometry_count": invalid_geometry_count,
+        "truncated": omitted_record_count > 0,
+        "complete": omitted_record_count == 0 and invalid_geometry_count == 0,
+        "trace_count": {
+            "total": total_by_kind["trace"],
+            "rendered": rendered_by_kind["trace"],
+        },
+        "copper_pour_count": {
+            "total": total_by_kind["copper_pour"],
+            "rendered": rendered_by_kind["copper_pour"],
+        },
+        "limitations": [
+            "Trace copper is a centerline preview of normalized exported points; "
+            "arc triples are drawn as straight point-to-point chords.",
+            "Copper-pour geometry is the exported boundary only, not authoritative "
+            "refilled copper, thermals, cutouts, or islands.",
+        ],
+    }
+    return primitives, metadata
+
+
+def _all_points(
+    snapshot: DocumentSnapshot,
+    copper_primitives: list[_CopperPrimitive],
+) -> list[Point]:
     points: list[Point] = []
     if snapshot.board and snapshot.board.outline:
         for item in snapshot.board.outline.get("points", []):
             points.append(Point(float(item["x"]), float(item["y"])))
+    for primitive in copper_primitives:
+        points.extend(primitive.points)
     for record in snapshot.objects.values():
         if record.position:
             points.append(Point(float(record.position["x"]), float(record.position["y"])))
@@ -20,8 +185,11 @@ def _all_points(snapshot: DocumentSnapshot) -> list[Point]:
     return points
 
 
-def _bounds(snapshot: DocumentSnapshot) -> BBox:
-    points = _all_points(snapshot)
+def _bounds(
+    snapshot: DocumentSnapshot,
+    copper_primitives: list[_CopperPrimitive],
+) -> BBox:
+    points = _all_points(snapshot, copper_primitives)
     box = BBox.from_points(points)
     margin_x = max(box.width * 0.1, 2.0)
     margin_y = max(box.height * 0.1, 2.0)
@@ -47,6 +215,101 @@ def _map_point(point: Point, box: BBox, width: int, height: int) -> tuple[float,
     return x, y
 
 
+def _svg_attributes(primitive: _CopperPrimitive, state: str) -> str:
+    return (
+        f'data-object-id="{escape(primitive.object_id, quote=True)}" '
+        f'data-kind="{primitive.kind}" '
+        f'data-state="{state}" '
+        f'data-layer="{escape(primitive.layer or "", quote=True)}"'
+    )
+
+
+def _render_pour_svg(
+    primitive: _CopperPrimitive,
+    box: BBox,
+    width: int,
+    height: int,
+    *,
+    state: Literal["before", "after"],
+) -> str:
+    mapped = [_map_point(point, box, width, height) for point in primitive.points]
+    points = " ".join(f"{x:.2f},{y:.2f}" for x, y in mapped)
+    changed = primitive.changed
+    if state == "before":
+        return (
+            f'<polygon {_svg_attributes(primitive, state)} points="{points}" '
+            'fill="none" stroke="#d9480f" stroke-width="2" '
+            'stroke-dasharray="6 4" opacity="0.75" />'
+        )
+    color = "#d9480f" if changed else "#d97706"
+    return (
+        f'<polygon {_svg_attributes(primitive, state)} '
+        'data-geometry-scope="exported-boundary-only" '
+        f'points="{points}" fill="{color}" fill-opacity="0.16" '
+        f'stroke="{color}" stroke-width="1.5" />'
+    )
+
+
+def _render_trace_svg(
+    primitive: _CopperPrimitive,
+    box: BBox,
+    width: int,
+    height: int,
+    *,
+    state: Literal["before", "after"],
+) -> list[str]:
+    scale, _origin_x, _origin_y = _scale(box, width, height)
+    color = "#d9480f" if primitive.changed or state == "before" else "#b45309"
+    result: list[str] = []
+    for index, (start, end) in enumerate(
+        zip(primitive.points, primitive.points[1:], strict=False)
+    ):
+        x1, y1 = _map_point(start, box, width, height)
+        x2, y2 = _map_point(end, box, width, height)
+        width_mm = (
+            primitive.segment_widths_mm[index]
+            if index < len(primitive.segment_widths_mm)
+            else 0.0
+        )
+        layer = (
+            primitive.segment_layers[index]
+            if index < len(primitive.segment_layers)
+            else primitive.layer or ""
+        )
+        dash = ' stroke-dasharray="6 4" opacity="0.75"' if state == "before" else ""
+        result.append(
+            f'<line {_svg_attributes(primitive, state)} '
+            f'data-segment-index="{index}" '
+            f'data-segment-layer="{escape(layer, quote=True)}" '
+            f'data-width-mm="{width_mm:g}" '
+            f'x1="{x1:.2f}" y1="{y1:.2f}" x2="{x2:.2f}" y2="{y2:.2f}" '
+            f'stroke="{color}" stroke-width="{max(1.0, width_mm * scale):.2f}" '
+            f'stroke-linecap="round"{dash} />'
+        )
+    return result
+
+
+def _primitive_payload(primitive: _CopperPrimitive) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "object_id": primitive.object_id,
+        "kind": primitive.kind,
+        "layer": primitive.layer,
+        "changed": primitive.changed,
+        "points": [point.as_dict() for point in primitive.points],
+    }
+    if primitive.kind == "trace":
+        payload.update(
+            {
+                "geometry_scope": "normalized_centerline",
+                "segment_widths_mm": list(primitive.segment_widths_mm),
+                "segment_layers": list(primitive.segment_layers),
+            }
+        )
+    else:
+        payload["geometry_scope"] = "exported_boundary_only"
+    return payload
+
+
 def render_preview_svg(
     before: DocumentSnapshot,
     after: DocumentSnapshot,
@@ -55,7 +318,15 @@ def render_preview_svg(
     width: int = 960,
     height: int = 640,
 ) -> str:
-    box = _bounds(after)
+    after_copper, after_copper_metadata = _select_copper_primitives(
+        after, changed_ids
+    )
+    before_changed_copper, before_copper_metadata = _select_copper_primitives(
+        before,
+        changed_ids,
+        changed_only=True,
+    )
+    box = _bounds(after, [*after_copper, *before_changed_copper])
     outline = after.board.outline if after.board else None
     before_positions = {
         record.stable_id: Point(record.position["x"], record.position["y"])
@@ -71,6 +342,12 @@ def render_preview_svg(
         "</marker>",
         "</defs>",
         f'<rect x="0" y="0" width="{width}" height="{height}" fill="#f8f6f2" />',
+        (
+            '<metadata id="diptrace-copper-preview">'
+            f'after-complete={str(after_copper_metadata["complete"]).lower()};'
+            f'before-changed-complete={str(before_copper_metadata["complete"]).lower()}'
+            "</metadata>"
+        ),
     ]
 
     if outline:
@@ -82,6 +359,49 @@ def render_preview_svg(
             path = " ".join(f"{x:.2f},{y:.2f}" for x, y in points)
             parts.append(
                 f'<polygon points="{path}" fill="none" stroke="#1f2937" stroke-width="2" />'
+            )
+
+    for primitive in before_changed_copper:
+        if primitive.kind == "copper_pour":
+            parts.append(
+                _render_pour_svg(
+                    primitive,
+                    box,
+                    width,
+                    height,
+                    state="before",
+                )
+            )
+        else:
+            parts.extend(
+                _render_trace_svg(
+                    primitive,
+                    box,
+                    width,
+                    height,
+                    state="before",
+                )
+            )
+    for primitive in after_copper:
+        if primitive.kind == "copper_pour":
+            parts.append(
+                _render_pour_svg(
+                    primitive,
+                    box,
+                    width,
+                    height,
+                    state="after",
+                )
+            )
+        else:
+            parts.extend(
+                _render_trace_svg(
+                    primitive,
+                    box,
+                    width,
+                    height,
+                    state="after",
+                )
             )
 
     for record in after.objects.values():
@@ -121,6 +441,14 @@ def render_preview_json(
     after: DocumentSnapshot,
     changed_ids: list[str],
 ) -> dict[str, Any]:
+    after_copper, after_copper_metadata = _select_copper_primitives(
+        after, changed_ids
+    )
+    before_changed_copper, before_copper_metadata = _select_copper_primitives(
+        before,
+        changed_ids,
+        changed_only=True,
+    )
     before_positions = {
         record.stable_id: record.position
         for record in before.objects.values()
@@ -136,4 +464,19 @@ def render_preview_json(
         "before_positions": before_positions,
         "after_positions": after_positions,
         "outline": after.board.outline if after.board else None,
+        "copper": {
+            "after": {
+                **after_copper_metadata,
+                "primitives": [
+                    _primitive_payload(primitive) for primitive in after_copper
+                ],
+            },
+            "before_changed": {
+                **before_copper_metadata,
+                "primitives": [
+                    _primitive_payload(primitive)
+                    for primitive in before_changed_copper
+                ],
+            },
+        },
     }

@@ -156,7 +156,12 @@ from .placement import (
 )
 from .plans import PlanStore
 from .policy import Policy
-from .preview import render_preview_json, render_preview_svg
+from .preview import (
+    PREVIEW_COPPER_POINT_LIMIT,
+    PREVIEW_COPPER_RECORD_LIMIT,
+    render_preview_json,
+    render_preview_svg,
+)
 from .previews import RawPreviewStore
 from .provenance_registry import (
     RegistryAuthorizationError,
@@ -1887,6 +1892,10 @@ class DipTraceService:
         )
         report["limits"]["max_diff_lines"] = DEFAULT_DIFF_LINE_LIMIT
         report["limits"]["max_diff_characters"] = DEFAULT_DIFF_CHARACTER_LIMIT
+        report["limits"]["max_preview_copper_records"] = (
+            PREVIEW_COPPER_RECORD_LIMIT
+        )
+        report["limits"]["max_preview_copper_points"] = PREVIEW_COPPER_POINT_LIMIT
         report["limits"]["retention_max_records"] = self.settings.retention_max_records
         report["limits"]["retention_max_age_days"] = self.settings.retention_max_age_days
         registry_report = self.trusted_provenance_registry_report()
