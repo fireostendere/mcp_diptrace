@@ -200,6 +200,38 @@ def test_new_target_that_appears_during_validation_is_not_overwritten(
     assert _tree_snapshot(tmp_path / ".state") == state_before
 
 
+def test_overwrite_target_disappearance_keeps_write_error_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _service(tmp_path)
+    created = service.create_document("pcb", "board.dip")
+    target = tmp_path / "board.dip"
+    original_require = service_module.require_write_impact
+
+    def remove_target_after_validation(impact: WriteImpact, *, operation: str) -> None:
+        original_require(impact, operation=operation)
+        target.unlink()
+
+    monkeypatch.setattr(
+        service_module,
+        "require_write_impact",
+        remove_target_after_validation,
+    )
+
+    with pytest.raises(EditError) as disappeared:
+        service.create_document(
+            "schematic",
+            "board.dip",
+            overwrite=True,
+            expected_sha256=created["result"]["sha256"],
+        )
+
+    assert disappeared.value.payload.code == "schema_write_error"
+    assert disappeared.value.payload.details == {"path": str(target)}
+    assert "Cannot read target before write" in str(disappeared.value)
+
+
 def test_overwrite_backup_binds_the_exact_bytes_checked_by_the_caller(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

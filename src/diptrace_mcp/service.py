@@ -1363,7 +1363,10 @@ class DipTraceService:
         try:
             current_sha256 = sha256_bytes(target.read_bytes())
         except OSError as exc:
-            raise DocumentError(f"Cannot read document: {target}") from exc
+            raise EditError(
+                f"Cannot read target before write: {target}",
+                details={"path": str(target)},
+            ) from exc
         if current_sha256 != expected_sha256:
             raise Sha256MismatchError(
                 f"Document changed: expected {expected_sha256}, current {current_sha256}",
