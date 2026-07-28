@@ -18,11 +18,26 @@ _SOURCE = (
     b'<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm"></Source>\n'
 )
 _MODIFIED = _SOURCE.replace(b"</Source>", b"<!-- changed -->\n</Source>")
+_COMPONENT_LIBRARY_SOURCE = (
+    b'<?xml version="1.0" encoding="UTF-8"?>\n'
+    b'<Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm"></Library>\n'
+)
 
 
 def _controller(tmp_path: Path) -> tuple[bridge.BridgeController, Path]:
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes(_SOURCE)
+    settings = Settings(
+        workspace=tmp_path,
+        allowed_roots=(tmp_path,),
+        state_dir=tmp_path / "state",
+    )
+    return bridge.BridgeController(exchange, settings), exchange
+
+
+def _library_controller(tmp_path: Path) -> tuple[bridge.BridgeController, Path]:
+    exchange = tmp_path / "plugin_exchange.xml"
+    exchange.write_bytes(_COMPONENT_LIBRARY_SOURCE)
     settings = Settings(
         workspace=tmp_path,
         allowed_roots=(tmp_path,),
@@ -126,6 +141,28 @@ def test_headless_bridge_cancels_without_replacing_exchange(tmp_path: Path) -> N
     assert bridge.run_headless(controller, timeout=1) == 0
     assert exchange.read_bytes() == _SOURCE
     assert controller.store.read_metadata(controller.session_id)["status"] == "cancelled"
+
+
+def test_library_bridge_is_read_only_even_for_direct_control_file(
+    tmp_path: Path,
+) -> None:
+    controller, exchange = _library_controller(tmp_path)
+    controller.store.control_path(controller.session_id).write_text(
+        json.dumps(
+            {
+                "action": "apply",
+                "expected_sha256": controller.current_sha256(),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert controller.can_apply is False
+    with pytest.raises(SessionError, match="ImpMode is None") as caught:
+        bridge.run_headless(controller, timeout=1)
+    assert caught.value.payload.code == "capability_unavailable"
+    assert exchange.read_bytes() == _COMPONENT_LIBRARY_SOURCE
+    assert controller.store.active_metadata() is not None
 
 
 def test_headless_bridge_timeout_cancels_and_returns_timeout_exit_code(

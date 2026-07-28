@@ -42,11 +42,18 @@ from .xml_document import (
 )
 
 SessionAction = Literal["apply", "cancel"]
+BridgeImportMode = Literal["All", "None", "Unknown"]
 
 _JSON_READ_ATTEMPTS = 8
 _JSON_READ_RETRY_SECONDS = 0.025
 _SESSION_THREAD_LOCKS: dict[str, threading.RLock] = {}
 _SESSION_THREAD_LOCKS_GUARD = threading.Lock()
+_BRIDGE_IMPORT_MODE_BY_SOURCE_TYPE: dict[str, BridgeImportMode] = {
+    "DipTrace-PCB": "All",
+    "DipTrace-Schematic": "All",
+    "DipTrace-ComponentLibrary": "None",
+    "DipTrace-PatternLibrary": "None",
+}
 
 
 def _thread_lock_for(path: Path) -> threading.RLock:
@@ -152,6 +159,23 @@ def _read_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise SessionError(f"Session state must be a JSON object: {path}")
     return value
+
+
+def _require_apply_supported(metadata: dict[str, Any]) -> None:
+    source_type = str(metadata.get("source_type", ""))
+    import_mode = _BRIDGE_IMPORT_MODE_BY_SOURCE_TYPE.get(source_type, "Unknown")
+    if import_mode == "None":
+        raise SessionError(
+            "Apply is unavailable for this library bridge profile because "
+            "its shipped ImpMode is None; cancel the read-only session",
+            code="capability_unavailable",
+        )
+    if import_mode != "All":
+        raise SessionError(
+            "Apply is unavailable because this source type has no shipped "
+            "bridge import policy; cancel the read-only session",
+            code="capability_unavailable",
+        )
 
 
 class SessionStore:
@@ -387,6 +411,10 @@ class SessionStore:
         working = self.working_path(session_id)
         shutil.copyfile(exchange_path, original)
         shutil.copyfile(exchange_path, working)
+        bridge_import_mode: BridgeImportMode = _BRIDGE_IMPORT_MODE_BY_SOURCE_TYPE.get(
+            document.source_type,
+            "Unknown",
+        )
         metadata: dict[str, Any] = {
             "session_id": session_id,
             "status": "active",
@@ -398,6 +426,17 @@ class SessionStore:
             "source_type": document.source_type,
             "version": document.version,
             "units": document.units,
+            "bridge_import_mode": bridge_import_mode,
+            "apply_supported": bridge_import_mode != "None",
+            "apply_unavailable_reason": (
+                None
+                if bridge_import_mode == "All"
+                else (
+                    "shipped_library_profile_uses_ImpMode_None"
+                    if bridge_import_mode == "None"
+                    else "source_type_has_no_shipped_import_policy"
+                )
+            ),
             "original_sha256": document.sha256,
             "working_sha256": document.sha256,
             "edit_count": 0,
@@ -425,6 +464,8 @@ class SessionStore:
         metadata = self.active_metadata()
         if metadata is None:
             raise SessionError("There is no active DipTrace session")
+        if action == "apply":
+            _require_apply_supported(metadata)
         session_id = str(metadata["session_id"])
         working = self.working_path(session_id).read_bytes()
         if action == "apply":
@@ -474,6 +515,8 @@ class SessionStore:
         metadata = self.read_metadata(session_id)
         if metadata.get("status") != "active":
             raise SessionError(f"Session is not active: {session_id}")
+        if action == "apply":
+            _require_apply_supported(metadata)
 
         working_path = self.working_path(session_id)
         working = working_path.read_bytes()

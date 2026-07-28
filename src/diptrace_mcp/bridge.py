@@ -38,6 +38,10 @@ class BridgeController:
     def is_modified(self) -> bool:
         return self.current_sha256() != str(self.metadata["original_sha256"])
 
+    @property
+    def can_apply(self) -> bool:
+        return bool(self.metadata.get("apply_supported", True))
+
     def finish(self, action: SessionAction, expected_sha256: str | None = None) -> dict[str, Any]:
         if self.finished:
             return self.store.read_metadata(self.session_id)
@@ -142,7 +146,15 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
     root = tk.Tk()
     root.title("DipTrace MCP Bridge")
     root.resizable(False, False)
-    status = tk.StringVar(value="MCP session is active. DipTrace is waiting for the result.")
+    initial_status = (
+        "MCP session is active. DipTrace is waiting for the result."
+        if controller.can_apply
+        else (
+            "This library bridge profile is read-only (ImpMode=None). "
+            "Inspect the document, then cancel the session."
+        )
+    )
+    status = tk.StringVar(value=initial_status)
     details = tk.StringVar(value=f"Session: {controller.session_id}")
     started = time.monotonic()
 
@@ -172,12 +184,14 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
         root.after(500, root.destroy)
         return True
 
-    tk.Button(
+    apply_button = tk.Button(
         buttons,
         text="Apply MCP changes",
         width=22,
         command=lambda: finish("apply"),
-    ).pack(side="left")
+        state="normal" if controller.can_apply else "disabled",
+    )
+    apply_button.pack(side="left")
     tk.Button(
         buttons,
         text="Cancel",

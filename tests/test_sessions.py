@@ -179,3 +179,41 @@ def test_finalize_clears_active_json(tmp_path: Path) -> None:
     store.finalize(metadata["session_id"], "cancel")
 
     assert not store.active_file.exists()
+
+
+@pytest.mark.parametrize(
+    "fixture_name",
+    ["component_library.xml", "pattern_library.xml"],
+)
+def test_library_profile_refuses_apply_at_request_and_finalize(
+    tmp_path: Path,
+    fixture_name: str,
+) -> None:
+    exchange = tmp_path / "plugin_exchange.xml"
+    original = (FIXTURES / fixture_name).read_bytes()
+    exchange.write_bytes(original)
+    store = SessionStore(tmp_path / "state", 10_000_000)
+    metadata = store.create(exchange)
+    session_id = metadata["session_id"]
+
+    assert metadata["bridge_import_mode"] == "None"
+    assert metadata["apply_supported"] is False
+    assert (
+        metadata["apply_unavailable_reason"]
+        == "shipped_library_profile_uses_ImpMode_None"
+    )
+
+    with pytest.raises(SessionError, match="ImpMode is None") as request_error:
+        store.request_finish("apply")
+    assert request_error.value.payload.code == "capability_unavailable"
+    assert not store.control_path(session_id).exists()
+
+    with pytest.raises(SessionError, match="ImpMode is None") as finalize_error:
+        store.finalize(session_id, "apply")
+    assert finalize_error.value.payload.code == "capability_unavailable"
+    assert exchange.read_bytes() == original
+    assert store.active_metadata() is not None
+
+    cancelled = store.finalize(session_id, "cancel")
+    assert cancelled["status"] == "cancelled"
+    assert exchange.read_bytes() == original

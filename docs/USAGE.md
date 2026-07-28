@@ -162,7 +162,9 @@ Install only the read-only Component and Pattern Editor profiles:
 `-Mode Both` keeps the previous PCB plus Schematic selection, while `-Mode All` installs
 all four modules and is the default. The library profiles use `ExpMode=Library All` and
 `ImpMode=None`. They provide complete XML to the MCP reader but deliberately cannot
-import changes back into DipTrace; finish those sessions with `cancel`.
+import changes back into DipTrace. The bridge records that limitation in live-session
+metadata, disables its Apply button, and rejects both MCP and direct-control `apply`
+requests before the exchange file can be replaced. Finish those sessions with `cancel`.
 
 Use a non-standard DipTrace directory:
 
