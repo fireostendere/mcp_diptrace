@@ -119,8 +119,8 @@ while also preserving evidence for the fallback installation.
 
 After the combined WO-14 bridge, transaction-recovery, public MCP workflow,
 synthetic-load, live-session profile-safety, and WO-16 registry/evidence-intake
-slices, the canonical geometry-enabled suite measured 16,012 statements, 2,262
-misses, and **85.8731%** total coverage. `bridge.py` moved from an untested CI
+slices, the canonical geometry-enabled suite measured 16,028 statements, 2,261
+misses, and **85.8934%** total coverage. `bridge.py` moved from an untested CI
 executable path to 124 of 192 statements, or **64.5833%**, backed by a real
 cross-process apply handshake plus cancel/timeout/error tests. CI enforces an
 integer 85% total floor plus measured
