@@ -7,11 +7,14 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
 
 from diptrace_mcp.config import Settings
+from diptrace_mcp.errors import EditError
 from diptrace_mcp.scaffolding import PcbScaffold, build_pcb_document
 from diptrace_mcp.server import create_server
+from diptrace_mcp.service import DipTraceService, RoundtripEvidenceEvaluation
 
 
 def _sha256(data: bytes) -> str:
@@ -313,5 +316,97 @@ def test_evidence_transport_rejects_paths_outside_allowed_root(
 
     assert result.isError
     assert "outside allowed roots" in _error_text(result)
+    assert not (workspace / "board.dip.roundtrip-evidence.json").exists()
+    assert not (workspace / "board.dip.provenance.json").exists()
+
+
+def test_record_revalidates_swapped_role_with_bounded_allowed_root_load(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    raw = build_pcb_document(PcbScaffold(width_mm=50.0, height_mm=30.0))
+    evidence = _write_roles(
+        workspace,
+        source=raw,
+        saved=raw,
+        reexport=raw,
+    )
+    max_document_bytes = len(raw) + 32
+    service = DipTraceService(
+        Settings(
+            workspace=workspace,
+            allowed_roots=(workspace,),
+            state_dir=workspace / ".state",
+            max_document_bytes=max_document_bytes,
+        )
+    )
+    evaluate = service._evaluate_roundtrip_evidence
+
+    def swap_after_evaluation(
+        *args: Any,
+        **kwargs: Any,
+    ) -> RoundtripEvidenceEvaluation:
+        evaluation = evaluate(*args, **kwargs)
+        (workspace / "source.dip").write_bytes(b"X" * (max_document_bytes + 1))
+        return evaluation
+
+    monkeypatch.setattr(
+        service,
+        "_evaluate_roundtrip_evidence",
+        swap_after_evaluation,
+    )
+
+    with pytest.raises(EditError) as caught:
+        service.record_roundtrip_evidence(
+            "board.dip",
+            source_path=evidence["source"]["path"],
+            source_sha256=evidence["source"]["sha256"],
+            saved_path=evidence["saved"]["path"],
+            saved_sha256=evidence["saved"]["sha256"],
+            reexport_path=evidence["reexport"]["path"],
+            reexport_sha256=evidence["reexport"]["sha256"],
+        )
+
+    assert caught.value.payload.code == "evidence_file_changed"
+    assert (workspace / "board.dip").read_bytes() == raw
+    assert not (workspace / "board.dip.roundtrip-evidence.json").exists()
+    assert not (workspace / "board.dip.provenance.json").exists()
+
+
+def test_service_requires_saved_sha_and_paired_reexport_arguments(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    raw = build_pcb_document(PcbScaffold(width_mm=50.0, height_mm=30.0))
+    evidence = _write_roles(
+        workspace,
+        source=raw,
+        saved=raw,
+        reexport=raw,
+    )
+    service = DipTraceService(_settings(workspace))
+
+    with pytest.raises(EditError) as missing_saved_sha:
+        service.validate_roundtrip_evidence(
+            "board.dip",
+            source_path=evidence["source"]["path"],
+            source_sha256=evidence["source"]["sha256"],
+            saved_path=evidence["saved"]["path"],
+            saved_sha256=None,
+        )
+    assert missing_saved_sha.value.payload.code == "sha256_required"
+
+    with pytest.raises(EditError) as unpaired_reexport:
+        service.validate_roundtrip_evidence(
+            "board.dip",
+            source_path=evidence["source"]["path"],
+            source_sha256=evidence["source"]["sha256"],
+            saved_path=evidence["saved"]["path"],
+            saved_sha256=evidence["saved"]["sha256"],
+            reexport_path=evidence["reexport"]["path"],
+            reexport_sha256=None,
+        )
+    assert unpaired_reexport.value.payload.code == "invalid_evidence_input"
     assert not (workspace / "board.dip.roundtrip-evidence.json").exists()
     assert not (workspace / "board.dip.provenance.json").exists()

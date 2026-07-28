@@ -3875,11 +3875,11 @@ class DipTraceService:
             parse_warnings=list(comparison.get("parse_warnings", [])),
         )
 
-    @staticmethod
     def _require_evidence_evaluation_unchanged(
+        self,
         evaluation: RoundtripEvidenceEvaluation,
     ) -> None:
-        """Repeat role and SHA gates immediately before metadata writes."""
+        """Repeat allowed-root, bounded-parse, role, and SHA gates before writes."""
 
         role_records = [
             ("source", evaluation.source),
@@ -3904,13 +3904,27 @@ class DipTraceService:
         ]
         for role, role_path, expected_sha256 in expected_files:
             try:
-                current_sha256 = sha256_bytes(role_path.read_bytes())
-            except OSError as exc:
+                resolved_path = self.settings.resolve_allowed_path(
+                    role_path,
+                    must_exist=True,
+                )
+                if resolved_path != role_path:
+                    raise EditError(
+                        f"{role} resolves to a different path before evidence recording",
+                        code="evidence_file_changed",
+                        details={"role": role},
+                    )
+                current_document = DipTraceDocument.load(
+                    resolved_path,
+                    self.settings.max_document_bytes,
+                )
+            except (DocumentError, PathAccessError, OSError) as exc:
                 raise EditError(
-                    f"Cannot re-read {role} before recording evidence",
+                    f"Cannot safely revalidate {role} before recording evidence",
                     code="evidence_file_changed",
                     details={"role": role},
                 ) from exc
+            current_sha256 = current_document.sha256
             if current_sha256 != expected_sha256:
                 raise Sha256MismatchError(
                     f"{role} changed before evidence metadata could be recorded",
