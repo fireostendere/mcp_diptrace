@@ -117,6 +117,19 @@ and must be reached with additional tests rather than omit rules or a weakened
 denominator. The reproducible command and full measurement table are in
 [TESTING.md](TESTING.md).
 
+### WO-14 synthetic load checkpoint — 2026-07-28
+
+CI now generates a deterministic 500-component PCB in memory instead of committing a
+large XML fixture. The load test exercises the public parser, normalized model, bounded
+model cache, selector query, and spatial index with explicit aggregate-time and
+peak-`tracemalloc` budgets. The same reporting harness accepts 500–3,000 components for
+local comparison.
+
+This input is explicitly `synthetic_parser_only`: it proves bounded execution of MCP
+code, not compatibility or performance with a real DipTrace 300+ component board.
+Human-captured large-board evidence therefore remains open and keeps its distinct
+provenance requirements.
+
 Current practical classification:
 
 | Area | Status | Main remaining gap |

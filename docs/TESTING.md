@@ -13,6 +13,7 @@ pytest -q --cov=src/diptrace_mcp --cov-report=term \
   --cov-report=json:coverage.json --cov-fail-under=84
 python scripts/check_coverage.py coverage.json
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
+python -m benchmarks.benchmark_large_board --components 500
 ```
 
 CI responsibilities:
@@ -194,6 +195,22 @@ above.
 
 `benchmarks/benchmark_core.py` reports timings for parsing/model creation, indexing, bounding-box queries, clearance review, placement candidates, one-net routing, SVG rendering, and semantic patches.
 
-Wall-clock thresholds are deliberately not CI pass/fail gates. The benchmark is intended for regression comparison and large-fixture analysis, where deterministic functional correctness remains the primary gate.
+`benchmarks/benchmark_large_board.py` generates a deterministic PCB with 500–3,000
+components in memory and exercises the public XML parser, normalized model builder,
+byte-accounted model cache, selector query, spatial-index build, and spatial query. It
+never writes or commits a large fixture. The generated XML is classified
+`synthetic_parser_only`; it is not a DipTrace export and supplies no format provenance.
+
+Pytest runs the 500-component case and requires all measured stages together to finish
+within 30 seconds, with no individual stage exceeding 128 MiB of peak Python allocation
+reported by `tracemalloc`. These deliberately loose load budgets catch runaway work or
+memory growth on shared CI runners; they are not product latency guarantees, RSS limits,
+engineering goldens, or evidence of acceptable performance on real 300+ component boards.
+Use the JSON-producing command above, optionally with up to `--components 3000`, for
+machine-specific regression comparison.
+
+The original core benchmark remains reporting-only: wall-clock measurements from its
+small fixture are not CI pass/fail gates. Deterministic functional correctness remains
+the primary gate for both harnesses.
 
 See [ROADMAP.md](ROADMAP.md) for the acceptance order and [XML_COMPATIBILITY.md](XML_COMPATIBILITY.md) for the compatibility matrix.
