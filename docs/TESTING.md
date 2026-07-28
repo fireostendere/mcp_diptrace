@@ -176,6 +176,17 @@ User-controlled manifests/sidecars cannot grant high trust. Future high-trust pr
 
 The synthetic `power_multilayer` fixture is an operation fixture, not proof of DipTrace 5.3 compatibility.
 
+`tests/fixture_hashes.sha256` records the exact bytes of every Git-tracked runtime
+fixture under `tests/fixtures/`; Markdown instructions and `.gitkeep` directory
+markers are deliberately excluded. Regenerate it with
+`python scripts/generate_fixture_hash_manifest.py` and verify it with `--check`.
+The pytest suite runs that check automatically, so fixture or line-ending drift
+cannot land without a matching manifest update.
+
+This SHA-256 manifest proves byte integrity only. It does **not** prove that a file
+came from DipTrace, raise its validation level, or replace the provenance rules
+above.
+
 ## Benchmarks
 
 `benchmarks/benchmark_core.py` reports timings for parsing/model creation, indexing, bounding-box queries, clearance review, placement candidates, one-net routing, SVG rendering, and semantic patches.
