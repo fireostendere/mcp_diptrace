@@ -175,6 +175,38 @@ codex mcp list
 
 Legacy binary `.dip`/`.dch` сначала экспортируйте через `File > Export > DipTrace XML`. Native XML `.dip`/`.dch` можно читать напрямую только если файл действительно начинается с официального DipTrace XML root.
 
+## Обработка данных
+
+- Переданные через MCP пути design/source должны разрешаться внутри
+  `DIPTRACE_MCP_WORKSPACE` или `DIPTRACE_MCP_ALLOWED_ROOTS`. State directory и пути к
+  executable являются отдельными operator-owned settings.
+- `DIPTRACE_MCP_STATE_DIR` может содержать полный design XML в session working copies
+  и transaction snapshots, а также operations, previews, plans, review reports,
+  external-job logs/results, exports и backups. Считайте этот каталог чувствительными
+  данными проекта и задавайте ему соответствующие права доступа.
+- В live session DipTrace передаёт временный exchange path. Bridge копирует input в
+  `original.xml` и `working.xml` внутри state directory; только явный `apply` с
+  expected SHA-256 рабочего файла копирует результат обратно в exchange path.
+  `cancel` оставляет исходный exchange input без изменений.
+- Offline backups хранятся в настроенном центральном state tree с ключом из hash
+  канонического target path, а не в неявном backup-каталоге рядом с design. Если
+  требуется такое разделение, размещайте `DIPTRACE_MCP_STATE_DIR` вне project.
+  Count/age retention удаляет только validated terminal records и истёкшие backup
+  histories на best-effort основе; active, nonterminal, corrupt или unverifiable state
+  может остаться, а thresholds не являются storage quotas.
+- Freerouting, ngspice и openEMS runner — необязательные локальные subprocesses,
+  запускаемые только соответствующими tools. Их isolated job directories и bounded
+  logs/results сохраняются в state directory. Process containment не создаёт network
+  sandbox для этих сторонних программ.
+- Transport `stdio` по умолчанию обменивается запросами и результатами с настроенным
+  локальным MCP-клиентом. Необязательный `streamable-http` слушает заданные host/port;
+  по умолчанию это loopback (`127.0.0.1:8765`), встроенной remote authentication нет.
+  Оставляйте его на loopback, если не настроен authenticated reverse proxy.
+
+Подробные границы описаны в [Usage: Backups and State Directory](docs/USAGE.md#11-backups-and-state-directory),
+[Security and Policy](docs/SECURITY_AND_POLICY.md) и
+[External Adapters](docs/EXTERNAL_ADAPTERS.md).
+
 ## Безопасность изменений
 
 High-level writes по умолчанию работают в preview/dry-run режиме. Рекомендуемый workflow:

@@ -153,3 +153,38 @@ def test_broken_relative_markdown_link_is_reported(tmp_path: Path) -> None:
     missing = _missing_targets(tmp_path, [document])
 
     assert [item.target for item in missing] == ["docs/not-there.md"]
+
+
+def _markdown_section(document: Path, heading: str) -> str:
+    text = document.read_text(encoding="utf-8")
+    marker = f"## {heading}\n"
+    start = text.index(marker) + len(marker)
+    end = text.find("\n## ", start)
+    return text[start:] if end < 0 else text[start:end]
+
+
+def test_readmes_publish_equivalent_data_handling_boundaries() -> None:
+    sections = [
+        _markdown_section(ROOT / "README.md", "Data Handling"),
+        _markdown_section(ROOT / "README_RU.md", "Обработка данных"),
+    ]
+    shared_contract_terms = {
+        "DIPTRACE_MCP_WORKSPACE",
+        "DIPTRACE_MCP_ALLOWED_ROOTS",
+        "DIPTRACE_MCP_STATE_DIR",
+        "original.xml",
+        "working.xml",
+        "apply",
+        "cancel",
+        "Freerouting",
+        "ngspice",
+        "openEMS",
+        "stdio",
+        "streamable-http",
+        "127.0.0.1:8765",
+    }
+
+    for section in sections:
+        assert section.count("\n- ") == 6
+        missing_terms = sorted(term for term in shared_contract_terms if term not in section)
+        assert not missing_terms

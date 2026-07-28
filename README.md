@@ -177,6 +177,39 @@ Pass a path inside `DIPTRACE_MCP_WORKSPACE` or `DIPTRACE_MCP_ALLOWED_ROOTS`:
 
 Legacy binary `.dip`/`.dch` files must first be exported with `File > Export > DipTrace XML`. A native XML `.dip`/`.dch` can be read directly only when the file actually begins with an official DipTrace XML root.
 
+## Data Handling
+
+- Design and source paths supplied through MCP must resolve inside
+  `DIPTRACE_MCP_WORKSPACE` or `DIPTRACE_MCP_ALLOWED_ROOTS`. The state directory and
+  executable paths are separate, operator-owned settings.
+- `DIPTRACE_MCP_STATE_DIR` can contain complete design XML in session working copies
+  and transaction snapshots, plus operations, previews, plans, review reports,
+  external-job logs/results, exports, and backups. Treat that directory as sensitive
+  project data and choose its access controls accordingly.
+- In a live session, DipTrace supplies a temporary exchange path. The bridge copies the
+  input to `original.xml` and `working.xml` under the state directory; only explicit
+  `apply`, with the expected working-file SHA-256, copies the result back to the
+  exchange path. `cancel` leaves the exchange input unchanged.
+- Offline backups are stored in the configured central state tree, keyed by canonical
+  target-path hash, rather than in an implicit backup directory beside the design.
+  Keep `DIPTRACE_MCP_STATE_DIR` outside the project when that separation is required.
+  Count/age retention removes only validated terminal records and expired backup
+  histories on a best-effort basis; active, nonterminal, corrupt, or unverifiable state
+  may remain, and the thresholds are not storage quotas.
+- Freerouting, ngspice, and an openEMS runner are optional local subprocesses invoked
+  only through their corresponding tools. Their isolated job directories and bounded
+  logs/results are retained under the state directory. Process containment does not
+  provide a network sandbox for those third-party programs.
+- The default `stdio` transport exchanges requests and results with the configured
+  local MCP client. Optional `streamable-http` listens on the configured host and port;
+  its default is loopback (`127.0.0.1:8765`) and it has no built-in remote
+  authentication. Keep it on loopback unless an authenticated reverse proxy is
+  configured.
+
+See [Usage: Backups and State Directory](docs/USAGE.md#11-backups-and-state-directory),
+[Security and Policy](docs/SECURITY_AND_POLICY.md), and
+[External Adapters](docs/EXTERNAL_ADAPTERS.md) for the detailed boundaries.
+
 ## Write Safety
 
 High-level writes default to preview/dry-run behavior. A safe workflow is:
