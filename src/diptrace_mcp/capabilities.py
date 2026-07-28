@@ -11,6 +11,7 @@ from .capability_model import (
     get_trust_model,
     render_capability_tables,
 )
+from .config import DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS
 from .domain import CapabilityReport
 from .geometry_backend import backend_report
 from .xml_document import DipTraceDocument
@@ -202,6 +203,9 @@ def capability_report(
             "max_query_results": 500,
             "max_transaction_operations": MAX_TRANSACTION_OPERATIONS,
             "max_write_objects": MAX_WRITE_OBJECTS,
+            "default_live_session_timeout_seconds": (
+                DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS
+            ),
             "max_write_objects_scope": (
                 "semantic transactions, raw XML edits, document creation, seed copies, "
                 "and overwrites"

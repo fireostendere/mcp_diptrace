@@ -347,6 +347,12 @@ The buttons in the bridge window perform the same actions. After the bridge proc
 exits, DipTrace either imports the updated exchange file or continues with the original
 unchanged file.
 
+The bridge cancels an unattended session after 1800 seconds by default. This is a
+product-level operator workflow budget, not a DipTrace format or engineering limit:
+it gives a person time to inspect a preview without leaving an abandoned bridge active
+for hours. Override it with `DIPTRACE_MCP_SESSION_TIMEOUT` or the plug-in
+`--timeout` argument; both accept positive integer seconds only.
+
 After `apply`:
 
 1. visually inspect every modified object;
@@ -623,7 +629,7 @@ Deleting or replacing the `<Source>` root is prohibited.
 | `DIPTRACE_MCP_MAX_DOCUMENT_BYTES` | `134217728` | Maximum size of one XML document |
 | `DIPTRACE_MCP_MODEL_CACHE_MAX_BYTES` | `268435456` | Conservative retained-payload budget for normalized model snapshots |
 | `DIPTRACE_MCP_MAX_SCAN_FILES` | `500` | Maximum number of scan candidates |
-| `DIPTRACE_MCP_SESSION_TIMEOUT` | `7200` | Bridge timeout in seconds |
+| `DIPTRACE_MCP_SESSION_TIMEOUT` | `1800` | Operator workflow timeout for an unattended bridge window, in seconds |
 | `DIPTRACE_MCP_TRANSPORT` | `stdio` | `stdio` or `streamable-http` |
 | `DIPTRACE_MCP_HOST` | `127.0.0.1` | HTTP server address |
 | `DIPTRACE_MCP_PORT` | `8765` | HTTP server port |

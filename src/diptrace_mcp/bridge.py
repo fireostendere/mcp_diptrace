@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .config import Settings, platform_path
+from .config import DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS, Settings, platform_path
 from .errors import DipTraceMcpError
 from .sessions import SessionAction, SessionStore
 from .xml_document import sha256_bytes
@@ -171,18 +171,39 @@ def run_headless(controller: BridgeController, timeout: int) -> int:
     return 2
 
 
-def main(argv: list[str] | None = None) -> int:
+def _positive_timeout(value: str) -> int:
+    try:
+        timeout = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("timeout must be an integer") from exc
+    if timeout <= 0:
+        raise argparse.ArgumentTypeError("timeout must be greater than zero")
+    return timeout
+
+
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="DipTrace executable plug-in bridge for MCP")
     parser.add_argument("exchange_file")
     parser.add_argument("--headless", action="store_true")
     parser.add_argument(
         "--timeout",
-        type=int,
-        default=int(os.environ.get("DIPTRACE_MCP_SESSION_TIMEOUT", "7200")),
+        type=_positive_timeout,
+        default=os.environ.get(
+            "DIPTRACE_MCP_SESSION_TIMEOUT",
+            str(DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS),
+        ),
+        help=(
+            "operator workflow timeout in seconds "
+            f"(default: {DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS}; "
+            "env: DIPTRACE_MCP_SESSION_TIMEOUT)"
+        ),
     )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = _build_parser()
     args = parser.parse_args(argv)
-    if args.timeout <= 0:
-        parser.error("--timeout must be greater than zero")
     try:
         exchange_path = platform_path(args.exchange_file).resolve(strict=True)
         controller = BridgeController(exchange_path, Settings.from_env())

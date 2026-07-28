@@ -23,6 +23,9 @@ PolicyProfile = Literal[
     "read_only", "review", "interactive_edit", "automation", "manufacturing"
 ]
 DEFAULT_MODEL_CACHE_MAX_BYTES = 256 * 1024 * 1024
+# Product-level budget for an unattended interactive bridge window. This is not a
+# DipTrace format or engineering constraint; operators can override it per workflow.
+DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS = 30 * 60
 _POLICY_PROFILES = {
     "read_only",
     "review",
