@@ -790,7 +790,6 @@ class DipTraceDocument:
                     f"Edit {index}: XPath {edit.xpath!r} matched {len(matches)} elements, "
                     f"expected {edit.expected_matches}"
                 )
-            before = [_short_xml(element) for element in matches]
             working = _apply_raw_edit(current, index, edit, matches)
             _apply_expected_tree_edit(current, index, edit, matches)
             updated = DipTraceDocument.from_bytes(self.path, working)
@@ -804,12 +803,9 @@ class DipTraceDocument:
                     "operation": edit.operation,
                     "xpath": edit.xpath,
                     "matches": len(matches),
-                    "before": before,
-                    "after": (
-                        [_short_xml(element) for element in updated.findall(edit.xpath)]
-                        if edit.operation not in {"delete_element", "replace_xml"}
-                        else []
-                    ),
+                    "expected_matches": edit.expected_matches,
+                    "before_count": len(matches),
+                    "after_count": len(updated.findall(edit.xpath)),
                 }
             )
 
@@ -1251,13 +1247,6 @@ def _parse_root_fragment(data: bytes) -> ET.Element:
         )
     except ET.ParseError as exc:
         raise EditError(f"Invalid XML fragment: {exc}") from exc
-
-
-def _short_xml(element: ET.Element, limit: int = 800) -> str:
-    rendered = ET.tostring(element, encoding="unicode")
-    if len(rendered) <= limit:
-        return rendered
-    return f"{rendered[:limit]}..."
 
 
 DEFAULT_DIFF_LINE_LIMIT = 200

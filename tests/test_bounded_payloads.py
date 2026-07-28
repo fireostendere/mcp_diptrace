@@ -14,9 +14,11 @@ from diptrace_mcp.domain import (
     BoardModelSection,
     TransactionRecord,
 )
-from diptrace_mcp.errors import DocumentError
+from diptrace_mcp.errors import DocumentError, EditError
 from diptrace_mcp.service import (
     BOARD_MODEL_RESPONSE_BYTE_LIMIT,
+    RAW_EDIT_RESPONSE_BYTE_LIMIT,
+    RAW_EDIT_XPATH_CHARACTER_LIMIT,
     DipTraceService,
 )
 from diptrace_mcp.xml_document import XmlEdit, unified_xml_diff_preview
@@ -117,6 +119,11 @@ def test_board_model_summary_and_cutout_page_are_explicit(tmp_path: Path) -> Non
     assert "cutouts" in summary["result"]["available_sections"]
     assert cutouts["result"]["page"]["total_count"] == 0
     assert limits["max_board_model_response_bytes"] == BOARD_MODEL_RESPONSE_BYTE_LIMIT
+    assert limits["max_raw_edit_response_bytes"] == RAW_EDIT_RESPONSE_BYTE_LIMIT
+    assert (
+        limits["max_raw_edit_xpath_characters"]
+        == RAW_EDIT_XPATH_CHARACTER_LIMIT
+    )
     assert limits["max_diff_lines"] == 200
     assert limits["max_diff_characters"] == 200_000
 
@@ -251,6 +258,115 @@ def test_raw_edit_diff_is_resource_only_and_bounded_by_lines_and_characters(
     assert "Z" * 250_000 not in json.dumps(response)
     with pytest.raises(DocumentError):
         service.raw_preview_diff_resource("../diff")
+
+
+def test_raw_edit_many_matches_returns_only_bounded_per_edit_metadata(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    root = ET.fromstring((FIXTURES / "pcb.xml").read_bytes())
+    board = root.find("./Board")
+    assert board is not None
+    payloads = ET.SubElement(board, "SyntheticPayloads")
+    for index in range(500):
+        ET.SubElement(
+            payloads,
+            "Payload",
+            {"Id": str(index), "Flag": "0"},
+        )
+    (workspace / "board.dip").write_bytes(
+        ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    )
+    service = _service(workspace, tmp_path / "state")
+    edits = [
+        XmlEdit(
+            operation="set_attribute",
+            xpath="./Board/SyntheticPayloads/Payload",
+            attribute="Flag",
+            value=str(index + 1),
+            expected_matches=500,
+        )
+        for index in range(50)
+    ]
+
+    response = service.apply_edits(edits, "board.dip", dry_run=True)
+
+    assert _serialized_size(response) <= RAW_EDIT_RESPONSE_BYTE_LIMIT
+    assert response["serialized_response_bytes"] == _serialized_size(response)
+    assert response["response_byte_limit"] == RAW_EDIT_RESPONSE_BYTE_LIMIT
+    assert response["operations_metadata"] == {
+        "edit_count": 50,
+        "total_match_count": 25_000,
+        "snippets_inline": False,
+        "xpath_character_limit": RAW_EDIT_XPATH_CHARACTER_LIMIT,
+    }
+    assert len(response["operations"]) == 50
+    for index, operation in enumerate(response["operations"]):
+        assert operation["index"] == index
+        assert operation["matches"] == 500
+        assert operation["before_count"] == 500
+        assert operation["after_count"] == 500
+        assert "before" not in operation
+        assert "after" not in operation
+    assert response["diff"]["inline"] is False
+    assert response["resources"] == [response["diff"]["resource_uri"]]
+
+
+def test_raw_edit_match_guard_remains_a_typed_error_before_response(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "board.dip").write_bytes((FIXTURES / "pcb.xml").read_bytes())
+    service = _service(workspace, tmp_path / "state")
+
+    with pytest.raises(
+        EditError,
+        match=r"matched 2 elements, expected 3",
+    ):
+        service.apply_edits(
+            [
+                XmlEdit(
+                    operation="set_text",
+                    xpath="./Board/Components/Component/Value",
+                    value="22k",
+                    expected_matches=3,
+                )
+            ],
+            "board.dip",
+            dry_run=True,
+        )
+
+
+def test_raw_edit_written_response_obeys_the_same_serialized_cap(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "board.dip").write_bytes((FIXTURES / "pcb.xml").read_bytes())
+    service = _service(workspace, tmp_path / "state")
+    edits = [
+        XmlEdit(
+            operation="set_text",
+            xpath="./Board/Components/Component[@Id='1']/Value",
+            value="22k",
+        )
+    ]
+    preview = service.apply_edits(edits, "board.dip", dry_run=True)
+
+    response = service.apply_edits(
+        edits,
+        "board.dip",
+        dry_run=False,
+        expected_sha256=preview["before_sha256"],
+    )
+
+    assert response["written"] is True
+    assert _serialized_size(response) <= RAW_EDIT_RESPONSE_BYTE_LIMIT
+    assert response["serialized_response_bytes"] == _serialized_size(response)
+    assert response["backup_character_count"] == len(response["backup"])
+    assert response["backup_truncated"] is False
 
 
 def test_diff_marker_is_inside_both_stored_caps() -> None:

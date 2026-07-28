@@ -134,7 +134,10 @@ and `true` after a successful commit.
 
 `apply_xml_edits` also returns only diff metadata and a raw-preview resource URI. Its
 stored diff prefix is capped by both line and character counts, and reports the total
-and stored counts plus each truncation reason.
+and stored counts plus each truncation reason. Successful edit entries contain bounded
+XPath/count metadata only, never before/after XML snippets. The complete serialized
+response has a 128 KiB cap; exact-match failures remain typed write errors and occur
+before a response or design write.
 
 ## Deliberately Not Registered
 

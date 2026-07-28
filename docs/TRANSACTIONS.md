@@ -24,6 +24,8 @@ The low-level `apply_xml_edits` tool uses the same raw-preserving approach and r
 separate expert API limited to 50 edits. Its diff is stored under a
 `diptrace://raw-preview/{preview_id}/diff` resource. The response reports line and
 character caps, total and stored sizes, and whether either cap truncated the artifact.
+Per-edit results contain bounded XPath and match-count metadata without before/after
+XML snippets, and the complete serialized response is capped at 128 KiB.
 
 ## Semantic Operations v1
 

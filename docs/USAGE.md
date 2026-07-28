@@ -512,6 +512,8 @@ Use this API only when a verified semantic tool is unavailable. Every edit must 
 an exact `expected_matches` guard. The tool response does not inline the XML diff:
 read the returned `diptrace://raw-preview/{preview_id}/diff` resource. Its metadata
 discloses the line and character caps, total and stored sizes, and truncation reasons.
+The inline operation list contains only bounded XPath/count metadata, never XML
+before/after snippets. The complete serialized response is capped at 128 KiB.
 
 For supported UTF-8 (with or without BOM), UTF-16LE/BE, US-ASCII, and ISO-8859-1
 inputs, replacements use the detected source codec and retain the BOM and untouched

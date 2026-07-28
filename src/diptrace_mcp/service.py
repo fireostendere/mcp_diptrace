@@ -208,6 +208,8 @@ _SOURCE_TAG = re.compile(rb"<(?:Source|Library)\b([^>]*)>", re.IGNORECASE)
 _SOURCE_ATTRIBUTE = re.compile(rb"([A-Za-z][A-Za-z0-9_-]*)\s*=\s*['\"]([^'\"]*)['\"]")
 BOARD_MODEL_RESPONSE_BYTE_LIMIT = 256 * 1024
 BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT = 32 * 1024
+RAW_EDIT_RESPONSE_BYTE_LIMIT = 128 * 1024
+RAW_EDIT_XPATH_CHARACTER_LIMIT = 128
 TRANSACTION_CHANGED_ID_PREVIEW_LIMIT = 500
 TRANSACTION_MESSAGE_PREVIEW_LIMIT = 100
 TRANSACTION_MESSAGE_CHARACTER_LIMIT = 1_000
@@ -227,6 +229,48 @@ def _bounded_text(value: str, limit: int) -> tuple[str, bool]:
     if len(value) <= limit:
         return value, False
     return value[:limit], True
+
+
+def _finalize_raw_edit_response(result: dict[str, Any]) -> dict[str, Any]:
+    result["response_byte_limit"] = RAW_EDIT_RESPONSE_BYTE_LIMIT
+    result["serialized_response_bytes"] = 0
+    for _ in range(8):
+        serialized_size = _json_size(result)
+        if result["serialized_response_bytes"] == serialized_size:
+            break
+        result["serialized_response_bytes"] = serialized_size
+    if (
+        result["serialized_response_bytes"] != _json_size(result)
+        or _json_size(result) > RAW_EDIT_RESPONSE_BYTE_LIMIT
+    ):
+        raise EditError("apply_xml_edits response metadata exceeds its payload cap")
+    return result
+
+
+def _bounded_raw_edit_previews(
+    previews: list[dict[str, object]],
+) -> list[dict[str, Any]]:
+    bounded: list[dict[str, Any]] = []
+    for preview in previews:
+        xpath = str(preview["xpath"])
+        xpath_preview, xpath_truncated = _bounded_text(
+            xpath,
+            RAW_EDIT_XPATH_CHARACTER_LIMIT,
+        )
+        bounded.append(
+            {
+                "index": preview["index"],
+                "operation": preview["operation"],
+                "xpath": xpath_preview,
+                "xpath_character_count": len(xpath),
+                "xpath_truncated": xpath_truncated,
+                "matches": preview["matches"],
+                "expected_matches": preview["expected_matches"],
+                "before_count": preview["before_count"],
+                "after_count": preview["after_count"],
+            }
+        )
+    return bounded
 
 
 def _bounded_board_item(
@@ -1384,6 +1428,10 @@ class DipTraceService:
         report["limits"]["max_board_model_item_detail_bytes"] = (
             BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT
         )
+        report["limits"]["max_raw_edit_response_bytes"] = RAW_EDIT_RESPONSE_BYTE_LIMIT
+        report["limits"]["max_raw_edit_xpath_characters"] = (
+            RAW_EDIT_XPATH_CHARACTER_LIMIT
+        )
         report["limits"]["max_diff_lines"] = DEFAULT_DIFF_LINE_LIMIT
         report["limits"]["max_diff_characters"] = DEFAULT_DIFF_CHARACTER_LIMIT
         report["limits"]["retention_max_records"] = self.settings.retention_max_records
@@ -2111,6 +2159,7 @@ class DipTraceService:
         changed = before != after
         diff, diff_metadata = unified_xml_diff_preview(before, after)
         preview_id, diff_resource = self.raw_previews.store(diff, diff_metadata)
+        bounded_previews = _bounded_raw_edit_previews(previews)
         result: dict[str, Any] = {
             "path": str(target.path),
             "live_session": target.is_live,
@@ -2119,7 +2168,15 @@ class DipTraceService:
             "changed": changed,
             "before_sha256": before_sha256,
             "after_sha256": after_sha256,
-            "operations": previews,
+            "operations": bounded_previews,
+            "operations_metadata": {
+                "edit_count": len(bounded_previews),
+                "total_match_count": sum(
+                    int(preview["matches"]) for preview in bounded_previews
+                ),
+                "snippets_inline": False,
+                "xpath_character_limit": RAW_EDIT_XPATH_CHARACTER_LIMIT,
+            },
             "changed_ids": list(impact.changed_ids),
             "write_object_count": impact.object_count,
             "diff": {
@@ -2133,7 +2190,22 @@ class DipTraceService:
         }
         if dry_run or not changed:
             result["written"] = False
-            return result
+            return _finalize_raw_edit_response(result)
+
+        # Refuse before touching the design if even worst-case bounded write
+        # metadata could exceed the public response contract. JSON escaping can
+        # expand one character to six bytes, hence the control-character probe.
+        preflight = dict(result)
+        preflight.update(
+            {
+                "written": True,
+                "backup": "\x00" * 4_096,
+                "backup_character_count": 4_096,
+                "backup_truncated": True,
+                "written_at": utc_now(),
+            }
+        )
+        _finalize_raw_edit_response(preflight)
 
         backup_destination: Path | BackupStore
         if target.live_session_id:
@@ -2148,14 +2220,18 @@ class DipTraceService:
         self.invalidate_document_trust_after_write(
             target.path, after_sha256, operation_name="mcp_apply_xml_edits"
         )
+        backup_text = str(backup)
+        backup_preview, backup_truncated = _bounded_text(backup_text, 4_096)
         result.update(
             {
                 "written": True,
-                "backup": str(backup),
+                "backup": backup_preview,
+                "backup_character_count": len(backup_text),
+                "backup_truncated": backup_truncated,
                 "written_at": utc_now(),
             }
         )
-        return result
+        return _finalize_raw_edit_response(result)
 
     def create_document(
         self,
