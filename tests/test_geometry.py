@@ -62,8 +62,21 @@ def test_bbox_intersection_area_and_containment() -> None:
 def test_geometry_backend_reports_optional_engine_without_leaking_backend_types() -> None:
     report = backend_report()
 
-    assert report["engine"] in {"pure_python", "shapely_geos"}
     assert report["shapely_available"] is shapely_available()
+    if shapely_available():
+        assert report["engine"] == "shapely_geos"
+        assert report["exact_shapes"] == [
+            "line",
+            "circle",
+            "ellipse",
+            "rectangle",
+            "obround",
+            "polygon",
+        ]
+    else:
+        assert report["engine"] == "pure_python"
+        assert report["exact_shapes"] == ["line", "circle"]
+        assert report["limitations"]
     assert all("shapely" not in value.__class__.__module__ for value in report.values())
 
 

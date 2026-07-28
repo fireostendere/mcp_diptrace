@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.12", "3.13"]
+        python: ["3.10", "3.13"]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -39,6 +39,60 @@ jobs:
         with:
           name: pytest-linux-${{ matrix.python }}
           path: pytest-${{ matrix.python }}.log
+
+  test-linux-geometry-and-coverage:
+    name: test-linux geometry + coverage (3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev,geometry]"
+      - name: Prove exact GEOS geometry is active
+        run: python scripts/verify_geometry_backend.py --expect shapely_geos
+      - name: Run full tests with coverage gates
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q --tb=long \
+            --cov=src/diptrace_mcp \
+            --cov-report=term \
+            --cov-report=json:coverage.json \
+            --cov-fail-under=84 \
+            2>&1 | tee pytest-3.12-geometry.log
+          python scripts/check_coverage.py coverage.json
+      - name: Upload failed test and coverage reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-linux-3.12-geometry
+          path: |
+            pytest-3.12-geometry.log
+            coverage.json
+
+  test-linux-no-shapely-fallback:
+    name: test-linux no-Shapely fallback (3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - name: Ensure Shapely is absent
+        run: |
+          python -m pip uninstall -y shapely
+          python -c "import importlib.util; assert importlib.util.find_spec('shapely') is None"
+      - name: Exercise the real pure-Python fallback
+        run: python scripts/verify_geometry_backend.py --expect pure_python
+      - name: Run fallback-focused regression tests
+        run: >-
+          python -m pytest -q
+          tests/test_geometry.py
+          tests/test_copper_pour_obstacles.py
 
   static-analysis:
     runs-on: ubuntu-latest

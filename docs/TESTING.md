@@ -9,12 +9,20 @@ python scripts/generate_pcb_skills.py --check
 pytest -q
 ruff check --no-cache src tests benchmarks scripts
 mypy --no-incremental src/diptrace_mcp
+pytest -q --cov=src/diptrace_mcp --cov-report=term \
+  --cov-report=json:coverage.json --cov-fail-under=84
+python scripts/check_coverage.py coverage.json
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 ```
 
 CI responsibilities:
 
-- full pytest on Linux with Python 3.10, 3.12, and 3.13;
+- full pytest on Linux with Python 3.10 and 3.13 using the core dependency set;
+- full pytest on Linux/Python 3.12 with `.[dev,geometry]`, an executable GEOS
+  probe, total coverage, and per-file coverage gates;
+- a separately named Linux/Python 3.12 job that removes Shapely, verifies it is
+  absent, executes the real pure-Python geometry probe, and runs the
+  fallback-focused regression files;
 - Ruff, strict Mypy, and generated-skill checks on Linux/Python 3.12;
 - full pytest plus CLI smoke tests on macOS/Python 3.12;
 - full pytest plus CLI smoke tests on Windows/Python 3.12;
@@ -23,6 +31,36 @@ CI responsibilities:
 Core CI does not require DipTrace, Java/Freerouting, ngspice, openEMS, or network access.
 
 ## Coverage
+
+The canonical coverage command is the full Python 3.12 suite with the optional
+geometry backend installed:
+
+```bash
+python -m pip install -e ".[dev,geometry]"
+python -m pytest -q \
+  --cov=src/diptrace_mcp \
+  --cov-report=term \
+  --cov-report=json:coverage.json \
+  --cov-fail-under=84
+python scripts/check_coverage.py coverage.json
+```
+
+The baseline was measured at commit `f0d7fb1` on Python 3.12 with Shapely
+2.1.2. These are coverage.py statement measurements, not hand-estimated
+percentages:
+
+| Target | Statements | Missed | Measured | Enforced integer floor |
+| --- | ---: | ---: | ---: | ---: |
+| Total `src/diptrace_mcp` | 15,273 | 2,443 | 84.0045% | 84% |
+| `xml_document.py` | 810 | 98 | 87.9012% | 87% |
+| `semantic_compiler.py` | 1,389 | 160 | 88.4809% | 88% |
+| `routing_compiler.py` | 561 | 81 | 85.5615% | 85% |
+
+The integer floors are the highest whole percentages the measured checkout
+passes. The JSON gate prints the current statement/miss counts on every run and
+fails if a required file disappears. Source growth can change those counts;
+raising the floors requires a fresh full-suite measurement. The final project
+goal of at least 88% total coverage is not yet met.
 
 The maintained suite covers:
 

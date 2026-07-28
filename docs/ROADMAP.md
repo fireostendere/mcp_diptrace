@@ -97,6 +97,24 @@ The useful next gates are human/evidence work:
 5. independently review and explicitly allowlist a redistributable candidate before it can become
    a CI fixture or change the structured inventory.
 
+### CI geometry and coverage checkpoint — 2026-07-28
+
+Linux/Python 3.12 now installs `.[dev,geometry]`, proves that the GEOS backend is
+active, and runs the full suite with pytest-cov. A separate explicitly no-Shapely
+job removes the optional package, proves it is absent, exercises the real
+pure-Python conservative geometry path, and runs the fallback-focused tests.
+This prevents exact-geometry tests from being silently skipped in every CI job
+while also preserving evidence for the fallback installation.
+
+At commit `f0d7fb1`, the canonical geometry-enabled suite measured 15,273
+statements, 2,443 misses, and **84.0045%** total coverage. CI enforces an integer
+84% total floor plus measured per-file floors of 87% for `xml_document.py`, 88%
+for `semantic_compiler.py`, and 85% for `routing_compiler.py`. The intended
+project target remains at least 88% total; that target is explicitly still open
+and must be reached with additional tests rather than omit rules or a weakened
+denominator. The reproducible command and full measurement table are in
+[TESTING.md](TESTING.md).
+
 Current practical classification:
 
 | Area | Status | Main remaining gap |
