@@ -218,6 +218,9 @@ RAW_EDIT_XPATH_CHARACTER_LIMIT = 128
 TRANSACTION_CHANGED_ID_PREVIEW_LIMIT = 500
 TRANSACTION_MESSAGE_PREVIEW_LIMIT = 100
 TRANSACTION_MESSAGE_CHARACTER_LIMIT = 1_000
+EVIDENCE_RESPONSE_BYTE_LIMIT = 64 * 1024
+EVIDENCE_LIST_PREVIEW_LIMIT = 25
+EVIDENCE_TEXT_CHARACTER_LIMIT = 512
 
 
 def _json_size(value: Any) -> int:
@@ -371,6 +374,99 @@ def _bounded_changed_ids(values: list[str]) -> dict[str, Any]:
     }
 
 
+def _bounded_evidence_comparison(
+    comparison: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Return a stable comparison preview without exposing unbounded parser output."""
+
+    if comparison is None:
+        return None, {"truncated": False, "fields": {}}
+
+    result: dict[str, Any] = {
+        "passed": bool(comparison.get("passed")),
+        "comparison_complete": bool(comparison.get("comparison_complete")),
+    }
+    field_bounds: dict[str, dict[str, Any]] = {}
+    truncated = False
+    for field_name in (
+        "compared_categories",
+        "missing_required_categories",
+        "differences",
+        "ignored_normalizations",
+        "parse_warnings",
+    ):
+        raw_values = comparison.get(field_name, [])
+        values = raw_values if isinstance(raw_values, list) else []
+        rendered: list[str] = []
+        characters_truncated = False
+        for value in values[:EVIDENCE_LIST_PREVIEW_LIMIT]:
+            bounded, was_truncated = _bounded_text(
+                str(value),
+                EVIDENCE_TEXT_CHARACTER_LIMIT,
+            )
+            rendered.append(bounded)
+            characters_truncated = characters_truncated or was_truncated
+        field_truncated = len(rendered) < len(values) or characters_truncated
+        result[field_name] = rendered
+        field_bounds[field_name] = {
+            "total_count": len(values),
+            "returned_count": len(rendered),
+            "truncated": field_truncated,
+        }
+        truncated = truncated or field_truncated
+
+    unsupported_raw = comparison.get("unsupported_categories", [])
+    unsupported = unsupported_raw if isinstance(unsupported_raw, list) else []
+    rendered_unsupported: list[dict[str, str]] = []
+    unsupported_characters_truncated = False
+    for item in unsupported[:EVIDENCE_LIST_PREVIEW_LIMIT]:
+        if not isinstance(item, dict):
+            continue
+        rendered_item: dict[str, str] = {}
+        for key in ("category", "severity", "reason"):
+            if key not in item:
+                continue
+            bounded, was_truncated = _bounded_text(
+                str(item[key]),
+                EVIDENCE_TEXT_CHARACTER_LIMIT,
+            )
+            rendered_item[key] = bounded
+            unsupported_characters_truncated = (
+                unsupported_characters_truncated or was_truncated
+            )
+        rendered_unsupported.append(rendered_item)
+    unsupported_truncated = (
+        len(rendered_unsupported) < len(unsupported)
+        or unsupported_characters_truncated
+    )
+    result["unsupported_categories"] = rendered_unsupported
+    field_bounds["unsupported_categories"] = {
+        "total_count": len(unsupported),
+        "returned_count": len(rendered_unsupported),
+        "truncated": unsupported_truncated,
+    }
+    truncated = truncated or unsupported_truncated
+    return result, {"truncated": truncated, "fields": field_bounds}
+
+
+def _finalize_evidence_response(result: dict[str, Any]) -> dict[str, Any]:
+    """Attach and enforce the public evidence response byte bound."""
+
+    result["response_byte_limit"] = EVIDENCE_RESPONSE_BYTE_LIMIT
+    result["serialized_response_bytes"] = 0
+    for _ in range(8):
+        serialized_size = _json_size(result)
+        if result["serialized_response_bytes"] == serialized_size:
+            break
+        result["serialized_response_bytes"] = serialized_size
+    if (
+        result["serialized_response_bytes"] != _json_size(result)
+        or _json_size(result) > EVIDENCE_RESPONSE_BYTE_LIMIT
+    ):
+        raise EditError("Evidence response metadata exceeds its payload cap")
+    return result
+
+
 def transaction_response_summary(record: TransactionRecord) -> dict[str, Any]:
     """Return stable transaction state without echoing staged operation payloads."""
 
@@ -425,6 +521,25 @@ class DocumentTarget:
     @property
     def is_live(self) -> bool:
         return self.live_session_id is not None
+
+
+@dataclass(frozen=True)
+class RoundtripEvidenceEvaluation:
+    """Validated, SHA-bound evidence inputs shared by preview and record paths."""
+
+    document_path: Path
+    document_sha256: str
+    source: EvidenceFileRecord
+    saved: EvidenceFileRecord
+    reexport: EvidenceFileRecord | None
+    semantic_comparison: dict[str, Any] | None
+
+    @property
+    def failed(self) -> bool:
+        return (
+            self.semantic_comparison is not None
+            and not bool(self.semantic_comparison.get("passed"))
+        )
 
 
 def same_file_role(path_a: Path, path_b: Path) -> bool:
@@ -3581,6 +3696,352 @@ class DipTraceService:
             ],
         }
 
+    def _evaluate_roundtrip_evidence(
+        self,
+        path: str,
+        *,
+        source_path: str,
+        source_sha256: str,
+        saved_path: str,
+        saved_sha256: str | None,
+        reexport_path: str | None = None,
+        reexport_sha256: str | None = None,
+    ) -> RoundtripEvidenceEvaluation:
+        """Validate evidence roles once for both read-only preview and recording."""
+
+        if (reexport_path is None) != (reexport_sha256 is None):
+            raise EditError(
+                "reexport_path and reexport_sha256 must be supplied together",
+                code="invalid_evidence_input",
+            )
+
+        document, target = self.load(path)
+        snapshot = self.models.get(document, live_session=target.is_live)
+        source = self.settings.resolve_allowed_path(source_path, must_exist=True)
+        saved = self.settings.resolve_allowed_path(saved_path, must_exist=True)
+        reexport = (
+            self.settings.resolve_allowed_path(reexport_path, must_exist=True)
+            if reexport_path is not None
+            else None
+        )
+
+        if same_file_role(source, saved):
+            raise EditError(
+                "source_path and saved_path must be different files",
+                code="evidence_role_conflict",
+            )
+        if reexport is not None and same_file_role(source, reexport):
+            raise EditError(
+                "source_path and reexport_path must be different files",
+                code="evidence_role_conflict",
+            )
+        if reexport is not None and same_file_role(saved, reexport):
+            raise EditError(
+                "saved_path and reexport_path must be different files",
+                code="evidence_role_conflict",
+            )
+        if saved_sha256 is None:
+            raise EditError(
+                "saved_sha256 is required to bind the saved evidence role",
+                code="sha256_required",
+            )
+
+        source_doc = DipTraceDocument.load(source, self.settings.max_document_bytes)
+        saved_doc = DipTraceDocument.load(saved, self.settings.max_document_bytes)
+        reexport_doc = (
+            DipTraceDocument.load(reexport, self.settings.max_document_bytes)
+            if reexport is not None
+            else None
+        )
+        for role, evidence_document, expected_sha in (
+            ("source", source_doc, source_sha256),
+            ("saved", saved_doc, saved_sha256),
+            ("reexport", reexport_doc, reexport_sha256),
+        ):
+            if evidence_document is None or expected_sha is None:
+                continue
+            if evidence_document.sha256 != expected_sha:
+                raise Sha256MismatchError(
+                    f"{role} SHA-256 mismatch: expected {expected_sha}, "
+                    f"got {evidence_document.sha256}",
+                    details={
+                        "role": role,
+                        "expected_sha256": expected_sha,
+                        "current_sha256": evidence_document.sha256,
+                    },
+                )
+
+        expected_source_type = snapshot.info.source_type
+        for role, evidence_document in (
+            ("source", source_doc),
+            ("saved", saved_doc),
+            ("reexport", reexport_doc),
+        ):
+            if evidence_document is None:
+                continue
+            if evidence_document.source_type != expected_source_type:
+                raise EditError(
+                    f"{role} source type {evidence_document.source_type!r} does not match "
+                    f"document source type {expected_source_type!r}",
+                    code="source_type_mismatch",
+                    details={
+                        "role": role,
+                        "expected_source_type": expected_source_type,
+                        "actual_source_type": evidence_document.source_type,
+                    },
+                )
+
+        saved_snapshot = build_snapshot(saved_doc)
+        critical_warnings = [
+            warning
+            for warning in saved_snapshot.warnings
+            if any(
+                token in warning.casefold()
+                for token in ("error", "invalid", "missing")
+            )
+        ]
+        if critical_warnings:
+            bounded_warnings, _ = _bounded_messages(critical_warnings)
+            raise EditError(
+                f"Saved document has critical parse warnings: {bounded_warnings}",
+                code="critical_parse_warnings",
+            )
+
+        semantic_comparison: dict[str, Any] | None = None
+        if reexport_doc is None:
+            if snapshot.info.sha256 != saved_doc.sha256:
+                raise EditError(
+                    f"Current document SHA {snapshot.info.sha256} does not match "
+                    f"saved SHA {saved_doc.sha256}; cannot validate open/save evidence",
+                    code="sha256_binding_mismatch",
+                )
+        else:
+            if snapshot.info.sha256 != reexport_doc.sha256:
+                raise EditError(
+                    f"Current document SHA {snapshot.info.sha256} does not match "
+                    f"reexport SHA {reexport_doc.sha256}; cannot validate roundtrip evidence",
+                    code="sha256_binding_mismatch",
+                )
+            semantic_comparison = _semantic_roundtrip_check(source_doc, reexport_doc)
+
+        return RoundtripEvidenceEvaluation(
+            document_path=target.path,
+            document_sha256=snapshot.info.sha256,
+            source=EvidenceFileRecord(
+                path=str(source),
+                sha256=source_doc.sha256,
+                source_type=cast(SourceType, source_doc.source_type),
+            ),
+            saved=EvidenceFileRecord(
+                path=str(saved),
+                sha256=saved_doc.sha256,
+                source_type=cast(SourceType, saved_doc.source_type),
+            ),
+            reexport=(
+                EvidenceFileRecord(
+                    path=str(reexport),
+                    sha256=reexport_doc.sha256,
+                    source_type=cast(SourceType, reexport_doc.source_type),
+                )
+                if reexport is not None and reexport_doc is not None
+                else None
+            ),
+            semantic_comparison=semantic_comparison,
+        )
+
+    @staticmethod
+    def _semantic_evidence_record(
+        comparison: dict[str, Any] | None,
+    ) -> SemanticComparisonEvidence | None:
+        if comparison is None:
+            return None
+        unsupported_raw = comparison.get("unsupported_categories", []) or []
+        return SemanticComparisonEvidence(
+            passed=bool(comparison["passed"]),
+            comparison_complete=bool(comparison["comparison_complete"]),
+            compared_categories=list(comparison.get("compared_categories", [])),
+            missing_required_categories=list(
+                comparison.get("missing_required_categories", [])
+            ),
+            differences=list(comparison.get("differences", [])),
+            ignored_normalizations=list(
+                comparison.get("ignored_normalizations", [])
+            ),
+            unsupported_categories=[
+                UnsupportedCategory.model_validate(item)
+                for item in unsupported_raw
+                if isinstance(item, dict)
+            ],
+            parse_warnings=list(comparison.get("parse_warnings", [])),
+        )
+
+    @staticmethod
+    def _require_evidence_evaluation_unchanged(
+        evaluation: RoundtripEvidenceEvaluation,
+    ) -> None:
+        """Repeat role and SHA gates immediately before metadata writes."""
+
+        role_records = [
+            ("source", evaluation.source),
+            ("saved", evaluation.saved),
+        ]
+        if evaluation.reexport is not None:
+            role_records.append(("reexport", evaluation.reexport))
+        for index, (left_role, left_record) in enumerate(role_records):
+            for right_role, right_record in role_records[index + 1 :]:
+                if same_file_role(Path(left_record.path), Path(right_record.path)):
+                    raise EditError(
+                        f"{left_role} and {right_role} evidence roles became the same file",
+                        code="evidence_role_conflict",
+                    )
+
+        expected_files = [
+            ("document", evaluation.document_path, evaluation.document_sha256),
+            *[
+                (role, Path(record.path), record.sha256)
+                for role, record in role_records
+            ],
+        ]
+        for role, role_path, expected_sha256 in expected_files:
+            try:
+                current_sha256 = sha256_bytes(role_path.read_bytes())
+            except OSError as exc:
+                raise EditError(
+                    f"Cannot re-read {role} before recording evidence",
+                    code="evidence_file_changed",
+                    details={"role": role},
+                ) from exc
+            if current_sha256 != expected_sha256:
+                raise Sha256MismatchError(
+                    f"{role} changed before evidence metadata could be recorded",
+                    details={
+                        "role": role,
+                        "expected_sha256": expected_sha256,
+                        "current_sha256": current_sha256,
+                    },
+                )
+
+    @staticmethod
+    def _evidence_manifest_path(document_path: Path) -> Path:
+        return Path(str(document_path) + ".roundtrip-evidence.json")
+
+    @staticmethod
+    def _evidence_sidecar_path(document_path: Path) -> Path:
+        return document_path.with_suffix(document_path.suffix + ".provenance.json")
+
+    @classmethod
+    def _require_evidence_output_paths_safe(
+        cls,
+        evaluation: RoundtripEvidenceEvaluation,
+    ) -> None:
+        """Refuse metadata outputs that alias a document or evidence input."""
+
+        outputs = (
+            ("evidence_manifest", cls._evidence_manifest_path(evaluation.document_path)),
+            ("provenance_sidecar", cls._evidence_sidecar_path(evaluation.document_path)),
+        )
+        protected = [
+            ("document", evaluation.document_path),
+            ("source", Path(evaluation.source.path)),
+            ("saved", Path(evaluation.saved.path)),
+        ]
+        if evaluation.reexport is not None:
+            protected.append(("reexport", Path(evaluation.reexport.path)))
+        for output_role, output_path in outputs:
+            for protected_role, protected_path in protected:
+                if same_file_role(output_path, protected_path):
+                    raise EditError(
+                        f"{output_role} output aliases the {protected_role} file",
+                        code="evidence_output_conflict",
+                    )
+
+    def _roundtrip_evidence_response(
+        self,
+        evaluation: RoundtripEvidenceEvaluation,
+        *,
+        written: bool,
+        manifest_path: Path | None = None,
+        manifest_sha256: str | None = None,
+    ) -> dict[str, Any]:
+        comparison, comparison_bounds = _bounded_evidence_comparison(
+            evaluation.semantic_comparison
+        )
+        failed = evaluation.failed
+        evidence_status = "failed" if failed else ("recorded" if written else "recordable")
+        role_sha256: dict[str, str] = {
+            "source": evaluation.source.sha256,
+            "saved": evaluation.saved.sha256,
+        }
+        if evaluation.reexport is not None:
+            role_sha256["reexport"] = evaluation.reexport.sha256
+        result: dict[str, Any] = {
+            "ok": not failed,
+            "written": written,
+            "document_written": False,
+            "evidence_status": evidence_status,
+            "authority": EvidenceAuthority.user_supplied.value,
+            "grants_high_trust": False,
+            "validation_level": FixtureValidationLevel.synthetic_operation_fixture.value,
+            "requires_diptrace_verification": True,
+            "source_type": evaluation.source.source_type,
+            "document_sha256": evaluation.document_sha256,
+            "role_sha256": role_sha256,
+            "semantic_comparison": comparison,
+            "semantic_comparison_bounds": comparison_bounds,
+            "message": (
+                "Semantic comparison failed; this observation can only be recorded "
+                "as failed user-supplied evidence."
+                if failed
+                else (
+                    "Evidence recorded with authority=user_supplied; this does not "
+                    "grant authoritative DipTrace trust."
+                    if written
+                    else (
+                        "Evidence inputs are valid and recordable as user-supplied; "
+                        "validation made no filesystem changes."
+                    )
+                )
+            ),
+        }
+        if written:
+            result["evidence_manifest_path"] = str(manifest_path)
+            result["evidence_manifest_sha256"] = manifest_sha256
+            result["written_files"] = ["evidence_manifest", "provenance_sidecar"]
+        else:
+            result["would_write"] = {
+                "evidence_manifest_path": str(
+                    self._evidence_manifest_path(evaluation.document_path)
+                ),
+                "provenance_sidecar_path": str(
+                    self._evidence_sidecar_path(evaluation.document_path)
+                ),
+            }
+        return _finalize_evidence_response(result)
+
+    def validate_roundtrip_evidence(
+        self,
+        path: str,
+        *,
+        source_path: str,
+        source_sha256: str,
+        saved_path: str,
+        saved_sha256: str | None = None,
+        reexport_path: str | None = None,
+        reexport_sha256: str | None = None,
+    ) -> dict[str, Any]:
+        """Validate SHA-bound user evidence without writing any file."""
+
+        evaluation = self._evaluate_roundtrip_evidence(
+            path,
+            source_path=source_path,
+            source_sha256=source_sha256,
+            saved_path=saved_path,
+            saved_sha256=saved_sha256,
+            reexport_path=reexport_path,
+            reexport_sha256=reexport_sha256,
+        )
+        return self._roundtrip_evidence_response(evaluation, written=False)
+
     def record_roundtrip_evidence(
         self,
         path: str,
@@ -3588,319 +4049,87 @@ class DipTraceService:
         source_path: str,
         source_sha256: str,
         saved_path: str,
+        saved_sha256: str | None = None,
         reexport_path: str | None = None,
         reexport_sha256: str | None = None,
     ) -> dict[str, Any]:
-        """Record user-supplied roundtrip evidence for a document.
+        """Write user-supplied evidence metadata without granting high trust."""
 
-        This operation records evidence supplied through the public MCP API.
-        It does NOT grant authoritative DipTrace trust.  The evidence is
-        recorded with ``authority=user_supplied`` and ``validation_level``
-        reflects the user-supplied evidence state only.
-
-        SHA binding:
-          - For open_save: current_document_sha256 must match saved_path SHA
-          - For roundtrip: current_document_sha256 must match reexport_path SHA
-
-        Role exclusion:
-          - source, saved, and reexport must be different files
-          - one file cannot serve multiple evidence roles
-
-        Returns honest evidence_status: "recorded" with authority: "user_supplied".
-        """
         self.policy.require_write(dry_run=False, operation="record_roundtrip_evidence")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
+        evaluation = self._evaluate_roundtrip_evidence(
+            path,
+            source_path=source_path,
+            source_sha256=source_sha256,
+            saved_path=saved_path,
+            saved_sha256=saved_sha256,
+            reexport_path=reexport_path,
+            reexport_sha256=reexport_sha256,
+        )
 
-        # Resolve all paths and prevent same-file reuse
-        source = self.settings.resolve_allowed_path(source_path, must_exist=True)
-        saved = self.settings.resolve_allowed_path(saved_path, must_exist=True)
-
-        # Prevent source == saved (platform-independent)
-        if same_file_role(source, saved):
-            raise EditError(
-                "source_path and saved_path must be different files",
-                code="evidence_role_conflict",
-            )
-
-        # Load source seed
-        source_bytes = source.read_bytes()
-        actual_source_sha = sha256_bytes(source_bytes)
-        if actual_source_sha != source_sha256:
-            raise EditError(
-                f"Source SHA-256 mismatch: expected {source_sha256}, got {actual_source_sha}",
-                code="sha256_mismatch",
-            )
-
-        # Load saved version
-        saved_bytes = saved.read_bytes()
-        saved_doc = DipTraceDocument.from_bytes(saved, saved_bytes)
-        saved_sha = sha256_bytes(saved_bytes)
-
-        # Verify source type matches
-        source_doc = DipTraceDocument.from_bytes(source, source_bytes)
-        if saved_doc.source_type != snapshot.info.source_type:
-            raise EditError(
-                f"Saved source type {saved_doc.source_type!r} does not match "
-                f"document source type {snapshot.info.source_type!r}",
-                code="source_type_mismatch",
-            )
-
-        # Check for critical parse warnings on saved document
-        saved_snapshot = build_snapshot(saved_doc)
-        critical_warnings = [
-            w
-            for w in saved_snapshot.warnings
-            if "error" in w.lower() or "invalid" in w.lower() or "missing" in w.lower()
-        ]
-        if critical_warnings:
-            raise EditError(
-                f"Saved document has critical parse warnings: {critical_warnings}",
-                code="critical_parse_warnings",
-            )
-
-        is_roundtrip = reexport_path is not None and reexport_sha256 is not None
-        reexport_sha: str | None = None
-        sem_result: dict[str, Any] | None = None
-
-        if is_roundtrip and reexport_path is not None and reexport_sha256 is not None:
-            reexport = self.settings.resolve_allowed_path(reexport_path, must_exist=True)
-
-            # Prevent source == reexport and saved == reexport
-            if same_file_role(source, reexport):
-                raise EditError(
-                    "source_path and reexport_path must be different files",
-                    code="evidence_role_conflict",
-                )
-            if same_file_role(saved, reexport):
-                raise EditError(
-                    "saved_path and reexport_path must be different files",
-                    code="evidence_role_conflict",
-                )
-
-            reexport_bytes = reexport.read_bytes()
-            reexport_doc = DipTraceDocument.from_bytes(reexport, reexport_bytes)
-            reexport_sha = sha256_bytes(reexport_bytes)
-
-            if reexport_doc.source_type != snapshot.info.source_type:
-                raise EditError(
-                    f"Reexport source type {reexport_doc.source_type!r} does not match "
-                    f"document source type {snapshot.info.source_type!r}",
-                    code="source_type_mismatch",
-                )
-
-            # SHA binding: current document must match reexport for roundtrip
-            if snapshot.info.sha256 != reexport_sha:
-                raise EditError(
-                    f"Current document SHA {snapshot.info.sha256} does not match "
-                    f"reexport SHA {reexport_sha}; cannot verify roundtrip",
-                    code="sha256_binding_mismatch",
-                )
-
-            if reexport_sha != reexport_sha256:
-                raise EditError(
-                    f"Reexport SHA-256 mismatch: expected {reexport_sha256}, got {reexport_sha}",
-                    code="sha256_mismatch",
-                )
-
-            # Semantic comparison: compare source and reexport structure
-            sem_result = _semantic_roundtrip_check(source_doc, reexport_doc)
-
-            if not sem_result["passed"]:
-                # Record failed evidence — no trust promotion
-                evidence_manifest = UserSuppliedRoundtripEvidence(
-                    document_path=str(target.path),
-                    document_sha256=snapshot.info.sha256,
-                    source=EvidenceFileRecord(
-                        path=str(source),
-                        sha256=source_sha256,
-                        source_type=cast(SourceType, source_doc.source_type),
-                    ),
-                    saved=EvidenceFileRecord(
-                        path=str(saved),
-                        sha256=saved_sha,
-                        source_type=cast(SourceType, saved_doc.source_type),
-                    ),
-                    reexport=EvidenceFileRecord(
-                        path=str(reexport),
-                        sha256=reexport_sha,
-                        source_type=cast(SourceType, reexport_doc.source_type),
-                    ),
-                    semantic_comparison=SemanticComparisonEvidence(
-                        passed=sem_result["passed"],
-                        comparison_complete=sem_result["comparison_complete"],
-                        compared_categories=sem_result["compared_categories"],
-                        differences=sem_result["differences"],
-                        ignored_normalizations=sem_result["ignored_normalizations"],
-                        unsupported_categories=[
-                            UnsupportedCategory.model_validate(cat)
-                            for cat in (sem_result.get("unsupported_categories", []) or [])
-                            if isinstance(cat, dict)
-                        ],
-                        parse_warnings=sem_result["parse_warnings"],
-                    ),
-                    validation_level=FixtureValidationLevel.synthetic_operation_fixture,
-                    status="failed",
-                    created_at=utc_now(),
-                )
-                manifest_path = Path(str(target.path) + ".roundtrip-evidence.json")
-                atomic_write_bytes(
-                    manifest_path,
-                    json.dumps(evidence_manifest.model_dump(), indent=2, sort_keys=True).encode(),
-                )
-                manifest_sha = sha256_bytes(manifest_path.read_bytes())
-
-                # Write sidecar as user-supplied evidence — no trust promotion
-                sidecar = DocumentProvenance(
-                    provenance="user_supplied_evidence_failed",
-                    validation_level=FixtureValidationLevel.synthetic_operation_fixture,
-                    current_document_sha256=snapshot.info.sha256,
-                    seed_sha256=source_sha256,
-                    authority=ProvenanceAuthority.user_supplied_evidence,
-                    evidence_manifest_path=str(manifest_path),
-                    evidence_manifest_sha256=manifest_sha,
-                    last_modified_by="mcp_record_roundtrip_evidence",
-                )
-                self._write_provenance_sidecar(target.path, sidecar)
-
-                return {
-                    "ok": False,
-                    "evidence_status": "failed",
-                    "authority": EvidenceAuthority.user_supplied.value,
-                    "validation_level": FixtureValidationLevel.synthetic_operation_fixture.value,
-                    "requires_diptrace_verification": True,
-                    "source_sha256": source_sha256,
-                    "saved_sha256": saved_sha,
-                    "reexport_sha256": reexport_sha,
-                    "semantic_comparison": sem_result,
-                    "evidence_manifest_path": str(manifest_path),
-                    "evidence_manifest_sha256": manifest_sha,
-                    "message": (
-                        "Roundtrip semantic comparison failed. "
-                        f"Differences: {sem_result['differences']}"
-                    ),
-                }
-
-            evidence_level = FixtureValidationLevel.synthetic_operation_fixture
-        else:
-            # open_save only: SHA binding — current must match saved
-            if snapshot.info.sha256 != saved_sha:
-                raise EditError(
-                    f"Current document SHA {snapshot.info.sha256} does not match "
-                    f"saved SHA {saved_sha}; cannot verify open/save",
-                    code="sha256_binding_mismatch",
-                )
-            evidence_level = FixtureValidationLevel.synthetic_operation_fixture
-
-        # Build semantic comparison evidence for roundtrip
-        sem_evidence: SemanticComparisonEvidence | None = None
-        if sem_result is not None:
-            unsupported_raw = sem_result.get("unsupported_categories", []) or []
-            unsupported_cats = [
-                UnsupportedCategory.model_validate(cat)
-                for cat in unsupported_raw
-                if isinstance(cat, dict)
-            ]
-            sem_evidence = SemanticComparisonEvidence(
-                passed=sem_result["passed"],
-                comparison_complete=sem_result["comparison_complete"],
-                compared_categories=sem_result["compared_categories"],
-                differences=sem_result["differences"],
-                ignored_normalizations=sem_result["ignored_normalizations"],
-                unsupported_categories=unsupported_cats,
-                parse_warnings=sem_result["parse_warnings"],
-            )
-
-        # Create user-supplied evidence manifest (honest model)
-        reexport_record: EvidenceFileRecord | None = None
-        if is_roundtrip and reexport is not None and reexport_sha is not None:
-            reexport_record = EvidenceFileRecord(
-                path=str(reexport),
-                sha256=reexport_sha,
-                source_type=cast(
-                    SourceType,
-                    DipTraceDocument.from_bytes(reexport, reexport_bytes).source_type,
-                ),
-            )
+        evidence_level = FixtureValidationLevel.synthetic_operation_fixture
 
         evidence_manifest = UserSuppliedRoundtripEvidence(
-            document_path=str(target.path),
-            document_sha256=snapshot.info.sha256,
-            source=EvidenceFileRecord(
-                path=str(source),
-                sha256=source_sha256,
-                source_type=cast(SourceType, source_doc.source_type),
+            document_path=str(evaluation.document_path),
+            document_sha256=evaluation.document_sha256,
+            source=evaluation.source,
+            saved=evaluation.saved,
+            reexport=evaluation.reexport,
+            semantic_comparison=self._semantic_evidence_record(
+                evaluation.semantic_comparison
             ),
-            saved=EvidenceFileRecord(
-                path=str(saved),
-                sha256=saved_sha,
-                source_type=cast(SourceType, saved_doc.source_type),
-            ),
-            reexport=reexport_record,
-            semantic_comparison=sem_evidence,
             validation_level=evidence_level,
-            status="recorded",
+            status="failed" if evaluation.failed else "recorded",
             created_at=utc_now(),
         )
-        manifest_path = Path(str(target.path) + ".roundtrip-evidence.json")
-        manifest_json = json.dumps(
-            evidence_manifest.model_dump(), indent=2, sort_keys=True
+        manifest_path = self._evidence_manifest_path(evaluation.document_path)
+        manifest_bytes = json.dumps(
+            evidence_manifest.model_dump(mode="json"),
+            indent=2,
+            sort_keys=True,
         ).encode()
-        atomic_write_bytes(manifest_path, manifest_json)
-        manifest_sha = sha256_bytes(manifest_path.read_bytes())
+        self._require_evidence_evaluation_unchanged(evaluation)
+        self._require_evidence_output_paths_safe(evaluation)
+        atomic_write_bytes(manifest_path, manifest_bytes)
+        reloaded_manifest = manifest_path.read_bytes()
+        manifest_sha = sha256_bytes(reloaded_manifest)
+        UserSuppliedRoundtripEvidence.model_validate(json.loads(reloaded_manifest))
 
-        # Re-read manifest to verify atomic write
-        reloaded = manifest_path.read_bytes()
-        if sha256_bytes(reloaded) != manifest_sha:
-            raise EditError(
-                "Evidence manifest re-read SHA mismatch after write",
-                code="evidence_manifest_write_error",
-            )
-        # Re-parse to verify schema integrity
-        UserSuppliedRoundtripEvidence.model_validate(json.loads(reloaded))
-
-        # Write sidecar with user_supplied_evidence authority
+        self._require_evidence_evaluation_unchanged(evaluation)
+        self._require_evidence_output_paths_safe(evaluation)
         sidecar = DocumentProvenance(
-            provenance="user_supplied_evidence_recorded",
+            provenance=(
+                "user_supplied_evidence_failed"
+                if evaluation.failed
+                else "user_supplied_evidence_recorded"
+            ),
             validation_level=evidence_level,
-            current_document_sha256=snapshot.info.sha256,
-            seed_sha256=source_sha256,
-            parent_validation_level=evidence_level,
+            current_document_sha256=evaluation.document_sha256,
+            seed_sha256=evaluation.source.sha256,
+            parent_validation_level=(None if evaluation.failed else evidence_level),
             authority=ProvenanceAuthority.user_supplied_evidence,
             evidence_manifest_path=str(manifest_path),
             evidence_manifest_sha256=manifest_sha,
             last_modified_by="mcp_record_roundtrip_evidence",
         )
-        self._write_provenance_sidecar(target.path, sidecar)
+        self._write_provenance_sidecar(evaluation.document_path, sidecar)
 
-        # Re-read sidecar to verify
-        reloaded_sidecar = self._load_seed_provenance(target.path)
-        if reloaded_sidecar is None:
+        reloaded_sidecar = self._load_seed_provenance(evaluation.document_path)
+        if (
+            reloaded_sidecar is None
+            or reloaded_sidecar.evidence_manifest_path != str(manifest_path)
+            or reloaded_sidecar.evidence_manifest_sha256 != manifest_sha
+        ):
             raise EditError(
-                "Sidecar verification failed after write",
+                "Evidence provenance sidecar verification failed after write",
                 code="sidecar_write_error",
             )
 
-        return {
-            "ok": True,
-            "evidence_status": "recorded",
-            "authority": EvidenceAuthority.user_supplied.value,
-            "validation_level": evidence_level.value,
-            "requires_diptrace_verification": True,
-            "source_sha256": source_sha256,
-            "saved_sha256": saved_sha,
-            "reexport_sha256": reexport_sha,
-            "semantic_comparison": sem_result,
-            "evidence_manifest_path": str(manifest_path),
-            "evidence_manifest_sha256": manifest_sha,
-            "message": (
-                "Evidence recorded with authority=user_supplied. "
-                "This does not grant authoritative DipTrace trust."
-            ),
-        }
-
-    # Keep backward-compatible alias
-    validate_roundtrip_evidence = record_roundtrip_evidence
+        return self._roundtrip_evidence_response(
+            evaluation,
+            written=True,
+            manifest_path=manifest_path,
+            manifest_sha256=manifest_sha,
+        )
 
     def move_components(
         self,

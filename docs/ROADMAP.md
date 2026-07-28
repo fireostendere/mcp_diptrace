@@ -143,12 +143,33 @@ code, not compatibility or performance with a real DipTrace 300+ component board
 Human-captured large-board evidence therefore remains open and keeps its distinct
 provenance requirements.
 
+### Public evidence-intake checkpoint — 2026-07-28
+
+Two typed MCP tools now expose the user-supplied half of the evidence harness.
+`validate_roundtrip_evidence` performs allowed-root, distinct-role, source-type,
+exact-SHA, and current-document binding checks without writing; when a re-export is
+supplied, it also performs the structural semantic comparison.
+`record_roundtrip_evidence` repeats those gates and writes only the evidence manifest
+and provenance sidecar. Both remain `authority=user_supplied`, report
+`requires_diptrace_verification=true`, and are structurally unable to grant high trust.
+Observed representation-only normalizations are disclosed in the preview and preserved
+in the manifest; they never suppress a semantic difference.
+
+The measured MCP surface moved from 156 tools / 121,335 JSON bytes to 158 tools /
+124,813 bytes (approximately 31,203 tokens), a 2.87% increase and below the Phase-2
+15% discovery-budget ceiling. The read-only/record split is transport-tested for valid
+evidence, failed comparison, tampered SHA, reused roles, allowed-root refusal, bounded
+responses, and preview filesystem non-mutation. This checkpoint does not provide the
+client with authority over the separate package-owned registry. That registry is
+implemented but currently has zero independently reviewed entries, so no current
+document is promoted to high trust.
+
 ### Public MCP workflow checkpoint — 2026-07-28
 
 CI now executes a fixture-driven in-memory MCP workflow through the public
 client/server transport. The current workflow reaches **63 distinct wire tool
 names**, exceeding the Phase-5 acceptance floor of 40 without enumerating all
-156 registered tools. It carries discovered stable ids and generated
+158 registered tools. It carries discovered stable ids and generated
 transaction/export/report/resource ids into dependent calls, binds preview
 operations to the fixture SHA, verifies bounded metadata/resources, and proves
 that raw and semantic previews do not change the source document.

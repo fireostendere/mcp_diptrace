@@ -260,7 +260,7 @@ The server distinguishes provenance from authority. A client may submit evidence
 
 - **Synthetic MCP-generated**: XML created by `create_schematic_document` or `create_pcb_document` is classified as `synthetic_parser_only` until stronger independently verified evidence exists.
 - **Seed-based**: XML copied by `create_document_from_seed` from a real DipTrace export preserves seed provenance but does not create round-trip authority.
-- **Recorded evidence (service-only today)**: the internal `record_roundtrip_evidence` method binds before/after files, exact paths, source type, SHA-256 values, and semantic comparison. It is not registered on the MCP surface yet; the Phase 7 evidence harness must make intake reachable before clients can rely on it. User-supplied evidence is not a trusted root.
+- **Public user-supplied evidence intake**: `validate_roundtrip_evidence` checks distinct allowed-root source/saved/re-export roles, exact SHA-256 values, source type, document binding, and, when a re-export is supplied, structural semantic comparison without writing. `record_roundtrip_evidence` explicitly writes only a manifest and provenance sidecar after repeating those gates. Both report `authority=user_supplied`, keep `requires_diptrace_verification=true`, and can never grant high trust.
 - **High trust**: the package-owned exact-hash registry is implemented and
   disclosed through capabilities/resources, but it currently contains 0
   reviewed entries. No existing document is promoted. The

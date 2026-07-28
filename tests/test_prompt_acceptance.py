@@ -166,6 +166,7 @@ def test_public_pcb_roundtrip_geometry_failure_is_recorded(tmp_path: Path) -> No
         source_path="source.dip",
         source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
         saved_path="saved.dip",
+        saved_sha256=hashlib.sha256(saved.read_bytes()).hexdigest(),
         reexport_path="reexport.dip",
         reexport_sha256=hashlib.sha256(reexport.read_bytes()).hexdigest(),
     )
@@ -197,6 +198,7 @@ def test_public_schematic_roundtrip_connectivity_failure_is_recorded(
         source_path="source.dch",
         source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
         saved_path="saved.dch",
+        saved_sha256=hashlib.sha256(saved.read_bytes()).hexdigest(),
         reexport_path="reexport.dch",
         reexport_sha256=hashlib.sha256(reexport.read_bytes()).hexdigest(),
     )

@@ -74,6 +74,42 @@ class ImpedanceConstraintInput(BaseModel):
     )
 
 
+class EvidenceRoleInput(BaseModel):
+    """One SHA-bound file role in operator-supplied evidence."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(
+        min_length=1,
+        max_length=4_096,
+        description="Existing evidence file inside an allowed root.",
+    )
+    sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="Expected lowercase SHA-256 of the exact evidence file bytes.",
+    )
+
+
+class RoundtripEvidenceInput(BaseModel):
+    """Distinct source, saved, and optional re-export evidence roles."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: EvidenceRoleInput = Field(
+        description="File exported before the operator's DipTrace open/save action."
+    )
+    saved: EvidenceRoleInput = Field(
+        description="File saved by DipTrace after opening the source."
+    )
+    reexport: EvidenceRoleInput | None = Field(
+        default=None,
+        description=(
+            "Optional independent re-export used for structural semantic comparison. "
+            "Omit it for an open/save-only observation."
+        ),
+    )
+
+
 DISTANCE_UNITS_DESCRIPTION = (
     "All distances are in millimetres, regardless of the document's own Units attribute."
 )
@@ -240,6 +276,49 @@ def create_server(
     def get_document_info(path: str | None = None) -> dict[str, Any]:
         """Return document identity, type, version, size, sha256 and compatibility."""
         return service.document_info(path)
+
+    @mcp.tool()
+    def validate_roundtrip_evidence(
+        path: str,
+        evidence: RoundtripEvidenceInput,
+    ) -> dict[str, Any]:
+        """Validate distinct allowed-root evidence roles and exact SHA bindings without writing.
+
+        The bounded result is always authority=user_supplied and grants_high_trust=false.
+        """
+
+        reexport = evidence.reexport
+        return service.validate_roundtrip_evidence(
+            path,
+            source_path=evidence.source.path,
+            source_sha256=evidence.source.sha256,
+            saved_path=evidence.saved.path,
+            saved_sha256=evidence.saved.sha256,
+            reexport_path=reexport.path if reexport is not None else None,
+            reexport_sha256=reexport.sha256 if reexport is not None else None,
+        )
+
+    @mcp.tool()
+    def record_roundtrip_evidence(
+        path: str,
+        evidence: RoundtripEvidenceInput,
+    ) -> dict[str, Any]:
+        """Write a user-supplied evidence manifest and provenance sidecar, not design bytes.
+
+        This explicitly writes metadata, returns written=true only after both files verify,
+        remains authority=user_supplied, and can never grant high trust.
+        """
+
+        reexport = evidence.reexport
+        return service.record_roundtrip_evidence(
+            path,
+            source_path=evidence.source.path,
+            source_sha256=evidence.source.sha256,
+            saved_path=evidence.saved.path,
+            saved_sha256=evidence.saved.sha256,
+            reexport_path=reexport.path if reexport is not None else None,
+            reexport_sha256=reexport.sha256 if reexport is not None else None,
+        )
 
     @mcp.tool()
     def get_board_model(

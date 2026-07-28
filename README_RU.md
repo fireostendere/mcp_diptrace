@@ -260,7 +260,7 @@ adapters.
 
 - **Synthetic MCP-generated**: XML из `create_schematic_document`/`create_pcb_document` имеет `synthetic_parser_only`, пока нет более сильного независимо проверенного evidence.
 - **Seed-based**: `create_document_from_seed` копирует реальный DipTrace export и сохраняет provenance, но копирование само по себе не создаёт round-trip authority.
-- **Recorded evidence (пока только внутри service)**: внутренний метод `record_roundtrip_evidence` связывает before/after files, точные paths, source type, SHA-256 и semantic comparison. Он ещё не зарегистрирован на MCP surface; intake станет доступен клиентам только после evidence harness из Phase 7. User-supplied evidence не является trusted root.
+- **Публичный приём user-supplied evidence**: `validate_roundtrip_evidence` без записи проверяет разные allowed-root роли source/saved/re-export, точные SHA-256, source type, привязку к документу и, если передан re-export, structural semantic comparison. `record_roundtrip_evidence` после повторной проверки этих gates явно записывает только manifest и provenance sidecar. Оба инструмента сообщают `authority=user_supplied`, сохраняют `requires_diptrace_verification=true` и никогда не дают high trust.
 - **High trust**: package-owned exact-hash registry реализован и раскрывается
   через capabilities/resources, но сейчас в нём 0 reviewed entries. Ни один
   существующий документ не повышается. Для

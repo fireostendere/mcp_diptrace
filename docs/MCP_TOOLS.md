@@ -79,6 +79,24 @@ Exact conflict-checked rollback is exempt from the object count, but still passe
 write policy. The live-session external apply handshake is not yet independently capped
 and remains disclosed by `get_capabilities` pending WO-15.
 
+## User-supplied Evidence Intake
+
+- `validate_roundtrip_evidence` is read-only. It resolves every role inside the configured
+  allowed roots, refuses path/hardlink aliases, parses each bounded document, checks the
+  caller-provided SHA-256 for source, saved, and optional re-export files, requires matching
+  source types, binds the current document to saved or re-export bytes, and returns a bounded
+  semantic-comparison preview with `written=false`.
+- `record_roundtrip_evidence` is an explicit metadata write. It performs the same computation,
+  repeats role and SHA checks immediately before writing, then writes and verifies
+  `<document>.roundtrip-evidence.json` plus `<document>.provenance.json`. It never changes
+  design bytes. A failed semantic comparison may be preserved only with `status=failed`.
+
+Both tools classify the result as `authority=user_supplied`,
+`validation_level=synthetic_operation_fixture`, and
+`requires_diptrace_verification=true`. Neither tool can mint
+`diptrace_roundtrip_verified` or any other high-trust level. A trusted registry/bridge/signed
+fixture authority remains separate and unavailable through this client-supplied channel.
+
 ## Trust and Verification Caveat
 
 The capability layer intentionally does **not** claim that every write path has fully proven trust invalidation and real DipTrace round-trip coverage.

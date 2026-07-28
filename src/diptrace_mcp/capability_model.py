@@ -198,6 +198,10 @@ _BASE_TRUST_MODEL: dict[str, Any] = {
         "every_entry_requires_human_review": True,
     },
     "roundtrip_evidence_validation": {
+        "public_preview_tool": "validate_roundtrip_evidence",
+        "public_record_tool": "record_roundtrip_evidence",
+        "preview_writes_files": False,
+        "record_writes_metadata_only": True,
         "user_supplied_recorded": True,
         "user_supplied_high_trust_denied": True,
     },

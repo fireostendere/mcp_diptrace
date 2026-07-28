@@ -92,6 +92,9 @@ The maintained suite covers:
 - thread- and spawned-process serialization of the single-active-session invariant,
   finish requests, and finalization;
 - fail-closed authority tests for self-minted manifests, path/hardlink/symlink aliases, source-type/SHA binding, incomplete semantic comparisons, and rollback with corrupt evidence;
+- public MCP evidence-intake tests for typed schemas, read-only preview non-mutation,
+  explicit metadata recording, failed observations, tampered role hashes, reused roles,
+  allowed-root refusal, bounded responses, and preservation of observed normalizations;
 - PCB semantic comparison of components, pads, nets, trace coordinates/order, widths, segment layers, endpoints, via styles/spans, locks, and differential-pair membership;
 - schematic semantic comparison of sheets/hierarchy, parts, values/patterns, pins, pin-to-net connectivity, wire geometry, labels, and buses;
 - component, text, rule, test-point, existing-pattern assignment, and group operations;
