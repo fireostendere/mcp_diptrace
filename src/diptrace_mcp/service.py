@@ -560,6 +560,61 @@ SEMANTIC_COMPARISON_POLICY_V1: dict[str, Any] = {
 }
 
 
+def _detected_semantic_normalizations(
+    source: DipTraceDocument,
+    reexport: DipTraceDocument,
+) -> list[str]:
+    """Report representation differences the semantic comparison actually ignores.
+
+    These detectors are observational: they never remove a semantic difference or
+    turn a failed comparison into a pass.  A name is returned only when the two
+    parsed documents exhibit that specific, policy-allowlisted representation
+    difference.
+    """
+
+    detected: set[str] = set()
+
+    source_encoding = (
+        source.encoding.casefold().replace("_", "-"),
+        source.bom,
+        (source.declared_encoding or "").casefold().replace("_", "-"),
+    )
+    reexport_encoding = (
+        reexport.encoding.casefold().replace("_", "-"),
+        reexport.bom,
+        (reexport.declared_encoding or "").casefold().replace("_", "-"),
+    )
+    if source.raw_bytes != reexport.raw_bytes and source_encoding != reexport_encoding:
+        detected.add("xml_declaration_encoding")
+
+    source_elements = list(source.root.iter())
+    reexport_elements = list(reexport.root.iter())
+    source_shape = [(element.tag, len(element)) for element in source_elements]
+    reexport_shape = [(element.tag, len(element)) for element in reexport_elements]
+
+    # Attribute order and formatting whitespace are compared only when the element
+    # trees have the same shape, so unrelated elements cannot be paired merely
+    # because they happen to occupy the same traversal position.
+    if source_shape == reexport_shape:
+        for left, right in zip(source_elements, reexport_elements, strict=True):
+            if left.attrib == right.attrib and tuple(left.attrib.items()) != tuple(
+                right.attrib.items()
+            ):
+                detected.add("attribute_order")
+
+            for left_text, right_text in (
+                (left.text, right.text),
+                (left.tail, right.tail),
+            ):
+                if left_text == right_text:
+                    continue
+                if (left_text or "").strip() == (right_text or "").strip():
+                    detected.add("whitespace_in_text")
+
+    configured = SEMANTIC_COMPARISON_POLICY_V1["normalizations"]
+    return sorted(detected & configured)
+
+
 def _semantic_roundtrip_check(
     source: DipTraceDocument, reexport: DipTraceDocument
 ) -> dict[str, Any]:
@@ -904,7 +959,7 @@ def _semantic_roundtrip_check(
         "compared_categories": compared,
         "missing_required_categories": missing_required,
         "differences": differences,
-        "ignored_normalizations": [],
+        "ignored_normalizations": _detected_semantic_normalizations(source, reexport),
         "unsupported_categories": unsupported,
         "parse_warnings": warnings,
     }
@@ -3588,6 +3643,7 @@ class DipTraceService:
                         comparison_complete=sem_result["comparison_complete"],
                         compared_categories=sem_result["compared_categories"],
                         differences=sem_result["differences"],
+                        ignored_normalizations=sem_result["ignored_normalizations"],
                         unsupported_categories=[
                             UnsupportedCategory.model_validate(cat)
                             for cat in (sem_result.get("unsupported_categories", []) or [])
@@ -3662,6 +3718,7 @@ class DipTraceService:
                 comparison_complete=sem_result["comparison_complete"],
                 compared_categories=sem_result["compared_categories"],
                 differences=sem_result["differences"],
+                ignored_normalizations=sem_result["ignored_normalizations"],
                 unsupported_categories=unsupported_cats,
                 parse_warnings=sem_result["parse_warnings"],
             )

@@ -509,6 +509,70 @@ class TestSemanticComparisonRegression:
         assert "unsupported_categories" in result
         assert "parse_warnings" in result
 
+    def test_attribute_order_normalization_is_reported_only_when_observed(self) -> None:
+        """Equivalent attribute order changes are disclosed, not assumed."""
+        original = _pcb_xml()
+        reordered = original.replace(
+            b'<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">',
+            b'<Source Units="mm" Version="4.3.0.3" Type="DipTrace-PCB">',
+            1,
+        )
+        a = DipTraceDocument.from_bytes(Path("a.dip"), original)
+        b = DipTraceDocument.from_bytes(Path("b.dip"), reordered)
+
+        result = _semantic_roundtrip_check(a, b)
+
+        assert result["passed"] is True
+        assert result["ignored_normalizations"] == ["attribute_order"]
+
+    def test_formatting_whitespace_normalization_is_reported_when_observed(self) -> None:
+        """Formatting whitespace is disclosed without hiding semantic changes."""
+        original = _pcb_xml()
+        reformatted = original.replace(b"<Board>", b"<Board>\n  ", 1).replace(
+            b"</Board>", b"\n</Board>", 1
+        )
+        a = DipTraceDocument.from_bytes(Path("a.dip"), original)
+        b = DipTraceDocument.from_bytes(Path("b.dip"), reformatted)
+
+        result = _semantic_roundtrip_check(a, b)
+
+        assert result["passed"] is True
+        assert result["ignored_normalizations"] == ["whitespace_in_text"]
+
+    def test_encoding_normalization_is_reported_when_observed(self) -> None:
+        """Equivalent UTF-8 and UTF-16 representations disclose their encoding."""
+        original = _pcb_xml()
+        utf16_text = original.decode("utf-8").replace(
+            'encoding="UTF-8"',
+            'encoding="UTF-16"',
+            1,
+        )
+        utf16 = utf16_text.encode("utf-16")
+        a = DipTraceDocument.from_bytes(Path("a.dip"), original)
+        b = DipTraceDocument.from_bytes(Path("b.dip"), utf16)
+
+        result = _semantic_roundtrip_check(a, b)
+
+        assert result["passed"] is True
+        assert result["ignored_normalizations"] == ["xml_declaration_encoding"]
+
+    def test_normalization_disclosure_does_not_hide_semantic_difference(self) -> None:
+        """Representation disclosure cannot turn a changed net into a pass."""
+        original = _pcb_xml("VCC")
+        changed = _pcb_xml("GND").replace(
+            b'<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm">',
+            b'<Source Units="mm" Version="4.3.0.3" Type="DipTrace-PCB">',
+            1,
+        )
+        a = DipTraceDocument.from_bytes(Path("a.dip"), original)
+        b = DipTraceDocument.from_bytes(Path("b.dip"), changed)
+
+        result = _semantic_roundtrip_check(a, b)
+
+        assert result["passed"] is False
+        assert result["ignored_normalizations"] == ["attribute_order"]
+        assert any("nets" in difference for difference in result["differences"])
+
 
 # ── Trust capability disclosures ─────────────────────────────────────────────
 

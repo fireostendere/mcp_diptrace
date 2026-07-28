@@ -90,6 +90,15 @@ A parser success is not equivalent to a real DipTrace writer round trip. The pro
 
 User-controlled manifests, sidecars, labels, or hashes cannot mint high-trust levels by themselves.
 
+### Semantic normalization disclosure
+
+Round-trip comparison reports only normalizations that it observes in the compared files. The
+current allowlist is XML attribute order, leading/trailing or formatting whitespace in element
+text, and XML encoding/declaration representation. These disclosures do not suppress structural
+differences and cannot change a failed comparison into a pass. An empty
+`ignored_normalizations` list therefore means that none of those representation differences was
+observed; it does not mean that an undocumented DipTrace normalization was inferred.
+
 ## Compatibility Matrix
 
 | Source | Read | Write | Evidence status |

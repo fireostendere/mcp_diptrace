@@ -172,6 +172,7 @@ class SemanticComparisonEvidence(StrictModel):
     compared_categories: list[str] = Field(default_factory=list)
     missing_required_categories: list[str] = Field(default_factory=list)
     differences: list[str] = Field(default_factory=list)
+    ignored_normalizations: list[str] = Field(default_factory=list)
     unsupported_categories: list[UnsupportedCategory] = Field(default_factory=list)
     parse_warnings: list[str] = Field(default_factory=list)
     comparison_version: Literal["1.2"] = "1.2"
