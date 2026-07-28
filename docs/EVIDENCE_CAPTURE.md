@@ -27,7 +27,8 @@ natural-language skill instructions would make the evidence chain depend on agen
 
 A small `capture-diptrace-evidence` skill is still useful as the operator-facing layer. It should:
 
-1. turn an item from `docs/OPEN_QUESTIONS.md` or a probe pack into a concrete recipe;
+1. turn an item from `docs/OPEN_QUESTIONS.md` or the
+   [generated probe pack](PROBE_PACK.md) into a concrete recipe;
 2. explain one action at a time to the Windows/DipTrace operator;
 3. run this CLI for `init`, `record`, `check`, `status`, and `finalize`;
 4. surface discrepancies and stop instead of answering for the operator;
@@ -299,8 +300,11 @@ Promotion should also reject:
 
 ```text
 scripts/capture_diptrace_evidence.py
+scripts/make_probe_pack.py
 tests/test_capture_diptrace_evidence.py
+tests/test_probe_pack.py
 docs/EVIDENCE_CAPTURE.md
+docs/PROBE_PACK.md
 docs/evidence_capture/
 ```
 
@@ -338,4 +342,5 @@ Run:
   scripts/capture_diptrace_evidence.py tests/test_capture_diptrace_evidence.py
 ./.venv/bin/python -m mypy --strict --no-incremental \
   scripts/capture_diptrace_evidence.py
+./.venv/bin/python scripts/make_probe_pack.py --check
 ```

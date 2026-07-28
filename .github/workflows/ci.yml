@@ -114,6 +114,7 @@ jobs:
           --out reference/diptrace-xml/spec_inventory.json
           --check
       - run: python scripts/report_format_coverage.py --check
+      - run: python scripts/make_probe_pack.py --check
 
   test-macos:
     runs-on: macos-latest
