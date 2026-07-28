@@ -131,6 +131,17 @@ ExpectedTargetSha256Input = Annotated[
         ),
     ),
 ]
+ExpectedLiveWorkingSha256Input = Annotated[
+    str,
+    Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description=(
+            "SHA-256 of the latest working XML inspected by the caller. Required when "
+            "action=apply; the service checks it before publishing the bridge control "
+            "request and the bridge checks it again immediately before replacement."
+        ),
+    ),
+]
 _INPUT_SCHEMA_RESOURCE = "diptrace://schemas/tool-inputs"
 _GEOMETRIC_FIELD_NAMES = {
     "absolute_x",
@@ -2521,9 +2532,12 @@ def create_server(
         return service.get_finding(finding_id)
 
     @mcp.tool()
-    def finish_live_session(action: Literal["apply", "cancel"]) -> dict[str, Any]:
-        """Tell the DipTrace bridge to import working XML or discard the live session."""
-        return service.finish_live_session(action)
+    def finish_live_session(
+        action: Literal["apply", "cancel"],
+        expected_sha256: ExpectedLiveWorkingSha256Input | None = None,
+    ) -> dict[str, Any]:
+        """Apply inspected working XML with its SHA-256, or cancel without writing."""
+        return service.finish_live_session(action, expected_sha256)
 
     @mcp.resource("diptrace://status", mime_type="application/json")
     def status_resource() -> str:

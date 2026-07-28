@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -123,7 +124,7 @@ def test_bridge_environment_timeout_raises_typed_configuration_error(
 def test_headless_bridge_applies_valid_control_request(tmp_path: Path) -> None:
     controller, exchange = _controller(tmp_path)
     controller.working_path.write_bytes(_MODIFIED)
-    request = controller.store.request_finish("apply")
+    request = controller.store.request_finish("apply", controller.current_sha256())
 
     assert controller.is_modified() is True
     assert controller.current_sha256() == request["expected_sha256"]
@@ -131,6 +132,52 @@ def test_headless_bridge_applies_valid_control_request(tmp_path: Path) -> None:
     assert exchange.read_bytes() == _MODIFIED
     assert controller.store.active_metadata() is None
     assert controller.finish("cancel")["status"] == "applied"
+
+
+def test_controller_working_sha_uses_stable_store_reader(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    controller, _exchange = _controller(tmp_path)
+    working_path = controller.working_path
+    real_read_bytes = Path.read_bytes
+
+    def reject_unbounded_working_read(path: Path) -> bytes:
+        if path == working_path:
+            raise AssertionError("working XML must not use Path.read_bytes")
+        return real_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", reject_unbounded_working_read)
+
+    assert controller.current_sha256() == hashlib.sha256(_SOURCE).hexdigest()
+    assert controller.is_modified() is False
+
+
+def test_controller_working_sha_refuses_oversized_file(tmp_path: Path) -> None:
+    controller, _exchange = _controller(tmp_path)
+    controller.store.max_document_bytes = len(_SOURCE) - 1
+
+    with pytest.raises(SessionError, match="document-size limit") as caught:
+        controller.current_sha256()
+
+    assert caught.value.payload.code == "document_too_large"
+
+
+def test_controller_working_sha_refuses_redirected_file(tmp_path: Path) -> None:
+    controller, _exchange = _controller(tmp_path)
+    working_path = controller.working_path
+    redirected = tmp_path / "redirected-working.xml"
+    redirected.write_bytes(working_path.read_bytes())
+    working_path.unlink()
+    try:
+        working_path.symlink_to(redirected)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
+
+    with pytest.raises(SessionError, match="redirected") as caught:
+        controller.is_modified()
+
+    assert caught.value.payload.code == "path_access_denied"
 
 
 def test_headless_bridge_cancels_without_replacing_exchange(tmp_path: Path) -> None:

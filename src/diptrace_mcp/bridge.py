@@ -11,7 +11,7 @@ from typing import Any
 from .config import DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS, Settings
 from .errors import ConfigurationError, DipTraceMcpError
 from .sessions import SessionAction, SessionStore
-from .xml_document import atomic_write_bytes, sha256_bytes, utc_now
+from .xml_document import atomic_write_bytes, utc_now
 
 BRIDGE_ERROR_LOG_NAME = "diptrace_mcp_bridge.log"
 BRIDGE_ERROR_LOG_MAX_BYTES = 64 * 1024
@@ -22,6 +22,7 @@ class BridgeController:
         self.store = SessionStore(
             settings.state_dir,
             settings.max_document_bytes,
+            allowed_roots=settings.allowed_roots,
             retention=settings.retention_policy,
         )
         self.metadata = self.store.create(exchange_path)
@@ -33,7 +34,7 @@ class BridgeController:
         return self.store.working_path(self.session_id)
 
     def current_sha256(self) -> str:
-        return sha256_bytes(self.working_path.read_bytes())
+        return self.store.working_sha256(self.session_id)
 
     def is_modified(self) -> bool:
         return self.current_sha256() != str(self.metadata["original_sha256"])
@@ -188,7 +189,7 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
         buttons,
         text="Apply MCP changes",
         width=22,
-        command=lambda: finish("apply"),
+        command=lambda: finish("apply", controller.current_sha256()),
         state="normal" if controller.can_apply else "disabled",
     )
     apply_button.pack(side="left")

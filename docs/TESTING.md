@@ -63,13 +63,13 @@ python scripts/check_coverage.py coverage.json
 
 The current measurement was taken after the combined WO-14 bridge, transaction
 recovery, public MCP workflow, large synthetic load, live-session concurrency
-and profile-safety work, WO-16 registry/evidence intake, and the acceptance-seed
-audit on Python 3.12 with Shapely 2.1.2. These are coverage.py statement
-measurements, not hand-estimated percentages:
+and profile-safety work, live-apply target binding, WO-16 registry/evidence
+intake, and the acceptance-seed audit on Python 3.12 with Shapely 2.1.2. These
+are coverage.py statement measurements, not hand-estimated percentages:
 
 | Target | Statements | Missed | Measured | Enforced integer floor |
 | --- | ---: | ---: | ---: | ---: |
-| Total `src/diptrace_mcp` | 16,028 | 2,257 | 85.9184% | 85% |
+| Total `src/diptrace_mcp` | 16,137 | 2,266 | 85.9577% | 85% |
 | `bridge.py` | 192 | 68 | 64.5833% | 64% |
 | `xml_document.py` | 825 | 99 | 88.0000% | 87% |
 | `semantic_compiler.py` | 1,389 | 160 | 88.4809% | 88% |

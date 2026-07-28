@@ -180,9 +180,13 @@ or unverifiable state may remain above them.
    additionally require the current target `expected_sha256`. A newly created target has
    no prior bytes and therefore reports no backup.
 8. The bridge reparses XML before `apply`.
-9. The bridge verifies the hash stored in `control.json`.
-10. Explicit `cancel` leaves the exchange XML unchanged.
-11. A finish request publishes `control.json` only after `metadata.json` is complete.
+9. Live apply requires the caller-observed working SHA before `control.json` is
+   published; the bridge verifies it again before replacement.
+10. The bridge re-resolves the metadata exchange path inside the configured allowed
+    roots, requires a non-linked single regular file with its original SHA, and verifies
+    the exact SHA after atomic replacement.
+11. Explicit `cancel` leaves the exchange XML unchanged.
+12. A finish request publishes `control.json` only after `metadata.json` is complete.
 
 ## External Process Runner
 

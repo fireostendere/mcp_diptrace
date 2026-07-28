@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from diptrace_mcp.sessions import SessionStore
+from diptrace_mcp.xml_document import sha256_bytes
 
 _SOURCE = (
     b'<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -68,11 +69,14 @@ def run_smoke() -> None:
             text=True,
         )
         try:
-            store = SessionStore(state)
+            store = SessionStore(state, allowed_roots=(root,))
             metadata = _wait_for_active(store, process)
             session_id = str(metadata["session_id"])
             store.working_path(session_id).write_bytes(_MODIFIED)
-            store.request_finish("apply")
+            store.request_finish(
+                "apply",
+                sha256_bytes(store.working_path(session_id).read_bytes()),
+            )
             stdout, stderr = process.communicate(timeout=10)
         except Exception:
             process.kill()

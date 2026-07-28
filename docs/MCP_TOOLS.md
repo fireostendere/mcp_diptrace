@@ -21,6 +21,13 @@ not exist. Replacing an existing target requires `overwrite=true` and that targe
 writer binds the same exact bytes again. For seed copies, `expected_seed_sha256` protects
 the seed input while `expected_sha256` independently protects the existing target.
 
+`finish_live_session(action="apply")` also requires `expected_sha256`, obtained from the
+latest inspection of the live working document. The server checks it before publishing
+the bridge control marker and the bridge checks it again before replacing the external
+exchange file. The persisted exchange path is independently revalidated inside the
+configured allowed roots and its original SHA-256 must still match. `cancel` needs no
+hash and does not replace the exchange file.
+
 The full `QuerySelector`, PCB scaffold, synchronization, panelization, and route-connection
 schemas are available once in the JSON schema catalog at `diptrace://schemas/tool-inputs`. They
 are referenced instead of being duplicated across dozens of tool schemas, keeping `tools/list`

@@ -88,7 +88,7 @@ DipTrace       <-------->    diptrace_mcp_bridge.exe
                temporary plugin_exchange.xml
 ```
 
-DipTrace starts the plug-in as a separate executable and passes a temporary XML path. The bridge stores a working copy under `%LOCALAPPDATA%\DipTraceMCP`, waits for an MCP `apply` or `cancel` request, verifies the expected SHA-256, and exits only after the session is finalized. DipTrace then imports the exchange XML on `apply`.
+DipTrace starts the plug-in as a separate executable and passes a temporary XML path. The bridge stores a working copy under `%LOCALAPPDATA%\DipTraceMCP`, waits for an MCP `apply` or `cancel` request, verifies the caller-observed working SHA-256, revalidates that the original exchange file is unchanged and still inside an allowed root, and exits only after the session is finalized. DipTrace then imports the exchange XML on `apply`.
 
 ## Requirements
 
@@ -165,7 +165,7 @@ Alternatively, merge [`examples/codex-config.toml`](examples/codex-config.toml) 
 3. Leave the bridge window open while the MCP client performs reads, plans, and edits.
 4. Ask the client to inspect the document before requesting a write.
 5. Require a dry-run/transaction preview and inspect changed object IDs.
-6. Commit with the preview SHA, run post-write checks, then call `finish_live_session(action="apply")` or cancel the session.
+6. Commit with the preview SHA, run post-write checks, read the latest working-document SHA, then call `finish_live_session(action="apply", expected_sha256="...")`; cancellation needs no hash.
 
 The bridge buttons provide the same explicit apply/cancel controls. Component and Pattern Editor bridge profiles are read-only and should be cancelled after inspection.
 

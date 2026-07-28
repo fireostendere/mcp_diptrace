@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import stat
 import threading
 import time
@@ -46,6 +45,7 @@ BridgeImportMode = Literal["All", "None", "Unknown"]
 
 _JSON_READ_ATTEMPTS = 8
 _JSON_READ_RETRY_SECONDS = 0.025
+_FILE_READ_CHUNK_BYTES = 1024 * 1024
 _SESSION_THREAD_LOCKS: dict[str, threading.RLock] = {}
 _SESSION_THREAD_LOCKS_GUARD = threading.Lock()
 _BRIDGE_IMPORT_MODE_BY_SOURCE_TYPE: dict[str, BridgeImportMode] = {
@@ -161,6 +161,114 @@ def _read_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def _stable_regular_file_bytes(
+    path: Path,
+    max_bytes: int,
+    *,
+    purpose: str,
+) -> bytes:
+    """Read one bounded, non-linked regular file without accepting a path swap."""
+
+    if is_link_like(path):
+        raise SessionError(
+            f"{purpose} is redirected",
+            code="path_access_denied",
+        )
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        file_descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise SessionError(
+            f"Cannot open {purpose} safely",
+            code="path_access_denied",
+        ) from exc
+    try:
+        try:
+            before = os.fstat(file_descriptor)
+            path_before = path.stat(follow_symlinks=False)
+        except OSError as exc:
+            raise SessionError(
+                f"Cannot validate {purpose}",
+                code="path_access_denied",
+            ) from exc
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or not stat.S_ISREG(path_before.st_mode)
+            or before.st_nlink != 1
+            or path_before.st_nlink != 1
+            or (before.st_dev, before.st_ino) != (path_before.st_dev, path_before.st_ino)
+        ):
+            raise SessionError(
+                f"{purpose} must be one non-linked regular file",
+                code="path_access_denied",
+            )
+        if before.st_size > max_bytes:
+            raise SessionError(
+                f"{purpose} exceeds the configured document-size limit",
+                code="document_too_large",
+            )
+
+        chunks: list[bytes] = []
+        size = 0
+        while True:
+            try:
+                chunk = os.read(file_descriptor, _FILE_READ_CHUNK_BYTES)
+            except OSError as exc:
+                raise SessionError(
+                    f"Cannot read {purpose}",
+                    code="session_io_error",
+                ) from exc
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > max_bytes:
+                raise SessionError(
+                    f"{purpose} exceeds the configured document-size limit",
+                    code="document_too_large",
+                )
+            chunks.append(chunk)
+
+        try:
+            after = os.fstat(file_descriptor)
+            path_after = path.stat(follow_symlinks=False)
+        except OSError as exc:
+            raise SessionError(
+                f"Cannot revalidate {purpose}",
+                code="path_access_denied",
+            ) from exc
+        identity_before = (
+            before.st_dev,
+            before.st_ino,
+            before.st_nlink,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        identity_after = (
+            after.st_dev,
+            after.st_ino,
+            after.st_nlink,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if (
+            identity_before != identity_after
+            or after.st_nlink != 1
+            or path_after.st_nlink != 1
+            or (after.st_dev, after.st_ino)
+            != (path_after.st_dev, path_after.st_ino)
+            or is_link_like(path)
+        ):
+            raise SessionError(
+                f"{purpose} changed while it was being read",
+                code="sha256_mismatch",
+            )
+        return b"".join(chunks)
+    finally:
+        os.close(file_descriptor)
+
+
 def _require_apply_supported(metadata: dict[str, Any]) -> None:
     source_type = str(metadata.get("source_type", ""))
     import_mode = _BRIDGE_IMPORT_MODE_BY_SOURCE_TYPE.get(source_type, "Unknown")
@@ -184,6 +292,7 @@ class SessionStore:
         state_dir: Path,
         max_document_bytes: int = 128 * 1024 * 1024,
         *,
+        allowed_roots: tuple[Path, ...] | None = None,
         retention: RetentionPolicy | None = None,
         clock: Clock = system_clock,
     ):
@@ -192,6 +301,11 @@ class SessionStore:
         self.active_file = state_dir / "active.json"
         self.lock_file = state_dir / "session.lock"
         self.max_document_bytes = max_document_bytes
+        self.allowed_roots = (
+            tuple(root.resolve(strict=False) for root in allowed_roots)
+            if allowed_roots is not None
+            else None
+        )
         self.retention = retention or RetentionPolicy()
         self.clock = clock
         prepare_safe_store_root(self.state_dir, self.sessions_dir)
@@ -199,6 +313,99 @@ class SessionStore:
 
     def _require_safe_root(self) -> None:
         require_safe_store_root(self.state_dir, self.sessions_dir)
+
+    def _read_exchange_path(self, path: Path) -> tuple[Path, bytes]:
+        if not path.is_absolute():
+            raise SessionError(
+                "Session exchange path must be absolute",
+                code="path_access_denied",
+            )
+        try:
+            resolved = path.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise SessionError(
+                "Session exchange path is unavailable",
+                code="path_access_denied",
+            ) from exc
+        if os.path.normcase(os.path.abspath(path)) != os.path.normcase(
+            os.path.abspath(resolved)
+        ):
+            raise SessionError(
+                "Session exchange path is redirected",
+                code="path_access_denied",
+            )
+        if self.allowed_roots is not None:
+            inside_allowed_root = False
+            for root in self.allowed_roots:
+                try:
+                    resolved.relative_to(root)
+                except ValueError:
+                    continue
+                inside_allowed_root = True
+                break
+            if not inside_allowed_root:
+                raise SessionError(
+                    "Session exchange path is outside allowed roots",
+                    code="path_access_denied",
+                )
+        return resolved, _stable_regular_file_bytes(
+            resolved,
+            self.max_document_bytes,
+            purpose="session exchange file",
+        )
+
+    def _read_bound_exchange(
+        self,
+        metadata: dict[str, Any],
+    ) -> tuple[Path, bytes]:
+        if self.allowed_roots is None:
+            raise SessionError(
+                "Session apply requires configured allowed roots",
+                code="path_access_denied",
+            )
+        raw_path = metadata.get("exchange_path")
+        original_sha256 = metadata.get("original_sha256")
+        session_id = metadata.get("session_id")
+        if (
+            not isinstance(raw_path, str)
+            or not isinstance(original_sha256, str)
+            or not isinstance(session_id, str)
+        ):
+            raise SessionError(
+                "Session metadata has no valid exchange-file binding",
+                code="session_state_invalid",
+            )
+        original_path = self.original_path(session_id)
+        try:
+            require_confined_file(self.session_dir(session_id), original_path)
+        except (FileNotFoundError, InvalidRecordId, InvalidRecordPath) as exc:
+            raise SessionError(
+                "Session original XML is unavailable or redirected",
+                code="session_state_invalid",
+            ) from exc
+        original = _stable_regular_file_bytes(
+            original_path,
+            self.max_document_bytes,
+            purpose="session original XML",
+        )
+        recorded_original_sha256 = sha256_bytes(original)
+        if original_sha256 != recorded_original_sha256:
+            raise SessionError(
+                "Session metadata does not match the captured original XML",
+                code="session_state_invalid",
+            )
+        exchange_path, exchange = self._read_exchange_path(Path(raw_path))
+        current_sha256 = sha256_bytes(exchange)
+        if current_sha256 != recorded_original_sha256:
+            raise SessionError(
+                "External exchange file changed after the live session started",
+                code="sha256_mismatch",
+                details={
+                    "expected_sha256": recorded_original_sha256,
+                    "current_sha256": current_sha256,
+                },
+            )
+        return exchange_path, exchange
 
     def _prune_retention(self) -> RetentionReport:
         active_reference_valid, active_session_id = self._retention_active_session_id()
@@ -326,6 +533,26 @@ class SessionStore:
     def working_path(self, session_id: str) -> Path:
         return self.session_dir(session_id) / "working.xml"
 
+    def _read_working_bytes(self, session_id: str) -> bytes:
+        working_path = self.working_path(session_id)
+        try:
+            require_confined_file(self.session_dir(session_id), working_path)
+        except (FileNotFoundError, InvalidRecordPath) as exc:
+            raise SessionError(
+                "Session working XML is unavailable or redirected",
+                code="path_access_denied",
+            ) from exc
+        return _stable_regular_file_bytes(
+            working_path,
+            self.max_document_bytes,
+            purpose="session working XML",
+        )
+
+    def working_sha256(self, session_id: str) -> str:
+        """Return the SHA-256 of one bounded, stable live working-file read."""
+
+        return sha256_bytes(self._read_working_bytes(session_id))
+
     def original_path(self, session_id: str) -> Path:
         return self.session_dir(session_id) / "original.xml"
 
@@ -402,15 +629,16 @@ class SessionStore:
             raise SessionError(
                 f"Another DipTrace MCP session is active: {current.get('session_id')}"
             )
-        document = DipTraceDocument.load(exchange_path, self.max_document_bytes)
+        exchange_path, exchange = self._read_exchange_path(exchange_path)
+        document = DipTraceDocument.from_bytes(exchange_path, exchange)
         session_id = str(uuid.uuid4())
         directory = self.session_dir(session_id)
         self._require_safe_root()
         directory.mkdir(parents=True, exist_ok=False)
         original = self.original_path(session_id)
         working = self.working_path(session_id)
-        shutil.copyfile(exchange_path, original)
-        shutil.copyfile(exchange_path, working)
+        atomic_write_bytes(original, exchange)
+        atomic_write_bytes(working, exchange)
         bridge_import_mode: BridgeImportMode = _BRIDGE_IMPORT_MODE_BY_SOURCE_TYPE.get(
             document.source_type,
             "Unknown",
@@ -456,26 +684,54 @@ class SessionStore:
             last_backup=str(backup),
         )
 
-    def request_finish(self, action: SessionAction) -> dict[str, Any]:
+    def request_finish(
+        self,
+        action: SessionAction,
+        expected_sha256: str | None = None,
+    ) -> dict[str, Any]:
         with _exclusive_session_lock(self.lock_file):
-            return self._request_finish_unlocked(action)
+            return self._request_finish_unlocked(action, expected_sha256)
 
-    def _request_finish_unlocked(self, action: SessionAction) -> dict[str, Any]:
+    def _request_finish_unlocked(
+        self,
+        action: SessionAction,
+        expected_sha256: str | None,
+    ) -> dict[str, Any]:
         metadata = self.active_metadata()
         if metadata is None:
             raise SessionError("There is no active DipTrace session")
         if action == "apply":
             _require_apply_supported(metadata)
         session_id = str(metadata["session_id"])
-        working = self.working_path(session_id).read_bytes()
+        working = self._read_working_bytes(session_id)
+        current_sha256 = sha256_bytes(working)
         if action == "apply":
-            document = DipTraceDocument.from_bytes(self.working_path(session_id), working)
+            if expected_sha256 is None:
+                raise SessionError(
+                    "expected_sha256 of the latest inspected working XML is required "
+                    "when action=apply",
+                    code="confirmation_required",
+                )
+            if current_sha256 != expected_sha256:
+                raise SessionError(
+                    "Working XML changed after it was inspected",
+                    code="sha256_mismatch",
+                    details={
+                        "expected_sha256": expected_sha256,
+                        "current_sha256": current_sha256,
+                    },
+                )
+            document = DipTraceDocument.from_bytes(
+                self.working_path(session_id),
+                working,
+            )
             if document.source_type != metadata.get("source_type"):
                 raise SessionError("Working XML type differs from the original session")
+            self._read_bound_exchange(metadata)
         request = {
             "action": action,
             "requested_at": utc_now(),
-            "expected_sha256": sha256_bytes(working),
+            "expected_sha256": current_sha256,
         }
         # Publish control.json last: the Windows bridge treats it as a commit marker.
         # Publishing it first races the metadata replace on shared WSL/Windows paths.
@@ -519,20 +775,42 @@ class SessionStore:
             _require_apply_supported(metadata)
 
         working_path = self.working_path(session_id)
-        working = working_path.read_bytes()
+        working = self._read_working_bytes(session_id)
         current_sha256 = sha256_bytes(working)
-        if expected_sha256 and current_sha256 != expected_sha256:
-            raise SessionError(
-                "Working XML changed after the finish request",
-                code="sha256_mismatch",
-            )
 
         if action == "apply":
+            if expected_sha256 is None:
+                raise SessionError(
+                    "expected_sha256 of the finish request is required when action=apply",
+                    code="confirmation_required",
+                )
+            if current_sha256 != expected_sha256:
+                raise SessionError(
+                    "Working XML changed after the finish request",
+                    code="sha256_mismatch",
+                    details={
+                        "expected_sha256": expected_sha256,
+                        "current_sha256": current_sha256,
+                    },
+                )
             document = DipTraceDocument.from_bytes(working_path, working)
             if document.source_type != metadata.get("source_type"):
                 raise SessionError("Working XML type differs from the original session")
-            exchange_path = Path(str(metadata["exchange_path"]))
+            exchange_path, _exchange = self._read_bound_exchange(metadata)
             atomic_write_bytes(exchange_path, working)
+            _post_write_path, applied = self._read_exchange_path(exchange_path)
+            applied_sha256 = sha256_bytes(applied)
+            if applied_sha256 != current_sha256:
+                # A different post-write value could be an external writer.  Never
+                # overwrite it blindly while attempting compensation.
+                raise SessionError(
+                    "Exchange-file SHA-256 does not match the applied working XML",
+                    code="sha256_mismatch",
+                    details={
+                        "expected_sha256": current_sha256,
+                        "current_sha256": applied_sha256,
+                    },
+                )
 
         status = "applied" if action == "apply" else "cancelled"
         metadata = self.update_metadata(

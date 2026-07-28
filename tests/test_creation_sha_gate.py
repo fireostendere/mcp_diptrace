@@ -376,7 +376,7 @@ def test_scaffold_tool_descriptions_disclose_synthetic_validation() -> None:
     assert "not DipTrace-verified" in schematic_description
 
 
-def test_capabilities_disclose_sha_scope_and_live_exception(tmp_path: Path) -> None:
+def test_capabilities_include_live_apply_in_required_sha_scope(tmp_path: Path) -> None:
     service = _service(tmp_path)
     limits = service.get_capabilities()["limits"]
 
@@ -386,13 +386,9 @@ def test_capabilities_disclose_sha_scope_and_live_exception(tmp_path: Path) -> N
         "committed transaction rollback",
         "synthetic document overwrite of an existing target",
         "seed copy overwrite of an existing target",
+        "live-session replacement of the external exchange file",
     ]
     assert limits["expected_sha256_not_required_for"] == [
         "creation of a target that does not exist"
     ]
-    assert limits["expected_sha256_exemptions"] == [
-        (
-            "live-session bridge replacement of the external exchange file "
-            "(separate working-file handshake; pending WO-15 target binding)"
-        )
-    ]
+    assert limits["expected_sha256_exemptions"] == []

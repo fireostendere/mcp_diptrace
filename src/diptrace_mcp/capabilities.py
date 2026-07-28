@@ -225,16 +225,12 @@ def capability_report(
                 "committed transaction rollback",
                 "synthetic document overwrite of an existing target",
                 "seed copy overwrite of an existing target",
+                "live-session replacement of the external exchange file",
             ],
             "expected_sha256_not_required_for": [
                 "creation of a target that does not exist",
             ],
-            "expected_sha256_exemptions": [
-                (
-                    "live-session bridge replacement of the external exchange file "
-                    "(separate working-file handshake; pending WO-15 target binding)"
-                ),
-            ],
+            "expected_sha256_exemptions": [],
             "retention_max_records": None,
             "retention_max_age_days": None,
         },

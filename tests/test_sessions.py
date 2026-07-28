@@ -6,20 +6,29 @@ import pytest
 import diptrace_mcp.sessions as sessions_module
 from diptrace_mcp.errors import SessionError
 from diptrace_mcp.sessions import SessionStore
+from diptrace_mcp.xml_document import sha256_bytes
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def _store(tmp_path: Path) -> SessionStore:
+    return SessionStore(
+        tmp_path / "state",
+        10_000_000,
+        allowed_roots=(tmp_path,),
+    )
 
 
 def test_live_session_apply_cycle(tmp_path: Path) -> None:
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "schematic.xml").read_bytes())
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
     session_id = metadata["session_id"]
     working = store.working_path(session_id)
     working.write_bytes(working.read_bytes().replace(b"<Value>10k</Value>", b"<Value>22k</Value>"))
 
-    request = store.request_finish("apply")
+    request = store.request_finish("apply", sha256_bytes(working.read_bytes()))
     result = store.finalize(session_id, "apply", request["expected_sha256"])
 
     assert result["status"] == "applied"
@@ -31,7 +40,7 @@ def test_live_session_cancel_keeps_exchange(tmp_path: Path) -> None:
     exchange = tmp_path / "plugin_exchange.xml"
     original = (FIXTURES / "pcb.xml").read_bytes()
     exchange.write_bytes(original)
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
     working = store.working_path(metadata["session_id"])
     working.write_bytes(working.read_bytes().replace(b"<Value>10k</Value>", b"<Value>99k</Value>"))
@@ -46,7 +55,7 @@ def test_finish_request_publishes_control_after_metadata(
 ) -> None:
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "schematic.xml").read_bytes())
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
     writes: list[Path] = []
     original_write = sessions_module._atomic_write_json
@@ -57,7 +66,10 @@ def test_finish_request_publishes_control_after_metadata(
 
     monkeypatch.setattr(sessions_module, "_atomic_write_json", record_write)
 
-    store.request_finish("apply")
+    store.request_finish(
+        "apply",
+        sha256_bytes(store.working_path(metadata["session_id"]).read_bytes()),
+    )
 
     assert writes == [
         store.metadata_path(metadata["session_id"]),
@@ -70,7 +82,7 @@ def test_session_state_read_retries_transient_os_errors(
 ) -> None:
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "schematic.xml").read_bytes())
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
     metadata_path = store.metadata_path(metadata["session_id"])
     original_read_text = Path.read_text
@@ -96,7 +108,7 @@ def test_new_session_allowed_after_clean_finalize(
     """A cleanly finalized session does not block the next session."""
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "pcb.xml").read_bytes())
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
     session_id = metadata["session_id"]
 
@@ -111,7 +123,7 @@ def test_new_session_allowed_after_clean_finalize(
 def test_second_finalize_is_rejected(tmp_path: Path) -> None:
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "pcb.xml").read_bytes())
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
     session_id = metadata["session_id"]
 
@@ -124,7 +136,7 @@ def test_apply_rejects_source_type_mismatch(tmp_path: Path) -> None:
     """Apply must refuse if the working XML source type changes mid-session."""
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "pcb.xml").read_bytes())
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
     session_id = metadata["session_id"]
 
@@ -137,18 +149,21 @@ def test_apply_rejects_source_type_mismatch(tmp_path: Path) -> None:
     )
 
     with pytest.raises(SessionError, match="type differs"):
-        store.request_finish("apply")
+        store.request_finish("apply", sha256_bytes(working.read_bytes()))
 
 
 def test_finish_rejects_tampered_working_xml(tmp_path: Path) -> None:
     """Apply must refuse if working XML changed after the finish request."""
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "pcb.xml").read_bytes())
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
     session_id = metadata["session_id"]
 
-    request = store.request_finish("apply")
+    request = store.request_finish(
+        "apply",
+        sha256_bytes(store.working_path(session_id).read_bytes()),
+    )
 
     # Tamper after request
     working = store.working_path(session_id)
@@ -162,7 +177,7 @@ def test_create_rejects_duplicate_active_session(tmp_path: Path) -> None:
     """Cannot create a second session while one is active."""
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "pcb.xml").read_bytes())
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     store.create(exchange)
 
     with pytest.raises(SessionError, match="session is active"):
@@ -173,7 +188,7 @@ def test_finalize_clears_active_json(tmp_path: Path) -> None:
     """After finalization, active.json should be removed."""
     exchange = tmp_path / "plugin_exchange.xml"
     exchange.write_bytes((FIXTURES / "pcb.xml").read_bytes())
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
 
     store.finalize(metadata["session_id"], "cancel")
@@ -192,7 +207,7 @@ def test_library_profile_refuses_apply_at_request_and_finalize(
     exchange = tmp_path / "plugin_exchange.xml"
     original = (FIXTURES / fixture_name).read_bytes()
     exchange.write_bytes(original)
-    store = SessionStore(tmp_path / "state", 10_000_000)
+    store = _store(tmp_path)
     metadata = store.create(exchange)
     session_id = metadata["session_id"]
 

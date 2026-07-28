@@ -86,7 +86,7 @@ DipTrace       <-------->    diptrace_mcp_bridge.exe
                temporary plugin_exchange.xml
 ```
 
-DipTrace запускает плагин отдельным `.exe` и передаёт путь к временному XML. Bridge хранит рабочую копию в `%LOCALAPPDATA%\DipTraceMCP`, ждёт MCP `apply` или `cancel`, проверяет expected SHA-256 и завершает процесс только после финализации сессии. После `apply` DipTrace импортирует exchange XML обратно.
+DipTrace запускает плагин отдельным `.exe` и передаёт путь к временному XML. Bridge хранит рабочую копию в `%LOCALAPPDATA%\DipTraceMCP`, ждёт MCP `apply` или `cancel`, проверяет SHA-256 рабочей копии, который видел caller, заново убеждается, что исходный exchange-файл не изменился и всё ещё находится внутри allowed root, и завершает процесс только после финализации сессии. После `apply` DipTrace импортирует exchange XML обратно.
 
 ## Требования
 
@@ -163,7 +163,7 @@ codex mcp list
 3. Оставьте окно bridge открытым, пока MCP-клиент выполняет чтение, planning и edits.
 4. Сначала попросите клиента прочитать и проверить документ.
 5. Для write-operation сначала требуйте dry-run/transaction preview и проверьте changed object IDs.
-6. Commit выполняйте с SHA из preview, затем запустите post-write checks и вызовите `finish_live_session(action="apply")` либо отмените сессию.
+6. Commit выполняйте с SHA из preview, затем запустите post-write checks, прочитайте последний SHA рабочего документа и вызовите `finish_live_session(action="apply", expected_sha256="...")`; для отмены hash не нужен.
 
 Кнопки bridge выполняют те же явные apply/cancel действия. Component и Pattern Editor profiles остаются read-only и после inspection должны завершаться через `cancel`.
 

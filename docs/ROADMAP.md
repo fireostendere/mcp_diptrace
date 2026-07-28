@@ -119,8 +119,9 @@ while also preserving evidence for the fallback installation.
 
 After the combined WO-14 bridge, transaction-recovery, public MCP workflow,
 synthetic-load, live-session profile-safety, WO-16 registry/evidence intake,
-and acceptance-seed audit slices, the canonical geometry-enabled suite measured
-16,028 statements, 2,257 misses, and **85.9184%** total coverage. `bridge.py`
+live-apply target binding, and acceptance-seed audit slices, the canonical
+geometry-enabled suite measured 16,137 statements, 2,266 misses, and
+**85.9577%** total coverage. `bridge.py`
 moved from an untested CI executable path to 124 of 192 statements, or
 **64.5833%**, backed by a real cross-process apply handshake plus
 cancel/timeout/error tests. CI enforces an integer 85% total floor plus measured
@@ -157,7 +158,7 @@ Observed representation-only normalizations are disclosed in the preview and pre
 in the manifest; they never suppress a semantic difference.
 
 The measured MCP surface moved from 156 tools / 121,335 JSON bytes to 158 tools /
-124,813 bytes (approximately 31,203 tokens), a 2.87% increase and below the Phase-2
+125,189 bytes (approximately 31,297 tokens), a 3.18% increase and below the Phase-2
 15% discovery-budget ceiling. The read-only/record split is transport-tested for valid
 evidence, failed comparison, tampered SHA, reused roles, allowed-root refusal, bounded
 responses, and preview filesystem non-mutation. This checkpoint does not provide the

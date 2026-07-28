@@ -1092,6 +1092,7 @@ class DipTraceService:
         self.sessions = SessionStore(
             settings.state_dir,
             settings.max_document_bytes,
+            allowed_roots=settings.allowed_roots,
             retention=retention,
         )
         self.transactions = TransactionStore(settings.state_dir, retention=retention)
@@ -7126,10 +7127,14 @@ class DipTraceService:
                 reports.append(report.model_dump())
         return json.dumps({"document_id": document_id, "reports": reports}, indent=2)
 
-    def finish_live_session(self, action: SessionAction) -> dict[str, Any]:
+    def finish_live_session(
+        self,
+        action: SessionAction,
+        expected_sha256: str | None = None,
+    ) -> dict[str, Any]:
         if action == "apply":
             self.policy.require_write(dry_run=False, operation="finish_live_session")
-        return self.sessions.request_finish(action)
+        return self.sessions.request_finish(action, expected_sha256)
 
     def scan_documents(self, root: str | None = None, recursive: bool = True) -> dict[str, Any]:
         scan_root = self.settings.resolve_allowed_path(root or str(self.settings.workspace))

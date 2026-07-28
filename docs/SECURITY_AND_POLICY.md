@@ -92,8 +92,10 @@ These checks narrow the race window and atomic rename prevents partial-file visi
 but ordinary filesystem APIs do not provide a cross-process compare-and-swap. An unrelated
 writer that ignores the protocol can still race between the final check and rename; tools
 editing the same design must coordinate through one MCP transaction/session. The live
-bridge currently binds its working-file hash rather than the pre-existing external
-exchange target and remains an explicit WO-15 exception in `get_capabilities`.
+bridge requires the caller-observed working SHA before publishing its control marker,
+checks it again at finalization, and binds the external exchange target to its absolute
+allowed-root path and original SHA. The same cross-process race limitation still applies
+after its final target check; this is not an exemption from the required SHA contract.
 
 Count-and-age retention runs when a store is constructed. It deletes only fully
 parsed, validated terminal records confined to that store. For transactions,

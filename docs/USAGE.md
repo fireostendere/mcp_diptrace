@@ -344,7 +344,10 @@ imported it.
 Apply the working copy:
 
 ```text
-finish_live_session(action="apply")
+finish_live_session(
+  action="apply",
+  expected_sha256="SHA_FROM_LATEST_DOCUMENT_INFO"
+)
 ```
 
 Cancel the entire live session:
@@ -352,6 +355,13 @@ Cancel the entire live session:
 ```text
 finish_live_session(action="cancel")
 ```
+
+The apply hash is mandatory and must come from the latest inspection of the live
+working document. The server checks it before publishing `control.json`; the bridge
+checks it again immediately before replacement. At both stages the exchange target is
+re-resolved as an absolute, non-linked, single regular file inside an allowed root and
+must still match the exact SHA captured when the session started. Cancellation does not
+write the exchange file and needs no hash.
 
 The buttons in the bridge window perform the same actions. After the bridge process
 exits, DipTrace either imports the updated exchange file or continues with the original
@@ -471,7 +481,7 @@ Representative write workflows include:
 | `route_connections` | Congestion-ordered multi-net routing with bounded rip-up/retry | On commit |
 | silkscreen/placement plans | Deterministic plan, preview, and apply | On commit |
 | `apply_xml_edits` | Low-level expert XML preview or write | Only with `dry_run=false` |
-| `finish_live_session` | Apply or cancel a live session | Controls live import |
+| `finish_live_session` | Apply caller-inspected working XML with its current SHA-256, or cancel without a hash | Controls live import |
 
 Large diffs, previews, findings, jobs, and exports are exposed through bounded
 `diptrace://...` resources. See [MCP Tools and Resources](MCP_TOOLS.md) for the detailed
@@ -715,9 +725,13 @@ Live state:
 `original.xml` is the diagnostic copy of the live input. The MCP server modifies
 `working.xml`. To finish a session, the server first atomically records the request in
 `metadata.json`, then publishes `control.json` as the cross-process commit marker.
-The control payload contains only `apply` or `cancel` and the expected working-file
-hash. The bridge verifies that hash before finalization and uses bounded retries for
-transient Windows metadata sharing errors.
+The control payload contains only `apply` or `cancel` and the caller-observed working-file
+hash. For `apply`, the server verifies that hash before publishing the control marker.
+The bridge verifies it again before finalization, then re-resolves the persisted exchange
+path inside the configured allowed roots, performs a bounded stable read, and requires
+the exact original exchange-file hash. It also re-reads the atomic replacement and
+requires its SHA-256 to equal the working bytes. Transient Windows metadata sharing
+errors use bounded retries.
 
 Offline backups are never written next to the design file. `target.json` binds each
 history to the SHA-256 of its canonical target path; backup content is checked against
