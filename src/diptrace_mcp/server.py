@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,7 +21,12 @@ from .operations import (
 )
 from .placement import PlacementProposal
 from .routing import RouteConnectionConfig
-from .scaffolding import PcbScaffold
+from .scaffolding import (
+    DEFAULT_FORMAT_VERSION,
+    FORMAT_VERSION_DESCRIPTION,
+    MAX_FORMAT_VERSION_LENGTH,
+    PcbScaffold,
+)
 from .service import DipTraceService
 from .synchronization import ComponentSyncMapping, SyncPlacement
 from .xml_document import XmlEdit
@@ -72,6 +77,14 @@ class ImpedanceConstraintInput(BaseModel):
 DISTANCE_UNITS_DESCRIPTION = (
     "All distances are in millimetres, regardless of the document's own Units attribute."
 )
+FormatVersionInput = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=MAX_FORMAT_VERSION_LENGTH,
+        description=FORMAT_VERSION_DESCRIPTION,
+    ),
+]
 _INPUT_SCHEMA_RESOURCE = "diptrace://schemas/tool-inputs"
 _GEOMETRIC_FIELD_NAMES = {
     "absolute_x",
@@ -520,11 +533,17 @@ def create_server(
         path: str,
         sheets: list[str] | None = None,
         units: Literal["mm", "inch", "mil"] = "mm",
+        format_version: FormatVersionInput = DEFAULT_FORMAT_VERSION,
         overwrite: bool = False,
     ) -> dict[str, Any]:
-        """Create a new DipTrace Schematic XML document inside the workspace."""
+        """Create synthetic Schematic XML; Version is a literal, not a compatibility claim."""
         return service.create_document(
-            "schematic", path, sheets=sheets, units=units, overwrite=overwrite
+            "schematic",
+            path,
+            sheets=sheets,
+            units=units,
+            format_version=format_version,
+            overwrite=overwrite,
         )
 
     @mcp.tool()
@@ -532,6 +551,7 @@ def create_server(
         path: str,
         pcb: dict[str, Any] | None = None,
         units: Literal["mm", "inch", "mil"] = "mm",
+        format_version: FormatVersionInput = DEFAULT_FORMAT_VERSION,
         overwrite: bool = False,
     ) -> dict[str, Any]:
         """Create a new DipTrace PCB XML document (outline, layers, stackup, rules).
@@ -540,7 +560,14 @@ def create_server(
         but has NOT been verified by DipTrace open/save. Use create_document_from_seed
         with a real DipTrace export when DipTrace compatibility is required.
         """
-        return service.create_document("pcb", path, pcb=pcb, units=units, overwrite=overwrite)
+        return service.create_document(
+            "pcb",
+            path,
+            pcb=pcb,
+            units=units,
+            format_version=format_version,
+            overwrite=overwrite,
+        )
 
     @mcp.tool()
     def create_document_from_seed(

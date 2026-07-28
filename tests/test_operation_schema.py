@@ -13,7 +13,12 @@ from diptrace_mcp.operations import (
 )
 from diptrace_mcp.placement import PlacementConfig, PlacementProposal
 from diptrace_mcp.routing import DifferentialPairRouteConfig, RouteConnectionConfig
-from diptrace_mcp.scaffolding import PcbScaffold
+from diptrace_mcp.scaffolding import (
+    DEFAULT_FORMAT_VERSION,
+    FORMAT_VERSION_DESCRIPTION,
+    MAX_FORMAT_VERSION_LENGTH,
+    PcbScaffold,
+)
 from diptrace_mcp.server import (
     _DRY_RUN_DESCRIPTION,
     DISTANCE_UNITS_DESCRIPTION,
@@ -31,6 +36,22 @@ def test_stage_operation_kind_schema_matches_parser_registry() -> None:
     stage_tool = create_server()._tool_manager._tools["stage_operations"]
     staged_definition = stage_tool.parameters["$defs"]["StagedOperationInput"]
     assert set(staged_definition["properties"]["kind"]["enum"]) == registry_kinds
+
+
+def test_document_creation_schema_exposes_honest_format_version_control() -> None:
+    server = create_server()
+
+    for name in ("create_schematic_document", "create_pcb_document"):
+        schema = server._tool_manager._tools[name].parameters["properties"]["format_version"]
+        assert schema["default"] == DEFAULT_FORMAT_VERSION
+        assert schema["minLength"] == 1
+        assert schema["maxLength"] == MAX_FORMAT_VERSION_LENGTH
+        assert schema["description"] == FORMAT_VERSION_DESCRIPTION
+
+    seed_properties = server._tool_manager._tools["create_document_from_seed"].parameters[
+        "properties"
+    ]
+    assert "format_version" not in seed_properties
 
 
 def test_impedance_constraint_preserves_explicit_width() -> None:

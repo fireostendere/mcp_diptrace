@@ -223,7 +223,7 @@ Native library create/update and attach-pattern mutation are intentionally unava
 
 ## Project Creation and Synchronization Limits
 
-- `create_schematic_document` and `create_pcb_document` generate **synthetic** 4.3-era XML structures. They are classified as `synthetic_parser_only` until independent DipTrace evidence exists.
+- `create_schematic_document` and `create_pcb_document` generate **synthetic** XML using the existing 4.3-era scaffold structure. Their `format_version` parameter changes only the literal root and embedded-library `Version` attributes; it is not a format conversion or compatibility assertion. Generated documents remain `synthetic_parser_only` until independent DipTrace evidence exists.
 - `create_document_from_seed` copies a real DipTrace-exported XML seed and preserves unknown XML and provenance, but does not auto-upgrade round-trip trust.
 - `place_part` references a library `ComponentStyle`; DipTrace resolves symbol graphics and pin mapping from configured libraries during import.
 - Schematic wires use the official `Wire`/`Points` structure, while logical pin-to-net connectivity is maintained separately through `connect_pins`/`disconnect_pins`.

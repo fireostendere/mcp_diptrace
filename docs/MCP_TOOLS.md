@@ -40,8 +40,8 @@ wire does not promise a structured `code` or `suggested_action` payload.
 
 ## Semantic Writes
 
-- document creation: `create_schematic_document` and `create_pcb_document` generate synthetic DipTrace-shaped XML with sheets, outline, layers, stackup, via styles, net classes, and DRC;
-- seed-based document creation through `create_document_from_seed` for workflows that need to preserve a real DipTrace-exported XML structure and provenance;
+- document creation: `create_schematic_document` and `create_pcb_document` generate synthetic DipTrace-shaped XML with sheets, outline, layers, stackup, via styles, net classes, and DRC; their optional `format_version` sets the literal root and embedded-library `Version` attributes but does not convert the 4.3-era scaffold structure or assert compatibility;
+- seed-based document creation through `create_document_from_seed` for workflows that need to preserve a real DipTrace-exported XML structure, its existing `Version` literal, and provenance byte-for-byte;
 - components: move, rotate, side, lock, properties, pattern, align, distribute, and group;
 - board text: list, move, rotate, visibility, and style;
 - schematic properties: value, fields, no-connect, and net rename;

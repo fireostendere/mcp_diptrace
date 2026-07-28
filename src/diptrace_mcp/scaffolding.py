@@ -24,6 +24,11 @@ from .domain import StrictModel
 from .errors import EditError
 
 DEFAULT_FORMAT_VERSION = "4.3.0.3"
+MAX_FORMAT_VERSION_LENGTH = 256
+FORMAT_VERSION_DESCRIPTION = (
+    "Literal XML Version attribute for the synthetic document. This does not convert "
+    "the scaffold structure or assert compatibility with that DipTrace version."
+)
 MAX_SHEETS = 256
 MAX_LAYERS = 32
 MAX_DIMENSION_MM = 2_000.0
@@ -47,6 +52,45 @@ def _serialize(root: ET.Element) -> bytes:
     _indent(root)
     body: bytes = ET.tostring(root, encoding="utf-8", xml_declaration=False)
     return b'<?xml version="1.0" encoding="UTF-8"?>\n' + body + b"\n"
+
+
+def validate_format_version(version: str) -> str:
+    """Validate a caller-supplied XML ``Version`` literal without guessing its grammar."""
+
+    if (
+        not isinstance(version, str)
+        or not version
+        or version != version.strip()
+        or len(version) > MAX_FORMAT_VERSION_LENGTH
+    ):
+        raise EditError(
+            "format_version must be a non-empty, trimmed string no longer than "
+            f"{MAX_FORMAT_VERSION_LENGTH} characters",
+            code="invalid_request",
+            details={
+                "field": "format_version",
+                "max_length": MAX_FORMAT_VERSION_LENGTH,
+            },
+        )
+    # DipTrace's public material does not define a complete grammar for Version.
+    # Check only that XML 1.0 can preserve the caller's literal exactly; do not
+    # infer compatibility or restrict the value to versions observed in fixtures.
+    probe = ET.Element("Source", {"Version": version})
+    try:
+        parsed = ET.fromstring(ET.tostring(probe, encoding="utf-8"))
+    except (ET.ParseError, UnicodeError, ValueError) as exc:
+        raise EditError(
+            "format_version must be losslessly representable in an XML attribute",
+            code="invalid_request",
+            details={"field": "format_version"},
+        ) from exc
+    if parsed.get("Version") != version:
+        raise EditError(
+            "format_version must be losslessly representable in an XML attribute",
+            code="invalid_request",
+            details={"field": "format_version"},
+        )
+    return version
 
 
 class LayerSpec(StrictModel):
@@ -187,6 +231,7 @@ def build_schematic_document(
     """
 
     scaffold = options or SchematicScaffold()
+    version = validate_format_version(version)
     root = ET.Element(
         "Source", {"Type": "DipTrace-Schematic", "Version": version, "Units": units}
     )
@@ -243,6 +288,7 @@ def build_pcb_document(
     """
 
     scaffold = options or PcbScaffold()
+    version = validate_format_version(version)
     layers = scaffold.layers or default_layers(2)
     if not layers:
         raise EditError("A PCB document requires at least one copper layer")

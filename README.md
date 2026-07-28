@@ -20,7 +20,7 @@ See [the roadmap](docs/ROADMAP.md) for the current priority order and exit crite
 ## Current Capabilities
 
 - runtime capability discovery through `get_capabilities`, including precise unavailability reasons;
-- project scaffolding: brand-new schematic and PCB XML documents with sheets, outline, layers, stackup, via styles, net classes, and DRC (`create_schematic_document`, `create_pcb_document`); **these produce synthetic MCP-generated XML, not DipTrace-verified files**;
+- project scaffolding: brand-new schematic and PCB XML documents with sheets, outline, layers, stackup, via styles, net classes, and DRC (`create_schematic_document`, `create_pcb_document`); callers may set the literal XML `format_version`, but this does not convert the scaffold structure or verify compatibility; **these produce synthetic MCP-generated XML, not DipTrace-verified files**;
 - seed-based project creation from a real DipTrace-exported XML seed with preserved provenance (`create_document_from_seed`);
 - schematic authoring: sheets, part placement by library `ComponentStyle`, pin/net connectivity, official `Wire`/`Points` wires, and net labels (`add_sheet`, `place_part`, `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label`);
 - schematic-to-PCB synchronization of RefDes/value/fields, footprint references, pin-to-pad connectivity, nets, and ratlines, with additive-by-default and guarded `exact` reconciliation modes;

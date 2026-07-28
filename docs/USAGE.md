@@ -423,7 +423,7 @@ Representative write workflows include:
 
 | Tool or group | Purpose | Writes files |
 |---|---|---:|
-| `create_schematic_document` / `create_pcb_document` | New project scaffolding (sheets, layers, stackup, rules) | Immediately |
+| `create_schematic_document` / `create_pcb_document` | New synthetic project scaffolding; optional `format_version` changes the XML literal, not the scaffold structure or validation level | Immediately |
 | semantic transactions | Plan, preview, commit, and rollback typed edits | On commit |
 | component/part/text/rule operations | Controlled high-level modifications | On commit |
 | schematic authoring | `add_sheet`, `place_part`, `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label` | On commit |

@@ -18,7 +18,7 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 ## Что уже работает
 
 - runtime capability discovery через `get_capabilities`, включая точные причины недоступности;
-- project scaffolding: новые schematic/PCB XML-документы с листами, контуром, слоями, stackup, via styles, net classes и DRC (`create_schematic_document`, `create_pcb_document`); **это synthetic MCP-generated XML, а не DipTrace-verified файлы**;
+- project scaffolding: новые schematic/PCB XML-документы с листами, контуром, слоями, stackup, via styles, net classes и DRC (`create_schematic_document`, `create_pcb_document`); вызывающий код может задать литерал XML `format_version`, но это не преобразует структуру scaffold и не подтверждает совместимость; **это synthetic MCP-generated XML, а не DipTrace-verified файлы**;
 - seed-based создание проекта: копирование реального DipTrace-exported XML seed с сохранением provenance (`create_document_from_seed`);
 - schematic authoring: листы, размещение part по библиотечному `ComponentStyle`, pin/net connectivity, провода по официальной структуре `Wire`/`Points` и net labels (`add_sheet`, `place_part`, `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label`);
 - schematic-to-PCB synchronization RefDes/value/fields, footprint references, pin-to-pad connectivity, nets и ratlines; по умолчанию используется additive mode, а guarded `exact` reconciliation может удалять подтверждённые расхождения и затронутые traces только при изменении endpoint set;

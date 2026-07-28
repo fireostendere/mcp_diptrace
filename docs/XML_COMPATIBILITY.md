@@ -66,6 +66,11 @@ A live import/re-export acceptance run with DipTrace 5.3 has confirmed real Sche
 - seed-based copies through `create_document_from_seed`;
 - low-level guarded XML edits through `apply_xml_edits`;
 - semantic component, part, pattern-assignment, group, board-text, schematic property/no-connect/net, NetClass, and test-point edits;
+
+Synthetic scaffolding uses the repository's existing 4.3-era structure. Its optional
+`format_version` input sets only the literal `Version` attributes on the root and embedded
+libraries; it neither converts the structure nor asserts that DipTrace accepts it. Seed-based
+creation does not expose that input because it preserves the source export byte-for-byte.
 - schematic authoring: sheets, part placement, logical pin/net connectivity, official `<Net>/<Wires>/<Wire>/<Points>` wires, and net-bound labels;
 - additive and guarded exact schematic-to-PCB synchronization, including PCB components, embedded pattern/pad-style subtrees, pad membership, nets, ratlines, and explicit multi-part pin mapping where inference is insufficient;
 - official PCB `<Panel>` parameters for V-Scoring / Tab Routing;

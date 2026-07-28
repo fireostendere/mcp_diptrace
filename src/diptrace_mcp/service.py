@@ -164,10 +164,12 @@ from .routing import (
     synthesize_route,
 )
 from .scaffolding import (
+    DEFAULT_FORMAT_VERSION,
     PcbScaffold,
     SchematicScaffold,
     build_pcb_document,
     build_schematic_document,
+    validate_format_version,
 )
 from .semantic_compiler import SemanticApplyResult, apply_semantic_operations
 from .sessions import SessionAction, SessionStore
@@ -1801,13 +1803,15 @@ class DipTraceService:
         sheets: list[str] | None = None,
         pcb: dict[str, Any] | None = None,
         units: str = "mm",
+        format_version: str = DEFAULT_FORMAT_VERSION,
         overwrite: bool = False,
     ) -> dict[str, Any]:
-        """Create a brand-new DipTrace XML document inside the workspace."""
+        """Create a brand-new synthetic DipTrace-shaped XML document."""
 
         self.policy.require_write(dry_run=False, operation="create_document")
         if units not in {"mm", "inch", "mil"}:
             raise EditError(f"Unsupported document units: {units!r}", code="invalid_request")
+        format_version = validate_format_version(format_version)
         target = self.settings.resolve_allowed_path(path, must_exist=False)
         if target.exists() and not overwrite:
             raise EditError(
@@ -1817,10 +1821,10 @@ class DipTraceService:
             )
         if kind == "schematic":
             scaffold = SchematicScaffold(sheet_names=sheets) if sheets else None
-            raw = build_schematic_document(scaffold, units=units)
+            raw = build_schematic_document(scaffold, units=units, version=format_version)
         elif kind == "pcb":
             scaffold_pcb = PcbScaffold.model_validate(pcb or {})
-            raw = build_pcb_document(scaffold_pcb, units=units)
+            raw = build_pcb_document(scaffold_pcb, units=units, version=format_version)
         else:
             raise EditError(
                 f"Unsupported document kind for creation: {kind!r}",
@@ -2022,6 +2026,7 @@ class DipTraceService:
                 "backup": backup,
                 "seed_path": str(seed),
                 "seed_sha256": seed_sha256,
+                "format_version": loaded.version,
                 "provenance": trust_provenance,
                 "validation_level": trust_level.value,
                 "requires_diptrace_verification": requires_diptrace_verification(trust_level),

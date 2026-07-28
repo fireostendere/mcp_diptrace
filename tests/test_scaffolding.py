@@ -9,6 +9,8 @@ from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import EditError
 from diptrace_mcp.scaffolding import (
+    DEFAULT_FORMAT_VERSION,
+    MAX_FORMAT_VERSION_LENGTH,
     LayerSpec,
     PcbScaffold,
     SchematicScaffold,
@@ -156,8 +158,14 @@ def test_create_document_service_round_trip(tmp_path: Path) -> None:
     assert created["result"]["provenance"] == "mcp_generated"
     assert created["result"]["validation_level"] == "synthetic_parser_only"
     assert created["result"]["requires_diptrace_verification"] is True
+    assert created["result"]["format_version"] == DEFAULT_FORMAT_VERSION
     written = tmp_path / "project" / "board.dip"
     assert written.exists()
+    root = ET.fromstring(written.read_bytes())
+    assert root.get("Version") == DEFAULT_FORMAT_VERSION
+    assert {
+        library.get("Version") for library in root.findall("./Library")
+    } == {DEFAULT_FORMAT_VERSION}
     info = service.document_info("project/board.dip")
     assert info["result"]["kind"] == "pcb"
     assert info["result"]["sha256"] == created["result"]["sha256"]
@@ -183,3 +191,64 @@ def test_create_document_rejects_unknown_kind(tmp_path: Path) -> None:
     service = _service(tmp_path, tmp_path / ".state")
     with pytest.raises(EditError, match="Unsupported document kind"):
         service.create_document("library", "x.xml")
+
+
+@pytest.mark.parametrize("kind", ["schematic", "pcb"])
+def test_create_document_sets_explicit_format_version_on_root_and_libraries(
+    tmp_path: Path, kind: str
+) -> None:
+    service = _service(tmp_path, tmp_path / ".state")
+
+    result = service.create_document(
+        kind,
+        f"{kind}.xml",
+        format_version="5.3.0.2",
+    )
+
+    assert result["result"]["format_version"] == "5.3.0.2"
+    root = ET.fromstring((tmp_path / f"{kind}.xml").read_bytes())
+    assert root.get("Version") == "5.3.0.2"
+    assert {library.get("Version") for library in root.findall("./Library")} == {
+        "5.3.0.2"
+    }
+
+
+@pytest.mark.parametrize(
+    "format_version",
+    [
+        "",
+        "   ",
+        " 5.3.0.2",
+        "5.3.0.2\n",
+        "5.3.\x00.2",
+        "x" * (MAX_FORMAT_VERSION_LENGTH + 1),
+    ],
+)
+def test_create_document_rejects_unsafe_format_version_without_writing(
+    tmp_path: Path, format_version: str
+) -> None:
+    service = _service(tmp_path, tmp_path / ".state")
+
+    with pytest.raises(EditError) as exc_info:
+        service.create_document(
+            "pcb",
+            "invalid.xml",
+            format_version=format_version,
+        )
+
+    assert exc_info.value.payload.code == "invalid_request"
+    assert exc_info.value.payload.details["field"] == "format_version"
+    assert not (tmp_path / "invalid.xml").exists()
+
+
+def test_seed_creation_preserves_version_and_bytes_instead_of_rewriting(
+    tmp_path: Path,
+) -> None:
+    service = _service(tmp_path, tmp_path / ".state")
+    seed = build_pcb_document(version="5.3.0.2")
+    (tmp_path / "seed.xml").write_bytes(seed)
+
+    result = service.create_document_from_seed("seed.xml", "copied.xml")
+
+    assert result["result"]["format_version"] == "5.3.0.2"
+    assert (tmp_path / "copied.xml").read_bytes() == seed
