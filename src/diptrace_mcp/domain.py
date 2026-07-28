@@ -291,6 +291,15 @@ class TrustedRoundtripEvidence(StrictModel):
     def _enforce_trusted_invariants(self) -> TrustedRoundtripEvidence:
         """Enforce cross-field invariants for trusted evidence."""
         errors: list[str] = []
+        if self.source.path == self.saved.path:
+            errors.append("source and saved must be different files")
+        if self.source.source_type != self.saved.source_type:
+            errors.append("source and saved source_type must match")
+        if self.reexport is not None:
+            if self.reexport.path in {self.source.path, self.saved.path}:
+                errors.append("reexport must be a different file from source and saved")
+            if self.reexport.source_type != self.source.source_type:
+                errors.append("source, saved, and reexport source_type must match")
         if self.validation_level not in _HIGH_TRUST_LEVELS:
             errors.append(
                 f"trusted evidence should claim a high-trust level, got "
@@ -299,10 +308,25 @@ class TrustedRoundtripEvidence(StrictModel):
         if self.status == "passed":
             if self.semantic_comparison is None:
                 errors.append("passed trusted evidence requires semantic_comparison")
-            elif not self.semantic_comparison.passed:
-                errors.append("trusted evidence semantic comparison must pass")
-            elif not self.semantic_comparison.comparison_complete:
-                errors.append("trusted evidence semantic comparison must be complete")
+            else:
+                comparison = self.semantic_comparison
+                if not comparison.passed:
+                    errors.append("trusted evidence semantic comparison must pass")
+                if not comparison.comparison_complete:
+                    errors.append("trusted evidence semantic comparison must be complete")
+                if comparison.differences:
+                    errors.append("passed trusted evidence cannot contain differences")
+                if comparison.missing_required_categories:
+                    errors.append(
+                        "passed trusted evidence cannot omit required comparison categories"
+                    )
+                if any(
+                    category.severity == "critical"
+                    for category in comparison.unsupported_categories
+                ):
+                    errors.append(
+                        "passed trusted evidence cannot contain critical unsupported categories"
+                    )
         if self.reexport is None and self.validation_level in {
             FixtureValidationLevel.diptrace_roundtrip_verified,
             FixtureValidationLevel.external_tool_roundtrip_verified,

@@ -87,6 +87,84 @@ def _trusted_evidence(
     )
 
 
+def test_trusted_evidence_requires_distinct_same_type_roles(tmp_path: Path) -> None:
+    document_path = tmp_path / "board.dip"
+    base = _trusted_evidence(
+        document_path=document_path,
+        document_sha256="a" * 64,
+    ).model_dump(mode="json")
+
+    reused = json.loads(json.dumps(base))
+    reused["saved"]["path"] = reused["source"]["path"]
+    with pytest.raises(ValueError, match="source and saved must be different"):
+        TrustedRoundtripEvidence.model_validate(reused)
+
+    mismatched_type = json.loads(json.dumps(base))
+    mismatched_type["saved"]["source_type"] = "DipTrace-Schematic"
+    with pytest.raises(ValueError, match="source and saved source_type must match"):
+        TrustedRoundtripEvidence.model_validate(mismatched_type)
+
+    reused_reexport = json.loads(json.dumps(base))
+    reused_reexport["validation_level"] = "diptrace_roundtrip_verified"
+    reused_reexport["reexport"] = dict(reused_reexport["saved"])
+    with pytest.raises(ValueError, match="reexport must be a different file"):
+        TrustedRoundtripEvidence.model_validate(reused_reexport)
+
+    mismatched_reexport_type = json.loads(json.dumps(base))
+    mismatched_reexport_type["validation_level"] = "diptrace_roundtrip_verified"
+    mismatched_reexport_type["reexport"] = {
+        **mismatched_reexport_type["saved"],
+        "path": str(tmp_path / "reexport.dip"),
+        "source_type": "DipTrace-Schematic",
+    }
+    with pytest.raises(
+        ValueError,
+        match="source, saved, and reexport source_type must match",
+    ):
+        TrustedRoundtripEvidence.model_validate(mismatched_reexport_type)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("differences", ["synthetic mismatch"], "cannot contain differences"),
+        (
+            "missing_required_categories",
+            ["synthetic category"],
+            "cannot omit required comparison categories",
+        ),
+        (
+            "unsupported_categories",
+            [
+                {
+                    "category": "synthetic category",
+                    "severity": "critical",
+                    "reason": "synthetic verifier gap",
+                }
+            ],
+            "cannot contain critical unsupported categories",
+        ),
+    ],
+)
+def test_passed_trusted_evidence_rejects_inconsistent_semantic_results(
+    tmp_path: Path,
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    document_path = tmp_path / "board.dip"
+    payload = _trusted_evidence(
+        document_path=document_path,
+        document_sha256="a" * 64,
+    ).model_dump(mode="json")
+    comparison = payload["semantic_comparison"]
+    assert isinstance(comparison, dict)
+    comparison[field] = value
+
+    with pytest.raises(ValueError, match=message):
+        TrustedRoundtripEvidence.model_validate(payload)
+
+
 def test_embedded_registry_is_packaged_canonical_and_empty() -> None:
     raw = (
         resources.files("diptrace_mcp")
