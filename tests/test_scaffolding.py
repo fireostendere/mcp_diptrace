@@ -173,10 +173,16 @@ def test_create_document_service_round_trip(tmp_path: Path) -> None:
 
 def test_create_document_refuses_overwrite_without_flag(tmp_path: Path) -> None:
     service = _service(tmp_path, tmp_path / ".state")
-    service.create_document("schematic", "main.dch")
+    created = service.create_document("schematic", "main.dch")
     with pytest.raises(EditError, match="overwrite"):
         service.create_document("schematic", "main.dch")
-    replaced = service.create_document("schematic", "main.dch", sheets=["A", "B"], overwrite=True)
+    replaced = service.create_document(
+        "schematic",
+        "main.dch",
+        sheets=["A", "B"],
+        overwrite=True,
+        expected_sha256=created["result"]["sha256"],
+    )
     assert replaced["result"]["backup"] is not None
     assert replaced["result"]["summary"]["sheets"] == 2
 

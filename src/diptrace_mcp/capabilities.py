@@ -219,6 +219,22 @@ def capability_report(
                 "exact conflict-checked transaction rollback",
                 "live-session external apply handshake (pending WO-15 enforcement)",
             ],
+            "expected_sha256_required_for": [
+                "semantic design-file commit",
+                "raw XML design-file write",
+                "committed transaction rollback",
+                "synthetic document overwrite of an existing target",
+                "seed copy overwrite of an existing target",
+            ],
+            "expected_sha256_not_required_for": [
+                "creation of a target that does not exist",
+            ],
+            "expected_sha256_exemptions": [
+                (
+                    "live-session bridge replacement of the external exchange file "
+                    "(separate working-file handshake; pending WO-15 target binding)"
+                ),
+            ],
             "retention_max_records": None,
             "retention_max_age_days": None,
         },

@@ -222,6 +222,10 @@ High-level writes по умолчанию работают в preview/dry-run р
 
 `apply_xml_edits` остаётся expert escape hatch. Он требует exact match counts, сохраняет bytes вне target nodes, reparses результат, создаёт backup перед commit и отклоняет SHA conflicts.
 
+Creation tools могут создать отсутствующий target без hash. Замена существующего target
+требует одновременно `overwrite=true` и его текущий, наблюдавшийся вызывающей стороной
+`expected_sha256`; `expected_seed_sha256` привязывает seed input и не заменяет target hash.
+
 XML с `DOCTYPE` или `ENTITY` отклоняется. Переданные клиентом пути design/source
 ограничены configured roots; server state и executable paths являются отдельными
 operator-owned settings. Внешние процессы запускаются только через typed allowlisted

@@ -224,6 +224,10 @@ High-level writes default to preview/dry-run behavior. A safe workflow is:
 
 `apply_xml_edits` remains an expert escape hatch. It requires exact match counts, preserves bytes outside targets, reparses the result, creates a backup before commit, and rejects SHA conflicts.
 
+Creation tools may create an absent target without a hash. Replacing an existing target
+requires both `overwrite=true` and its current caller-observed `expected_sha256`;
+`expected_seed_sha256` binds the seed input and is not a substitute for the target hash.
+
 XML containing `DOCTYPE` or `ENTITY` is rejected. Caller-supplied design and source
 paths are constrained to configured roots; server state and executable paths are
 separate operator-owned settings. External processes are available only through typed

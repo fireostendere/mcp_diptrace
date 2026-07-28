@@ -42,7 +42,9 @@ The human-free input/write hardening baseline now includes:
 
 For an existing target, the original bytes are captured before replacement. A
 brand-new target has no previous content and therefore has no backup; an explicit
-overwrite of an existing target does.
+overwrite of an existing target does. Synthetic and seed-copy overwrite paths now also
+require the caller-observed current target SHA; the seed's optional SHA binds a different
+input and cannot authorize replacing the target.
 
 This checkpoint is an implemented safety boundary, not evidence of additional DipTrace
 format compatibility. [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) Q8/Q9 still require human
@@ -246,6 +248,9 @@ Native library create/update and attach-pattern mutation are intentionally unava
 
 - `create_schematic_document` and `create_pcb_document` generate **synthetic** XML using the existing 4.3-era scaffold structure. Their `format_version` parameter changes only the literal root and embedded-library `Version` attributes; it is not a format conversion or compatibility assertion. Generated documents remain `synthetic_parser_only` until independent DipTrace evidence exists.
 - `create_document_from_seed` copies a real DipTrace-exported XML seed and preserves unknown XML and provenance, but does not auto-upgrade round-trip trust.
+- Creation of an absent target needs no target SHA. Replacing existing design/source XML
+  requires `overwrite=true` and its current `expected_sha256`; seed copies keep the
+  independent `expected_seed_sha256` check for their source bytes.
 - `place_part` references a library `ComponentStyle`; DipTrace resolves symbol graphics and pin mapping from configured libraries during import.
 - Schematic wires use the official `Wire`/`Points` structure, while logical pin-to-net connectivity is maintained separately through `connect_pins`/`disconnect_pins`.
 - Panelization writes official `Panel` parameters; tab coordinates are recomputed by DipTrace and MCP does not expand final panel geometry.

@@ -85,6 +85,16 @@ FormatVersionInput = Annotated[
         description=FORMAT_VERSION_DESCRIPTION,
     ),
 ]
+ExpectedTargetSha256Input = Annotated[
+    str,
+    Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description=(
+            "Current SHA-256 of the existing target. Required with overwrite=true only "
+            "when the target already exists; obtain it by reading that target first."
+        ),
+    ),
+]
 _INPUT_SCHEMA_RESOURCE = "diptrace://schemas/tool-inputs"
 _GEOMETRIC_FIELD_NAMES = {
     "absolute_x",
@@ -553,8 +563,9 @@ def create_server(
         units: Literal["mm", "inch", "mil"] = "mm",
         format_version: FormatVersionInput = DEFAULT_FORMAT_VERSION,
         overwrite: bool = False,
+        expected_sha256: ExpectedTargetSha256Input | None = None,
     ) -> dict[str, Any]:
-        """Create synthetic Schematic XML; Version is a literal, not a compatibility claim."""
+        """Create Schematic XML; replacing an existing target requires its current SHA."""
         return service.create_document(
             "schematic",
             path,
@@ -562,6 +573,7 @@ def create_server(
             units=units,
             format_version=format_version,
             overwrite=overwrite,
+            expected_sha256=expected_sha256,
         )
 
     @mcp.tool()
@@ -571,12 +583,14 @@ def create_server(
         units: Literal["mm", "inch", "mil"] = "mm",
         format_version: FormatVersionInput = DEFAULT_FORMAT_VERSION,
         overwrite: bool = False,
+        expected_sha256: ExpectedTargetSha256Input | None = None,
     ) -> dict[str, Any]:
         """Create a new DipTrace PCB XML document (outline, layers, stackup, rules).
 
         This is synthetic MCP-generated content. It has the correct XML structure
         but has NOT been verified by DipTrace open/save. Use create_document_from_seed
-        with a real DipTrace export when DipTrace compatibility is required.
+        with a real DipTrace export when DipTrace compatibility is required. Replacing
+        an existing target requires its current SHA.
         """
         return service.create_document(
             "pcb",
@@ -585,6 +599,7 @@ def create_server(
             units=units,
             format_version=format_version,
             overwrite=overwrite,
+            expected_sha256=expected_sha256,
         )
 
     @mcp.tool()
@@ -593,18 +608,20 @@ def create_server(
         target_path: str,
         expected_seed_sha256: str | None = None,
         overwrite: bool = False,
+        expected_sha256: ExpectedTargetSha256Input | None = None,
     ) -> dict[str, Any]:
         """Copy a valid DipTrace-shaped XML seed while preserving unknown XML.
 
         Validation is derived only from a verified provenance sidecar; without one,
         the copy is synthetic_parser_only. Prefer a real export seed when DipTrace
-        compatibility matters.
+        compatibility matters. Replacing an existing target requires its current SHA.
         """
         return service.create_document_from_seed(
             seed_path,
             target_path,
             expected_seed_sha256=expected_seed_sha256,
             overwrite=overwrite,
+            expected_sha256=expected_sha256,
         )
 
     @mcp.tool()

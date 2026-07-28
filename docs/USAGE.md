@@ -429,7 +429,8 @@ Representative write workflows include:
 
 | Tool or group | Purpose | Writes files |
 |---|---|---:|
-| `create_schematic_document` / `create_pcb_document` | New synthetic project scaffolding; optional `format_version` changes the XML literal, not the scaffold structure or validation level | Immediately |
+| `create_schematic_document` / `create_pcb_document` | New synthetic project scaffolding; replacing an existing target requires `overwrite=true` plus its current `expected_sha256` | Immediately |
+| `create_document_from_seed` | Verbatim validated seed copy; `expected_seed_sha256` binds the seed and a separate target `expected_sha256` is required for overwrite | Immediately |
 | semantic transactions | Plan, preview, commit, and rollback typed edits | On commit |
 | component/part/text/rule operations | Controlled high-level modifications | On commit |
 | schematic authoring | `add_sheet`, `place_part`, `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label` | On commit |
@@ -701,7 +702,8 @@ state tree: direct offline writes use the per-target history, transaction commit
 recovery bytes in the authenticated transaction record, and live writes use the
 protected session record. A newly created target has no previous content and therefore
 reports `backup: null`; replacing an existing target through an overwrite path does
-create a backup.
+create a backup. New-target creation needs no `expected_sha256`; an overwrite is refused
+unless the caller supplies the current target SHA in addition to `overwrite=true`.
 
 At store construction, validated terminal artifacts older than the configured age or
 beyond the configured per-store count are eligible for whole-record cleanup.

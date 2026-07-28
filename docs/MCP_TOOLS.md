@@ -15,6 +15,12 @@ Every tool that accepts `dry_run` says so in its concrete `tools/list` descripti
 `dry_run=true` is a preview and must not write; a real write requires `dry_run=false` plus
 the `expected_sha256` returned by the inspected preview.
 
+Creation tools write immediately. They need no target hash when the resolved target does
+not exist. Replacing an existing target requires `overwrite=true` and that target's current
+`expected_sha256`; the service checks it before backup state is created and the backup
+writer binds the same exact bytes again. For seed copies, `expected_seed_sha256` protects
+the seed input while `expected_sha256` independently protects the existing target.
+
 The full `QuerySelector`, PCB scaffold, synchronization, panelization, and route-connection
 schemas are available once in the JSON schema catalog at `diptrace://schemas/tool-inputs`. They
 are referenced instead of being duplicated across dozens of tool schemas, keeping `tools/list`
@@ -55,8 +61,10 @@ wire does not promise a structured `code` or `suggested_action` payload.
 - `route_connections` for congestion-ordered multi-net routing with bounded batch-local rip-up/retry;
 - `plan_diff_pair_route` and `route_diff_pair` for coupled centerline-based differential-pair routing.
 
-High-level writes use dry-run or transaction planning, expected source SHA, preview,
+High-level edits use dry-run or transaction planning, expected source SHA, preview,
 reparse, targeted connectivity/DRC/ERC regression checks, commit, backup, and rollback.
+Immediate creation paths use generated/seed validation, the conditional overwrite SHA
+gate above, reparse, and centralized backup when replacing existing bytes.
 Those checks cover a bounded subset and may skip unavailable geometry or rules; see the
 [review coverage matrix](REVIEW_ENGINE.md). `apply_xml_edits` remains an expert escape
 hatch rather than the preferred API.

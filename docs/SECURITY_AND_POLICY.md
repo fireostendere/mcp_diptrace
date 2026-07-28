@@ -83,6 +83,17 @@ this per-target history; semantic transaction commits keep their authenticated r
 bytes inside the central transaction record, and live writes keep them inside the
 session record. In each case an existing target is captured before replacement.
 Creating a new target produces no pre-existing-content backup; overwrite operations do.
+Creating an absent target requires no target hash. Synthetic and seed-copy replacement of
+an existing target requires both `overwrite=true` and the caller-observed current
+`expected_sha256`; `expected_seed_sha256` binds only the seed. The backup writer rechecks
+the exact bytes it captures before creating recovery state or replacing the target.
+
+These checks narrow the race window and atomic rename prevents partial-file visibility,
+but ordinary filesystem APIs do not provide a cross-process compare-and-swap. An unrelated
+writer that ignores the protocol can still race between the final check and rename; tools
+editing the same design must coordinate through one MCP transaction/session. The live
+bridge currently binds its working-file hash rather than the pre-existing external
+exchange target and remains an explicit WO-15 exception in `get_capabilities`.
 
 Count-and-age retention runs when a store is constructed. It deletes only fully
 parsed, validated terminal records confined to that store. For transactions,

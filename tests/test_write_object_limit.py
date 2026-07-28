@@ -10,7 +10,7 @@ from diptrace_mcp.config import PolicyProfile, Settings
 from diptrace_mcp.errors import EditError, PolicyDeniedError
 from diptrace_mcp.scaffolding import build_pcb_document
 from diptrace_mcp.service import DipTraceService
-from diptrace_mcp.xml_document import XmlEdit
+from diptrace_mcp.xml_document import XmlEdit, sha256_bytes
 
 FIXTURES = Path(__file__).parent / "fixtures"
 MAX_BYTES = 20_000_000
@@ -303,7 +303,12 @@ def test_seed_create_and_overwrite_refuse_oversized_library_before_write(
     assert not (tmp_path / "new.lib").exists()
 
     with pytest.raises(EditError) as overwrite_error:
-        service.create_document_from_seed("seed.lib", "target.lib", overwrite=True)
+        service.create_document_from_seed(
+            "seed.lib",
+            "target.lib",
+            overwrite=True,
+            expected_sha256=sha256_bytes(original),
+        )
     assert overwrite_error.value.payload.code == "write_object_limit_exceeded"
     assert target.read_bytes() == original
 
@@ -327,6 +332,7 @@ def test_seed_overwrite_type_change_charges_the_complete_xml_scope(
             "seed.dch",
             "target.dip",
             overwrite=True,
+            expected_sha256=sha256_bytes(original),
         )
 
     assert raised.value.payload.code == "write_object_limit_exceeded"
@@ -349,6 +355,7 @@ def test_seed_reorder_counts_each_moved_unique_element(tmp_path: Path) -> None:
             "seed.dip",
             "target.dip",
             overwrite=True,
+            expected_sha256=sha256_bytes(original),
         )
 
     assert raised.value.payload.code == "write_object_limit_exceeded"
@@ -397,6 +404,7 @@ def test_independent_normalized_and_opaque_impacts_are_summed(
             "seed.lib",
             "target.lib",
             overwrite=True,
+            expected_sha256=sha256_bytes(original),
         )
 
     assert raised.value.payload.code == "write_object_limit_exceeded"
@@ -433,6 +441,7 @@ def test_create_document_refuses_oversized_scaffold_and_preserves_overwrite(
             "schematic.dch",
             sheets=sheets,
             overwrite=True,
+            expected_sha256=sha256_bytes(original),
         )
 
     assert raised.value.payload.code == "write_object_limit_exceeded"

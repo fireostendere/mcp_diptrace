@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .errors import EditError
+from .errors import EditError, Sha256MismatchError
 from .record_ids import is_link_like
 from .retention import (
     Clock,
@@ -67,17 +67,39 @@ class BackupStore:
         self._lock = threading.RLock()
         self.last_retention_reports = self._prune_all()
 
-    def write_with_backup(self, path: Path, data: bytes) -> Path:
+    def write_with_backup(
+        self,
+        path: Path,
+        data: bytes,
+        *,
+        expected_sha256: str | None = None,
+    ) -> Path:
         """Back up an existing target, replace it atomically, then prune its history."""
 
-        original = path.read_bytes()
         with self._lock:
+            try:
+                original = path.read_bytes()
+            except OSError as exc:
+                raise EditError(f"Cannot read target before backup: {path}") from exc
+            current_sha256 = sha256_bytes(original)
+            if (
+                expected_sha256 is not None
+                and current_sha256 != expected_sha256
+            ):
+                raise Sha256MismatchError(
+                    f"Document changed: expected {expected_sha256}, current {current_sha256}",
+                    details={
+                        "expected_sha256": expected_sha256,
+                        "current_sha256": current_sha256,
+                        "path": str(path),
+                    },
+                )
             key, canonical_path = self._target_binding(path)
             target_dir = self.root / key
             self._prepare_target_dir(target_dir, key, canonical_path)
             created_at = self._next_backup_timestamp(target_dir, key, canonical_path)
             stamp = created_at.strftime("%Y%m%dT%H%M%S.%fZ")
-            digest = sha256_bytes(original)
+            digest = current_sha256
             backup = target_dir / f"backup.{stamp}.{digest}.{uuid.uuid4().hex}.bak"
             atomic_write_bytes(backup, original)
             # If replacement fails, the new recovery point remains untouched.
