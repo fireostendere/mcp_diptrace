@@ -90,7 +90,7 @@ def test_query_selector_schema_publishes_exact_spatial_shapes() -> None:
     assert set(near["properties"]) == {"x", "y"}
     assert set(near["required"]) == set(near["properties"])
     max_distance = schema["properties"]["max_distance"]
-    assert max_distance["anyOf"][0]["exclusiveMinimum"] == 0.0
+    assert max_distance["anyOf"][0]["minimum"] == 0.0
     assert "both fields are required together" in schema["properties"]["near"]["description"]
 
 
@@ -99,7 +99,6 @@ def test_query_selector_schema_publishes_exact_spatial_shapes() -> None:
     [
         {"near": {"x": 0.0, "y": 0.0}},
         {"max_distance": 1.0},
-        {"near": {"x": 0.0, "y": 0.0}, "max_distance": 0.0},
         {"near": {"x": 0.0, "y": 0.0}, "max_distance": math.inf},
         {"near": {"x": 0.0, "y": 0.0}, "max_distance": math.nan},
     ],
@@ -112,6 +111,13 @@ def test_query_selector_refuses_unbounded_or_nonfinite_near(payload: dict[str, o
 def test_query_selector_accepts_bounded_near() -> None:
     selector = QuerySelector.model_validate({"near": {"x": 1.0, "y": 2.0}, "max_distance": 0.5})
     assert selector.max_distance == 0.5
+
+
+def test_query_selector_accepts_zero_radius_for_exact_point_matching() -> None:
+    selector = QuerySelector.model_validate(
+        {"near": {"x": 1.0, "y": 2.0}, "max_distance": 0.0}
+    )
+    assert selector.max_distance == 0.0
 
 
 def test_unbounded_near_is_rejected_by_every_nested_selector_consumer() -> None:

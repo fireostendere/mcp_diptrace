@@ -206,6 +206,11 @@ def capability_report(
                 "semantic transactions, raw XML edits, document creation, seed copies, "
                 "and overwrites"
             ),
+            "max_write_objects_accounting": (
+                "fail-closed sum of changed normalized objects, exact XML elements, and "
+                "compiler-only ids; the independent views can overlap, so a write may be "
+                "refused below 500 unique physical design objects"
+            ),
             "max_write_objects_exemptions": [
                 "exact conflict-checked transaction rollback",
                 "live-session external apply handshake (pending WO-15 enforcement)",

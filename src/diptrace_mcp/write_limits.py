@@ -25,12 +25,19 @@ class WriteImpact:
 
     @property
     def object_count(self) -> int:
-        # The two views overlap. Taking the larger estimate is conservative
-        # without charging the same normalized object twice.
-        return max(
-            len(self.changed_ids),
-            self.normalized_object_count,
-            self.structural_element_count,
+        compiler_only_count = max(
+            0,
+            len(self.changed_ids) - self.normalized_object_count,
+        )
+        # There is no complete XML-element-to-normalized-object mapping. The
+        # independent views can overlap, but taking only their maximum is not
+        # fail-closed: normalized geometry derived from one XML definition can
+        # change alongside unrelated passthrough XML. Charge the conservative
+        # sum and disclose the possible overlap to clients.
+        return (
+            self.normalized_object_count
+            + self.structural_element_count
+            + compiler_only_count
         )
 
 
@@ -124,40 +131,83 @@ def _element_identity(element: ET.Element) -> tuple[str, str]:
     return "", ""
 
 
-_ElementPath = tuple[tuple[str, tuple[str, str], int], ...]
+_ElementPathStep = tuple[int, str, tuple[str, str], int]
 
 
-def _structural_element_map(root: ET.Element) -> dict[_ElementPath, Any]:
-    """Map local element state without folding descendant changes into parents."""
+class _ElementPathInterner:
+    """Assign stable integer ids to linked XML paths in linear space."""
 
-    records: dict[_ElementPath, Any] = {}
+    def __init__(self) -> None:
+        self._ids: dict[_ElementPathStep, int] = {}
 
-    def visit(element: ET.Element, path: _ElementPath) -> None:
-        sibling_counts: dict[tuple[str, tuple[str, str]], int] = {}
-        records[path] = (
-            str(element.tag),
-            tuple(sorted(element.attrib.items())),
-            (element.text or "").strip(),
+    def intern(
+        self,
+        parent_path: int,
+        tag: str,
+        identity: tuple[str, str],
+        occurrence: int,
+    ) -> int:
+        step = (parent_path, tag, identity, occurrence)
+        path_id = self._ids.get(step)
+        if path_id is None:
+            path_id = len(self._ids) + 1
+            self._ids[step] = path_id
+        return path_id
+
+
+def _structural_element_map(
+    root: ET.Element,
+    paths: _ElementPathInterner,
+) -> dict[int, Any]:
+    """Map exact local XML state and sibling order without recursive traversal."""
+
+    records: dict[int, Any] = {}
+    stack: list[tuple[ET.Element, int, int, int]] = [(root, 0, 0, 0)]
+    while stack:
+        element, parent_path, sibling_index, occurrence = stack.pop()
+        tag = str(element.tag)
+        path = paths.intern(
+            parent_path,
+            tag,
+            _element_identity(element),
+            occurrence,
         )
-        for child in element:
+        records[path] = (
+            tag,
+            tuple(sorted(element.attrib.items())),
+            element.text,
+            element.tail,
+            sibling_index,
+        )
+        sibling_counts: dict[tuple[str, tuple[str, str]], int] = {}
+        children: list[tuple[ET.Element, int, int]] = []
+        for child_index, child in enumerate(element):
+            child_tag = str(child.tag)
             identity = _element_identity(child)
-            key = (child.tag, identity)
-            occurrence = sibling_counts.get(key, 0)
-            sibling_counts[key] = occurrence + 1
-            visit(child, (*path, (child.tag, identity, occurrence)))
+            key = (child_tag, identity)
+            child_occurrence = sibling_counts.get(key, 0)
+            sibling_counts[key] = child_occurrence + 1
+            children.append((child, child_index, child_occurrence))
+        for child, child_index, child_occurrence in reversed(children):
+            stack.append((child, path, child_index, child_occurrence))
 
-    visit(root, ((root.tag, ("", ""), 0),))
     return records
 
 
-def _global_units_changed(before: ET.Element, after: ET.Element) -> bool:
-    def values(root: ET.Element) -> list[tuple[str, str | None]]:
+def _document_interpretation_changed(before: ET.Element, after: ET.Element) -> bool:
+    def values(
+        root: ET.Element,
+    ) -> list[tuple[str, str | None, str | None, str | None]]:
         return [
-            (element.tag, element.get("Units"))
+            (
+                str(element.tag),
+                element.get("Type"),
+                element.get("Version"),
+                element.get("Units"),
+            )
             for element in root.iter()
             if isinstance(element.tag, str)
             and element.tag in {"Source", "Library"}
-            and "Units" in element.attrib
         ]
 
     return values(before) != values(after)
@@ -172,7 +222,8 @@ def write_impact(
     """Measure changed normalized records and independently changed XML elements."""
 
     after_normalized = normalized_object_map(after)
-    after_structural = _structural_element_map(after.root)
+    paths = _ElementPathInterner()
+    after_structural = _structural_element_map(after.root, paths)
     if before is None:
         normalized_ids = set(after_normalized)
         structural_count = len(after_structural)
@@ -183,15 +234,15 @@ def write_impact(
             for key in before_normalized.keys() | after_normalized.keys()
             if before_normalized.get(key) != after_normalized.get(key)
         }
-        before_structural = _structural_element_map(before.root)
+        before_structural = _structural_element_map(before.root, paths)
         structural_count = sum(
             before_structural.get(key) != after_structural.get(key)
             for key in before_structural.keys() | after_structural.keys()
         )
-        if _global_units_changed(before.root, after.root):
-            # Units on Source or an embedded/library root can reinterpret every
-            # descendant numeric field. Where normalization has no record for a
-            # field, charge the complete scope rather than silently undercount.
+        if _document_interpretation_changed(before.root, after.root):
+            # Type, Version, or Units on Source or an embedded/library root can
+            # change how every descendant is interpreted. Charge the complete
+            # scope rather than silently treating it as one attribute edit.
             structural_count = max(
                 structural_count,
                 len(before_structural),

@@ -1094,10 +1094,10 @@ class QuerySelector(StrictModel):
     )
     max_distance: float | None = Field(
         default=None,
-        gt=0.0,
+        ge=0.0,
         allow_inf_nan=False,
         description=(
-            "Required positive search radius when near is supplied. "
+            "Required non-negative search radius when near is supplied. "
             + _MM_FIELD_DESCRIPTION
         ),
     )

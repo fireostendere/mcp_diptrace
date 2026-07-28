@@ -2323,6 +2323,7 @@ class DipTraceService:
         txid: str,
         expected_sha256: str | None = None,
     ) -> dict[str, Any]:
+        self.policy.require_write(dry_run=False, operation="rollback_transaction")
         record = self.transactions.read(txid)
         if record.status == "rolled_back":
             raise TransactionConflictError("Transaction is already rolled back", txid=txid)

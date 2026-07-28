@@ -62,11 +62,14 @@ Those checks cover a bounded subset and may skip unavailable geometry or rules; 
 hatch rather than the preferred API.
 
 Every semantic transaction, raw XML edit, generated document, seed copy, and overwrite
-is independently limited to 500 affected normalized objects or XML elements. The count
-is recomputed before transaction mutation and again at commit; it includes nested library
-patterns, pads, pins, holes, and shapes. Exact conflict-checked rollback is exempt because
-it restores the previously captured bytes. The live-session external apply handshake is
-not yet independently capped and remains disclosed by `get_capabilities` pending WO-15.
+is independently limited by a fail-closed count of affected normalized objects and exact
+XML elements. The count is recomputed before transaction mutation and again at commit; it
+includes nested library patterns, pads, pins, holes, and shapes. The normalized and XML
+views are conservatively summed because no complete mapping exists between them, so their
+overlap can cause a write with fewer than 500 unique physical design objects to be refused.
+Exact conflict-checked rollback is exempt from the object count, but still passes the active
+write policy. The live-session external apply handshake is not yet independently capped
+and remains disclosed by `get_capabilities` pending WO-15.
 
 ## Trust and Verification Caveat
 
