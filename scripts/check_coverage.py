@@ -9,9 +9,9 @@ import math
 from pathlib import Path
 from typing import Any
 
-TOTAL_FLOOR = 84.0
+TOTAL_FLOOR = 85.0
 FILE_FLOORS = {
-    "src/diptrace_mcp/bridge.py": 63.0,
+    "src/diptrace_mcp/bridge.py": 64.0,
     "src/diptrace_mcp/xml_document.py": 87.0,
     "src/diptrace_mcp/semantic_compiler.py": 88.0,
     "src/diptrace_mcp/routing_compiler.py": 85.0,

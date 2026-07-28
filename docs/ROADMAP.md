@@ -108,12 +108,13 @@ pure-Python conservative geometry path, and runs the fallback-focused tests.
 This prevents exact-geometry tests from being silently skipped in every CI job
 while also preserving evidence for the fallback installation.
 
-After the WO-14 headless bridge slice, the canonical geometry-enabled suite
-measured 15,477 statements, 2,411 misses, and **84.4220%** total coverage.
-`bridge.py` moved from an untested CI executable path to 119 of 187 statements,
-or **63.6364%**, backed by a real cross-process apply handshake plus
-cancel/timeout/error tests. CI enforces an integer 84% total floor plus measured
-per-file floors of 63% for `bridge.py`, 87% for `xml_document.py`, 88% for
+After the combined WO-14 bridge, transaction-recovery, public MCP workflow,
+synthetic-load, and session-concurrency slices, the canonical geometry-enabled
+suite measured 15,661 statements, 2,248 misses, and **85.6459%** total coverage.
+`bridge.py` moved from an untested CI executable path to 121 of 187 statements,
+or **64.7059%**, backed by a real cross-process apply handshake plus
+cancel/timeout/error tests. CI enforces an integer 85% total floor plus measured
+per-file floors of 64% for `bridge.py`, 87% for `xml_document.py`, 88% for
 `semantic_compiler.py`, and 85% for `routing_compiler.py`. The intended project
 target remains at least 88% total; that target is explicitly still open and
 must be reached with additional tests rather than omit rules or a weakened

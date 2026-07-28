@@ -10,7 +10,7 @@ pytest -q
 ruff check --no-cache src tests benchmarks scripts plugin
 mypy --no-incremental src/diptrace_mcp plugin
 pytest -q --cov=src/diptrace_mcp --cov-report=term \
-  --cov-report=json:coverage.json --cov-fail-under=84
+  --cov-report=json:coverage.json --cov-fail-under=85
 python scripts/check_coverage.py coverage.json
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 python -m benchmarks.benchmark_large_board --components 500
@@ -44,19 +44,20 @@ python -m pytest -q \
   --cov=src/diptrace_mcp \
   --cov-report=term \
   --cov-report=json:coverage.json \
-  --cov-fail-under=84
+  --cov-fail-under=85
 python scripts/check_coverage.py coverage.json
 ```
 
-The current measurement was taken after the WO-14 headless bridge slice on
-Python 3.12 with Shapely 2.1.2. These are coverage.py statement measurements,
-not hand-estimated percentages:
+The current measurement was taken after the combined WO-14 bridge, transaction
+recovery, public MCP workflow, large synthetic load, and live-session
+concurrency slices on Python 3.12 with Shapely 2.1.2. These are coverage.py
+statement measurements, not hand-estimated percentages:
 
 | Target | Statements | Missed | Measured | Enforced integer floor |
 | --- | ---: | ---: | ---: | ---: |
-| Total `src/diptrace_mcp` | 15,477 | 2,411 | 84.4220% | 84% |
-| `bridge.py` | 187 | 68 | 63.6364% | 63% |
-| `xml_document.py` | 825 | 103 | 87.5152% | 87% |
+| Total `src/diptrace_mcp` | 15,661 | 2,248 | 85.6459% | 85% |
+| `bridge.py` | 187 | 66 | 64.7059% | 64% |
+| `xml_document.py` | 825 | 100 | 87.8788% | 87% |
 | `semantic_compiler.py` | 1,389 | 160 | 88.4809% | 88% |
 | `routing_compiler.py` | 561 | 81 | 85.5615% | 85% |
 

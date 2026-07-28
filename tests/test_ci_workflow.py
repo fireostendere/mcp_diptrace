@@ -26,7 +26,7 @@ def test_linux_geometry_job_runs_exact_backend_and_coverage_gates() -> None:
     assert "python scripts/smoke_bridge_headless.py" in commands
     assert "python -m pytest -q" in commands
     assert "--cov=src/diptrace_mcp" in commands
-    assert "--cov-fail-under=84" in commands
+    assert "--cov-fail-under=85" in commands
     assert "check_coverage.py coverage.json" in commands
 
 
