@@ -118,12 +118,12 @@ This prevents exact-geometry tests from being silently skipped in every CI job
 while also preserving evidence for the fallback installation.
 
 After the combined WO-14 bridge, transaction-recovery, public MCP workflow,
-synthetic-load, live-session profile-safety, and WO-16 registry/evidence-intake
-slices, the canonical geometry-enabled suite measured 16,028 statements, 2,261
-misses, and **85.8934%** total coverage. `bridge.py` moved from an untested CI
-executable path to 124 of 192 statements, or **64.5833%**, backed by a real
-cross-process apply handshake plus cancel/timeout/error tests. CI enforces an
-integer 85% total floor plus measured
+synthetic-load, live-session profile-safety, WO-16 registry/evidence intake,
+and acceptance-seed audit slices, the canonical geometry-enabled suite measured
+16,028 statements, 2,257 misses, and **85.9184%** total coverage. `bridge.py`
+moved from an untested CI executable path to 124 of 192 statements, or
+**64.5833%**, backed by a real cross-process apply handshake plus
+cancel/timeout/error tests. CI enforces an integer 85% total floor plus measured
 per-file floors of 64% for `bridge.py`, 87% for `xml_document.py`, 88% for
 `semantic_compiler.py`, and 85% for `routing_compiler.py`. The intended project
 target remains at least 88% total; that target is explicitly still open and
@@ -190,6 +190,24 @@ request/finalize race leaves canonical JSON state with no stale active or contro
 marker. The lock file is validated as a regular, non-redirected file before use.
 Spawned-process and thread-barrier regressions exercise the maintained behavior
 without starting DipTrace.
+
+### WO-16 acceptance-seed consumer checkpoint — 2026-07-28
+
+CI now runs a bounded, read-only audit of the protected acceptance-seed
+directory. Its current explicit result is `status: "no_seeds"` with
+`seed_count: 0`; this is reported as an honest absence of evidence, not silently
+skipped. A future v2 fixture manifest is checked against the committed schema,
+the existing `FixtureManifest` provenance invariants, exact fixture hashes,
+canonical in-root paths, and actual DipTrace XML or Specctra source types.
+
+The consumer cannot write, register a fixture, alter the authority registry, or
+promote trust. It consults the embedded registry for its actual entry count but
+does not infer a match from seed metadata; it reports `trust_promoted: false`
+and `registry_match: false`. A tested literal
+synthetic stand-in procedure lives in
+[ACCEPTANCE_SEED_AUDIT.md](ACCEPTANCE_SEED_AUDIT.md), executes only in an OS
+temporary directory, and is explicitly not DipTrace evidence. Real exports and
+the independent reviewed authority decision remain human-gated.
 
 Current practical classification:
 

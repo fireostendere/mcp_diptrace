@@ -6,6 +6,7 @@ The test strategy intentionally separates implementation correctness from real-D
 
 ```bash
 python scripts/generate_pcb_skills.py --check
+python scripts/audit_acceptance_seeds.py
 pytest -q
 ruff check --no-cache src tests benchmarks scripts plugin
 mypy --no-incremental src/diptrace_mcp plugin
@@ -27,7 +28,8 @@ CI responsibilities:
   absent, executes the real pure-Python geometry probe, and runs the
   fallback-focused regression files;
 - Ruff and strict Mypy over the server plus hand-maintained `plugin/` Python,
-  and generated-skill checks on Linux/Python 3.12;
+  generated-skill checks, and the read-only acceptance-seed audit on
+  Linux/Python 3.12;
 - a deterministic, temporary `ingest_fixtures.py --dry-run --synthetic` run
   that validates the candidate/hash/path and embedded-registry inspection
   pipeline without writing or granting trust;
@@ -36,6 +38,13 @@ CI responsibilities:
 - native Windows build and non-empty verification of `diptrace_mcp_bridge.exe`.
 
 Core CI does not require DipTrace, Java/Freerouting, ngspice, openEMS, or network access.
+
+The acceptance-seed audit currently reports `status: "no_seeds"` and
+`seed_count: 0`. It validates a future committed v2 manifest, provenance
+invariants, exact hashes, canonical paths, and actual source types, but it
+always reports `trust_promoted: false` and performs no writes. The executable
+temporary stand-in procedure and the operator handoff boundary are documented
+in [ACCEPTANCE_SEED_AUDIT.md](ACCEPTANCE_SEED_AUDIT.md).
 
 ## Coverage
 
@@ -54,13 +63,13 @@ python scripts/check_coverage.py coverage.json
 
 The current measurement was taken after the combined WO-14 bridge, transaction
 recovery, public MCP workflow, large synthetic load, live-session concurrency
-and profile-safety work, and WO-16 registry/evidence-intake slices on Python
-3.12 with Shapely 2.1.2. These are coverage.py statement measurements, not
-hand-estimated percentages:
+and profile-safety work, WO-16 registry/evidence intake, and the acceptance-seed
+audit on Python 3.12 with Shapely 2.1.2. These are coverage.py statement
+measurements, not hand-estimated percentages:
 
 | Target | Statements | Missed | Measured | Enforced integer floor |
 | --- | ---: | ---: | ---: | ---: |
-| Total `src/diptrace_mcp` | 16,028 | 2,261 | 85.8934% | 85% |
+| Total `src/diptrace_mcp` | 16,028 | 2,257 | 85.9184% | 85% |
 | `bridge.py` | 192 | 68 | 64.5833% | 64% |
 | `xml_document.py` | 825 | 99 | 88.0000% | 87% |
 | `semantic_compiler.py` | 1,389 | 160 | 88.4809% | 88% |
