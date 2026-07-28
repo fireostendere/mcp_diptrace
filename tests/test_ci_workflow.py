@@ -23,6 +23,7 @@ def test_linux_geometry_job_runs_exact_backend_and_coverage_gates() -> None:
 
     assert 'python -m pip install -e ".[dev,geometry]"' in commands
     assert "verify_geometry_backend.py --expect shapely_geos" in commands
+    assert "python scripts/smoke_bridge_headless.py" in commands
     assert "python -m pytest -q" in commands
     assert "--cov=src/diptrace_mcp" in commands
     assert "--cov-fail-under=84" in commands
@@ -40,3 +41,10 @@ def test_linux_fallback_job_proves_shapely_absent_and_runs_fallback_tests() -> N
     assert "verify_geometry_backend.py --expect pure_python" in commands
     assert "tests/test_geometry.py" in commands
     assert "tests/test_copper_pour_obstacles.py" in commands
+
+
+def test_windows_job_runs_real_headless_bridge_handshake() -> None:
+    workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    commands = _job_commands(workflow["jobs"]["test-windows"])
+
+    assert "python scripts/smoke_bridge_headless.py" in commands

@@ -95,12 +95,24 @@ Copy a fixture to a temporary directory and start the bridge in headless mode:
 
 ```bash
 cp tests/fixtures/pcb.xml /tmp/plugin_exchange.xml
-DIPTRACE_MCP_STATE_DIR=/tmp/diptrace-state \
+DIPTRACE_MCP_WORKSPACE=/tmp \
+  DIPTRACE_MCP_STATE_DIR=/tmp/diptrace-state \
   python -m diptrace_mcp.bridge --headless --timeout 30 /tmp/plugin_exchange.xml
 ```
 
 In another process, call `SessionStore.request_finish("cancel")` or start the MCP server
 with the same `DIPTRACE_MCP_STATE_DIR`.
+
+CI runs `python scripts/smoke_bridge_headless.py`, which performs the complete
+cross-process `apply` handshake in a temporary directory and verifies the
+replacement and cleanup. Headless exit code `0` means a requested `apply` or
+`cancel` was finalized, `2` means the timeout elapsed and the bridge cancelled
+the session, and `1` means a post-argument startup, configuration, XML, session,
+or control-processing failure. As with other `argparse` CLIs, an invalid or
+incomplete command line also exits `2` before a session exists. Fatal failures
+after the exchange path has been resolved inside an allowed root are recorded
+as typed JSON in `diptrace_mcp_bridge.log` beside the exchange file, capped at
+64 KiB.
 
 ## SDK Versions
 

@@ -372,7 +372,10 @@ class SessionStore:
         working = working_path.read_bytes()
         current_sha256 = sha256_bytes(working)
         if expected_sha256 and current_sha256 != expected_sha256:
-            raise SessionError("Working XML changed after the finish request")
+            raise SessionError(
+                "Working XML changed after the finish request",
+                code="sha256_mismatch",
+            )
 
         if action == "apply":
             document = DipTraceDocument.from_bytes(working_path, working)

@@ -353,6 +353,16 @@ it gives a person time to inspect a preview without leaving an abandoned bridge 
 for hours. Override it with `DIPTRACE_MCP_SESSION_TIMEOUT` or the plug-in
 `--timeout` argument; both accept positive integer seconds only.
 
+The exchange file must resolve inside `DIPTRACE_MCP_WORKSPACE` or an explicit
+`DIPTRACE_MCP_ALLOWED_ROOTS` entry. In headless mode, exit code `0` means an
+`apply` or `cancel` request was finalized, `2` means the bridge timed out and
+cancelled the session, and `1` means a post-argument startup, configuration,
+XML, session, or control-processing failure. Standard command-line syntax
+validation also exits `2` before a session is created. After a valid exchange
+path has been established, fatal failures are written as typed JSON to
+`diptrace_mcp_bridge.log` beside that file. The log is replaced per failure, is
+capped at 64 KiB, and discloses when its message had to be truncated.
+
 After `apply`:
 
 1. visually inspect every modified object;

@@ -108,12 +108,15 @@ pure-Python conservative geometry path, and runs the fallback-focused tests.
 This prevents exact-geometry tests from being silently skipped in every CI job
 while also preserving evidence for the fallback installation.
 
-At commit `f0d7fb1`, the canonical geometry-enabled suite measured 15,273
-statements, 2,443 misses, and **84.0045%** total coverage. CI enforces an integer
-84% total floor plus measured per-file floors of 87% for `xml_document.py`, 88%
-for `semantic_compiler.py`, and 85% for `routing_compiler.py`. The intended
-project target remains at least 88% total; that target is explicitly still open
-and must be reached with additional tests rather than omit rules or a weakened
+After the WO-14 headless bridge slice, the canonical geometry-enabled suite
+measured 15,477 statements, 2,411 misses, and **84.4220%** total coverage.
+`bridge.py` moved from an untested CI executable path to 119 of 187 statements,
+or **63.6364%**, backed by a real cross-process apply handshake plus
+cancel/timeout/error tests. CI enforces an integer 84% total floor plus measured
+per-file floors of 63% for `bridge.py`, 87% for `xml_document.py`, 88% for
+`semantic_compiler.py`, and 85% for `routing_compiler.py`. The intended project
+target remains at least 88% total; that target is explicitly still open and
+must be reached with additional tests rather than omit rules or a weakened
 denominator. The reproducible command and full measurement table are in
 [TESTING.md](TESTING.md).
 

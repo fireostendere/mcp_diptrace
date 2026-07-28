@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import time
 from pathlib import Path
 from typing import Any
 
-from .config import DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS, Settings, platform_path
-from .errors import DipTraceMcpError
+from .config import DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS, Settings
+from .errors import ConfigurationError, DipTraceMcpError
 from .sessions import SessionAction, SessionStore
-from .xml_document import sha256_bytes
+from .xml_document import atomic_write_bytes, sha256_bytes, utc_now
+
+BRIDGE_ERROR_LOG_NAME = "diptrace_mcp_bridge.log"
+BRIDGE_ERROR_LOG_MAX_BYTES = 64 * 1024
 
 
 class BridgeController:
@@ -64,6 +68,71 @@ def _show_fatal(message: str) -> None:
         except Exception:
             pass
     print(message, file=sys.stderr)
+
+
+def _fatal_error_payload(exc: OSError | DipTraceMcpError | RuntimeError) -> dict[str, Any]:
+    if isinstance(exc, DipTraceMcpError):
+        return exc.payload.as_dict()
+    return {
+        "code": "bridge_io_error" if isinstance(exc, OSError) else "bridge_runtime_error",
+        "message": str(exc),
+        "details": {},
+        "recoverable": False,
+        "suggested_action": "",
+        "object_ids": [],
+        "txid": None,
+        "jobid": None,
+    }
+
+
+def _write_fatal_log(
+    exchange_path: Path,
+    exc: OSError | DipTraceMcpError | RuntimeError,
+) -> Path | None:
+    """Write one bounded failure record beside an already validated exchange file."""
+
+    try:
+        parent = exchange_path.resolve(strict=False).parent
+        log_path = parent / BRIDGE_ERROR_LOG_NAME
+        record = {
+            "timestamp": utc_now(),
+            "error": _fatal_error_payload(exc),
+        }
+        data = json.dumps(record, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
+        if len(data) > BRIDGE_ERROR_LOG_MAX_BYTES:
+            error = record["error"]
+            assert isinstance(error, dict)
+            original_bytes = len(data)
+            message = str(error.get("message", ""))
+            bounded_error: dict[str, Any] = {
+                "code": error.get("code", "bridge_runtime_error"),
+                "message": message,
+                "details": {
+                    "bridge_log_truncated": True,
+                    "original_serialized_bytes": original_bytes,
+                },
+                "recoverable": error.get("recoverable", False),
+                "suggested_action": "",
+                "object_ids": [],
+                "txid": None,
+                "jobid": None,
+            }
+            record["error"] = bounded_error
+            while True:
+                data = (
+                    json.dumps(record, ensure_ascii=False, indent=2).encode("utf-8")
+                    + b"\n"
+                )
+                if len(data) <= BRIDGE_ERROR_LOG_MAX_BYTES:
+                    break
+                message = message[: len(message) // 2]
+                bounded_error["message"] = message
+        atomic_write_bytes(log_path, data)
+        return log_path
+    except (OSError, RuntimeError, ValueError):
+        # The original error remains authoritative when its diagnostic cannot be
+        # persisted (for example, because the exchange directory is read-only).
+        return None
 
 
 def run_gui(controller: BridgeController, timeout: int) -> int:
@@ -181,6 +250,16 @@ def _positive_timeout(value: str) -> int:
     return timeout
 
 
+def _timeout_from_environment() -> int:
+    raw = os.environ.get("DIPTRACE_MCP_SESSION_TIMEOUT")
+    if raw is None:
+        return DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS
+    try:
+        return _positive_timeout(raw)
+    except argparse.ArgumentTypeError as exc:
+        raise ConfigurationError(f"DIPTRACE_MCP_SESSION_TIMEOUT {exc}") from exc
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="DipTrace executable plug-in bridge for MCP")
     parser.add_argument("exchange_file")
@@ -188,10 +267,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeout",
         type=_positive_timeout,
-        default=os.environ.get(
-            "DIPTRACE_MCP_SESSION_TIMEOUT",
-            str(DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS),
-        ),
+        default=None,
         help=(
             "operator workflow timeout in seconds "
             f"(default: {DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS}; "
@@ -204,13 +280,18 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+    exchange_path: Path | None = None
     try:
-        exchange_path = platform_path(args.exchange_file).resolve(strict=True)
-        controller = BridgeController(exchange_path, Settings.from_env())
+        settings = Settings.from_env()
+        exchange_path = settings.resolve_allowed_path(args.exchange_file, must_exist=True)
+        timeout = args.timeout if args.timeout is not None else _timeout_from_environment()
+        controller = BridgeController(exchange_path, settings)
         if args.headless:
-            return run_headless(controller, args.timeout)
-        return run_gui(controller, args.timeout)
+            return run_headless(controller, timeout)
+        return run_gui(controller, timeout)
     except (OSError, DipTraceMcpError, RuntimeError) as exc:
+        if exchange_path is not None:
+            _write_fatal_log(exchange_path, exc)
         _show_fatal(str(exc))
         return 1
 
