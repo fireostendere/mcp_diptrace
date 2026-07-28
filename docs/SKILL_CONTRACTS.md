@@ -39,7 +39,11 @@ orientation, unresolved DRC, or SHA conflict. A coupled plan must not be replace
 two independent `route_net` calls. Analytical impedance remains preliminary-only.
 
 `review_return_paths`: stackup/pours/plane continuity/return path. Results are heuristic;
-the model determines criticality. Stop when the reference plane or refill is unknown.
+the caller must supply the return-via search radius and the model determines criticality.
+Reference-net stable/XML identity takes precedence over a display name. Equal-rank
+reference-layer candidates, missing explicit via spans, three-point coverage sampling,
+or unknown refill are disclosed and keep confidence low. Stop when the reference plane
+or refill is unknown.
 
 ## Manufacturing UX
 

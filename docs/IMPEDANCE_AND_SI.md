@@ -44,10 +44,25 @@ including the plane separation and off-center offset.
 ## Length and Differential Pairs
 
 - Geometric trace length accounts for DipTrace three-point arcs.
-- Results include per-layer length, via count, transitions, and optional delay derived from explicit effective permittivity.
-- Pair analysis includes skew, per-layer delta, via balance, width/gap, and coupled/uncoupled length.
-- Rule and tolerance checks include confidence information.
-- Arc length contributes to the total, but curved coupling is reported as a limitation.
+- Results separate planar centerline length from routed 3D centerline length. Via-barrel
+  distance is added only when the exported physical stack, the observed layer sequence,
+  and every normalized via span are explicit. Missing dielectric separation, missing
+  materials, duplicate layer ids, or an unresolved transition make the 3D result
+  unavailable instead of contributing zero.
+- Optional electrical length and delay use the available 3D length and one
+  caller-supplied effective permittivity for every layer and via. They are preliminary
+  propagation estimates, not per-layer time-domain skew.
+- Pair analysis reports planar skew, per-layer delta, physical via counts, and
+  coupled/uncoupled linear projection estimates. It does not impose an undocumented
+  via-balance rule.
+- Coupling partitions collinear intervals before matching them so one physical interval
+  cannot be reused by multiple branches. Only numerically parallel same-layer straight
+  sections participate; there is no invented angular or spacing threshold.
+- Missing width, arc-only geometry, absent parallel projection, or a computational
+  partition limit produces a structured `skipped_check`, `fully_evaluated=false`, and
+  an unavailable result. Arc length still contributes to planar totals.
+- Exported rules that are not implemented are disclosed individually. Validation is
+  `incomplete`, never valid, while any applicable rule is skipped.
 
 ## External Simulation
 
