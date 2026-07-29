@@ -163,7 +163,7 @@ This matrix separates what can be reused from what must remain evidence-gated.
 | Authoritative fact | Root units and attribute semantics that occur in the public PCB/Schematic specifications | `scripts/extract_spec_inventory.py`, [`spec_inventory.json`](../reference/diptrace-xml/spec_inventory.json), and generator tests | Continue the reproducible extractor path. A generated revision-7276 table must not bypass it. |
 | Explanatory content | One intentional GUI change per before/after pair; unchanged control objects; screenshots only as supporting evidence | [`EVIDENCE_CAPTURE.md`](EVIDENCE_CAPTURE.md), recipe-authoring section | Rephrase as project guidance. Do not copy the unknown-origin PDF or call candidates “golden.” |
 | Explanatory content | A prioritized probe catalog for mask, paste, courtyard, pad shape/hole, pour refill, hierarchy, and DSN/SES | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) and the future generated probe pack | Generate recipes from maintained questions. Avoid a second 200-file hand-maintained roadmap. |
-| Observed candidate evidence | All 463 `.eli` and 503 `.lib` files are legacy binary in this local collection | `scripts/capture_diptrace_evidence.py` candidate manifest schema | Add optional `input_artifacts` hashes so an XML export can be tied to the local binary it came from without copying that binary. Authority must remain `operator_supplied_unverified`. |
+| Observed candidate evidence | All 463 `.eli` and 503 `.lib` files are legacy binary in this local collection | `scripts/capture_diptrace_evidence.py` candidate manifest schema | Use optional `input_artifacts` path/hash/size metadata to bind an XML candidate to exact local bytes without copying the binary. Finalize and ingest revalidate the original input; authority remains `operator_supplied_unverified`. |
 | Observed candidate evidence | Size-stratified component/pattern libraries can expose real 5.3 element and attribute vocabulary after licensed export | `docs/evidence_capture/` with a concrete Q11 library recipe; later independent ingest/review | Export small sanitized subsets, capture source/open-save/re-export XML, then compare paths/attributes against the committed inventory. Never infer schema from the binary header. |
 | Candidate schema lead | 27 element names appear as headings in the generated specs but not as element entries in the committed inventory, including `PadStyle`, `MainStack`, `Pattern`, `Model3D`, `SubFolders`, `Categories`, and `Terminal` | a future read-only vocabulary-diff report over captured XML; `library_adapters.py::_pad_styles`, `_patterns`, and `_components` | Use the names to prioritize probes only. Add a parser field after public documentation or reviewed real-export evidence exists. |
 | Unknown/contradiction | Component/part angle, source encoding, root-unit coverage, sparse IDs, cancel/failure behavior, native XML, and hierarchy resolution | Q1, Q3, Q4, Q8, Q9, Q12, Q14, Q16, and Q18 in [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | Keep open. The local material supplies hypotheses, not answers. |
@@ -187,7 +187,8 @@ hash list does not grant redistribution permission and does not reveal XML vocab
 
 For useful XML evidence, prefer this operator sequence:
 
-1. Choose a small library from a different size stratum and record its binary SHA-256 locally.
+1. Choose a small library from a different size stratum and bind it on the source record with
+   `--input-artifact ROLE=PATH`.
 2. Open it in the licensed matching editor.
 3. Save/export a minimal sanitized XML library under a new name.
 4. Capture source/open-save/re-export roles with the evidence collector.
@@ -214,7 +215,8 @@ Commit this report, the read-only inventory script, and its synthetic tests. Do 
 
 ### PR 3: operator library-evidence recipes
 
-- Add `input_artifacts` metadata to candidate manifests without copying arbitrary binaries.
+- Delivered: optional strict `input_artifacts` metadata binds private inputs by canonical relative
+  path, SHA-256, and size, with record/finalize/ingest revalidation and no byte copy.
 - Add concrete Component Editor and Pattern Editor recipes for Q11.
 - Add optional screenshot hashes as supporting, never authoritative, artifacts.
 - Add a read-only XML vocabulary diff against `spec_inventory.json`.

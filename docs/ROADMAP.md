@@ -93,8 +93,9 @@ The useful next gates are human/evidence work:
 
 1. verify source identity, author, license, and redistribution permission before reusing any local
    document or binary;
-2. extend candidate capture with typed `input_artifacts` hashes so a private binary input can be
-   associated with its exported XML without copying the binary into Git;
+2. use the shipped typed `input_artifacts` binding to associate private binary inputs with source
+   XML candidates by canonical path, SHA-256, and size metadata without copying the binaries into
+   quarantine, the ingest plan, or Git;
 3. use licensed Component/Pattern Editors to export minimal sanitized examples, with one
    intentional GUI change and unchanged controls per experiment;
 4. capture source/open-save/re-export roles, keeping screenshots supporting-only;
@@ -107,8 +108,9 @@ The useful next gates are human/evidence work:
 The ingest checkpoint is now executable in CI as
 `python scripts/ingest_fixtures.py --dry-run --synthetic --json`. It is intentionally
 non-promoting: it verifies that the embedded registry exists and currently contains zero approved
-entries, `--apply` is refused because fixture mutation is not implemented, the acceptance tree is
-untouched, and no validation level is granted.
+entries, revalidates optional private-input metadata against the original files without planning
+their bytes for copy, `--apply` is refused because fixture mutation is not implemented, the
+acceptance tree is untouched, and no validation level is granted.
 
 ### Live-session recovery and final-apply checkpoint — 2026-07-29
 

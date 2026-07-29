@@ -45,6 +45,7 @@ Each session binds these inputs:
 - one immutable recipe snapshot and SHA-256 computed from the same single byte read;
 - an operator label, reported DipTrace version/build, OS, and redistribution claim;
 - a required checklist designed for one experiment;
+- optionally, metadata for private binary inputs used to produce the source export;
 - three distinct file roles captured in order:
   - `source`: XML exported directly from the prepared design;
   - `open_save`: a separate XML file saved by DipTrace after opening the source;
@@ -67,6 +68,53 @@ that every tag is a normalized engineering object.
 
 The operator-reported DipTrace application version/build and literal `Source/@Version` are stored
 as separate facts. The collector does not assume they use the same versioning convention.
+
+### Private input-artifact binding
+
+The source-stage `record` command accepts repeatable `--input-artifact ROLE=PATH` arguments. This is
+for an operator-owned legacy library, project, or other private input whose byte identity matters
+to the experiment but whose bytes must not enter quarantine or Git. Each candidate entry has
+exactly:
+
+```json
+{
+  "role": "component_library",
+  "name": "original.eli",
+  "path": "private/original.eli",
+  "sha256": "64-lowercase-hex-characters",
+  "size_bytes": 12345
+}
+```
+
+Roles are lowercase slugs. Names are single safe basenames. Paths are canonical forward-slash
+paths below the allowed root and outside `.diptrace-capture`. Roles, names, paths, and filesystem
+identities must be unique; symlinks, junctions, and hard-link aliases are refused. At most 32
+inputs of at most 128 MiB each may be bound. Entries are sorted by role, name, and path before
+canonical manifest serialization.
+
+The collector hashes each original file while the source stage is recorded and re-hashes it on
+finalization, including repeated finalization. The ingest validator re-opens and re-hashes the same
+private path. Missing, redirected, aliased, resized, or changed files fail closed. Only the five
+metadata fields above enter session state, the candidate, or the dry-run receipt; input bytes are
+never copied into quarantine, a prospective destination, or the repository. The original private
+file must therefore remain available and unchanged through ingest.
+
+This binds candidate metadata to exact local bytes as reported by the operator. It does not prove
+who authored the input, that DipTrace used it to produce the XML, or that it may be redistributed.
+Authority remains `operator_supplied_unverified`, trust remains `none`, and candidates that omit
+`input_artifacts` remain valid for backward compatibility.
+
+For a library experiment, the source record may bind more than one controlled input:
+
+```bash
+python scripts/capture_diptrace_evidence.py record \
+  --root /mnt/c/capture-work \
+  --session library-probe-001 \
+  --stage source \
+  --file source.xml \
+  --input-artifact component_library=private/original.eli \
+  --input-artifact control_library=private/control.eli
+```
 
 ## Recipe contract
 
@@ -279,8 +327,9 @@ Repository integration should use two deliberately separate commands:
 1. **Capture (this script):** produces an untrusted candidate under an operator-owned allowed root.
 2. **Ingest validation (`scripts/ingest_fixtures.py`):** strictly validates the candidate
    manifest and detached hash, re-reads every quarantined role, checks its path/SHA/size/fresh XML
-   inventory, checks redistribution permission, and reports prospective destinations and
-   conflicts. It is currently a dry-run checkpoint only.
+   inventory, re-reads every optional private input to check its path/SHA/size without planning a
+   copy, checks redistribution permission, and reports prospective destinations and conflicts. It
+   is currently a dry-run checkpoint only.
 
 For a real capture:
 
@@ -299,6 +348,11 @@ hard-linked role reuse, changed files, source-type disagreement, unresolved revi
 unknown manifest fields fail closed. Existing destination files are never replaced: the plan marks
 an identical hash as `identical`, a different hash or unplanned entry as a conflict, and returns a
 non-zero status when conflicts exist.
+
+Optional input artifacts are reported under `candidate.input_artifacts` and covered by the
+deterministic receipt hash, while `validation.input_artifacts_metadata_only` remains `true`.
+`destination.files` contains only the three XML roles, candidate manifest, and detached digest;
+private input bytes never become planned fixture files.
 
 The repository now has a package-owned committed registry, and the validator
 loads it fail-closed. The production registry currently has zero independently
@@ -360,8 +414,8 @@ docs/evidence_capture/
 
 The example directory contains recipe and input templates, never captured output. Do not place
 example output in `tests/fixtures/acceptance/`. Tests continue generating synthetic stand-ins only
-under temporary directories. A future skill may be added after skill consolidation, but it must
-invoke this repository command rather than fork it.
+under temporary directories. The packaged `diptrace-evidence-capture` skill invokes byte-identical
+mirrors of these repository commands rather than implementing a separate trust path.
 
 ## Validation
 
@@ -377,6 +431,9 @@ The test suite covers:
 - ordered stage recording and source-type parity;
 - refusal to answer a stage-bound checklist item before its artifact is recorded;
 - byte-identical quarantine and SHA binding;
+- optional private-input metadata binding, canonical order, and backward compatibility;
+- private-input tamper, traversal, symlink, hard-link, duplicate-role, and wrong-stage refusals;
+- finalize- and ingest-time private-input hash/size revalidation without copy planning;
 - incomplete captures and quarantine tampering;
 - idempotent finalization and interrupted-finalize recovery;
 - stale/live locks, resume, and evidence-preserving abort;

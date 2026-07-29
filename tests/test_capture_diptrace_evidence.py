@@ -428,6 +428,230 @@ def test_end_to_end_emits_review_only_hash_bound_candidate(capture_root: Path) -
     digest_path = capture_root / result["digest_path"]
     assert digest_path.read_text().startswith(result["manifest_sha256"])
     assert "tests/fixtures/acceptance" not in str(manifest_path)
+    assert "input_artifacts" not in manifest
+
+
+def test_private_input_artifact_is_hash_bound_without_copying_bytes(
+    capture_root: Path,
+) -> None:
+    repository = initialized_repository(capture_root)
+    private_dir = capture_root / "private"
+    private_dir.mkdir()
+    private_input = private_dir / "source-library.eli"
+    private_bytes = b"\x00PRIVATE-DIPTRACE-LIBRARY\xff\x10"
+    private_input.write_bytes(private_bytes)
+    control_input = private_dir / "control-library.lib"
+    control_bytes = b"\x00PRIVATE-CONTROL-LIBRARY\xfe\x20"
+    control_input.write_bytes(control_bytes)
+    source = capture_root / "source.xml"
+    source.write_bytes(xml_bytes(marker="<!-- source -->"))
+    repository.record_stage(
+        "capture-001",
+        "source",
+        source,
+        attestations("source"),
+        input_artifacts=[
+            ("z_control_library", "private/control-library.lib"),
+            ("component_library", "private/source-library.eli"),
+        ],
+    )
+    for stage in ("open_save", "reexport"):
+        path = capture_root / f"{stage}.xml"
+        path.write_bytes(xml_bytes(marker=f"<!-- {stage} -->"))
+        repository.record_stage(
+            "capture-001",
+            stage,
+            path,
+            attestations(stage),
+        )
+    repository.answer_checklist(
+        "capture-001",
+        "features_seen",
+        "yes",
+        note="Observed on screen",
+    )
+
+    result = repository.finalize("capture-001")
+    manifest = json.loads((capture_root / result["manifest_path"]).read_bytes())
+
+    assert manifest["input_artifacts"] == [
+        {
+            "role": "component_library",
+            "name": "source-library.eli",
+            "path": "private/source-library.eli",
+            "sha256": hashlib.sha256(private_bytes).hexdigest(),
+            "size_bytes": len(private_bytes),
+        },
+        {
+            "role": "z_control_library",
+            "name": "control-library.lib",
+            "path": "private/control-library.lib",
+            "sha256": hashlib.sha256(control_bytes).hexdigest(),
+            "size_bytes": len(control_bytes),
+        },
+    ]
+    assert manifest["authority"] == "operator_supplied_unverified"
+    assert manifest["trust_grant"] == "none"
+    stored_files = [
+        path
+        for path in (capture_root / ".diptrace-capture").rglob("*")
+        if path.is_file()
+    ]
+    assert all(path.suffix not in {".eli", ".lib"} for path in stored_files)
+    assert all(
+        private_bytes not in path.read_bytes() and control_bytes not in path.read_bytes()
+        for path in stored_files
+    )
+
+    private_input.write_bytes(b"changed-after-finalize")
+    with pytest.raises(CaptureError) as repeated:
+        repository.finalize("capture-001")
+    assert repeated.value.code == "input_artifact_integrity_error"
+
+
+def test_private_input_tampering_blocks_finalize(capture_root: Path) -> None:
+    repository = initialized_repository(capture_root)
+    private_input = capture_root / "private.lib"
+    private_input.write_bytes(b"original-private-input")
+    source = capture_root / "source.xml"
+    source.write_bytes(xml_bytes())
+    repository.record_stage(
+        "capture-001",
+        "source",
+        source,
+        attestations("source"),
+        input_artifacts=[("pattern_library", "private.lib")],
+    )
+    for stage in ("open_save", "reexport"):
+        path = capture_root / f"{stage}.xml"
+        path.write_bytes(xml_bytes(marker=f"<!-- {stage} -->"))
+        repository.record_stage("capture-001", stage, path, attestations(stage))
+    repository.answer_checklist("capture-001", "features_seen", "yes")
+    private_input.write_bytes(b"tampered")
+
+    status = repository.status("capture-001")
+
+    assert status["readiness"]["ready_to_finalize"] is False
+    assert status["readiness"]["integrity_errors"] == [
+        "input_artifact:pattern_library:sha256_mismatch",
+        "input_artifact:pattern_library:size_mismatch",
+    ]
+    with pytest.raises(CaptureError) as caught:
+        repository.finalize("capture-001")
+    assert caught.value.code == "capture_incomplete"
+
+
+def test_private_inputs_reject_path_symlink_hardlink_and_duplicate_role(
+    capture_root: Path,
+) -> None:
+    repository = initialized_repository(capture_root)
+    source = capture_root / "source.xml"
+    source.write_bytes(xml_bytes())
+    outside = Path(str(capture_root) + "-private.bin")
+    outside.write_bytes(b"outside")
+    with pytest.raises(CaptureError) as traversal:
+        repository.record_stage(
+            "capture-001",
+            "source",
+            source,
+            attestations("source"),
+            input_artifacts=[("legacy_input", outside)],
+        )
+    assert traversal.value.code == "path_outside_allowed_root"
+
+    target = capture_root / "target.eli"
+    target.write_bytes(b"private")
+    linked: Path | None = capture_root / "linked.eli"
+    try:
+        linked.symlink_to(target)
+    except OSError:
+        linked = None
+    if linked is not None:
+        with pytest.raises(CaptureError) as symlinked:
+            repository.record_stage(
+                "capture-001",
+                "source",
+                source,
+                attestations("source"),
+                input_artifacts=[("legacy_input", "linked.eli")],
+            )
+        assert symlinked.value.code == "unsafe_input_artifact"
+        linked.unlink()
+
+    alias: Path | None = capture_root / "alias.eli"
+    try:
+        alias.hardlink_to(target)
+    except OSError:
+        alias = None
+    if alias is not None:
+        with pytest.raises(CaptureError) as hardlinked:
+            repository.record_stage(
+                "capture-001",
+                "source",
+                source,
+                attestations("source"),
+                input_artifacts=[("legacy_input", "target.eli")],
+            )
+        assert hardlinked.value.code == "input_artifact_identity_conflict"
+        alias.unlink()
+
+    first = capture_root / "first.eli"
+    second = capture_root / "second.lib"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    with pytest.raises(CaptureError) as duplicate:
+        repository.record_stage(
+            "capture-001",
+            "source",
+            source,
+            attestations("source"),
+            input_artifacts=[
+                ("legacy_input", "first.eli"),
+                ("legacy_input", "second.lib"),
+            ],
+        )
+    assert duplicate.value.code == "input_artifact_identity_conflict"
+    outside.unlink()
+
+
+def test_input_artifact_cli_is_repeatable_and_source_only(capture_root: Path) -> None:
+    repository = initialized_repository(capture_root)
+    source = capture_root / "source.xml"
+    source.write_bytes(xml_bytes())
+    private = capture_root / "private.eli"
+    private.write_bytes(b"private")
+    with pytest.raises(CaptureError) as wrong_stage:
+        repository.record_stage(
+            "capture-001",
+            "open_save",
+            source,
+            attestations("open_save"),
+            input_artifacts=[("component_library", "private.eli")],
+        )
+    assert wrong_stage.value.code == "invalid_input_artifact_stage"
+
+    parser = capture_module.build_parser()
+    parsed = parser.parse_args(
+        [
+            "record",
+            "--root",
+            str(capture_root),
+            "--session",
+            "capture-001",
+            "--stage",
+            "source",
+            "--file",
+            "source.xml",
+            "--input-artifact",
+            "component_library=private.eli",
+            "--input-artifact",
+            "control_library=control.lib",
+        ]
+    )
+    assert parsed.input_artifact == [
+        "component_library=private.eli",
+        "control_library=control.lib",
+    ]
 
 
 def test_quarantine_is_a_byte_identical_copy(capture_root: Path) -> None:

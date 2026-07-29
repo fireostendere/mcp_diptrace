@@ -276,9 +276,10 @@ and capture these controls without assuming an answer:
 
 1. hash the exact legacy binary input before opening it, record the editor/build and GUI
    export steps, and retain the source export, open/save result, and re-export as separate
-   artifacts; until the collector has a typed `input_artifacts` field, record the binary
-   SHA-256 in operator notes and an independent lab record and do not call that association
-   a machine-enforced provenance binding;
+   artifacts; bind the binary on the source record with the collector's typed
+   `--input-artifact ROLE=PATH` option so `input_artifacts` records its canonical relative
+   path, binary SHA-256, and size and revalidates the unchanged private file at finalize and
+   ingest without copying its bytes;
 2. export the same untouched library twice, then open/save without an intentional semantic
    change; compare every `UID32` occurrence and its referenced object path to determine
    whether values survive export, save, copy, and re-export;
@@ -291,8 +292,9 @@ and capture these controls without assuming an answer:
    graphics. Retain export → import → save → re-export roles and compare identity
    references and object counts.
 
-The binary-input hash identifies the local starting bytes; it does not prove authorship,
-redistribution permission, or that DipTrace bound a particular XML export to those bytes.
+The binary-input hash identifies the local starting bytes and makes later tampering detectable; it
+does not prove authorship, redistribution permission, or that DipTrace bound a particular XML
+export to those bytes. The candidate remains `operator_supplied_unverified` with no trust grant.
 
 **Who can perform:** Human with licensed Component and Pattern Editors and permission to
 share sanitized fixtures.

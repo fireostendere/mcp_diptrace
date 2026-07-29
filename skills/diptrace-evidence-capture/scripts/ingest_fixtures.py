@@ -24,6 +24,10 @@ from typing import Any, NoReturn
 
 from capture_diptrace_evidence import (
     CANDIDATE_SCHEMA,
+    INPUT_ARTIFACT_KEYS,
+    ITEM_RE,
+    MAX_INPUT_ARTIFACT_BYTES,
+    MAX_INPUT_ARTIFACTS,
     MAX_XML_BYTES,
     SOURCE_TYPES,
     STAGES,
@@ -73,6 +77,7 @@ TOP_LEVEL_KEYS = {
     "checklist",
     "capture_invariants",
 }
+OPTIONAL_TOP_LEVEL_KEYS = {"input_artifacts"}
 STAGE_KEYS = {
     "stage",
     "captured_at",
@@ -125,6 +130,15 @@ class Artifact:
 
 
 @dataclass(frozen=True)
+class InputArtifact:
+    role: str
+    name: str
+    relative_path: Path
+    sha256: str
+    size_bytes: int
+
+
+@dataclass(frozen=True)
 class ValidatedCandidate:
     manifest: dict[str, Any]
     manifest_relative_path: Path
@@ -132,6 +146,7 @@ class ValidatedCandidate:
     manifest_sha256: str
     digest_bytes: bytes
     artifacts: tuple[Artifact, ...]
+    input_artifacts: tuple[InputArtifact, ...]
 
 
 def _fail(message: str, code: str) -> NoReturn:
@@ -215,6 +230,8 @@ def _read_confined_file(
     *,
     role: str,
     max_bytes: int,
+    reject_hardlinks: bool = False,
+    seen_identities: set[tuple[int, int]] | None = None,
 ) -> bytes:
     current = root
     for index, part in enumerate(relative.parts):
@@ -247,6 +264,11 @@ def _read_confined_file(
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode):
             _fail(f"{role} must be a regular file", "unsafe_candidate_path")
+        if reject_hardlinks and before.st_nlink != 1:
+            _fail(f"{role} has a hard-link alias", "candidate_role_conflict")
+        identity = (before.st_dev, before.st_ino)
+        if seen_identities is not None and identity in seen_identities:
+            _fail(f"{role} reuses another filesystem object", "candidate_role_conflict")
         if before.st_size > max_bytes:
             _fail(f"{role} exceeds the {max_bytes}-byte limit", "candidate_file_too_large")
         chunks: list[bytes] = []
@@ -268,15 +290,25 @@ def _read_confined_file(
         before.st_ino,
         before.st_size,
         before.st_mtime_ns,
+        before.st_ctime_ns,
+        before.st_nlink,
     )
     identity_after = (
         after.st_dev,
         after.st_ino,
         after.st_size,
         after.st_mtime_ns,
+        after.st_ctime_ns,
+        after.st_nlink,
     )
-    if identity_before != identity_after or len(data) != after.st_size:
+    if (
+        identity_before != identity_after
+        or len(data) != after.st_size
+        or (reject_hardlinks and after.st_nlink != 1)
+    ):
         _fail(f"{role} changed while it was being read", "candidate_file_changed")
+    if seen_identities is not None:
+        seen_identities.add((after.st_dev, after.st_ino))
     return data
 
 
@@ -474,6 +506,105 @@ def _validate_stage(
     )
 
 
+def _validate_input_artifacts(
+    capture_root: Path,
+    value: Any,
+) -> tuple[InputArtifact, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, list) or not value or len(value) > MAX_INPUT_ARTIFACTS:
+        _fail(
+            f"input_artifacts must contain 1-{MAX_INPUT_ARTIFACTS} metadata entries",
+            "candidate_schema_invalid",
+        )
+    artifacts: list[InputArtifact] = []
+    roles: set[str] = set()
+    names: set[str] = set()
+    paths: set[Path] = set()
+    identities: set[tuple[int, int]] = set()
+    for index, raw in enumerate(value):
+        field = f"input_artifacts[{index}]"
+        if not isinstance(raw, dict):
+            _fail(f"{field} must be an object", "candidate_schema_invalid")
+        _require_exact_keys(raw, INPUT_ARTIFACT_KEYS, field=field)
+        role = raw["role"]
+        if not isinstance(role, str) or ITEM_RE.fullmatch(role) is None:
+            _fail(f"{field}.role must be a safe lowercase slug", "candidate_schema_invalid")
+        name = raw["name"]
+        if (
+            not isinstance(name, str)
+            or not name
+            or len(name) > 255
+            or name in {".", ".."}
+            or "/" in name
+            or "\\" in name
+            or "\x00" in name
+            or any(ord(character) < 0x20 or ord(character) == 0x7F for character in name)
+        ):
+            _fail(f"{field}.name must be one safe basename", "candidate_schema_invalid")
+        raw_path = raw["path"]
+        if not isinstance(raw_path, str) or "\\" in raw_path:
+            _fail(f"{field}.path must use canonical forward slashes", "unsafe_candidate_path")
+        relative = _safe_relative_path(raw_path, field=f"{field}.path")
+        if relative.parts[0] == STORE_NAME or relative.name != name:
+            _fail(
+                f"{field}.path is not a canonical private input path",
+                "unsafe_candidate_path",
+            )
+        expected_sha = _require_sha256(raw["sha256"], field=f"{field}.sha256")
+        size = raw["size_bytes"]
+        if (
+            not isinstance(size, int)
+            or isinstance(size, bool)
+            or size < 0
+            or size > MAX_INPUT_ARTIFACT_BYTES
+        ):
+            _fail(f"{field}.size_bytes is invalid", "candidate_schema_invalid")
+        if role in roles or name in names or relative in paths:
+            _fail(
+                "input_artifacts contains a duplicate role, name, or path",
+                "candidate_role_conflict",
+            )
+        data = _read_confined_file(
+            capture_root,
+            relative,
+            role=f"private input artifact {role}",
+            max_bytes=MAX_INPUT_ARTIFACT_BYTES,
+            reject_hardlinks=True,
+            seen_identities=identities,
+        )
+        actual_sha = sha256_bytes(data)
+        if actual_sha != expected_sha:
+            _fail(
+                f"input_artifacts role {role!r} SHA-256 does not match",
+                "candidate_artifact_sha256_mismatch",
+            )
+        if len(data) != size:
+            _fail(
+                f"input_artifacts role {role!r} byte size does not match",
+                "candidate_artifact_size_mismatch",
+            )
+        roles.add(role)
+        names.add(name)
+        paths.add(relative)
+        artifacts.append(
+            InputArtifact(
+                role=role,
+                name=name,
+                relative_path=relative,
+                sha256=actual_sha,
+                size_bytes=size,
+            )
+        )
+    expected_order = sorted(
+        artifacts,
+        key=lambda item: (item.role, item.name, item.relative_path.as_posix()),
+    )
+    if artifacts != expected_order:
+        _fail("input_artifacts is not in canonical order", "candidate_not_canonical")
+    return tuple(artifacts)
+
+
 def validate_candidate(capture_root: Path, manifest_relative: Path) -> ValidatedCandidate:
     expected_candidates = Path(STORE_NAME) / "candidates"
     if manifest_relative.parent != expected_candidates:
@@ -505,7 +636,21 @@ def validate_candidate(capture_root: Path, manifest_relative: Path) -> Validated
     manifest = _strict_json(manifest_bytes, role="candidate manifest")
     if canonical_json_bytes(manifest) != manifest_bytes:
         _fail("Candidate manifest is not in canonical capture form", "candidate_not_canonical")
-    _require_exact_keys(manifest, TOP_LEVEL_KEYS, field="candidate")
+    manifest_keys = set(manifest)
+    if not TOP_LEVEL_KEYS.issubset(manifest_keys) or (
+        manifest_keys - TOP_LEVEL_KEYS - OPTIONAL_TOP_LEVEL_KEYS
+    ):
+        missing = sorted(TOP_LEVEL_KEYS - manifest_keys)
+        unknown = sorted(manifest_keys - TOP_LEVEL_KEYS - OPTIONAL_TOP_LEVEL_KEYS)
+        detail = []
+        if missing:
+            detail.append(f"missing={','.join(missing)}")
+        if unknown:
+            detail.append(f"unknown={','.join(unknown)}")
+        _fail(
+            f"candidate has invalid fields ({'; '.join(detail)})",
+            "candidate_schema_invalid",
+        )
     if manifest["schema_version"] != CANDIDATE_SCHEMA:
         _fail("Candidate schema_version is unsupported", "candidate_schema_invalid")
     session_id = manifest["session_id"]
@@ -591,6 +736,10 @@ def validate_candidate(capture_root: Path, manifest_relative: Path) -> Validated
     expected_source_type = recipe["expected_source_type"]
     if expected_source_type is not None and artifacts[0].source_type != expected_source_type:
         _fail("Candidate source type does not match its recipe", "candidate_source_type_mismatch")
+    input_artifacts = _validate_input_artifacts(
+        capture_root,
+        manifest.get("input_artifacts"),
+    )
 
     _validate_checklist(manifest["checklist"], recipe)
     invariants = manifest["capture_invariants"]
@@ -612,6 +761,7 @@ def validate_candidate(capture_root: Path, manifest_relative: Path) -> Validated
         manifest_sha256=manifest_sha,
         digest_bytes=digest_bytes,
         artifacts=artifacts,
+        input_artifacts=input_artifacts,
     )
 
 
@@ -827,6 +977,16 @@ def build_plan(
             }
             for artifact in candidate.artifacts
         ],
+        "input_artifacts": [
+            {
+                "role": artifact.role,
+                "name": artifact.name,
+                "path": artifact.relative_path.as_posix(),
+                "sha256": artifact.sha256,
+                "size_bytes": artifact.size_bytes,
+            }
+            for artifact in candidate.input_artifacts
+        ],
     }
     # Hashing the never-written receipt makes the plan reproducible without
     # presenting it as a provenance sidecar or registry entry.
@@ -842,12 +1002,24 @@ def build_plan(
             "source_type": candidate.artifacts[0].source_type,
             "authority": "operator_supplied_unverified",
             "trust_grant": "none",
+            "input_artifacts": [
+                {
+                    "role": artifact.role,
+                    "name": artifact.name,
+                    "path": artifact.relative_path.as_posix(),
+                    "sha256": artifact.sha256,
+                    "size_bytes": artifact.size_bytes,
+                }
+                for artifact in candidate.input_artifacts
+            ],
         },
         "validation": {
             "strict_manifest_shape": True,
             "detached_digest_matches": True,
             "paths_contained": True,
             "artifact_hashes_match": True,
+            "input_artifact_hashes_match": True,
+            "input_artifacts_metadata_only": True,
             "xml_inventories_match": True,
             "source_type_consistent": True,
             "redistribution_permitted": True,

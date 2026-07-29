@@ -43,6 +43,9 @@ SESSION_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 ITEM_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MAX_XML_BYTES = 128 * 1024 * 1024
+MAX_INPUT_ARTIFACTS = 32
+MAX_INPUT_ARTIFACT_BYTES = 128 * 1024 * 1024
+INPUT_ARTIFACT_KEYS = {"role", "name", "path", "sha256", "size_bytes"}
 FORBIDDEN_XML_TEXT = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
 FORBIDDEN_XML_BYTES = re.compile(rb"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
 SECURE_DIR_FD_AVAILABLE = (
@@ -456,6 +459,75 @@ def _state_counter(value: Any, *, field: str) -> dict[str, int]:
     return result
 
 
+def _validate_state_input_artifacts(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or not value or len(value) > MAX_INPUT_ARTIFACTS:
+        _invalid_state(
+            f"input_artifacts must contain 1-{MAX_INPUT_ARTIFACTS} metadata entries"
+        )
+    normalized: list[dict[str, Any]] = []
+    roles: set[str] = set()
+    names: set[str] = set()
+    paths: set[Path] = set()
+    for index, raw in enumerate(value):
+        field = f"input_artifacts[{index}]"
+        if not isinstance(raw, dict):
+            _invalid_state(f"{field} must be an object")
+        _require_exact_keys(raw, INPUT_ARTIFACT_KEYS, field=field)
+        role = raw.get("role")
+        if not isinstance(role, str) or ITEM_RE.fullmatch(role) is None:
+            _invalid_state(f"{field}.role must be a safe lowercase slug")
+        name = raw.get("name")
+        if (
+            not isinstance(name, str)
+            or not name
+            or len(name) > 255
+            or name in {".", ".."}
+            or "/" in name
+            or "\\" in name
+            or "\x00" in name
+            or any(ord(character) < 0x20 or ord(character) == 0x7F for character in name)
+        ):
+            _invalid_state(f"{field}.name must be one safe basename")
+        raw_path = raw.get("path")
+        if not isinstance(raw_path, str) or "\\" in raw_path:
+            _invalid_state(f"{field}.path must use canonical forward slashes")
+        relative = _state_relative_path(raw_path, field=f"{field}.path")
+        if relative.parts[0] == STORE_NAME or relative.name != name:
+            _invalid_state(f"{field}.path is not a canonical private input path")
+        digest = raw.get("sha256")
+        if not isinstance(digest, str) or SHA256_RE.fullmatch(digest) is None:
+            _invalid_state(f"{field}.sha256 is invalid")
+        size = raw.get("size_bytes")
+        if (
+            not isinstance(size, int)
+            or isinstance(size, bool)
+            or size < 0
+            or size > MAX_INPUT_ARTIFACT_BYTES
+        ):
+            _invalid_state(f"{field}.size_bytes is invalid")
+        if role in roles or name in names or relative in paths:
+            _invalid_state("input_artifacts contains a duplicate role, name, or path")
+        roles.add(role)
+        names.add(name)
+        paths.add(relative)
+        normalized.append(
+            {
+                "role": role,
+                "name": name,
+                "path": relative.as_posix(),
+                "sha256": digest,
+                "size_bytes": size,
+            }
+        )
+    expected_order = sorted(
+        normalized,
+        key=lambda item: (item["role"], item["name"], item["path"]),
+    )
+    if normalized != expected_order:
+        _invalid_state("input_artifacts must use canonical role/name/path order")
+    return normalized
+
+
 def validate_state(
     value: Mapping[str, Any],
     *,
@@ -479,7 +551,8 @@ def validate_state(
         "checklist",
         "events",
     }
-    if not required.issubset(value) or set(value) - required - {"candidate", "abort_reason"}:
+    optional = {"candidate", "abort_reason", "input_artifacts"}
+    if not required.issubset(value) or set(value) - required - optional:
         _invalid_state("Session state has missing or unknown top-level fields")
     if value.get("schema_version") != STATE_SCHEMA:
         _invalid_state("Session state schema_version is invalid")
@@ -539,6 +612,11 @@ def validate_state(
     if normalized_claims != operator_claims:
         _invalid_state("Session operator claims are not normalized")
 
+    if "input_artifacts" in value:
+        normalized_inputs = _validate_state_input_artifacts(value["input_artifacts"])
+        if normalized_inputs != value["input_artifacts"]:
+            _invalid_state("input_artifacts is not normalized")
+
     if value.get("required_stages") != list(STAGES):
         _invalid_state("required_stages must match the capture protocol")
     sequence = value.get("stage_sequence")
@@ -547,6 +625,8 @@ def validate_state(
     stages = value.get("stages")
     if not isinstance(stages, dict) or set(stages) != set(sequence):
         _invalid_state("stages must exactly match stage_sequence")
+    if "input_artifacts" in value and "source" not in stages:
+        _invalid_state("input_artifacts requires a recorded source stage")
     for stage in sequence:
         record = stages.get(stage)
         if not isinstance(record, dict):
@@ -1032,6 +1112,244 @@ class CaptureRepository:
         resolved = self.allowed_file(path, role=role)
         return resolved, self._read_root_file(resolved, base=self.root, role=role)
 
+    def _private_input_path(self, path: Path | str) -> tuple[Path, Path]:
+        candidate = Path(path)
+        if not candidate.is_absolute():
+            candidate = self.root / candidate
+        try:
+            relative = candidate.relative_to(self.root)
+        except ValueError as exc:
+            raise CaptureError(
+                f"Input artifact escapes the allowed root: {candidate}",
+                code="path_outside_allowed_root",
+                exit_code=3,
+            ) from exc
+        if (
+            not relative.parts
+            or any(part in {"", ".", ".."} for part in relative.parts)
+            or "\\" in relative.as_posix()
+            or relative.parts[0] == STORE_NAME
+        ):
+            raise CaptureError(
+                "Input artifact path must be contained outside the capture store",
+                code="unsafe_input_artifact",
+                exit_code=3,
+            )
+        return candidate, relative
+
+    @staticmethod
+    def _hash_input_descriptor(
+        descriptor: int,
+        *,
+        role: str,
+    ) -> tuple[str, int, tuple[int, int]]:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise CaptureError(
+                f"Input artifact {role!r} must be a regular file",
+                code="unsafe_input_artifact",
+                exit_code=3,
+            )
+        if before.st_nlink != 1:
+            raise CaptureError(
+                f"Input artifact {role!r} may not have hard-link aliases",
+                code="input_artifact_identity_conflict",
+                exit_code=3,
+            )
+        if before.st_size > MAX_INPUT_ARTIFACT_BYTES:
+            raise CaptureError(
+                f"Input artifact {role!r} exceeds {MAX_INPUT_ARTIFACT_BYTES} bytes",
+                code="input_artifact_too_large",
+            )
+        digest = hashlib.sha256()
+        total = 0
+        while chunk := os.read(descriptor, 1024 * 1024):
+            total += len(chunk)
+            if total > MAX_INPUT_ARTIFACT_BYTES:
+                raise CaptureError(
+                    f"Input artifact {role!r} exceeds {MAX_INPUT_ARTIFACT_BYTES} bytes",
+                    code="input_artifact_too_large",
+                )
+            digest.update(chunk)
+        after = os.fstat(descriptor)
+        before_identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+            before.st_nlink,
+        )
+        after_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+            after.st_nlink,
+        )
+        if before_identity != after_identity or total != after.st_size:
+            raise CaptureError(
+                f"Input artifact {role!r} changed while it was being hashed",
+                code="input_artifact_changed",
+                exit_code=3,
+            )
+        return digest.hexdigest(), total, (after.st_dev, after.st_ino)
+
+    def _inspect_input_artifact(
+        self,
+        role: str,
+        path: Path | str,
+    ) -> tuple[dict[str, Any], tuple[int, int]]:
+        if ITEM_RE.fullmatch(role) is None:
+            raise CaptureError(
+                "Input artifact role must be a safe lowercase slug",
+                code="invalid_input_artifact",
+            )
+        candidate, relative = self._private_input_path(path)
+        if (
+            not relative.name
+            or len(relative.name) > 255
+            or any(
+                ord(character) < 0x20 or ord(character) == 0x7F
+                for character in relative.name
+            )
+        ):
+            raise CaptureError(
+                "Input artifact name must be one safe basename",
+                code="invalid_input_artifact",
+            )
+        if self._root_fd is not None:
+            with self._open_safe_directory_fd(candidate.parent, create=False) as parent_fd:
+                flags = os.O_RDONLY | os.O_NOFOLLOW
+                flags |= getattr(os, "O_CLOEXEC", 0)
+                try:
+                    descriptor = os.open(relative.name, flags, dir_fd=parent_fd)
+                except OSError as exc:
+                    raise CaptureError(
+                        f"Input artifact {role!r} is missing or unsafe",
+                        code="unsafe_input_artifact",
+                        exit_code=3,
+                    ) from exc
+                try:
+                    digest, size, identity = self._hash_input_descriptor(
+                        descriptor,
+                        role=role,
+                    )
+                finally:
+                    os.close(descriptor)
+        else:
+            current = self.root
+            for index, part in enumerate(relative.parts):
+                current /= part
+                try:
+                    metadata = current.lstat()
+                except OSError as exc:
+                    raise CaptureError(
+                        f"Input artifact {role!r} is missing or unsafe",
+                        code="unsafe_input_artifact",
+                        exit_code=3,
+                    ) from exc
+                if self._is_redirecting_path(current):
+                    raise CaptureError(
+                        f"Input artifact {role!r} may not use a symlink or junction",
+                        code="unsafe_input_artifact",
+                        exit_code=3,
+                    )
+                expected_type = (
+                    stat.S_ISREG(metadata.st_mode)
+                    if index == len(relative.parts) - 1
+                    else stat.S_ISDIR(metadata.st_mode)
+                )
+                if not expected_type:
+                    raise CaptureError(
+                        f"Input artifact {role!r} has an unsafe path component",
+                        code="unsafe_input_artifact",
+                        exit_code=3,
+                    )
+            flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+            flags |= getattr(os, "O_NOFOLLOW", 0)
+            try:
+                descriptor = os.open(candidate, flags)
+            except OSError as exc:
+                raise CaptureError(
+                    f"Input artifact {role!r} is missing or unsafe",
+                    code="unsafe_input_artifact",
+                    exit_code=3,
+                ) from exc
+            try:
+                digest, size, identity = self._hash_input_descriptor(
+                    descriptor,
+                    role=role,
+                )
+            finally:
+                os.close(descriptor)
+        return (
+            {
+                "role": role,
+                "name": relative.name,
+                "path": relative.as_posix(),
+                "sha256": digest,
+                "size_bytes": size,
+            },
+            identity,
+        )
+
+    def _capture_input_artifacts(
+        self,
+        specifications: Sequence[tuple[str, Path | str]],
+        *,
+        source: Path,
+        recipe_path: Path,
+    ) -> list[dict[str, Any]]:
+        if len(specifications) > MAX_INPUT_ARTIFACTS:
+            raise CaptureError(
+                f"At most {MAX_INPUT_ARTIFACTS} input artifacts may be recorded",
+                code="invalid_input_artifact",
+            )
+        records: list[dict[str, Any]] = []
+        identities: set[tuple[int, int]] = set()
+        roles: set[str] = set()
+        names: set[str] = set()
+        paths: set[str] = set()
+        for role, path in specifications:
+            record, identity = self._inspect_input_artifact(role, path)
+            if (
+                record["role"] in roles
+                or record["name"] in names
+                or record["path"] in paths
+                or identity in identities
+            ):
+                raise CaptureError(
+                    "Input artifacts must have unique roles, names, paths, and identities",
+                    code="input_artifact_identity_conflict",
+                )
+            input_path = self.root / record["path"]
+            try:
+                conflicts_with_protocol = input_path.samefile(source) or input_path.samefile(
+                    recipe_path
+                )
+            except OSError as exc:
+                raise CaptureError(
+                    f"Cannot verify input artifact identity: {exc}",
+                    code="unsafe_input_artifact",
+                    exit_code=3,
+                ) from exc
+            if conflicts_with_protocol:
+                raise CaptureError(
+                    "An input artifact may not reuse the recipe or XML stage file",
+                    code="input_artifact_identity_conflict",
+                )
+            roles.add(record["role"])
+            names.add(record["name"])
+            paths.add(record["path"])
+            identities.add(identity)
+            records.append(record)
+        return sorted(
+            records,
+            key=lambda item: (item["role"], item["name"], item["path"]),
+        )
+
     @staticmethod
     def validate_session_id(session_id: str) -> str:
         if not SESSION_RE.fullmatch(session_id):
@@ -1383,9 +1701,15 @@ class CaptureRepository:
         attestations: Mapping[str, Any],
         *,
         note: str = "",
+        input_artifacts: Sequence[tuple[str, Path | str]] = (),
     ) -> dict[str, Any]:
         if stage not in STAGES:
             raise CaptureError(f"Unknown stage: {stage}", code="invalid_stage")
+        if input_artifacts and stage != "source":
+            raise CaptureError(
+                "Input artifacts may only be bound while recording the source stage",
+                code="invalid_input_artifact_stage",
+            )
         normalized_attestations = validate_attestations(stage, attestations)
         source, data = self.read_allowed_file(source_path, role="stage_file")
         inventory = inspect_xml(data)
@@ -1434,6 +1758,11 @@ class CaptureRepository:
                         code="evidence_role_conflict",
                     )
 
+            input_records = self._capture_input_artifacts(
+                input_artifacts,
+                source=source,
+                recipe_path=self.root / state["recipe"]["source_path"],
+            )
             destination = self._quarantine_stage(session_id, stage, source, data)
             warnings: list[str] = []
             if source_inventory is not None and inventory.units != source_inventory["units"]:
@@ -1453,6 +1782,8 @@ class CaptureRepository:
                 "warnings": warnings,
             }
             state["stage_sequence"].append(stage)
+            if input_records:
+                state["input_artifacts"] = input_records
             state["updated_at"] = now
             state["events"].append(
                 {"at": now, "kind": "stage_recorded", "detail": stage, "sha256": digest}
@@ -1525,6 +1856,31 @@ class CaptureRepository:
                 errors.append(f"{stage}:quarantine_sha256_mismatch")
         return errors
 
+    def _input_artifact_integrity_errors(self, state: Mapping[str, Any]) -> list[str]:
+        errors: list[str] = []
+        records = state.get("input_artifacts")
+        if records is None:
+            return errors
+        assert isinstance(records, list)
+        identities: set[tuple[int, int]] = set()
+        for record in records:
+            role = str(record["role"])
+            try:
+                actual, identity = self._inspect_input_artifact(role, str(record["path"]))
+            except CaptureError:
+                errors.append(f"input_artifact:{role}:missing_or_unsafe")
+                continue
+            if identity in identities:
+                errors.append(f"input_artifact:{role}:identity_conflict")
+            identities.add(identity)
+            if actual["name"] != record["name"]:
+                errors.append(f"input_artifact:{role}:name_mismatch")
+            if actual["sha256"] != record["sha256"]:
+                errors.append(f"input_artifact:{role}:sha256_mismatch")
+            if actual["size_bytes"] != record["size_bytes"]:
+                errors.append(f"input_artifact:{role}:size_mismatch")
+        return errors
+
     def readiness(self, state: Mapping[str, Any]) -> dict[str, Any]:
         missing_stages = [stage for stage in STAGES if stage not in state["stages"]]
         pending_required = [
@@ -1532,7 +1888,10 @@ class CaptureRepository:
             for item_id, item in state["checklist"].items()
             if item["required"] and item["answer"] != "yes"
         ]
-        integrity_errors = self._artifact_integrity_errors(state)
+        integrity_errors = [
+            *self._artifact_integrity_errors(state),
+            *self._input_artifact_integrity_errors(state),
+        ]
         review_blockers: list[str] = []
         if not state["operator_claims"]["redistribution_permitted"]:
             review_blockers.append("redistribution_permission_not_granted")
@@ -1679,6 +2038,7 @@ class CaptureRepository:
             and candidate.get("stage_sequence") == state["stage_sequence"]
             and candidate.get("stages") == state["stages"]
             and candidate.get("checklist") == state["checklist"]
+            and candidate.get("input_artifacts") == state.get("input_artifacts")
         )
         if not required_matches:
             raise CaptureError(
@@ -1721,6 +2081,13 @@ class CaptureRepository:
             manifest_path = self.candidates / f"{session_id}.candidate.json"
             digest_path = self.candidates / f"{session_id}.candidate.json.sha256"
             if state["status"] == "candidate_ready":
+                input_errors = self._input_artifact_integrity_errors(state)
+                if input_errors:
+                    raise CaptureError(
+                        "Private input artifacts changed after finalization",
+                        code="input_artifact_integrity_error",
+                        exit_code=3,
+                    )
                 manifest_bytes = self._read_store_file(
                     manifest_path,
                     base=self.candidates,
@@ -1799,6 +2166,8 @@ class CaptureRepository:
                     "trust_promoted_by_capture_tool": False,
                 },
             }
+            if state.get("input_artifacts"):
+                candidate["input_artifacts"] = state["input_artifacts"]
             manifest_bytes = canonical_json_bytes(candidate)
             self._atomic_write(manifest_path, manifest_bytes, exclusive=True)
             manifest_sha = sha256_bytes(manifest_bytes)
@@ -1849,6 +2218,24 @@ def _add_common(command: argparse.ArgumentParser) -> None:
     command.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
 
 
+def _parse_input_artifact_specs(values: Sequence[str]) -> list[tuple[str, str]]:
+    specifications: list[tuple[str, str]] = []
+    for value in values:
+        if "=" not in value:
+            raise CaptureError(
+                "--input-artifact must use ROLE=PATH",
+                code="invalid_input_artifact",
+            )
+        role, path = value.split("=", 1)
+        if ITEM_RE.fullmatch(role) is None or not path:
+            raise CaptureError(
+                "--input-artifact must use a safe lowercase ROLE and non-empty PATH",
+                code="invalid_input_artifact",
+            )
+        specifications.append((role, path))
+    return specifications
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
@@ -1870,6 +2257,16 @@ def build_parser() -> argparse.ArgumentParser:
     record.add_argument("--file", required=True, help="Stage file inside the allowed root")
     record.add_argument("--attestations", help="Non-interactive attestation JSON")
     record.add_argument("--note", default="")
+    record.add_argument(
+        "--input-artifact",
+        action="append",
+        default=[],
+        metavar="ROLE=PATH",
+        help=(
+            "Bind private source-input metadata by role; repeatable and valid only "
+            "for --stage source. Bytes remain at PATH and are never quarantined."
+        ),
+    )
     record.add_argument("--non-interactive", action="store_true")
 
     check = subparsers.add_parser("check", help="Answer one recipe checklist item")
@@ -1939,6 +2336,7 @@ def run_cli(arguments: Sequence[str] | None = None) -> int:
             args.file,
             attestations,
             note=args.note,
+            input_artifacts=_parse_input_artifact_specs(args.input_artifact),
         )
         _print_result(result, as_json=args.json)
         return 0

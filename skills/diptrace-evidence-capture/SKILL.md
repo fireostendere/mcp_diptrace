@@ -14,7 +14,9 @@ feature availability.
 
 1. **Candidate capture:** choose a committed question recipe and initialize an operator-owned
    allowed root. Record three distinct roles in order: `source`, `open_save`, `reexport`. Each role
-   gets its own path, SHA-256, XML inventory, and stage-specific attestations.
+   gets its own path, SHA-256, XML inventory, and stage-specific attestations. If a private binary
+   input matters, bind its metadata only on the source record with repeatable
+   `--input-artifact ROLE=PATH`; its bytes remain outside quarantine and Git.
 2. **Candidate finalization:** answer every required recipe check from actual GUI observation, then
    finalize. The result is `operator_supplied_unverified`, `candidate_only=true`, and grants no
    validation level.
@@ -40,7 +42,11 @@ registry entries.
 - Supported XML source types: PCB, Schematic, Component Library, and Pattern Library.
 - Supported document units recorded literally: `mm`, `inch`, and `mil`.
 - Each XML input is bounded at 128 MiB; DTD and entity declarations are refused.
+- Optional private inputs are bounded to 32 files of 128 MiB each and must remain under the allowed
+  root, outside `.diptrace-capture`, with no symlink, junction, or hard-link alias.
 - A SHA-256 is exactly 64 lowercase hexadecimal characters and is rechecked at every handoff.
+- Private-input metadata is exactly `role`, `name`, `path`, `sha256`, and `size_bytes`. Hash binding
+  remains operator-supplied and grants no authorship, DipTrace-use, or redistribution claim.
 
 The packaged scripts are byte-identical mirrors of
 [`../../scripts/capture_diptrace_evidence.py`](scripts/capture_diptrace_evidence.py) and
@@ -52,5 +58,5 @@ The packaged scripts are byte-identical mirrors of
 Return [`../shared/result.schema.json`](../shared/result.schema.json). Label GUI attestations
 `operator`, parsed identities and hashes `document`, semantic comparison `analytical` only when it
 is deterministic code output, and planning advice `heuristic`. Any missing role, hash mismatch,
-unresolved checklist item, path alias, failed comparison, or absent explicit confirmation prevents
-`completed`.
+unresolved checklist item, changed or unavailable private input, path alias, failed comparison, or
+absent explicit confirmation prevents `completed`.

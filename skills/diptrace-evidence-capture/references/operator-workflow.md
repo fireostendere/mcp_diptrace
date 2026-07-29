@@ -41,6 +41,20 @@ python "$DIPTRACE_CAPTURE_SCRIPT" record \
   --file source.xml
 ```
 
+For a library experiment with private inputs, add repeatable bindings to that source command:
+
+```bash
+  --input-artifact component_library=private/original.eli \
+  --input-artifact control_library=private/control.eli
+```
+
+Omit `--input-artifact` when the experiment has no private input. It is accepted only on the source
+stage. Each value uses a lowercase role and a path below the allowed root, outside
+`.diptrace-capture`. The collector records the basename, canonical relative path, SHA-256, and byte
+size; it never copies the input bytes. Keep every bound file unchanged at its original path until
+dry-run ingest completes. Symlinks, junctions, hard-link aliases, duplicate roles/names/paths,
+files larger than 128 MiB, and more than 32 inputs are refused.
+
 Now have the operator open `source.xml` in DipTrace and save the document to a new
 `open_save.xml`. Only after that action:
 
@@ -89,6 +103,8 @@ python "$DIPTRACE_CAPTURE_SCRIPT" finalize \
 ```
 
 Finalization creates a candidate manifest and detached digest in quarantine. It grants no trust.
+It re-hashes every optional private input before publication, and repeated finalization rechecks
+them again. A hash or size change is a blocker, not a prompt to update the manifest.
 
 ## Dry-run ingest
 
@@ -106,7 +122,8 @@ python "$DIPTRACE_INGEST_SCRIPT" \
 
 The destination may be an empty review directory. `--apply` is deliberately unavailable. The plan
 must report all role destinations, conflicts, registry state, `trust_promoted: false`, and
-`validation_level_granted: null`.
+`validation_level_granted: null`. It also reports optional private-input metadata and revalidates
+the original private paths, but never includes those bytes in `destination.files`.
 
 For a shape-only CI/installation test outside every fixture tree:
 

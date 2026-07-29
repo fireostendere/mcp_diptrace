@@ -45,6 +45,32 @@ def _candidate_root(tmp_path: Path) -> tuple[Path, Path, Path]:
     return capture_root, candidate, destination_root
 
 
+def _candidate_with_private_input(
+    tmp_path: Path,
+) -> tuple[Path, Path, Path, Path, bytes]:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    capture_root, candidate, destination_root = _candidate_root(tmp_path)
+    private_dir = capture_root / "private"
+    private_dir.mkdir()
+    private_input = private_dir / "source-library.eli"
+    private_bytes = b"\x00PRIVATE-LEGACY-LIBRARY\xff"
+    private_input.write_bytes(private_bytes)
+
+    def add_input(value: dict[str, object]) -> None:
+        value["input_artifacts"] = [
+            {
+                "role": "component_library",
+                "name": private_input.name,
+                "path": "private/source-library.eli",
+                "sha256": hashlib.sha256(private_bytes).hexdigest(),
+                "size_bytes": len(private_bytes),
+            }
+        ]
+
+    _rewrite_manifest(capture_root, candidate, add_input)
+    return capture_root, candidate, destination_root, private_input, private_bytes
+
+
 def _rewrite_manifest(
     capture_root: Path,
     candidate: Path,
@@ -166,6 +192,129 @@ def test_real_dry_run_validates_candidate_and_lists_destinations(tmp_path: Path)
         "candidate_digest",
     ]
     assert {item["status"] for item in plan["destination"]["files"]} == {"create"}
+    assert candidate.input_artifacts == ()
+    assert plan["candidate"]["input_artifacts"] == []
+
+
+def test_private_input_is_revalidated_but_never_planned_for_copy(tmp_path: Path) -> None:
+    (
+        capture_root,
+        candidate_path,
+        destination_root,
+        private_input,
+        private_bytes,
+    ) = _candidate_with_private_input(tmp_path)
+
+    candidate = validate_candidate(capture_root, candidate_path)
+    plan = build_plan(
+        candidate,
+        destination_root=destination_root,
+        destination_root_exists=True,
+        fixture_id="review-private-input",
+        synthetic=False,
+    )
+
+    assert [(item.role, item.name) for item in candidate.input_artifacts] == [
+        ("component_library", "source-library.eli")
+    ]
+    assert plan["candidate"]["input_artifacts"] == [
+        {
+            "role": "component_library",
+            "name": "source-library.eli",
+            "path": "private/source-library.eli",
+            "sha256": hashlib.sha256(private_bytes).hexdigest(),
+            "size_bytes": len(private_bytes),
+        }
+    ]
+    assert plan["validation"]["input_artifact_hashes_match"] is True
+    assert plan["validation"]["input_artifacts_metadata_only"] is True
+    assert [item["role"] for item in plan["destination"]["files"]] == [
+        "source",
+        "open_save",
+        "reexport",
+        "candidate_manifest",
+        "candidate_digest",
+    ]
+    assert all(
+        private_input.name not in item["destination"]
+        for item in plan["destination"]["files"]
+    )
+    assert plan["candidate"]["authority"] == "operator_supplied_unverified"
+    assert plan["candidate"]["trust_grant"] == "none"
+    assert plan["trust"]["trust_promoted"] is False
+
+
+def test_private_input_tampering_is_rejected_by_ingest(tmp_path: Path) -> None:
+    capture_root, candidate, _destination, private_input, _bytes = (
+        _candidate_with_private_input(tmp_path)
+    )
+    private_input.write_bytes(b"tampered")
+
+    with pytest.raises(IngestError) as caught:
+        validate_candidate(capture_root, candidate)
+
+    assert caught.value.code == "candidate_artifact_sha256_mismatch"
+
+
+def test_private_input_path_symlink_hardlink_and_duplicate_are_rejected(
+    tmp_path: Path,
+) -> None:
+    capture_root, candidate, _destination, private_input, _bytes = (
+        _candidate_with_private_input(tmp_path)
+    )
+
+    def traverse(value: dict[str, object]) -> None:
+        inputs = value["input_artifacts"]
+        assert isinstance(inputs, list)
+        record = inputs[0]
+        assert isinstance(record, dict)
+        record["path"] = "../source-library.eli"
+
+    _rewrite_manifest(capture_root, candidate, traverse)
+    with pytest.raises(IngestError) as traversal:
+        validate_candidate(capture_root, candidate)
+    assert traversal.value.code == "unsafe_candidate_path"
+
+    capture_root, candidate, _destination, private_input, _private_bytes = (
+        _candidate_with_private_input(tmp_path / "symlink")
+    )
+    target = private_input.with_name("target.eli")
+    private_input.replace(target)
+    try:
+        private_input.symlink_to(target)
+    except OSError:
+        pass
+    else:
+        with pytest.raises(IngestError) as symlinked:
+            validate_candidate(capture_root, candidate)
+        assert symlinked.value.code == "unsafe_candidate_path"
+
+    capture_root, candidate, _destination, private_input, _bytes = (
+        _candidate_with_private_input(tmp_path / "hardlink")
+    )
+    alias = private_input.with_name("alias.eli")
+    try:
+        alias.hardlink_to(private_input)
+    except OSError:
+        pass
+    else:
+        with pytest.raises(IngestError) as hardlinked:
+            validate_candidate(capture_root, candidate)
+        assert hardlinked.value.code == "candidate_role_conflict"
+
+    capture_root, candidate, _destination, _private_input, _bytes = (
+        _candidate_with_private_input(tmp_path / "duplicate")
+    )
+
+    def duplicate(value: dict[str, object]) -> None:
+        inputs = value["input_artifacts"]
+        assert isinstance(inputs, list)
+        inputs.append(dict(inputs[0]))
+
+    _rewrite_manifest(capture_root, candidate, duplicate)
+    with pytest.raises(IngestError) as duplicated:
+        validate_candidate(capture_root, candidate)
+    assert duplicated.value.code == "candidate_role_conflict"
 
 
 def test_detached_digest_tampering_is_rejected(tmp_path: Path) -> None:
