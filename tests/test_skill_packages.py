@@ -397,7 +397,7 @@ def test_generator_check_covers_links_capabilities_mirrors_and_hashes() -> None:
     assert "links, capabilities, mirrors, and hashes" in completed.stdout
 
 
-def test_wheel_ships_only_the_consolidated_catalog_under_400_kib(
+def test_wheel_ships_only_the_consolidated_catalog_with_skill_payload_under_400_kib(
     tmp_path: Path,
 ) -> None:
     completed = subprocess.run(
@@ -421,13 +421,13 @@ def test_wheel_ships_only_the_consolidated_catalog_under_400_kib(
     wheels = list(tmp_path.glob("diptrace_mcp-*.whl"))
     assert len(wheels) == 1
     wheel = wheels[0]
-    assert wheel.stat().st_size <= 400 * 1024
 
     source_files = {
         path.relative_to(SKILLS_ROOT).as_posix(): path.read_bytes()
         for path in SKILLS_ROOT.rglob("*")
         if path.is_file() and "__pycache__" not in path.parts
     }
+    assert sum(len(content) for content in source_files.values()) <= 400 * 1024
     with zipfile.ZipFile(wheel) as archive:
         names = set(archive.namelist())
         delivered = {

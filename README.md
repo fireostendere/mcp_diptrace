@@ -307,7 +307,8 @@ are selected by a written mechanical survival rule; the former 57-package duplic
 not shipped.
 
 Skills orchestrate registered MCP tools and the two packaged evidence CLIs. They do not add hidden
-EDA capabilities, grant evidence trust, or override runtime `get_capabilities`. See
+EDA capabilities, grant evidence trust, override runtime `get_capabilities`, or auto-register
+themselves with an agent host; point that host at the installed `diptrace_mcp/skills` directory. See
 [the shipped catalog and limits](skills/README.md).
 
 ## Known Limits

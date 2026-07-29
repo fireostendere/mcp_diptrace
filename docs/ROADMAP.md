@@ -147,8 +147,8 @@ After the combined WO-14 bridge, transaction-recovery, public MCP workflow,
 synthetic-load, live-session profile-safety, WO-16 registry/evidence intake,
 live-apply target binding, bounded copper preview, schema-backed API inputs,
 acceptance-seed audit, and cross-platform live-session lifecycle slices, the
-canonical geometry-enabled suite measured 16,910 statements, 2,372 misses, and
-**85.9728%** total coverage. `bridge.py` moved from an untested CI executable
+canonical geometry-enabled suite measured 16,910 statements, 2,370 misses, and
+**85.9846%** total coverage. `bridge.py` moved from an untested CI executable
 path to 182 of 262 statements, or **69.4656%**, backed by a real cross-process
 apply handshake plus cancel/timeout/error and request-correlation tests. CI
 enforces an integer 85% total floor plus measured
@@ -256,7 +256,8 @@ ERC, testpoint planning, critical-net routing, SI review, release gating, and
 operator-assisted evidence capture through one shared evidence-typed result schema.
 
 Skills are now actual wheel package data under `diptrace_mcp/skills`; a measured
-no-dependency wheel is 370,166 bytes, below the 400 KiB delivery ceiling. CI resolves
+no-dependency wheel is 382,106 bytes, and its 175,348-byte skill payload is below the
+400 KiB skill-delivery ceiling. CI resolves
 every advertised capability against the registered MCP surface, checks source and
 installed-wheel links, rejects the former external-solver contradiction, verifies
 byte-identical packaged evidence CLIs and their generated hash manifest, and executes

@@ -72,7 +72,7 @@ hand-estimated percentages:
 
 | Target | Statements | Missed | Measured | Enforced integer floor |
 | --- | ---: | ---: | ---: | ---: |
-| Total `src/diptrace_mcp` | 16,910 | 2,372 | 85.9728% | 85% |
+| Total `src/diptrace_mcp` | 16,910 | 2,370 | 85.9846% | 85% |
 | `bridge.py` | 262 | 80 | 69.4656% | 64% |
 | `xml_document.py` | 825 | 99 | 88.0000% | 87% |
 | `semantic_compiler.py` | 1,389 | 160 | 88.4809% | 88% |
@@ -146,7 +146,7 @@ The maintained suite covers:
 - eight wheel-shipped PCB skills, one strict shared result schema, registered-capability
   parity, source and installed-wheel link resolution, byte-identical evidence CLI
   mirrors, staged operator handoff guards, a trust-neutral synthetic forward path, and
-  a 400 KiB wheel ceiling.
+  a 400 KiB ceiling for the packaged skill payload.
 
 ## MCP Protocol Coverage
 

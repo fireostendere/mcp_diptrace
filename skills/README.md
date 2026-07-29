@@ -38,9 +38,11 @@ unique physical objects. Runtime capabilities remain authoritative.
 
 ## Delivery and verification
 
-`skills/` is force-included in the wheel as `diptrace_mcp/skills/`; no separate install step is
-required. The evidence package contains byte-identical mirrors of the capture and dry-run ingest
-CLIs so an installed wheel keeps the operator workflow.
+`skills/` is force-included in the wheel as `diptrace_mcp/skills/`; no separate file-copy step is
+required. Wheel delivery does not auto-register workflows in Codex or another agent host: configure
+the host to discover the installed `diptrace_mcp/skills` directory. The evidence package contains
+byte-identical mirrors of the capture and dry-run ingest CLIs so an installed wheel keeps the
+operator workflow.
 
 From a source checkout:
 

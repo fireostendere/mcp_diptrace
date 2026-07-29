@@ -87,7 +87,7 @@ The eight source-authored skill packages have no package-local `agents/`, `evals
 examples, or duplicated schemas. `tests/test_skill_packages.py` resolves every
 advertised capability against the public tool registry, verifies all source and
 installed-wheel links, checks the one shared result schema, executes the trust-neutral
-evidence dry-run, and builds a wheel capped at 400 KiB. The two packaged evidence CLIs
+evidence dry-run, and caps the packaged skill payload at 400 KiB. The two packaged evidence CLIs
 must remain byte-identical to their maintained root scripts.
 
 ## Local Run

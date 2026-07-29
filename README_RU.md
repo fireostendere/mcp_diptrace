@@ -307,8 +307,10 @@ schema и выбраны по письменному механическому 
 57 пакетов не поставляется.
 
 Скиллы оркестрируют зарегистрированные MCP tools и два поставляемых evidence CLI. Они не добавляют
-скрытых EDA capabilities, не повышают trust evidence и не переопределяют runtime
-`get_capabilities`. См. [поставляемый каталог и ограничения](skills/README.md).
+скрытых EDA capabilities, не повышают trust evidence, не переопределяют runtime
+`get_capabilities` и не регистрируются в agent host автоматически: укажите host путь к
+установленному каталогу `diptrace_mcp/skills`. См.
+[поставляемый каталог и ограничения](skills/README.md).
 
 ## Известные ограничения
 
