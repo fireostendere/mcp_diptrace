@@ -86,9 +86,8 @@ def _rewrite_manifest(
     raw = (json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode()
     manifest_path.write_bytes(raw)
     manifest_sha = hashlib.sha256(raw).hexdigest()
-    manifest_path.with_name(manifest_path.name + ".sha256").write_text(
-        f"{manifest_sha}  {manifest_path.name}\n",
-        encoding="ascii",
+    manifest_path.with_name(manifest_path.name + ".sha256").write_bytes(
+        f"{manifest_sha}  {manifest_path.name}\n".encode("ascii")
     )
 
 

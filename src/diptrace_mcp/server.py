@@ -375,10 +375,11 @@ def create_server(
         path: str,
         evidence: RoundtripEvidenceInput,
     ) -> dict[str, Any]:
-        """Validate distinct allowed-root evidence roles and exact SHA bindings without writing.
-
-        The bounded result is always authority=user_supplied and grants_high_trust=false.
-        """
+        (
+            "Validate distinct allowed-root evidence roles and exact SHA bindings "
+            "without writing.\n\n"
+            "The bounded result is always authority=user_supplied and grants_high_trust=false."
+        )
 
         reexport = evidence.reexport
         return service.validate_roundtrip_evidence(
@@ -396,11 +397,11 @@ def create_server(
         path: str,
         evidence: RoundtripEvidenceInput,
     ) -> dict[str, Any]:
-        """Write a user-supplied evidence manifest and provenance sidecar, not design bytes.
-
-        This explicitly writes metadata, returns written=true only after both files verify,
-        remains authority=user_supplied, and can never grant high trust.
-        """
+        (
+            "Write a user-supplied evidence manifest and provenance sidecar, not design bytes.\n\n"
+            "This explicitly writes metadata, returns written=true only after both files verify, "
+            "remains authority=user_supplied, and can never grant high trust."
+        )
 
         reexport = evidence.reexport
         return service.record_roundtrip_evidence(
@@ -757,13 +758,13 @@ def create_server(
         overwrite: bool = False,
         expected_sha256: ExpectedTargetSha256Input | None = None,
     ) -> dict[str, Any]:
-        """Create a new DipTrace PCB XML document (outline, layers, stackup, rules).
-
-        This is synthetic MCP-generated content. It has the correct XML structure
-        but has NOT been verified by DipTrace open/save. Use create_document_from_seed
-        with a real DipTrace export when DipTrace compatibility is required. Replacing
-        an existing target requires its current SHA.
-        """
+        (
+            "Create a new DipTrace PCB XML document (outline, layers, stackup, rules).\n\n"
+            "This is synthetic MCP-generated content. It has the correct XML structure "
+            "but has NOT been verified by DipTrace open/save. Use create_document_from_seed "
+            "with a real DipTrace export when DipTrace compatibility is required. Replacing "
+            "an existing target requires its current SHA."
+        )
         return service.create_document(
             "pcb",
             path,
@@ -782,12 +783,12 @@ def create_server(
         overwrite: bool = False,
         expected_sha256: ExpectedTargetSha256Input | None = None,
     ) -> dict[str, Any]:
-        """Copy a valid DipTrace-shaped XML seed while preserving unknown XML.
-
-        Validation is derived only from a verified provenance sidecar; without one,
-        the copy is synthetic_parser_only. Prefer a real export seed when DipTrace
-        compatibility matters. Replacing an existing target requires its current SHA.
-        """
+        (
+            "Copy a valid DipTrace-shaped XML seed while preserving unknown XML.\n\n"
+            "Validation is derived only from a verified provenance sidecar; without one, "
+            "the copy is synthetic_parser_only. Prefer a real export seed when DipTrace "
+            "compatibility matters. Replacing an existing target requires its current SHA."
+        )
         return service.create_document_from_seed(
             seed_path,
             target_path,
@@ -2140,11 +2141,10 @@ def create_server(
         nets: list[str] | None = None,
         reference_nets: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Run low-confidence geometry heuristics with a caller-supplied radius.
-
-        All distances are in millimetres, regardless of the document's own Units
-        attribute.
-        """
+        (
+            "Run low-confidence geometry heuristics with a caller-supplied radius.\n\n"
+            "All distances are in millimetres, regardless of the document's own Units attribute."
+        )
         return service.analyze_return_path(
             path,
             stitching_radius_mm=stitching_radius_mm,
@@ -2177,10 +2177,10 @@ def create_server(
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        """Route one pad-to-pad connection with bounded deterministic 45-degree A*.
-
-        Omit clearance to use the applicable document DRC TraceToTrace rule.
-        """
+        (
+            "Route one pad-to-pad connection with bounded deterministic 45-degree A*.\n\n"
+            "Omit clearance to use the applicable document DRC TraceToTrace rule."
+        )
         return service.route_connection(
             net=net,
             start_object_id=start_object_id,

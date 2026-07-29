@@ -939,31 +939,30 @@ def _serialize_new_element(element: ET.Element, encoding: str) -> bytes:
     return _encode_xml_fragment(rendered.replace("\r", "&#13;"), encoding)
 
 
-def _semantic_tree(element: ET.Element) -> tuple[object, ...]:
-    """Build the semantic comparison value without depending on Python recursion."""
+def _semantic_tree(element: ET.Element) -> tuple[tuple[object, ...], ...]:
+    """Build a flat preorder value so comparison is recursion-safe."""
 
-    pending: list[tuple[ET.Element, bool]] = [(element, False)]
-    rendered: dict[int, tuple[object, ...]] = {}
+    pending = [element]
+    rendered: list[tuple[object, ...]] = []
     while pending:
-        current, children_ready = pending.pop()
-        if not children_ready:
-            pending.append((current, True))
-            pending.extend((child, False) for child in reversed(current))
-            continue
-
+        current = pending.pop()
+        children = list(current)
         text = current.text
         normalized_text = None if text is None or not text.strip() else text
         tail = current.tail
         normalized_tail = None if tail is None or not tail.strip() else tail
         tag = current.tag if isinstance(current.tag, str) else "#comment"
-        rendered[id(current)] = (
-            tag,
-            tuple(sorted(current.attrib.items())),
-            normalized_text,
-            normalized_tail,
-            tuple(rendered[id(child)] for child in current),
+        rendered.append(
+  (
+      tag,
+      tuple(sorted(current.attrib.items())),
+      normalized_text,
+      normalized_tail,
+      len(children),
+  )
         )
-    return rendered[id(element)]
+        pending.extend(reversed(children))
+    return tuple(rendered)
 
 
 def _escape_xml_text(value: str, encoding: str) -> bytes:

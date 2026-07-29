@@ -52,7 +52,8 @@ def test_installer_prefers_current_diptrace_directory() -> None:
     assert "Test-IsElevated" in script
     assert "Administrator elevation is required" in script
     assert "Assert-CopiedFile" in script
-    assert "Get-FileHash -LiteralPath" in script
+    assert "Get-Sha256Hex" in script
+    assert "[Security.Cryptography.SHA256]::Create()" in script
 
 
 @pytest.mark.skipif(os.name != "nt", reason="native PowerShell installer execution")

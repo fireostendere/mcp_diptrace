@@ -43,6 +43,28 @@ function Test-IsPathWithin {
         )
 }
 
+function Get-Sha256Hex {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $Stream = [IO.File]::OpenRead($Path)
+    try {
+        $Hasher = [Security.Cryptography.SHA256]::Create()
+        try {
+            $Digest = $Hasher.ComputeHash($Stream)
+        }
+        finally {
+            $Hasher.Dispose()
+        }
+    }
+    finally {
+        $Stream.Dispose()
+    }
+    return ([BitConverter]::ToString($Digest)).Replace("-", "")
+}
+
 function Assert-CopiedFile {
     param(
         [Parameter(Mandatory = $true)]
@@ -56,8 +78,8 @@ function Assert-CopiedFile {
     if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
         throw "Post-copy verification failed for $Label`: destination is missing: $Destination"
     }
-    $SourceHash = (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash
-    $DestinationHash = (Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash
+    $SourceHash = Get-Sha256Hex -Path $Source
+    $DestinationHash = Get-Sha256Hex -Path $Destination
     if (-not $SourceHash.Equals($DestinationHash, [StringComparison]::OrdinalIgnoreCase)) {
         throw "Post-copy verification failed for $Label`: SHA-256 mismatch at $Destination"
     }

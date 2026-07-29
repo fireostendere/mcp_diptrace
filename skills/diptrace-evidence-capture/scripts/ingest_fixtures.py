@@ -816,6 +816,7 @@ def _validate_input_artifacts(
 
 
 def validate_candidate(capture_root: Path, manifest_relative: Path) -> ValidatedCandidate:
+    capture_root = _existing_root(capture_root, role="capture root")
     expected_candidates = Path(STORE_NAME) / "candidates"
     if manifest_relative.parent != expected_candidates:
         _fail(
