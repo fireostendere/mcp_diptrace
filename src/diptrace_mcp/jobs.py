@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import threading
 import uuid
 from dataclasses import dataclass
@@ -15,13 +14,12 @@ from .record_ids import (
     InvalidRecordPath,
     is_link_like,
     iter_valid_record_files,
-    prepare_safe_store_root,
     require_confined_file,
     require_confined_record_directory,
     require_confined_record_file,
     require_record_id,
-    require_safe_store_root,
 )
+from .record_store import RecordStore
 from .retention import (
     Clock,
     RetentionCandidate,
@@ -35,7 +33,7 @@ from .xml_document import atomic_write_bytes, utc_now
 
 
 @dataclass(slots=True)
-class JobStore:
+class JobStore(RecordStore):
     state_dir: Path
     retention: RetentionPolicy = dataclass_field(default_factory=RetentionPolicy)
     clock: Clock = dataclass_field(default=system_clock, repr=False)
@@ -45,15 +43,15 @@ class JobStore:
 
     def __post_init__(self) -> None:
         self.jobs_dir = self.state_dir / "jobs"
-        prepare_safe_store_root(self.state_dir, self.jobs_dir)
+        self._initialize_record_store(
+            state_dir=self.state_dir,
+            store_root=self.jobs_dir,
+        )
         self._lock = threading.RLock()
         # Inspect persisted status before interrupted running jobs are failed:
         # queued/running records must survive this construction cycle.
-        self.last_retention_report = self._prune_retention()
+        self.last_retention_report = self._initial_retention_report()
         self._fail_interrupted_jobs()
-
-    def _require_safe_root(self) -> None:
-        require_safe_store_root(self.state_dir, self.jobs_dir)
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -188,11 +186,11 @@ class JobStore:
         return record
 
     def write(self, record: JobRecord) -> None:
-        self._require_safe_root()
-        payload = json.dumps(
-            record.model_dump(mode="json"), ensure_ascii=False, indent=2, sort_keys=True
-        ).encode("utf-8")
-        atomic_write_bytes(self.record_path(record.jobid), payload)
+        self._write_store_json(
+            self.record_path(record.jobid),
+            record.model_dump(mode="json"),
+            sort_keys=True,
+        )
 
     def update(self, jobid: str, **changes: Any) -> JobRecord:
         with self._lock:

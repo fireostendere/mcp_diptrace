@@ -15,13 +15,12 @@ from .record_ids import (
     InvalidRecordId,
     InvalidRecordPath,
     iter_valid_record_files,
-    prepare_safe_store_root,
     require_confined_record_artifact,
     require_confined_record_directory,
     require_confined_record_file,
     require_record_id,
-    require_safe_store_root,
 )
+from .record_store import RecordStore
 from .retention import (
     Clock,
     RetentionCandidate,
@@ -43,11 +42,6 @@ _TRANSITIONS: dict[str, frozenset[str]] = {
 }
 
 
-def _atomic_write_json(path: Path, value: dict[str, Any]) -> None:
-    data = json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
-    atomic_write_bytes(path, data)
-
-
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -65,7 +59,7 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 @dataclass(slots=True)
-class TransactionStore:
+class TransactionStore(RecordStore):
     state_dir: Path
     retention: RetentionPolicy = dataclass_field(default_factory=RetentionPolicy)
     clock: Clock = dataclass_field(default=system_clock, repr=False)
@@ -75,12 +69,12 @@ class TransactionStore:
 
     def __post_init__(self) -> None:
         self.transactions_dir = self.state_dir / "transactions"
-        prepare_safe_store_root(self.state_dir, self.transactions_dir)
+        self._initialize_record_store(
+            state_dir=self.state_dir,
+            store_root=self.transactions_dir,
+        )
         self._lock = threading.RLock()
-        self.last_retention_report = self._prune_retention()
-
-    def _require_safe_root(self) -> None:
-        require_safe_store_root(self.state_dir, self.transactions_dir)
+        self.last_retention_report = self._initial_retention_report()
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -210,8 +204,12 @@ class TransactionStore:
         return record
 
     def write(self, record: TransactionRecord) -> None:
-        self._require_safe_root()
-        _atomic_write_json(self.record_path(record.txid), record.model_dump(mode="json"))
+        self._write_store_json(
+            self.record_path(record.txid),
+            record.model_dump(mode="json"),
+            sort_keys=True,
+            trailing_newline=True,
+        )
 
     def update(self, txid: str, **changes: Any) -> TransactionRecord:
         with self._lock:
@@ -263,7 +261,12 @@ class TransactionStore:
     def store_preview(self, txid: str, svg: str, preview: dict[str, Any], diff: str) -> None:
         self._require_safe_root()
         atomic_write_bytes(self.preview_svg_path(txid), svg.encode("utf-8"))
-        _atomic_write_json(self.preview_json_path(txid), preview)
+        self._write_store_json(
+            self.preview_json_path(txid),
+            preview,
+            sort_keys=True,
+            trailing_newline=True,
+        )
         atomic_write_bytes(self.diff_path(txid), diff.encode("utf-8"))
 
     def store_backup(self, txid: str, raw_bytes: bytes) -> Path:

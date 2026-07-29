@@ -20,12 +20,11 @@ from .record_ids import (
     InvalidRecordPath,
     is_link_like,
     iter_valid_record_files,
-    prepare_safe_store_root,
     require_confined_file,
     require_confined_record_file,
     require_record_id,
-    require_safe_store_root,
 )
+from .record_store import RecordStore
 from .retention import (
     Clock,
     RetentionCandidate,
@@ -675,7 +674,7 @@ def _require_apply_supported(metadata: dict[str, Any]) -> None:
         )
 
 
-class SessionStore:
+class SessionStore(RecordStore):
     def __init__(
         self,
         state_dir: Path,
@@ -702,11 +701,40 @@ class SessionStore:
         self.clock = clock
         self.active_ttl_seconds = active_ttl_seconds
         self._last_session_transition: dict[str, object] | None = None
-        prepare_safe_store_root(self.state_dir, self.sessions_dir)
-        self.last_retention_report = self._prune_retention()
+        self._initialize_record_store(
+            state_dir=state_dir,
+            store_root=self.sessions_dir,
+        )
+        self.last_retention_report = self._initial_retention_report()
 
-    def _require_safe_root(self) -> None:
-        require_safe_store_root(self.state_dir, self.sessions_dir)
+    def _atomic_write_store_json(
+        self,
+        path: Path,
+        value: dict[str, Any],
+        *,
+        ensure_ascii: bool,
+        indent: int | None,
+        sort_keys: bool,
+        trailing_newline: bool,
+    ) -> None:
+        if (
+            not ensure_ascii
+            and indent == 2
+            and not sort_keys
+            and trailing_newline
+        ):
+            # Keep the lifecycle module's fault-injection and ordering seam;
+            # the common base has already validated confinement.
+            _atomic_write_json(path, value)
+            return
+        super()._atomic_write_store_json(
+            path,
+            value,
+            ensure_ascii=ensure_ascii,
+            indent=indent,
+            sort_keys=sort_keys,
+            trailing_newline=trailing_newline,
+        )
 
     def _read_exchange_path(self, path: Path) -> tuple[Path, bytes]:
         if not path.is_absolute():
@@ -1029,8 +1057,11 @@ class SessionStore:
     def update_metadata(self, session_id: str, **updates: Any) -> dict[str, Any]:
         metadata = self.read_metadata(session_id)
         metadata.update(updates)
-        self._require_safe_root()
-        _atomic_write_json(self.metadata_path(session_id), metadata)
+        self._write_store_json(
+            self.metadata_path(session_id),
+            metadata,
+            trailing_newline=True,
+        )
         return metadata
 
     def _clock_now(self) -> datetime:
@@ -1232,8 +1263,11 @@ class SessionStore:
             "working_sha256": document.sha256,
             "edit_count": 0,
         }
-        self._require_safe_root()
-        _atomic_write_json(self.metadata_path(session_id), metadata)
+        self._write_store_json(
+            self.metadata_path(session_id),
+            metadata,
+            trailing_newline=True,
+        )
         _atomic_write_json(self.active_file, {"session_id": session_id})
         return metadata
 
@@ -1292,7 +1326,11 @@ class SessionStore:
             "last_backup": str(backup),
         }
         self._require_safe_root()
-        _atomic_write_json(self.metadata_path(str(metadata["session_id"])), updated)
+        self._write_store_json(
+            self.metadata_path(str(metadata["session_id"])),
+            updated,
+            trailing_newline=True,
+        )
 
     def _store_working_backup_unlocked(
         self,
@@ -1340,7 +1378,11 @@ class SessionStore:
                             atomic_write_bytes(self.working_path(session_id), current)
                     finally:
                         self._require_safe_root()
-                        _atomic_write_json(self.metadata_path(session_id), metadata)
+                        self._write_store_json(
+                            self.metadata_path(session_id),
+                            metadata,
+                            trailing_newline=True,
+                        )
                 raise
 
     def record_edit(self, session_id: str, working_sha256: str, backup: Path) -> None:
@@ -1554,7 +1596,11 @@ class SessionStore:
         )
         self._require_safe_root()
         try:
-            _atomic_write_json(self.control_path(session_id), request)
+            self._write_store_json(
+                self.control_path(session_id),
+                request,
+                trailing_newline=True,
+            )
         except Exception:
             self.update_metadata(
                 session_id,

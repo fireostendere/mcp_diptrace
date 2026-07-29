@@ -15,11 +15,10 @@ from .record_ids import (
     InvalidRecordId,
     InvalidRecordPath,
     iter_valid_record_files,
-    prepare_safe_store_root,
     require_confined_record_file,
     require_record_id,
-    require_safe_store_root,
 )
+from .record_store import RecordStore
 from .retention import (
     RetentionCandidate,
     RetentionPolicy,
@@ -28,7 +27,7 @@ from .retention import (
     prune_terminal_records,
     system_clock,
 )
-from .xml_document import atomic_write_bytes, utc_now
+from .xml_document import utc_now
 
 
 class Finding(StrictModel):
@@ -138,7 +137,7 @@ def make_finding(
     )
 
 
-class FindingStore:
+class FindingStore(RecordStore):
     def __init__(
         self,
         state_dir: Path,
@@ -148,13 +147,13 @@ class FindingStore:
     ):
         self.state_dir = state_dir
         self.reports_dir = state_dir / "reviews"
-        prepare_safe_store_root(self.state_dir, self.reports_dir)
         self.retention = retention or RetentionPolicy()
         self.clock = clock
-        self.last_retention_report = self._prune_retention()
-
-    def _require_safe_root(self) -> None:
-        require_safe_store_root(self.state_dir, self.reports_dir)
+        self._initialize_record_store(
+            state_dir=state_dir,
+            store_root=self.reports_dir,
+        )
+        self.last_retention_report = self._initial_retention_report()
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -194,11 +193,10 @@ class FindingStore:
         return self.reports_dir / f"{validated}.json"
 
     def store(self, report: ReviewReport) -> None:
-        self._require_safe_root()
-        payload = json.dumps(report.model_dump(mode="json"), ensure_ascii=False, indent=2).encode(
-            "utf-8"
+        self._write_store_json(
+            self.report_path(report.report_id),
+            report.model_dump(mode="json"),
         )
-        atomic_write_bytes(self.report_path(report.report_id), payload)
 
     def read(self, report_id: str) -> ReviewReport:
         try:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import threading
 import uuid
 from dataclasses import dataclass
@@ -14,11 +13,10 @@ from .record_ids import (
     InvalidRecordId,
     InvalidRecordPath,
     iter_valid_record_files,
-    prepare_safe_store_root,
     require_confined_record_file,
     require_record_id,
-    require_safe_store_root,
 )
+from .record_store import RecordStore
 from .retention import (
     Clock,
     RetentionCandidate,
@@ -32,7 +30,7 @@ from .xml_document import atomic_write_bytes, utc_now
 
 
 @dataclass(slots=True)
-class PlanStore:
+class PlanStore(RecordStore):
     state_dir: Path
     retention: RetentionPolicy = dataclass_field(default_factory=RetentionPolicy)
     clock: Clock = dataclass_field(default=system_clock, repr=False)
@@ -42,12 +40,12 @@ class PlanStore:
 
     def __post_init__(self) -> None:
         self.plans_dir = self.state_dir / "plans"
-        prepare_safe_store_root(self.state_dir, self.plans_dir)
+        self._initialize_record_store(
+            state_dir=self.state_dir,
+            store_root=self.plans_dir,
+        )
         self._lock = threading.RLock()
-        self.last_retention_report = self._prune_retention()
-
-    def _require_safe_root(self) -> None:
-        require_safe_store_root(self.state_dir, self.plans_dir)
+        self.last_retention_report = self._initial_retention_report()
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -173,11 +171,11 @@ class PlanStore:
         return record
 
     def write(self, record: PlanRecord) -> None:
-        self._require_safe_root()
-        payload = json.dumps(
-            record.model_dump(mode="json"), ensure_ascii=False, indent=2, sort_keys=True
-        ).encode("utf-8")
-        atomic_write_bytes(self.record_path(record.plan_id), payload)
+        self._write_store_json(
+            self.record_path(record.plan_id),
+            record.model_dump(mode="json"),
+            sort_keys=True,
+        )
 
     def update(
         self,
@@ -209,9 +207,10 @@ class PlanStore:
     ) -> list[str]:
         self._require_safe_root()
         atomic_write_bytes(self.preview_svg_path(plan_id), svg.encode("utf-8"))
-        atomic_write_bytes(
+        self._write_store_json(
             self.preview_json_path(plan_id),
-            json.dumps(geometry, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8"),
+            geometry,
+            sort_keys=True,
         )
         atomic_write_bytes(self.diff_path(plan_id), diff.encode("utf-8"))
         resources = plan_preview_resources(plan_id)

@@ -18,13 +18,12 @@ from .record_ids import (
     InvalidRecordPath,
     is_link_like,
     iter_valid_record_files,
-    prepare_safe_store_root,
     require_confined_record_artifact,
     require_confined_record_directory,
     require_confined_record_file,
     require_record_id,
-    require_safe_store_root,
 )
+from .record_store import RecordStore
 from .retention import (
     RetentionCandidate,
     RetentionPolicy,
@@ -54,7 +53,7 @@ def _csv_bytes(rows: list[dict[str, object]], fields: list[str]) -> bytes:
     return output.getvalue().encode("utf-8")
 
 
-class ExportStore:
+class ExportStore(RecordStore):
     def __init__(
         self,
         state_dir: Path,
@@ -65,14 +64,14 @@ class ExportStore:
     ):
         self.state_dir = state_dir
         self.root = state_dir / "exports"
-        prepare_safe_store_root(self.state_dir, self.root)
         self.max_artifact_bytes = max_artifact_bytes
         self.retention = retention or RetentionPolicy()
         self.clock = clock
-        self.last_retention_report = self._prune_retention()
-
-    def _require_safe_root(self) -> None:
-        require_safe_store_root(self.state_dir, self.root)
+        self._initialize_record_store(
+            state_dir=state_dir,
+            store_root=self.root,
+        )
+        self.last_retention_report = self._initial_retention_report()
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -205,9 +204,10 @@ class ExportStore:
         record_path = directory / "record.json"
         if is_link_like(record_path):
             raise ValueError("Export record path is redirected")
-        atomic_write_bytes(
+        self._write_store_json(
             record_path,
-            json.dumps(record.model_dump(mode="json"), indent=2).encode("utf-8"),
+            record.model_dump(mode="json"),
+            ensure_ascii=True,
         )
         return record
 
