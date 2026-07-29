@@ -33,8 +33,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Clarified
 
 - The license release blocker is resolved: Apache-2.0 is committed as
-  `LICENSE`. Security-channel, contribution-provenance, signing, and
-  publication blockers remain open.
+  `LICENSE`. Security-channel, contribution-provenance, and signing blockers
+  remain open for a fully verified release line.
 - No community size, adoption, sponsorship, vendor endorsement, signed binary,
   package-index release, or support-program acceptance is asserted.
 - Python wheels intentionally contain the MCP server and eight packaged
