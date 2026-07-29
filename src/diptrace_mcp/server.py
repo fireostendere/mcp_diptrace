@@ -376,7 +376,8 @@ def create_server(
         evidence: RoundtripEvidenceInput,
     ) -> dict[str, Any]:
         (
-            "Validate distinct allowed-root evidence roles and exact SHA bindings without writing.\n\n"
+            "Validate distinct allowed-root evidence roles and exact SHA bindings "
+            "without writing.\n\n"
             "The bounded result is always authority=user_supplied and grants_high_trust=false."
         )
 
