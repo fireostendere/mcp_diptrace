@@ -5,14 +5,20 @@ from __future__ import annotations
 
 import argparse
 import errno
-import fcntl
 import json
 import os
 import platform
 import subprocess
 import uuid
 from pathlib import Path, PureWindowsPath
+from types import ModuleType
 from typing import BinaryIO
+
+_fcntl: ModuleType | None
+try:
+    import fcntl as _fcntl
+except ModuleNotFoundError:
+    _fcntl = None
 
 _PROBE_DIR_PREFIX = "mcp-diptrace-lock-probe-"
 _POWERSHELL_UTF8 = (
@@ -98,6 +104,12 @@ finally {
 
 class ProbeError(RuntimeError):
     """Raised when the manual interoperability probe cannot complete safely."""
+
+
+def _require_fcntl() -> ModuleType:
+    if _fcntl is None:
+        raise ProbeError("fcntl is required; run this probe from WSL")
+    return _fcntl
 
 
 def parse_status(output: str, *, allowed: frozenset[str]) -> str:
@@ -202,15 +214,16 @@ def _probe_windows_contender(
     windows_file: PureWindowsPath,
     lock_file: Path,
 ) -> dict[str, object]:
+    flock = _require_fcntl()
     with lock_file.open("r+b") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        flock.flock(handle.fileno(), flock.LOCK_EX)
         try:
             completed = _powershell(
                 _WINDOWS_ATTEMPT,
                 environment=_environment(windows_file),
             )
         finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            flock.flock(handle.fileno(), flock.LOCK_UN)
     if completed.returncode != 0:
         kind = _safe_powershell_failure(completed.stdout)
         raise ProbeError(f"Windows FileStream contender failed ({kind})")
@@ -228,14 +241,15 @@ def _probe_windows_contender(
 
 
 def _try_wsl_flock(handle: BinaryIO) -> str:
+    flock = _require_fcntl()
     try:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        flock.flock(handle.fileno(), flock.LOCK_EX | flock.LOCK_NB)
     except OSError as exc:
         if exc.errno in {errno.EACCES, errno.EAGAIN}:
             return "blocked"
         raise
     else:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        flock.flock(handle.fileno(), flock.LOCK_UN)
         return "acquired"
 
 
@@ -380,12 +394,11 @@ def main() -> int:
             "schema_version": 1,
             "probe": "windows_wsl_file_lock_interop",
             "status": "failed",
-            "error_type": type(exc).__name__,
-            "error": str(exc) if isinstance(exc, ProbeError) else "host_interop_error",
+            "error": type(exc).__name__,
         }
-        print(json.dumps(failure, indent=2, sort_keys=True))
+        print(json.dumps(failure, sort_keys=True))
         return 1
-    print(json.dumps(report, indent=2, sort_keys=True))
+    print(json.dumps(report, sort_keys=True))
     return 0
 
 
