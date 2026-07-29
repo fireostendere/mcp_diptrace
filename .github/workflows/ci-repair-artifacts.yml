@@ -4,10 +4,10 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  generate:
+  generate-python-313:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -15,18 +15,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - run: python -m pip install -e ".[dev]"
-      - run: python scripts/generate_pcb_skills.py
-      - run: python scripts/generate_mcp_tools_snapshot.py
-      - name: Commit generated repair artifacts
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add skills/SOURCES.sha256 reference/mcp-tools-list.snapshot.json
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "chore: refresh generated CI artifacts"
-          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+      - run: python scripts/generate_mcp_tools_snapshot.py --out generated-3.13.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcp-tools-python-313
+          path: generated-3.13.json
