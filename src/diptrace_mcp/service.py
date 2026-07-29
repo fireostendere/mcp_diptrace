@@ -1813,10 +1813,6 @@ class DipTraceService:
             )
         return document, target
 
-    def _snapshot(self, path: str | None) -> tuple[Any, DocumentTarget]:
-        document, target = self.load(path)
-        return self.models.get(document, live_session=target.is_live), target
-
     def status(self) -> dict[str, Any]:
         active = self.sessions.active_metadata()
         if active is not None:

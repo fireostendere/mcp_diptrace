@@ -60,24 +60,12 @@ class ConfigurationError(DipTraceMcpError):
     recoverable = False
 
 
-class DocumentNotFoundError(DipTraceMcpError):
-    code = "document_not_found"
-
-
 class PathAccessError(DipTraceMcpError):
     code = "path_access_denied"
 
 
 class DocumentError(DipTraceMcpError):
     code = "schema_parse_error"
-
-
-class UnsupportedSourceTypeError(DocumentError):
-    code = "unsupported_source_type"
-
-
-class UnsupportedFormatVersionError(DocumentError):
-    code = "unsupported_format_version"
 
 
 class EditError(DipTraceMcpError):
@@ -172,7 +160,3 @@ class JobCancelledError(DipTraceMcpError):
 
 class InsufficientStackupDataError(DipTraceMcpError):
     code = "insufficient_stackup_data"
-
-
-class SolverRequiredError(DipTraceMcpError):
-    code = "solver_required"

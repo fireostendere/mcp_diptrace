@@ -82,10 +82,10 @@ hand-estimated percentages:
 
 | Target | Statements | Missed | Measured | Enforced integer floor |
 | --- | ---: | ---: | ---: | ---: |
-| Total `src/diptrace_mcp` | 16,910 | 2,370 | 85.9846% | 85% |
+| Total `src/diptrace_mcp` | 16,844 | 2,360 | 85.9891% | 85% |
 | `bridge.py` | 262 | 80 | 69.4656% | 64% |
-| `xml_document.py` | 825 | 99 | 88.0000% | 87% |
-| `semantic_compiler.py` | 1,389 | 160 | 88.4809% | 88% |
+| `xml_document.py` | 810 | 86 | 89.3827% | 87% |
+| `semantic_compiler.py` | 1,349 | 159 | 88.2135% | 88% |
 | `routing_compiler.py` | 561 | 75 | 86.6310% | 85% |
 
 The integer floors are the highest whole percentages the measured checkout

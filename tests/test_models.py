@@ -78,7 +78,7 @@ def test_unknown_format_version_uses_feature_detection_and_preserves_unknown_xml
         "documented_via_size_fields": False,
         "observed_via_size_aliases": True,
     }
-    assert modified.serialize().find(b"FutureExtension") >= 0
+    assert b"FutureExtension" in modified.raw_bytes
 
 
 def test_pcb_embedded_pattern_library_drives_exact_pad_geometry() -> None:

@@ -56,7 +56,7 @@ def test_pattern_library_model_normalizes_geometry_and_preserves_unknown_xml() -
         "BotPaste": "Common",
     }
     assert validate_library(model) == []
-    assert document.serialize().find(b"FuturePatternData") >= 0
+    assert b"FuturePatternData" in document.raw_bytes
 
 
 def test_component_library_model_and_pin_pad_mapping() -> None:

@@ -724,18 +724,6 @@ class DipTraceDocument:
             )
         return self._element_byte_offsets[1].get(id(element))
 
-    def serialize(self) -> bytes:
-        rendered = cast(
-            bytes,
-            ET.tostring(
-                self.root,
-                encoding=self.encoding,
-                xml_declaration=True,
-                short_empty_elements=True,
-            ),
-        )
-        return self.bom + rendered
-
     def _normalize_xpath(self, xpath: str) -> str:
         value = xpath.strip()
         if not value:

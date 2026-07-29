@@ -149,8 +149,8 @@ After the combined WO-14 bridge, transaction-recovery, public MCP workflow,
 synthetic-load, live-session profile-safety, WO-16 registry/evidence intake,
 live-apply target binding, bounded copper preview, schema-backed API inputs,
 acceptance-seed audit, and cross-platform live-session lifecycle slices, the
-canonical geometry-enabled suite measured 16,910 statements, 2,370 misses, and
-**85.9846%** total coverage. `bridge.py` moved from an untested CI executable
+canonical geometry-enabled suite measured 16,844 statements, 2,360 misses, and
+**85.9891%** total coverage. `bridge.py` moved from an untested CI executable
 path to 182 of 262 statements, or **69.4656%**, backed by a real cross-process
 apply handshake plus cancel/timeout/error and request-correlation tests. CI
 enforces an integer 85% total floor plus measured
@@ -208,6 +208,13 @@ tools; its canonical descriptor is 141,026 UTF-8 bytes with SHA-256
 It is produced only through the public in-memory MCP transport, and CI fails on
 any unregenerated contract drift. This snapshot is the required behavioural
 baseline before the service/compiler/store decomposition begins.
+
+The first behavior-preserving Phase-9 slice is now guarded by that baseline:
+`semantic_compiler.py` dispatches all 39 registered operation models through one
+type-to-handler table, and a parity test fails if the operation registry and
+compiler diverge. The same cleanup removed the unused service `_snapshot` helper,
+the unused document reserializer, and four exception subclasses with no callers;
+the canonical 159-tool snapshot remains byte-identical.
 
 ### Public MCP workflow checkpoint — 2026-07-28
 
