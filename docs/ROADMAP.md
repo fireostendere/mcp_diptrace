@@ -37,8 +37,10 @@ The human-free input/write hardening baseline now includes:
   root-process reaping;
 - strict generated identifiers and non-redirected roots for all six persistent stores;
 - central per-target offline backup histories plus count/age cleanup of validated
-  terminal records and expired backups. Active/nonterminal state is protected, and
-  cleanup thresholds are soft targets rather than storage quotas.
+  terminal records and expired backups. Existing-target writes require that
+  retention-managed backup writer; the former unmanaged destination-path fallback is
+  rejected before mutation. Active/nonterminal state is protected, and cleanup
+  thresholds are soft targets rather than storage quotas.
 
 For an existing target, the original bytes are captured before replacement. A
 brand-new target has no previous content and therefore has no backup; an explicit

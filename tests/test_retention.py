@@ -766,6 +766,25 @@ def test_backup_store_is_outside_design_and_restores_original_bytes(
     assert restored.sha256 == sha256_bytes(original)
 
 
+def test_write_with_backup_rejects_unmanaged_path_without_mutation(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "board.dip"
+    target.write_bytes(b"original")
+    unmanaged = tmp_path / "unmanaged-backups"
+
+    with pytest.raises(EditError) as exc_info:
+        write_with_backup(  # type: ignore[arg-type]
+            target,
+            b"replacement",
+            unmanaged,
+        )
+
+    assert exc_info.value.payload.code == "backup_manager_required"
+    assert target.read_bytes() == b"original"
+    assert not unmanaged.exists()
+
+
 def test_job_artifact_symlink_is_rejected_for_read_and_write(tmp_path: Path) -> None:
     store = JobStore(tmp_path / "state")
     job = store.create(job_type="artifact-confinement")

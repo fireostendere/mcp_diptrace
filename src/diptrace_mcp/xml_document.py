@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Literal, Protocol, cast
 from xml.parsers import expat
 
-from .errors import DocumentError, EditError, Sha256MismatchError
+from .errors import DocumentError, EditError
 
 EditOperation = Literal[
     "set_text",
@@ -1385,33 +1385,17 @@ class BackupWriter(Protocol):
 def write_with_backup(
     path: Path,
     data: bytes,
-    destination: Path | BackupWriter,
+    destination: BackupWriter,
     *,
     expected_sha256: str | None = None,
 ) -> Path:
-    if not isinstance(destination, Path):
-        return destination.write_with_backup(
-            path,
-            data,
-            expected_sha256=expected_sha256,
+    if isinstance(destination, Path):
+        raise EditError(
+            "Writes require a retention-managed backup writer",
+            code="backup_manager_required",
         )
-    try:
-        original = path.read_bytes()
-    except OSError as exc:
-        raise EditError(f"Cannot read target before backup: {path}") from exc
-    current_sha256 = sha256_bytes(original)
-    if expected_sha256 is not None and current_sha256 != expected_sha256:
-        raise Sha256MismatchError(
-            f"Document changed: expected {expected_sha256}, current {current_sha256}",
-            details={
-                "expected_sha256": expected_sha256,
-                "current_sha256": current_sha256,
-                "path": str(path),
-            },
-        )
-    destination.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
-    backup = destination / f"{path.name}.{stamp}.{current_sha256[:12]}.bak"
-    atomic_write_bytes(backup, original)
-    atomic_write_bytes(path, data)
-    return backup
+    return destination.write_with_backup(
+        path,
+        data,
+        expected_sha256=expected_sha256,
+    )
