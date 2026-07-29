@@ -17,26 +17,27 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 
 ## Статус публичного релиза
 
-В репозитории пока нет project-wide файла `LICENSE`. Репозиторий ещё не
-предоставляет общую open-source лицензию и не должен называться open source,
-пока ответственный владелец не выберет и не добавит лицензию, одобренную OSI.
+Проект лицензирован под Apache License 2.0 — OSI-approved open-source
+лицензией; полный текст закоммичен как [`LICENSE`](LICENSE). Обоснование
+выбора записано в
+[docs/LICENSE_DECISION.md](docs/LICENSE_DECISION.md).
 
-В репозитории опубликованы правила участия и релиза для текущего закрытого
-состояния:
+В репозитории опубликованы правила участия и релиза:
 
 - [процесс contribution](CONTRIBUTING.md);
 - [текущий governance](GOVERNANCE.md);
-- [license decision matrix](docs/LICENSE_DECISION.md);
+- [license decision matrix и запись о выборе](docs/LICENSE_DECISION.md);
 - [чек-лист публичного релиза](docs/PUBLIC_RELEASE_CHECKLIST.md) и
   [release process](docs/RELEASE_PROCESS.md);
 - [changelog](CHANGELOG.md) и [citation metadata](CITATION.cff).
 
-Приём общих contributions закрыт. Проверенных приватных каналов для security и
+Приём общих contributions остаётся закрытым, пока не утверждены условия
+contribution provenance. Проверенных приватных каналов для security и
 Code of Conduct пока нет, поэтому соответствующие политики не публикуются.
-Лицензия, ownership, security, contribution provenance, signing и publication
-остаются явными blockers. Репозиторий не заявляет существующее сообщество,
-adoption, sponsorship, vendor endorsement, участие в support program или
-опубликованный релиз.
+Security, contribution provenance, signing и publication остаются явными
+blockers. Репозиторий не заявляет существующее сообщество, adoption,
+sponsorship, vendor endorsement, участие в support program или опубликованный
+релиз.
 
 CI собирает Python source distribution и wheel по точному versioned allowlist
 и проверяет их содержимое, ограничения, entry points, packaged skills и wheel

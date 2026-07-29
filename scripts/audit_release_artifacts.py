@@ -67,6 +67,8 @@ _BLOCKED_PREFIXES = ("docs/private/", "tests/fixtures/acceptance/")
 _BLOCKED_SUFFIXES = frozenset(
     {".der", ".dll", ".docx", ".eli", ".exe", ".key", ".lib", ".p12", ".pdf", ".pem", ".pfx"}
 )
+_LICENSE_FILE_PREFIXES = ("LICENCE", "LICENSE", "COPYING", "NOTICE", "AUTHORS")
+_REQUIRED_LICENSE_EXPRESSION = "Apache-2.0"
 _BOOTSTRAP_RELEASE_FILES = frozenset(
     {
         "scripts/audit_release_artifacts.py",
@@ -223,6 +225,17 @@ def _expected_wheel_files(allowlist: Iterable[str]) -> set[str]:
     return expected
 
 
+def _root_license_files(allowlist: Iterable[str]) -> tuple[str, ...]:
+    """Root files that Hatch copies into the wheel's ``dist-info/licenses/``."""
+    return tuple(
+        sorted(
+            relative
+            for relative in allowlist
+            if "/" not in relative and relative.startswith(_LICENSE_FILE_PREFIXES)
+        )
+    )
+
+
 def _check_record(archive: zipfile.ZipFile, record_name: str, names: set[str]) -> None:
     rows = list(csv.reader(io.StringIO(archive.read(record_name).decode("utf-8"))))
     recorded_names = {row[0] for row in rows}
@@ -273,12 +286,13 @@ def audit_wheel(path: Path, allowlist: Sequence[str] | None = None) -> dict[str,
         if len(dist_info_roots) != 1:
             raise ReleaseArtifactError("wheel must contain exactly one .dist-info directory")
         dist_info = dist_info_roots.pop()
+        license_files = _root_license_files(allowlist)
         generated = {
             f"{dist_info}/METADATA",
             f"{dist_info}/RECORD",
             f"{dist_info}/WHEEL",
             f"{dist_info}/entry_points.txt",
-        }
+        } | {f"{dist_info}/licenses/{name}" for name in license_files}
         expected = _expected_wheel_files(allowlist) | generated
         if files != expected:
             unexpected = sorted(files - expected)
@@ -302,6 +316,18 @@ def audit_wheel(path: Path, allowlist: Sequence[str] | None = None) -> dict[str,
             project_urls[label.strip()] = url.strip()
         if project_urls != _REQUIRED_PROJECT_URLS:
             raise ReleaseArtifactError(f"wheel Project-URL metadata differs: {project_urls}")
+        if metadata["License-Expression"] != _REQUIRED_LICENSE_EXPRESSION:
+            raise ReleaseArtifactError(
+                f"unexpected wheel License-Expression: {metadata['License-Expression']!r}"
+            )
+        if set(metadata.get_all("License-File", [])) != set(license_files):
+            raise ReleaseArtifactError(
+                f"wheel License-File metadata differs: {metadata.get_all('License-File', [])}"
+            )
+        if "LICENSE" in license_files and archive.read(
+            f"{dist_info}/licenses/LICENSE"
+        ) != (REPO_ROOT / "LICENSE").read_bytes():
+            raise ReleaseArtifactError("wheel license file differs from the committed LICENSE")
         empty_legacy_extras = {"preview", "routing", "simulation"} & set(
             metadata.get_all("Provides-Extra", [])
         )

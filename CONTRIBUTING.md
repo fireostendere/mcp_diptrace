@@ -2,14 +2,15 @@
 
 ## Contribution status
 
-DipTrace MCP does not currently contain a project-wide `LICENSE` file. The
-repository therefore grants no project-wide open-source license and is not
-open for general code or documentation contributions.
+DipTrace MCP is licensed under the Apache License 2.0; the full text is
+committed as [`LICENSE`](LICENSE). The license grant does not by itself open
+contribution intake: general code and documentation contributions remain
+closed until contribution-provenance terms are approved.
 
 Do not open a pull request unless the repository owner has requested the
 specific change. Unsolicited pull requests may be closed without review. This
-policy avoids accepting work before copyright ownership, contribution
-provenance, and an OSI-approved license are settled.
+policy avoids accepting work before copyright ownership and contribution
+provenance are settled.
 
 Non-sensitive bug reports, feature requests, and compatibility evidence may be
 submitted through the repository's GitHub issue forms. Do not put proprietary

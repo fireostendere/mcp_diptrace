@@ -51,6 +51,14 @@ def test_release_allowlist_contains_build_hook_and_auditor() -> None:
     assert "scripts/release_artifact_allowlist.txt" in paths
 
 
+def test_project_license_is_apache2_and_allowlisted() -> None:
+    pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    assert 'license = "Apache-2.0"' in pyproject
+    assert (REPO_ROOT / "LICENSE").is_file()
+    assert "LICENSE" in set(load_allowlist())
+
+
 def test_archive_name_guard_rejects_traversal_and_case_collisions() -> None:
     with pytest.raises(ReleaseArtifactError, match="unsafe"):
         _check_member_names(["pkg/../private.txt"])

@@ -1,8 +1,8 @@
 ## Scope
 
 Explain the bounded change and the user-visible outcome. Link the issue that
-authorized the work. General contributions remain closed while the repository
-has no project-wide license.
+authorized the work. General contributions remain closed until
+contribution-provenance terms are approved (see CONTRIBUTING.md).
 
 ## Safety and compatibility
 

@@ -19,25 +19,27 @@ See [the roadmap](docs/ROADMAP.md) for the current priority order and exit crite
 
 ## Public Release Status
 
-No project-wide `LICENSE` file is currently committed. This repository does
-not grant a project-wide open-source license and must not be described as open
-source until an accountable owner selects and commits an OSI-approved license.
+The project is licensed under the Apache License 2.0, an OSI-approved
+open-source license; the full text is committed as [`LICENSE`](LICENSE). The
+selection rationale is recorded in
+[docs/LICENSE_DECISION.md](docs/LICENSE_DECISION.md).
 
-The repository publishes a closed-state participation and release policy:
+The repository publishes its participation and release policy:
 
 - [contribution workflow](CONTRIBUTING.md);
 - [current governance](GOVERNANCE.md);
-- [license decision matrix](docs/LICENSE_DECISION.md);
+- [license decision matrix and selection record](docs/LICENSE_DECISION.md);
 - [public-release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) and
   [release process](docs/RELEASE_PROCESS.md);
 - [changelog](CHANGELOG.md) and [citation metadata](CITATION.cff).
 
-General contributions are closed. Verified private security and conduct
-channels do not yet exist, so vulnerability and Code of Conduct policies are
-not published. License, ownership, security, contribution-provenance, signing,
-and publication work remain explicit blockers. The repository does not claim
-an existing community, adoption, sponsorship, vendor endorsement, support
-program acceptance, or published release.
+General contributions remain closed until contribution-provenance terms are
+approved. Verified private security and Code of Conduct channels do not yet
+exist, so vulnerability and Code of Conduct policies are not published.
+Security, contribution-provenance, signing, and publication work remain
+explicit blockers. The repository does not claim an existing community,
+adoption, sponsorship, vendor endorsement, support program acceptance, or
+published release.
 
 CI builds the Python source distribution and wheel from an exact versioned
 allowlist and audits their contents, bounds, entry points, packaged skills, and

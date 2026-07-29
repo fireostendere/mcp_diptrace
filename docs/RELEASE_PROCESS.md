@@ -19,8 +19,9 @@ Before changing a version or creating a tag:
 1. identify the release manager and an independent reviewer in the release
    record;
 2. identify a working private security channel and conduct-enforcement path;
-3. select an OSI-approved license and finish the ownership, dependency,
-   bundled-content, fixture, documentation, and binary redistribution audits;
+3. confirm the selected OSI-approved license (Apache-2.0) and finish the
+   ownership, dependency, bundled-content, fixture, documentation, and binary
+   redistribution audits;
 4. select the compatibility statement and supported-version window;
 5. freeze the exact commit; and
 6. move user-visible entries from `Unreleased` in

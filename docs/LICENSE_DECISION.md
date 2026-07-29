@@ -2,14 +2,14 @@
 
 ## Current status
 
-No project-wide `LICENSE` file is committed. DipTrace MCP grants no
-project-wide open-source license and must not be announced as open source,
-published to a package index, or opened for general contributions until an
-accountable owner selects an OSI-approved license and completes the ownership
-and redistribution audit.
+The repository owner selected the Apache License 2.0 on 2026-07-29. The full
+license text is committed as [`LICENSE`](../LICENSE), and the SPDX identifier
+`Apache-2.0` is recorded in package and citation metadata. The remaining
+public-release blockers are tracked in
+[PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md).
 
-This is an engineering comparison, not legal advice. It does not select a
-license.
+The comparison below is kept for the record. It is an engineering comparison,
+not legal advice.
 
 ## Decision matrix
 
@@ -56,8 +56,33 @@ notes without provenance cannot become shipped evidence:
 
 ## Selection record
 
-The same commit that adds a project license must record the SPDX identifier,
-copyright holder and years, patent rationale, contribution provenance,
-documentation and fixture treatment, dependency/notice audit, trademark
-review, decision date, and approving Git commit. It must also update package
-metadata, citation metadata, both READMEs, and the public-release checklist.
+The selection commit adds the `LICENSE` file and records the decision here,
+in package metadata, citation metadata, both READMEs, and the public-release
+checklist.
+
+- SPDX identifier: `Apache-2.0`, committed as `LICENSE` and declared in
+  `pyproject.toml` (`license = "Apache-2.0"`) and `CITATION.cff`.
+- Copyright holder and years: the repository owner,
+  [@fireostendere](https://github.com/fireostendere), 2026.
+- Patent rationale: the project distributes an MCP server and a Windows bridge
+  that downstream users combine with proprietary EDA tooling. The express
+  contributor patent license with termination provisions was preferred over
+  MIT's silence on patents, and MPL-2.0 file-level copyleft was not a project
+  goal for bridge and packaged-skill changes.
+- Contribution provenance: general contributions remain closed until DCO, CLA,
+  or equivalent terms are approved; see
+  [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md). Existing commits
+  were authored by the repository owner, who can license them.
+- Documentation and fixture treatment: code, documentation, and packaged
+  skills are covered by the same license. Fixtures and evidence artifacts with
+  unresolved redistribution permission are not distributed: the release
+  allowlist excludes `tests/fixtures/acceptance/` and `docs/private/`.
+- Dependency and notice audit: direct runtime dependencies are `mcp` (MIT),
+  `pydantic` (MIT), and `typing-extensions` (PSF); the optional geometry extra
+  adds `shapely` (BSD-3-Clause). No third-party code is vendored into the
+  repository, so no `NOTICE` file is required. Bundled-content review for the
+  PyInstaller bridge build remains a release-checklist item.
+- Trademark review: DipTrace and Novarm names are used descriptively to
+  identify compatibility; no affiliation or endorsement is claimed.
+- Decision date: 2026-07-29, approved by the repository owner in the commit
+  that adds the `LICENSE` file together with this record.

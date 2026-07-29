@@ -5,8 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        General code contributions are closed while the repository has no
-        project-wide license. This form records a request; it does not promise
+        General code contributions are closed until contribution-provenance
+        terms are approved. This form records a request; it does not promise
         implementation or acceptance of a pull request.
   - type: textarea
     id: problem

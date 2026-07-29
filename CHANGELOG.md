@@ -11,6 +11,8 @@ Version links and release dates will be added only for an actual release.
 
 ### Added
 
+- Apache License 2.0 as the project-wide license (`LICENSE`), with the SPDX
+  identifier `Apache-2.0` in package and citation metadata.
 - Closed-state contribution and governance policies that do not invite
   unlicensed external contributions.
 - A license decision matrix and a factual public-release checklist.
@@ -26,9 +28,9 @@ Version links and release dates will be added only for an actual release.
 
 ### Clarified
 
-- The absence of a project-wide `LICENSE` is a release blocker.
-- The repository must not be described as open source until an accountable
-  owner selects and commits an OSI-approved license.
+- The license release blocker is resolved: Apache-2.0 is committed as
+  `LICENSE`. Security-channel, contribution-provenance, signing, and
+  publication blockers remain open.
 - No community size, adoption, sponsorship, vendor endorsement, signed binary,
   package-index release, or support-program acceptance is asserted.
 - Python wheels intentionally contain the MCP server and eight packaged

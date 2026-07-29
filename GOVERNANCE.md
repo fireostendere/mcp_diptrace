@@ -9,9 +9,10 @@ is asserted.
 
 Repository administration, branch protection, merge access, and any future
 release remain under the GitHub repository owner's control. The repository is
-not open for general contributions because it has no project-wide
-`LICENSE`. [CONTRIBUTING.md](CONTRIBUTING.md) defines the current closed
-contribution policy.
+licensed under the Apache License 2.0 (see [`LICENSE`](LICENSE)), but it is
+not yet open for general contributions because contribution-provenance terms
+are not approved. [CONTRIBUTING.md](CONTRIBUTING.md) defines the current
+closed contribution policy.
 
 ## Decision record
 

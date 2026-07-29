@@ -4,20 +4,23 @@
 
 Audited repository state: 2026-07-29.
 
-**Status: blocked.** The repository has no OSI-approved project-wide license,
-verified private security or conduct channel, approved contribution terms,
-release tag, publication workflow, signed release artifact, or independent
-release reviewer.
+**Status: blocked.** The repository has an OSI-approved project-wide license
+(Apache-2.0, committed as `LICENSE`) but no verified private security or
+conduct channel, approved contribution terms, release tag, publication
+workflow, signed release artifact, or independent release reviewer.
 
 Checked boxes below describe repository facts in the audited state. Unchecked
 boxes are release blockers, not publication claims.
 
 ## Legal, ownership, and redistribution
 
-- [ ] Accountable copyright holder is identified.
-- [ ] OSI-approved project license is selected and committed.
-- [x] MIT, Apache-2.0, and MPL-2.0 tradeoffs are documented without selecting
-      one in [LICENSE_DECISION.md](LICENSE_DECISION.md).
+- [x] Accountable copyright holder is identified: the repository owner in
+      [GOVERNANCE.md](../GOVERNANCE.md).
+- [x] OSI-approved project license is selected and committed: Apache-2.0 as
+      `LICENSE`; rationale in [LICENSE_DECISION.md](LICENSE_DECISION.md).
+- [x] MIT, Apache-2.0, and MPL-2.0 tradeoffs are documented alongside the
+      Apache-2.0 selection record in
+      [LICENSE_DECISION.md](LICENSE_DECISION.md).
 - [ ] Contribution provenance mechanism is approved.
 - [ ] Dependency and bundled-content licenses are reviewed.
 - [ ] Windows bridge and PyInstaller redistribution obligations are reviewed.
@@ -59,7 +62,7 @@ email address or unverified private-report URL would not resolve these gates.
       explicit.
 - [x] Open compatibility questions and human-only experiments are documented.
 - [x] Both READMEs state the license and public-release blocker.
-- [x] Citation metadata does not claim a license or release date.
+- [x] Citation metadata records the Apache-2.0 license and no release date.
 - [x] The changelog does not present development version `0.1.0` as released.
 - [ ] Package-index rendering of README links is verified or made independent
       of repository-relative link resolution.
