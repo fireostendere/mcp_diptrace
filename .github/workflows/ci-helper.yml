@@ -26,23 +26,15 @@ jobs:
 
           path = Path("src/diptrace_mcp/bridge.py")
           text = path.read_text(encoding="utf-8")
-          old = '''    except (OSError, DipTraceMcpError, RuntimeError) as exc:
-              if exchange_path is not None:
-                  _write_fatal_log(exchange_path, exc)
-              _show_fatal(str(exc))
-              return 1
-          '''.replace("          ", "")
-          new = '''    except (OSError, DipTraceMcpError, RuntimeError) as exc:
-              if exchange_path is not None:
-                  _write_fatal_log(exchange_path, exc)
-              if args.headless:
-                  print(str(exc), file=sys.stderr)
-              else:
-                  _show_fatal(str(exc))
-              return 1
-          '''.replace("          ", "")
+          old = "        _show_fatal(str(exc))\n"
+          new = (
+              "        if args.headless:\n"
+              "            print(str(exc), file=sys.stderr)\n"
+              "        else:\n"
+              "            _show_fatal(str(exc))\n"
+          )
           if text.count(old) != 1:
-              raise SystemExit(f"expected one fatal handler, found {text.count(old)}")
+              raise SystemExit(f"expected one fatal call, found {text.count(old)}")
           path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
           '@ | python -
       - run: python -m ruff check --no-cache src/diptrace_mcp/bridge.py
