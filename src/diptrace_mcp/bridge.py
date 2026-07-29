@@ -496,7 +496,10 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, DipTraceMcpError, RuntimeError) as exc:
         if exchange_path is not None:
             _write_fatal_log(exchange_path, exc)
-        _show_fatal(str(exc))
+        if args.headless:
+            print(str(exc), file=sys.stderr)
+        else:
+            _show_fatal(str(exc))
         return 1
 
 
