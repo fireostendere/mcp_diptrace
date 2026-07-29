@@ -19,6 +19,10 @@ Version links and release dates will be added only for an actual release.
 - GitHub issue forms for bugs, feature requests, and compatibility evidence,
   plus a pull-request review template.
 - Citation metadata for the repository's current development state.
+- An exact, versioned release-file allowlist and CI audit for Python source
+  distributions and wheels.
+- Public package metadata for repository, documentation, and issue links,
+  plus EDA-focused classifiers without a premature license classifier.
 
 ### Clarified
 
@@ -27,6 +31,9 @@ Version links and release dates will be added only for an actual release.
   owner selects and commits an OSI-approved license.
 - No community size, adoption, sponsorship, vendor endorsement, signed binary,
   package-index release, or support-program acceptance is asserted.
+- Python wheels intentionally contain the MCP server and eight packaged
+  skills, while Windows bridge installation scripts and settings remain
+  separate source/release assets.
 
 `pyproject.toml` contains development version `0.1.0`. That value is not a
 published release without an approved tag, artifacts, and provenance record.

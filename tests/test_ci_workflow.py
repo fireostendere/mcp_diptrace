@@ -60,6 +60,8 @@ def test_static_analysis_covers_plugin_python_but_excludes_generated_dist() -> N
     assert "--baseline-bytes 121335" in commands
     assert "--max-growth-percent 15" in commands
     assert "generate_mcp_tools_snapshot.py --check" in commands
+    assert "python -m hatchling build -d release-dist" in commands
+    assert "audit_release_artifacts.py --dist-dir release-dist --check-allowlist" in commands
 
     config = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'extend-exclude = ["plugin/dist"]' in config

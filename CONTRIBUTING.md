@@ -53,6 +53,10 @@ Run the maintained gates before review:
 ./.venv/bin/python -m mypy --no-incremental src/diptrace_mcp plugin
 ./.venv/bin/python scripts/generate_pcb_skills.py --check
 ./.venv/bin/python scripts/generate_mcp_tools_snapshot.py --check
+./.venv/bin/python -m hatchling build -d release-dist
+./.venv/bin/python scripts/audit_release_artifacts.py \
+  --dist-dir release-dist \
+  --check-allowlist
 ./.venv/bin/python scripts/extract_spec_inventory.py \
   --sources reference/diptrace-xml/extracted_text \
   --out reference/diptrace-xml/spec_inventory.json \

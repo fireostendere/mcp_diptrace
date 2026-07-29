@@ -117,6 +117,10 @@ jobs:
           --max-growth-percent 15
       - name: Freeze the complete public tools/list contract
         run: python scripts/generate_mcp_tools_snapshot.py --check
+      - name: Build and audit public release artifacts
+        run: |
+          python -m hatchling build -d release-dist
+          python scripts/audit_release_artifacts.py --dist-dir release-dist --check-allowlist
       - run: >-
           python scripts/extract_spec_inventory.py
           --sources reference/diptrace-xml/extracted_text

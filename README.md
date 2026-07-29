@@ -39,6 +39,13 @@ and publication work remain explicit blockers. The repository does not claim
 an existing community, adoption, sponsorship, vendor endorsement, support
 program acceptance, or published release.
 
+CI builds the Python source distribution and wheel from an exact versioned
+allowlist and audits their contents, bounds, entry points, packaged skills, and
+wheel `RECORD`. These are development artifact checks, not a published release.
+The wheel contains the MCP server and packaged skills; complete Windows live
+integration also needs the separately delivered bridge settings, installer,
+and executable.
+
 ## Current Capabilities
 
 - runtime capability discovery through `get_capabilities`, including precise unavailability reasons;

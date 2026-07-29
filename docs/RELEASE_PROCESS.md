@@ -40,6 +40,10 @@ python -m ruff check --no-cache src tests benchmarks scripts plugin
 python -m mypy --no-incremental src/diptrace_mcp plugin
 python scripts/generate_pcb_skills.py --check
 python scripts/generate_mcp_tools_snapshot.py --check
+python -m hatchling build -d release-dist
+python scripts/audit_release_artifacts.py \
+  --dist-dir release-dist \
+  --check-allowlist
 python scripts/extract_spec_inventory.py \
   --sources reference/diptrace-xml/extracted_text \
   --out reference/diptrace-xml/spec_inventory.json \
@@ -62,6 +66,17 @@ Build only from the frozen commit. Inspect:
 - the Windows bridge and its runtime dependencies;
 - dependency, license, attribution, and notice material; and
 - a SHA-256 manifest covering every release artifact.
+
+The committed build hook and release-artifact audit constrain the Python
+archives to an exact versioned allowlist. They do not turn a development build
+into a release and do not cover the Windows bridge executable. Rebuild the
+wheel from the source distribution in the release environment and compare it
+with the direct wheel before publication.
+
+The Python wheel contains the MCP server and eight packaged skills. It does
+not contain the PowerShell build/installer scripts or DipTrace plug-in settings
+needed for complete Windows live-bridge deployment; publish and verify those
+as separate release assets.
 
 The Windows bridge is currently unsigned. A public binary must either be
 signed by an approved identity or carry an explicit, reviewed unsigned-binary

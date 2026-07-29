@@ -188,3 +188,37 @@ def test_readmes_publish_equivalent_data_handling_boundaries() -> None:
         assert section.count("\n- ") == 6
         missing_terms = sorted(term for term in shared_contract_terms if term not in section)
         assert not missing_terms
+
+
+def test_readmes_publish_equivalent_public_release_boundaries() -> None:
+    sections = [
+        _markdown_section(ROOT / "README.md", "Public Release Status"),
+        _markdown_section(ROOT / "README_RU.md", "Статус публичного релиза"),
+    ]
+    shared_contract_terms = {
+        "LICENSE",
+        "open-source",
+        "OSI",
+        "CONTRIBUTING.md",
+        "GOVERNANCE.md",
+        "LICENSE_DECISION.md",
+        "PUBLIC_RELEASE_CHECKLIST.md",
+        "RELEASE_PROCESS.md",
+        "CHANGELOG.md",
+        "CITATION.cff",
+        "security",
+        "Code of Conduct",
+        "source distribution",
+        "wheel",
+        "allowlist",
+        "RECORD",
+        "Windows",
+        "bridge",
+        "installer",
+        "executable",
+    }
+
+    for section in sections:
+        assert section.count("\n- ") == 5
+        missing_terms = sorted(term for term in shared_contract_terms if term not in section)
+        assert not missing_terms

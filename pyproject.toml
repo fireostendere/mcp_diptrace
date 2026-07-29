@@ -9,19 +9,34 @@ description = "Model Context Protocol server and live XML bridge for DipTrace"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "DipTrace MCP contributors" }]
+keywords = ["diptrace", "eda", "mcp", "pcb", "schematic"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
 dependencies = [
   "mcp>=1.28.1,<2",
   "pydantic>=2.11,<3",
   "typing-extensions>=4.12,<5",
 ]
 
+[project.urls]
+Homepage = "https://github.com/fireostendere/mcp_diptrace"
+Documentation = "https://github.com/fireostendere/mcp_diptrace#documentation"
+Issues = "https://github.com/fireostendere/mcp_diptrace/issues"
+Repository = "https://github.com/fireostendere/mcp_diptrace"
+
 [project.optional-dependencies]
 geometry = [
   "shapely>=2.0,<3",
 ]
-preview = []
-routing = []
-simulation = []
 dev = [
   "hatchling>=1.27,<2",
   "hypothesis>=6.135,<7",
@@ -44,8 +59,8 @@ diptrace-mcp-bridge = "diptrace_mcp.bridge:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/diptrace_mcp"]
 
-[tool.hatch.build.targets.wheel.force-include]
-skills = "diptrace_mcp/skills"
+[tool.hatch.build.hooks.custom]
+path = "scripts/hatch_build.py"
 
 [tool.pytest.ini_options]
 addopts = "-ra"

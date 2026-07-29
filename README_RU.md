@@ -38,6 +38,13 @@ Code of Conduct пока нет, поэтому соответствующие �
 adoption, sponsorship, vendor endorsement, участие в support program или
 опубликованный релиз.
 
+CI собирает Python source distribution и wheel по точному versioned allowlist
+и проверяет их содержимое, ограничения, entry points, packaged skills и wheel
+`RECORD`. Это проверки development-артефактов, а не опубликованный релиз.
+Wheel содержит MCP-сервер и packaged skills; для полной live-интеграции на
+Windows также нужны отдельно поставляемые bridge settings, installer и
+executable.
+
 ## Что уже работает
 
 - runtime capability discovery через `get_capabilities`, включая точные причины недоступности;

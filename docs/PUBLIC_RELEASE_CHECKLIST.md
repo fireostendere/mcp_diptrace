@@ -61,6 +61,10 @@ email address or unverified private-report URL would not resolve these gates.
 - [x] Both READMEs state the license and public-release blocker.
 - [x] Citation metadata does not claim a license or release date.
 - [x] The changelog does not present development version `0.1.0` as released.
+- [ ] Package-index rendering of README links is verified or made independent
+      of repository-relative link resolution.
+- [ ] Windows plug-in settings, installer, and bridge-binary delivery are
+      documented and tested separately from the Python wheel.
 - [ ] Final installation instructions are tested from release artifacts.
 - [ ] Announcement text is reviewed only after public URLs and license exist.
 
@@ -81,8 +85,15 @@ email address or unverified private-report URL would not resolve these gates.
 
 ## Artifact and supply-chain controls
 
-- [ ] Clean source distribution and wheel are built under the approved policy.
-- [ ] Wheel content and entry points are inspected.
+- [x] CI builds source distributions and wheels from an exact versioned
+      allowlist and rejects untracked, private, redirected, special, oversized,
+      or unexpected archive members.
+- [x] CI checks wheel entry points, eight packaged skills, project URLs,
+      archive bounds, and every wheel `RECORD` hash and size.
+- [ ] A wheel rebuilt from the frozen source distribution is compared with the
+      direct release wheel in the release environment.
+- [ ] The frozen release wheel is installed and smoke-tested with only its
+      declared dependencies.
 - [ ] Windows bridge contents and runtime dependencies are inspected.
 - [ ] Artifact SHA-256 manifest is generated.
 - [ ] Signing identity is configured, or a reviewed unsigned policy is
