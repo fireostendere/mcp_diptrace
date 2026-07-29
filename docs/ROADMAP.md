@@ -196,6 +196,17 @@ client with authority over the separate package-owned registry. That registry is
 implemented but currently has zero independently reviewed entries, so no current
 document is promoted to high trust.
 
+The narrower discovery-budget measurement intentionally counts only tool name,
+description, and input schema. A separate Phase-9 prerequisite now freezes the
+complete non-null public `Tool` model, including output schemas and any future
+titles, annotations, icons, metadata, or execution fields. The committed
+[snapshot](../reference/mcp-tools-list.snapshot.json) contains 158 name-sorted
+tools; its canonical descriptor is 138,640 UTF-8 bytes with SHA-256
+`6116c97dc7bb09120dffc34aad602642f88532ab80b78c366fddf148aaba882f`.
+It is produced only through the public in-memory MCP transport, and CI fails on
+any unregenerated contract drift. This snapshot is the required behavioural
+baseline before the service/compiler/store decomposition begins.
+
 ### Public MCP workflow checkpoint — 2026-07-28
 
 CI now executes a fixture-driven in-memory MCP workflow through the public

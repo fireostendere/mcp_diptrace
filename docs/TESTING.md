@@ -15,6 +15,7 @@ pytest -q --cov=src/diptrace_mcp --cov-report=term \
 python scripts/check_coverage.py coverage.json
 python scripts/ingest_fixtures.py --dry-run --synthetic --json
 python scripts/measure_mcp_surface.py --baseline-bytes 121335 --max-growth-percent 15
+python scripts/generate_mcp_tools_snapshot.py --check
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 python -m benchmarks.benchmark_large_board --components 500
 ```
@@ -29,8 +30,8 @@ CI responsibilities:
   absent, executes the real pure-Python geometry probe, and runs the
   fallback-focused regression files;
 - Ruff and strict Mypy over the server plus hand-maintained `plugin/` Python,
-  consolidated-skill manifest/wheel/link checks, and the read-only acceptance-seed audit on
-  Linux/Python 3.12;
+  consolidated-skill manifest/wheel/link checks, an exact public `tools/list`
+  snapshot check, and the read-only acceptance-seed audit on Linux/Python 3.12;
 - a deterministic, temporary `ingest_fixtures.py --dry-run --synthetic` run
   that validates the candidate/hash/path and embedded-registry inspection
   pipeline without writing or granting trust;
@@ -39,6 +40,15 @@ CI responsibilities:
 - native Windows build and non-empty verification of `diptrace_mcp_bridge.exe`.
 
 Core CI does not require DipTrace, Java/Freerouting, ngspice, openEMS, or network access.
+
+The committed [public tool snapshot](../reference/mcp-tools-list.snapshot.json) is
+captured through an in-memory MCP client/server transport. It contains every
+non-null field of every wire-level `Tool`, sorted by tool name, plus the SHA-256
+and byte length of a canonical UTF-8 descriptor array. This is the
+behaviour-preservation baseline for Phase 9 decomposition. Any intended tool
+name, description, input/output schema, annotation, icon, metadata, title, or
+execution-contract change must regenerate the snapshot in the same commit;
+`--check` reports drift and never rewrites it.
 
 The acceptance-seed audit currently reports `status: "no_seeds"` and
 `seed_count: 0`. It validates a future committed v2 manifest, provenance

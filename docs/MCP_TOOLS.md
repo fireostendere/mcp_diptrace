@@ -4,6 +4,15 @@ The complete runtime tool list must be requested through MCP `tools/list`. Actua
 
 A registered tool is not the same as a DipTrace-verified write path. The project intentionally distinguishes implementation, runtime availability, and real DipTrace round-trip evidence.
 
+The exact current discovery contract is committed as
+[`reference/mcp-tools-list.snapshot.json`](../reference/mcp-tools-list.snapshot.json).
+It is captured through public MCP `tools/list`, not FastMCP internals, and covers
+all non-null wire-level `Tool` fields. Its canonical descriptor is 138,640 UTF-8
+bytes with SHA-256
+`6116c97dc7bb09120dffc34aad602642f88532ab80b78c366fddf148aaba882f`
+across 158 tools. CI requires byte-for-byte regeneration parity before the
+Phase 9 behaviour-preserving decomposition may proceed.
+
 ## Input Schemas, Units, and Errors
 
 All geometric tool descriptions state the normalization rule used by the API: all distances are

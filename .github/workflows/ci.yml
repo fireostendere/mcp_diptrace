@@ -115,6 +115,8 @@ jobs:
           python scripts/measure_mcp_surface.py
           --baseline-bytes 121335
           --max-growth-percent 15
+      - name: Freeze the complete public tools/list contract
+        run: python scripts/generate_mcp_tools_snapshot.py --check
       - run: >-
           python scripts/extract_spec_inventory.py
           --sources reference/diptrace-xml/extracted_text

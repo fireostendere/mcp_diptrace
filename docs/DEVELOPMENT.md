@@ -60,6 +60,7 @@ py -3.12 -m venv .venv
 
 ```bash
 python scripts/generate_pcb_skills.py --check
+python scripts/generate_mcp_tools_snapshot.py --check
 pytest -q
 ruff check --no-cache src tests benchmarks scripts plugin
 python -m compileall -q src tests
@@ -140,8 +141,10 @@ review of the FastMCP API, MCP Inspector, transports, and client configuration.
 2. Add a fixture, or extend an existing fixture with the smallest official XML fragment required.
 3. Cover the pure function with a test.
 4. Register a thin wrapper in `server.py`.
-5. Update the tool table in `docs/USAGE.md`.
-6. Update `get_capabilities`, limitations, and the relevant skill contract.
+5. Regenerate `reference/mcp-tools-list.snapshot.json`; inspect the complete
+   public descriptor diff rather than accepting it mechanically.
+6. Update the tool table in `docs/USAGE.md`.
+7. Update `get_capabilities`, limitations, and the relevant skill contract.
 
 ## Format Rules
 
