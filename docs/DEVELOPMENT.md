@@ -29,14 +29,16 @@ plugin/
   build_bridge.ps1     PyInstaller build
   install_plugin.ps1
 scripts/
-  generate_pcb_skills.py  reproducible PCB skill-package generator
+  generate_pcb_skills.py  consolidated-skill validator and hash-manifest generator
 skills/
-  catalog.json         authoritative workflow inventory
-  capability-map.json  runtime aliases, limitations, and unavailable contracts
-  */SKILL.md            generated English agent workflows
+  catalog.json         authoritative eight-workflow inventory
+  capability-map.json  runtime tools, limitations, and unavailable contracts
+  shared/              one result schema for every skill
+  */SKILL.md            concise source-authored agent workflows shipped in the wheel
+  SOURCES.sha256        reproducible source and evidence-CLI mirror hashes
 tests/
   fixtures/            minimal PCB and Schematic XML
-  test_skill_packages.py  executable skill contract and eval-data checks
+  test_skill_packages.py  skill capability, link, wheel, hash, and forward-path checks
 ```
 
 ## Environment
@@ -81,8 +83,12 @@ python scripts/mcp_smoke.py --transport stdio
 
 Tests do not require an installed DipTrace application and operate on XML fixtures. The
 real MCP SDK and Pydantic v2 are used; shadow compatibility shims are prohibited.
-Package-local files under `skills/*/evals/` are declarative test data consumed by
-`tests/test_skill_packages.py`; they are not a second executable test suite.
+The eight source-authored skill packages have no package-local `agents/`, `evals/`,
+examples, or duplicated schemas. `tests/test_skill_packages.py` resolves every
+advertised capability against the public tool registry, verifies all source and
+installed-wheel links, checks the one shared result schema, executes the trust-neutral
+evidence dry-run, and builds a wheel capped at 400 KiB. The two packaged evidence CLIs
+must remain byte-identical to their maintained root scripts.
 
 ## Local Run
 

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Library Quality Audit"
-  short_description: "DipTrace: Library Quality Audit"
-  default_prompt: "Use $library-quality-audit: Audit libraries in <scope>, identify defects, and prepare guarded repair plans."

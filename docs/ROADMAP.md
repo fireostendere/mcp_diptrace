@@ -246,6 +246,29 @@ synthetic stand-in procedure lives in
 temporary directory, and is explicitly not DipTrace evidence. Real exports and
 the independent reviewed authority decision remain human-gated.
 
+### WO-17 skill consolidation checkpoint — 2026-07-29
+
+The former 57-package, approximately 4.4 MiB duplicated skill catalog is replaced
+by eight distinct source-authored workflows selected through a committed mechanical
+survival rule. Package-local `agents/`, `evals/`, examples, and 57 near-identical
+result schemas are gone. The survivors cover project intake, library audit, schematic
+ERC, testpoint planning, critical-net routing, SI review, release gating, and
+operator-assisted evidence capture through one shared evidence-typed result schema.
+
+Skills are now actual wheel package data under `diptrace_mcp/skills`; a measured
+no-dependency wheel is 370,166 bytes, below the 400 KiB delivery ceiling. CI resolves
+every advertised capability against the registered MCP surface, checks source and
+installed-wheel links, rejects the former external-solver contradiction, verifies
+byte-identical packaged evidence CLIs and their generated hash manifest, and executes
+the trust-neutral synthetic ingest forward path outside the acceptance fixture tree.
+
+The evidence skill keeps the candidate -> dry-run ingest -> exact-SHA MCP validation
+-> explicit operator confirmation -> metadata-record sequence. It cannot grant trusted
+authority or modify acceptance fixtures. The SI skill distinguishes analytical
+single-ended microstrip, coupled differential microstrip, and single-ended symmetric
+stripline from unavailable differential stripline and separately configured ngspice/
+openEMS adapters.
+
 Current practical classification:
 
 | Area | Status | Main remaining gap |

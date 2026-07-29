@@ -5,6 +5,21 @@ and safety enforcement. The model selects critical nets, functional groups, trad
 and remediation strategy. Every write workflow must read capabilities and the source
 SHA, show a preview, and run post-write checks.
 
+## Delivered Catalog
+
+The wheel ships eight source-authored skills: project intake, library quality audit,
+schematic ERC review, testpoint planning, critical-net routing, signal-integrity review,
+release gating, and operator-assisted evidence capture. The
+[mechanical survival criteria](../skills/SURVIVAL_CRITERIA.md) reduced the former 57
+duplicated packages to distinct user outcomes. All eight share
+[one result schema](../skills/shared/result.schema.json); no package-local eval suite,
+agent metadata, example result, or duplicated schema is shipped.
+
+The evidence skill also ships byte-identical copies of the maintained capture and
+dry-run ingest CLIs. Its candidate -> ingest dry-run -> MCP validation -> explicit
+operator confirmation -> metadata-record sequence cannot promote trust or modify the
+acceptance fixture tree.
+
 ## Release Review
 
 `review_board_before_release`: information/capabilities -> board/connectivity/stackup ->
@@ -67,5 +82,6 @@ sourcing is unavailable; substitution remains a model decision.
 `compare_schematic_and_pcb`: exact document pair -> compare RefDes, values, nets, and
 endpoints. Stop before edits on ambiguous pin-to-pad mapping or a changed SHA.
 
-All listed contracts are also exposed as concise MCP prompts. This document is the
-expanded contract for external skills.
+The server also exposes concise MCP prompts for several lower-level contracts. Prompt
+count is independent of the eight delivered skill packages; a prompt or registered tool
+does not by itself qualify a distinct wheel-shipped skill.

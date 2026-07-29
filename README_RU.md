@@ -298,6 +298,18 @@ Persistent feedback/recommendation tools — `record_pattern_example`, `accept_p
 
 Создание или изменение native Pattern/Component Libraries остаётся заблокировано до controlled DipTrace 5.3 before/after и open/save/re-export fixtures, подтверждающих writer semantics.
 
+## Поставляемые агентские скиллы
+
+Wheel теперь включает восемь компактных workflows в `diptrace_mcp/skills`: project intake,
+library audit, schematic ERC review, testpoint planning, critical-net routing, signal-integrity
+review, release gating и operator-assisted evidence capture. Они используют одну общую result
+schema и выбраны по письменному механическому survival rule; прежний дублированный каталог из
+57 пакетов не поставляется.
+
+Скиллы оркестрируют зарегистрированные MCP tools и два поставляемых evidence CLI. Они не добавляют
+скрытых EDA capabilities, не повышают trust evidence и не переопределяют runtime
+`get_capabilities`. См. [поставляемый каталог и ограничения](skills/README.md).
+
 ## Известные ограничения
 
 - сервер не автоматизирует GUI DipTrace;

@@ -29,7 +29,7 @@ CI responsibilities:
   absent, executes the real pure-Python geometry probe, and runs the
   fallback-focused regression files;
 - Ruff and strict Mypy over the server plus hand-maintained `plugin/` Python,
-  generated-skill checks, and the read-only acceptance-seed audit on
+  consolidated-skill manifest/wheel/link checks, and the read-only acceptance-seed audit on
   Linux/Python 3.12;
 - a deterministic, temporary `ingest_fixtures.py --dry-run --synthetic` run
   that validates the candidate/hash/path and embedded-registry inspection
@@ -143,7 +143,10 @@ The maintained suite covers:
   for clearance/A*, BOM review, schematic/PCB comparison, and generic exports;
 - CSV-injection protection;
 - MCP tool/resource/prompt contracts;
-- generated PCB skill packages, strict schemas/examples, dependency contracts, write-order guards, and false-success rejection.
+- eight wheel-shipped PCB skills, one strict shared result schema, registered-capability
+  parity, source and installed-wheel link resolution, byte-identical evidence CLI
+  mirrors, staged operator handoff guards, a trust-neutral synthetic forward path, and
+  a 400 KiB wheel ceiling.
 
 ## MCP Protocol Coverage
 

@@ -298,6 +298,18 @@ After that baseline is stronger, the planned path is an append-only provenance-b
 
 Native Pattern/Component Library creation or mutation remains blocked until controlled DipTrace 5.3 before/after and open/save/re-export fixtures prove writer semantics.
 
+## Shipped Agent Skills
+
+The wheel now includes eight compact workflows under `diptrace_mcp/skills`: project intake,
+library audit, schematic ERC review, testpoint planning, critical-net routing, signal-integrity
+review, release gating, and operator-assisted evidence capture. They share one result schema and
+are selected by a written mechanical survival rule; the former 57-package duplicated catalog is
+not shipped.
+
+Skills orchestrate registered MCP tools and the two packaged evidence CLIs. They do not add hidden
+EDA capabilities, grant evidence trust, or override runtime `get_capabilities`. See
+[the shipped catalog and limits](skills/README.md).
+
 ## Known Limits
 
 - The server does not automate the DipTrace GUI.

@@ -43,6 +43,9 @@ diptrace-mcp-bridge = "diptrace_mcp.bridge:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/diptrace_mcp"]
 
+[tool.hatch.build.targets.wheel.force-include]
+skills = "diptrace_mcp/skills"
+
 [tool.pytest.ini_options]
 addopts = "-ra"
 pythonpath = ["src"]

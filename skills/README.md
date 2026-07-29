@@ -1,69 +1,54 @@
-# PCB Skills for DipTrace MCP
+# DipTrace MCP skills
 
-This catalog contains the skill packages selected by [catalog.json](catalog.json), which is the source of truth for package inventory and workflow-specific content.
+This wheel ships eight compact workflows selected by
+[the mechanical survival rule](SURVIVAL_CRITERIA.md). They are agent instructions over the
+registered MCP/CLI surface, not additional EDA engines and not proof of DipTrace compatibility.
 
-## Package Structure
+## Installed catalog
 
-Each package lives under `skills/<slug>/` and contains:
+| Skill | Mode | Use it for |
+| --- | --- | --- |
+| [`pcb-project-intake`](pcb-project-intake/SKILL.md) | read-only | project identity, scope, rules, and model inventory |
+| [`library-quality-audit`](library-quality-audit/SKILL.md) | read-only | component/pattern validation without mutation |
+| [`schematic-erc-review`](schematic-erc-review/SKILL.md) | read-only | ERC, connectivity, BOM, and engineering triage |
+| [`testpoint-planner`](testpoint-planner/SKILL.md) | guarded write | explicit standalone-pad testpoint coverage |
+| [`critical-net-router`](critical-net-router/SKILL.md) | guarded write | bounded single-net or coupled-pair routing |
+| [`signal-integrity-review`](signal-integrity-review/SKILL.md) | read-only | analytical impedance, return path, and configured solvers |
+| [`release-gate`](release-gate/SKILL.md) | read-only | explicit evidence-based release decision |
+| [`diptrace-evidence-capture`](diptrace-evidence-capture/SKILL.md) | operator-assisted | quarantined round-trip evidence candidates |
 
-- `SKILL.md`: the executable workflow contract;
-- `agents/openai.yaml`: display metadata and the default prompt;
-- `schemas/result.schema.json`: the strict result JSON Schema;
-- `examples/result.example.json`: a schema-valid representative result;
-- `evals/scenarios.json`: behavioral input scenarios;
-- `evals/assertions.json`: expected tool, safety, degradation, and output assertions.
+All results use [one shared schema](shared/result.schema.json). Every finding and measurement labels
+its evidence as `caller`, `document`, `analytical`, `heuristic`, `external_solver`, or `operator`;
+one class must never be silently promoted to another.
 
-Add this catalog to the agent platform's skill roots. The platform discovers a package through `skills/<slug>/SKILL.md` and reads interface metadata from the adjacent `agents/openai.yaml`. See [pcb-project-intake/SKILL.md](pcb-project-intake/SKILL.md) and [pcb-project-intake/agents/openai.yaml](pcb-project-intake/agents/openai.yaml).
+## Safety and discovery
 
-## Capability Discovery
+Start with `diptrace_status`, then `get_capabilities`; document-bound runs also freeze the SHA-256
+returned by `get_document_info`. Exact callable names come from public `tools/list`; capability
+reports supply session, document, policy, feature, and configured-adapter availability rather than
+an exact tool-name inventory.
+[The capability map](capability-map.json) records repository-revision scope and limitations but
+does not override discovery.
 
-Every skill starts in this strict order: `diptrace_status` -> `get_capabilities`. A document-bound workflow then resolves the exact target through `get_document_info` and captures its SHA-256; a genuine pre-design workflow instead records `pre_design` applicability and hashes its normalized input bundle. Capability names in the catalog are target contracts, not promises that identically named MCP tools exist. [capability-map.json](capability-map.json) records runtime aliases, limitations, missing contracts, and context-specific incompatibilities.
+Writes require dry-run staging, bounded preview, validation, explicit confirmation, an
+`expected_sha256` commit, and applicable post-checks. The shared implementation limits are
+100 staged operations and 500 conservatively counted affected objects/elements per write; the
+counter includes normalized, changed-XML, and compiler-only identities, so it may refuse fewer
+unique physical objects. Runtime capabilities remain authoritative.
 
-When a required capability is absent, a skill must not imitate it with a heuristic or call an invented tool name. It returns `blocked_by_capability` with a dependency report, or `partial` when independent stages remain valid. An unavailable capability blocks only dependent stages, while `completed` is forbidden if a mandatory check was skipped.
+## Delivery and verification
 
-[dependency-contracts.json](dependency-contracts.json) defines exact inputs, outputs, and invariants for unavailable integrations. These are extension contracts for a future MCP tool or adapter, not hidden fallback implementations.
+`skills/` is force-included in the wheel as `diptrace_mcp/skills/`; no separate install step is
+required. The evidence package contains byte-identical mirrors of the capture and dry-run ingest
+CLIs so an installed wheel keeps the operator workflow.
 
-## Execution Modes
-
-- `read_only`: reads and reports only; transactions and design changes are forbidden.
-- `preview_write`: permits writes only through status/capabilities -> document SHA -> scope and locks -> typed semantic operation with `dry_run=true` -> preview -> validation -> explicit `commit_transaction(..., expected_sha256=...)` confirmation -> applicable ERC/DRC/connectivity checks -> stop or rollback on regression.
-- `artifact_export`: creates bounded external artifacts without mutating the source design; prerequisites, validation, a manifest, and SHA-256 evidence remain mandatory. The mode does not imply that a requested native exporter is installed.
-
-Locked objects, keepouts, user constraints, explicit no-connects, DNP state, and waivers are preserved in every mode.
-
-## Validation
-
-From the repository root:
-
-```bash
-.venv/bin/python scripts/generate_pcb_skills.py --check
-.venv/bin/python -m pytest -q tests/test_skill_packages.py
-```
-
-`--check` verifies that every catalog-selected package is reproducible from its sources and contains no hand-edited drift. Pytest is the only executable skill test suite; it validates structure, schemas, examples, capability mappings, scenarios, and eval assertions. Files under each package's `evals/` directory are test data consumed by that central suite, not a second test runner.
-
-For an additional frontmatter and naming check, run `quick_validate.py` from an installed `skill-creator` package:
-
-```bash
-.venv/bin/python path/to/skill-creator/scripts/quick_validate.py skills/pcb-project-intake
-```
-
-This external validator requires PyYAML. Use an environment that includes it; a missing validator dependency is not a skill validation failure.
-
-## Updating Packages
-
-Do not edit generated files under `skills/<slug>/` directly. Change these sources instead:
-
-1. [catalog.json](catalog.json): purpose, inputs, capabilities, workflow, outputs, acceptance criteria, and execution mode;
-2. [capability-map.json](capability-map.json): runtime aliases, limitations, and context overrides;
-3. [dependency-contracts.json](dependency-contracts.json): exact contracts for unavailable MCP or adapter capabilities.
-
-Regenerate and verify packages after changing a source:
+From a source checkout:
 
 ```bash
-.venv/bin/python scripts/generate_pcb_skills.py
-.venv/bin/python scripts/generate_pcb_skills.py --check
-.venv/bin/python -m pytest -q tests/test_skill_packages.py
+python scripts/generate_pcb_skills.py --check
+python -m pytest -q tests/test_skill_packages.py
+python -m pip wheel --no-deps --no-build-isolation --wheel-dir /tmp/diptrace-wheel .
 ```
 
-When the catalog gains a new slug whose directory does not exist, run the generator with `--initialize --init-script` and the path to `skill-creator`'s `init_skill.py`. The generator remains authoritative after initialization.
+`SOURCES.sha256` is generated from every delivered skill artifact and verifies that the packaged
+CLI mirrors match their maintained root scripts.
