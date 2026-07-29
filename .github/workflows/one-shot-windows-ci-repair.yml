@@ -1,0 +1,34 @@
+name: One-shot Windows CI repair
+
+on:
+  push:
+    branches:
+      - fix/ci-green-clean
+    paths:
+      - scripts/apply_windows_ci_fixes_once.py
+      - .github/workflows/one-shot-windows-ci-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/ci-green-clean
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Apply focused Windows fixes
+        run: python scripts/apply_windows_ci_fixes_once.py
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .gitattributes plugin/install_plugin.ps1 scripts/ingest_fixtures.py skills/diptrace-evidence-capture/scripts/ingest_fixtures.py skills/SOURCES.sha256 tests/test_ingest_fixtures.py tests/test_plugin_settings.py tests/test_probe_pack.py
+          git diff --cached --check
+          git commit -m "fix: make Windows validation deterministic"
+          git push origin HEAD:fix/ci-green-clean
