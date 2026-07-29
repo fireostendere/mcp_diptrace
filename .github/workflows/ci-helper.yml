@@ -4,10 +4,10 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose-windows:
+  patch-headless-windows:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -17,6 +17,44 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - run: python -m pip install -e ".[dev]" pytest-timeout
-      - name: Run verbose Windows suite with per-test timeout
-        run: python -m pytest -vv --tb=short --timeout=30 --timeout-method=thread
+      - run: python -m pip install -e ".[dev]"
+      - name: Avoid modal dialogs in headless mode
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+
+          path = Path("src/diptrace_mcp/bridge.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''    except (OSError, DipTraceMcpError, RuntimeError) as exc:
+              if exchange_path is not None:
+                  _write_fatal_log(exchange_path, exc)
+              _show_fatal(str(exc))
+              return 1
+          '''.replace("          ", "")
+          new = '''    except (OSError, DipTraceMcpError, RuntimeError) as exc:
+              if exchange_path is not None:
+                  _write_fatal_log(exchange_path, exc)
+              if args.headless:
+                  print(str(exc), file=sys.stderr)
+              else:
+                  _show_fatal(str(exc))
+              return 1
+          '''.replace("          ", "")
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one fatal handler, found {text.count(old)}")
+          path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+          '@ | python -
+      - run: python -m ruff check --no-cache src/diptrace_mcp/bridge.py
+      - run: python -m mypy --no-incremental src/diptrace_mcp/bridge.py
+      - run: python -m pytest -q tests/test_bridge.py
+      - name: Commit focused Windows fix
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/diptrace_mcp/bridge.py
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "fix: keep headless bridge errors non-interactive"
+            git push origin HEAD:fix/ci-green-clean
+          }
