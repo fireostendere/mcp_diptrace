@@ -30,8 +30,10 @@ hash and does not replace the exchange file.
 
 The full `QuerySelector`, PCB scaffold, synchronization, panelization, and route-connection
 schemas are available once in the JSON schema catalog at `diptrace://schemas/tool-inputs`. They
-are referenced instead of being duplicated across dozens of tool schemas, keeping `tools/list`
-within its measured token budget.
+are referenced from the corresponding object parameter through `x-diptrace-schema` instead of
+being duplicated across dozens of tool schemas. The public signatures no longer fall back to
+`dict[str, Any]`; runtime model validation remains authoritative while `tools/list` stays within
+its measured token budget.
 
 Opaque IDs are provenance-bound: object/stable IDs come from `query_objects` or normalized
 model/list tools; transaction, plan, report, export, and job IDs come from the corresponding

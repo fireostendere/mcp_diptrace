@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import math
+from pathlib import Path
 from typing import get_args
 
 import pytest
@@ -37,6 +39,8 @@ from diptrace_mcp.server import (
 )
 from diptrace_mcp.silkscreen import SilkscreenPlanConfig
 from diptrace_mcp.synchronization import ComponentSyncMapping, SyncPlacement
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_stage_operation_kind_schema_matches_parser_registry() -> None:
@@ -146,6 +150,81 @@ def _property_names(value: object) -> set[str]:
             names.update(_property_names(child))
         return names
     return set()
+
+
+def _schema_resource_references(value: object) -> set[str]:
+    if isinstance(value, dict):
+        references = {
+            str(value["x-diptrace-schema"])
+            for key in ("x-diptrace-schema",)
+            if key in value
+        }
+        for child in value.values():
+            references.update(_schema_resource_references(child))
+        return references
+    if isinstance(value, list):
+        references: set[str] = set()
+        for child in value:
+            references.update(_schema_resource_references(child))
+        return references
+    return set()
+
+
+def test_schema_backed_object_inputs_are_typed_without_inlining_large_models() -> None:
+    server = create_server()
+    selector_tools = {
+        name
+        for name, tool in server._tool_manager._tools.items()
+        if "selector" in tool.parameters.get("properties", {})
+    }
+    assert len(selector_tools) == 37
+    for name in selector_tools:
+        selector = server._tool_manager._tools[name].parameters["properties"]["selector"]
+        assert _schema_resource_references(selector) == {
+            "diptrace://schemas/tool-inputs#/query_selector"
+        }, name
+
+    expected = {
+        ("sync_schematic_to_pcb", "component_mappings"): "component_sync_mapping",
+        ("sync_schematic_to_pcb", "placement"): "sync_placement",
+        ("create_pcb_document", "pcb"): "pcb_scaffold",
+        ("set_panelization", "panel"): "panelization",
+        ("route_connections", "connections"): "route_connection",
+        ("analyze_routing_congestion", "connections"): "route_connection",
+    }
+    for (tool_name, parameter_name), fragment in expected.items():
+        parameter = server._tool_manager._tools[tool_name].parameters["properties"][
+            parameter_name
+        ]
+        assert _schema_resource_references(parameter) == {
+            f"diptrace://schemas/tool-inputs#/{fragment}"
+        }
+
+
+def test_public_tool_parameters_do_not_fall_back_to_dict_str_any() -> None:
+    tree = ast.parse((ROOT / "src" / "diptrace_mcp" / "server.py").read_text())
+    untyped: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        is_tool = any(
+            isinstance(decorator, ast.Call)
+            and isinstance(decorator.func, ast.Attribute)
+            and decorator.func.attr == "tool"
+            for decorator in node.decorator_list
+        )
+        if not is_tool:
+            continue
+        arguments = [
+            *node.args.posonlyargs,
+            *node.args.args,
+            *node.args.kwonlyargs,
+        ]
+        for argument in arguments:
+            annotation = ast.unparse(argument.annotation) if argument.annotation else ""
+            if "dict[str, Any]" in annotation:
+                untyped.append(f"{node.name}.{argument.arg}")
+    assert untyped == []
 
 
 def test_geometric_tool_descriptions_disclose_millimetre_normalization() -> None:

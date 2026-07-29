@@ -113,6 +113,7 @@ class RoundtripEvidenceInput(BaseModel):
 DISTANCE_UNITS_DESCRIPTION = (
     "All distances are in millimetres, regardless of the document's own Units attribute."
 )
+_INPUT_SCHEMA_RESOURCE = "diptrace://schemas/tool-inputs"
 FormatVersionInput = Annotated[
     str,
     Field(
@@ -142,7 +143,56 @@ ExpectedLiveWorkingSha256Input = Annotated[
         ),
     ),
 ]
-_INPUT_SCHEMA_RESOURCE = "diptrace://schemas/tool-inputs"
+SelectorInput = Annotated[
+    dict[str, object],
+    Field(
+        json_schema_extra={
+            "x-diptrace-schema": f"{_INPUT_SCHEMA_RESOURCE}#/query_selector"
+        }
+    ),
+]
+ComponentSyncMappingInput = Annotated[
+    dict[str, object],
+    Field(
+        json_schema_extra={
+            "x-diptrace-schema": (
+                f"{_INPUT_SCHEMA_RESOURCE}#/component_sync_mapping"
+            )
+        }
+    ),
+]
+SyncPlacementInput = Annotated[
+    dict[str, object],
+    Field(
+        json_schema_extra={
+            "x-diptrace-schema": f"{_INPUT_SCHEMA_RESOURCE}#/sync_placement"
+        }
+    ),
+]
+PcbScaffoldInput = Annotated[
+    dict[str, object],
+    Field(
+        json_schema_extra={
+            "x-diptrace-schema": f"{_INPUT_SCHEMA_RESOURCE}#/pcb_scaffold"
+        }
+    ),
+]
+PanelizationInput = Annotated[
+    dict[str, object],
+    Field(
+        json_schema_extra={
+            "x-diptrace-schema": f"{_INPUT_SCHEMA_RESOURCE}#/panelization"
+        }
+    ),
+]
+RouteConnectionInput = Annotated[
+    dict[str, object],
+    Field(
+        json_schema_extra={
+            "x-diptrace-schema": f"{_INPUT_SCHEMA_RESOURCE}#/route_connection"
+        }
+    ),
+]
 _GEOMETRIC_FIELD_NAMES = {
     "absolute_x",
     "absolute_y",
@@ -493,8 +543,8 @@ def create_server(
     def sync_schematic_to_pcb(
         schematic_path: str,
         pcb_path: str,
-        component_mappings: list[dict[str, Any]] | None = None,
-        placement: dict[str, Any] | None = None,
+        component_mappings: list[ComponentSyncMappingInput] | None = None,
+        placement: SyncPlacementInput | None = None,
         pattern_library_paths: list[str] | None = None,
         update_existing_properties: bool = True,
         create_ratlines: bool = True,
@@ -563,7 +613,7 @@ def create_server(
     @mcp.tool()
     def query_objects(
         path: str | None = None,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         offset: int = 0,
         limit: int = 100,
         sort_by: str = "stable_id",
@@ -669,7 +719,7 @@ def create_server(
     @mcp.tool()
     def create_pcb_document(
         path: str,
-        pcb: dict[str, Any] | None = None,
+        pcb: PcbScaffoldInput | None = None,
         units: Literal["mm", "inch", "mil"] = "mm",
         format_version: FormatVersionInput = DEFAULT_FORMAT_VERSION,
         overwrite: bool = False,
@@ -764,7 +814,7 @@ def create_server(
 
     @mcp.tool()
     def move_components(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         dx: float = 0.0,
         dy: float = 0.0,
         absolute_x: float | None = None,
@@ -794,7 +844,7 @@ def create_server(
     @mcp.tool()
     def set_component_value(
         value: str,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -806,7 +856,7 @@ def create_server(
     @mcp.tool()
     def rotate_components(
         angle_deg: float,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         mode: Literal["absolute", "relative"] = "relative",
         path: str | None = None,
         dry_run: bool = True,
@@ -831,7 +881,7 @@ def create_server(
     @mcp.tool()
     def set_component_side(
         side: Literal["Top", "Bottom"],
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -845,7 +895,7 @@ def create_server(
 
     @mcp.tool()
     def lock_components(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -858,7 +908,7 @@ def create_server(
 
     @mcp.tool()
     def unlock_components(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -871,7 +921,7 @@ def create_server(
 
     @mcp.tool()
     def set_component_properties(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         name: str | None = None,
         value: str | None = None,
         refdes: str | None = None,
@@ -898,7 +948,7 @@ def create_server(
 
     @mcp.tool()
     def set_component_pattern(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         pattern_style: str,
         path: str | None = None,
         dry_run: bool = True,
@@ -919,7 +969,7 @@ def create_server(
 
     @mcp.tool()
     def align_components(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         alignment: Literal["left", "center_x", "right", "top", "center_y", "bottom"],
         target_value: float | None = None,
         path: str | None = None,
@@ -942,7 +992,7 @@ def create_server(
 
     @mcp.tool()
     def distribute_components(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         axis: Literal["x", "y"],
         mode: Literal["centers", "gaps"] = "centers",
         spacing: float | None = None,
@@ -967,7 +1017,7 @@ def create_server(
 
     @mcp.tool()
     def group_components(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         group_id: int | None = None,
         path: str | None = None,
         dry_run: bool = True,
@@ -988,7 +1038,7 @@ def create_server(
 
     @mcp.tool()
     def ungroup_components(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         remove_empty_groups: bool = True,
         path: str | None = None,
         dry_run: bool = True,
@@ -1010,14 +1060,14 @@ def create_server(
     @mcp.tool()
     def list_board_texts(
         path: str | None = None,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
     ) -> dict[str, Any]:
         """List free board text and component silk/assembly markings."""
         return service.list_board_texts(path, selector)
 
     @mcp.tool()
     def move_board_texts(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         dx: float = 0.0,
         dy: float = 0.0,
         absolute_x: float | None = None,
@@ -1045,7 +1095,7 @@ def create_server(
     @mcp.tool()
     def rotate_board_texts(
         angle_deg: float,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         mode: Literal["absolute", "relative"] = "relative",
         path: str | None = None,
         dry_run: bool = True,
@@ -1068,7 +1118,7 @@ def create_server(
     @mcp.tool()
     def set_text_visibility(
         visibility: Literal["Show", "Hide", "Common"],
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1088,7 +1138,7 @@ def create_server(
 
     @mcp.tool()
     def set_text_style(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         font_size: int | None = None,
         font_width: float | None = None,
         horizontal_align: Literal["Left", "Center", "Right"] | None = None,
@@ -1118,7 +1168,7 @@ def create_server(
     @mcp.tool()
     def set_pin_no_connect(
         no_connect: bool,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1132,7 +1182,7 @@ def create_server(
     @mcp.tool()
     def set_component_fields(
         fields: dict[str, str],
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1153,7 +1203,7 @@ def create_server(
     @mcp.tool()
     def rename_net(
         new_name: str,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1242,7 +1292,7 @@ def create_server(
 
     @mcp.tool()
     def disconnect_pins(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1280,7 +1330,7 @@ def create_server(
 
     @mcp.tool()
     def delete_wire(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1309,7 +1359,7 @@ def create_server(
 
     @mcp.tool()
     def set_panelization(
-        panel: dict[str, Any],
+        panel: PanelizationInput,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1360,7 +1410,7 @@ def create_server(
     @mcp.tool()
     def assign_nets_to_class(
         class_name: str,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1426,7 +1476,7 @@ def create_server(
     @mcp.tool()
     def list_testpoints(
         path: str | None = None,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
     ) -> dict[str, Any]:
         """List explicit TP standalone-pad components in a PCB document."""
         return service.list_testpoints(path, selector)
@@ -1471,7 +1521,7 @@ def create_server(
 
     @mcp.tool()
     def move_testpoints(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         dx: float = 0.0,
         dy: float = 0.0,
         absolute_x: float | None = None,
@@ -1500,7 +1550,7 @@ def create_server(
 
     @mcp.tool()
     def remove_testpoints(
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1532,7 +1582,7 @@ def create_server(
     @mcp.tool()
     def plan_silkscreen(
         path: str | None = None,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         clearance: float = 0.2,
         board_edge_clearance: float = 0.2,
         grid: float = 0.25,
@@ -1570,7 +1620,7 @@ def create_server(
     @mcp.tool()
     def analyze_placement(
         path: str | None = None,
-        selector: dict[str, Any] | None = None,
+        selector: SelectorInput | None = None,
         spacing: float = 0.2,
         board_edge_clearance: float = 0.5,
     ) -> dict[str, Any]:
@@ -1584,7 +1634,7 @@ def create_server(
 
     @mcp.tool()
     def generate_placement_candidates(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         path: str | None = None,
         region: dict[str, float] | None = None,
         allowed_sides: list[Literal["Top", "Bottom"]] | None = None,
@@ -1636,7 +1686,7 @@ def create_server(
 
     @mcp.tool()
     def plan_component_placement(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         path: str | None = None,
         region: dict[str, float] | None = None,
         allowed_sides: list[Literal["Top", "Bottom"]] | None = None,
@@ -1671,7 +1721,7 @@ def create_server(
 
     @mcp.tool()
     def legalize_component_placement(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         path: str | None = None,
         grid: float = 0.5,
         search_steps: int = 8,
@@ -1761,7 +1811,7 @@ def create_server(
 
     @mcp.tool()
     def delete_trace(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         allow_connectivity_regression: bool = False,
         path: str | None = None,
         dry_run: bool = True,
@@ -1780,7 +1830,7 @@ def create_server(
 
     @mcp.tool()
     def set_trace_width(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         width: float,
         segment_indices: list[int] | None = None,
         path: str | None = None,
@@ -1828,7 +1878,7 @@ def create_server(
 
     @mcp.tool()
     def move_via(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         dx: float = 0.0,
         dy: float = 0.0,
         absolute_x: float | None = None,
@@ -1853,7 +1903,7 @@ def create_server(
 
     @mcp.tool()
     def delete_via(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1870,7 +1920,7 @@ def create_server(
 
     @mcp.tool()
     def set_via_style(
-        selector: dict[str, Any],
+        selector: SelectorInput,
         via_style: str,
         path: str | None = None,
         dry_run: bool = True,
@@ -2159,7 +2209,7 @@ def create_server(
 
     @mcp.tool()
     def route_connections(
-        connections: list[dict[str, Any]],
+        connections: list[RouteConnectionInput],
         ripup_retry: bool = True,
         max_ripup_attempts: int = 4,
         ordering: Literal["input", "congestion_aware"] = "congestion_aware",
@@ -2182,7 +2232,7 @@ def create_server(
 
     @mcp.tool()
     def analyze_routing_congestion(
-        connections: list[dict[str, Any]],
+        connections: list[RouteConnectionInput],
         ordering: Literal["input", "congestion_aware"] = "congestion_aware",
         path: str | None = None,
     ) -> dict[str, Any]:

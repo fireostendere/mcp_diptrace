@@ -14,6 +14,7 @@ pytest -q --cov=src/diptrace_mcp --cov-report=term \
   --cov-report=json:coverage.json --cov-fail-under=85
 python scripts/check_coverage.py coverage.json
 python scripts/ingest_fixtures.py --dry-run --synthetic --json
+python scripts/measure_mcp_surface.py --baseline-bytes 121335 --max-growth-percent 15
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 python -m benchmarks.benchmark_large_board --components 500
 ```
@@ -63,17 +64,18 @@ python scripts/check_coverage.py coverage.json
 
 The current measurement was taken after the combined WO-14 bridge, transaction
 recovery, public MCP workflow, large synthetic load, live-session concurrency
-and profile-safety work, live-apply target binding, WO-16 registry/evidence
-intake, and the acceptance-seed audit on Python 3.12 with Shapely 2.1.2. These
-are coverage.py statement measurements, not hand-estimated percentages:
+and profile-safety work, live-apply target binding, bounded copper previews,
+WO-16 registry/evidence intake, and the acceptance-seed audit on Python 3.12
+with Shapely 2.1.2. These are coverage.py statement measurements, not
+hand-estimated percentages:
 
 | Target | Statements | Missed | Measured | Enforced integer floor |
 | --- | ---: | ---: | ---: | ---: |
-| Total `src/diptrace_mcp` | 16,137 | 2,266 | 85.9577% | 85% |
+| Total `src/diptrace_mcp` | 16,272 | 2,267 | 86.0681% | 85% |
 | `bridge.py` | 192 | 68 | 64.5833% | 64% |
 | `xml_document.py` | 825 | 99 | 88.0000% | 87% |
 | `semantic_compiler.py` | 1,389 | 160 | 88.4809% | 88% |
-| `routing_compiler.py` | 561 | 81 | 85.5615% | 85% |
+| `routing_compiler.py` | 561 | 75 | 86.6310% | 85% |
 
 The integer floors are the highest whole percentages the measured checkout
 passes. The JSON gate prints the current statement/miss counts on every run and

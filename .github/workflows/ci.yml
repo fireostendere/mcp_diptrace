@@ -108,6 +108,11 @@ jobs:
       - run: python -m ruff check --no-cache src tests benchmarks scripts plugin
       - run: python -m mypy --no-incremental src/diptrace_mcp plugin
       - run: python scripts/generate_pcb_skills.py --check
+      - name: Enforce MCP discovery budget
+        run: >-
+          python scripts/measure_mcp_surface.py
+          --baseline-bytes 121335
+          --max-growth-percent 15
       - run: >-
           python scripts/extract_spec_inventory.py
           --sources reference/diptrace-xml/extracted_text
