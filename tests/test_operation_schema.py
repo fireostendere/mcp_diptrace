@@ -138,6 +138,11 @@ def test_unbounded_near_is_rejected_by_every_nested_selector_consumer() -> None:
             model.model_validate(payload)
 
 
+def test_move_components_rejects_removed_noop_anchor_field() -> None:
+    with pytest.raises(ValidationError):
+        MoveComponentsOperation.model_validate({"dx": 1.0, "anchor": "origin"})
+
+
 def _property_names(value: object) -> set[str]:
     if isinstance(value, dict):
         names = set(value.get("properties", {}))

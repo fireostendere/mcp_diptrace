@@ -213,7 +213,8 @@ The first behavior-preserving Phase-9 slice is now guarded by that baseline:
 `semantic_compiler.py` dispatches all 39 registered operation models through one
 type-to-handler table, and a parity test fails if the operation registry and
 compiler diverge. The same cleanup removed the unused service `_snapshot` helper,
-the unused document reserializer, and four exception subclasses with no callers;
+the unused document reserializer, four exception subclasses with no callers, and
+the ignored `MoveComponentsOperation.anchor` input (which is now refused as extra);
 the canonical 159-tool snapshot remains byte-identical.
 
 ### Public MCP workflow checkpoint — 2026-07-28

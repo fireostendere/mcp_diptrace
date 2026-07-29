@@ -28,7 +28,6 @@ class MoveComponentsOperation(SelectorOperation):
     absolute_y: float | None = Field(
         default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
     )
-    anchor: Literal["center", "origin"] = "center"
     grid_snap: float | None = Field(
         default=None,
         gt=0.0,
