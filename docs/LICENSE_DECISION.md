@@ -76,7 +76,8 @@ checklist.
 - Documentation and fixture treatment: code, documentation, and packaged
   skills are covered by the same license. Fixtures and evidence artifacts with
   unresolved redistribution permission are not distributed: the release
-  allowlist excludes `tests/fixtures/acceptance/` and `docs/private/`.
+  allowlist excludes `tests/fixtures/acceptance/`; it also excludes the
+  intentionally untracked docs/private directory.
 - Dependency and notice audit: direct runtime dependencies are `mcp` (MIT),
   `pydantic` (MIT), and `typing-extensions` (PSF); the optional geometry extra
   adds `shapely` (BSD-3-Clause). No third-party code is vendored into the
