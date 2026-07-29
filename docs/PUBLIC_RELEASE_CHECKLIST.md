@@ -80,7 +80,8 @@ in [SECURITY.md](../SECURITY.md).
 
 - [x] CI configuration covers Linux, macOS, and Windows.
 - [x] CI includes geometry-enabled and no-Shapely Linux jobs.
-- [x] CI builds and checks a non-empty unsigned Windows bridge.
+- [x] CI builds, verifies, and smoke-runs the unsigned Windows bridge
+      executable.
 - [x] Exact public MCP `tools/list` snapshot is committed and gated.
 - [x] Specification inventory and format coverage have reproducibility gates.
 - [x] Acceptance seed audit fails closed and reports zero accepted seeds.

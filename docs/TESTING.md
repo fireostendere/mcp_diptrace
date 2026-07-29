@@ -37,7 +37,8 @@ CI responsibilities:
   pipeline without writing or granting trust;
 - full pytest plus CLI and real headless bridge smoke tests on macOS/Python 3.12;
 - full pytest plus CLI and real headless bridge smoke tests on Windows/Python 3.12;
-- native Windows build and non-empty verification of `diptrace_mcp_bridge.exe`.
+- native Windows build, non-empty verification, and a `--help` smoke-run of
+  `diptrace_mcp_bridge.exe`.
 
 Core CI does not require DipTrace, Java/Freerouting, ngspice, openEMS, or network access.
 

@@ -95,7 +95,8 @@ The repository CI separates platform responsibilities:
 - full pytest on Linux with Python 3.10, 3.12, and 3.13;
 - Ruff, strict Mypy, and generated-skill checks on Linux/Python 3.12;
 - full pytest and CLI smoke tests on macOS and Windows/Python 3.12;
-- a native Windows build that verifies a non-empty `diptrace_mcp_bridge.exe` artifact.
+- a native Windows build that verifies and smoke-runs the
+  `diptrace_mcp_bridge.exe` artifact.
 
 The current `main` branch passes this matrix. Regression coverage includes the fail-closed trust authority boundary, required semantic-comparison categories for PCB/schematic, native Windows atomic-job behavior, and terminal cancellation semantics for Freerouting, ngspice, and openEMS jobs.
 

@@ -30,6 +30,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - Full pytest CI regression introduced by the release-artifact validation work.
+- Windows bridge executables are now built in an environment that contains the
+  project runtime dependencies; the previous PyInstaller-only environment
+  produced a bridge that failed at startup with `ModuleNotFoundError`. CI now
+  smoke-runs the built executable with `--help`.
 
 ### Clarified
 

@@ -177,6 +177,11 @@ jobs:
           $path = ".\plugin\dist\diptrace_mcp_bridge.exe"
           if (-not (Test-Path $path)) { throw "Bridge executable was not created" }
           if ((Get-Item $path).Length -le 0) { throw "Bridge executable is empty" }
+      - name: Smoke-run bridge executable
+        shell: pwsh
+        run: |
+          & ".\plugin\dist\diptrace_mcp_bridge.exe" --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Bridge executable failed to start (missing bundled modules?)" }
       - uses: actions/upload-artifact@v4
         with:
           name: diptrace-bridge-ci-unsigned

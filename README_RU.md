@@ -93,7 +93,7 @@ CI разделяет проверки по платформам и назнач
 - полный pytest на Linux с Python 3.10, 3.12 и 3.13;
 - Ruff, strict Mypy и generated-skill checks на Linux/Python 3.12;
 - полный pytest и CLI smoke tests на macOS и Windows/Python 3.12;
-- нативная Windows-сборка с проверкой непустого `diptrace_mcp_bridge.exe`.
+- нативная Windows-сборка с проверкой и smoke-запуском `diptrace_mcp_bridge.exe`.
 
 Текущая ветка `main` проходит эту матрицу. Regression coverage включает fail-closed trust authority boundary, обязательные категории semantic comparison для PCB и schematic, Windows atomic-job поведение и terminal cancellation semantics для Freerouting, ngspice и openEMS.
 
