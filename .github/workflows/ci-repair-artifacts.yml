@@ -4,10 +4,10 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  generate-python-313:
+  repair:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -15,10 +15,41 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.12"
       - run: python -m pip install -e ".[dev]"
-      - run: python scripts/generate_mcp_tools_snapshot.py --out generated-3.13.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mcp-tools-python-313
-          path: generated-3.13.json
+      - name: Make public tool descriptions deterministic across Python versions
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/diptrace_mcp/server.py")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              '''        """Validate distinct allowed-root evidence roles and exact SHA bindings without writing.\n\n        The bounded result is always authority=user_supplied and grants_high_trust=false.\n        """''': '''        (\n            "Validate distinct allowed-root evidence roles and exact SHA bindings without writing.\\n\\n"\n            "The bounded result is always authority=user_supplied and grants_high_trust=false."\n        )''',
+              '''        """Write a user-supplied evidence manifest and provenance sidecar, not design bytes.\n\n        This explicitly writes metadata, returns written=true only after both files verify,\n        remains authority=user_supplied, and can never grant high trust.\n        """''': '''        (\n            "Write a user-supplied evidence manifest and provenance sidecar, not design bytes.\\n\\n"\n            "This explicitly writes metadata, returns written=true only after both files verify, "\n            "remains authority=user_supplied, and can never grant high trust."\n        )''',
+              '''        """Create a new DipTrace PCB XML document (outline, layers, stackup, rules).\n\n        This is synthetic MCP-generated content. It has the correct XML structure\n        but has NOT been verified by DipTrace open/save. Use create_document_from_seed\n        with a real DipTrace export when DipTrace compatibility is required. Replacing\n        an existing target requires its current SHA.\n        """''': '''        (\n            "Create a new DipTrace PCB XML document (outline, layers, stackup, rules).\\n\\n"\n            "This is synthetic MCP-generated content. It has the correct XML structure "\n            "but has NOT been verified by DipTrace open/save. Use create_document_from_seed "\n            "with a real DipTrace export when DipTrace compatibility is required. Replacing "\n            "an existing target requires its current SHA."\n        )''',
+              '''        """Copy a valid DipTrace-shaped XML seed while preserving unknown XML.\n\n        Validation is derived only from a verified provenance sidecar; without one,\n        the copy is synthetic_parser_only. Prefer a real export seed when DipTrace\n        compatibility matters. Replacing an existing target requires its current SHA.\n        """''': '''        (\n            "Copy a valid DipTrace-shaped XML seed while preserving unknown XML.\\n\\n"\n            "Validation is derived only from a verified provenance sidecar; without one, "\n            "the copy is synthetic_parser_only. Prefer a real export seed when DipTrace "\n            "compatibility matters. Replacing an existing target requires its current SHA."\n        )''',
+              '''        """Run low-confidence geometry heuristics with a caller-supplied radius.\n\n        All distances are in millimetres, regardless of the document's own Units\n        attribute.\n        """''': '''        (\n            "Run low-confidence geometry heuristics with a caller-supplied radius.\\n\\n"\n            "All distances are in millimetres, regardless of the document's own Units attribute."\n        )''',
+              '''        """Route one pad-to-pad connection with bounded deterministic 45-degree A*.\n\n        Omit clearance to use the applicable document DRC TraceToTrace rule.\n        """''': '''        (\n            "Route one pad-to-pad connection with bounded deterministic 45-degree A*.\\n\\n"\n            "Omit clearance to use the applicable document DRC TraceToTrace rule."\n        )''',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected one source block, found {count}: {old.splitlines()[0]}")
+              text = text.replace(old, new)
+          path.write_text(text, encoding="utf-8", newline="\n")
+          PY
+      - run: python scripts/generate_mcp_tools_snapshot.py
+      - run: python scripts/generate_pcb_skills.py
+      - name: Commit repaired source and generated artifacts
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/diptrace_mcp/server.py reference/mcp-tools-list.snapshot.json skills/SOURCES.sha256
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "fix: stabilize generated MCP contracts"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
