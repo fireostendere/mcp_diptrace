@@ -205,11 +205,11 @@ def test_library_bridge_is_read_only_even_for_direct_control_file(
     )
 
     assert controller.can_apply is False
-    with pytest.raises(SessionError, match="ImpMode is None") as caught:
-        bridge.run_headless(controller, timeout=1)
-    assert caught.value.payload.code == "capability_unavailable"
+    assert bridge.run_headless(controller, timeout=1) == 2
     assert exchange.read_bytes() == _COMPONENT_LIBRARY_SOURCE
-    assert controller.store.active_metadata() is not None
+    metadata = controller.store.read_metadata(controller.session_id)
+    assert metadata["status"] == "cancelled"
+    assert metadata["last_error"] == "Malformed finish request"
 
 
 def test_headless_bridge_timeout_cancels_and_returns_timeout_exit_code(
@@ -231,10 +231,11 @@ def test_headless_bridge_rejects_unknown_control_action_before_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     controller, _ = _controller(tmp_path)
-    controller.store.control_path(controller.session_id).write_text(
-        json.dumps({"action": "erase"}),
-        encoding="utf-8",
-    )
+    controller.store.request_finish("cancel")
+    control = controller.store.control_path(controller.session_id)
+    tampered = json.loads(control.read_text(encoding="utf-8"))
+    tampered["action"] = "erase"
+    control.write_text(json.dumps(tampered), encoding="utf-8")
     moments = iter([20.0, 20.0, 22.0])
     monkeypatch.setattr(bridge.time, "monotonic", lambda: next(moments))
     monkeypatch.setattr(bridge.time, "sleep", lambda _seconds: None)
@@ -285,27 +286,27 @@ def test_bridge_main_logs_typed_document_failure_next_to_exchange(
     assert "Invalid XML" in log["error"]["message"]
 
 
-def test_bridge_main_logs_typed_control_hash_failure(
+def test_bridge_main_rejects_stale_hash_then_cancels_cleanly(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     controller, exchange = _controller(tmp_path)
-    controller.store.control_path(controller.session_id).write_text(
-        json.dumps({"action": "apply", "expected_sha256": "0" * 64}),
-        encoding="utf-8",
+    controller.store.request_finish(
+        "apply",
+        controller.current_sha256(),
     )
+    controller.working_path.write_bytes(_MODIFIED)
     monkeypatch.setenv("DIPTRACE_MCP_WORKSPACE", str(tmp_path))
     monkeypatch.setenv("DIPTRACE_MCP_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setattr(bridge, "BridgeController", lambda _path, _settings: controller)
 
-    assert bridge.main(["--headless", "--timeout", "1", str(exchange)]) == 1
+    assert bridge.main(["--headless", "--timeout", "1", str(exchange)]) == 2
 
-    capsys.readouterr()
-    log = json.loads((tmp_path / bridge.BRIDGE_ERROR_LOG_NAME).read_text(encoding="utf-8"))
-    assert log["error"]["code"] == "sha256_mismatch"
-    assert log["error"]["message"] == "Working XML changed after the finish request"
-    assert controller.store.active_metadata() is not None
+    metadata = controller.store.read_metadata(controller.session_id)
+    assert metadata["status"] == "cancelled"
+    assert metadata["last_error"] == "Working XML changed after the finish request"
+    assert not controller.store.control_path(controller.session_id).exists()
+    assert exchange.read_bytes() == _SOURCE
 
 
 def test_bridge_main_does_not_log_beside_an_unresolved_exchange_path(

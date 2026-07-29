@@ -385,12 +385,22 @@ for hours. Override it with `DIPTRACE_MCP_SESSION_TIMEOUT` or the plug-in
 
 Each active session also has a server-side terminal TTL, 7200 seconds by default
 (`DIPTRACE_MCP_SESSION_TTL_SECONDS`). A reader checks bridge liveness only when the
-recorded platform, PID namespace, and Linux process-start token match its own view.
+recorded platform, PID namespace, and Linux `/proc` or Windows creation-time token
+match its own view.
 Windows and WSL PID namespaces therefore cannot produce a false "dead" result. A
 provably dead same-namespace bridge, or an unknown-liveness session past its TTL, becomes
 terminal `abandoned`; `original.xml` and `working.xml` remain under ordinary retention.
 An operator can terminate stale state earlier with
 `abandon_live_session(reason="...")`. Abandonment never replaces the exchange file.
+The shared Windows/WSL lifecycle mutex is an atomic lease directory, because native
+WSL `flock` and Windows byte locks do not interoperate on NTFS. Unknown lease owners
+are not silently expired or force-reclaimed. If even explicit abandonment encounters
+one, it returns `session_lock_timeout` rather than risk a split-brain writer. Recover
+the crashed process/state from the same PID namespace or coordinate external
+administrative recovery before retrying.
+The same refusal applies to an orphaned `session.lock.reaper` gate: it is a rare
+crash-between-recovery-steps state and is not removed automatically without a
+provable owner identity.
 
 The exchange file must resolve inside `DIPTRACE_MCP_WORKSPACE` or an explicit
 `DIPTRACE_MCP_ALLOWED_ROOTS` entry. In headless mode, exit code `0` means an

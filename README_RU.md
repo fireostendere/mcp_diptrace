@@ -179,6 +179,10 @@ read-only (`ImpMode=None`); неизвестные profiles также закр�
 Windows и WSL никогда не отождествляются по догадке; orphan с неизвестной liveness
 завершается по настраиваемому двухчасовому TTL либо явно через
 `abandon_live_session(reason="...")`, который никогда не применяет working XML.
+Lifecycle-изменения Windows/WSL используют общий атомарный lease-каталог с nonce:
+нативные `flock` и Windows byte locks на NTFS не взаимодействуют. Обычные операции
+никогда не завершают и не снимают неизвестного владельца lease; явный abandon
+возвращает типизированный timeout вместо риска split-brain writer.
 
 ## Offline-режим
 

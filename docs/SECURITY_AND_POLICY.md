@@ -108,6 +108,16 @@ the last validated session activity and the configurable two-hour TTL. Explicit
 `abandon_live_session(reason)` never copies working XML to the exchange path. Status
 exposes a bounded `last_session_transition` without the exchange path.
 
+Windows/WSL lifecycle exclusion uses an atomic directory lease with a nonce and
+process identity. Native `flock` and Windows byte locks are not treated as a shared
+mutex. Same-namespace dead owners can be reclaimed automatically; unknown
+cross-namespace owners are never time-expired or force-reclaimed. Even explicit
+abandonment returns `session_lock_timeout` in that state, because removing the marker
+cannot fence an old Windows/WSL writer.
+An orphaned recovery-gate directory is likewise fail-closed and requires external
+administrative coordination; availability never overrides the single-writer safety
+boundary.
+
 Count-and-age retention runs when a store is constructed. It deletes only fully
 parsed, validated terminal records confined to that store. For transactions,
 `committed`, `rolled_back`, and `failed` are terminal cleanup candidates;

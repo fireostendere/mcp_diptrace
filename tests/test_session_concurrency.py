@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 
+import diptrace_mcp.sessions as sessions_module
 from diptrace_mcp.errors import SessionError
 from diptrace_mcp.sessions import SessionStore
 
@@ -270,3 +271,202 @@ def test_hardlinked_lock_path_is_rejected_without_mutating_target(tmp_path: Path
     with pytest.raises(SessionError, match="lock path is redirected"):
         store.create(exchange)
     assert outside.read_bytes() == b""
+
+
+def test_dead_same_namespace_lease_is_reclaimed(tmp_path: Path) -> None:
+    store = SessionStore(tmp_path / "state", 10_000_000)
+    lease = store.lock_file.with_name(f"{store.lock_file.name}.lease")
+    lease.mkdir()
+    sessions_module._atomic_write_json(
+        lease / "owner.json",
+        {
+            "nonce": "dead-owner",
+            "process": {
+                "pid": 2**31 - 1,
+                "platform": sessions_module.sys.platform,
+                "pid_namespace": sessions_module._pid_namespace(),
+                "start_token": "not-running",
+            },
+        },
+    )
+
+    with sessions_module._exclusive_session_lock(store.lock_file):
+        assert lease.exists()
+
+    assert not lease.exists()
+
+
+def test_dead_lease_rename_failure_times_out_without_spinning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = SessionStore(tmp_path / "state", 10_000_000)
+    lease = store.lock_file.with_name(f"{store.lock_file.name}.lease")
+    lease.mkdir()
+    sessions_module._atomic_write_json(
+        lease / "owner.json",
+        {
+            "nonce": "dead-owner",
+            "process": {
+                "pid": 2**31 - 1,
+                "platform": sessions_module.sys.platform,
+                "pid_namespace": sessions_module._pid_namespace(),
+                "start_token": "not-running",
+            },
+        },
+    )
+    real_rename = Path.rename
+
+    def refuse_lease_rename(path: Path, target: Path) -> Path:
+        if path == lease:
+            raise OSError("injected sharing violation")
+        return real_rename(path, target)
+
+    monkeypatch.setattr(Path, "rename", refuse_lease_rename)
+    monkeypatch.setattr(sessions_module, "_SESSION_LEASE_WAIT_SECONDS", 0.0)
+
+    with (
+        pytest.raises(SessionError) as caught,
+        sessions_module._exclusive_session_lock(store.lock_file),
+    ):
+        pytest.fail("unreclaimable lease cannot be acquired")
+
+    assert caught.value.payload.code == "session_lock_timeout"
+    assert lease.exists()
+
+
+def test_unknown_cross_namespace_lease_is_never_time_expired(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = SessionStore(tmp_path / "state", 10_000_000)
+    lease = store.lock_file.with_name(f"{store.lock_file.name}.lease")
+    lease.mkdir()
+    sessions_module._atomic_write_json(
+        lease / "owner.json",
+        {
+            "nonce": "foreign-owner",
+            "process": {
+                "pid": 123,
+                "platform": "foreign-platform",
+                "pid_namespace": "foreign-namespace",
+                "start_token": "unknown",
+            },
+            "acquired_at": 0.0,
+        },
+    )
+    monkeypatch.setattr(sessions_module, "_SESSION_LEASE_WAIT_SECONDS", 0.0)
+
+    with (
+        pytest.raises(SessionError) as caught,
+        sessions_module._exclusive_session_lock(store.lock_file),
+    ):
+        pytest.fail("unknown cross-namespace lease must not be reclaimed")
+
+    assert caught.value.payload.code == "session_lock_timeout"
+    assert lease.exists()
+    assert sessions_module._read_json(lease / "owner.json")["nonce"] == "foreign-owner"
+
+
+def test_orphaned_reaper_gate_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = SessionStore(tmp_path / "state", 10_000_000)
+    reaper = store.lock_file.with_name(f"{store.lock_file.name}.reaper")
+    reaper.mkdir()
+    monkeypatch.setattr(sessions_module, "_SESSION_LEASE_WAIT_SECONDS", 0.0)
+
+    with (
+        pytest.raises(SessionError) as caught,
+        sessions_module._exclusive_session_lock(store.lock_file),
+    ):
+        pytest.fail("orphaned recovery gate must block lifecycle mutation")
+
+    assert caught.value.payload.code == "session_lock_timeout"
+    assert reaper.exists()
+
+
+def test_release_failure_is_typed_and_keeps_identified_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = SessionStore(tmp_path / "state", 10_000_000)
+    lease = store.lock_file.with_name(f"{store.lock_file.name}.lease")
+    real_rename = Path.rename
+
+    def refuse_release(path: Path, target: Path) -> Path:
+        if path == lease and ".released." in target.name:
+            raise OSError("injected release sharing violation")
+        return real_rename(path, target)
+
+    monkeypatch.setattr(Path, "rename", refuse_release)
+
+    with (
+        pytest.raises(SessionError) as caught,
+        sessions_module._exclusive_session_lock(store.lock_file),
+    ):
+        assert lease.exists()
+
+    assert caught.value.payload.code == "session_lock_release_failed"
+    owner = sessions_module._read_json(lease / "owner.json")
+    assert isinstance(owner["nonce"], str)
+
+
+def test_transient_release_sharing_violation_is_retried(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = SessionStore(tmp_path / "state", 10_000_000)
+    lease = store.lock_file.with_name(f"{store.lock_file.name}.lease")
+    real_rename = Path.rename
+    release_attempts = 0
+
+    def fail_first_release(path: Path, target: Path) -> Path:
+        nonlocal release_attempts
+        if path == lease and ".released." in target.name:
+            release_attempts += 1
+            if release_attempts == 1:
+                raise OSError("transient sharing violation")
+        return real_rename(path, target)
+
+    monkeypatch.setattr(Path, "rename", fail_first_release)
+
+    with sessions_module._exclusive_session_lock(store.lock_file):
+        assert lease.exists()
+
+    assert release_attempts == 2
+    assert not lease.exists()
+
+
+def test_explicit_abandon_refuses_unknown_lease_without_fencing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exchange = tmp_path / "plugin_exchange.xml"
+    exchange.write_bytes((FIXTURES / "pcb.xml").read_bytes())
+    store = SessionStore(tmp_path / "state", 10_000_000)
+    metadata = store.create(exchange)
+    session_id = str(metadata["session_id"])
+    lease = store.lock_file.with_name(f"{store.lock_file.name}.lease")
+    lease.mkdir()
+    sessions_module._atomic_write_json(
+        lease / "owner.json",
+        {
+            "nonce": "crashed-foreign-owner",
+            "process": {
+                "pid": 123,
+                "platform": "foreign-platform",
+                "pid_namespace": "foreign-namespace",
+                "start_token": "unknown",
+            },
+        },
+    )
+    monkeypatch.setattr(sessions_module, "_SESSION_LEASE_WAIT_SECONDS", 0.0)
+
+    with pytest.raises(SessionError) as caught:
+        store.abandon_active("operator suspects cross-namespace crash")
+
+    assert caught.value.payload.code == "session_lock_timeout"
+    assert store.read_metadata(session_id)["status"] == "active"
+    assert lease.exists()

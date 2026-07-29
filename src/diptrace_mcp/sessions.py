@@ -4,17 +4,17 @@ import json
 import os
 import stat
 import sys
-import threading
 import time
 import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, suppress
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
 from .config import DEFAULT_LIVE_SESSION_TTL_SECONDS
-from .errors import DocumentError, SessionError
+from .errors import DocumentError, SessionError, Sha256MismatchError
 from .record_ids import (
     InvalidRecordId,
     InvalidRecordPath,
@@ -54,14 +54,64 @@ _FILE_READ_CHUNK_BYTES = 1024 * 1024
 _FINISH_POLL_SECONDS = 0.05
 DEFAULT_FINISH_ACK_WAIT_SECONDS = 2.0
 LIVE_PREVIEW_CHANGED_ID_LIMIT = 20
-_SESSION_THREAD_LOCKS: dict[str, threading.RLock] = {}
-_SESSION_THREAD_LOCKS_GUARD = threading.Lock()
+_SESSION_LEASE_WAIT_SECONDS = 30.0
+_SESSION_LEASE_POLL_SECONDS = 0.025
+_SESSION_LEASE_RELEASE_ATTEMPTS = 8
 _BRIDGE_IMPORT_MODE_BY_SOURCE_TYPE: dict[str, BridgeImportMode] = {
     "DipTrace-PCB": "All",
     "DipTrace-Schematic": "All",
     "DipTrace-ComponentLibrary": "None",
     "DipTrace-PatternLibrary": "None",
 }
+
+
+@dataclass(frozen=True, slots=True)
+class LiveWorkingMutation:
+    session_id: str
+    before_sha256: str
+    after_sha256: str
+    backup: Path
+
+
+@dataclass(slots=True)
+class LiveWorkingGuard:
+    """One live working-file mutation while the lifecycle lease is held."""
+
+    store: SessionStore
+    session_id: str
+    metadata_before: dict[str, Any]
+    working_before: bytes
+    recorded_sha256: str | None = None
+    committed: bool = False
+
+    def record_edit(
+        self,
+        *,
+        working_sha256: str,
+        backup: Path | None = None,
+    ) -> Path:
+        current = self.store._read_working_bytes(self.session_id)
+        if sha256_bytes(current) != working_sha256:
+            raise Sha256MismatchError(
+                "Live working XML does not match the guarded edit metadata"
+            )
+        if backup is None:
+            backup = self.store._store_working_backup_unlocked(
+                self.session_id,
+                self.working_before,
+            )
+        self.recorded_sha256 = working_sha256
+        self.store._record_edit_unlocked(
+            self.metadata_before,
+            working_sha256=working_sha256,
+            backup=backup,
+        )
+        return backup
+
+    def commit(self) -> None:
+        """Mark caller state durable so later response errors cannot undo the file."""
+
+        self.committed = True
 
 
 def _pid_namespace() -> str:
@@ -101,7 +151,11 @@ def _current_bridge_process_identity() -> dict[str, object]:
         "pid": pid,
         "platform": sys.platform,
         "pid_namespace": _pid_namespace(),
-        "start_token": _linux_process_start_token(pid),
+        "start_token": (
+            _windows_process_snapshot(pid)[1]
+            if os.name == "nt"
+            else _linux_process_start_token(pid)
+        ),
     }
 
 
@@ -118,8 +172,27 @@ def _classify_windows_process(
     return "alive" if exit_code == 259 else "dead"
 
 
-def _windows_process_liveness(pid: int) -> BridgeProcessLiveness:
-    """Query a Windows PID without using POSIX signals or WSL's PID namespace."""
+def _classify_process_identity(
+    liveness: BridgeProcessLiveness,
+    *,
+    expected_start_token: object,
+    current_start_token: str | None,
+) -> BridgeProcessLiveness:
+    if liveness == "dead":
+        return "dead"
+    if (
+        liveness != "alive"
+        or not isinstance(expected_start_token, str)
+        or current_start_token is None
+    ):
+        return "unknown"
+    return "alive" if current_start_token == expected_start_token else "dead"
+
+
+def _windows_process_snapshot(
+    pid: int,
+) -> tuple[BridgeProcessLiveness, str | None]:
+    """Query Windows liveness and creation time without POSIX/WSL PID guesses."""
 
     try:
         import ctypes
@@ -129,7 +202,7 @@ def _windows_process_liveness(pid: int) -> BridgeProcessLiveness:
         set_last_error: Any = getattr(ctypes, "set_last_error", None)
         get_last_error: Any = getattr(ctypes, "get_last_error", None)
         if win_dll is None or set_last_error is None or get_last_error is None:
-            return "unknown"
+            return "unknown", None
         kernel32: Any = win_dll("kernel32", use_last_error=True)
         kernel32.OpenProcess.argtypes = [
             wintypes.DWORD,
@@ -142,6 +215,14 @@ def _windows_process_liveness(pid: int) -> BridgeProcessLiveness:
             ctypes.POINTER(wintypes.DWORD),
         ]
         kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+        kernel32.GetProcessTimes.argtypes = [
+            wintypes.HANDLE,
+            ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME),
+        ]
+        kernel32.GetProcessTimes.restype = wintypes.BOOL
         kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
         kernel32.CloseHandle.restype = wintypes.BOOL
         set_last_error(0)
@@ -150,24 +231,55 @@ def _windows_process_liveness(pid: int) -> BridgeProcessLiveness:
             error = int(get_last_error())
             # ERROR_INVALID_PARAMETER is what OpenProcess reports for a PID that
             # does not exist. Access-denied is not evidence that the process died.
-            return _classify_windows_process(
-                opened=False,
-                last_error=error,
-                exit_code=None,
+            return (
+                _classify_windows_process(
+                    opened=False,
+                    last_error=error,
+                    exit_code=None,
+                ),
+                None,
             )
         try:
             exit_code = wintypes.DWORD()
             if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
-                return "unknown"
-            return _classify_windows_process(
+                return "unknown", None
+            liveness = _classify_windows_process(
                 opened=True,
                 last_error=0,
                 exit_code=int(exit_code.value),
             )
+            if liveness != "alive":
+                return liveness, None
+            creation = wintypes.FILETIME()
+            exit_time = wintypes.FILETIME()
+            kernel_time = wintypes.FILETIME()
+            user_time = wintypes.FILETIME()
+            if not kernel32.GetProcessTimes(
+                handle,
+                ctypes.byref(creation),
+                ctypes.byref(exit_time),
+                ctypes.byref(kernel_time),
+                ctypes.byref(user_time),
+            ):
+                return "unknown", None
+            token = f"{int(creation.dwHighDateTime):08x}{int(creation.dwLowDateTime):08x}"
+            return "alive", token
         finally:
             kernel32.CloseHandle(handle)
     except (AttributeError, OSError, TypeError, ValueError):
-        return "unknown"
+        return "unknown", None
+
+
+def _windows_process_liveness(
+    pid: int,
+    expected_start_token: object,
+) -> BridgeProcessLiveness:
+    liveness, current_start_token = _windows_process_snapshot(pid)
+    return _classify_process_identity(
+        liveness,
+        expected_start_token=expected_start_token,
+        current_start_token=current_start_token,
+    )
 
 
 def _bridge_process_liveness(metadata: dict[str, Any]) -> BridgeProcessLiveness:
@@ -186,110 +298,234 @@ def _bridge_process_liveness(metadata: dict[str, Any]) -> BridgeProcessLiveness:
         or pid <= 0
         or platform != sys.platform
         or namespace != _pid_namespace()
+        or (
+            isinstance(namespace, str)
+            and namespace.endswith(":unavailable")
+        )
     ):
         return "unknown"
     if os.name == "nt":
-        return _windows_process_liveness(pid)
+        return _windows_process_liveness(pid, identity.get("start_token"))
+    expected_start = identity.get("start_token")
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
         return "dead"
     except PermissionError:
-        return "alive"
+        pass
     except OSError:
         return "unknown"
-    expected_start = identity.get("start_token")
-    if isinstance(expected_start, str):
-        current_start = _linux_process_start_token(pid)
-        if current_start is None:
-            return "unknown"
-        if current_start != expected_start:
-            # The PID was reused after the recorded bridge exited.
-            return "dead"
-    return "alive"
-
-
-def _thread_lock_for(path: Path) -> threading.RLock:
-    key = os.path.normcase(os.path.abspath(path))
-    with _SESSION_THREAD_LOCKS_GUARD:
-        return _SESSION_THREAD_LOCKS.setdefault(key, threading.RLock())
-
-
-def _lock_file_descriptor(file_descriptor: int) -> None:
-    if os.name == "nt":
-        import msvcrt
-
-        if os.fstat(file_descriptor).st_size == 0:
-            os.write(file_descriptor, b"\0")
-        os.lseek(file_descriptor, 0, os.SEEK_SET)
-        msvcrt.locking(  # type: ignore[attr-defined]
-            file_descriptor,
-            msvcrt.LK_LOCK,  # type: ignore[attr-defined]
-            1,
-        )
-        return
-
-    import fcntl
-
-    fcntl.flock(file_descriptor, fcntl.LOCK_EX)
-
-
-def _unlock_file_descriptor(file_descriptor: int) -> None:
-    if os.name == "nt":
-        import msvcrt
-
-        os.lseek(file_descriptor, 0, os.SEEK_SET)
-        msvcrt.locking(  # type: ignore[attr-defined]
-            file_descriptor,
-            msvcrt.LK_UNLCK,  # type: ignore[attr-defined]
-            1,
-        )
-        return
-
-    import fcntl
-
-    fcntl.flock(file_descriptor, fcntl.LOCK_UN)
+    return _classify_process_identity(
+        "alive",
+        expected_start_token=expected_start,
+        current_start_token=_linux_process_start_token(pid),
+    )
 
 
 @contextmanager
 def _exclusive_session_lock(path: Path) -> Iterator[None]:
-    """Serialize session lifecycle mutations across threads and processes."""
+    """Serialize lifecycle changes with an atomic lease shared by WSL and Windows.
 
-    thread_lock = _thread_lock_for(path)
-    with thread_lock:
-        if is_link_like(path):
-            raise SessionError("Session lock path is redirected")
-        flags = os.O_CREAT | os.O_RDWR
-        flags |= getattr(os, "O_NOFOLLOW", 0)
+    POSIX ``flock`` and Windows byte-range locks do not interoperate on NTFS.  A
+    directory create is atomic through both views of the filesystem, so the lease
+    directory is the cross-platform commit marker.  A nonce prevents one owner
+    from releasing a lease reclaimed after its exact process identity is dead.
+    Unknown cross-namespace owners are never expired by time alone.
+    """
+
+    lease = path.with_name(f"{path.name}.lease")
+    owner_path = lease / "owner.json"
+    reaper = path.with_name(f"{path.name}.reaper")
+    nonce = uuid.uuid4().hex
+    deadline = time.perf_counter() + _SESSION_LEASE_WAIT_SECONDS
+    if path.exists() or is_link_like(path):
         try:
-            file_descriptor = os.open(path, flags, 0o600)
+            legacy_stat = path.stat(follow_symlinks=False)
         except OSError as exc:
-            raise SessionError("Cannot open the session state lock") from exc
-        try:
+            raise SessionError("Session lock path is redirected") from exc
+        if (
+            stat.S_ISLNK(legacy_stat.st_mode)
+            or not stat.S_ISREG(legacy_stat.st_mode)
+            or legacy_stat.st_nlink != 1
+        ):
+            raise SessionError("Session lock path is redirected")
+    owner = {
+        "nonce": nonce,
+        "process": _current_bridge_process_identity(),
+        "acquired_at": time.time(),
+    }
+    candidate = path.with_name(f"{path.name}.candidate.{nonce}")
+    try:
+        candidate.mkdir(mode=0o700)
+        _atomic_write_json(candidate / "owner.json", owner)
+    except OSError as exc:
+        raise SessionError("Cannot prepare the session state lease") from exc
+    acquired = False
+    try:
+        while True:
+            if reaper.exists() or is_link_like(reaper):
+                if time.perf_counter() >= deadline:
+                    raise SessionError(
+                        "Timed out waiting for session lease recovery",
+                        code="session_lock_timeout",
+                    )
+                time.sleep(_SESSION_LEASE_POLL_SECONDS)
+                continue
+            if is_link_like(lease):
+                raise SessionError("Session lease path is redirected")
+            if not lease.exists():
+                try:
+                    candidate.rename(lease)
+                except OSError:
+                    if not lease.exists():
+                        raise SessionError(
+                            "Cannot publish the session state lease",
+                            code="session_lock_unavailable",
+                        ) from None
+                else:
+                    acquired = True
+                    if reaper.exists() or is_link_like(reaper):
+                        # A reaper won the race after our first gate check. It
+                        # never touches a live owner; release and retry after it.
+                        _release_owned_session_lease(lease, nonce)
+                        acquired = False
+                        candidate.mkdir(mode=0o700)
+                        _atomic_write_json(candidate / "owner.json", owner)
+                        continue
+                    break
             try:
-                descriptor_stat = os.fstat(file_descriptor)
-                path_stat = path.stat(follow_symlinks=False)
-            except OSError as exc:
-                raise SessionError("Cannot validate the session state lock") from exc
-            if (
-                not stat.S_ISREG(descriptor_stat.st_mode)
-                or stat.S_ISLNK(path_stat.st_mode)
-                or descriptor_stat.st_nlink != 1
-                or path_stat.st_nlink != 1
-                or (descriptor_stat.st_dev, descriptor_stat.st_ino)
-                != (path_stat.st_dev, path_stat.st_ino)
+                existing_owner = _read_json(owner_path)
+                owner_process = existing_owner.get("process")
+                owner_liveness = (
+                    _bridge_process_liveness({"bridge_process": owner_process})
+                    if isinstance(owner_process, dict)
+                    else "unknown"
+                )
+            except (FileNotFoundError, OSError, SessionError):
+                owner_liveness = "unknown"
+                existing_owner = {}
+            if owner_liveness == "dead" and _reap_dead_session_lease(
+                lease,
+                reaper,
+                expected_nonce=existing_owner.get("nonce"),
             ):
-                raise SessionError("Session lock path is redirected")
+                continue
+            if time.perf_counter() >= deadline:
+                raise SessionError(
+                    "Timed out waiting for the cross-platform session lease",
+                    code="session_lock_timeout",
+                ) from None
+            time.sleep(_SESSION_LEASE_POLL_SECONDS)
+
+        yield
+        try:
+            current_owner = _read_json(owner_path)
+        except (FileNotFoundError, OSError, SessionError) as exc:
+            raise SessionError(
+                "Cross-platform session lease ownership was lost",
+                code="session_lock_lost",
+            ) from exc
+        if current_owner.get("nonce") != nonce:
+            raise SessionError(
+                "Cross-platform session lease was replaced",
+                code="session_lock_lost",
+            )
+    finally:
+        if acquired:
             try:
-                _lock_file_descriptor(file_descriptor)
-            except OSError as exc:
-                raise SessionError("Cannot acquire the session state lock") from exc
-            try:
-                yield
-            finally:
-                _unlock_file_descriptor(file_descriptor)
-        finally:
-            os.close(file_descriptor)
+                current_owner = _read_json(owner_path)
+            except (FileNotFoundError, OSError, SessionError):
+                current_owner = {}
+            if current_owner.get("nonce") == nonce:
+                _release_owned_session_lease(lease, nonce)
+        try:
+            (candidate / "owner.json").unlink(missing_ok=True)
+            candidate.rmdir()
+        except OSError:
+            pass
+
+
+def _release_owned_session_lease(lease: Path, nonce: str) -> None:
+    """Atomically free the canonical lease name before best-effort cleanup."""
+
+    tombstone = lease.with_name(f"{lease.name}.released.{nonce}.{uuid.uuid4().hex}")
+    last_error: OSError | None = None
+    for attempt in range(_SESSION_LEASE_RELEASE_ATTEMPTS):
+        try:
+            lease.rename(tombstone)
+            break
+        except OSError as exc:
+            last_error = exc
+            if attempt + 1 < _SESSION_LEASE_RELEASE_ATTEMPTS:
+                time.sleep(_SESSION_LEASE_POLL_SECONDS)
+    else:
+        raise SessionError(
+            "Cannot atomically release the session lease",
+            code="session_lock_release_failed",
+        ) from last_error
+    owner_path = tombstone / "owner.json"
+    try:
+        owner = _read_json(owner_path)
+    except (FileNotFoundError, OSError, SessionError):
+        return
+    if owner.get("nonce") != nonce:
+        raise SessionError(
+            "Released session lease has an unexpected owner",
+            code="session_lock_lost",
+        )
+    with suppress(OSError):
+        owner_path.unlink(missing_ok=True)
+        tombstone.rmdir()
+
+
+def _reap_dead_session_lease(
+    lease: Path,
+    reaper: Path,
+    *,
+    expected_nonce: object,
+) -> bool:
+    """Remove one exactly identified dead-owner lease under an atomic reaper gate."""
+
+    if not isinstance(expected_nonce, str):
+        return False
+    try:
+        reaper.mkdir(mode=0o700)
+    except FileExistsError:
+        return False
+    except OSError:
+        return False
+    tombstone = lease.with_name(f"{lease.name}.dead.{expected_nonce}.{uuid.uuid4().hex}")
+    try:
+        if is_link_like(lease):
+            return False
+        try:
+            owner = _read_json(lease / "owner.json")
+        except (FileNotFoundError, OSError, SessionError):
+            return False
+        if owner.get("nonce") != expected_nonce:
+            return False
+        process = owner.get("process")
+        if (
+            not isinstance(process, dict)
+            or _bridge_process_liveness({"bridge_process": process}) != "dead"
+        ):
+            return False
+        try:
+            lease.rename(tombstone)
+        except OSError:
+            return False
+        moved_owner = _read_json(tombstone / "owner.json")
+        if moved_owner.get("nonce") != expected_nonce:
+            raise SessionError(
+                "Dead-owner lease changed during fenced recovery",
+                code="session_lock_recovery_failed",
+            )
+        (tombstone / "owner.json").unlink(missing_ok=True)
+        tombstone.rmdir()
+        return True
+    finally:
+        with suppress(OSError):
+            reaper.rmdir()
 
 
 def _atomic_write_json(path: Path, value: dict[str, Any]) -> None:
@@ -683,6 +919,32 @@ class SessionStore:
     def working_path(self, session_id: str) -> Path:
         return self.session_dir(session_id) / "working.xml"
 
+    def session_id_for_working_path(self, path: Path) -> str | None:
+        """Resolve a confined session working path even after it becomes terminal."""
+
+        absolute = Path(os.path.abspath(path))
+        try:
+            relative = absolute.relative_to(Path(os.path.abspath(self.sessions_dir)))
+        except ValueError:
+            return None
+        if len(relative.parts) != 2 or relative.name != "working.xml":
+            return None
+        try:
+            session_id = require_record_id(relative.parts[0], "session")
+            confined = require_confined_record_file(
+                self.sessions_dir,
+                session_id,
+                kind="session",
+                record_filename="working.xml",
+            )
+        except (FileNotFoundError, InvalidRecordId, InvalidRecordPath):
+            return None
+        if os.path.normcase(os.path.abspath(confined)) != os.path.normcase(
+            os.path.abspath(absolute)
+        ):
+            return None
+        return session_id
+
     def _read_original_bytes(self, session_id: str) -> bytes:
         original_path = self.original_path(session_id)
         try:
@@ -897,18 +1159,26 @@ class SessionStore:
                 code="invalid_request",
             )
         with _exclusive_session_lock(self.lock_file):
-            if not self.active_file.exists() and not is_link_like(self.active_file):
-                raise SessionError("There is no active DipTrace session")
-            active = self._read_active()
-            metadata = self.read_metadata(str(active["session_id"]))
-            if metadata.get("status") != "active":
-                self._clear_active_reference_unlocked(str(active["session_id"]))
-                raise SessionError("There is no active DipTrace session")
-            return self._abandon_session_unlocked(
-                metadata,
-                reason=normalized,
-                automatic=False,
+            return self._abandon_active_unlocked(
+                normalized,
             )
+
+    def _abandon_active_unlocked(
+        self,
+        reason: str,
+    ) -> dict[str, Any]:
+        if not self.active_file.exists() and not is_link_like(self.active_file):
+            raise SessionError("There is no active DipTrace session")
+        active = self._read_active()
+        metadata = self.read_metadata(str(active["session_id"]))
+        if metadata.get("status") != "active":
+            self._clear_active_reference_unlocked(str(active["session_id"]))
+            raise SessionError("There is no active DipTrace session")
+        return self._abandon_session_unlocked(
+            metadata,
+            reason=reason,
+            automatic=False,
+        )
 
     def create(self, exchange_path: Path) -> dict[str, Any]:
         with _exclusive_session_lock(self.lock_file):
@@ -967,15 +1237,184 @@ class SessionStore:
         _atomic_write_json(self.active_file, {"session_id": session_id})
         return metadata
 
-    def record_edit(self, session_id: str, working_sha256: str, backup: Path) -> None:
+    def _require_mutable_working_unlocked(
+        self,
+        session_id: str,
+        *,
+        expected_sha256: str,
+    ) -> tuple[dict[str, Any], bytes]:
         metadata = self.read_metadata(session_id)
-        self.update_metadata(
-            session_id,
-            working_sha256=working_sha256,
-            updated_at=utc_now(),
-            edit_count=int(metadata.get("edit_count", 0)) + 1,
-            last_backup=str(backup),
+        if metadata.get("status") != "active":
+            raise SessionError(
+                f"Session is not active: {session_id}",
+                code="session_state_invalid",
+            )
+        active = self._read_active()
+        if active.get("session_id") != session_id:
+            raise SessionError(
+                "Session is not the active bridge session",
+                code="session_state_invalid",
+            )
+        control_path = self.control_path(session_id)
+        if (
+            metadata.get("finish_requested") is not None
+            or control_path.exists()
+            or is_link_like(control_path)
+        ):
+            raise SessionError(
+                "Live working XML is frozen because session finish was requested",
+                code="session_finish_pending",
+            )
+        current = self._read_working_bytes(session_id)
+        current_sha256 = sha256_bytes(current)
+        if current_sha256 != expected_sha256:
+            raise Sha256MismatchError(
+                "Live working XML changed before the guarded mutation",
+                details={
+                    "expected_sha256": expected_sha256,
+                    "current_sha256": current_sha256,
+                },
+            )
+        return metadata, current
+
+    def _record_edit_unlocked(
+        self,
+        metadata: dict[str, Any],
+        *,
+        working_sha256: str,
+        backup: Path,
+    ) -> None:
+        updated = {
+            **metadata,
+            "working_sha256": working_sha256,
+            "updated_at": self._clock_timestamp(),
+            "edit_count": int(metadata.get("edit_count", 0)) + 1,
+            "last_backup": str(backup),
+        }
+        self._require_safe_root()
+        _atomic_write_json(self.metadata_path(str(metadata["session_id"])), updated)
+
+    def _store_working_backup_unlocked(
+        self,
+        session_id: str,
+        current: bytes,
+    ) -> Path:
+        destination = self.backups_dir(session_id)
+        destination.mkdir(parents=True, exist_ok=True)
+        current_sha256 = sha256_bytes(current)
+        stamp = self._clock_now().strftime("%Y%m%dT%H%M%S.%fZ")
+        backup = (
+            destination
+            / f"working.xml.{stamp}.{current_sha256[:12]}.{uuid.uuid4().hex}.bak"
         )
+        atomic_write_bytes(backup, current)
+        return backup
+
+    @contextmanager
+    def guard_working_mutation(
+        self,
+        session_id: str,
+        *,
+        expected_sha256: str,
+    ) -> Iterator[LiveWorkingGuard]:
+        """Hold lifecycle exclusion through file, metadata and caller state changes."""
+
+        with _exclusive_session_lock(self.lock_file):
+            metadata, current = self._require_mutable_working_unlocked(
+                session_id,
+                expected_sha256=expected_sha256,
+            )
+            guard = LiveWorkingGuard(
+                store=self,
+                session_id=session_id,
+                metadata_before=metadata,
+                working_before=current,
+            )
+            try:
+                yield guard
+            except BaseException:
+                if guard.recorded_sha256 is not None and not guard.committed:
+                    try:
+                        current_after_error = self._read_working_bytes(session_id)
+                        if sha256_bytes(current_after_error) == guard.recorded_sha256:
+                            atomic_write_bytes(self.working_path(session_id), current)
+                    finally:
+                        self._require_safe_root()
+                        _atomic_write_json(self.metadata_path(session_id), metadata)
+                raise
+
+    def record_edit(self, session_id: str, working_sha256: str, backup: Path) -> None:
+        """Record an already-written edit only while lifecycle state is mutable."""
+
+        with self.guard_working_mutation(
+            session_id,
+            expected_sha256=working_sha256,
+        ) as guard:
+            guard.record_edit(
+                working_sha256=working_sha256,
+                backup=backup,
+            )
+
+    def mutate_working(
+        self,
+        session_id: str,
+        *,
+        expected_sha256: str,
+        replacement: bytes,
+        backup_path: Path | None = None,
+        after_write: Callable[[LiveWorkingMutation], None] | None = None,
+    ) -> LiveWorkingMutation:
+        """Atomically bind one working-file write and metadata edit to lifecycle state."""
+
+        if len(replacement) > self.max_document_bytes:
+            raise SessionError(
+                "Replacement working XML exceeds the configured document-size limit",
+                code="document_too_large",
+            )
+        replacement_document = DipTraceDocument.from_bytes(
+            self.working_path(session_id),
+            replacement,
+        )
+        with self.guard_working_mutation(
+            session_id,
+            expected_sha256=expected_sha256,
+        ) as guard:
+            if replacement_document.source_type != guard.metadata_before.get(
+                "source_type"
+            ):
+                raise SessionError("Working XML type differs from the original session")
+            current_sha256 = sha256_bytes(guard.working_before)
+            replacement_sha256 = sha256_bytes(replacement)
+            backup = backup_path
+            if backup is None:
+                backup = self._store_working_backup_unlocked(
+                    session_id,
+                    guard.working_before,
+                )
+
+            working_path = self.working_path(session_id)
+            atomic_write_bytes(working_path, replacement)
+            guard.recorded_sha256 = replacement_sha256
+            written = self._read_working_bytes(session_id)
+            if sha256_bytes(written) != replacement_sha256:
+                raise SessionError(
+                    "Live working XML does not match the guarded replacement",
+                    code="sha256_mismatch",
+                )
+            guard.record_edit(
+                working_sha256=replacement_sha256,
+                backup=backup,
+            )
+            mutation = LiveWorkingMutation(
+                session_id=session_id,
+                before_sha256=current_sha256,
+                after_sha256=replacement_sha256,
+                backup=backup,
+            )
+            if after_write is not None:
+                after_write(mutation)
+            guard.commit()
+            return mutation
 
     def _live_write_impact(
         self,
@@ -1059,6 +1498,17 @@ class SessionStore:
         if action == "apply":
             _require_apply_supported(metadata)
         session_id = str(metadata["session_id"])
+        pending = self._pending_finish_request_unlocked(metadata)
+        if pending is not None:
+            if pending.get("action") == action and (
+                action == "cancel"
+                or pending.get("expected_sha256") == expected_sha256
+            ):
+                return {"session_id": session_id, **pending}
+            raise SessionError(
+                "A different live-session finish request is already pending",
+                code="session_finish_pending",
+            )
         working = self._read_working_bytes(session_id)
         current_sha256 = sha256_bytes(working)
         if action == "apply":
@@ -1089,6 +1539,7 @@ class SessionStore:
             )
             self._read_bound_exchange(metadata)
         request = {
+            "request_id": str(uuid.uuid4()),
             "action": action,
             "requested_at": utc_now(),
             "expected_sha256": current_sha256,
@@ -1099,10 +1550,50 @@ class SessionStore:
             session_id,
             finish_requested=action,
             finish_requested_at=request["requested_at"],
+            finish_request_id=request["request_id"],
         )
         self._require_safe_root()
-        _atomic_write_json(self.control_path(session_id), request)
+        try:
+            _atomic_write_json(self.control_path(session_id), request)
+        except Exception:
+            self.update_metadata(
+                session_id,
+                finish_requested=None,
+                finish_requested_at=None,
+                finish_request_id=None,
+            )
+            raise
         return {"session_id": session_id, **request}
+
+    def _pending_finish_request_unlocked(
+        self,
+        metadata: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        session_id = str(metadata["session_id"])
+        control_path = self.control_path(session_id)
+        metadata_action = metadata.get("finish_requested")
+        metadata_request_id = metadata.get("finish_request_id")
+        has_control = control_path.exists() or is_link_like(control_path)
+        has_metadata = metadata_action is not None or metadata_request_id is not None
+        if not has_control and not has_metadata:
+            return None
+        if not has_control or not has_metadata:
+            raise SessionError(
+                "Live-session finish request state is incomplete",
+                code="session_state_invalid",
+            )
+        request = _read_json(control_path)
+        if (
+            request.get("action") != metadata_action
+            or request.get("request_id") != metadata_request_id
+            or request.get("action") not in {"apply", "cancel"}
+            or not isinstance(request.get("expected_sha256"), str)
+        ):
+            raise SessionError(
+                "Live-session finish request state is inconsistent",
+                code="session_state_invalid",
+            )
+        return request
 
     def wait_for_finish_outcome(
         self,
@@ -1126,12 +1617,39 @@ class SessionStore:
 
         local_status = str(metadata.get("status", "unknown"))
         outcome: FinishOutcome
-        if local_status == "applied":
+        request_matches = (
+            metadata.get("finished_request_id") == request.get("request_id")
+            and metadata.get("finished_action") == request.get("action")
+        )
+        if local_status == "applied" and request_matches:
             outcome = "applied"
-        elif local_status == "cancelled":
+        elif local_status == "cancelled" and request_matches:
             outcome = "cancelled"
         else:
             outcome = "not_acknowledged"
+        if outcome == "applied":
+            message = (
+                "The bridge finalized the local exchange XML; DipTrace host import "
+                "acknowledgement is unavailable."
+            )
+        elif outcome == "cancelled":
+            message = (
+                "The bridge finalized cancellation locally; no exchange XML was replaced."
+            )
+        elif local_status == "abandoned":
+            message = (
+                "The session was abandoned terminally without replacing the exchange XML."
+            )
+        elif local_status in {"applied", "cancelled"}:
+            message = (
+                "The session was finalized by a different finish request; this request "
+                "will not complete."
+            )
+        else:
+            message = (
+                "The bridge did not finalize within the bounded wait. The request may "
+                "still be finalized later; inspect session status."
+            )
         return {
             "session_id": session_id,
             "requested_action": request.get("action"),
@@ -1142,30 +1660,96 @@ class SessionStore:
             "written": outcome == "applied",
             "diptrace_host_acknowledged": False,
             "acknowledgement_scope": "local_bridge_exchange_only",
-            "message": (
-                "The bridge finalized the local exchange XML; DipTrace host import "
-                "acknowledgement is unavailable."
-                if outcome == "applied"
-                else (
-                    "The bridge finalized cancellation locally; no exchange XML was "
-                    "replaced."
-                    if outcome == "cancelled"
-                    else (
-                        "The bridge did not finalize within the bounded wait. The "
-                        "request may still be finalized later; inspect session status."
-                    )
-                )
-            ),
+            "message": message,
         }
 
     def read_finish_request(self, session_id: str) -> dict[str, Any] | None:
         path = self.control_path(session_id)
         if not path.exists():
             return None
-        return _read_json(path)
+        raw = _stable_regular_file_bytes(
+            path,
+            64 * 1024,
+            purpose="live-session finish request",
+        )
+        try:
+            request = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            request = {}
+            request["_parse_error"] = str(exc)[:240]
+        if not isinstance(request, dict):
+            request = {"_parse_error": "finish request is not a JSON object"}
+        request["_control_sha256"] = sha256_bytes(raw)
+        return request
 
     def clear_finish_request(self, session_id: str) -> None:
         self.control_path(session_id).unlink(missing_ok=True)
+
+    def reject_finish_request(
+        self,
+        session_id: str,
+        message: str,
+        *,
+        expected_request_id: str,
+    ) -> None:
+        """Clear both halves of a rejected request so later edits are not frozen."""
+
+        with _exclusive_session_lock(self.lock_file):
+            metadata = self.read_metadata(session_id)
+            if metadata.get("status") != "active":
+                raise SessionError(f"Session is not active: {session_id}")
+            pending = self._pending_finish_request_unlocked(metadata)
+            if (
+                pending is None
+                or pending.get("request_id") != expected_request_id
+            ):
+                raise SessionError(
+                    "Refusing to clear a different finish request",
+                    code="session_finish_pending",
+                )
+            self.clear_finish_request(session_id)
+            self.update_metadata(
+                session_id,
+                finish_requested=None,
+                finish_requested_at=None,
+                finish_request_id=None,
+                last_error=message[:500],
+                updated_at=self._clock_timestamp(),
+            )
+
+    def reject_malformed_finish_request(
+        self,
+        session_id: str,
+        message: str,
+        *,
+        expected_control_sha256: str,
+    ) -> None:
+        """CAS-clear only the exact malformed control payload the bridge inspected."""
+
+        with _exclusive_session_lock(self.lock_file):
+            metadata = self.read_metadata(session_id)
+            if metadata.get("status") != "active":
+                raise SessionError(f"Session is not active: {session_id}")
+            control_path = self.control_path(session_id)
+            raw = _stable_regular_file_bytes(
+                control_path,
+                64 * 1024,
+                purpose="malformed live-session finish request",
+            )
+            if sha256_bytes(raw) != expected_control_sha256:
+                raise SessionError(
+                    "Refusing to clear a changed finish request",
+                    code="session_finish_pending",
+                )
+            self.clear_finish_request(session_id)
+            self.update_metadata(
+                session_id,
+                finish_requested=None,
+                finish_requested_at=None,
+                finish_request_id=None,
+                last_error=message[:500],
+                updated_at=self._clock_timestamp(),
+            )
 
     def finalize(
         self,
@@ -1185,12 +1769,26 @@ class SessionStore:
         metadata = self.read_metadata(session_id)
         if metadata.get("status") != "active":
             raise SessionError(f"Session is not active: {session_id}")
+        pending = self._pending_finish_request_unlocked(metadata)
+        if pending is not None and (
+            pending.get("action") != action
+            or (
+                action == "apply"
+                and pending.get("expected_sha256") != expected_sha256
+            )
+        ):
+            raise SessionError(
+                "Finalization does not match the pending finish request",
+                code="session_finish_pending",
+            )
         if action == "apply":
             _require_apply_supported(metadata)
 
         working = self._read_working_bytes(session_id)
         current_sha256 = sha256_bytes(working)
 
+        exchange_path: Path | None = None
+        exchange_before = b""
         if action == "apply":
             if expected_sha256 is None:
                 raise SessionError(
@@ -1226,30 +1824,79 @@ class SessionStore:
                 self._live_write_impact(metadata, working),
                 operation="live_session_apply",
             )
-            exchange_path, _exchange = self._read_bound_exchange(metadata)
-            atomic_write_bytes(exchange_path, working)
-            _post_write_path, applied = self._read_exchange_path(exchange_path)
-            applied_sha256 = sha256_bytes(applied)
-            if applied_sha256 != current_sha256:
-                # A different post-write value could be an external writer.  Never
-                # overwrite it blindly while attempting compensation.
-                raise SessionError(
-                    "Exchange-file SHA-256 does not match the applied working XML",
-                    code="sha256_mismatch",
-                    details={
-                        "expected_sha256": current_sha256,
-                        "current_sha256": applied_sha256,
-                    },
-                )
-
+            exchange_path, exchange_before = self._read_bound_exchange(metadata)
+        elif self.allowed_roots is not None:
+            # A prior failed apply can never be reported later as a cancellation.
+            self._read_bound_exchange(metadata)
         status = "applied" if action == "apply" else "cancelled"
-        metadata = self.update_metadata(
-            session_id,
-            status=status,
-            updated_at=utc_now(),
-            finished_at=utc_now(),
-            working_sha256=current_sha256,
-        )
+        try:
+            if action == "apply":
+                assert exchange_path is not None
+                atomic_write_bytes(exchange_path, working)
+                _post_write_path, applied = self._read_exchange_path(exchange_path)
+                applied_sha256 = sha256_bytes(applied)
+                if applied_sha256 != current_sha256:
+                    raise SessionError(
+                        "Exchange-file SHA-256 does not match the applied working XML",
+                        code="sha256_mismatch",
+                        details={
+                            "expected_sha256": current_sha256,
+                            "current_sha256": applied_sha256,
+                        },
+                    )
+            metadata = self.update_metadata(
+                session_id,
+                status=status,
+                updated_at=utc_now(),
+                finished_at=utc_now(),
+                working_sha256=current_sha256,
+                finished_action=action,
+                finished_request_id=(
+                    pending.get("request_id") if pending is not None else None
+                ),
+            )
+        except Exception:
+            latest = self.read_metadata(session_id)
+            state_persisted = (
+                latest.get("status") == status
+                and latest.get("working_sha256") == current_sha256
+                and latest.get("finished_action") == action
+                and latest.get("finished_request_id")
+                == (pending.get("request_id") if pending is not None else None)
+            )
+            if state_persisted:
+                metadata = latest
+            elif action == "apply":
+                assert exchange_path is not None
+                current_exchange_sha256: str | None = None
+                try:
+                    _current_path, exchange_after = self._read_exchange_path(
+                        exchange_path
+                    )
+                    current_exchange_sha256 = sha256_bytes(exchange_after)
+                    if exchange_after == working:
+                        atomic_write_bytes(exchange_path, exchange_before)
+                        _restored_path, restored = self._read_exchange_path(
+                            exchange_path
+                        )
+                        current_exchange_sha256 = sha256_bytes(restored)
+                        if restored != exchange_before:
+                            raise OSError("exchange compensation verification failed")
+                    elif exchange_after != exchange_before:
+                        raise OSError("unexpected exchange bytes block compensation")
+                except Exception as compensation_exc:
+                    raise SessionError(
+                        "Apply failed and exchange-file state is uncertain",
+                        code="session_apply_state_uncertain",
+                        details={
+                            "expected_working_sha256": current_sha256,
+                            "original_exchange_sha256": sha256_bytes(exchange_before),
+                            "current_exchange_sha256": current_exchange_sha256,
+                        },
+                    ) from compensation_exc
+                raise
+            else:
+                raise
         self.clear_finish_request(session_id)
         self._clear_active_reference_unlocked(session_id)
         return metadata

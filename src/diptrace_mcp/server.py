@@ -110,6 +110,38 @@ class RoundtripEvidenceInput(BaseModel):
     )
 
 
+class FinishLiveSessionResult(BaseModel):
+    """Bounded local bridge-finalization outcome; never a DipTrace host ACK."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    session_id: str
+    requested_action: Literal["apply", "cancel"]
+    requested_at: str
+    expected_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    outcome: Literal["applied", "cancelled", "not_acknowledged"]
+    local_bridge_status: Literal["active", "applied", "cancelled", "abandoned"]
+    written: bool
+    diptrace_host_acknowledged: Literal[False]
+    acknowledgement_scope: Literal["local_bridge_exchange_only"]
+    message: str
+
+
+class AbandonLiveSessionResult(BaseModel):
+    """Bounded result for a local, non-writing abandonment."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    session_id: str
+    outcome: Literal["abandoned"]
+    local_bridge_status: Literal["abandoned"]
+    written: Literal[False]
+    reason: str
+    diptrace_host_acknowledged: Literal[False]
+    acknowledgement_scope: Literal["local_session_state_only"]
+    message: str
+
+
 DISTANCE_UNITS_DESCRIPTION = (
     "All distances are in millimetres, regardless of the document's own Units attribute."
 )
@@ -2585,9 +2617,11 @@ def create_server(
     def finish_live_session(
         action: Literal["apply", "cancel"],
         expected_sha256: ExpectedLiveWorkingSha256Input | None = None,
-    ) -> dict[str, Any]:
+    ) -> FinishLiveSessionResult:
         """Request SHA-256-bound apply/cancel and report only local bridge finalization."""
-        return service.finish_live_session(action, expected_sha256)
+        return FinishLiveSessionResult.model_validate(
+            service.finish_live_session(action, expected_sha256)
+        )
 
     @mcp.tool()
     def abandon_live_session(
@@ -2602,9 +2636,11 @@ def create_server(
                 ),
             ),
         ],
-    ) -> dict[str, Any]:
+    ) -> AbandonLiveSessionResult:
         """Abandon stale local session state without applying its working XML."""
-        return service.abandon_live_session(reason)
+        return AbandonLiveSessionResult.model_validate(
+            service.abandon_live_session(reason)
+        )
 
     @mcp.resource("diptrace://status", mime_type="application/json")
     def status_resource() -> str:

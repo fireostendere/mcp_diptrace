@@ -58,6 +58,8 @@ class BridgeController:
                 return self._preview_payload
             payload = self.store.live_preview_summary(self.session_id)
         except Exception as exc:
+            self._preview_sha256 = None
+            self._preview_payload = None
             message = str(exc)
             payload = {
                 "available": False,
@@ -80,6 +82,8 @@ class BridgeController:
             or len(payload_sha256) != 64
             or any(character not in "0123456789abcdef" for character in payload_sha256)
         ):
+            self._preview_sha256 = None
+            self._preview_payload = None
             return {
                 "available": False,
                 "complete": False,
@@ -107,15 +111,37 @@ class BridgeController:
         self.finished = True
         return result
 
+    def inspected_sha256(self) -> str | None:
+        """Return the exact working SHA bound to the preview shown to the operator."""
+
+        if self._preview_payload is None:
+            return None
+        value = self._preview_payload.get("working_sha256")
+        return value if isinstance(value, str) else None
+
     def poll_request(self) -> dict[str, Any] | None:
         return self.store.read_finish_request(self.session_id)
 
-    def reject_request(self, message: str) -> None:
-        self.store.clear_finish_request(self.session_id)
-        self.store.update_metadata(
+    def reject_request(
+        self,
+        message: str,
+        *,
+        request_id: str | None = None,
+        control_sha256: str | None = None,
+    ) -> None:
+        if request_id is not None:
+            self.store.reject_finish_request(
+                self.session_id,
+                message,
+                expected_request_id=request_id,
+            )
+            return
+        if control_sha256 is None:
+            raise ValueError("control_sha256 is required for malformed request rejection")
+        self.store.reject_malformed_finish_request(
             self.session_id,
-            last_error=message,
-            updated_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            message,
+            expected_control_sha256=control_sha256,
         )
 
 
@@ -219,6 +245,22 @@ def _preview_details_text(session_id: str, summary: dict[str, Any]) -> str:
     )
 
 
+def _valid_finish_request(request: dict[str, Any]) -> bool:
+    request_id = request.get("request_id")
+    action = request.get("action")
+    expected_sha256 = request.get("expected_sha256")
+    requested_at = request.get("requested_at")
+    return (
+        isinstance(request_id, str)
+        and action in {"apply", "cancel"}
+        and isinstance(expected_sha256, str)
+        and len(expected_sha256) == 64
+        and all(character in "0123456789abcdef" for character in expected_sha256)
+        and isinstance(requested_at, str)
+        and bool(requested_at)
+    )
+
+
 def run_gui(controller: BridgeController, timeout: int) -> int:
     import tkinter as tk
     from tkinter import messagebox
@@ -251,13 +293,20 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
     buttons = tk.Frame(frame)
     buttons.pack(fill="x", pady=(16, 0))
 
-    def finish(action: SessionAction, expected_sha256: str | None = None) -> bool:
+    def finish(
+        action: SessionAction,
+        expected_sha256: str | None = None,
+        *,
+        reject_pending: bool = False,
+        request_id: str | None = None,
+    ) -> bool:
         if controller.finished:
             return True
         try:
             controller.finish(action, expected_sha256)
         except Exception as exc:
-            controller.reject_request(str(exc))
+            if reject_pending and request_id is not None:
+                controller.reject_request(str(exc), request_id=request_id)
             status.set(f"Cannot finish session: {exc}")
             return False
         status.set(
@@ -275,8 +324,8 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
         buttons,
         text="Apply MCP changes",
         width=22,
-        command=lambda: finish("apply", controller.current_sha256()),
-        state="normal" if controller.can_apply else "disabled",
+        command=lambda: finish("apply", controller.inspected_sha256()),
+        state="disabled",
     )
     apply_button.pack(side="left")
     tk.Button(
@@ -297,26 +346,52 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
     def poll() -> None:
         if controller.finished:
             return
-        if time.monotonic() - started >= timeout:
-            finish("cancel")
-            return
         try:
+            summary = controller.preview_summary()
             details.set(
                 _preview_details_text(
                     controller.session_id,
-                    controller.preview_summary(),
+                    summary,
+                )
+            )
+            apply_button.configure(
+                state=(
+                    "normal"
+                    if controller.can_apply and summary.get("available") is True
+                    else "disabled"
                 )
             )
             request = controller.poll_request()
             if request:
                 action = request.get("action")
-                if action not in {"apply", "cancel"}:
-                    controller.reject_request(f"Unknown finish action: {action}")
-                else:
-                    if finish(action, request.get("expected_sha256")):
-                        return
+                request_id = request.get("request_id")
+                control_sha256 = request.get("_control_sha256")
+                if not _valid_finish_request(request):
+                    if not isinstance(control_sha256, str):
+                        raise ValueError("Finish request has no valid control hash")
+                    controller.reject_request(
+                        (
+                            f"Unknown finish action: {action}"
+                            if action not in {"apply", "cancel"}
+                            else "Malformed finish request"
+                        ),
+                        control_sha256=control_sha256,
+                    )
+                    root.after(350, poll)
+                    return
+                assert isinstance(request_id, str)
+                assert action in {"apply", "cancel"}
+                if finish(
+                    action,
+                    request.get("expected_sha256"),
+                    reject_pending=True,
+                    request_id=request_id,
+                ):
+                    return
         except Exception as exc:
             status.set(f"Bridge error: {exc}")
+        if time.monotonic() - started >= timeout and finish("cancel"):
+            return
         root.after(350, poll)
 
     root.after(350, poll)
@@ -330,16 +405,43 @@ def run_headless(controller: BridgeController, timeout: int) -> int:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         request = controller.poll_request()
-        if request:
-            action = request.get("action")
-            if action not in {"apply", "cancel"}:
-                controller.reject_request(f"Unknown finish action: {action}")
-            else:
-                controller.finish(action, request.get("expected_sha256"))
-                return 0
+        if request and _handle_headless_request(controller, request):
+            return 0
         time.sleep(0.25)
+    request = controller.poll_request()
+    if request and _handle_headless_request(controller, request):
+        return 0
     controller.finish("cancel")
     return 2
+
+
+def _handle_headless_request(
+    controller: BridgeController,
+    request: dict[str, Any],
+) -> bool:
+    action = request.get("action")
+    request_id = request.get("request_id")
+    control_sha256 = request.get("_control_sha256")
+    if not _valid_finish_request(request):
+        if not isinstance(control_sha256, str):
+            raise ValueError("Finish request has no valid control hash")
+        controller.reject_request(
+            (
+                f"Unknown finish action: {action}"
+                if action not in {"apply", "cancel"}
+                else "Malformed finish request"
+            ),
+            control_sha256=control_sha256,
+        )
+        return False
+    assert isinstance(request_id, str)
+    assert action in {"apply", "cancel"}
+    try:
+        controller.finish(action, request.get("expected_sha256"))
+    except DipTraceMcpError as exc:
+        controller.reject_request(str(exc), request_id=request_id)
+        return False
+    return True
 
 
 def _positive_timeout(value: str) -> int:

@@ -66,13 +66,14 @@ The current measurement was taken after the combined WO-14 bridge, transaction
 recovery, public MCP workflow, large synthetic load, live-session concurrency
 and profile-safety work, live-apply target binding, bounded copper previews,
 WO-16 registry/evidence intake, and the acceptance-seed audit on Python 3.12
-with Shapely 2.1.2. These are coverage.py statement measurements, not
+plus the live-session lease, request correlation, recovery, and apply-compensation
+work on Python 3.12 with Shapely 2.1.2. These are coverage.py statement measurements, not
 hand-estimated percentages:
 
 | Target | Statements | Missed | Measured | Enforced integer floor |
 | --- | ---: | ---: | ---: | ---: |
-| Total `src/diptrace_mcp` | 16,272 | 2,267 | 86.0681% | 85% |
-| `bridge.py` | 192 | 68 | 64.5833% | 64% |
+| Total `src/diptrace_mcp` | 16,910 | 2,372 | 85.9728% | 85% |
+| `bridge.py` | 262 | 80 | 69.4656% | 64% |
 | `xml_document.py` | 825 | 99 | 88.0000% | 87% |
 | `semantic_compiler.py` | 1,389 | 160 | 88.4809% | 88% |
 | `routing_compiler.py` | 561 | 75 | 86.6310% | 85% |
@@ -105,10 +106,16 @@ The maintained suite covers:
   boundary-only pours, before/after trace geometry, and explicit point-budget
   truncation;
 - thread- and spawned-process serialization of the single-active-session invariant,
-  finish requests, and finalization;
+  guarded raw/transaction writes, finish requests, and finalization;
 - live-session dead-PID, Linux PID-reuse, cross-namespace unknown-liveness, activity-TTL,
   manual/automatic abandonment, bounded local finish outcomes, late finalization, and
   terminal abandoned-record retention;
+- Windows creation-time PID identity, dead-owner lease recovery, non-expiring unknown
+  cross-namespace lease refusal, and transaction/finalize
+  barrier orderings;
+- a manual-only Windows/WSL NTFS lock-interoperability probe; CI tests its path-free
+  report builder and parser, while the two-host topology run remains documented
+  evidence rather than a simulated CI result;
 - independent live-apply object-limit checks at request and bridge-finalize boundaries,
   including the exact 500 boundary, cumulative/oversized post-request substitution,
   malformed working XML refusal, and unchanged exchange bytes on every refusal;

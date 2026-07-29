@@ -71,7 +71,16 @@ def test_finish_request_publishes_control_after_metadata(
         sha256_bytes(store.working_path(metadata["session_id"]).read_bytes()),
     )
 
-    assert writes == [
+    lifecycle_writes = [
+        path
+        for path in writes
+        if path
+        in {
+            store.metadata_path(metadata["session_id"]),
+            store.control_path(metadata["session_id"]),
+        }
+    ]
+    assert lifecycle_writes == [
         store.metadata_path(metadata["session_id"]),
         store.control_path(metadata["session_id"]),
     ]

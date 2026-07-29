@@ -244,13 +244,23 @@ accesses the same directory through
 `/mnt/c/Users/<user>/AppData/Local/DipTraceMCP`. The protocol uses ordinary files only
 and requires no Windows-to-WSL socket connection.
 
-Session metadata records the bridge platform, PID namespace, PID, and a Linux
-process-start token. Liveness is consulted only from the same exact platform/namespace;
+Session metadata records the bridge platform, PID namespace, PID, and a Linux `/proc`
+or Windows creation-time process token. Liveness is consulted only from the same exact
+platform/namespace;
 a WSL PID is never used to infer whether a Windows bridge is alive. Same-namespace death
 transitions the state to terminal `abandoned`. Cross-namespace liveness remains
 `unknown` until the configurable two-hour TTL or an explicit
 `abandon_live_session(reason)` action. Apply remains separately bound to the original
 exchange path/hash, current working hash, and two independent write-impact checks.
+
+Lifecycle mutations use an atomic lease directory rather than `flock` or Windows
+byte-range locking: those native lock families do not coordinate across the two NTFS
+views. The lease carries a nonce and process identity. It is reclaimed automatically
+only when that exact same-namespace owner is provably dead; an unknown
+cross-namespace lease owner is not force-reclaimed because the old writer cannot be
+fenced safely. Dead-owner recovery itself uses a second atomic reaper gate. A process
+crash while holding that short-lived gate remains a fail-closed administrative
+recovery case rather than guessing that a different namespace is dead.
 
 ## Verified DipTrace Baseline
 

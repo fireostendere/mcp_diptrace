@@ -110,8 +110,9 @@ untouched, and no validation level is granted.
 
 ### Live-session recovery and final-apply checkpoint — 2026-07-29
 
-The single-active-session state now records platform, PID namespace, PID, and Linux
-process-start token. A provably dead same-namespace bridge is terminally abandoned
+The single-active-session state now records platform, PID namespace, PID, and a
+Linux `/proc` or Windows creation-time process token. A provably dead
+same-namespace bridge is terminally abandoned
 immediately; cross Windows/WSL namespace state remains honestly `unknown` and uses a
 two-hour TTL measured from the last validated session activity. Operators can use
 `abandon_live_session(reason)` without copying working XML, and
@@ -145,11 +146,12 @@ while also preserving evidence for the fallback installation.
 After the combined WO-14 bridge, transaction-recovery, public MCP workflow,
 synthetic-load, live-session profile-safety, WO-16 registry/evidence intake,
 live-apply target binding, bounded copper preview, schema-backed API inputs,
-and acceptance-seed audit slices, the canonical geometry-enabled suite
-measured 16,272 statements, 2,267 misses, and **86.0681%** total coverage. `bridge.py`
-moved from an untested CI executable path to 124 of 192 statements, or
-**64.5833%**, backed by a real cross-process apply handshake plus
-cancel/timeout/error tests. CI enforces an integer 85% total floor plus measured
+acceptance-seed audit, and cross-platform live-session lifecycle slices, the
+canonical geometry-enabled suite measured 16,910 statements, 2,372 misses, and
+**85.9728%** total coverage. `bridge.py` moved from an untested CI executable
+path to 182 of 262 statements, or **69.4656%**, backed by a real cross-process
+apply handshake plus cancel/timeout/error and request-correlation tests. CI
+enforces an integer 85% total floor plus measured
 per-file floors of 64% for `bridge.py`, 87% for `xml_document.py`, 88% for
 `semantic_compiler.py`, and 85% for `routing_compiler.py`. The intended project
 target remains at least 88% total; that target is explicitly still open and
@@ -212,13 +214,19 @@ in [TESTING.md](TESTING.md).
 
 ### Live-session concurrency checkpoint — 2026-07-28
 
-Session creation, finish requests, and finalization now share a state-root lock
-across threads and processes. Concurrent creators produce exactly one active
+Session creation, edits, transaction commit/rollback, finish requests, and finalization
+now share an atomic state-root lease directory across threads, processes, Windows, and
+WSL. Concurrent creators produce exactly one active
 session; concurrent finalizers produce one terminal transition; and a
 request/finalize race leaves canonical JSON state with no stale active or control
-marker. The lock file is validated as a regular, non-redirected file before use.
-Spawned-process and thread-barrier regressions exercise the maintained behavior
-without starting DipTrace.
+marker. The lease has a nonce and exact process identity; unknown cross-namespace
+owners are never expired or force-reclaimed because doing so cannot fence the old
+writer. `abandon_live_session(reason)` therefore returns a typed lock timeout while
+such an owner remains. Spawned-process and thread-barrier regressions exercise the maintained
+behavior without starting DipTrace; a Windows/WSL NTFS probe also established that
+native `flock` and Windows byte locks are not interoperable. The exact manual-only
+procedure, path-free output contract, host observation, and CI boundary are recorded in
+[WINDOWS_WSL_LOCK_INTEROP.md](WINDOWS_WSL_LOCK_INTEROP.md).
 
 ### WO-16 acceptance-seed consumer checkpoint — 2026-07-28
 

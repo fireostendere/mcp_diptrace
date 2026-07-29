@@ -267,7 +267,7 @@ def test_valid_bound_apply_replaces_exchange_with_exact_working_bytes(
     assert sha256_bytes(exchange.read_bytes()) == expected_sha256
 
 
-def test_finalize_detects_non_exact_atomic_exchange_write(
+def test_finalize_reports_uncertain_state_for_persistently_corrupt_exchange_write(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -284,11 +284,15 @@ def test_finalize_detects_non_exact_atomic_exchange_write(
 
     monkeypatch.setattr(sessions_module, "atomic_write_bytes", corrupt_exchange_write)
 
-    with pytest.raises(SessionError, match="does not match") as caught:
+    with pytest.raises(SessionError, match="state is uncertain") as caught:
         store.finalize(session_id, "apply", str(request["expected_sha256"]))
 
-    assert caught.value.payload.code == "sha256_mismatch"
+    assert caught.value.payload.code == "session_apply_state_uncertain"
+    assert caught.value.payload.details["current_exchange_sha256"] == sha256_bytes(
+        exchange.read_bytes()
+    )
     assert store.read_metadata(session_id)["status"] == "active"
+    assert store.control_path(session_id).exists()
 
 
 def test_finish_live_session_schema_binds_apply_to_latest_working_sha() -> None:

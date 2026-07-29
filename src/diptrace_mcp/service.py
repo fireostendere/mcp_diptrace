@@ -185,7 +185,7 @@ from .scaffolding import (
     validate_format_version,
 )
 from .semantic_compiler import SemanticApplyResult, apply_semantic_operations
-from .sessions import SessionAction, SessionStore
+from .sessions import LiveWorkingGuard, SessionAction, SessionStore
 from .silkscreen import SilkscreenPlanConfig, plan_silkscreen
 from .specctra import (
     dsn_export_limitations,
@@ -1525,6 +1525,22 @@ class DipTraceService:
         DipTrace export.  This helper updates (or creates) the sidecar to
         reflect the synthetic state while preserving parent provenance.
         """
+        new_sidecar = self._invalidated_document_provenance(
+            document_path,
+            document_sha256,
+            operation_name=operation_name,
+        )
+        self._write_provenance_sidecar(document_path, new_sidecar)
+
+    def _invalidated_document_provenance(
+        self,
+        document_path: Path,
+        document_sha256: str,
+        *,
+        operation_name: str,
+    ) -> DocumentProvenance:
+        """Build the exact trust downgrade before a guarded sidecar replace."""
+
         old_sidecar = self._load_seed_provenance(document_path)
         parent_level: FixtureValidationLevel | None = None
         seed_sha: str | None = None
@@ -1532,7 +1548,7 @@ class DipTraceService:
             # Preserve the deepest parent level from the chain
             parent_level = old_sidecar.parent_validation_level or old_sidecar.validation_level
             seed_sha = old_sidecar.seed_sha256
-        new_sidecar = DocumentProvenance(
+        return DocumentProvenance(
             provenance="mcp_modified" + (f"_from_{parent_level.value}" if parent_level else ""),
             validation_level=FixtureValidationLevel.synthetic_operation_fixture,
             current_document_sha256=document_sha256,
@@ -1540,11 +1556,14 @@ class DipTraceService:
             parent_validation_level=parent_level,
             last_modified_by=operation_name,
         )
-        self._write_provenance_sidecar(document_path, new_sidecar)
 
     def resolve_target(self, path: str | None) -> DocumentTarget:
         if path:
-            return DocumentTarget(self.settings.resolve_allowed_path(path))
+            resolved = self.settings.resolve_allowed_path(path)
+            return DocumentTarget(
+                resolved,
+                self.sessions.session_id_for_working_path(resolved),
+            )
         active = self.sessions.active_metadata()
         if active is None:
             raise SessionError(
@@ -2684,26 +2703,59 @@ class DipTraceService:
         )
         _finalize_raw_edit_response(preflight)
 
-        backup_destination: Path | BackupStore
-        if target.live_session_id:
-            backup_destination = self.sessions.backups_dir(target.live_session_id)
-        else:
-            backup_destination = self.backups
         assert expected_sha256 is not None
-        self._require_current_target_sha256(target.path, expected_sha256)
-        backup = write_with_backup(
-            target.path,
-            after,
-            backup_destination,
-            expected_sha256=expected_sha256,
-        )
-        DipTraceDocument.load(target.path, self.settings.max_document_bytes)
         if target.live_session_id:
-            self.sessions.record_edit(target.live_session_id, after_sha256, backup)
-        # Invalidate trust after MCP modification
-        self.invalidate_document_trust_after_write(
-            target.path, after_sha256, operation_name="mcp_apply_xml_edits"
-        )
+            def finalize_live_raw_edit(_mutation: object) -> None:
+                DipTraceDocument.load(target.path, self.settings.max_document_bytes)
+                sidecar_path = target.path.with_suffix(
+                    target.path.suffix + ".provenance.json"
+                )
+                try:
+                    previous_sidecar = sidecar_path.read_bytes()
+                except FileNotFoundError:
+                    previous_sidecar = None
+                prepared = self._invalidated_document_provenance(
+                    target.path,
+                    after_sha256,
+                    operation_name="mcp_apply_xml_edits",
+                )
+                attempted_sidecar = prepared.model_dump_json(indent=2).encode()
+                try:
+                    self._write_provenance_sidecar(target.path, prepared)
+                except Exception:
+                    try:
+                        current_sidecar = sidecar_path.read_bytes()
+                    except FileNotFoundError:
+                        current_sidecar = None
+                    if current_sidecar == attempted_sidecar:
+                        if previous_sidecar is None:
+                            sidecar_path.unlink(missing_ok=True)
+                        else:
+                            atomic_write_bytes(sidecar_path, previous_sidecar)
+                    raise
+
+            mutation = self.sessions.mutate_working(
+                target.live_session_id,
+                expected_sha256=expected_sha256,
+                replacement=after,
+                after_write=finalize_live_raw_edit,
+            )
+            backup = mutation.backup
+        else:
+            self._require_current_target_sha256(target.path, expected_sha256)
+            backup = write_with_backup(
+                target.path,
+                after,
+                self.backups,
+                expected_sha256=expected_sha256,
+            )
+            DipTraceDocument.load(target.path, self.settings.max_document_bytes)
+            # Invalidate trust after MCP modification
+            self.invalidate_document_trust_after_write(
+                target.path,
+                after_sha256,
+                operation_name="mcp_apply_xml_edits",
+            )
         backup_text = str(backup)
         backup_preview, backup_truncated = _bounded_text(backup_text, 4_096)
         result.update(
@@ -3180,6 +3232,9 @@ class DipTraceService:
         self,
         txid: str,
         expected_sha256: str | None = None,
+        *,
+        _live_session_id: str | None = None,
+        _live_guard: LiveWorkingGuard | None = None,
     ) -> dict[str, Any]:
         self.policy.require_write(dry_run=False, operation="commit_transaction")
         record = self.transactions.read(txid)
@@ -3213,7 +3268,23 @@ class DipTraceService:
                 },
                 txid=txid,
             )
-        is_live = self._session_id_from_working(target_path) is not None
+        session_id = (
+            _live_session_id
+            if _live_session_id is not None
+            else self._session_id_from_working(target_path)
+        )
+        if session_id is not None and _live_guard is None:
+            with self.sessions.guard_working_mutation(
+                session_id,
+                expected_sha256=expected,
+            ) as live_guard:
+                return self.commit_transaction(
+                    txid,
+                    expected_sha256,
+                    _live_session_id=session_id,
+                    _live_guard=live_guard,
+                )
+        is_live = session_id is not None
         applied = _apply_bounded_semantic_operations(
             current,
             operations,
@@ -3233,6 +3304,11 @@ class DipTraceService:
                     txid=txid,
                 )
             self._require_current_target_sha256(target_path, committed_sha256)
+            if _live_guard is not None:
+                _live_guard.record_edit(
+                    working_sha256=committed_sha256,
+                    backup=backup,
+                )
         except Exception as exc:
             compensation_error: TransactionConflictError | None = None
             try:
@@ -3390,9 +3466,8 @@ class DipTraceService:
                     },
                     txid=txid,
                 ) from state_exc
-        session_id = self._session_id_from_working(target_path)
-        if session_id is not None:
-            self.sessions.record_edit(session_id, committed_sha256, backup)
+        if _live_guard is not None:
+            _live_guard.commit()
         # Invalidate trust after MCP modification
         self.invalidate_document_trust_after_write(
             target_path, committed_sha256, operation_name="mcp_transaction_commit"
@@ -3544,6 +3619,9 @@ class DipTraceService:
         self,
         txid: str,
         expected_sha256: str | None = None,
+        *,
+        _live_session_id: str | None = None,
+        _live_guard: LiveWorkingGuard | None = None,
     ) -> dict[str, Any]:
         self.policy.require_write(dry_run=False, operation="rollback_transaction")
         record = self.transactions.read(txid)
@@ -3574,6 +3652,22 @@ class DipTraceService:
                     },
                     txid=txid,
                 )
+            session_id = (
+                _live_session_id
+                if _live_session_id is not None
+                else self._session_id_from_working(target_path)
+            )
+            if session_id is not None and _live_guard is None:
+                with self.sessions.guard_working_mutation(
+                    session_id,
+                    expected_sha256=expected_sha256,
+                ) as live_guard:
+                    return self.rollback_transaction(
+                        txid,
+                        expected_sha256,
+                        _live_session_id=session_id,
+                        _live_guard=live_guard,
+                    )
             restored_document_bytes = self._load_transaction_backup_bytes(
                 txid,
                 expected_sha256=record.source_sha256,
@@ -3616,6 +3710,10 @@ class DipTraceService:
                     txid=txid,
                     phase="rollback_sidecar_verify",
                 )
+                if _live_guard is not None:
+                    _live_guard.record_edit(
+                        working_sha256=restored_sha256,
+                    )
             except Exception as exc:
                 self._compensate_rollback_files(
                     txid=txid,
@@ -3689,6 +3787,8 @@ class DipTraceService:
                     },
                     txid=txid,
                 ) from state_exc
+        if _live_guard is not None:
+            _live_guard.commit()
         return {
             "ok": True,
             "written": restored_sha256 is not None,
@@ -7163,6 +7263,10 @@ class DipTraceService:
             "reason": metadata["abandon_reason"],
             "diptrace_host_acknowledged": False,
             "acknowledgement_scope": "local_session_state_only",
+            "message": (
+                "The local session was abandoned without applying working XML or "
+                "replacing the exchange file."
+            ),
         }
 
     def scan_documents(self, root: str | None = None, recursive: bool = True) -> dict[str, Any]:
@@ -7507,13 +7611,7 @@ class DipTraceService:
         return snapshot
 
     def _session_id_from_working(self, path: Path) -> str | None:
-        active = self.sessions.active_metadata()
-        if active is None:
-            return None
-        session_id = str(active["session_id"])
-        if self.sessions.working_path(session_id) == path:
-            return session_id
-        return None
+        return self.sessions.session_id_for_working_path(path)
 
     def _read_source_header(self, path: Path) -> dict[str, str] | None:
         try:

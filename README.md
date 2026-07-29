@@ -181,6 +181,10 @@ same-platform/same-PID-namespace bridge is marked `abandoned` automatically. Win
 WSL PID namespaces are never guessed across; an unknown-liveness orphan expires after the
 configurable two-hour session TTL or can be closed explicitly with
 `abandon_live_session(reason="...")`, which never applies its working XML.
+Windows/WSL lifecycle mutations share an atomic nonce-bound lease directory because
+native `flock` and Windows byte locks do not interoperate on NTFS. Ordinary operations
+never time-expire or force-reclaim an unknown lease owner; explicit abandonment
+returns a typed timeout instead of risking a split-brain writer.
 
 ## Offline Mode
 
