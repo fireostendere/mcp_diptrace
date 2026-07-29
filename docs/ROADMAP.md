@@ -149,8 +149,8 @@ After the combined WO-14 bridge, transaction-recovery, public MCP workflow,
 synthetic-load, live-session profile-safety, WO-16 registry/evidence intake,
 live-apply target binding, bounded copper preview, schema-backed API inputs,
 acceptance-seed audit, and cross-platform live-session lifecycle slices, the
-canonical geometry-enabled suite measured 16,844 statements, 2,360 misses, and
-**85.9891%** total coverage. `bridge.py` moved from an untested CI executable
+canonical geometry-enabled suite measured 16,882 statements, 2,368 misses, and
+**85.9732%** total coverage. `bridge.py` moved from an untested CI executable
 path to 182 of 262 statements, or **69.4656%**, backed by a real cross-process
 apply handshake plus cancel/timeout/error and request-correlation tests. CI
 enforces an integer 85% total floor plus measured
@@ -216,6 +216,12 @@ compiler diverge. The same cleanup removed the unused service `_snapshot` helper
 the unused document reserializer, four exception subclasses with no callers, and
 the ignored `MoveComponentsOperation.anchor` input (which is now refused as extra);
 the canonical 159-tool snapshot remains byte-identical.
+
+The six state-backed transaction, session, plan, finding, job, and export stores
+now also share one `RecordStore` seam for safe-root initialization/revalidation,
+initial retention, and atomic JSON output. Their identifier formats, terminal
+transitions, retention candidates, session CAS/locking, and artifact rules remain
+in the concrete stores; this is not a generic CRUD layer.
 
 ### Public MCP workflow checkpoint — 2026-07-28
 

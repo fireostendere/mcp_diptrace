@@ -16,6 +16,7 @@ src/diptrace_mcp/
   policy.py            policy-profile enforcement
   operations.py        semantic write operations
   preview.py           deterministic SVG/JSON previews
+  record_store.py      safe persistence seam shared by state-backed stores
   server.py            FastMCP registration and CLI
   service.py           use cases and write workflow
   sessions.py          shared live-session state

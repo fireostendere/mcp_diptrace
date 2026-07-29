@@ -82,7 +82,7 @@ hand-estimated percentages:
 
 | Target | Statements | Missed | Measured | Enforced integer floor |
 | --- | ---: | ---: | ---: | ---: |
-| Total `src/diptrace_mcp` | 16,844 | 2,360 | 85.9891% | 85% |
+| Total `src/diptrace_mcp` | 16,882 | 2,368 | 85.9732% | 85% |
 | `bridge.py` | 262 | 80 | 69.4656% | 64% |
 | `xml_document.py` | 810 | 86 | 89.3827% | 87% |
 | `semantic_compiler.py` | 1,349 | 159 | 88.2135% | 88% |
