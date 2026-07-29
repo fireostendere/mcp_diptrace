@@ -26,6 +26,10 @@ Version links and release dates will be added only for an actual release.
 - Public package metadata for repository, documentation, and issue links,
   plus EDA-focused classifiers without a premature license classifier.
 
+### Fixed
+
+- Full pytest CI regression introduced by the release-artifact validation work.
+
 ### Clarified
 
 - The license release blocker is resolved: Apache-2.0 is committed as
