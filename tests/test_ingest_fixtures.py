@@ -15,8 +15,12 @@ SCRIPT = ROOT / "scripts" / "ingest_fixtures.py"
 ACCEPTANCE_ROOT = ROOT / "tests" / "fixtures" / "acceptance"
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import ingest_fixtures as ingest_module  # noqa: E402
 from ingest_fixtures import (  # noqa: E402
+    INGEST_PATH_SAFETY_MODE,
+    SECURE_CONFINED_OPEN_AVAILABLE,
     IngestError,
+    _read_confined_file,
     build_plan,
     create_synthetic_candidate,
     run_cli,
@@ -315,6 +319,130 @@ def test_private_input_path_symlink_hardlink_and_duplicate_are_rejected(
     with pytest.raises(IngestError) as duplicated:
         validate_candidate(capture_root, candidate)
     assert duplicated.value.code == "candidate_role_conflict"
+
+
+@pytest.mark.parametrize(
+    "noncanonical",
+    [
+        "private//source-library.eli",
+        "private/./source-library.eli",
+        "private/source-library.eli/",
+    ],
+)
+def test_private_input_path_must_be_raw_canonical_posix(
+    tmp_path: Path,
+    noncanonical: str,
+) -> None:
+    capture_root, candidate, _destination, _private_input, _bytes = (
+        _candidate_with_private_input(tmp_path)
+    )
+
+    def change_path(value: dict[str, object]) -> None:
+        inputs = value["input_artifacts"]
+        assert isinstance(inputs, list)
+        record = inputs[0]
+        assert isinstance(record, dict)
+        record["path"] = noncanonical
+
+    _rewrite_manifest(capture_root, candidate, change_path)
+
+    with pytest.raises(IngestError) as caught:
+        validate_candidate(capture_root, candidate)
+
+    assert caught.value.code == "unsafe_candidate_path"
+
+
+@pytest.mark.parametrize(
+    ("protocol_path", "protocol_role"),
+    [
+        ("synthetic-recipe.json", "recipe"),
+        ("synthetic-input/source.xml", "source stage"),
+    ],
+)
+def test_private_input_cannot_reuse_recipe_or_stage_path(
+    tmp_path: Path,
+    protocol_path: str,
+    protocol_role: str,
+) -> None:
+    capture_root, candidate, _destination = _candidate_root(tmp_path)
+    source = capture_root / protocol_path
+    source.parent.mkdir(parents=True, exist_ok=True)
+    if not source.exists():
+        source.write_bytes(b"original-stage-file")
+    data = source.read_bytes()
+
+    def add_conflicting_input(value: dict[str, object]) -> None:
+        value["input_artifacts"] = [
+            {
+                "role": "private_input",
+                "name": source.name,
+                "path": protocol_path,
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "size_bytes": len(data),
+            }
+        ]
+
+    _rewrite_manifest(capture_root, candidate, add_conflicting_input)
+
+    with pytest.raises(IngestError) as caught:
+        validate_candidate(capture_root, candidate)
+
+    assert caught.value.code == "candidate_role_conflict", protocol_role
+
+
+def test_posix_confined_read_never_reopens_full_descendant_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if not SECURE_CONFINED_OPEN_AVAILABLE:
+        pytest.skip("Descriptor-relative confined open is POSIX-only")
+    nested = tmp_path / "private"
+    nested.mkdir()
+    artifact = nested / "input.eli"
+    artifact.write_bytes(b"private")
+    calls: list[tuple[object, int | None]] = []
+    real_open = os.open
+
+    def tracked_open(
+        path: object,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        calls.append((path, dir_fd))
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(ingest_module.os, "open", tracked_open)
+
+    assert _read_confined_file(
+        tmp_path,
+        Path("private/input.eli"),
+        role="private input",
+        max_bytes=1024,
+    ) == b"private"
+    assert calls[0] == (tmp_path, None)
+    assert calls[1][0] == "private" and calls[1][1] is not None
+    assert calls[2][0] == "input.eli" and calls[2][1] is not None
+    assert all(path != artifact for path, _dir_fd in calls[1:])
+
+
+def test_ingest_plan_discloses_path_safety_mode(tmp_path: Path) -> None:
+    capture_root, candidate_path, destination_root = _candidate_root(tmp_path)
+    candidate = validate_candidate(capture_root, candidate_path)
+
+    plan = build_plan(
+        candidate,
+        destination_root=destination_root,
+        destination_root_exists=True,
+        fixture_id="review-path-safety",
+        synthetic=False,
+    )
+
+    assert plan["validation"]["filesystem_safety"] == {
+        "mode": INGEST_PATH_SAFETY_MODE,
+        "race_resistant": SECURE_CONFINED_OPEN_AVAILABLE,
+    }
 
 
 def test_detached_digest_tampering_is_rejected(tmp_path: Path) -> None:

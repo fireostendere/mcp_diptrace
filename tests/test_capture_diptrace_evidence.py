@@ -614,6 +614,43 @@ def test_private_inputs_reject_path_symlink_hardlink_and_duplicate_role(
     outside.unlink()
 
 
+def test_private_input_rejects_real_capture_store_through_alias(
+    capture_root: Path,
+) -> None:
+    repository = initialized_repository(capture_root)
+    source = capture_root / "source.xml"
+    source.write_bytes(xml_bytes())
+    stored_input = repository.candidates / "existing-private.eli"
+    stored_input.write_bytes(b"must-not-be-reclassified")
+
+    alias = capture_root / ".DIPTRACE-CAPTURE"
+    if not alias.exists():
+        try:
+            alias.symlink_to(repository.store, target_is_directory=True)
+        except OSError:
+            alias = capture_root / "capture-store-alias"
+            try:
+                alias.symlink_to(repository.store, target_is_directory=True)
+            except OSError:
+                pytest.skip("Filesystem cannot create a directory alias")
+
+    with pytest.raises(CaptureError) as caught:
+        repository.record_stage(
+            "capture-001",
+            "source",
+            source,
+            attestations("source"),
+            input_artifacts=[
+                (
+                    "legacy_input",
+                    f"{alias.name}/candidates/{stored_input.name}",
+                )
+            ],
+        )
+
+    assert caught.value.code == "capture_store_input_forbidden"
+
+
 def test_input_artifact_cli_is_repeatable_and_source_only(capture_root: Path) -> None:
     repository = initialized_repository(capture_root)
     source = capture_root / "source.xml"

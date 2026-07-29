@@ -18,6 +18,7 @@ import stat
 import sys
 import tempfile
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, NoReturn
@@ -48,6 +49,17 @@ PENDING_RECEIPT_SCHEMA = "diptrace-ingest-pending-v1"
 MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 MAX_DIGEST_BYTES = 512
 MAX_DESTINATION_ENTRIES = 10_000
+SECURE_CONFINED_OPEN_AVAILABLE = (
+    os.name == "posix"
+    and hasattr(os, "O_DIRECTORY")
+    and hasattr(os, "O_NOFOLLOW")
+    and os.open in os.supports_dir_fd
+)
+INGEST_PATH_SAFETY_MODE = (
+    "descriptor_relative_posix"
+    if SECURE_CONFINED_OPEN_AVAILABLE
+    else "cooperative_identity_checks"
+)
 SESSION_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 FIXTURE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -224,6 +236,140 @@ def _existing_root(value: str | Path, *, role: str) -> Path:
     return resolved
 
 
+def _is_redirecting_path(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    is_junction = getattr(path, "is_junction", None)
+    return bool(is_junction is not None and is_junction())
+
+
+def _path_snapshot(
+    root: Path,
+    relative: Path,
+    *,
+    role: str,
+    forbidden_directory_identity: tuple[int, int] | None,
+) -> tuple[tuple[int, int, int], ...]:
+    """Snapshot a cooperative path walk used where descriptor-relative open is unavailable."""
+
+    snapshots: list[tuple[int, int, int]] = []
+    current = root
+    paths = (
+        root,
+        *(
+            root / Path(*relative.parts[:index])
+            for index in range(1, len(relative.parts) + 1)
+        ),
+    )
+    for index, current in enumerate(paths):
+        try:
+            metadata = current.lstat()
+        except OSError as exc:
+            raise IngestError(f"Cannot read {role}: {exc}", code="candidate_file_missing") from exc
+        if _is_redirecting_path(current):
+            _fail(f"{role} contains a symlink or junction", "unsafe_candidate_path")
+        is_final = index == len(paths) - 1
+        if not is_final and not stat.S_ISDIR(metadata.st_mode):
+            _fail(f"{role} has a non-directory parent", "unsafe_candidate_path")
+        identity = (metadata.st_dev, metadata.st_ino)
+        if (
+            forbidden_directory_identity is not None
+            and not is_final
+            and identity == forbidden_directory_identity
+        ):
+            _fail(f"{role} points into the capture store", "candidate_role_conflict")
+        snapshots.append((metadata.st_dev, metadata.st_ino, metadata.st_mode))
+    try:
+        resolved = current.resolve(strict=True)
+        resolved.relative_to(root)
+    except (OSError, ValueError) as exc:
+        raise IngestError(f"{role} escapes the capture root", code="unsafe_candidate_path") from exc
+    return tuple(snapshots)
+
+
+def _open_confined_descriptor(
+    root: Path,
+    relative: Path,
+    *,
+    role: str,
+    forbidden_directory_identity: tuple[int, int] | None,
+) -> tuple[int, tuple[tuple[int, int, int], ...] | None]:
+    if not relative.parts:
+        _fail(f"{role} must be a file", "unsafe_candidate_path")
+    file_flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    file_flags |= getattr(os, "O_CLOEXEC", 0)
+    if SECURE_CONFINED_OPEN_AVAILABLE:
+        directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        directory_flags |= getattr(os, "O_CLOEXEC", 0)
+        try:
+            expected_root = os.stat(root, follow_symlinks=False)
+            current_fd = os.open(root, directory_flags)
+        except OSError as exc:
+            raise IngestError(f"Cannot pin capture root: {exc}", code="unsafe_root") from exc
+        try:
+            actual_root = os.fstat(current_fd)
+            if (expected_root.st_dev, expected_root.st_ino) != (
+                actual_root.st_dev,
+                actual_root.st_ino,
+            ):
+                _fail("Capture root changed while it was opened", "unsafe_root")
+            for part in relative.parts[:-1]:
+                try:
+                    next_fd = os.open(part, directory_flags, dir_fd=current_fd)
+                except FileNotFoundError as exc:
+                    raise IngestError(
+                        f"Cannot read {role}: {exc}",
+                        code="candidate_file_missing",
+                    ) from exc
+                except OSError as exc:
+                    raise IngestError(
+                        f"{role} contains an unsafe directory component: {exc}",
+                        code="unsafe_candidate_path",
+                    ) from exc
+                os.close(current_fd)
+                current_fd = next_fd
+                metadata = os.fstat(current_fd)
+                if not stat.S_ISDIR(metadata.st_mode):
+                    _fail(f"{role} has a non-directory parent", "unsafe_candidate_path")
+                if (
+                    forbidden_directory_identity is not None
+                    and (metadata.st_dev, metadata.st_ino) == forbidden_directory_identity
+                ):
+                    _fail(f"{role} points into the capture store", "candidate_role_conflict")
+            try:
+                descriptor = os.open(
+                    relative.parts[-1],
+                    file_flags | os.O_NOFOLLOW,
+                    dir_fd=current_fd,
+                )
+            except FileNotFoundError as exc:
+                raise IngestError(
+                    f"Cannot read {role}: {exc}",
+                    code="candidate_file_missing",
+                ) from exc
+            except OSError as exc:
+                raise IngestError(
+                    f"Cannot open {role}: {exc}",
+                    code="unsafe_candidate_path",
+                ) from exc
+            return descriptor, None
+        finally:
+            with suppress(OSError):
+                os.close(current_fd)
+
+    before_paths = _path_snapshot(
+        root,
+        relative,
+        role=role,
+        forbidden_directory_identity=forbidden_directory_identity,
+    )
+    try:
+        descriptor = os.open(root / relative, file_flags | getattr(os, "O_NOFOLLOW", 0))
+    except OSError as exc:
+        raise IngestError(f"Cannot open {role}: {exc}", code="candidate_file_missing") from exc
+    return descriptor, before_paths
+
+
 def _read_confined_file(
     root: Path,
     relative: Path,
@@ -232,34 +378,14 @@ def _read_confined_file(
     max_bytes: int,
     reject_hardlinks: bool = False,
     seen_identities: set[tuple[int, int]] | None = None,
+    forbidden_directory_identity: tuple[int, int] | None = None,
 ) -> bytes:
-    current = root
-    for index, part in enumerate(relative.parts):
-        current = current / part
-        try:
-            metadata = current.lstat()
-        except OSError as exc:
-            raise IngestError(f"Cannot read {role}: {exc}", code="candidate_file_missing") from exc
-        if stat.S_ISLNK(metadata.st_mode):
-            _fail(f"{role} contains a symlink", "unsafe_candidate_path")
-        if index < len(relative.parts) - 1 and not stat.S_ISDIR(metadata.st_mode):
-            _fail(f"{role} has a non-directory parent", "unsafe_candidate_path")
-
-    try:
-        resolved = current.resolve(strict=True)
-        resolved.relative_to(root)
-    except (OSError, ValueError) as exc:
-        raise IngestError(f"{role} escapes the capture root", code="unsafe_candidate_path") from exc
-
-    flags = os.O_RDONLY
-    if hasattr(os, "O_BINARY"):
-        flags |= os.O_BINARY
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    try:
-        descriptor = os.open(current, flags)
-    except OSError as exc:
-        raise IngestError(f"Cannot open {role}: {exc}", code="candidate_file_missing") from exc
+    descriptor, before_paths = _open_confined_descriptor(
+        root,
+        relative,
+        role=role,
+        forbidden_directory_identity=forbidden_directory_identity,
+    )
     try:
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode):
@@ -281,6 +407,15 @@ def _read_confined_file(
             remaining -= len(chunk)
         data = b"".join(chunks)
         after = os.fstat(descriptor)
+        if before_paths is not None:
+            after_paths = _path_snapshot(
+                root,
+                relative,
+                role=role,
+                forbidden_directory_identity=forbidden_directory_identity,
+            )
+            if before_paths != after_paths:
+                _fail(f"{role} path changed while it was being read", "candidate_file_changed")
     finally:
         os.close(descriptor)
     if len(data) > max_bytes:
@@ -310,6 +445,57 @@ def _read_confined_file(
     if seen_identities is not None:
         seen_identities.add((after.st_dev, after.st_ino))
     return data
+
+
+def _record_confined_identity_if_present(
+    root: Path,
+    relative: Path,
+    *,
+    role: str,
+    identities: set[tuple[int, int]],
+) -> None:
+    try:
+        descriptor, before_paths = _open_confined_descriptor(
+            root,
+            relative,
+            role=role,
+            forbidden_directory_identity=None,
+        )
+    except IngestError as exc:
+        if exc.code == "candidate_file_missing":
+            return
+        raise
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            _fail(f"{role} must be a regular file", "unsafe_candidate_path")
+        if before_paths is not None:
+            after_paths = _path_snapshot(
+                root,
+                relative,
+                role=role,
+                forbidden_directory_identity=None,
+            )
+            if before_paths != after_paths:
+                _fail(f"{role} path changed while it was inspected", "candidate_file_changed")
+        after = os.fstat(descriptor)
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        ):
+            _fail(f"{role} changed while it was inspected", "candidate_file_changed")
+        identities.add((after.st_dev, after.st_ino))
+    finally:
+        os.close(descriptor)
 
 
 def _validate_recipe_record(value: Any) -> dict[str, Any]:
@@ -421,6 +607,8 @@ def _validate_stage(
     session_id: str,
     stage: str,
     value: Any,
+    *,
+    protocol_identities: set[tuple[int, int]],
 ) -> Artifact:
     if not isinstance(value, dict):
         _fail(f"stages.{stage} must be an object", "candidate_schema_invalid")
@@ -474,6 +662,7 @@ def _validate_stage(
         quarantine,
         role=f"{stage} quarantine artifact",
         max_bytes=MAX_XML_BYTES,
+        seen_identities=protocol_identities,
     )
     actual_sha = sha256_bytes(data)
     if actual_sha != expected_sha:
@@ -509,6 +698,10 @@ def _validate_stage(
 def _validate_input_artifacts(
     capture_root: Path,
     value: Any,
+    *,
+    forbidden_paths: set[Path],
+    protocol_identities: set[tuple[int, int]],
+    store_identity: tuple[int, int],
 ) -> tuple[InputArtifact, ...]:
     if value is None:
         return ()
@@ -546,7 +739,7 @@ def _validate_input_artifacts(
         if not isinstance(raw_path, str) or "\\" in raw_path:
             _fail(f"{field}.path must use canonical forward slashes", "unsafe_candidate_path")
         relative = _safe_relative_path(raw_path, field=f"{field}.path")
-        if relative.parts[0] == STORE_NAME or relative.name != name:
+        if raw_path != relative.as_posix() or relative.name != name:
             _fail(
                 f"{field}.path is not a canonical private input path",
                 "unsafe_candidate_path",
@@ -565,14 +758,30 @@ def _validate_input_artifacts(
                 "input_artifacts contains a duplicate role, name, or path",
                 "candidate_role_conflict",
             )
+        if relative in forbidden_paths:
+            _fail(
+                f"{field}.path reuses a recipe or XML stage path",
+                "candidate_role_conflict",
+            )
+        identities_before = set(protocol_identities)
         data = _read_confined_file(
             capture_root,
             relative,
             role=f"private input artifact {role}",
             max_bytes=MAX_INPUT_ARTIFACT_BYTES,
             reject_hardlinks=True,
-            seen_identities=identities,
+            seen_identities=protocol_identities,
+            forbidden_directory_identity=store_identity,
         )
+        new_identities = protocol_identities - identities_before
+        if len(new_identities) != 1:
+            _fail(f"{field}.path identity is ambiguous", "candidate_role_conflict")
+        identity = next(iter(new_identities))
+        if identity in identities:
+            _fail(
+                f"{field}.path reuses another private input identity",
+                "candidate_role_conflict",
+            )
         actual_sha = sha256_bytes(data)
         if actual_sha != expected_sha:
             _fail(
@@ -587,6 +796,7 @@ def _validate_input_artifacts(
         roles.add(role)
         names.add(name)
         paths.add(relative)
+        identities.add(identity)
         artifacts.append(
             InputArtifact(
                 role=role,
@@ -615,11 +825,13 @@ def validate_candidate(capture_root: Path, manifest_relative: Path) -> Validated
     if not manifest_relative.name.endswith(".candidate.json"):
         _fail("Candidate manifest name must end in .candidate.json", "unsafe_candidate_path")
 
+    protocol_identities: set[tuple[int, int]] = set()
     manifest_bytes = _read_confined_file(
         capture_root,
         manifest_relative,
         role="candidate manifest",
         max_bytes=MAX_MANIFEST_BYTES,
+        seen_identities=protocol_identities,
     )
     manifest_sha = sha256_bytes(manifest_bytes)
     digest_relative = manifest_relative.with_name(manifest_relative.name + ".sha256")
@@ -628,6 +840,7 @@ def validate_candidate(capture_root: Path, manifest_relative: Path) -> Validated
         digest_relative,
         role="candidate digest",
         max_bytes=MAX_DIGEST_BYTES,
+        seen_identities=protocol_identities,
     )
     expected_digest = f"{manifest_sha}  {manifest_relative.name}\n".encode("ascii")
     if digest_bytes != expected_digest:
@@ -716,7 +929,14 @@ def validate_candidate(capture_root: Path, manifest_relative: Path) -> Validated
     if not isinstance(stages, dict) or set(stages) != set(STAGES):
         _fail("Candidate stages are incomplete", "candidate_schema_invalid")
     artifacts = tuple(
-        _validate_stage(capture_root, session_id, stage, stages[stage]) for stage in STAGES
+        _validate_stage(
+            capture_root,
+            session_id,
+            stage,
+            stages[stage],
+            protocol_identities=protocol_identities,
+        )
+        for stage in STAGES
     )
     if len({artifact.relative_path for artifact in artifacts}) != len(STAGES):
         _fail("Candidate roles reuse a quarantine path", "candidate_role_conflict")
@@ -736,9 +956,55 @@ def validate_candidate(capture_root: Path, manifest_relative: Path) -> Validated
     expected_source_type = recipe["expected_source_type"]
     if expected_source_type is not None and artifacts[0].source_type != expected_source_type:
         _fail("Candidate source type does not match its recipe", "candidate_source_type_mismatch")
+
+    recipe_source = _safe_relative_path(
+        manifest["recipe"]["source_path"],
+        field="recipe.source_path",
+    )
+    stage_originals = {
+        stage: _safe_relative_path(
+            stages[stage]["original_path"],
+            field=f"stages.{stage}.original_path",
+        )
+        for stage in STAGES
+    }
+    forbidden_paths = {
+        manifest_relative,
+        digest_relative,
+        recipe_source,
+        *stage_originals.values(),
+        *(artifact.relative_path for artifact in artifacts),
+    }
+    _record_confined_identity_if_present(
+        capture_root,
+        recipe_source,
+        role="recipe source",
+        identities=protocol_identities,
+    )
+    for stage, original in stage_originals.items():
+        _record_confined_identity_if_present(
+            capture_root,
+            original,
+            role=f"{stage} original stage file",
+            identities=protocol_identities,
+        )
+    store_path = capture_root / STORE_NAME
+    try:
+        store_metadata = store_path.lstat()
+    except OSError as exc:
+        raise IngestError(
+            f"Cannot inspect capture store: {exc}",
+            code="unsafe_candidate_path",
+        ) from exc
+    if _is_redirecting_path(store_path) or not stat.S_ISDIR(store_metadata.st_mode):
+        _fail("Capture store is redirected or not a directory", "unsafe_candidate_path")
+    store_identity = (store_metadata.st_dev, store_metadata.st_ino)
     input_artifacts = _validate_input_artifacts(
         capture_root,
         manifest.get("input_artifacts"),
+        forbidden_paths=forbidden_paths,
+        protocol_identities=protocol_identities,
+        store_identity=store_identity,
     )
 
     _validate_checklist(manifest["checklist"], recipe)
@@ -1017,6 +1283,10 @@ def build_plan(
             "strict_manifest_shape": True,
             "detached_digest_matches": True,
             "paths_contained": True,
+            "filesystem_safety": {
+                "mode": INGEST_PATH_SAFETY_MODE,
+                "race_resistant": SECURE_CONFINED_OPEN_AVAILABLE,
+            },
             "artifact_hashes_match": True,
             "input_artifact_hashes_match": True,
             "input_artifacts_metadata_only": True,

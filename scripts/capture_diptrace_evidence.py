@@ -832,6 +832,8 @@ class CaptureRepository:
             ) from exc
         if not self.root.is_dir():
             raise CaptureError("Allowed root must be a directory", code="root_not_directory")
+        root_metadata = os.stat(self.root, follow_symlinks=False)
+        self._root_identity = (root_metadata.st_dev, root_metadata.st_ino)
         self._root_fd: int | None = None
         self.path_safety_mode = (
             "descriptor_relative_posix"
@@ -864,6 +866,8 @@ class CaptureRepository:
         self.quarantine = self.store / "quarantine"
         self.candidates = self.store / "candidates"
         self._ensure_store_dirs()
+        store_metadata = os.stat(self.store, follow_symlinks=False)
+        self._store_identity = (store_metadata.st_dev, store_metadata.st_ino)
 
     def __del__(self) -> None:
         root_fd = getattr(self, "_root_fd", None)
@@ -903,7 +907,13 @@ class CaptureRepository:
         return relative.parts
 
     @contextmanager
-    def _open_safe_directory_fd(self, path: Path, *, create: bool) -> Iterator[int]:
+    def _open_safe_directory_fd(
+        self,
+        path: Path,
+        *,
+        create: bool,
+        forbidden_directory_identity: tuple[int, int] | None = None,
+    ) -> Iterator[int]:
         if self._root_fd is None:
             raise CaptureError(
                 "Descriptor-relative path operations are unavailable",
@@ -942,10 +952,21 @@ class CaptureRepository:
                     ) from exc
                 os.close(current_fd)
                 current_fd = next_fd
-                if not stat.S_ISDIR(os.fstat(current_fd).st_mode):
+                metadata = os.fstat(current_fd)
+                if not stat.S_ISDIR(metadata.st_mode):
                     raise CaptureError(
                         f"Capture directory component is unsafe: {part}",
                         code="unsafe_store_path",
+                        exit_code=3,
+                    )
+                if (
+                    forbidden_directory_identity is not None
+                    and (metadata.st_dev, metadata.st_ino)
+                    == forbidden_directory_identity
+                ):
+                    raise CaptureError(
+                        "Input artifact may not come from the capture store",
+                        code="capture_store_input_forbidden",
                         exit_code=3,
                     )
             yield current_fd
@@ -1128,14 +1149,52 @@ class CaptureRepository:
             not relative.parts
             or any(part in {"", ".", ".."} for part in relative.parts)
             or "\\" in relative.as_posix()
-            or relative.parts[0] == STORE_NAME
         ):
             raise CaptureError(
                 "Input artifact path must be contained outside the capture store",
                 code="unsafe_input_artifact",
                 exit_code=3,
             )
+        self._assert_private_input_outside_store(candidate)
         return candidate, relative
+
+    def _assert_private_input_outside_store(self, candidate: Path) -> None:
+        """Verify real ancestry by filesystem identity, including case aliases on NTFS."""
+
+        try:
+            resolved = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise CaptureError(
+                f"Input artifact is missing or unsafe: {candidate}",
+                code="unsafe_input_artifact",
+                exit_code=3,
+            ) from exc
+        contained = False
+        for current in (resolved, *resolved.parents):
+            try:
+                metadata = current.stat()
+            except OSError as exc:
+                raise CaptureError(
+                    f"Cannot verify input artifact ancestry: {exc}",
+                    code="unsafe_input_artifact",
+                    exit_code=3,
+                ) from exc
+            identity = (metadata.st_dev, metadata.st_ino)
+            if identity == self._store_identity:
+                raise CaptureError(
+                    "Input artifact may not come from the capture store",
+                    code="capture_store_input_forbidden",
+                    exit_code=3,
+                )
+            if identity == self._root_identity:
+                contained = True
+                break
+        if not contained:
+            raise CaptureError(
+                f"Input artifact escapes the allowed root: {candidate}",
+                code="path_outside_allowed_root",
+                exit_code=3,
+            )
 
     @staticmethod
     def _hash_input_descriptor(
@@ -1220,7 +1279,11 @@ class CaptureRepository:
                 code="invalid_input_artifact",
             )
         if self._root_fd is not None:
-            with self._open_safe_directory_fd(candidate.parent, create=False) as parent_fd:
+            with self._open_safe_directory_fd(
+                candidate.parent,
+                create=False,
+                forbidden_directory_identity=self._store_identity,
+            ) as parent_fd:
                 flags = os.O_RDONLY | os.O_NOFOLLOW
                 flags |= getattr(os, "O_CLOEXEC", 0)
                 try:
@@ -1239,6 +1302,7 @@ class CaptureRepository:
                 finally:
                     os.close(descriptor)
         else:
+            self._assert_private_input_outside_store(candidate)
             current = self.root
             for index, part in enumerate(relative.parts):
                 current /= part
@@ -1284,6 +1348,7 @@ class CaptureRepository:
                 )
             finally:
                 os.close(descriptor)
+            self._assert_private_input_outside_store(candidate)
         return (
             {
                 "role": role,

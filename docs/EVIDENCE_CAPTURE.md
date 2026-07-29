@@ -92,6 +92,12 @@ identities must be unique; symlinks, junctions, and hard-link aliases are refuse
 inputs of at most 128 MiB each may be bound. Entries are sorted by role, name, and path before
 canonical manifest serialization.
 
+Capture-store exclusion is checked from real filesystem ancestry and identity, not from the
+spelling or letter case of `.diptrace-capture`. This matters on Windows and WSL-mounted NTFS, where
+differently cased path components may name the same directory. The ingest validator also refuses
+an input that reuses the recipe, an original XML-stage path, a quarantined stage, the candidate
+manifest, or its detached digest.
+
 The collector hashes each original file while the source stage is recorded and re-hashes it on
 finalization, including repeated finalization. The ingest validator re-opens and re-hashes the same
 private path. Missing, redirected, aliased, resized, or changed files fail closed. Only the five
@@ -353,6 +359,14 @@ Optional input artifacts are reported under `candidate.input_artifacts` and cove
 deterministic receipt hash, while `validation.input_artifacts_metadata_only` remains `true`.
 `destination.files` contains only the three XML roles, candidate manifest, and detached digest;
 private input bytes never become planned fixture files.
+
+The dry-run plan reports `validation.filesystem_safety`. POSIX systems with descriptor-relative
+`open` and `O_NOFOLLOW` report `descriptor_relative_posix` and `race_resistant: true`; paths are
+walked relative to a pinned root descriptor and no checked descendant is reopened by full pathname.
+Platforms without that API, including native Windows, report `cooperative_identity_checks` and
+`race_resistant: false`; every component and the open file identity are compared before and after
+the read, but an uncooperative process with concurrent filesystem mutation remains outside that
+fallback's guarantee.
 
 The repository now has a package-owned committed registry, and the validator
 loads it fail-closed. The production registry currently has zero independently
