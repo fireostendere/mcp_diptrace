@@ -57,6 +57,25 @@ always reports `trust_promoted: false` and performs no writes. The executable
 temporary stand-in procedure and the operator handoff boundary are documented
 in [ACCEPTANCE_SEED_AUDIT.md](ACCEPTANCE_SEED_AUDIT.md).
 
+## Artifact Smoke Test
+
+The release wheel must install and serve without the development extras. Build
+both artifacts, audit them, install the wheel into a clean virtual
+environment, and complete a real MCP stdio handshake:
+
+```bash
+python -m hatchling build -d release-dist
+python scripts/audit_release_artifacts.py --dist-dir release-dist --check-allowlist
+python3.12 -m venv /tmp/diptrace-mcp-smoke
+/tmp/diptrace-mcp-smoke/bin/pip install release-dist/diptrace_mcp-*-py3-none-any.whl
+/tmp/diptrace-mcp-smoke/bin/diptrace-mcp --help
+```
+
+A minimal stdio client must then complete `initialize`, report the same tool
+count as the committed snapshot, and answer `get_capabilities`. Last executed
+2026-07-29 on Linux/Python 3.12: clean install, 159 tools, successful
+`get_capabilities` call.
+
 ## Coverage
 
 The canonical coverage command is the full Python 3.12 suite with the optional

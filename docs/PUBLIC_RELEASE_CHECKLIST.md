@@ -81,7 +81,8 @@ email address or unverified private-report URL would not resolve these gates.
 - [x] Acceptance seed audit fails closed and reports zero accepted seeds.
 - [ ] Release commit passes every required CI job.
 - [ ] Coverage figures in public docs are regenerated from the release commit.
-- [ ] Release candidate is installed and smoke-tested from built artifacts.
+- [x] Release candidate is installed and smoke-tested from built artifacts
+      (procedure in [TESTING.md](TESTING.md)).
 - [ ] Supported Python, OS, DipTrace, transport, and bridge ranges are
       approved.
 - [ ] Known limitations are copied into release notes without overclaiming.
