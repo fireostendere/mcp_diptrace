@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 141026,
-  "canonical_descriptor_sha256": "1ba2398269ba3463b92daae6ca0ed06edbdbe6bd23607176c4a849176091fae3",
+  "canonical_descriptor_bytes": 140831,
+  "canonical_descriptor_sha256": "384f8355475f158faec06218d931f3b2f433fdaede6fabf68813d3ba3b4222d2",
   "format_version": 1,
   "tool_count": 159,
   "tools": [
@@ -1224,7 +1224,7 @@
       }
     },
     {
-      "description": "Run low-confidence geometry heuristics with a caller-supplied radius.\n\n        All distances are in millimetres, regardless of the document's own Units\n        attribute. All distances are in millimetres, regardless of the document's own Units attribute.",
+      "description": "Run low-confidence geometry heuristics with a caller-supplied radius.\n\nAll distances are in millimetres, regardless of the document's own Units attribute.",
       "inputSchema": {
         "properties": {
           "nets": {
@@ -2229,7 +2229,7 @@
       }
     },
     {
-      "description": "Copy a valid DipTrace-shaped XML seed while preserving unknown XML.\n\n        Validation is derived only from a verified provenance sidecar; without one,\n        the copy is synthetic_parser_only. Prefer a real export seed when DipTrace\n        compatibility matters. Replacing an existing target requires its current SHA.",
+      "description": "Copy a valid DipTrace-shaped XML seed while preserving unknown XML.\n\nValidation is derived only from a verified provenance sidecar; without one, the copy is synthetic_parser_only. Prefer a real export seed when DipTrace compatibility matters. Replacing an existing target requires its current SHA.",
       "inputSchema": {
         "properties": {
           "expected_seed_sha256": {
@@ -2287,7 +2287,7 @@
       }
     },
     {
-      "description": "Create a new DipTrace PCB XML document (outline, layers, stackup, rules).\n\n        This is synthetic MCP-generated content. It has the correct XML structure\n        but has NOT been verified by DipTrace open/save. Use create_document_from_seed\n        with a real DipTrace export when DipTrace compatibility is required. Replacing\n        an existing target requires its current SHA. All distances are in millimetres, regardless of the document's own Units attribute. Input schema: diptrace://schemas/tool-inputs.",
+      "description": "Create a new DipTrace PCB XML document (outline, layers, stackup, rules).\n\nThis is synthetic MCP-generated content. It has the correct XML structure but has NOT been verified by DipTrace open/save. Use create_document_from_seed with a real DipTrace export when DipTrace compatibility is required. Replacing an existing target requires its current SHA. All distances are in millimetres, regardless of the document's own Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
           "expected_sha256": {
@@ -5926,7 +5926,7 @@
       }
     },
     {
-      "description": "Write a user-supplied evidence manifest and provenance sidecar, not design bytes.\n\n        This explicitly writes metadata, returns written=true only after both files verify,\n        remains authority=user_supplied, and can never grant high trust.",
+      "description": "Write a user-supplied evidence manifest and provenance sidecar, not design bytes.\n\nThis explicitly writes metadata, returns written=true only after both files verify, remains authority=user_supplied, and can never grant high trust.",
       "inputSchema": {
         "$defs": {
           "EvidenceRoleInput": {
@@ -6621,7 +6621,7 @@
       }
     },
     {
-      "description": "Route one pad-to-pad connection with bounded deterministic 45-degree A*.\n\n        Omit clearance to use the applicable document DRC TraceToTrace rule. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
+      "description": "Route one pad-to-pad connection with bounded deterministic 45-degree A*.\n\nOmit clearance to use the applicable document DRC TraceToTrace rule. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
       "inputSchema": {
         "properties": {
           "avoid_component_bodies": {
@@ -10060,7 +10060,7 @@
       }
     },
     {
-      "description": "Validate distinct allowed-root evidence roles and exact SHA bindings without writing.\n\n        The bounded result is always authority=user_supplied and grants_high_trust=false.",
+      "description": "Validate distinct allowed-root evidence roles and exact SHA bindings without writing.\n\nThe bounded result is always authority=user_supplied and grants_high_trust=false.",
       "inputSchema": {
         "$defs": {
           "EvidenceRoleInput": {
