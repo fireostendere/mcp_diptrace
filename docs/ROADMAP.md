@@ -184,8 +184,8 @@ and provenance sidecar. Both remain `authority=user_supplied`, report
 Observed representation-only normalizations are disclosed in the preview and preserved
 in the manifest; they never suppress a semantic difference.
 
-The measured MCP surface moved from 156 tools / 121,335 JSON bytes to 158 tools /
-128,250 bytes (approximately 32,062 tokens), a 5.6991% increase and below the Phase-2
+The measured MCP surface moved from 156 tools / 121,335 JSON bytes to 159 tools /
+128,661 bytes (approximately 32,165 tokens), a 6.0378% increase and below the Phase-2
 15% discovery-budget ceiling. All 44 former `dict[str, Any]` tool parameters now use
 named schema-backed object types: their exact contracts live once at
 `diptrace://schemas/tool-inputs`, and each compact inline parameter carries the matching
@@ -200,9 +200,9 @@ The narrower discovery-budget measurement intentionally counts only tool name,
 description, and input schema. A separate Phase-9 prerequisite now freezes the
 complete non-null public `Tool` model, including output schemas and any future
 titles, annotations, icons, metadata, or execution fields. The committed
-[snapshot](../reference/mcp-tools-list.snapshot.json) contains 158 name-sorted
-tools; its canonical descriptor is 138,640 UTF-8 bytes with SHA-256
-`6116c97dc7bb09120dffc34aad602642f88532ab80b78c366fddf148aaba882f`.
+[snapshot](../reference/mcp-tools-list.snapshot.json) contains 159 name-sorted
+tools; its canonical descriptor is 141,026 UTF-8 bytes with SHA-256
+`1ba2398269ba3463b92daae6ca0ed06edbdbe6bd23607176c4a849176091fae3`.
 It is produced only through the public in-memory MCP transport, and CI fails on
 any unregenerated contract drift. This snapshot is the required behavioural
 baseline before the service/compiler/store decomposition begins.
@@ -212,7 +212,7 @@ baseline before the service/compiler/store decomposition begins.
 CI now executes a fixture-driven in-memory MCP workflow through the public
 client/server transport. The current workflow reaches **63 distinct wire tool
 names**, exceeding the Phase-5 acceptance floor of 40 without enumerating all
-158 registered tools. It carries discovered stable ids and generated
+159 registered tools. It carries discovered stable ids and generated
 transaction/export/report/resource ids into dependent calls, binds preview
 operations to the fixture SHA, verifies bounded metadata/resources, and proves
 that raw and semantic previews do not change the source document.

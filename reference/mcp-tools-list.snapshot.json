@@ -1,9 +1,84 @@
 {
-  "canonical_descriptor_bytes": 138640,
-  "canonical_descriptor_sha256": "6116c97dc7bb09120dffc34aad602642f88532ab80b78c366fddf148aaba882f",
+  "canonical_descriptor_bytes": 141026,
+  "canonical_descriptor_sha256": "1ba2398269ba3463b92daae6ca0ed06edbdbe6bd23607176c4a849176091fae3",
   "format_version": 1,
-  "tool_count": 158,
+  "tool_count": 159,
   "tools": [
+    {
+      "description": "Abandon stale local session state without applying its working XML.",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "description": "Operator reason for abandoning stale local session state without applying its working XML.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "abandon_live_sessionArguments",
+        "type": "object"
+      },
+      "name": "abandon_live_session",
+      "outputSchema": {
+        "additionalProperties": false,
+        "description": "Bounded result for a local, non-writing abandonment.",
+        "properties": {
+          "acknowledgement_scope": {
+            "const": "local_session_state_only",
+            "title": "Acknowledgement Scope",
+            "type": "string"
+          },
+          "diptrace_host_acknowledged": {
+            "const": false,
+            "title": "Diptrace Host Acknowledged",
+            "type": "boolean"
+          },
+          "local_bridge_status": {
+            "const": "abandoned",
+            "title": "Local Bridge Status",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "outcome": {
+            "const": "abandoned",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "written": {
+            "const": false,
+            "title": "Written",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "session_id",
+          "outcome",
+          "local_bridge_status",
+          "written",
+          "reason",
+          "diptrace_host_acknowledged",
+          "acknowledgement_scope",
+          "message"
+        ],
+        "title": "AbandonLiveSessionResult",
+        "type": "object"
+      }
+    },
     {
       "description": "Add a net-bound text label shape to a schematic sheet. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
       "inputSchema": {
@@ -3023,7 +3098,7 @@
       }
     },
     {
-      "description": "Apply inspected working XML with its SHA-256, or cancel without writing.",
+      "description": "Request SHA-256-bound apply/cancel and report only local bridge finalization.",
       "inputSchema": {
         "properties": {
           "action": {
@@ -3057,8 +3132,81 @@
       },
       "name": "finish_live_session",
       "outputSchema": {
-        "additionalProperties": true,
-        "title": "finish_live_sessionDictOutput",
+        "additionalProperties": false,
+        "description": "Bounded local bridge-finalization outcome; never a DipTrace host ACK.",
+        "properties": {
+          "acknowledgement_scope": {
+            "const": "local_bridge_exchange_only",
+            "title": "Acknowledgement Scope",
+            "type": "string"
+          },
+          "diptrace_host_acknowledged": {
+            "const": false,
+            "title": "Diptrace Host Acknowledged",
+            "type": "boolean"
+          },
+          "expected_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Sha256",
+            "type": "string"
+          },
+          "local_bridge_status": {
+            "enum": [
+              "active",
+              "applied",
+              "cancelled",
+              "abandoned"
+            ],
+            "title": "Local Bridge Status",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "applied",
+              "cancelled",
+              "not_acknowledged"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "requested_action": {
+            "enum": [
+              "apply",
+              "cancel"
+            ],
+            "title": "Requested Action",
+            "type": "string"
+          },
+          "requested_at": {
+            "title": "Requested At",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "written": {
+            "title": "Written",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "session_id",
+          "requested_action",
+          "requested_at",
+          "expected_sha256",
+          "outcome",
+          "local_bridge_status",
+          "written",
+          "diptrace_host_acknowledged",
+          "acknowledgement_scope",
+          "message"
+        ],
+        "title": "FinishLiveSessionResult",
         "type": "object"
       }
     },

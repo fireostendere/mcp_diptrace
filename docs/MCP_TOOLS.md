@@ -7,10 +7,10 @@ A registered tool is not the same as a DipTrace-verified write path. The project
 The exact current discovery contract is committed as
 [`reference/mcp-tools-list.snapshot.json`](../reference/mcp-tools-list.snapshot.json).
 It is captured through public MCP `tools/list`, not FastMCP internals, and covers
-all non-null wire-level `Tool` fields. Its canonical descriptor is 138,640 UTF-8
+all non-null wire-level `Tool` fields. Its canonical descriptor is 141,026 UTF-8
 bytes with SHA-256
-`6116c97dc7bb09120dffc34aad602642f88532ab80b78c366fddf148aaba882f`
-across 158 tools. CI requires byte-for-byte regeneration parity before the
+`1ba2398269ba3463b92daae6ca0ed06edbdbe6bd23607176c4a849176091fae3`
+across 159 tools. CI requires byte-for-byte regeneration parity before the
 Phase 9 behaviour-preserving decomposition may proceed.
 
 ## Input Schemas, Units, and Errors

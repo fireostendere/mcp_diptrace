@@ -51,7 +51,7 @@ def test_snapshot_is_self_consistent_and_exactly_pretty_printed() -> None:
     snapshot = parse_snapshot(content)
     tools = snapshot["tools"]
 
-    assert snapshot["tool_count"] == len(tools) == 158
+    assert snapshot["tool_count"] == len(tools) == 159
     canonical = canonical_descriptors(tools)
     assert snapshot["canonical_descriptor_bytes"] == len(canonical)
     assert render_snapshot(snapshot) == content
