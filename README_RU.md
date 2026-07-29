@@ -32,19 +32,22 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 - [changelog](CHANGELOG.md) и [citation metadata](CITATION.cff).
 
 Приём общих contributions остаётся закрытым, пока не утверждены условия
-contribution provenance. Проверенных приватных каналов для security и
-Code of Conduct пока нет, поэтому соответствующие политики не публикуются.
-Security, contribution provenance, signing и publication остаются явными
-blockers. Репозиторий не заявляет существующее сообщество, adoption,
-sponsorship, vendor endorsement, участие в support program или опубликованный
-релиз.
+contribution provenance. Приватная передача security-отчётов через GitHub
+активируется к первому релизу; пока активация не подтверждена, политика
+уязвимостей не публикуется, а подозрения на уязвимости нельзя раскрывать в
+публичных issues. Проверенного канала для Code of Conduct пока нет, поэтому
+политика Code of Conduct не публикуется. Contribution provenance и signing
+остаются явными blockers. Репозиторий не заявляет существующее сообщество,
+adoption, sponsorship, vendor endorsement или участие в support program.
 
-CI собирает Python source distribution и wheel по точному versioned allowlist
-и проверяет их содержимое, ограничения, entry points, packaged skills и wheel
-`RECORD`. Это проверки development-артефактов, а не опубликованный релиз.
-Wheel содержит MCP-сервер и packaged skills; для полной live-интеграции на
-Windows также нужны отдельно поставляемые bridge settings, installer и
-executable.
+Текущий релиз — версия 0.1.0. Tag `v0.1.0`, unsigned-артефакты,
+`SHA256SUMS.txt` и provenance-запись в
+[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) указывают на один и тот же
+commit. CI собирает Python source distribution и wheel по точному versioned
+allowlist и проверяет их содержимое, ограничения, entry points, packaged
+skills и wheel `RECORD`. Wheel содержит MCP-сервер и packaged skills; для
+полной live-интеграции на Windows также нужны отдельно поставляемые bridge
+settings, installer и executable.
 
 ## Что уже работает
 

@@ -2,12 +2,13 @@
 
 ## Snapshot status
 
-Audited repository state: 2026-07-29.
+Audited repository state: 2026-07-30.
 
 **Status: blocked.** The repository has an OSI-approved project-wide license
-(Apache-2.0, committed as `LICENSE`) but no verified private security or
-conduct channel, approved contribution terms, release tag, publication
-workflow, signed release artifact, or independent release reviewer.
+(Apache-2.0, committed as `LICENSE`) and a published 0.1.0 development-stage
+release with an unsigned-binary disclosure, but no verified private security
+or conduct channel, approved contribution terms, signed release artifact, or
+independent release reviewer.
 
 Checked boxes below describe repository facts in the audited state. Unchecked
 boxes are release blockers, not publication claims.
@@ -62,7 +63,8 @@ email address or unverified private-report URL would not resolve these gates.
       explicit.
 - [x] Open compatibility questions and human-only experiments are documented.
 - [x] Both READMEs state the license and public-release blocker.
-- [x] Citation metadata records the Apache-2.0 license and no release date.
+- [x] Citation metadata records the Apache-2.0 license and the 0.1.0 release
+      date.
 - [x] The changelog does not present development version `0.1.0` as released.
 - [ ] Package-index rendering of README links is verified or made independent
       of repository-relative link resolution.
@@ -94,14 +96,15 @@ email address or unverified private-report URL would not resolve these gates.
       or unexpected archive members.
 - [x] CI checks wheel entry points, eight packaged skills, project URLs,
       archive bounds, and every wheel `RECORD` hash and size.
-- [ ] A wheel rebuilt from the frozen source distribution is compared with the
+- [x] A wheel rebuilt from the frozen source distribution is compared with the
       direct release wheel in the release environment.
-- [ ] The frozen release wheel is installed and smoke-tested with only its
+- [x] The frozen release wheel is installed and smoke-tested with only its
       declared dependencies.
 - [ ] Windows bridge contents and runtime dependencies are inspected.
-- [ ] Artifact SHA-256 manifest is generated.
-- [ ] Signing identity is configured, or a reviewed unsigned policy is
-      disclosed.
+- [x] Artifact SHA-256 manifest is generated (`SHA256SUMS.txt` release asset;
+      see [releases/v0.1.0.md](releases/v0.1.0.md)).
+- [x] A reviewed unsigned policy is disclosed for the unsigned 0.1.0
+      artifacts; no signing identity is configured yet.
 - [ ] Publication accounts have multi-factor authentication and recovery
       owners.
 - [ ] Immutable artifact host and retention policy are documented.
@@ -111,9 +114,10 @@ email address or unverified private-report URL would not resolve these gates.
 ## Release operation
 
 - [ ] Release manager and independent reviewer are named in the release record.
-- [ ] Version and frozen commit are approved.
-- [ ] `CHANGELOG.md` is finalized for the approved version and date.
-- [ ] Staged artifacts pass clean-environment installation and smoke tests.
+- [x] Version and frozen commit are approved (recorded in
+      [releases/v0.1.0.md](releases/v0.1.0.md)).
+- [x] `CHANGELOG.md` is finalized for the approved version and date.
+- [x] Staged artifacts pass clean-environment installation and smoke tests.
 - [ ] Security and conduct channels are monitored.
 - [ ] Tag and artifacts are published through
       [RELEASE_PROCESS.md](RELEASE_PROCESS.md).

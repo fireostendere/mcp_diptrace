@@ -2,10 +2,9 @@
 
 ## Current release status
 
-No public release is asserted by the current repository. `pyproject.toml`
-contains development version `0.1.0`, the audited Git history contains no
-release tag, CI has no publication job, and the Windows CI artifact is
-unsigned.
+Version 0.1.0 is the current release, tagged `v0.1.0` with unsigned artifacts;
+its provenance record is [releases/v0.1.0.md](releases/v0.1.0.md). CI has no
+package-index publication job, and the Windows CI artifact is unsigned.
 
 Publishing is prohibited while any blocking item in
 [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) remains open. The

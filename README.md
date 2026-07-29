@@ -34,19 +34,22 @@ The repository publishes its participation and release policy:
 - [changelog](CHANGELOG.md) and [citation metadata](CITATION.cff).
 
 General contributions remain closed until contribution-provenance terms are
-approved. Verified private security and Code of Conduct channels do not yet
-exist, so vulnerability and Code of Conduct policies are not published.
-Security, contribution-provenance, signing, and publication work remain
-explicit blockers. The repository does not claim an existing community,
-adoption, sponsorship, vendor endorsement, support program acceptance, or
-published release.
+approved. Private security reporting through GitHub is being activated for
+the first release; until its activation is confirmed, no vulnerability policy
+is published and suspected vulnerabilities must not be disclosed in public
+issues. A verified Code of Conduct channel does not yet exist, so a Code of
+Conduct policy is not published. Contribution-provenance and signing work
+remain explicit blockers. The repository does not claim an existing community,
+adoption, sponsorship, vendor endorsement, or support program acceptance.
 
+Version 0.1.0 is the current release. The tag `v0.1.0`, unsigned artifacts,
+`SHA256SUMS.txt`, and the provenance record in
+[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) identify the same commit.
 CI builds the Python source distribution and wheel from an exact versioned
-allowlist and audits their contents, bounds, entry points, packaged skills, and
-wheel `RECORD`. These are development artifact checks, not a published release.
-The wheel contains the MCP server and packaged skills; complete Windows live
-integration also needs the separately delivered bridge settings, installer,
-and executable.
+allowlist and audits their contents, bounds, entry points, packaged skills,
+and wheel `RECORD`. The wheel contains the MCP server and packaged skills;
+complete Windows live integration also needs the separately delivered bridge
+settings, installer, and executable.
 
 ## Current Capabilities
 
