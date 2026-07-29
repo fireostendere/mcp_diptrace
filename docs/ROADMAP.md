@@ -108,6 +108,31 @@ non-promoting: it verifies that the embedded registry exists and currently conta
 entries, `--apply` is refused because fixture mutation is not implemented, the acceptance tree is
 untouched, and no validation level is granted.
 
+### Live-session recovery and final-apply checkpoint — 2026-07-29
+
+The single-active-session state now records platform, PID namespace, PID, and Linux
+process-start token. A provably dead same-namespace bridge is terminally abandoned
+immediately; cross Windows/WSL namespace state remains honestly `unknown` and uses a
+two-hour TTL measured from the last validated session activity. Operators can use
+`abandon_live_session(reason)` without copying working XML, and
+`diptrace://status` exposes the bounded last transition without leaking the exchange
+path. Applied, cancelled, and abandoned records share validated retention.
+
+`finish_live_session` now returns only bounded local outcomes (`applied`, `cancelled`,
+`not_acknowledged`) and explicitly states that the executable plug-in protocol supplies
+no DipTrace-host import acknowledgement. Apply remains allowed only for the shipped
+`ImpMode=All` PCB/Schematic profiles. The external path/original hash/current working
+hash gates remain in force, and the conservative 500-object/element impact is recomputed
+both before the control marker and inside the bridge before replacement, including a
+valid oversized substitution after request publication.
+
+The bridge window now shows a working-SHA-bound impact summary with normalized and
+structural counts and at most 20 changed stable IDs. Cache keys come from the same stable
+read as the payload; unavailable parsing and truncated IDs remain explicit. This closes
+the live-session lifecycle and object-cap work, but it does not answer the separate
+open DipTrace-host acknowledgement/`ImpMode=All` behavior questions or the disclosed
+`live_session_apply` trust-invalidation gap.
+
 ### CI geometry and coverage checkpoint — 2026-07-28
 
 Linux/Python 3.12 now installs `.[dev,geometry]`, proves that the GEOS backend is

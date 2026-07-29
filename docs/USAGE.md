@@ -361,17 +361,36 @@ working document. The server checks it before publishing `control.json`; the bri
 checks it again immediately before replacement. At both stages the exchange target is
 re-resolved as an absolute, non-linked, single regular file inside an allowed root and
 must still match the exact SHA captured when the session started. Cancellation does not
-write the exchange file and needs no hash.
+write the exchange file and needs no hash. Both apply checkpoints independently compare
+`original.xml` and `working.xml` and enforce the conservative 500-object/element limit;
+this catches cumulative edits and a valid oversized file substituted after the request.
 
-The buttons in the bridge window perform the same actions. After the bridge process
-exits, DipTrace either imports the updated exchange file or continues with the original
-unchanged file.
+The buttons in the bridge window perform the same actions. The window's preview summary
+is cached by the exact working SHA and reports normalized-object count, independently
+changed XML-element count, their conservative total, and at most the first 20 changed
+stable IDs. Parse failure and ID truncation are shown as unavailable/incomplete, never
+as a complete review.
+
+The MCP result is one of `applied`, `cancelled`, or `not_acknowledged` after a bounded
+local wait. `applied` means only that the bridge replaced and reread the local exchange
+file; the executable plug-in protocol provides no DipTrace-host import acknowledgement.
+`not_acknowledged` leaves the request live: the bridge can still finalize it later, so
+inspect `diptrace://status` before retrying or abandoning.
 
 The bridge cancels an unattended session after 1800 seconds by default. This is a
 product-level operator workflow budget, not a DipTrace format or engineering limit:
 it gives a person time to inspect a preview without leaving an abandoned bridge active
 for hours. Override it with `DIPTRACE_MCP_SESSION_TIMEOUT` or the plug-in
 `--timeout` argument; both accept positive integer seconds only.
+
+Each active session also has a server-side terminal TTL, 7200 seconds by default
+(`DIPTRACE_MCP_SESSION_TTL_SECONDS`). A reader checks bridge liveness only when the
+recorded platform, PID namespace, and Linux process-start token match its own view.
+Windows and WSL PID namespaces therefore cannot produce a false "dead" result. A
+provably dead same-namespace bridge, or an unknown-liveness session past its TTL, becomes
+terminal `abandoned`; `original.xml` and `working.xml` remain under ordinary retention.
+An operator can terminate stale state earlier with
+`abandon_live_session(reason="...")`. Abandonment never replaces the exchange file.
 
 The exchange file must resolve inside `DIPTRACE_MCP_WORKSPACE` or an explicit
 `DIPTRACE_MCP_ALLOWED_ROOTS` entry. In headless mode, exit code `0` means an
@@ -674,6 +693,7 @@ Deleting or replacing the `<Source>` root is prohibited.
 | `DIPTRACE_MCP_MODEL_CACHE_MAX_BYTES` | `268435456` | Conservative retained-payload budget for normalized model snapshots |
 | `DIPTRACE_MCP_MAX_SCAN_FILES` | `500` | Maximum number of scan candidates |
 | `DIPTRACE_MCP_SESSION_TIMEOUT` | `1800` | Operator workflow timeout for an unattended bridge window, in seconds |
+| `DIPTRACE_MCP_SESSION_TTL_SECONDS` | `7200` | Terminal TTL for orphaned active-session state when bridge death cannot be proved across a PID namespace |
 | `DIPTRACE_MCP_TRANSPORT` | `stdio` | `stdio` or `streamable-http` |
 | `DIPTRACE_MCP_HOST` | `127.0.0.1` | HTTP server address |
 | `DIPTRACE_MCP_PORT` | `8765` | HTTP server port |

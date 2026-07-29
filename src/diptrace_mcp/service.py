@@ -1099,6 +1099,7 @@ class DipTraceService:
             settings.max_document_bytes,
             allowed_roots=settings.allowed_roots,
             retention=retention,
+            active_ttl_seconds=settings.live_session_ttl_seconds,
         )
         self.transactions = TransactionStore(settings.state_dir, retention=retention)
         self._raw_preview_retention = retention
@@ -1805,7 +1806,7 @@ class DipTraceService:
             active = {
                 **active,
                 "working_path": str(working),
-                "working_sha256": sha256_bytes(working.read_bytes()),
+                "working_sha256": self.sessions.working_sha256(session_id),
             }
         capabilities = self.get_capabilities()
         return {
@@ -1813,6 +1814,7 @@ class DipTraceService:
             "version": __version__,
             "configuration": self.settings.as_dict(),
             "active_session": active,
+            "last_session_transition": self.sessions.last_session_transition(),
             "model_cache": self.models.stats(),
             "capabilities": capabilities,
         }
@@ -1898,6 +1900,9 @@ class DipTraceService:
         report["limits"]["max_preview_copper_points"] = PREVIEW_COPPER_POINT_LIMIT
         report["limits"]["retention_max_records"] = self.settings.retention_max_records
         report["limits"]["retention_max_age_days"] = self.settings.retention_max_age_days
+        report["limits"]["live_session_ttl_seconds"] = (
+            self.settings.live_session_ttl_seconds
+        )
         registry_report = self.trusted_provenance_registry_report()
         report["trust_model"]["trusted_registry"] = registry_report
         report["trust_model"]["high_trust_authority"] = (
@@ -7143,7 +7148,22 @@ class DipTraceService:
     ) -> dict[str, Any]:
         if action == "apply":
             self.policy.require_write(dry_run=False, operation="finish_live_session")
-        return self.sessions.request_finish(action, expected_sha256)
+        request = self.sessions.request_finish(action, expected_sha256)
+        return self.sessions.wait_for_finish_outcome(request)
+
+    def abandon_live_session(self, reason: str) -> dict[str, Any]:
+        """Terminate stale local session state without applying working XML."""
+
+        metadata = self.sessions.abandon_active(reason)
+        return {
+            "session_id": metadata["session_id"],
+            "outcome": "abandoned",
+            "local_bridge_status": "abandoned",
+            "written": False,
+            "reason": metadata["abandon_reason"],
+            "diptrace_host_acknowledged": False,
+            "acknowledgement_scope": "local_session_state_only",
+        }
 
     def scan_documents(self, root: str | None = None, recursive: bool = True) -> dict[str, Any]:
         scan_root = self.settings.resolve_allowed_path(root or str(self.settings.workspace))

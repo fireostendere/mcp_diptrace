@@ -35,6 +35,7 @@ def _process_create(
     exchange_path: str,
     barrier: Any,
     results: Any,
+    release: Any,
 ) -> None:
     barrier.wait()
     try:
@@ -44,6 +45,9 @@ def _process_create(
         results.put(("error", exc.payload.code))
     else:
         results.put(("ok", str(metadata["session_id"])))
+        # Keep the winning bridge PID alive while the parent verifies that the
+        # single active record is not mistaken for a crashed bridge.
+        release.wait(timeout=30)
 
 
 def _assert_session_json_is_consistent(
@@ -102,10 +106,11 @@ def test_two_processes_create_exactly_one_active_session(tmp_path: Path) -> None
     context = multiprocessing.get_context("spawn")
     barrier = context.Barrier(2)
     results = context.Queue()
+    release = context.Event()
     processes = [
         context.Process(
             target=_process_create,
-            args=(str(state_dir), str(exchange), barrier, results),
+            args=(str(state_dir), str(exchange), barrier, results, release),
         )
         for _ in range(2)
     ]
@@ -113,37 +118,37 @@ def test_two_processes_create_exactly_one_active_session(tmp_path: Path) -> None
     for process in processes:
         process.start()
     try:
-        for process in processes:
-            process.join(timeout=30)
-        assert all(not process.is_alive() for process in processes)
-        assert all(process.exitcode == 0 for process in processes)
         try:
             outcomes = [results.get(timeout=5) for _ in processes]
         except Empty:
             pytest.fail("A session-create worker exited without reporting an outcome")
+
+        winners = [value for status, value in outcomes if status == "ok"]
+        errors = [value for status, value in outcomes if status == "error"]
+        assert len(winners) == 1
+        assert errors == [SessionError.code]
+        store = SessionStore(state_dir, 10_000_000)
+        active = store.active_metadata()
+        assert active is not None
+        assert active["session_id"] == winners[0]
+        _assert_session_json_is_consistent(store, winners[0], expected_status="active")
+
+        store.finalize(winners[0], "cancel")
+        replacement = store.create(exchange)
+        assert replacement["session_id"] != winners[0]
+        store.finalize(str(replacement["session_id"]), "cancel")
     finally:
+        release.set()
+        for process in processes:
+            process.join(timeout=5)
         for process in processes:
             if process.is_alive():
                 process.terminate()
         for process in processes:
             process.join(timeout=5)
+        assert all(process.exitcode == 0 for process in processes)
         results.close()
         results.join_thread()
-
-    winners = [value for status, value in outcomes if status == "ok"]
-    errors = [value for status, value in outcomes if status == "error"]
-    assert len(winners) == 1
-    assert errors == [SessionError.code]
-    store = SessionStore(state_dir, 10_000_000)
-    active = store.active_metadata()
-    assert active is not None
-    assert active["session_id"] == winners[0]
-    _assert_session_json_is_consistent(store, winners[0], expected_status="active")
-
-    store.finalize(winners[0], "cancel")
-    replacement = store.create(exchange)
-    assert replacement["session_id"] != winners[0]
-    store.finalize(str(replacement["session_id"]), "cancel")
 
 
 def test_two_threads_finalize_once_and_leave_valid_state(tmp_path: Path) -> None:

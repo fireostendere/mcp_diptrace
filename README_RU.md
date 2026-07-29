@@ -165,7 +165,20 @@ codex mcp list
 5. Для write-operation сначала требуйте dry-run/transaction preview и проверьте changed object IDs.
 6. Commit выполняйте с SHA из preview, затем запустите post-write checks, прочитайте последний SHA рабочего документа и вызовите `finish_live_session(action="apply", expected_sha256="...")`; для отмены hash не нужен.
 
-Кнопки bridge выполняют те же явные apply/cancel действия. Component и Pattern Editor profiles остаются read-only и после inspection должны завершаться через `cancel`.
+Кнопки bridge выполняют те же явные apply/cancel действия. Окно показывает привязанный
+к SHA и ограниченный impact summary: normalized/structural counts и не более первых 20
+изменённых stable IDs; unavailable и truncated состояния явно раскрываются. Live apply
+проверяет тот же консервативный лимит 500 объектов дважды: при публикации MCP request и
+непосредственно в bridge перед заменой. Component и Pattern Editor profiles являются
+read-only (`ImpMode=None`); неизвестные profiles также закрыты fail-closed.
+
+`finish_live_session` ограниченно ждёт только локальный результат bridge: `applied`,
+`cancelled` или `not_acknowledged`. `applied` означает, что bridge заменил и проверил
+локальный exchange XML; это не подтверждение от DipTrace host. Заведомо мёртвый bridge
+в той же platform/PID namespace автоматически получает статус `abandoned`. PID namespaces
+Windows и WSL никогда не отождествляются по догадке; orphan с неизвестной liveness
+завершается по настраиваемому двухчасовому TTL либо явно через
+`abandon_live_session(reason="...")`, который никогда не применяет working XML.
 
 ## Offline-режим
 

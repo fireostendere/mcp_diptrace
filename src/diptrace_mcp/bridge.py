@@ -24,10 +24,13 @@ class BridgeController:
             settings.max_document_bytes,
             allowed_roots=settings.allowed_roots,
             retention=settings.retention_policy,
+            active_ttl_seconds=settings.live_session_ttl_seconds,
         )
         self.metadata = self.store.create(exchange_path)
         self.session_id = str(self.metadata["session_id"])
         self.finished = False
+        self._preview_sha256: str | None = None
+        self._preview_payload: dict[str, Any] | None = None
 
     @property
     def working_path(self) -> Path:
@@ -41,7 +44,61 @@ class BridgeController:
 
     @property
     def can_apply(self) -> bool:
-        return bool(self.metadata.get("apply_supported", True))
+        return self.metadata.get("apply_supported") is True
+
+    def preview_summary(self) -> dict[str, Any]:
+        """Return one bounded impact summary, cached by stable working SHA-256."""
+
+        try:
+            current_sha256 = self.current_sha256()
+            if (
+                current_sha256 == self._preview_sha256
+                and self._preview_payload is not None
+            ):
+                return self._preview_payload
+            payload = self.store.live_preview_summary(self.session_id)
+        except Exception as exc:
+            message = str(exc)
+            payload = {
+                "available": False,
+                "complete": False,
+                "working_sha256": None,
+                "modified": None,
+                "normalized_object_count": None,
+                "structural_element_count": None,
+                "object_count": None,
+                "changed_ids": [],
+                "changed_id_count": None,
+                "changed_ids_complete": False,
+                "limitations": ["preview impact is unavailable"],
+                "reason": message[:240],
+            }
+            return payload
+        payload_sha256 = payload.get("working_sha256")
+        if (
+            not isinstance(payload_sha256, str)
+            or len(payload_sha256) != 64
+            or any(character not in "0123456789abcdef" for character in payload_sha256)
+        ):
+            return {
+                "available": False,
+                "complete": False,
+                "working_sha256": None,
+                "modified": None,
+                "normalized_object_count": None,
+                "structural_element_count": None,
+                "object_count": None,
+                "changed_ids": [],
+                "changed_id_count": None,
+                "changed_ids_complete": False,
+                "limitations": ["preview impact has no valid working-file binding"],
+                "reason": "invalid working_sha256 in preview summary",
+            }
+        # The file may have moved from current_sha256=A to payload_sha256=B
+        # between the two stable reads. Cache the summary under B, never under A.
+        self._preview_sha256 = payload_sha256
+        self._preview_payload = payload
+        return payload
 
     def finish(self, action: SessionAction, expected_sha256: str | None = None) -> dict[str, Any]:
         if self.finished:
@@ -140,6 +197,28 @@ def _write_fatal_log(
         return None
 
 
+def _preview_details_text(session_id: str, summary: dict[str, Any]) -> str:
+    if not summary.get("available"):
+        reason = str(summary.get("reason") or "working XML could not be parsed")
+        return (
+            f"Session: {session_id}\n"
+            "Preview: unavailable/incomplete\n"
+            f"Reason: {reason}"
+        )
+    changed_ids = [str(value) for value in summary.get("changed_ids", [])]
+    changed = ", ".join(changed_ids) if changed_ids else "(no normalized stable ids)"
+    completeness = "complete" if summary.get("complete") else "incomplete/truncated"
+    return (
+        f"Session: {session_id}\n"
+        f"Working XML: {'modified' if summary.get('modified') else 'unchanged'}\n"
+        f"Impact: {summary.get('normalized_object_count')} normalized, "
+        f"{summary.get('structural_element_count')} structural "
+        f"({summary.get('object_count')} conservative total)\n"
+        f"First changed stable IDs: {changed}\n"
+        f"Preview: {completeness}"
+    )
+
+
 def run_gui(controller: BridgeController, timeout: int) -> int:
     import tkinter as tk
     from tkinter import messagebox
@@ -181,7 +260,14 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
             controller.reject_request(str(exc))
             status.set(f"Cannot finish session: {exc}")
             return False
-        status.set("Changes were sent to DipTrace." if action == "apply" else "Session cancelled.")
+        status.set(
+            (
+                "The local exchange XML was finalized. DipTrace host import "
+                "acknowledgement is unavailable."
+            )
+            if action == "apply"
+            else "The session was cancelled locally; the exchange XML was not replaced."
+        )
         root.after(500, root.destroy)
         return True
 
@@ -215,10 +301,11 @@ def run_gui(controller: BridgeController, timeout: int) -> int:
             finish("cancel")
             return
         try:
-            modified = controller.is_modified()
             details.set(
-                f"Session: {controller.session_id}\n"
-                f"Working XML: {'modified' if modified else 'unchanged'}"
+                _preview_details_text(
+                    controller.session_id,
+                    controller.preview_summary(),
+                )
             )
             request = controller.poll_request()
             if request:

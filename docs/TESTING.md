@@ -106,6 +106,14 @@ The maintained suite covers:
   truncation;
 - thread- and spawned-process serialization of the single-active-session invariant,
   finish requests, and finalization;
+- live-session dead-PID, Linux PID-reuse, cross-namespace unknown-liveness, activity-TTL,
+  manual/automatic abandonment, bounded local finish outcomes, late finalization, and
+  terminal abandoned-record retention;
+- independent live-apply object-limit checks at request and bridge-finalize boundaries,
+  including the exact 500 boundary, cumulative/oversized post-request substitution,
+  malformed working XML refusal, and unchanged exchange bytes on every refusal;
+- bridge preview summary SHA-cache races, normalized/structural counts, first-stable-ID
+  bounds, and explicit unavailable/incomplete GUI text;
 - fail-closed authority tests for self-minted manifests, path/hardlink/symlink aliases, source-type/SHA binding, incomplete semantic comparisons, and rollback with corrupt evidence;
 - public MCP evidence-intake tests for typed schemas, read-only preview non-mutation,
   explicit metadata recording, failed observations, tampered role hashes, reused roles,

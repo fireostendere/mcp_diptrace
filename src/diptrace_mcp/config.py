@@ -26,6 +26,11 @@ DEFAULT_MODEL_CACHE_MAX_BYTES = 256 * 1024 * 1024
 # Product-level budget for an unattended interactive bridge window. This is not a
 # DipTrace format or engineering constraint; operators can override it per workflow.
 DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS = 30 * 60
+# A crashed bridge can be reaped immediately only when the reader can prove it is
+# observing the same operating-system PID namespace.  Across Windows/WSL that proof
+# is intentionally unavailable, so a separate operator-configurable terminal TTL
+# bounds how long an orphan can block the single-active-session invariant.
+DEFAULT_LIVE_SESSION_TTL_SECONDS = 2 * 60 * 60
 _POLICY_PROFILES = {
     "read_only",
     "review",
@@ -132,6 +137,7 @@ class Settings:
     max_external_log_bytes: int = 4 * 1024 * 1024
     retention_max_records: int = DEFAULT_RETENTION_MAX_RECORDS
     retention_max_age_days: int = DEFAULT_RETENTION_MAX_AGE_DAYS
+    live_session_ttl_seconds: int = DEFAULT_LIVE_SESSION_TTL_SECONDS
     active_policy: PolicyProfile = "interactive_edit"
 
     @classmethod
@@ -202,6 +208,10 @@ class Settings:
                 "DIPTRACE_MCP_RETENTION_MAX_AGE_DAYS",
                 DEFAULT_RETENTION_MAX_AGE_DAYS,
             ),
+            live_session_ttl_seconds=_positive_int(
+                "DIPTRACE_MCP_SESSION_TTL_SECONDS",
+                DEFAULT_LIVE_SESSION_TTL_SECONDS,
+            ),
             active_policy=_policy_profile(),
         )
 
@@ -249,5 +259,6 @@ class Settings:
             "max_external_log_bytes": self.max_external_log_bytes,
             "retention_max_records": self.retention_max_records,
             "retention_max_age_days": self.retention_max_age_days,
+            "live_session_ttl_seconds": self.live_session_ttl_seconds,
             "active_policy": self.active_policy,
         }

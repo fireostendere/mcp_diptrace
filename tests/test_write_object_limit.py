@@ -113,10 +113,10 @@ def test_capability_report_discloses_limit_and_exact_exemptions(
 
     assert limits["max_write_objects"] == MAX_WRITE_OBJECTS
     assert "raw XML edits" in limits["max_write_objects_scope"]
+    assert "live-session apply" in limits["max_write_objects_scope"]
     assert "fail-closed sum" in limits["max_write_objects_accounting"]
     assert limits["max_write_objects_exemptions"] == [
         "exact conflict-checked transaction rollback",
-        "live-session external apply handshake (pending WO-15 enforcement)",
     ]
 
 

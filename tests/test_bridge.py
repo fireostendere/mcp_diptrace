@@ -16,7 +16,7 @@ from diptrace_mcp.errors import SessionError
 
 _SOURCE = (
     b'<?xml version="1.0" encoding="UTF-8"?>\n'
-    b'<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm"></Source>\n'
+    b'<Source Type="DipTrace-PCB" Version="4.3.0.3" Units="mm"><Board/></Source>\n'
 )
 _MODIFIED = _SOURCE.replace(b"</Source>", b"<!-- changed -->\n</Source>")
 _COMPONENT_LIBRARY_SOURCE = (

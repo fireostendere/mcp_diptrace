@@ -16,7 +16,12 @@
 - persisted record and job/export artifact reads require confined non-redirected paths, and embedded record identifiers must match the requested identifiers;
 - transaction snapshots and rollback backups are derived from the transaction identifier and hash-checked instead of trusting persisted path strings;
 - locked objects are preserved by default unless an operation explicitly allows otherwise;
-- only one live DipTrace bridge session may be active;
+- only one live DipTrace bridge session may be active; same-platform/PID-namespace
+  liveness plus an unknown-liveness activity TTL and explicit abandonment prevent a
+  crashed bridge from blocking the store forever without guessing across Windows/WSL;
+- live apply requires the caller-inspected working SHA, revalidates the bound exchange
+  path/original SHA, and independently enforces the conservative object/element cap at
+  request and bridge-finalize checkpoints;
 - external processes use fixed typed argument vectors, `shell=false`, isolated job directories, bounded streaming logs/results, a global concurrency cap, process-tree timeouts, terminal cancellation, and explicit reaping;
 - the core does not expose arbitrary shell execution supplied by an LLM;
 - high-level write tools default to preview/dry-run behavior and must not silently convert unavailable capabilities into success.
@@ -97,11 +102,19 @@ checks it again at finalization, and binds the external exchange target to its a
 allowed-root path and original SHA. The same cross-process race limitation still applies
 after its final target check; this is not an exemption from the required SHA contract.
 
+Active live sessions become terminal `abandoned` immediately only when bridge death is
+provable in the recorded platform/PID namespace. Unknown cross-namespace liveness uses
+the last validated session activity and the configurable two-hour TTL. Explicit
+`abandon_live_session(reason)` never copies working XML to the exchange path. Status
+exposes a bounded `last_session_transition` without the exchange path.
+
 Count-and-age retention runs when a store is constructed. It deletes only fully
 parsed, validated terminal records confined to that store. For transactions,
 `committed`, `rolled_back`, and `failed` are terminal cleanup candidates;
-`planned`, `staged`, and `validated` remain protected. Other active or nonterminal
-records and the state needed to recover them are protected as well.
+`planned`, `staged`, and `validated` remain protected. Applied, cancelled, and
+abandoned live sessions are terminal only after their metadata, original/working bytes,
+hashes, timestamps, and abandonment reason (when applicable) validate. Other active or
+nonterminal records and the state needed to recover them are protected as well.
 
 Valid offline backups are pruned per target at construction and after replacement.
 Age expiry applies even to the sole or newest backup, and an empty validated history

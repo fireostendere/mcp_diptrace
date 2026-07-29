@@ -26,7 +26,10 @@ latest inspection of the live working document. The server checks it before publ
 the bridge control marker and the bridge checks it again before replacing the external
 exchange file. The persisted exchange path is independently revalidated inside the
 configured allowed roots and its original SHA-256 must still match. `cancel` needs no
-hash and does not replace the exchange file.
+hash and does not replace the exchange file. The response reports `applied`, `cancelled`,
+or `not_acknowledged` after a bounded wait for local bridge finalization and always states
+that DipTrace-host acknowledgement is unavailable. `abandon_live_session(reason)` marks
+stale local state terminal without applying it.
 
 The full `QuerySelector`, PCB scaffold, synchronization, panelization, and route-connection
 schemas are available once in the JSON schema catalog at `diptrace://schemas/tool-inputs`. They
@@ -78,15 +81,15 @@ Those checks cover a bounded subset and may skip unavailable geometry or rules; 
 [review coverage matrix](REVIEW_ENGINE.md). `apply_xml_edits` remains an expert escape
 hatch rather than the preferred API.
 
-Every semantic transaction, raw XML edit, generated document, seed copy, and overwrite
-is independently limited by a fail-closed count of affected normalized objects and exact
-XML elements. The count is recomputed before transaction mutation and again at commit; it
-includes nested library patterns, pads, pins, holes, and shapes. The normalized and XML
-views are conservatively summed because no complete mapping exists between them, so their
-overlap can cause a write with fewer than 500 unique physical design objects to be refused.
-Exact conflict-checked rollback is exempt from the object count, but still passes the active
-write policy. The live-session external apply handshake is not yet independently capped
-and remains disclosed by `get_capabilities` pending WO-15.
+Every semantic transaction, raw XML edit, generated document, seed copy, overwrite, and
+live-session apply is independently limited by a fail-closed count of affected normalized
+objects and exact XML elements. Transaction counts are recomputed before mutation and at
+commit; live apply is recomputed when the control request is published and inside the
+bridge immediately before exchange replacement. The count includes nested library
+patterns, pads, pins, holes, and shapes. The normalized and XML views are conservatively
+summed because no complete mapping exists between them, so their overlap can cause a write
+with fewer than 500 unique physical design objects to be refused. Exact conflict-checked
+rollback is exempt from the object count, but still passes the active write policy.
 
 ## User-supplied Evidence Intake
 

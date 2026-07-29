@@ -167,7 +167,20 @@ Alternatively, merge [`examples/codex-config.toml`](examples/codex-config.toml) 
 5. Require a dry-run/transaction preview and inspect changed object IDs.
 6. Commit with the preview SHA, run post-write checks, read the latest working-document SHA, then call `finish_live_session(action="apply", expected_sha256="...")`; cancellation needs no hash.
 
-The bridge buttons provide the same explicit apply/cancel controls. Component and Pattern Editor bridge profiles are read-only and should be cancelled after inspection.
+The bridge buttons provide the same explicit apply/cancel controls. Its window shows a
+SHA-bound, bounded impact summary: normalized and structural counts plus at most the first
+20 changed stable IDs, with unavailable or truncated state disclosed. Live apply enforces
+the same 500-object conservative limit both when the MCP request is published and again
+inside the bridge immediately before replacement. Component and Pattern Editor bridge
+profiles are read-only (`ImpMode=None`); unknown profiles are also fail-closed.
+
+`finish_live_session` waits only for a bounded local bridge result: `applied`, `cancelled`,
+or `not_acknowledged`. `applied` means that the bridge replaced and verified the local
+exchange XML; it is not an acknowledgement from the DipTrace host. A provably dead
+same-platform/same-PID-namespace bridge is marked `abandoned` automatically. Windows and
+WSL PID namespaces are never guessed across; an unknown-liveness orphan expires after the
+configurable two-hour session TTL or can be closed explicitly with
+`abandon_live_session(reason="...")`, which never applies its working XML.
 
 ## Offline Mode
 

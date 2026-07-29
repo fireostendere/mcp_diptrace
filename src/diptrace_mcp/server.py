@@ -2586,8 +2586,25 @@ def create_server(
         action: Literal["apply", "cancel"],
         expected_sha256: ExpectedLiveWorkingSha256Input | None = None,
     ) -> dict[str, Any]:
-        """Apply inspected working XML with its SHA-256, or cancel without writing."""
+        """Request SHA-256-bound apply/cancel and report only local bridge finalization."""
         return service.finish_live_session(action, expected_sha256)
+
+    @mcp.tool()
+    def abandon_live_session(
+        reason: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=500,
+                description=(
+                    "Operator reason for abandoning stale local session state without "
+                    "applying its working XML."
+                ),
+            ),
+        ],
+    ) -> dict[str, Any]:
+        """Abandon stale local session state without applying its working XML."""
+        return service.abandon_live_session(reason)
 
     @mcp.resource("diptrace://status", mime_type="application/json")
     def status_resource() -> str:

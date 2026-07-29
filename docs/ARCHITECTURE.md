@@ -244,6 +244,14 @@ accesses the same directory through
 `/mnt/c/Users/<user>/AppData/Local/DipTraceMCP`. The protocol uses ordinary files only
 and requires no Windows-to-WSL socket connection.
 
+Session metadata records the bridge platform, PID namespace, PID, and a Linux
+process-start token. Liveness is consulted only from the same exact platform/namespace;
+a WSL PID is never used to infer whether a Windows bridge is alive. Same-namespace death
+transitions the state to terminal `abandoned`. Cross-namespace liveness remains
+`unknown` until the configurable two-hour TTL or an explicit
+`abandon_live_session(reason)` action. Apply remains separately bound to the original
+exchange path/hash, current working hash, and two independent write-impact checks.
+
 ## Verified DipTrace Baseline
 
 The live bridge design follows the official executable plug-in flow published by

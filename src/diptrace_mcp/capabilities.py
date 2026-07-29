@@ -11,7 +11,10 @@ from .capability_model import (
     get_trust_model,
     render_capability_tables,
 )
-from .config import DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS
+from .config import (
+    DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS,
+    DEFAULT_LIVE_SESSION_TTL_SECONDS,
+)
 from .domain import CapabilityReport
 from .geometry_backend import backend_report
 from .xml_document import DipTraceDocument
@@ -206,9 +209,10 @@ def capability_report(
             "default_live_session_timeout_seconds": (
                 DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS
             ),
+            "default_live_session_ttl_seconds": DEFAULT_LIVE_SESSION_TTL_SECONDS,
             "max_write_objects_scope": (
                 "semantic transactions, raw XML edits, document creation, seed copies, "
-                "and overwrites"
+                "overwrites, and live-session apply"
             ),
             "max_write_objects_accounting": (
                 "fail-closed sum of changed normalized objects, exact XML elements, and "
@@ -217,7 +221,6 @@ def capability_report(
             ),
             "max_write_objects_exemptions": [
                 "exact conflict-checked transaction rollback",
-                "live-session external apply handshake (pending WO-15 enforcement)",
             ],
             "expected_sha256_required_for": [
                 "semantic design-file commit",
