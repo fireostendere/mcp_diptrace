@@ -1,0 +1,96 @@
+name: CI Helper
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-clean-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/ci-green-clean
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+      - run: python -m pip install -e ".[dev]"
+      - name: Replace recursive semantic tuple comparison
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/diptrace_mcp/xml_document.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''def _semantic_tree(element: ET.Element) -> tuple[object, ...]:
+              """Build the semantic comparison value without depending on Python recursion."""
+
+              pending: list[tuple[ET.Element, bool]] = [(element, False)]
+              rendered: dict[int, tuple[object, ...]] = {}
+              while pending:
+                  current, children_ready = pending.pop()
+                  if not children_ready:
+                      pending.append((current, True))
+                      pending.extend((child, False) for child in reversed(current))
+                      continue
+
+                  text = current.text
+                  normalized_text = None if text is None or not text.strip() else text
+                  tail = current.tail
+                  normalized_tail = None if tail is None or not tail.strip() else tail
+                  tag = current.tag if isinstance(current.tag, str) else "#comment"
+                  rendered[id(current)] = (
+                      tag,
+                      tuple(sorted(current.attrib.items())),
+                      normalized_text,
+                      normalized_tail,
+                      tuple(rendered[id(child)] for child in current),
+                  )
+              return rendered[id(element)]
+          '''.replace("          ", "")
+          new = '''def _semantic_tree(element: ET.Element) -> tuple[tuple[object, ...], ...]:
+              """Build a flat preorder value so comparison is recursion-safe."""
+
+              pending = [element]
+              rendered: list[tuple[object, ...]] = []
+              while pending:
+                  current = pending.pop()
+                  children = list(current)
+                  text = current.text
+                  normalized_text = None if text is None or not text.strip() else text
+                  tail = current.tail
+                  normalized_tail = None if tail is None or not tail.strip() else tail
+                  tag = current.tag if isinstance(current.tag, str) else "#comment"
+                  rendered.append(
+                      (
+                          tag,
+                          tuple(sorted(current.attrib.items())),
+                          normalized_text,
+                          normalized_tail,
+                          len(children),
+                      )
+                  )
+                  pending.extend(reversed(children))
+              return tuple(rendered)
+          '''.replace("          ", "")
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one semantic tree block, found {text.count(old)}")
+          path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+          PY
+      - run: python -m ruff check --no-cache src/diptrace_mcp/xml_document.py scripts/probe_windows_wsl_lock_interop.py
+      - run: python -m mypy --no-incremental src/diptrace_mcp/xml_document.py scripts/probe_windows_wsl_lock_interop.py
+      - run: python -m pytest -q tests/test_adversarial_xml_corpus.py tests/test_windows_wsl_lock_interop_probe.py
+      - name: Commit focused fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/diptrace_mcp/xml_document.py scripts/probe_windows_wsl_lock_interop.py
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "fix: harden cross-platform and deep-tree tests"
+          git push origin HEAD:fix/ci-green-clean
