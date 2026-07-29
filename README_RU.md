@@ -15,6 +15,29 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 
 Актуальный порядок работ и критерии завершения находятся в [roadmap](docs/ROADMAP.md). Фактическую доступность конкретной операции всегда определяет `get_capabilities`.
 
+## Статус публичного релиза
+
+В репозитории пока нет project-wide файла `LICENSE`. Репозиторий ещё не
+предоставляет общую open-source лицензию и не должен называться open source,
+пока ответственный владелец не выберет и не добавит лицензию, одобренную OSI.
+
+В репозитории опубликованы правила участия и релиза для текущего закрытого
+состояния:
+
+- [процесс contribution](CONTRIBUTING.md);
+- [текущий governance](GOVERNANCE.md);
+- [license decision matrix](docs/LICENSE_DECISION.md);
+- [чек-лист публичного релиза](docs/PUBLIC_RELEASE_CHECKLIST.md) и
+  [release process](docs/RELEASE_PROCESS.md);
+- [changelog](CHANGELOG.md) и [citation metadata](CITATION.cff).
+
+Приём общих contributions закрыт. Проверенных приватных каналов для security и
+Code of Conduct пока нет, поэтому соответствующие политики не публикуются.
+Лицензия, ownership, security, contribution provenance, signing и publication
+остаются явными blockers. Репозиторий не заявляет существующее сообщество,
+adoption, sponsorship, vendor endorsement, участие в support program или
+опубликованный релиз.
+
 ## Что уже работает
 
 - runtime capability discovery через `get_capabilities`, включая точные причины недоступности;

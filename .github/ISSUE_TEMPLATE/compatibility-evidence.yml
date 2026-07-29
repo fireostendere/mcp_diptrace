@@ -1,0 +1,69 @@
+name: DipTrace compatibility evidence
+description: Report a controlled real-DipTrace observation with provenance
+title: "evidence: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit only material you are authorized to disclose and redistribute.
+        A report does not enter the acceptance fixture tree automatically.
+  - type: input
+    id: question
+    attributes:
+      label: Question or write path
+      description: Identify the OPEN_QUESTIONS entry, MCP tool, or XML behavior.
+    validations:
+      required: true
+  - type: input
+    id: diptrace
+    attributes:
+      label: DipTrace product and exact build
+      description: Include PCB Layout, Schematic, Component Editor, or Pattern Editor.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Windows environment
+      description: Include Windows version and architecture.
+    validations:
+      required: true
+  - type: textarea
+    id: procedure
+    attributes:
+      label: Procedure
+      description: List exact export, edit, import, save, and re-export steps.
+    validations:
+      required: true
+  - type: textarea
+    id: observations
+    attributes:
+      label: Observations
+      description: Separate byte-level differences from semantic observations.
+    validations:
+      required: true
+  - type: textarea
+    id: hashes
+    attributes:
+      label: Artifact hashes
+      description: Provide SHA-256 values for every referenced artifact.
+    validations:
+      required: true
+  - type: textarea
+    id: provenance
+    attributes:
+      label: Provenance and redistribution permission
+      description: State who created the design and why it may be shared.
+    validations:
+      required: true
+  - type: checkboxes
+    id: authority
+    attributes:
+      label: Authority confirmation
+      options:
+        - label: I am authorized to disclose the observations and attached material.
+          required: true
+        - label: I understand that maintainers must independently validate evidence before promotion.
+          required: true
+        - label: I did not modify the repository acceptance fixture tree.
+          required: true

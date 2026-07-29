@@ -1,0 +1,50 @@
+name: Feature request
+description: Propose a bounded capability without asserting undocumented behavior
+title: "feature: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        General code contributions are closed while the repository has no
+        project-wide license. This form records a request; it does not promise
+        implementation or acceptance of a pull request.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Engineering problem
+      description: Describe the workflow that is currently blocked or unsafe.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe observable behavior rather than an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Boundaries and safety gates
+      description: State data limits, refusal cases, and human approvals.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Cite an official specification or controlled export for any DipTrace behavior.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Existing alternatives
+      description: Explain current workarounds or related MCP tools.
+  - type: checkboxes
+    id: claims
+    attributes:
+      label: Claim confirmation
+      options:
+        - label: I have labelled assumptions and synthetic evidence explicitly.
+          required: true
+        - label: I have not invented engineering thresholds or DipTrace behavior.
+          required: true

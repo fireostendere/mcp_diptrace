@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: Cite the repository URL and commit used in your work.
+title: DipTrace MCP
+type: software
+version: 0.1.0
+abstract: >-
+  A local Model Context Protocol server and live XML bridge for reading,
+  reviewing, and performing guarded edits on DipTrace designs.
+authors:
+  - name: DipTrace MCP contributors
+repository-code: https://github.com/fireostendere/mcp_diptrace
+url: https://github.com/fireostendere/mcp_diptrace

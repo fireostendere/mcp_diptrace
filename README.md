@@ -17,6 +17,28 @@ Native Component/Pattern Library mutation and native manufacturing output genera
 
 See [the roadmap](docs/ROADMAP.md) for the current priority order and exit criteria. Runtime truth for a specific document always comes from `get_capabilities`.
 
+## Public Release Status
+
+No project-wide `LICENSE` file is currently committed. This repository does
+not grant a project-wide open-source license and must not be described as open
+source until an accountable owner selects and commits an OSI-approved license.
+
+The repository publishes a closed-state participation and release policy:
+
+- [contribution workflow](CONTRIBUTING.md);
+- [current governance](GOVERNANCE.md);
+- [license decision matrix](docs/LICENSE_DECISION.md);
+- [public-release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) and
+  [release process](docs/RELEASE_PROCESS.md);
+- [changelog](CHANGELOG.md) and [citation metadata](CITATION.cff).
+
+General contributions are closed. Verified private security and conduct
+channels do not yet exist, so vulnerability and Code of Conduct policies are
+not published. License, ownership, security, contribution-provenance, signing,
+and publication work remain explicit blockers. The repository does not claim
+an existing community, adoption, sponsorship, vendor endorsement, support
+program acceptance, or published release.
+
 ## Current Capabilities
 
 - runtime capability discovery through `get_capabilities`, including precise unavailability reasons;

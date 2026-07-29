@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a reproducible non-sensitive defect
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include proprietary designs, credentials, personal data, or
+        security vulnerabilities. The repository does not yet publish a
+        verified private vulnerability-reporting channel.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Defect
+      description: Describe the observed behavior and why it is incorrect.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Provide the smallest safe reproduction and exact commands.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: State the expected result and the source for that expectation.
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Repository revision
+      description: Provide the Git commit SHA or version metadata.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Python, MCP client, and DipTrace build when relevant.
+    validations:
+      required: true
+  - type: dropdown
+    id: evidence
+    attributes:
+      label: DipTrace evidence class
+      options:
+        - Not about DipTrace format behavior
+        - Official specification
+        - Controlled real-DipTrace export
+        - Synthetic fixture only
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Sanitized output
+      description: Add relevant logs or traces after removing sensitive data.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I removed proprietary, personal, secret, and redistribution-restricted material.
+          required: true
+        - label: This report does not disclose a suspected security vulnerability.
+          required: true
