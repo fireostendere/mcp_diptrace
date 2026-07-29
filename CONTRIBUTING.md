@@ -17,10 +17,10 @@ submitted through the repository's GitHub issue forms. Do not put proprietary
 designs, credentials, personal data, export-controlled material, or
 redistribution-restricted files in an issue.
 
-The repository does not yet publish a verified private vulnerability-reporting
-channel. Do not disclose a suspected vulnerability in a public issue. The
-absence of a private channel is a public-release blocker recorded in
-[the release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md).
+Report suspected vulnerabilities through the private channel published in
+[SECURITY.md](SECURITY.md); never disclose them in a public issue. Do not put
+proprietary designs, credentials, personal data, export-controlled material,
+or redistribution-restricted files in any report.
 
 ## Evidence standards
 

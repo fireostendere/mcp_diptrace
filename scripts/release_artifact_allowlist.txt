@@ -13,6 +13,7 @@ GOVERNANCE.md
 LICENSE
 README.md
 README_RU.md
+SECURITY.md
 benchmarks/__init__.py
 benchmarks/benchmark_core.py
 benchmarks/benchmark_large_board.py

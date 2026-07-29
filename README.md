@@ -34,9 +34,8 @@ The repository publishes its participation and release policy:
 - [changelog](CHANGELOG.md) and [citation metadata](CITATION.cff).
 
 General contributions remain closed until contribution-provenance terms are
-approved. Private security reporting through GitHub is being activated for
-the first release; until its activation is confirmed, no vulnerability policy
-is published and suspected vulnerabilities must not be disclosed in public
+approved. Suspected vulnerabilities must be reported through the private
+security channel published in [SECURITY.md](SECURITY.md), never in public
 issues. A verified Code of Conduct channel does not yet exist, so a Code of
 Conduct policy is not published. Contribution-provenance and signing work
 remain explicit blockers. The repository does not claim an existing community,

@@ -33,15 +33,14 @@ The repository does not currently provide:
 - an independent reviewer or second release approver;
 - a succession or repository-recovery policy;
 - a conflict-of-interest and recusal process;
-- a private security intake channel;
 - a confidential conduct-enforcement channel; or
 - contribution attestation terms.
 
-These are explicit release blockers. A Code of Conduct is not published yet
-because there is no verified confidential enforcement channel or enforcement
-team. A vulnerability policy is not published yet because there is no verified
-private reporting channel. Publishing fictional contacts would make both
-policies unsafe.
+Private vulnerability reporting is enabled through GitHub and published in
+[SECURITY.md](SECURITY.md). The remaining items are explicit release
+blockers. A Code of Conduct is not published yet because there is no verified
+confidential enforcement channel or enforcement team. Publishing a fictional
+contact would make the policy unsafe.
 
 ## Governance changes
 

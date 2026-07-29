@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Apache License 2.0 as the project-wide license (`LICENSE`), with the SPDX
   identifier `Apache-2.0` in package and citation metadata.
+- Private vulnerability reporting through GitHub, published as `SECURITY.md`.
 - Closed-state contribution and governance policies that do not invite
   unlicensed external contributions.
 - A license decision matrix and a factual public-release checklist.

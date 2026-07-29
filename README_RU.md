@@ -32,9 +32,8 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 - [changelog](CHANGELOG.md) и [citation metadata](CITATION.cff).
 
 Приём общих contributions остаётся закрытым, пока не утверждены условия
-contribution provenance. Приватная передача security-отчётов через GitHub
-активируется к первому релизу; пока активация не подтверждена, политика
-уязвимостей не публикуется, а подозрения на уязвимости нельзя раскрывать в
+contribution provenance. Подозрения на уязвимости отправляйте только через
+приватный security-канал, опубликованный в [SECURITY.md](SECURITY.md), а не в
 публичных issues. Проверенного канала для Code of Conduct пока нет, поэтому
 политика Code of Conduct не публикуется. Contribution provenance и signing
 остаются явными blockers. Репозиторий не заявляет существующее сообщество,

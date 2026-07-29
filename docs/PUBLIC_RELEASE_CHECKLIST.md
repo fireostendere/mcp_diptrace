@@ -5,10 +5,10 @@
 Audited repository state: 2026-07-30.
 
 **Status: blocked.** The repository has an OSI-approved project-wide license
-(Apache-2.0, committed as `LICENSE`) and a published 0.1.0 development-stage
-release with an unsigned-binary disclosure, but no verified private security
-or conduct channel, approved contribution terms, signed release artifact, or
-independent release reviewer.
+(Apache-2.0, committed as `LICENSE`), private vulnerability reporting
+published as `SECURITY.md`, and a published 0.1.0 development-stage release
+with an unsigned-binary disclosure, but no verified conduct channel, approved
+contribution terms, signed release artifact, or independent release reviewer.
 
 Checked boxes below describe repository facts in the audited state. Unchecked
 boxes are release blockers, not publication claims.
@@ -41,7 +41,9 @@ not publish a package or binary release.
       [GOVERNANCE.md](../GOVERNANCE.md).
 - [ ] Independent merge reviewer and release approver are identified.
 - [ ] Repository succession and recovery are documented.
-- [ ] Private security reporting is enabled and tested.
+- [x] Private security reporting is enabled (GitHub private vulnerability
+      reporting, 2026-07-30) and published in
+      [SECURITY.md](../SECURITY.md); channel URL verified anonymously.
 - [ ] Confidential conduct enforcement and a backup reviewer are enabled and
       tested.
 - [ ] Conflict-of-interest and recusal rules are approved.
@@ -50,9 +52,10 @@ not publish a package or binary release.
 - [x] Bug, feature, and compatibility-evidence issue forms are committed.
 - [x] A pull-request template covers scope, tests, provenance, and safety.
 
-A Code of Conduct and vulnerability-reporting policy are intentionally absent
-until real confidential channels and responsible people exist. A fictional
-email address or unverified private-report URL would not resolve these gates.
+A Code of Conduct is intentionally absent until a real confidential
+enforcement channel and responsible people exist. A fictional email address
+would not resolve this gate. The vulnerability-reporting policy is published
+in [SECURITY.md](../SECURITY.md).
 
 ## Product truth and documentation
 
