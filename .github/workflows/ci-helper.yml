@@ -25,33 +25,9 @@ jobs:
 
           path = Path("src/diptrace_mcp/xml_document.py")
           text = path.read_text(encoding="utf-8")
-          old = '''def _semantic_tree(element: ET.Element) -> tuple[object, ...]:
-              """Build the semantic comparison value without depending on Python recursion."""
-
-              pending: list[tuple[ET.Element, bool]] = [(element, False)]
-              rendered: dict[int, tuple[object, ...]] = {}
-              while pending:
-                  current, children_ready = pending.pop()
-                  if not children_ready:
-                      pending.append((current, True))
-                      pending.extend((child, False) for child in reversed(current))
-                      continue
-
-                  text = current.text
-                  normalized_text = None if text is None or not text.strip() else text
-                  tail = current.tail
-                  normalized_tail = None if tail is None or not tail.strip() else tail
-                  tag = current.tag if isinstance(current.tag, str) else "#comment"
-                  rendered[id(current)] = (
-                      tag,
-                      tuple(sorted(current.attrib.items())),
-                      normalized_text,
-                      normalized_tail,
-                      tuple(rendered[id(child)] for child in current),
-                  )
-              return rendered[id(element)]
-          '''.replace("          ", "")
-          new = '''def _semantic_tree(element: ET.Element) -> tuple[tuple[object, ...], ...]:
+          start = text.index("def _semantic_tree(")
+          end = text.index("\n\ndef _escape_xml_text", start)
+          replacement = '''def _semantic_tree(element: ET.Element) -> tuple[tuple[object, ...], ...]:
               """Build a flat preorder value so comparison is recursion-safe."""
 
               pending = [element]
@@ -76,9 +52,7 @@ jobs:
                   pending.extend(reversed(children))
               return tuple(rendered)
           '''.replace("          ", "")
-          if text.count(old) != 1:
-              raise SystemExit(f"expected one semantic tree block, found {text.count(old)}")
-          path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+          path.write_text(text[:start] + replacement + text[end:], encoding="utf-8", newline="\n")
           PY
       - run: python -m ruff check --no-cache src/diptrace_mcp/xml_document.py scripts/probe_windows_wsl_lock_interop.py
       - run: python -m mypy --no-incremental src/diptrace_mcp/xml_document.py scripts/probe_windows_wsl_lock_interop.py
