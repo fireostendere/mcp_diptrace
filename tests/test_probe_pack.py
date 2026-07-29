@@ -147,7 +147,7 @@ def test_check_is_deterministic_and_never_repairs_output(
     expected = output.read_bytes()
     assert main(["--source", str(SOURCE), "--out", str(output), "--check"]) == 0
 
-    output.write_text("stale\n", encoding="utf-8")
+    output.write_bytes(b"stale\n")
     assert main(["--source", str(SOURCE), "--out", str(output), "--check"]) == 1
     assert output.read_bytes() == b"stale\n"
 
