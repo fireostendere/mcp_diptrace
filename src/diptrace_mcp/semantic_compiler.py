@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import math
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeAlias, TypeVar, cast
 
 from .adapters import DocumentSnapshot, build_snapshot, stable_id
 from .domain import ObjectRecord, QuerySelector
@@ -59,6 +60,7 @@ from .operations import (
 )
 from .routing_compiler import (
     ROUTING_OPERATION_TYPES,
+    RoutingOperation,
     apply_routing_operation,
 )
 from .xml_document import (
@@ -80,6 +82,41 @@ class SemanticApplyResult:
     patch_count: int
 
 
+SemanticOperationHandler: TypeAlias = Callable[
+    [int, DipTraceDocument, DocumentSnapshot, SemanticOperation, list[str]],
+    tuple[dict[str, Any], int],
+]
+OperationT = TypeVar("OperationT", bound=SemanticOperation)
+
+
+def _adapt_semantic_handler(
+    handler: Callable[
+        [int, DipTraceDocument, DocumentSnapshot, OperationT, list[str]],
+        tuple[dict[str, Any], int],
+    ],
+) -> SemanticOperationHandler:
+    def adapted(
+        index: int,
+        document: DipTraceDocument,
+        snapshot: DocumentSnapshot,
+        operation: SemanticOperation,
+        changed_ids: list[str],
+    ) -> tuple[dict[str, Any], int]:
+        return handler(index, document, snapshot, cast(OperationT, operation), changed_ids)
+
+    return adapted
+
+
+def _semantic_operation_handler(operation: SemanticOperation) -> SemanticOperationHandler:
+    handler = SEMANTIC_OPERATION_HANDLERS.get(type(operation))
+    if handler is not None:
+        return handler
+    for operation_type, candidate in SEMANTIC_OPERATION_HANDLERS.items():
+        if isinstance(operation, operation_type):
+            return candidate
+    raise EditError(f"Unsupported semantic operation kind: {operation.kind!r}")
+
+
 def apply_semantic_operations(
     document: DipTraceDocument,
     operations: list[SemanticOperation],
@@ -97,144 +134,8 @@ def apply_semantic_operations(
     patch_count = 0
 
     for index, operation in enumerate(operations):
-        if isinstance(operation, MoveComponentsOperation):
-            preview, patches = _apply_move_components(
-                index,
-                working,
-                snapshot,
-                operation,
-                changed_ids,
-            )
-        elif isinstance(operation, SetComponentValueOperation):
-            preview, patches = _apply_set_component_value(
-                index,
-                working,
-                snapshot,
-                operation,
-                changed_ids,
-            )
-        elif isinstance(operation, RotateComponentsOperation):
-            preview, patches = _apply_rotate_components(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, SetComponentSideOperation):
-            preview, patches = _apply_component_side(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, SetComponentLockOperation):
-            preview, patches = _apply_component_lock(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, SetComponentPropertiesOperation):
-            preview, patches = _apply_component_properties(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, SetComponentPatternOperation):
-            preview, patches = _apply_component_pattern(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, GroupComponentsOperation):
-            preview, patches = _apply_group_components(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, UngroupComponentsOperation):
-            preview, patches = _apply_ungroup_components(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, MoveBoardTextsOperation):
-            preview, patches = _apply_move_texts(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, RotateBoardTextsOperation):
-            preview, patches = _apply_rotate_texts(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, SetTextVisibilityOperation):
-            preview, patches = _apply_text_visibility(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, SetTextStyleOperation):
-            preview, patches = _apply_text_style(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, SetPinNoConnectOperation):
-            preview, patches = _apply_pin_no_connect(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, RenameNetOperation):
-            preview, patches = _apply_rename_net(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, UpdateNetClassRulesOperation):
-            preview, patches = _apply_net_class_rules(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, AssignNetsToClassOperation):
-            preview, patches = _apply_assign_nets_to_class(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, AddTestpointOperation):
-            preview, patches = _apply_add_testpoint(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, MoveTestpointsOperation):
-            preview, patches = _apply_move_components(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, RemoveTestpointsOperation):
-            preview, patches = _apply_remove_testpoints(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, AddSheetOperation):
-            preview, patches = _apply_add_sheet(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, PlacePartOperation):
-            preview, patches = _apply_place_part(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, SyncSchematicToPcbOperation):
-            preview, patches = _apply_sync_schematic_to_pcb(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, ConnectPinsOperation):
-            preview, patches = _apply_connect_pins(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, DisconnectPinsOperation):
-            preview, patches = _apply_disconnect_pins(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, AddWireOperation):
-            preview, patches = _apply_add_wire(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, DeleteWireOperation):
-            preview, patches = _apply_delete_wire(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, AddNetLabelOperation):
-            preview, patches = _apply_add_net_label(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, SetPanelizationOperation):
-            preview, patches = _apply_set_panelization(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, ClearPanelizationOperation):
-            preview, patches = _apply_clear_panelization(
-                index, working, snapshot, operation, changed_ids
-            )
-        elif isinstance(operation, ROUTING_OPERATION_TYPES):
-            preview, patches, routing_changed_ids = apply_routing_operation(
-                index,
-                working,
-                snapshot,
-                operation,
-            )
-            changed_ids.extend(routing_changed_ids)
-        else:
-            raise EditError(f"Unsupported semantic operation kind: {operation.kind!r}")
+        handler = _semantic_operation_handler(operation)
+        preview, patches = handler(index, working, snapshot, operation, changed_ids)
         previews.append(preview)
         patch_count += patches
         snapshot = build_snapshot(working, live_session=live_session)
@@ -2726,3 +2627,56 @@ def _apply_clear_panelization(
         [{"id": stable, "deleted": True}],
         document,
     ), 1
+
+
+def _apply_routing_dispatch(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: SemanticOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    preview, patches, routing_changed_ids = apply_routing_operation(
+        index,
+        document,
+        snapshot,
+        cast(RoutingOperation, operation),
+    )
+    changed_ids.extend(routing_changed_ids)
+    return preview, patches
+
+
+SEMANTIC_OPERATION_HANDLERS: dict[type[SemanticOperation], SemanticOperationHandler] = {
+    MoveComponentsOperation: _adapt_semantic_handler(_apply_move_components),
+    SetComponentValueOperation: _adapt_semantic_handler(_apply_set_component_value),
+    RotateComponentsOperation: _adapt_semantic_handler(_apply_rotate_components),
+    SetComponentSideOperation: _adapt_semantic_handler(_apply_component_side),
+    SetComponentLockOperation: _adapt_semantic_handler(_apply_component_lock),
+    SetComponentPropertiesOperation: _adapt_semantic_handler(_apply_component_properties),
+    SetComponentPatternOperation: _adapt_semantic_handler(_apply_component_pattern),
+    GroupComponentsOperation: _adapt_semantic_handler(_apply_group_components),
+    UngroupComponentsOperation: _adapt_semantic_handler(_apply_ungroup_components),
+    MoveBoardTextsOperation: _adapt_semantic_handler(_apply_move_texts),
+    RotateBoardTextsOperation: _adapt_semantic_handler(_apply_rotate_texts),
+    SetTextVisibilityOperation: _adapt_semantic_handler(_apply_text_visibility),
+    SetTextStyleOperation: _adapt_semantic_handler(_apply_text_style),
+    SetPinNoConnectOperation: _adapt_semantic_handler(_apply_pin_no_connect),
+    RenameNetOperation: _adapt_semantic_handler(_apply_rename_net),
+    UpdateNetClassRulesOperation: _adapt_semantic_handler(_apply_net_class_rules),
+    AssignNetsToClassOperation: _adapt_semantic_handler(_apply_assign_nets_to_class),
+    AddTestpointOperation: _adapt_semantic_handler(_apply_add_testpoint),
+    MoveTestpointsOperation: _adapt_semantic_handler(_apply_move_components),
+    RemoveTestpointsOperation: _adapt_semantic_handler(_apply_remove_testpoints),
+    AddSheetOperation: _adapt_semantic_handler(_apply_add_sheet),
+    PlacePartOperation: _adapt_semantic_handler(_apply_place_part),
+    SyncSchematicToPcbOperation: _adapt_semantic_handler(_apply_sync_schematic_to_pcb),
+    ConnectPinsOperation: _adapt_semantic_handler(_apply_connect_pins),
+    DisconnectPinsOperation: _adapt_semantic_handler(_apply_disconnect_pins),
+    AddWireOperation: _adapt_semantic_handler(_apply_add_wire),
+    DeleteWireOperation: _adapt_semantic_handler(_apply_delete_wire),
+    AddNetLabelOperation: _adapt_semantic_handler(_apply_add_net_label),
+    SetPanelizationOperation: _adapt_semantic_handler(_apply_set_panelization),
+    ClearPanelizationOperation: _adapt_semantic_handler(_apply_clear_panelization),
+}
+for _routing_operation_type in ROUTING_OPERATION_TYPES:
+    SEMANTIC_OPERATION_HANDLERS[_routing_operation_type] = _apply_routing_dispatch
