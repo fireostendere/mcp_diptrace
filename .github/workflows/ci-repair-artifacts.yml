@@ -1,0 +1,25 @@
+name: CI Repair Artifacts
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - run: python scripts/generate_pcb_skills.py
+      - run: python scripts/generate_mcp_tools_snapshot.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-repair-generated
+          path: |
+            skills/SOURCES.sha256
+            reference/mcp-tools-list.snapshot.json
