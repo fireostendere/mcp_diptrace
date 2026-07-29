@@ -23,6 +23,7 @@ preview = []
 routing = []
 simulation = []
 dev = [
+  "hatchling>=1.27,<2",
   "hypothesis>=6.135,<7",
   "jsonschema>=4.24,<5",
   "mypy>=1.16,<2",
