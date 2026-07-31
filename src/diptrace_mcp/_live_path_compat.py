@@ -165,10 +165,8 @@ def install() -> None:
 
     session_store._create_unlocked = create_unlocked
     session_store._read_bound_exchange = read_bound_exchange
-    setattr(
-        sessions_module,
-        "_current_exchange_path_platform",
-        _current_exchange_path_platform,
+    sessions_module.__dict__["_current_exchange_path_platform"] = (
+        _current_exchange_path_platform
     )
-    setattr(sessions_module, "_exchange_path_for_runtime", _exchange_path_for_runtime)
-    setattr(sessions_module, "_live_path_compat_installed", True)
+    sessions_module.__dict__["_exchange_path_for_runtime"] = _exchange_path_for_runtime
+    sessions_module.__dict__["_live_path_compat_installed"] = True
