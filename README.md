@@ -11,7 +11,7 @@ DipTrace MCP is a local Model Context Protocol server for reading, analyzing, re
 
 The project is already usable as a human-in-the-loop engineering tool for PCB/schematic reading and review, guarded semantic edits, schematic authoring, schematic-to-PCB synchronization, bounded placement/routing, differential-pair analysis, and release-review workflows.
 
-It is not yet a full replacement for DipTrace's interactive EDA engine. The main remaining gap is no longer MCP tool count; it is broad, automated, redistributable evidence that all important write paths survive real DipTrace 5.3 open/save/re-export cycles with the intended semantics.
+It is not yet a full replacement for DipTrace's interactive EDA engine. PCB and schematic live finalization now have controlled Windows/WSL apply, cancel, wrong-SHA, GUI, save, and re-export evidence for the tested paths. The main remaining gap is broader, redistributable evidence for the many other writers, source variants, native libraries, and optional external-tool paths.
 
 Native Component/Pattern Library mutation and native manufacturing output generation are therefore intentionally not presented as completed capabilities.
 
@@ -100,15 +100,12 @@ The repository CI separates platform responsibilities:
 
 The current `main` branch passes this matrix. Regression coverage includes the fail-closed trust authority boundary, required semantic-comparison categories for PCB/schematic, native Windows atomic-job behavior, and terminal cancellation semantics for Freerouting, ngspice, and openEMS jobs.
 
-Synthetic 4.3 fixtures cover PCB, schematic, Component Library, Pattern Library, geometry, transactions, review, routing, DSN/SES, and server contracts. A separate live DipTrace 5.3.0.2 schematic acceptance test verified:
+Synthetic 4.3 fixtures cover PCB, schematic, Component Library, Pattern Library, geometry, transactions, review, routing, DSN/SES, and server contracts. Two controlled live acceptance campaigns provide separate host evidence:
 
-- source-SHA conflict protection, backup equality, and atomic write;
-- 41 scoped `RefDesMarking` edits on the Power sheet;
-- bridge apply followed by an independent DipTrace re-export;
-- persistence of all 41 coordinates and unchanged normalized sheet/part/pin/net/bus/differential-pair counts;
-- no new offline ERC errors after the round trip.
+- DipTrace 5.3.0.2 schematic: source-SHA conflict protection, backup equality, atomic write, 41 scoped `RefDesMarking` edits, bridge apply, independent re-export, stable normalized counts, and no new offline ERC errors;
+- DipTrace 5.2.0.4 on Windows with the MCP server in WSL: PCB apply/cancel/wrong-SHA and Schematic apply/cancel/wrong-SHA, Windows-native exchange-path metadata, no phantom `C:\mnt\c\...` target, GUI confirmation where applicable, Save As/re-export, semantic comparison, and unchanged connectivity/counts.
 
-This is strong evidence for the tested paths, not a claim of complete compatibility with every DipTrace version or XML object.
+The 2026-07-31 campaign reported `ACCEPTANCE: PASS` and `RELEASE BLOCKER: NO` for that tested matrix. This is strong evidence for the tested paths, not a claim of complete compatibility with every DipTrace version, XML object, MCP tool, or optional adapter. See [the acceptance record](docs/LIVE_ACCEPTANCE_2026-07-31.md) and [code review](docs/CODE_REVIEW_2026-07-31.md).
 
 ## Architecture
 
@@ -122,7 +119,7 @@ DipTrace       <-------->    diptrace_mcp_bridge.exe
                temporary plugin_exchange.xml
 ```
 
-DipTrace starts the plug-in as a separate executable and passes a temporary XML path. The bridge stores a working copy under `%LOCALAPPDATA%\DipTraceMCP`, waits for an MCP `apply` or `cancel` request, verifies the caller-observed working SHA-256, revalidates that the original exchange file is unchanged and still inside an allowed root, and exits only after the session is finalized. DipTrace then imports the exchange XML on `apply`.
+DipTrace starts the plug-in as a separate executable and passes a temporary XML path. The bridge stores a working copy under `%LOCALAPPDATA%\DipTraceMCP`, waits for an MCP `apply` or `cancel` request, verifies the caller-observed working SHA-256, revalidates that the original exchange file is unchanged and still inside an allowed root, and exits only after the session is finalized. DipTrace then imports the exchange XML on `apply`. The metadata keeps the exchange path in the bridge's native syntax; a WSL server derives `/mnt/<drive>/...` only in memory and never persists it back.
 
 ## Requirements
 
@@ -385,4 +382,7 @@ themselves with an agent host; point that host at the installed `diptrace_mcp/sk
 - [Skill contracts](docs/SKILL_CONTRACTS.md)
 - [PCB skills](skills/README.md)
 - [Development](docs/DEVELOPMENT.md)
+- [Windows/WSL live exchange paths](docs/LIVE_EXCHANGE_PATHS.md)
+- [2026-07-31 live acceptance](docs/LIVE_ACCEPTANCE_2026-07-31.md)
+- [2026-07-31 code review](docs/CODE_REVIEW_2026-07-31.md)
 - [Russian README](README_RU.md)

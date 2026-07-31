@@ -10,11 +10,30 @@ This document separates three things that were previously easy to mix together:
 
 The authoritative runtime source remains `get_capabilities`.
 
-## Current Readiness — 2026-07-25
+## Current Readiness — 2026-07-31
 
 The project has moved beyond a parser/MCP prototype. The strongest areas are read/query, engineering review, guarded semantic edits, transactions, schematic-to-PCB comparison/synchronization, and bounded routing/placement workflows.
 
-The main remaining risk is no longer missing MCP surface area. It is the gap between synthetic/fixture-tested writer behavior and broad, redistributable, automated evidence from real DipTrace 5.3 open/save/re-export cycles.
+The main remaining risk is no longer missing MCP surface area or the tested PCB/Schematic live-finalization path. It is the gap between synthetic/fixture-tested behavior and broad, redistributable, automated evidence for the remaining writers, source variants, native libraries, and optional external adapters.
+
+### Windows/WSL live bridge acceptance checkpoint — 2026-07-31
+
+The cross-platform exchange-path defect `DT-LIVE-001` is closed for the tested topology.
+The Windows bridge now persists a Windows-native exchange path plus
+`exchange_path_platform="windows"`; a WSL MCP process derives its `/mnt/<drive>/...`
+view in memory only. Path-style mismatches fail before `control.json` publication.
+
+Controlled DipTrace 5.2.0.4 acceptance verified PCB apply, cancel, and wrong-SHA
+behavior and Schematic apply, cancel, and wrong-SHA behavior. Applied changes were
+confirmed in the GUI and through independent Save As/re-export semantic comparison;
+cancelled and wrong-SHA changes did not reach the host document. No phantom
+`C:\mnt\c\...` target appeared, Windows-native metadata remained unchanged, and
+connectivity/count checks remained stable. The local campaign result was
+`ACCEPTANCE: PASS` and `RELEASE BLOCKER: NO` for that matrix.
+
+This closes the specific live path/finalization defect, not the separate all-write-path
+trust-invalidation gap, the need for redistributable DipTrace fixtures, native library
+writer evidence, or real external-solver evidence.
 
 ### WO-11 input and write-safety checkpoint — 2026-07-25
 

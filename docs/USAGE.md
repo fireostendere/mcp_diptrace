@@ -15,10 +15,7 @@ Two operating modes are available:
 Live mode is intended for interactive work. Offline mode is suitable for reviews,
 automated reports, version control, and batch processing of saved XML documents.
 
-This guide and the live acceptance path were reviewed against an installed DipTrace 5.3
-build exporting XML `Version="5.3.0.2"`. The integration remains feature- and
-fixture-gated because the public XML specification PDFs used by the project still
-contain 4.3-era examples.
+This guide and the live acceptance path were reviewed against an installed DipTrace 5.3 build exporting XML `Version="5.3.0.2"`. A second acceptance campaign used DipTrace 5.2.0.4 with the Windows bridge and a WSL MCP server to verify the tested PCB/Schematic apply, cancel, and wrong-SHA paths. The integration remains feature- and fixture-gated because the public XML specification PDFs used by the project still contain 4.3-era examples and the real operator projects are not redistributed.
 
 ## 2. Installing the Server
 
@@ -74,12 +71,11 @@ export DIPTRACE_MCP_WORKSPACE=/mnt/c/Users/you/Documents/DipTrace
 export DIPTRACE_MCP_STATE_DIR=/mnt/c/Users/you/AppData/Local/DipTraceMCP
 ```
 
-When the workspace is under `/mnt/<drive>/Users/<user>/...`, the server can usually
-derive the Windows state directory automatically. Setting it explicitly removes
-ambiguity.
+When the workspace is under `/mnt/<drive>/Users/<user>/...`, the server can usually derive the Windows state directory automatically. Setting it explicitly removes ambiguity.
 
-Create the WSL virtual environment with Linux Python. Do not reuse a Windows virtual
-environment from WSL.
+The bridge records its exchange file in Windows-native form, for example `C:\Users\...\plugin_exchange.xml`, together with `exchange_path_platform="windows"`. The WSL server derives `/mnt/<drive>/...` only for its local read/validation operations and must never rewrite metadata to the WSL path. A path/platform mismatch is a fail-closed session error; do not repair it manually. Close the old session, update both server and bridge, and start a fresh session. See [LIVE_EXCHANGE_PATHS.md](LIVE_EXCHANGE_PATHS.md).
+
+Create the WSL virtual environment with Linux Python. Do not reuse a Windows virtual environment from WSL.
 
 ## 3. Building the DipTrace Bridge
 

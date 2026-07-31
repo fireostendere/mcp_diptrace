@@ -2,13 +2,9 @@
 
 ## Snapshot status
 
-Audited repository state: 2026-07-30.
+Audited repository state: 2026-07-31.
 
-**Status: blocked.** The repository has an OSI-approved project-wide license
-(Apache-2.0, committed as `LICENSE`), private vulnerability reporting
-published as `SECURITY.md`, and a published 0.1.0 development-stage release
-with an unsigned-binary disclosure, but no verified conduct channel, approved
-contribution terms, signed release artifact, or independent release reviewer.
+**Status: development release only under explicit exception.** The repository has an OSI-approved project-wide license (Apache-2.0, committed as `LICENSE`), private vulnerability reporting published as `SECURITY.md`, a published 0.1.0 development-stage release with an unsigned-binary disclosure, and a completed 2026-07-31 live acceptance matrix. It still has no verified conduct channel, approved contribution terms, signed release artifact, or independent release reviewer, so it must not be represented as independently reviewed, signed, or production-ready.
 
 Checked boxes below describe repository facts in the audited state. Unchecked
 boxes are release blockers, not publication claims.
@@ -32,8 +28,7 @@ boxes are release blockers, not publication claims.
       provenance and redistribution permission.
 - [ ] Trademark and non-affiliation wording is approved.
 
-Until these items are complete, do not call the repository open source and do
-not publish a package or binary release.
+Until the remaining redistribution and review items are complete, do not claim every bundled asset has independent clearance and do not publish a release as independently reviewed, signed, or production-ready. Development-stage publication requires the explicit exception and disclosures described in [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
 
 ## Maintainers, governance, and community safety
 
@@ -68,11 +63,10 @@ in [SECURITY.md](../SECURITY.md).
 - [x] Both READMEs state the license and public-release blocker.
 - [x] Citation metadata records the Apache-2.0 license and the 0.1.0 release
       date.
-- [x] The changelog does not present development version `0.1.0` as released.
+- [x] The changelog and release provenance consistently record `0.1.0` as the first tagged development-stage release.
 - [ ] Package-index rendering of README links is verified or made independent
       of repository-relative link resolution.
-- [ ] Windows plug-in settings, installer, and bridge-binary delivery are
-      documented and tested separately from the Python wheel.
+- [x] Windows plug-in settings, installer, and bridge-binary delivery are documented separately from the Python wheel; clean build, four-target install hash checks, and live PCB/Schematic acceptance were completed on 2026-07-31.
 - [ ] Final installation instructions are tested from release artifacts.
 - [ ] Announcement text is reviewed only after public URLs and license exist.
 
@@ -85,6 +79,7 @@ in [SECURITY.md](../SECURITY.md).
 - [x] Exact public MCP `tools/list` snapshot is committed and gated.
 - [x] Specification inventory and format coverage have reproducibility gates.
 - [x] Acceptance seed audit fails closed and reports zero accepted seeds.
+- [x] Windows DipTrace 5.2.0.4 ↔ WSL MCP live acceptance covers the tested PCB/Schematic apply, cancel, and wrong-SHA matrix, with GUI/save/re-export checks and no phantom path.
 - [ ] Release commit passes every required CI job.
 - [ ] Coverage figures in public docs are regenerated from the release commit.
 - [x] Release candidate is installed and smoke-tested from built artifacts
