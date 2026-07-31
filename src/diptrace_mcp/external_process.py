@@ -364,7 +364,10 @@ def _drain_output(
                     live_log_failed = True
                 next_flush = now + 0.1
     except (OSError, ValueError) as exc:
-        errors.append(exc)
+        # Closing stdout is an intentional last-resort unblock in _finish_reader.
+        # Do not turn that cleanup race into a false process-output failure.
+        if not stream.closed:
+            errors.append(exc)
     finally:
         with suppress(OSError, ValueError):
             stream.close()
