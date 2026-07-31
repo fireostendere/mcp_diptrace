@@ -29,6 +29,7 @@ docs/FORMAT_COVERAGE.md
 docs/GEOMETRY_ENGINE.md
 docs/IMPEDANCE_AND_SI.md
 docs/LICENSE_DECISION.md
+docs/LIVE_EXCHANGE_PATHS.md
 docs/MCP_TOOLS.md
 docs/OPEN_QUESTIONS.md
 docs/PLACEMENT_ENGINE.md
@@ -110,6 +111,7 @@ skills/signal-integrity-review/SKILL.md
 skills/testpoint-planner/SKILL.md
 src/diptrace_mcp/__init__.py
 src/diptrace_mcp/__main__.py
+src/diptrace_mcp/_live_path_compat.py
 src/diptrace_mcp/adapters.py
 src/diptrace_mcp/advanced_review.py
 src/diptrace_mcp/backups.py
@@ -202,6 +204,7 @@ tests/test_config_paths.py
 tests/test_connectivity.py
 tests/test_copper_pour_obstacles.py
 tests/test_creation_sha_gate.py
+tests/test_cross_platform_exchange_paths.py
 tests/test_diptrace53_fixture_manifest.py
 tests/test_documentation_links.py
 tests/test_evidence_mcp.py
