@@ -25,6 +25,26 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      - name: Repair one-shot architecture anchor
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/one_shot_code_review_docs_refresh.py")
+          content = path.read_text(encoding="utf-8")
+          old = (
+              '    "A separate state directory is necessary because '
+              '`plugin_exchange.xml` is temporary and\\nowned by DipTrace.\\n",\n'
+          )
+          new = (
+              '    "separate state directory is necessary because '
+              '`plugin_exchange.xml` is temporary and\\nowned by DipTrace.\\n",\n'
+          )
+          if content.count(old) != 1:
+              raise SystemExit(f"unexpected architecture anchor count: {content.count(old)}")
+          path.write_text(content.replace(old, new, 1), encoding="utf-8")
+          PY
       - name: Apply reviewed documentation and regression updates
         run: python scripts/one_shot_code_review_docs_refresh.py
       - name: Install development and geometry dependencies
