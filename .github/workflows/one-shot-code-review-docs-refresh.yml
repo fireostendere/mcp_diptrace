@@ -4,13 +4,17 @@ on:
   push:
     branches:
       - agent/code-review-docs-refresh
+  pull_request:
+    types: [opened, reopened]
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   refresh:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name == 'push' || github.head_ref == 'agent/code-review-docs-refresh')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
