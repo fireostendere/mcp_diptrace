@@ -23,4 +23,5 @@ before `control.json` is published. In particular, Windows rejects a persisted
 
 After upgrading the server and bridge, close any pre-upgrade active live session
 and start a fresh bridge session so the new `exchange_path_platform` binding is
-present in metadata.
+present in metadata. Legacy active sessions without that immutable platform
+binding are rejected rather than guessed or migrated in place.
