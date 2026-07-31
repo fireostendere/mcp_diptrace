@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path, PureWindowsPath
-from typing import Any
+from typing import Any, cast
 
 from .errors import SessionError
 from .xml_document import sha256_bytes
@@ -107,10 +107,11 @@ def install() -> None:
 
     def create_unlocked(self: Any, exchange_path: Path) -> dict[str, Any]:
         metadata = original_create_unlocked(self, exchange_path)
-        return self.update_metadata(
+        updated = self.update_metadata(
             str(metadata["session_id"]),
             exchange_path_platform=_current_exchange_path_platform(),
         )
+        return cast(dict[str, Any], updated)
 
     def read_bound_exchange(
         self: Any,
