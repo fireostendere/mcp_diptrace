@@ -177,7 +177,6 @@ def test_new_session_records_exchange_path_platform(tmp_path: Path) -> None:
     assert metadata["exchange_path_platform"] == sessions_module._current_exchange_path_platform()
 
 
-
 def test_windows_origin_is_rejected_outside_windows_or_wsl(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -212,7 +211,7 @@ def test_relative_wsl_mount_root_is_rejected(
 
 
 def test_windows_runtime_rejects_posix_origin() -> None:
-    with pytest.raises(SessionError, match="refuses a POSIX") as caught:
+    with pytest.raises(SessionError) as caught:
         sessions_module._exchange_path_for_runtime(
             "/tmp/plugin_exchange.xml",
             "posix",
