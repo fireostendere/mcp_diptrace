@@ -10,7 +10,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Literal
 
 from .config import DEFAULT_LIVE_SESSION_TTL_SECONDS
@@ -44,6 +44,7 @@ from .xml_document import (
 
 SessionAction = Literal["apply", "cancel"]
 BridgeImportMode = Literal["All", "None", "Unknown"]
+ExchangePathPlatform = Literal["windows", "posix"]
 BridgeProcessLiveness = Literal["alive", "dead", "unknown"]
 FinishOutcome = Literal["applied", "cancelled", "not_acknowledged"]
 
@@ -674,6 +675,86 @@ def _require_apply_supported(metadata: dict[str, Any]) -> None:
         )
 
 
+def _current_exchange_path_platform() -> ExchangePathPlatform:
+    """Return the native path syntax used by the process creating a session."""
+
+    return "windows" if os.name == "nt" else "posix"
+
+
+def _is_wsl_runtime(runtime_platform: str) -> bool:
+    if not runtime_platform.startswith("linux"):
+        return False
+    if os.environ.get("WSL_INTEROP") or os.environ.get("WSL_DISTRO_NAME"):
+        return True
+    try:
+        release = Path("/proc/sys/kernel/osrelease").read_text(encoding="ascii")
+    except OSError:
+        return False
+    return "microsoft" in release.casefold()
+
+
+def _exchange_path_for_runtime(
+    raw_path: str,
+    origin_platform: str,
+    *,
+    runtime_os_name: str | None = None,
+    runtime_platform: str | None = None,
+) -> Path:
+    """Resolve immutable bridge-native metadata in this process namespace.
+
+    Windows bridge metadata remains Windows-native. A WSL MCP process derives
+    its /mnt/<drive>/ view in memory only and never persists the derived path.
+    """
+
+    local_os_name = os.name if runtime_os_name is None else runtime_os_name
+    local_platform = sys.platform if runtime_platform is None else runtime_platform
+    if origin_platform == "windows":
+        windows_path = PureWindowsPath(raw_path)
+        if (
+            not windows_path.is_absolute()
+            or len(windows_path.drive) != 2
+            or windows_path.drive[1] != ":"
+        ):
+            raise SessionError(
+                "Session exchange path does not match its recorded platform",
+                code="session_state_invalid",
+            )
+        if local_os_name == "nt":
+            return Path(raw_path)
+        if not _is_wsl_runtime(local_platform):
+            raise SessionError(
+                "Windows session exchange path is accessible only from Windows or WSL",
+                code="path_access_denied",
+            )
+        mount_root = Path(
+            os.environ.get("DIPTRACE_MCP_WSL_MOUNT_ROOT", "/mnt")
+        )
+        if not mount_root.is_absolute():
+            raise SessionError(
+                "DIPTRACE_MCP_WSL_MOUNT_ROOT must be absolute",
+                code="path_access_denied",
+            )
+        drive = windows_path.drive[0].lower()
+        return mount_root / drive / Path(*windows_path.parts[1:])
+    if origin_platform == "posix":
+        posix_path = Path(raw_path)
+        if not posix_path.is_absolute():
+            raise SessionError(
+                "Session exchange path does not match its recorded platform",
+                code="session_state_invalid",
+            )
+        if local_os_name == "nt":
+            raise SessionError(
+                "Windows bridge refuses a POSIX session exchange path",
+                code="session_state_invalid",
+            )
+        return posix_path
+    raise SessionError(
+        "Session metadata has no valid exchange-path platform",
+        code="session_state_invalid",
+    )
+
+
 class SessionStore(RecordStore):
     def __init__(
         self,
@@ -786,10 +867,12 @@ class SessionStore(RecordStore):
                 code="path_access_denied",
             )
         raw_path = metadata.get("exchange_path")
+        raw_platform = metadata.get("exchange_path_platform")
         original_sha256 = metadata.get("original_sha256")
         session_id = metadata.get("session_id")
         if (
             not isinstance(raw_path, str)
+            or not isinstance(raw_platform, str)
             or not isinstance(original_sha256, str)
             or not isinstance(session_id, str)
         ):
@@ -810,7 +893,8 @@ class SessionStore(RecordStore):
                 "Session metadata does not match the captured original XML",
                 code="session_state_invalid",
             )
-        exchange_path, exchange = self._read_exchange_path(Path(raw_path))
+        local_path = _exchange_path_for_runtime(raw_path, raw_platform)
+        exchange_path, exchange = self._read_exchange_path(local_path)
         current_sha256 = sha256_bytes(exchange)
         if current_sha256 != recorded_original_sha256:
             raise SessionError(
@@ -1244,6 +1328,7 @@ class SessionStore(RecordStore):
             "bridge_pid": bridge_process["pid"],
             "bridge_process": bridge_process,
             "exchange_path": str(exchange_path),
+            "exchange_path_platform": _current_exchange_path_platform(),
             "working_path": str(working),
             "source_type": document.source_type,
             "version": document.version,

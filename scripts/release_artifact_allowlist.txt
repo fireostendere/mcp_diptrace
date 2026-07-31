@@ -111,7 +111,6 @@ skills/signal-integrity-review/SKILL.md
 skills/testpoint-planner/SKILL.md
 src/diptrace_mcp/__init__.py
 src/diptrace_mcp/__main__.py
-src/diptrace_mcp/_live_path_compat.py
 src/diptrace_mcp/adapters.py
 src/diptrace_mcp/advanced_review.py
 src/diptrace_mcp/backups.py
