@@ -1,0 +1,43 @@
+name: Apply live exchange path fix
+
+on:
+  push:
+    branches:
+      - agent/fix-live-exchange-path
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: agent/fix-live-exchange-path
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply deterministic source patch
+        run: python scripts/apply_live_exchange_path_fix.py
+      - name: Install test dependencies
+        run: python -m pip install -e ".[dev,geometry]"
+      - name: Run focused regression tests
+        run: >-
+          python -m pytest -q
+          tests/test_cross_platform_exchange_paths.py
+          tests/test_live_apply_binding.py
+          tests/test_live_session_lifecycle.py
+          tests/test_bridge.py
+      - name: Lint changed Python files
+        run: ruff check src/diptrace_mcp/sessions.py tests/test_cross_platform_exchange_paths.py
+      - name: Check whitespace
+        run: git diff --check
+      - name: Commit validated fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix live exchange paths across Windows and WSL"
+          git push origin HEAD:agent/fix-live-exchange-path
