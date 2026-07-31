@@ -25,24 +25,24 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Repair one-shot architecture anchor
+      - name: Normalize architecture source anchor
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          path = Path("scripts/one_shot_code_review_docs_refresh.py")
+          path = Path("docs/ARCHITECTURE.md")
           content = path.read_text(encoding="utf-8")
           old = (
-              '    "A separate state directory is necessary because '
-              '`plugin_exchange.xml` is temporary and\\nowned by DipTrace.\\n",\n'
+              "separate state directory is necessary because `plugin_exchange.xml` "
+              "is temporary and\nowned by DipTrace.\n"
           )
           new = (
-              '    "separate state directory is necessary because '
-              '`plugin_exchange.xml` is temporary and\\nowned by DipTrace.\\n",\n'
+              "A separate state directory is necessary because `plugin_exchange.xml` "
+              "is temporary and\nowned by DipTrace.\n"
           )
           if content.count(old) != 1:
-              raise SystemExit(f"unexpected architecture anchor count: {content.count(old)}")
+              raise SystemExit(f"unexpected architecture source anchor count: {content.count(old)}")
           path.write_text(content.replace(old, new, 1), encoding="utf-8")
           PY
       - name: Apply reviewed documentation and regression updates
