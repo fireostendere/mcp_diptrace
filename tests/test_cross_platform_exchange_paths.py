@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,10 @@ def _working_sha256(store: SessionStore, session_id: str) -> str:
     return sha256_bytes(store.working_path(session_id).read_bytes())
 
 
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"),
+    reason="WSL drive-mount integration requires a Linux path namespace",
+)
 def test_windows_exchange_path_maps_to_wsl_without_metadata_rewrite(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -68,6 +73,35 @@ def test_windows_exchange_path_maps_to_wsl_without_metadata_rewrite(
     assert result["status"] == "applied"
     assert exchange.read_bytes() == working
     assert store.read_metadata(session_id)["exchange_path"] == windows_path
+
+
+def test_windows_path_maps_to_explicit_wsl_mount_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mount_root = tmp_path / "mnt"
+    monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    monkeypatch.setenv("DIPTRACE_MCP_WSL_MOUNT_ROOT", str(mount_root))
+    raw_path = r"C:\Users\fireo\AppData\Local\Temp\DipTrace\plugin_exchange.xml"
+
+    resolved = sessions_module._exchange_path_for_runtime(
+        raw_path,
+        "windows",
+        runtime_os_name="posix",
+        runtime_platform="linux",
+    )
+
+    assert resolved == (
+        mount_root
+        / "c"
+        / "Users"
+        / "fireo"
+        / "AppData"
+        / "Local"
+        / "Temp"
+        / "DipTrace"
+        / "plugin_exchange.xml"
+    )
 
 
 def test_windows_runtime_keeps_native_windows_path() -> None:
