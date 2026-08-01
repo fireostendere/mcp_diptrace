@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - agent/release-0.1.1
+  pull_request:
+    types: [opened, reopened]
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -12,7 +16,7 @@ permissions:
 
 jobs:
   prepare-verify-publish:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name == 'push' || github.head_ref == 'agent/release-0.1.1')
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
@@ -104,7 +108,7 @@ jobs:
           git push origin "HEAD:${RELEASE_BRANCH}"
           echo "sha=${FINAL_SHA}" >> "${GITHUB_OUTPUT}"
 
-      - name: Wait for connector-created release pull request
+      - name: Resolve release pull request
         id: pr
         shell: bash
         run: |
@@ -129,44 +133,42 @@ jobs:
           fi
           echo "number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
 
-      - name: Wait for the complete PR CI matrix
-        shell: bash
-        run: |
-          set -euo pipefail
-          PR_NUMBER="${{ steps.pr.outputs.number }}"
-          for _ in $(seq 1 120); do
-            COUNT="$(gh pr view "${PR_NUMBER}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --json statusCheckRollup \
-              --jq '.statusCheckRollup | length')"
-            if [[ "${COUNT}" -gt 0 ]]; then
-              break
-            fi
-            sleep 10
-          done
-          gh pr checks "${PR_NUMBER}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --watch \
-            --fail-fast \
-            --interval 10
-
-      - name: Resolve successful CI run and download Windows bridge
+      - name: Wait for exact successful PR CI and download Windows bridge
         id: ci
         shell: bash
         run: |
           set -euo pipefail
           FINAL_SHA="${{ steps.candidate.outputs.sha }}"
-          RUN_ID="$(gh run list \
-            --repo "${GITHUB_REPOSITORY}" \
-            --workflow CI \
-            --event pull_request \
-            --branch "${RELEASE_BRANCH}" \
-            --limit 30 \
-            --json databaseId,headSha,status,conclusion \
-            --jq ".[] | select(.headSha == \"${FINAL_SHA}\" and .status == \"completed\" and .conclusion == \"success\") | .databaseId" \
-            | head -n 1)"
+          RUN_ID=""
+          for _ in $(seq 1 300); do
+            RUN_JSON="$(gh run list \
+              --repo "${GITHUB_REPOSITORY}" \
+              --workflow CI \
+              --event pull_request \
+              --branch "${RELEASE_BRANCH}" \
+              --limit 40 \
+              --json databaseId,headSha,status,conclusion)"
+            RUN_ID="$(jq -r --arg sha "${FINAL_SHA}" '.[] | select(.headSha == $sha) | .databaseId' <<<"${RUN_JSON}" | head -n 1)"
+            if [[ -n "${RUN_ID}" ]]; then
+              STATUS="$(jq -r --argjson id "${RUN_ID}" '.[] | select(.databaseId == $id) | .status' <<<"${RUN_JSON}")"
+              CONCLUSION="$(jq -r --argjson id "${RUN_ID}" '.[] | select(.databaseId == $id) | .conclusion // ""' <<<"${RUN_JSON}")"
+              if [[ "${STATUS}" == "completed" ]]; then
+                if [[ "${CONCLUSION}" != "success" ]]; then
+                  echo "Exact CI run ${RUN_ID} completed as ${CONCLUSION}" >&2
+                  exit 1
+                fi
+                break
+              fi
+            fi
+            sleep 10
+          done
           if [[ -z "${RUN_ID}" ]]; then
-            echo "Could not find successful CI run for ${FINAL_SHA}" >&2
+            echo "Timed out waiting for CI on exact candidate ${FINAL_SHA}" >&2
+            exit 1
+          fi
+          FINAL_STATUS="$(gh run view "${RUN_ID}" --repo "${GITHUB_REPOSITORY}" --json status,conclusion --jq '.status + ":" + (.conclusion // "")')"
+          if [[ "${FINAL_STATUS}" != "completed:success" ]]; then
+            echo "Exact CI run did not finish successfully: ${FINAL_STATUS}" >&2
             exit 1
           fi
           mkdir -p "${RUNNER_TEMP}/windows-bridge"
