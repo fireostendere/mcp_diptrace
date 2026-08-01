@@ -29,6 +29,7 @@ docs/FIELD_SOLVER_PROTOCOL.md
 docs/FORMAT_COVERAGE.md
 docs/GEOMETRY_ENGINE.md
 docs/IMPEDANCE_AND_SI.md
+docs/INSTALL_FROM_RELEASE.md
 docs/LICENSE_DECISION.md
 docs/LIVE_ACCEPTANCE_2026-07-31.md
 docs/LIVE_EXCHANGE_PATHS.md
@@ -50,6 +51,8 @@ docs/TRUSTED_PROVENANCE_REGISTRY.md
 docs/USAGE.md
 docs/WINDOWS_WSL_LOCK_INTEROP.md
 docs/XML_COMPATIBILITY.md
+docs/announcements/v0.1.2-forum-en.md
+docs/announcements/v0.1.2-forum-ru.md
 docs/evidence_capture/open-save.attestations.template.json
 docs/evidence_capture/operator-answers.template.json
 docs/evidence_capture/pcb-format-question.recipe.template.json
@@ -57,6 +60,8 @@ docs/evidence_capture/q1-component-angle.recipe.json
 docs/evidence_capture/reexport.attestations.template.json
 docs/evidence_capture/source.attestations.template.json
 docs/releases/v0.1.0.md
+docs/releases/v0.1.1.md
+docs/releases/v0.1.2.md
 examples/claude_desktop_config.json
 examples/codex-config.toml
 plugin/bridge_entry.py

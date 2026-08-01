@@ -30,7 +30,8 @@ The repository publishes its participation and release policy:
 - [current governance](GOVERNANCE.md);
 - [license decision matrix and selection record](docs/LICENSE_DECISION.md);
 - [public-release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) and
-  [release process](docs/RELEASE_PROCESS.md);
+  [release process](docs/RELEASE_PROCESS.md), including
+  [installation from published release assets](docs/INSTALL_FROM_RELEASE.md);
 - [changelog](CHANGELOG.md) and [citation metadata](CITATION.cff).
 
 General contributions remain closed until contribution-provenance terms are
@@ -41,14 +42,19 @@ Conduct policy is not published. Contribution-provenance and signing work
 remain explicit blockers. The repository does not claim an existing community,
 adoption, sponsorship, vendor endorsement, or support program acceptance.
 
-Version 0.1.0 is the current release. The tag `v0.1.0`, unsigned artifacts,
-`SHA256SUMS.txt`, and the provenance record in
-[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) identify the same commit.
+Version 0.1.2 is the current development-stage release. Its tag, unsigned
+artifacts, `SHA256SUMS.txt`, and provenance record in
+[docs/releases/v0.1.2.md](docs/releases/v0.1.2.md) identify the same commit.
+The previous `v0.1.1` release remains available for audit but is explicitly
+[withdrawn](docs/releases/v0.1.1.md) because of documentation drift and
+release-document inconsistencies; its old assets are not current artifacts.
 CI builds the Python source distribution and wheel from an exact versioned
 allowlist and audits their contents, bounds, entry points, packaged skills,
 and wheel `RECORD`. The wheel contains the MCP server and packaged skills;
 complete Windows live integration also needs the separately delivered bridge
-settings, installer, and executable.
+settings, installer, and executable. See
+[INSTALL_FROM_RELEASE.md](docs/INSTALL_FROM_RELEASE.md) for the no-clone
+installation path.
 
 ## Current Capabilities
 

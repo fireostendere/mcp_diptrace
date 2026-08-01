@@ -10,7 +10,7 @@ This document separates three things that were previously easy to mix together:
 
 The authoritative runtime source remains `get_capabilities`.
 
-## Current Readiness — 2026-07-31
+## Current Readiness — 2026-08-01
 
 The project has moved beyond a parser/MCP prototype. The strongest areas are read/query, engineering review, guarded semantic edits, transactions, schematic-to-PCB comparison/synchronization, and bounded routing/placement workflows.
 
@@ -89,8 +89,8 @@ misclassified as attributes are excluded. Current coverage against this measured
 | Documented parent/child relationships | 90 across 80 parents |
 | Normalized (reader produces typed field) | 58 |
 | Written only (writer can create/modify) | 19 |
-| Mentioned only (literal, not an XML call) | 19 |
-| Passthrough (unknown XML, kept byte-for-byte) | 174 |
+| Mentioned only (literal, not an XML call) | 22 |
+| Passthrough (unknown XML, kept byte-for-byte) | 171 |
 | **Coverage** | **28.5%** |
 
 See [FORMAT_COVERAGE.md](FORMAT_COVERAGE.md) for the full element-by-element inventory, and
@@ -170,9 +170,9 @@ After the combined WO-14 bridge, transaction-recovery, public MCP workflow,
 synthetic-load, live-session profile-safety, WO-16 registry/evidence intake,
 live-apply target binding, bounded copper preview, schema-backed API inputs,
 acceptance-seed audit, and cross-platform live-session lifecycle slices, the
-canonical geometry-enabled suite measured 16,882 statements, 2,368 misses, and
-**85.9732%** total coverage. `bridge.py` moved from an untested CI executable
-path to 182 of 262 statements, or **69.4656%**, backed by a real cross-process
+canonical geometry-enabled suite measured 16,922 statements, 2,379 misses, and
+**85.941378%** total coverage. `bridge.py` moved from an untested CI executable
+path to 181 of 264 statements, or **68.560606%**, backed by a real cross-process
 apply handshake plus cancel/timeout/error and request-correlation tests. CI
 enforces an integer 85% total floor plus measured
 per-file floors of 64% for `bridge.py`, 87% for `xml_document.py`, 88% for
@@ -208,7 +208,7 @@ Observed representation-only normalizations are disclosed in the preview and pre
 in the manifest; they never suppress a semantic difference.
 
 The measured MCP surface moved from 156 tools / 121,335 JSON bytes to 159 tools /
-128,661 bytes (approximately 32,165 tokens), a 6.0378% increase and below the Phase-2
+128,466 bytes (approximately 32,116 tokens), a 5.8771% increase and below the Phase-2
 15% discovery-budget ceiling. All 44 former `dict[str, Any]` tool parameters now use
 named schema-backed object types: their exact contracts live once at
 `diptrace://schemas/tool-inputs`, and each compact inline parameter carries the matching
@@ -224,8 +224,8 @@ description, and input schema. A separate Phase-9 prerequisite now freezes the
 complete non-null public `Tool` model, including output schemas and any future
 titles, annotations, icons, metadata, or execution fields. The committed
 [snapshot](../reference/mcp-tools-list.snapshot.json) contains 159 name-sorted
-tools; its canonical descriptor is 141,026 UTF-8 bytes with SHA-256
-`1ba2398269ba3463b92daae6ca0ed06edbdbe6bd23607176c4a849176091fae3`.
+tools; its canonical descriptor is 140,831 UTF-8 bytes with SHA-256
+`384f8355475f158faec06218d931f3b2f433fdaede6fabf68813d3ba3b4222d2`.
 It is produced only through the public in-memory MCP transport, and CI fails on
 any unregenerated contract drift. This snapshot is the required behavioural
 baseline before the service/compiler/store decomposition begins.

@@ -28,7 +28,8 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 - [текущий governance](GOVERNANCE.md);
 - [license decision matrix и запись о выборе](docs/LICENSE_DECISION.md);
 - [чек-лист публичного релиза](docs/PUBLIC_RELEASE_CHECKLIST.md) и
-  [release process](docs/RELEASE_PROCESS.md);
+  [release process](docs/RELEASE_PROCESS.md), включая
+  [установку из опубликованных release assets](docs/INSTALL_FROM_RELEASE.md);
 - [changelog](CHANGELOG.md) и [citation metadata](CITATION.cff).
 
 Приём общих contributions остаётся закрытым, пока не утверждены условия
@@ -39,14 +40,18 @@ contribution provenance. Подозрения на уязвимости отпр
 остаются явными blockers. Репозиторий не заявляет существующее сообщество,
 adoption, sponsorship, vendor endorsement или участие в support program.
 
-Текущий релиз — версия 0.1.0. Tag `v0.1.0`, unsigned-артефакты,
+Текущий development-stage релиз — версия 0.1.2. Его tag, unsigned-артефакты,
 `SHA256SUMS.txt` и provenance-запись в
-[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) указывают на один и тот же
-commit. CI собирает Python source distribution и wheel по точному versioned
+[docs/releases/v0.1.2.md](docs/releases/v0.1.2.md) указывают на один и тот же
+commit. Предыдущий релиз `v0.1.1` сохранён для аудита, но явно
+[withdrawn](docs/releases/v0.1.1.md) из-за рассинхронизации документации и
+несогласованности release-документов; его старые assets не являются актуальными.
+CI собирает Python source distribution и wheel по точному versioned
 allowlist и проверяет их содержимое, ограничения, entry points, packaged
 skills и wheel `RECORD`. Wheel содержит MCP-сервер и packaged skills; для
 полной live-интеграции на Windows также нужны отдельно поставляемые bridge
-settings, installer и executable.
+settings, installer и executable. Путь установки без clone описан в
+[INSTALL_FROM_RELEASE.md](docs/INSTALL_FROM_RELEASE.md).
 
 ## Что уже работает
 

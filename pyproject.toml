@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "diptrace-mcp"
-version = "0.1.0"
+version = "0.1.2"
 description = "Model Context Protocol server and live XML bridge for DipTrace"
 readme = "README.md"
 requires-python = ">=3.10"
