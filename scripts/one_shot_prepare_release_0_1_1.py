@@ -291,6 +291,12 @@ subprocess.run(
 )
 subprocess.run(["git", "rm", "--", str(SELF), str(WORKFLOW)], cwd=ROOT, check=True)
 subprocess.run(
+    ["python", "scripts/generate_pcb_skills.py"],
+    cwd=ROOT,
+    check=True,
+)
+subprocess.run(["git", "add", "skills"], cwd=ROOT, check=True)
+subprocess.run(
     ["python", "scripts/audit_release_artifacts.py", "--write-allowlist"],
     cwd=ROOT,
     check=True,
