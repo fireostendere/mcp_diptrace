@@ -19,6 +19,10 @@ This guide and the live acceptance path were reviewed against an installed DipTr
 
 ## 2. Installing the Server
 
+For installation without cloning the repository, download the versioned wheel,
+source archive, Windows bridge/plugin package, and checksums from GitHub Release
+v0.1.2 and follow [INSTALL_FROM_RELEASE.md](INSTALL_FROM_RELEASE.md).
+
 ### 2.1 Windows
 
 Install Python 3.10 or later. The project CI covers Python 3.10, 3.12, and 3.13. Check

@@ -73,9 +73,10 @@ python3.12 -m venv /tmp/diptrace-mcp-smoke
 ```
 
 A minimal stdio client must then complete `initialize`, report the same tool
-count as the committed snapshot, and answer `get_capabilities`. Last executed
-2026-07-29 on Linux/Python 3.12: clean install, 159 tools, successful
-`get_capabilities` call.
+count as the committed snapshot, answer `get_capabilities`, and complete one
+read-only call. Last executed for the v0.1.2 candidate on 2026-08-01 with
+Linux/Python 3.12.3: clean install, `initialize=ok`, `tools/list=ok`, 159
+tools, `get_capabilities=ok`, and `summarize_design=ok`.
 
 ## Coverage
 
@@ -92,21 +93,18 @@ python -m pytest -q \
 python scripts/check_coverage.py coverage.json
 ```
 
-The current measurement was taken after the combined WO-14 bridge, transaction
-recovery, public MCP workflow, large synthetic load, live-session concurrency
-and profile-safety work, live-apply target binding, bounded copper previews,
-WO-16 registry/evidence intake, and the acceptance-seed audit on Python 3.12
-plus the live-session lease, request correlation, recovery, and apply-compensation
-work on Python 3.12 with Shapely 2.1.2. These are coverage.py statement measurements, not
-hand-estimated percentages:
+The fresh v0.1.2 candidate measurement was run on 2026-08-01 with Python 3.12.3,
+Shapely 2.1.2, and GEOS 3.13.1. The suite completed with **991 passed and 4
+skipped**. These are coverage.py statement measurements, not hand-estimated
+percentages:
 
 | Target | Statements | Missed | Measured | Enforced integer floor |
 | --- | ---: | ---: | ---: | ---: |
-| Total `src/diptrace_mcp` | 16,882 | 2,368 | 85.9732% | 85% |
-| `bridge.py` | 262 | 80 | 69.4656% | 64% |
-| `xml_document.py` | 810 | 86 | 89.3827% | 87% |
+| Total `src/diptrace_mcp` | 16,922 | 2,379 | 85.941378% | 85% |
+| `bridge.py` | 264 | 83 | 68.560606% | 64% |
+| `xml_document.py` | 808 | 86 | 89.356436% | 87% |
 | `semantic_compiler.py` | 1,349 | 159 | 88.2135% | 88% |
-| `routing_compiler.py` | 561 | 75 | 86.6310% | 85% |
+| `routing_compiler.py` | 561 | 75 | 86.631016% | 85% |
 
 The integer floors are the highest whole percentages the measured checkout
 passes. The JSON gate prints the current statement/miss counts on every run and

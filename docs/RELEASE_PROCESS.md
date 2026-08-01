@@ -2,10 +2,11 @@
 
 ## Current release status
 
-Version 0.1.1 is the current development-stage release, tagged `v0.1.1` with
-unsigned artifacts; its provenance record is
-[releases/v0.1.1.md](releases/v0.1.1.md). CI has no
-package-index publication job, and the Windows CI artifact is unsigned.
+Version 0.1.2 is the current development-stage release line, with unsigned
+artifacts and provenance in [releases/v0.1.2.md](releases/v0.1.2.md). The
+previous `v0.1.1` release is explicitly withdrawn in
+[releases/v0.1.1.md](releases/v0.1.1.md). CI has no package-index publication
+job, and the Windows CI artifact is unsigned.
 
 A release presented as independently reviewed, signed, or production-ready is prohibited while the corresponding blocking items in [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) remain open. A development-stage unsigned release may proceed only through an explicit solo-maintainer exception recorded with its limitations, artifact hashes, test evidence, and rollback decision. The GitHub repository owner is the only currently documented administrative authority.
 
@@ -23,6 +24,11 @@ Before changing a version or creating a tag:
 5. freeze the exact commit; and
 6. move user-visible entries from `Unreleased` in
    [CHANGELOG.md](../CHANGELOG.md) to the approved version and date.
+
+For a correction release, use one temporary release branch and one pull
+request. Preserve the original release commit with an explicit Git revert;
+do not rewrite `main`, move the old tag, or replace old release assets. Merge
+the PR only after every required job passes for that exact PR head.
 
 No announcement may describe unverified DipTrace behavior as verified or
 implemented.
@@ -50,6 +56,9 @@ python scripts/report_format_coverage.py --check
 python scripts/make_probe_pack.py --check
 python scripts/ingest_fixtures.py --dry-run --synthetic --json
 python scripts/audit_acceptance_seeds.py
+python scripts/measure_mcp_surface.py --baseline-bytes 121335 --max-growth-percent 15
+python scripts/verify_geometry_backend.py --expect shapely_geos
+python scripts/smoke_bridge_headless.py
 ```
 
 All required GitHub Actions jobs must pass on the same commit. A missing platform result cannot be replaced by a local claim. When release notes claim live PCB or Schematic integration, attach a dated acceptance record for the exact server/bridge baseline and clearly separate local host evidence from public CI.
@@ -92,9 +101,10 @@ channel, artifact retention policy, and rollback decision.
 
 Only after every gate is complete:
 
-1. create the approved tag from the frozen commit;
+1. create the approved annotated tag from the exact merge commit;
 2. publish immutable artifacts and checksums;
-3. verify installation from public artifacts in a clean environment;
+3. download the published artifacts again and verify installation from those
+   public files in a clean environment;
 4. publish release notes that distinguish implemented, runtime-available, and
    DipTrace-verified capabilities; and
 5. publish announcements only after every URL, version, license, checksum,

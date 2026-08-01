@@ -1,13 +1,48 @@
 # Changelog
 
-This file records user-visible project changes. Version `0.1.0` is the first
-tagged release; earlier history was never tagged or published.
+This file records user-visible project changes. Version `0.1.0` was the first
+tagged release; the withdrawn `0.1.1` release and the corrected `0.1.2`
+development release are retained as separate historical records.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
-## 0.1.1 - 2026-08-01
+No unreleased user-visible changes are recorded.
+
+## 0.1.2 - 2026-08-01
+
+### Fixed
+
+- Synchronized documentation values with the exact generated reports.
+- Added release-asset installation instructions for a no-clone setup.
+- Corrected MCP snapshot, coverage, and format-coverage metadata.
+- Corrected release provenance and preserved the explicit revert of 0.1.1.
+
+### Documentation
+
+- Added Russian and English forum announcements.
+- Added the release installation guide.
+- Added the withdrawn `v0.1.1` record and the `v0.1.2` release record.
+
+### Validation
+
+- Fresh Python 3.12.3/Shapely 2.1.2/GEOS 3.13.1 run: 991 passed, 4 skipped;
+  total coverage 85.941378% (16,922 statements, 2,379 missed).
+- The required Linux, macOS, Windows, geometry, fallback, static-analysis,
+  generated-artifact, and native-bridge matrix is the merge gate for the exact
+  final PR head.
+- Candidate wheel/sdist audit, clean-wheel installation and stdio smoke,
+  direct-wheel/sdist-rebuilt-wheel comparison, and headless bridge smoke pass;
+  exact CI bridge provenance, plugin ZIP, checksums, and public-download
+  verification remain required before publication.
+
+## 0.1.1 - 2026-08-01 [Withdrawn]
+
+This release was withdrawn because public documentation contained stale
+generated figures and incomplete release-asset installation guidance. No claim
+that a critical runtime vulnerability existed is made. It is superseded by
+`0.1.2`; see [the withdrawal record](docs/releases/v0.1.1.md).
 
 ### Fixed
 
@@ -74,5 +109,4 @@ Version `0.1.0` is published as tag `v0.1.0`; its provenance record is
 [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) and the release assets on
 GitHub.
 
-[0.1.1]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.1
 [0.1.0]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.0
