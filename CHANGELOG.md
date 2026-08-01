@@ -32,8 +32,10 @@ No unreleased user-visible changes are recorded.
 - The required Linux, macOS, Windows, geometry, fallback, static-analysis,
   generated-artifact, and native-bridge matrix is the merge gate for the exact
   final PR head.
-- Wheel, sdist, clean-wheel, direct-wheel/sdist-rebuilt-wheel, bridge, plugin,
-  and public-download verification are required before publication.
+- Candidate wheel/sdist audit, clean-wheel installation and stdio smoke,
+  direct-wheel/sdist-rebuilt-wheel comparison, and headless bridge smoke pass;
+  exact CI bridge provenance, plugin ZIP, checksums, and public-download
+  verification remain required before publication.
 
 ## 0.1.1 - 2026-08-01 [Withdrawn]
 

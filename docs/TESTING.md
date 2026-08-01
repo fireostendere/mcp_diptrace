@@ -73,9 +73,10 @@ python3.12 -m venv /tmp/diptrace-mcp-smoke
 ```
 
 A minimal stdio client must then complete `initialize`, report the same tool
-count as the committed snapshot, and answer `get_capabilities`. Last executed
-2026-07-29 on Linux/Python 3.12: clean install, 159 tools, successful
-`get_capabilities` call.
+count as the committed snapshot, answer `get_capabilities`, and complete one
+read-only call. Last executed for the v0.1.2 candidate on 2026-08-01 with
+Linux/Python 3.12.3: clean install, `initialize=ok`, `tools/list=ok`, 159
+tools, `get_capabilities=ok`, and `summarize_design=ok`.
 
 ## Coverage
 
