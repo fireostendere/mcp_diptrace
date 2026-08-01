@@ -8,7 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
-No unreleased user-visible changes are recorded.
+### Documentation
+
+- Finalized the post-publication `v0.1.2` provenance with the immutable release
+  commit, exact-head CI run, public asset inventory, checksum verification, and
+  public-download smoke results.
+- Distinguished the frozen candidate coverage measurement from the exact-head
+  GitHub CI coverage measurement.
+- Reconciled the public release checklist with the verification work that was
+  completed during publication.
 
 ## 0.1.2 - 2026-08-01
 
@@ -27,15 +35,19 @@ No unreleased user-visible changes are recorded.
 
 ### Validation
 
-- Fresh Python 3.12.3/Shapely 2.1.2/GEOS 3.13.1 run: 991 passed, 4 skipped;
-  total coverage 85.941378% (16,922 statements, 2,379 missed).
-- The required Linux, macOS, Windows, geometry, fallback, static-analysis,
-  generated-artifact, and native-bridge matrix is the merge gate for the exact
-  final PR head.
-- Candidate wheel/sdist audit, clean-wheel installation and stdio smoke,
-  direct-wheel/sdist-rebuilt-wheel comparison, and headless bridge smoke pass;
-  exact CI bridge provenance, plugin ZIP, checksums, and public-download
-  verification remain required before publication.
+- Frozen candidate/local run: Python 3.12.3, Shapely 2.1.2, GEOS 3.13.1,
+  991 passed, 4 skipped, 16,922 statements, 2,379 missed, and 85.941378%
+  total coverage.
+- Exact-head GitHub CI run `30709466348`: all eight required Linux, macOS,
+  Windows, geometry, fallback, static-analysis, generated-artifact, and native
+  bridge jobs passed; its Python 3.12.13 coverage result was 991 passed,
+  4 skipped, 16,922 statements, 2,375 missed, and 85.9650% total.
+- Wheel/sdist audit, direct-wheel versus sdist-rebuilt-wheel comparison,
+  clean-wheel installation, CLI and MCP stdio smoke, exact-CI Windows bridge
+  provenance, plug-in ZIP/settings validation, checksums, and public-download
+  verification passed.
+- All ten expected GitHub Release assets were present exactly once, and the
+  publicly downloaded files passed `sha256sum -c SHA256SUMS.txt`.
 
 ## 0.1.1 - 2026-08-01 [Withdrawn]
 
@@ -48,7 +60,7 @@ that a critical runtime vulnerability existed is made. It is superseded by
 
 - Preserve Windows-native live exchange paths in session metadata and derive WSL
   drive-mount paths only in memory, preventing false `applied` results against a
-  phantom `C:\mnt\c\...` target.
+  phantom `C:\\mnt\\c\\...` target.
 - Ignore the intentional stdout-close race used to unblock a Windows output-reader
   thread after the root process exits while a descendant inherited the pipe.
 
