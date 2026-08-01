@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## 0.1.1 - 2026-08-01
+
 ### Fixed
 
 - Preserve Windows-native live exchange paths in session metadata and derive WSL
@@ -72,4 +74,5 @@ Version `0.1.0` is published as tag `v0.1.0`; its provenance record is
 [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) and the release assets on
 GitHub.
 
+[0.1.1]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.1
 [0.1.0]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.0

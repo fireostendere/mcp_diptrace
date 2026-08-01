@@ -41,9 +41,9 @@ Conduct policy is not published. Contribution-provenance and signing work
 remain explicit blockers. The repository does not claim an existing community,
 adoption, sponsorship, vendor endorsement, or support program acceptance.
 
-Version 0.1.0 is the current release. The tag `v0.1.0`, unsigned artifacts,
-`SHA256SUMS.txt`, and the provenance record in
-[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) identify the same commit.
+Version 0.1.1 is the current development-stage release. The tag `v0.1.1`,
+unsigned artifacts, `SHA256SUMS.txt`, and the provenance record in
+[docs/releases/v0.1.1.md](docs/releases/v0.1.1.md) identify the same commit.
 CI builds the Python source distribution and wheel from an exact versioned
 allowlist and audits their contents, bounds, entry points, packaged skills,
 and wheel `RECORD`. The wheel contains the MCP server and packaged skills;
