@@ -39,9 +39,9 @@ contribution provenance. Подозрения на уязвимости отпр
 остаются явными blockers. Репозиторий не заявляет существующее сообщество,
 adoption, sponsorship, vendor endorsement или участие в support program.
 
-Текущий релиз — версия 0.1.0. Tag `v0.1.0`, unsigned-артефакты,
+Текущий development-stage релиз — версия 0.1.1. Tag `v0.1.1`, unsigned-артефакты,
 `SHA256SUMS.txt` и provenance-запись в
-[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) указывают на один и тот же
+[docs/releases/v0.1.1.md](docs/releases/v0.1.1.md) указывают на один и тот же
 commit. CI собирает Python source distribution и wheel по точному versioned
 allowlist и проверяет их содержимое, ограничения, entry points, packaged
 skills и wheel `RECORD`. Wheel содержит MCP-сервер и packaged skills; для

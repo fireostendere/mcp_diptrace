@@ -57,6 +57,7 @@ docs/evidence_capture/q1-component-angle.recipe.json
 docs/evidence_capture/reexport.attestations.template.json
 docs/evidence_capture/source.attestations.template.json
 docs/releases/v0.1.0.md
+docs/releases/v0.1.1.md
 examples/claude_desktop_config.json
 examples/codex-config.toml
 plugin/bridge_entry.py

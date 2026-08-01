@@ -2,8 +2,9 @@
 
 ## Current release status
 
-Version 0.1.0 is the current release, tagged `v0.1.0` with unsigned artifacts;
-its provenance record is [releases/v0.1.0.md](releases/v0.1.0.md). CI has no
+Version 0.1.1 is the current development-stage release, tagged `v0.1.1` with
+unsigned artifacts; its provenance record is
+[releases/v0.1.1.md](releases/v0.1.1.md). CI has no
 package-index publication job, and the Windows CI artifact is unsigned.
 
 A release presented as independently reviewed, signed, or production-ready is prohibited while the corresponding blocking items in [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) remain open. A development-stage unsigned release may proceed only through an explicit solo-maintainer exception recorded with its limitations, artifact hashes, test evidence, and rollback decision. The GitHub repository owner is the only currently documented administrative authority.
