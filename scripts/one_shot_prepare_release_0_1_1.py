@@ -93,14 +93,18 @@ replace_once(
 )
 replace_once(
     "README_RU.md",
-    "Текущий релиз — версия 0.1.0. Tag `v0.1.0`, unsigned-артефакты,\n"
-    "`SHA256SUMS.txt` и provenance-запись в\n"
-    "[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) указывают на один и тот же\n"
-    "commit.\n",
-    "Текущий development-stage релиз — версия 0.1.1. Tag `v0.1.1`,\n"
-    "unsigned-артефакты, `SHA256SUMS.txt` и provenance-запись в\n"
-    "[docs/releases/v0.1.1.md](docs/releases/v0.1.1.md) указывают на один и тот же\n"
-    "commit.\n",
+    "Текущий релиз — версия 0.1.0.",
+    "Текущий development-stage релиз — версия 0.1.1.",
+)
+replace_once(
+    "README_RU.md",
+    "Tag `v0.1.0`",
+    "Tag `v0.1.1`",
+)
+replace_once(
+    "README_RU.md",
+    "[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md)",
+    "[docs/releases/v0.1.1.md](docs/releases/v0.1.1.md)",
 )
 
 replace_once(
