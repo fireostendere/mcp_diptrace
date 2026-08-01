@@ -4,10 +4,12 @@
 
 Audited repository state: 2026-08-01.
 
-**Status: development release only under explicit exception.** The repository has an OSI-approved project-wide license (Apache-2.0, committed as `LICENSE`), private vulnerability reporting published as `SECURITY.md`, a v0.1.2 development-stage release path with an unsigned-binary disclosure, and a completed 2026-07-31 live acceptance matrix. It still has no verified conduct channel, approved contribution terms, signed release artifact, or independent release reviewer, so it must not be represented as independently reviewed, signed, or production-ready.
+**Status: v0.1.2 is a verified development-stage release under an explicit solo-maintainer exception.** The repository has an OSI-approved project-wide license (Apache-2.0, committed as `LICENSE`), private vulnerability reporting published as `SECURITY.md`, an unsigned-binary disclosure, a completed 2026-07-31 live acceptance matrix, green exact-head CI, and verified public release assets. It still has no verified conduct channel, approved contribution terms, signed release artifact, dependency/bundled-content legal review, or independent release reviewer, so it must not be represented as independently reviewed, signed, or production-ready.
 
-Checked boxes below describe repository facts in the audited state. Unchecked
-boxes are release blockers, not publication claims.
+Checked boxes below describe repository or release facts in the audited state.
+Unchecked boxes are blockers for stronger publication, redistribution, governance,
+or production-readiness claims; they do not negate the verified alpha/development-
+stage status of v0.1.2.
 
 ## Legal, ownership, and redistribution
 
@@ -28,7 +30,7 @@ boxes are release blockers, not publication claims.
       provenance and redistribution permission.
 - [ ] Trademark and non-affiliation wording is approved.
 
-Until the remaining redistribution and review items are complete, do not claim every bundled asset has independent clearance and do not publish a release as independently reviewed, signed, or production-ready. Development-stage publication requires the explicit exception and disclosures described in [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
+Until the remaining redistribution and review items are complete, do not claim every bundled asset has independent clearance and do not publish a release as independently reviewed, signed, or production-ready. Development-stage publication uses the explicit exception and disclosures described in [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
 
 ## Maintainers, governance, and community safety
 
@@ -60,7 +62,7 @@ in [SECURITY.md](../SECURITY.md).
 - [x] Missing native library mutation and manufacturing output remain
       explicit.
 - [x] Open compatibility questions and human-only experiments are documented.
-- [x] Both READMEs state the license and public-release blocker.
+- [x] Both READMEs state the license and public-release limitations.
 - [x] Citation metadata records the Apache-2.0 license and the 0.1.2 release
       date.
 - [x] The changelog and release provenance distinguish the withdrawn `0.1.1`
@@ -68,8 +70,10 @@ in [SECURITY.md](../SECURITY.md).
 - [ ] Package-index rendering of README links is verified or made independent
       of repository-relative link resolution.
 - [x] Windows plug-in settings, installer, and bridge-binary delivery are documented separately from the Python wheel; clean build, four-target install hash checks, and live PCB/Schematic acceptance were completed on 2026-07-31.
-- [ ] Final installation instructions are tested from release artifacts.
-- [ ] Announcement text is reviewed only after public URLs and license exist.
+- [x] Final installation instructions were tested from the publicly downloaded
+      v0.1.2 release artifacts.
+- [x] English and Russian announcement drafts were reviewed after the public
+      release URLs, license, limitations, and checksums were verified.
 
 ## Quality and compatibility
 
@@ -81,13 +85,18 @@ in [SECURITY.md](../SECURITY.md).
 - [x] Specification inventory and format coverage have reproducibility gates.
 - [x] Acceptance seed audit fails closed and reports zero accepted seeds.
 - [x] Windows DipTrace 5.2.0.4 ↔ WSL MCP live acceptance covers the tested PCB/Schematic apply, cancel, and wrong-SHA matrix, with GUI/save/re-export checks and no phantom path.
-- [ ] Release commit passes every required CI job.
-- [ ] Coverage figures in public docs are regenerated from the release commit.
-- [ ] Release candidate is installed and smoke-tested from v0.1.2 built artifacts
-      (procedure in [TESTING.md](TESTING.md)).
-- [ ] Supported Python, OS, DipTrace, transport, and bridge ranges are
-      approved.
-- [ ] Known limitations are copied into release notes without overclaiming.
+- [x] The exact final PR head `759234f209927e3c033e44d63494d3ca3cfae150`
+      passed all eight required jobs in CI run `30709466348`; the ordinary merge
+      commit preserved that tested release tree.
+- [x] Public documentation distinguishes the frozen candidate coverage result
+      from the exact-head GitHub CI coverage result.
+- [x] The release candidate and publicly downloaded wheel were installed and
+      smoke-tested from v0.1.2 artifacts using the procedure in
+      [TESTING.md](TESTING.md).
+- [ ] Supported Python, OS, DipTrace, transport, and bridge ranges receive an
+      independent compatibility approval.
+- [x] Known limitations are copied into release notes and announcements without
+      production-ready or universal-compatibility claims.
 
 ## Artifact and supply-chain controls
 
@@ -96,35 +105,39 @@ in [SECURITY.md](../SECURITY.md).
       or unexpected archive members.
 - [x] CI checks wheel entry points, eight packaged skills, project URLs,
       archive bounds, and every wheel `RECORD` hash and size.
-- [ ] A wheel rebuilt from the frozen source distribution is compared with the
-      direct release wheel in the release environment.
-- [ ] The frozen release wheel is installed and smoke-tested with only its
-      declared dependencies.
-- [ ] Windows bridge contents and runtime dependencies are inspected.
-- [ ] Artifact SHA-256 manifest is generated for the v0.1.2 release assets
-      (`SHA256SUMS.txt`; see [releases/v0.1.2.md](releases/v0.1.2.md)).
+- [x] A wheel rebuilt from the frozen source distribution was compared with the
+      direct release wheel by member set and per-member SHA-256.
+- [x] The frozen and publicly downloaded release wheels were installed and
+      smoke-tested with only their declared dependencies.
+- [x] Windows bridge contents and bundled runtime dependencies were inspected;
+      PowerShell `--help`, plug-in ZIP, and all four settings profiles passed.
+- [x] `SHA256SUMS.txt` covers all ten v0.1.2 release assets, and a fresh public
+      download passed `sha256sum -c`.
 - [x] A reviewed unsigned policy is disclosed for the unsigned 0.1.2
       artifacts; no signing identity is configured yet.
-- [ ] Publication accounts have multi-factor authentication and recovery
-      owners.
-- [ ] Immutable artifact host and retention policy are documented.
-- [ ] Tag, archive, wheel, binary, checksums, and release notes resolve to the
-      same commit and version.
+- [ ] Publication accounts have documented multi-factor-authentication and
+      recovery owners.
+- [ ] Immutable artifact-host retention and recovery policy is documented.
+- [x] Tag, wheel, source distribution, binary, plug-in ZIP, checksums, evidence
+      files, installation guide, announcements, and release notes resolve to
+      version 0.1.2 and the documented frozen release provenance.
 
 ## Release operation
 
-- [ ] Release manager and independent reviewer are named in the release record.
-- [ ] Version and frozen merge commit are approved (recorded in
-      [releases/v0.1.2.md](releases/v0.1.2.md)).
+- [x] Release manager is named in [releases/v0.1.2.md](releases/v0.1.2.md).
+- [ ] An independent release reviewer is named.
+- [x] Version and frozen merge commit are recorded in
+      [releases/v0.1.2.md](releases/v0.1.2.md).
 - [x] `CHANGELOG.md` is finalized for the approved version and date.
-- [ ] Staged v0.1.2 artifacts pass clean-environment installation and smoke
-      tests.
-- [ ] Security and conduct channels are monitored.
-- [ ] Tag and artifacts are published through
+- [x] Staged and publicly downloaded v0.1.2 artifacts passed clean-environment
+      installation and smoke tests.
+- [ ] Security and conduct channels have documented ongoing monitoring and
+      backup ownership.
+- [x] Tag and all ten artifacts are published through the process in
       [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
-- [ ] English and Russian announcements are posted only after final public URLs
-      are verified.
-- [ ] Post-release support and incident processes are active.
+- [ ] English and Russian announcements are posted to their external forums;
+      the repository drafts are verified and ready for posting.
+- [ ] Post-release support and incident processes have documented active owners.
 
 ## Explicit non-evidence
 
