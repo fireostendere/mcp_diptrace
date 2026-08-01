@@ -7,6 +7,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+
+- Preserve Windows-native live exchange paths in session metadata and derive WSL
+  drive-mount paths only in memory, preventing false `applied` results against a
+  phantom `C:\mnt\c\...` target.
+- Ignore the intentional stdout-close race used to unblock a Windows output-reader
+  thread after the root process exits while a descendant inherited the pipe.
+
+### Validation
+
+- Completed Windows DipTrace 5.2.0.4 ↔ WSL MCP live acceptance for PCB and
+  Schematic apply/cancel/wrong-SHA paths, including GUI checks, independent
+  save/re-export comparisons, path invariants, and connectivity/count preservation.
+- Added focused unit coverage for non-WSL Windows-path refusal, relative WSL mount
+  roots, POSIX-path refusal on Windows, and invalid path-platform metadata.
+
+### Documentation
+
+- Reconciled English and Russian readiness, testing, architecture, compatibility,
+  usage, roadmap, and release-policy documentation with the 2026-07-31 evidence.
+- Added a dated code-review record and live-acceptance record.
+
 ## 0.1.0 - 2026-07-30
 
 ### Added

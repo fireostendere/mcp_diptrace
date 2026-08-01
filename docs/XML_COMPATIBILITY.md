@@ -46,7 +46,7 @@ Reader support and a successful local parse do not close those writer questions.
 
 `Version` is preserved in document identity and compatibility reports, but it is not the sole compatibility gate. Readers use feature detection, tolerate documented optional/default fields, preserve unknown sections, and require each writer to validate the structures it needs.
 
-A live import/re-export acceptance run with DipTrace 5.3 has confirmed real Schematic XML using `Version="5.3.0.2"`. Component and Pattern Library exports have also been observed from DipTrace 5.3, while some public specification examples remain 4.3-era. Application version and XML `Version` are therefore treated as related but non-equivalent evidence.
+A live import/re-export acceptance run with DipTrace 5.3 has confirmed real Schematic XML using `Version="5.3.0.2"`. A separate DipTrace 5.2.0.4 Windows/WSL campaign confirmed the tested PCB and Schematic live apply/cancel/wrong-SHA paths, including independent re-export for applied changes and no host mutation for cancelled/refused changes. Component and Pattern Library exports have also been observed from DipTrace 5.3, while some public specification examples remain 4.3-era. Application version and XML `Version` are therefore treated as related but non-equivalent evidence.
 
 ## Implemented Readers
 
@@ -104,9 +104,11 @@ observed; it does not mean that an undocumented DipTrace normalization was infer
 | Source | Read | Write | Evidence status |
 | --- | --- | --- | --- |
 | PCB XML 4.3.0.3 synthetic fixtures | yes | partial semantic writes | parser/operation regression coverage; unknown XML preserved |
+| PCB XML 5.2.0.4 live project | yes | scoped component move + guarded live finalization | real apply/GUI/save/re-export verified; cancel and wrong-SHA preserved baseline; not broad writer coverage |
 | PCB XML 5.3.0.2 installed examples | yes | not broadly mutation-verified | complex multilayer examples parsed locally; redistributable round-trip fixtures still needed |
 | Other DipTrace 5.x PCB XML | feature-detected | per-operation | preserve unknown XML; matching fixture preferred |
 | Schematic XML 4.3.0.3 synthetic fixtures | yes | partial semantic writes | parser/operation regression coverage |
+| Schematic XML 5.2.0.4 live project | yes | scoped value edit + guarded live finalization | real apply/GUI verified; cancel and wrong-SHA preserved baseline |
 | Schematic XML 5.3.0.2 live project | yes | bounded raw/semantic writes | real bridge apply + independent DipTrace re-export verified for scoped marking edits |
 | Schematic XML 5.3.0.2 installed examples | yes | not broadly mutation-verified | multi-sheet examples parsed locally; hierarchy/writer fixture coverage still incomplete |
 | Component Library XML 4.3 fixture | yes | expert raw XML only | normalized read/validate + unknown preservation |
@@ -122,7 +124,7 @@ The following are implemented but still need stronger real-DipTrace evidence bef
 
 - authored schematic wires;
 - generated ratlines;
-- representative PCB semantic writes on DipTrace 5.3;
+- broader representative PCB semantic writes, especially on DipTrace 5.3; one scoped 5.2.0.4 component move is verified;
 - schematic-to-PCB synchronization across controlled 5.3 before/after fixtures;
 - SES import through a real DipTrace-produced DSN/SES pair;
 - Component/Pattern Library writers, which remain blocked and unregistered.
@@ -172,3 +174,10 @@ The maintained code and documentation were reviewed against an installed DipTrac
 Representative installed PCB, multi-sheet schematic, Component Library, and Pattern Library exports have also parsed without warnings through local bridge acceptance. Because those files are not committed as redistributable fixtures, they increase confidence but do not close automated CI evidence gates.
 
 See [ROADMAP.md](ROADMAP.md) for the fixture pack and writer-verification exit criteria.
+
+## Additional 5.2 live baseline
+
+The 2026-07-31 Windows/WSL campaign used DipTrace 5.2.0.4 and verified the
+bridge-native path invariant, PCB and Schematic finalization outcomes, GUI behavior,
+and independent save/re-export semantics for the tested changes. It supplements, but
+does not replace, the 5.3 fixture and writer-verification priorities above.

@@ -11,7 +11,7 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 
 Проект уже пригоден для инженерного использования с человеком в контуре: чтения и ревью PCB/schematic, безопасных semantic edits, schematic authoring, синхронизации schematic → PCB, локального placement/routing, анализа differential pairs и подготовки review-артефактов.
 
-Это пока не полная замена интерактивному EDA-движку DipTrace. Наиболее важный незакрытый слой — не количество MCP tools, а доказанная совместимость write-paths с реальным DipTrace 5.3 через контролируемые open/save/re-export fixtures. Создание/изменение native Component/Pattern Libraries и native manufacturing outputs пока намеренно не заявлены как готовые возможности.
+Это пока не полная замена интерактивному EDA-движку DipTrace. Для проверенных PCB/schematic live-путей уже есть контролируемые Windows/WSL apply, cancel, wrong-SHA, GUI, save и re-export доказательства. Главный незакрытый слой теперь — более широкие redistributable evidence для остальных writers, вариантов исходных файлов, native libraries и optional external-tool путей. Создание/изменение native Component/Pattern Libraries и native manufacturing outputs по-прежнему намеренно не заявлены как готовые возможности.
 
 Актуальный порядок работ и критерии завершения находятся в [roadmap](docs/ROADMAP.md). Фактическую доступность конкретной операции всегда определяет `get_capabilities`.
 
@@ -97,15 +97,12 @@ CI разделяет проверки по платформам и назнач
 
 Текущая ветка `main` проходит эту матрицу. Regression coverage включает fail-closed trust authority boundary, обязательные категории semantic comparison для PCB и schematic, Windows atomic-job поведение и terminal cancellation semantics для Freerouting, ngspice и openEMS.
 
-Synthetic 4.3 fixtures покрывают PCB, schematic, Component Library, Pattern Library, geometry, transactions, review, routing, DSN/SES и MCP contracts. Отдельный live acceptance test с DipTrace 5.3.0.2 подтвердил:
+Synthetic 4.3 fixtures покрывают PCB, schematic, Component Library, Pattern Library, geometry, transactions, review, routing, DSN/SES и MCP contracts. Отдельно проведены две контролируемые live acceptance-кампании:
 
-- защиту от source-SHA conflict, равенство backup и atomic write;
-- 41 scoped `RefDesMarking`-правку на листе Power;
-- bridge apply и независимый повторный export из DipTrace;
-- сохранение всех 41 координат и неизменность нормализованных количеств sheet/part/pin/net/bus/differential-pair;
-- отсутствие новых offline ERC errors после round trip.
+- DipTrace 5.3.0.2, schematic: source-SHA conflict protection, backup equality, atomic write, 41 scoped `RefDesMarking`-правка, bridge apply, независимый re-export, стабильные normalized counts и отсутствие новых offline ERC errors;
+- DipTrace 5.2.0.4 на Windows с MCP-сервером в WSL: PCB apply/cancel/wrong-SHA и Schematic apply/cancel/wrong-SHA, Windows-native exchange-path metadata, отсутствие фантомного `C:\mnt\c\...`, GUI-подтверждение для применяемых изменений, Save As/re-export, semantic comparison и неизменная connectivity/counts.
 
-Это сильное доказательство для проверенных путей, но не обещание полной совместимости со всеми версиями DipTrace и всеми XML objects.
+Кампания 2026-07-31 завершилась как `ACCEPTANCE: PASS`, `RELEASE BLOCKER: NO` для этой матрицы. Это сильное доказательство для проверенных путей, но не обещание полной совместимости со всеми версиями DipTrace, всеми XML objects, всеми MCP tools и optional adapters. См. [отчёт acceptance](docs/LIVE_ACCEPTANCE_2026-07-31.md) и [code review](docs/CODE_REVIEW_2026-07-31.md).
 
 ## Архитектура
 
@@ -119,7 +116,7 @@ DipTrace       <-------->    diptrace_mcp_bridge.exe
                temporary plugin_exchange.xml
 ```
 
-DipTrace запускает плагин отдельным `.exe` и передаёт путь к временному XML. Bridge хранит рабочую копию в `%LOCALAPPDATA%\DipTraceMCP`, ждёт MCP `apply` или `cancel`, проверяет SHA-256 рабочей копии, который видел caller, заново убеждается, что исходный exchange-файл не изменился и всё ещё находится внутри allowed root, и завершает процесс только после финализации сессии. После `apply` DipTrace импортирует exchange XML обратно.
+DipTrace запускает плагин отдельным `.exe` и передаёт путь к временному XML. Bridge хранит рабочую копию в `%LOCALAPPDATA%\DipTraceMCP`, ждёт MCP `apply` или `cancel`, проверяет SHA-256 рабочей копии, который видел caller, заново убеждается, что исходный exchange-файл не изменился и всё ещё находится внутри allowed root, и завершает процесс только после финализации сессии. После `apply` DipTrace импортирует exchange XML обратно. В metadata путь хранится в native-синтаксисе процесса bridge; WSL-сервер вычисляет `/mnt/<drive>/...` только в памяти и никогда не записывает этот derived path обратно.
 
 ## Требования
 
@@ -385,6 +382,9 @@ schema и выбраны по письменному механическому 
 - [Skill contracts](docs/SKILL_CONTRACTS.md)
 - [PCB skills](skills/README.md)
 - [Разработка](docs/DEVELOPMENT.md)
+- [Windows/WSL live exchange paths](docs/LIVE_EXCHANGE_PATHS.md)
+- [Live acceptance 2026-07-31](docs/LIVE_ACCEPTANCE_2026-07-31.md)
+- [Code review 2026-07-31](docs/CODE_REVIEW_2026-07-31.md)
 - [English README](README.md)
 
 ## Разработка

@@ -127,8 +127,7 @@ sequenceDiagram
 The official plug-in contract is synchronous. DipTrace creates an XML exchange file,
 starts the plug-in executable, and reads the same file after the process exits. The
 bridge must therefore remain active while MCP operations are being performed. A
-separate state directory is necessary because `plugin_exchange.xml` is temporary and
-owned by DipTrace.
+A separate state directory is necessary because `plugin_exchange.xml` is temporary and owned by DipTrace. Session metadata stores that exchange path in the native syntax of the bridge process plus an immutable platform field. A WSL server derives its drive-mount view in memory only; persisting `/mnt/c/...` into Windows-origin metadata is invalid and is rejected before a finish control marker can be published.
 
 ## State Layout
 
@@ -187,6 +186,7 @@ or unverifiable state may remain above them.
     the exact SHA after atomic replacement.
 11. Explicit `cancel` leaves the exchange XML unchanged.
 12. A finish request publishes `control.json` only after `metadata.json` is complete.
+13. The exchange path remains in bridge-native syntax. Cross-platform runtime translation is in-memory only, and path/platform disagreement fails closed.
 
 ## External Process Runner
 
@@ -250,8 +250,7 @@ platform/namespace;
 a WSL PID is never used to infer whether a Windows bridge is alive. Same-namespace death
 transitions the state to terminal `abandoned`. Cross-namespace liveness remains
 `unknown` until the configurable two-hour TTL or an explicit
-`abandon_live_session(reason)` action. Apply remains separately bound to the original
-exchange path/hash, current working hash, and two independent write-impact checks.
+`abandon_live_session(reason)` action. Apply remains separately bound to the original exchange path/hash, current working hash, and two independent write-impact checks. The 2026-07-31 DipTrace 5.2.0.4 Windows/WSL campaign verified this path for PCB and Schematic apply/cancel/wrong-SHA outcomes, with no phantom `C:\mnt\c\...` target.
 
 Lifecycle mutations use an atomic lease directory rather than `flock` or Windows
 byte-range locking: those native lock families do not coordinate across the two NTFS

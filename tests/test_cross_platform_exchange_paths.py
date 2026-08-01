@@ -175,3 +175,60 @@ def test_new_session_records_exchange_path_platform(tmp_path: Path) -> None:
     metadata = store.create(exchange)
 
     assert metadata["exchange_path_platform"] == sessions_module._current_exchange_path_platform()
+
+
+def test_windows_origin_is_rejected_outside_windows_or_wsl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sessions_module, "_is_wsl_runtime", lambda _platform: False)
+
+    with pytest.raises(SessionError, match="accessible only from Windows or WSL") as caught:
+        sessions_module._exchange_path_for_runtime(
+            r"C:\Users\fireo\plugin_exchange.xml",
+            "windows",
+            runtime_os_name="posix",
+            runtime_platform="linux",
+        )
+
+    assert caught.value.payload.code == "path_access_denied"
+
+
+def test_relative_wsl_mount_root_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sessions_module, "_is_wsl_runtime", lambda _platform: True)
+    monkeypatch.setenv("DIPTRACE_MCP_WSL_MOUNT_ROOT", "relative-mount")
+
+    with pytest.raises(SessionError, match="must be absolute") as caught:
+        sessions_module._exchange_path_for_runtime(
+            r"C:\Users\fireo\plugin_exchange.xml",
+            "windows",
+            runtime_os_name="posix",
+            runtime_platform="linux",
+        )
+
+    assert caught.value.payload.code == "path_access_denied"
+
+
+def test_windows_runtime_rejects_posix_origin() -> None:
+    with pytest.raises(SessionError) as caught:
+        sessions_module._exchange_path_for_runtime(
+            "/tmp/plugin_exchange.xml",
+            "posix",
+            runtime_os_name="nt",
+            runtime_platform="win32",
+        )
+
+    assert caught.value.payload.code == "session_state_invalid"
+
+
+def test_unknown_exchange_path_platform_is_rejected() -> None:
+    with pytest.raises(SessionError, match="no valid exchange-path platform") as caught:
+        sessions_module._exchange_path_for_runtime(
+            "/tmp/plugin_exchange.xml",
+            "unknown",
+            runtime_os_name="posix",
+            runtime_platform="linux",
+        )
+
+    assert caught.value.payload.code == "session_state_invalid"

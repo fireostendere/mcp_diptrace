@@ -20,6 +20,7 @@ benchmarks/benchmark_large_board.py
 benchmarks/synthetic_board.py
 docs/ACCEPTANCE_SEED_AUDIT.md
 docs/ARCHITECTURE.md
+docs/CODE_REVIEW_2026-07-31.md
 docs/DEVELOPMENT.md
 docs/DOMAIN_MODEL.md
 docs/EVIDENCE_CAPTURE.md
@@ -29,6 +30,7 @@ docs/FORMAT_COVERAGE.md
 docs/GEOMETRY_ENGINE.md
 docs/IMPEDANCE_AND_SI.md
 docs/LICENSE_DECISION.md
+docs/LIVE_ACCEPTANCE_2026-07-31.md
 docs/LIVE_EXCHANGE_PATHS.md
 docs/MCP_TOOLS.md
 docs/OPEN_QUESTIONS.md

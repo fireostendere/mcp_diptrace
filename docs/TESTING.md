@@ -1,6 +1,6 @@
 # Testing
 
-The test strategy intentionally separates implementation correctness from real-DipTrace compatibility evidence. A green unit/CI matrix proves the maintained contracts and fixtures; it does not automatically promote every writer to DipTrace 5.3 round-trip verified status.
+The test strategy intentionally separates implementation correctness from real-DipTrace compatibility evidence. A green unit/CI matrix proves the maintained contracts and fixtures; it does not automatically promote every writer to real-DipTrace round-trip verified status.
 
 ## Gates
 
@@ -207,20 +207,40 @@ calls, so the threshold cannot be met by calling one wire tool repeatedly.
 
 ## Real DipTrace Acceptance Already Completed
 
-A live acceptance test with DipTrace 5.3.0.2 separately verified:
+### DipTrace 5.3.0.2 schematic campaign
 
-- source-SHA conflict protection;
-- backup equality;
-- atomic write behavior;
-- 41 bounded schematic `RefDesMarking` edits on the Power sheet;
-- bridge apply followed by an independent DipTrace re-export;
-- persistence of all 41 coordinates;
-- unchanged normalized sheet/part/pin/net/bus/differential-pair counts;
-- no new offline ERC errors after the round trip.
+A live schematic acceptance test separately verified source-SHA conflict protection,
+backup equality, atomic write behavior, 41 bounded `RefDesMarking` edits on the Power
+sheet, bridge apply followed by an independent DipTrace re-export, persistence of all
+41 coordinates, unchanged normalized sheet/part/pin/net/bus/differential-pair counts,
+and no new offline ERC errors after the round trip.
 
-The rebuilt Windows bridge also passes isolated cross-process finish-request tests covering metadata/control publication, cleanup, and exchange-file integrity.
+### DipTrace 5.2.0.4 Windows bridge with WSL MCP — 2026-07-31
 
-This acceptance evidence is valuable but intentionally scoped. The user project used for the live test is not redistributed, so the same path is not yet automated in public CI.
+A second campaign verified:
+
+- PCB apply with GUI confirmation, Save As, independent XML re-export, semantic
+  comparison, and unchanged 65-net/77-component connectivity counts in the tested board;
+- PCB cancel after a committed working-copy edit, with the exchange XML, GUI, and
+  re-export remaining at baseline;
+- PCB wrong-SHA refusal without exchange or GUI mutation;
+- Schematic apply with the intended value change confirmed in the GUI;
+- Schematic cancel and wrong-SHA refusal with the original exchange SHA preserved;
+- Windows-native `exchange_path` plus `exchange_path_platform="windows"` in every
+  session, with WSL translation performed only in memory;
+- no phantom `C:\mnt\c\...` target; and
+- clean bridge build/install hash checks across PCB, Schematic, Component, and Pattern
+  plug-in destinations.
+
+The campaign's final result was `ACCEPTANCE: PASS` and `RELEASE BLOCKER: NO` for the
+tested matrix. The detailed evidence boundary is recorded in
+[LIVE_ACCEPTANCE_2026-07-31.md](LIVE_ACCEPTANCE_2026-07-31.md).
+
+The rebuilt Windows bridge also passes isolated cross-process finish-request tests
+covering metadata/control publication, cleanup, and exchange-file integrity. The real
+projects and full operator artifact directory are not redistributed, so these host
+checks remain local acceptance evidence rather than public-CI fixtures or package-owned
+high-trust registry entries.
 
 ## Highest-Priority Remaining Test Gaps
 

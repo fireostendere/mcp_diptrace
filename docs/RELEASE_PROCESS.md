@@ -6,10 +6,7 @@ Version 0.1.0 is the current release, tagged `v0.1.0` with unsigned artifacts;
 its provenance record is [releases/v0.1.0.md](releases/v0.1.0.md). CI has no
 package-index publication job, and the Windows CI artifact is unsigned.
 
-Publishing is prohibited while any blocking item in
-[PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) remains open. The
-GitHub repository owner is the only currently documented administrative
-authority.
+A release presented as independently reviewed, signed, or production-ready is prohibited while the corresponding blocking items in [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) remain open. A development-stage unsigned release may proceed only through an explicit solo-maintainer exception recorded with its limitations, artifact hashes, test evidence, and rollback decision. The GitHub repository owner is the only currently documented administrative authority.
 
 ## 1. Approve scope and authority
 
@@ -54,8 +51,7 @@ python scripts/ingest_fixtures.py --dry-run --synthetic --json
 python scripts/audit_acceptance_seeds.py
 ```
 
-All required GitHub Actions jobs must pass on the same commit. A missing
-platform result cannot be replaced by a local claim.
+All required GitHub Actions jobs must pass on the same commit. A missing platform result cannot be replaced by a local claim. When release notes claim live PCB or Schematic integration, attach a dated acceptance record for the exact server/bridge baseline and clearly separate local host evidence from public CI.
 
 ## 3. Build and inspect
 
@@ -85,9 +81,7 @@ disclosure. CI success is not a code signature.
 ## 4. Stage and verify
 
 Stage artifacts in a non-public channel controlled by the release manager.
-Install the staged wheel and bridge rather than the source tree. Run CLI,
-public MCP `tools/list`, skill-delivery, and headless bridge smoke tests on
-supported platforms. Download the staged artifacts and verify their hashes.
+Install the staged wheel and bridge rather than the source tree. Run CLI, public MCP `tools/list`, skill-delivery, and headless bridge smoke tests on supported platforms. For a release that claims Windows live integration, run fresh-session PCB and Schematic apply/cancel/wrong-SHA acceptance, verify GUI/save/re-export behavior for applied changes, and prove cancelled/refused changes do not reach the host document. Download the staged artifacts and verify their hashes.
 
 The release record must contain the frozen commit, artifact hashes, test
 results, approvers, supported environments, known limitations, security
