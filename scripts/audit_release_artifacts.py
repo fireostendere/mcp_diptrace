@@ -63,7 +63,12 @@ _PUBLICATION_ROOT_NAMES = {
     "pyproject.toml",
 }
 _BLOCKED_PARTS = frozenset({".agents", ".codex", ".git", ".vscode", "etc"})
-_BLOCKED_PREFIXES = ("docs/private/", "tests/fixtures/acceptance/")
+_BLOCKED_PREFIXES = (
+    "docs/private/",
+    "tests/fixtures/acceptance/",
+    "reference/diptrace-xml/extracted_text/",
+)
+_BLOCKED_PATHS = frozenset({"reference/diptrace-xml/spec_inventory.json"})
 _BLOCKED_SUFFIXES = frozenset(
     {".der", ".dll", ".docx", ".eli", ".exe", ".key", ".lib", ".p12", ".pdf", ".pem", ".pfx"}
 )
@@ -122,6 +127,8 @@ def is_publication_safe_path(raw_path: str) -> bool:
     if any(part in _BLOCKED_PARTS for part in path.parts):
         return False
     if relative.startswith(_BLOCKED_PREFIXES):
+        return False
+    if relative in _BLOCKED_PATHS:
         return False
     if path.suffix.lower() in _BLOCKED_SUFFIXES:
         return False

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -70,3 +71,22 @@ def test_static_analysis_covers_plugin_python_but_excludes_generated_dist() -> N
     # The checked directory contains the PyInstaller entry point today; using the
     # directory in CI means future hand-maintained Python files need no CI edit.
     assert (ROOT / "plugin/bridge_entry.py").is_file()
+
+
+def test_static_analysis_runs_compliance_gates() -> None:
+    workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    commands = _job_commands(workflow["jobs"]["static-analysis"])
+
+    assert "python scripts/check_public_privacy.py" in commands
+    assert "python scripts/check_provenance_inventory.py" in commands
+    assert "python scripts/generate_compliance_inventory.py --check" in commands
+
+
+def test_all_workflow_actions_are_pinned_to_full_commit_shas() -> None:
+    uses_pattern = re.compile(r"^\s*-?\s*uses:\s*([^\s#]+)", re.MULTILINE)
+    sha_pattern = re.compile(r"^[^@]+@[0-9a-f]{40}$")
+    for workflow_path in sorted((ROOT / ".github/workflows").glob("*.yml")):
+        content = workflow_path.read_text(encoding="utf-8")
+        actions = uses_pattern.findall(content)
+        assert actions, workflow_path
+        assert all(sha_pattern.fullmatch(action) for action in actions), workflow_path

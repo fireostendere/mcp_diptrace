@@ -1,0 +1,84 @@
+name: Windows signing preparation
+
+on:
+  workflow_dispatch:
+    inputs:
+      signing_required:
+        description: Require a valid Authenticode signature for packaging
+        required: true
+        default: false
+        type: boolean
+      expected_signer_subject:
+        description: Expected signer subject supplied by a protected release operator
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-package:
+    name: Build, test, and package bridge
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install bridge build environment
+        run: python -m pip install -e ".[dev,bridge]"
+      - name: Run bridge tests
+        run: python -m pytest -q tests/test_bridge.py tests/test_plugin_settings.py
+      - name: Build unsigned bridge
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\plugin\build_bridge.ps1 -PythonCommand python -Clean
+      - name: Verify build output before signing handoff
+        shell: pwsh
+        run: |
+          $path = ".\plugin\dist\diptrace_mcp_bridge.exe"
+          if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Bridge was not built" }
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\plugin\verify_signature.ps1 -Path $path
+      - name: Package unsigned development artifact
+        if: ${{ inputs.signing_required == false }}
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\plugin\package_plugin.ps1 `
+            -BridgePath .\plugin\dist\diptrace_mcp_bridge.exe `
+            -OutputZip .\plugin\dist\diptrace_mcp_windows_plugin-unsigned.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: diptrace-bridge-unsigned-${{ github.sha }}
+          path: plugin/dist/diptrace_mcp_bridge.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ inputs.signing_required == false }}
+        with:
+          name: diptrace-plugin-unsigned-${{ github.sha }}
+          path: plugin/dist/diptrace_mcp_windows_plugin-unsigned.zip
+          if-no-files-found: error
+
+  protected-signing-handoff:
+    name: Protected SignPath handoff
+    if: ${{ inputs.signing_required == true }}
+    needs: build-test-package
+    runs-on: windows-latest
+    environment: windows-signing
+    steps:
+      - name: Refuse unconfigured signing request
+        shell: pwsh
+        env:
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_PROJECT_ID: ${{ vars.SIGNPATH_PROJECT_ID }}
+          SIGNPATH_SIGNING_POLICY_ID: ${{ vars.SIGNPATH_SIGNING_POLICY_ID }}
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_ORGANIZATION_ID) -or
+              [string]::IsNullOrWhiteSpace($env:SIGNPATH_PROJECT_ID) -or
+              [string]::IsNullOrWhiteSpace($env:SIGNPATH_SIGNING_POLICY_ID) -or
+              [string]::IsNullOrWhiteSpace($env:SIGNPATH_API_TOKEN)) {
+            throw "HUMAN ACTION REQUIRED: configure the protected SignPath integration before requesting signing"
+          }
+          throw "HUMAN ACTION REQUIRED: replace this reviewed handoff with the approved pinned SignPath action"

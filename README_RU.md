@@ -32,13 +32,16 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
   [установку из опубликованных release assets](docs/INSTALL_FROM_RELEASE.md);
 - [changelog](CHANGELOG.md) и [citation metadata](CITATION.cff).
 
-Приём общих contributions остаётся закрытым, пока не утверждены условия
-contribution provenance. Подозрения на уязвимости отправляйте только через
-приватный security-канал, опубликованный в [SECURITY.md](SECURITY.md), а не в
-публичных issues. Проверенного канала для Code of Conduct пока нет, поэтому
-политика Code of Conduct не публикуется. Contribution provenance и signing
-остаются явными blockers. Репозиторий не заявляет существующее сообщество,
-adoption, sponsorship, vendor endorsement или участие в support program.
+Issues и pull requests принимаются по правилам DCO 1.1 и provenance из
+[CONTRIBUTING.md](CONTRIBUTING.md); право merge остаётся у владельца
+репозитория. Подозрения на уязвимости отправляйте только через приватный
+security-канал, опубликованный в [SECURITY.md](SECURITY.md), а не в публичных
+issues. Проверенного канала для Code of Conduct пока нет, поэтому политика
+Code of Conduct не публикуется. Signing, dependency, bundled-content и
+independent-review остаются явными blockers для более сильных release claims.
+Репозиторий не заявляет существующее сообщество, adoption, sponsorship, vendor
+endorsement или участие в support program. Внешние grant/application
+материалы владелец репозитория хранит приватно.
 
 Текущий development-stage релиз — версия 0.1.2. Его tag, unsigned-артефакты,
 `SHA256SUMS.txt` и provenance-запись в
@@ -383,6 +386,8 @@ schema и выбраны по письменному механическому 
 - [Impedance and SI](docs/IMPEDANCE_AND_SI.md)
 - [External adapters](docs/EXTERNAL_ADAPTERS.md)
 - [Security and policy](docs/SECURITY_AND_POLICY.md)
+- [Compliance and provenance](docs/compliance/INDEPENDENT_REVIEW_PACKAGE.md)
+- [Windows signing preparation](docs/SIGNING.md)
 - [Testing and benchmarks](docs/TESTING.md)
 - [Skill contracts](docs/SKILL_CONTRACTS.md)
 - [PCB skills](skills/README.md)

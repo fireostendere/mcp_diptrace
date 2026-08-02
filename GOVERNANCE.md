@@ -9,10 +9,13 @@ is asserted.
 
 Repository administration, branch protection, merge access, and any future
 release remain under the GitHub repository owner's control. The repository is
-licensed under the Apache License 2.0 (see [`LICENSE`](LICENSE)), but it is
-not yet open for general contributions because contribution-provenance terms
-are not approved. [CONTRIBUTING.md](CONTRIBUTING.md) defines the current
-closed contribution policy.
+licensed under the Apache License 2.0 (see [`LICENSE`](LICENSE)). Issues and
+pull requests may be opened under the contribution and provenance rules in
+[`CONTRIBUTING.md`](CONTRIBUTING.md); the owner decides whether a proposed
+change is merged.
+
+Contributions follow Developer Certificate of Origin 1.1 as documented in
+[`DCO`](DCO) and [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Decision record
 
@@ -24,7 +27,8 @@ only on synthetic fixtures is not evidence of DipTrace behavior.
 No release may bypass a blocker in
 [the public-release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md). The
 repository owner is responsible for deciding whether a blocker is resolved and
-for preserving the evidence behind that decision.
+for preserving the evidence behind that decision. This document does not
+claim that branch protection or any GitHub ruleset is enabled.
 
 ## Missing governance functions
 
@@ -34,18 +38,18 @@ The repository does not currently provide:
 - a succession or repository-recovery policy;
 - a conflict-of-interest and recusal process;
 - a confidential conduct-enforcement channel; or
-- contribution attestation terms.
+- a second person with merge or release authority.
 
 Private vulnerability reporting is enabled through GitHub and published in
-[SECURITY.md](SECURITY.md). The remaining items are explicit release
-blockers. A Code of Conduct is not published yet because there is no verified
-confidential enforcement channel or enforcement team. Publishing a fictional
-contact would make the policy unsafe.
+[SECURITY.md](SECURITY.md). The remaining items are explicit governance
+limitations. A Code of Conduct is not published yet because there is no
+verified confidential enforcement channel or enforcement team. Publishing a
+fictional contact would make the policy unsafe.
 
 ## Governance changes
 
 Any governance expansion must be committed with its effective date and must
 name the real GitHub accounts receiving authority. Private contact details
 must be tested before they are referenced. Governance text must not imply that
-a contributor community, adoption, sponsorship, or vendor endorsement exists
-without dated evidence.
+a contributor community, adoption, sponsorship, vendor endorsement, or support
+program acceptance exists without dated evidence.

@@ -21,6 +21,12 @@ text bundles in [`extracted_text/`](extracted_text/), produced with the pinned
 `pypdf==6.14.2`. Every bundle records the source PDF URL, SHA-256, byte size, page count, and
 extraction engine; `spec_inventory.json` records the bundle SHA-256 as well.
 
+These extracted bundles and the generated inventory are retained as engineering
+working inputs, but their redistribution status is not treated as Apache-2.0.
+The release build policy excludes them from wheels, source distributions, and
+release assets until a human confirms a redistribution basis. An operator with
+legitimate source documents can regenerate them locally with the command below.
+
 CI performs the offline check:
 
 ```bash

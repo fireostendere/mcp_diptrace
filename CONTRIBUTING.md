@@ -2,25 +2,44 @@
 
 ## Contribution status
 
-DipTrace MCP is licensed under the Apache License 2.0; the full text is
-committed as [`LICENSE`](LICENSE). The license grant does not by itself open
-contribution intake: general code and documentation contributions remain
-closed until contribution-provenance terms are approved.
+Issues and pull requests are welcome for safe, reviewable improvements. The
+repository owner retains merge authority; opening a pull request does not
+guarantee review or acceptance. Contributions are accepted under the
+Developer Certificate of Origin 1.1 in [`DCO`](DCO) and the Apache License 2.0
+in [`LICENSE`](LICENSE).
 
-Do not open a pull request unless the repository owner has requested the
-specific change. Unsolicited pull requests may be closed without review. This
-policy avoids accepting work before copyright ownership and contribution
-provenance are settled.
+Every commit in a pull request must include a sign-off. Create a signed-off
+commit with:
 
-Non-sensitive bug reports, feature requests, and compatibility evidence may be
-submitted through the repository's GitHub issue forms. Do not put proprietary
-designs, credentials, personal data, export-controlled material, or
-redistribution-restricted files in an issue.
+```bash
+git commit -s
+```
 
-Report suspected vulnerabilities through the private channel published in
-[SECURITY.md](SECURITY.md); never disclose them in a public issue. Do not put
-proprietary designs, credentials, personal data, export-controlled material,
-or redistribution-restricted files in any report.
+The `Signed-off-by:` line certifies that the contributor has the right to
+submit the work under the applicable project license or another compatible
+open-source license. It is a provenance attestation, not a statement that the
+project has independently audited the contribution.
+
+Issues and pull requests must not contain proprietary designs, customer data,
+credentials, personal data, private correspondence, account identifiers,
+identity documents, restricted exports, or submission/application drafts.
+Keep private working material outside the repository. Do not attach raw audit
+reports containing workstation paths or usernames.
+
+## Provenance and AI assistance
+
+Disclose the origin of every material contribution, including code, fixtures,
+schemas, examples, documentation, generated files, and copied snippets. State
+the upstream project or source, revision or URL when known, license or
+permission basis, and whether the material was generated specifically for this
+repository. Do not treat possession of a DipTrace export or a passing parser
+round trip as redistribution permission.
+
+Meaningfully disclose AI assistance in the pull request description. Identify
+the parts for which an AI system was used and summarize the human review that
+was performed. The contributor remains responsible for correctness, security,
+provenance, copyright, license compliance, and the right to redistribute every
+submitted part.
 
 ## Evidence standards
 
@@ -52,6 +71,10 @@ Run the maintained gates before review:
 ./.venv/bin/python -m pytest -q
 ./.venv/bin/python -m ruff check --no-cache src tests benchmarks scripts plugin
 ./.venv/bin/python -m mypy --no-incremental src/diptrace_mcp plugin
+./.venv/bin/python scripts/check_dco.py --base <base-sha> --head <head-sha>
+./.venv/bin/python scripts/check_public_privacy.py
+./.venv/bin/python scripts/check_provenance_inventory.py
+./.venv/bin/python scripts/generate_compliance_inventory.py --check
 ./.venv/bin/python scripts/generate_pcb_skills.py --check
 ./.venv/bin/python scripts/generate_mcp_tools_snapshot.py --check
 ./.venv/bin/python -m hatchling build -d release-dist
@@ -83,4 +106,6 @@ Requested changes must:
   design files.
 
 The exact implementation checklist for a write operation is in
-[DEVELOPMENT.md](docs/DEVELOPMENT.md).
+[DEVELOPMENT.md](docs/DEVELOPMENT.md). The public compliance and signing
+boundaries are summarized in [docs/compliance/](docs/compliance/) and
+[docs/SIGNING.md](docs/SIGNING.md).

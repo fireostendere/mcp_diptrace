@@ -20,12 +20,13 @@ stage status of v0.1.2.
 - [x] MIT, Apache-2.0, and MPL-2.0 tradeoffs are documented alongside the
       Apache-2.0 selection record in
       [LICENSE_DECISION.md](LICENSE_DECISION.md).
-- [ ] Contribution provenance mechanism is approved.
+- [x] DCO 1.1 is published in [`DCO`](../DCO) and contribution provenance
+      requirements are documented in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - [ ] Dependency and bundled-content licenses are reviewed.
 - [ ] Windows bridge and PyInstaller redistribution obligations are reviewed.
 - [ ] Wheel-shipped skills and schemas are reviewed.
 - [ ] Extracted specification text and generated inventory are approved for
-      redistribution.
+      redistribution; until then, future release archives exclude them.
 - [ ] Every distributed fixture and evidence artifact has documented
       provenance and redistribution permission.
 - [ ] Trademark and non-affiliation wording is approved.
@@ -44,10 +45,13 @@ Until the remaining redistribution and review items are complete, do not claim e
 - [ ] Confidential conduct enforcement and a backup reviewer are enabled and
       tested.
 - [ ] Conflict-of-interest and recusal rules are approved.
-- [ ] Contribution intake is opened after license selection.
-- [ ] DCO, CLA, or other contribution terms are published.
+- [x] Contribution intake is open after license selection under DCO 1.1 and
+      the provenance/privacy rules in [CONTRIBUTING.md](../CONTRIBUTING.md).
+- [x] DCO 1.1 and contribution terms are published; no CLA is claimed.
 - [x] Bug, feature, and compatibility-evidence issue forms are committed.
 - [x] A pull-request template covers scope, tests, provenance, and safety.
+- [x] The PR template covers DCO, provenance, AI assistance, security, privacy,
+      and data-origin confirmation.
 
 A Code of Conduct is intentionally absent until a real confidential
 enforcement channel and responsible people exist. A fictional email address
@@ -72,8 +76,8 @@ in [SECURITY.md](../SECURITY.md).
 - [x] Windows plug-in settings, installer, and bridge-binary delivery are documented separately from the Python wheel; clean build, four-target install hash checks, and live PCB/Schematic acceptance were completed on 2026-07-31.
 - [x] Final installation instructions were tested from the publicly downloaded
       v0.1.2 release artifacts.
-- [x] English and Russian announcement drafts were reviewed after the public
-      release URLs, license, limitations, and checksums were verified.
+- [x] External announcement materials are maintained privately by the
+      repository owner; no forum or announcement draft is stored in Git.
 
 ## Quality and compatibility
 
@@ -95,8 +99,8 @@ in [SECURITY.md](../SECURITY.md).
       [TESTING.md](TESTING.md).
 - [ ] Supported Python, OS, DipTrace, transport, and bridge ranges receive an
       independent compatibility approval.
-- [x] Known limitations are copied into release notes and announcements without
-      production-ready or universal-compatibility claims.
+- [x] Known limitations are copied into release notes and any external
+      announcements without production-ready or universal-compatibility claims.
 
 ## Artifact and supply-chain controls
 
@@ -115,12 +119,16 @@ in [SECURITY.md](../SECURITY.md).
       download passed `sha256sum -c`.
 - [x] A reviewed unsigned policy is disclosed for the unsigned 0.1.2
       artifacts; no signing identity is configured yet.
+- [x] A technical unsigned/signed artifact boundary, verification script, and
+      manual protected signing workflow are documented; no SignPath account or
+      certificate is configured.
 - [ ] Publication accounts have documented multi-factor-authentication and
       recovery owners.
 - [ ] Immutable artifact-host retention and recovery policy is documented.
 - [x] Tag, wheel, source distribution, binary, plug-in ZIP, checksums, evidence
-      files, installation guide, announcements, and release notes resolve to
-      version 0.1.2 and the documented frozen release provenance.
+      files, installation guide, and release notes resolve to version 0.1.2 and
+      the documented frozen release provenance. Historical external announcement
+      assets are not maintained in the current repository tree.
 
 ## Release operation
 
@@ -133,10 +141,10 @@ in [SECURITY.md](../SECURITY.md).
       installation and smoke tests.
 - [ ] Security and conduct channels have documented ongoing monitoring and
       backup ownership.
-- [x] Tag and all ten artifacts are published through the process in
+- [x] Tag and the ten historical v0.1.2 artifacts are published through the process in
       [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
-- [ ] English and Russian announcements are posted to their external forums;
-      the repository drafts are verified and ready for posting.
+- [ ] External announcements, if posted, are reviewed privately before
+      publication; no repository draft is required or retained.
 - [ ] Post-release support and incident processes have documented active owners.
 
 ## Explicit non-evidence
@@ -152,4 +160,5 @@ The repository does not currently provide verified facts about:
 - comprehensive DipTrace 5.3 writer compatibility.
 
 Announcements and program applications must keep these values unknown unless
-a dated, reproducible source is added.
+a dated, reproducible source is added. Application materials are maintained
+privately by the repository owner.

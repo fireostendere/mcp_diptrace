@@ -1,0 +1,389 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "pkg:pypi/hatchling",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "hatchling",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "build,development"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/hatchling",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/hypothesis",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ],
+      "name": "hypothesis",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "development"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/hypothesis",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/jsonschema",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "jsonschema",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "development"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/jsonschema",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/mcp",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "mcp",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "runtime"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/mcp",
+      "scope": "required",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/mypy",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "mypy",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "development"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/mypy",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/pydantic",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "pydantic",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "runtime"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/pydantic",
+      "scope": "required",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/pyinstaller",
+      "licenses": [
+        {
+          "expression": "GPL-2.0-or-later WITH Bootloader-exception"
+        }
+      ],
+      "name": "pyinstaller",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "bridge"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/pyinstaller",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/pypdf",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "pypdf",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "development"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/pypdf",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/pytest",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "pytest",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "development"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/pytest",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/pytest-cov",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "pytest-cov",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "development"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/pytest-cov",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/pyyaml",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "PyYAML",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "development"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/pyyaml",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/ruff",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "ruff",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "development"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/ruff",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/shapely",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "shapely",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "geometry"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/shapely",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/typing-extensions",
+      "licenses": [
+        {
+          "license": {
+            "id": "PSF-2.0"
+          }
+        }
+      ],
+      "name": "typing-extensions",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "runtime"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/typing-extensions",
+      "scope": "required",
+      "type": "library"
+    }
+  ],
+  "dependencies": [
+    {
+      "dependsOn": [
+        "pkg:pypi/mcp",
+        "pkg:pypi/pydantic",
+        "pkg:pypi/typing-extensions"
+      ],
+      "ref": "pkg:pypi/diptrace-mcp@0.1.2"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "bom-ref": "pkg:pypi/diptrace-mcp@0.1.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "diptrace-mcp",
+      "purl": "pkg:pypi/diptrace-mcp@0.1.2",
+      "type": "application",
+      "version": "0.1.2"
+    },
+    "properties": [
+      {
+        "name": "diptrace-mcp:inspected-commit",
+        "value": "e57422e545c6b94aefe52c044c64d72a74a8c373"
+      },
+      {
+        "name": "diptrace-mcp:inspection-date",
+        "value": "2026-08-02"
+      },
+      {
+        "name": "diptrace-mcp:resolution",
+        "value": "declarative-direct-dependency-inventory"
+      }
+    ],
+    "timestamp": "2026-08-02T00:00:00Z",
+    "tools": [
+      {
+        "name": "generate_compliance_inventory.py",
+        "vendor": "DipTrace MCP"
+      }
+    ]
+  },
+  "serialNumber": "urn:uuid:3be9a4bf-f554-5cc3-9b20-4950c9bb267e",
+  "specVersion": "1.5",
+  "version": 1
+}

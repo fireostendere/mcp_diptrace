@@ -335,6 +335,25 @@ The embedded registry is checked and currently contains zero reviewed entries.
 `--apply` remains a typed refusal because fixture mutation is not implemented,
 and `validation_level_granted` remains null.
 
+## Compliance and privacy gates
+
+The public contribution/release checks are deterministic and do not require
+private credentials:
+
+```bash
+python scripts/check_dco.py --base <base-sha> --head <head-sha>
+python scripts/check_public_privacy.py
+python scripts/check_provenance_inventory.py
+python scripts/generate_compliance_inventory.py --check
+```
+
+The privacy check rejects high-confidence private working paths if they become
+tracked again and verifies that the owner-only paths remain ignored. The
+compliance generator compares the checked-in dependency inventory, CycloneDX
+SBOM, and third-party notice summary against `pyproject.toml`. These reports
+are engineering records and keep unresolved license, bundled-content, and
+reference-material questions explicit.
+
 ## Benchmarks
 
 `benchmarks/benchmark_core.py` reports timings for parsing/model creation, indexing, bounding-box queries, clearance review, placement candidates, one-net routing, SVG rendering, and semantic patches.
