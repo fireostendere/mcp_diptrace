@@ -41,6 +41,9 @@ security channel published in [SECURITY.md](SECURITY.md), never in public
 issues. A verified Code of Conduct channel does not yet exist, so a Code of
 Conduct policy is not published. Signing, dependency, bundled-content, and
 independent-review work remain explicit blockers for stronger release claims.
+The default `main` branch is protected by pull requests, DCO, and required CI
+checks; current evidence is recorded in
+[docs/compliance/BRANCH_PROTECTION_STATUS.md](docs/compliance/BRANCH_PROTECTION_STATUS.md).
 The repository does not claim an existing community, adoption, sponsorship,
 vendor endorsement, or support program acceptance. External grant or
 application materials are maintained privately by the repository owner.

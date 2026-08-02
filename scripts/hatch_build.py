@@ -33,7 +33,9 @@ def _validated_release_paths(root: Path) -> tuple[str, ...]:
         path = PurePosixPath(relative)
         folded = relative.casefold()
         if (
-            relative != path.as_posix()
+            "\x00" in relative
+            or "\\" in relative
+            or relative != path.as_posix()
             or path.is_absolute()
             or ".." in path.parts
             or any(part.casefold() in _BLOCKED_PARTS for part in path.parts)

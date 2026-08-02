@@ -1,0 +1,11 @@
+title = "DipTrace MCP public-history secret audit"
+
+[extend]
+useDefault = true
+
+# The audit stages only tracked files for the current-tree scan. This narrow
+# path rule is retained for callers that scan a checkout directly; it does not
+# permit a rule, value, or repository-wide regular expression.
+[[allowlists]]
+description = "Owner-private ignored working material is outside the public scan scope."
+paths = ['''(^|/)\.local(/|$)''']

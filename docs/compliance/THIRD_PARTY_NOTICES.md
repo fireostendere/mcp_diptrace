@@ -5,7 +5,7 @@ This file is a reproducible engineering inventory of direct dependencies declare
 for redistribution. Verify each dependency's current license text, notices, transitive
 dependencies, and any bundled native library before publishing an artifact.
 
-Inventory binding: commit `e57422e545c6b94aefe52c044c64d72a74a8c373`, inspected date `2026-08-02`.
+Inventory binding: commit `f4ea60352a560d03f0cee45d500c186530e6f5f6`, inspected date `2026-08-02`.
 
 The Python wheel declares dependencies but does not vendor them. The Windows bridge is a
 PyInstaller bundle and requires a separate per-build contents and notice review.

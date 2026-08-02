@@ -39,6 +39,9 @@ security-канал, опубликованный в [SECURITY.md](SECURITY.md),
 issues. Проверенного канала для Code of Conduct пока нет, поэтому политика
 Code of Conduct не публикуется. Signing, dependency, bundled-content и
 independent-review остаются явными blockers для более сильных release claims.
+Ветка `main` защищена pull request, DCO и обязательными CI-проверками; текущая
+проверка правил опубликована в
+[docs/compliance/BRANCH_PROTECTION_STATUS.md](docs/compliance/BRANCH_PROTECTION_STATUS.md).
 Репозиторий не заявляет существующее сообщество, adoption, sponsorship, vendor
 endorsement или участие в support program. Внешние grant/application
 материалы владелец репозитория хранит приватно.

@@ -1,0 +1,208 @@
+name: Deep compliance audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-audit:
+    name: Manual deep compliance audit (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned audit tools
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            hatchling==1.31.0 \
+            pip-audit==2.10.1 \
+            detect-secrets==1.5.0 \
+            reuse==6.2.0 \
+            pip-licenses==5.5.5 \
+            scancode-toolkit==32.5.0
+      - name: Install and verify Gitleaks
+        env:
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          mkdir -p "$RUNNER_TEMP/tools"
+          curl -fsSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o "$RUNNER_TEMP/gitleaks.tar.gz"
+          echo "$GITLEAKS_SHA256  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/tools" gitleaks
+      - name: Install and verify Syft
+        env:
+          SYFT_SHA256: bf7b29ff57f06da30918266a0e1c2885a8f99784798d1bdb1628886aa015d788
+        run: |
+          curl -fsSL https://github.com/anchore/syft/releases/download/v1.50.0/syft_1.50.0_linux_amd64.tar.gz -o "$RUNNER_TEMP/syft.tar.gz"
+          echo "$SYFT_SHA256  $RUNNER_TEMP/syft.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/syft.tar.gz" -C "$RUNNER_TEMP/tools" syft
+      - name: Run deep secret scan
+        id: secret_scan
+        continue-on-error: true
+        env:
+          GITLEAKS_BIN: ${{ runner.temp }}/tools/gitleaks
+        run: python scripts/run_deep_audit.py
+      - name: Enforce secret scan fail-closed
+        id: secret_gate
+        if: always()
+        run: |
+          status=$(python -c 'import json; print(json.load(open(".local/open-source-readiness/deep-audit/secret-scan-summary.json"))["status"])')
+          if [ "$status" != "clean" ]; then
+            echo "HUMAN ACTION REQUIRED: secret scan status is $status; no audit artifact may be uploaded" >&2
+            exit 1
+          fi
+      - name: Run dependency audit
+        id: dependency_scan
+        continue-on-error: true
+        run: python scripts/run_dependency_audit.py
+      - name: Run REUSE and pip-licenses reports
+        continue-on-error: true
+        run: |
+          set +e
+          mkdir -p .local/open-source-readiness/deep-audit/raw
+          reuse lint > .local/open-source-readiness/deep-audit/raw/reuse-lint.txt 2>&1
+          reuse_code=$?
+          pip-licenses --format=json > .local/open-source-readiness/deep-audit/raw/pip-licenses.json
+          echo "$reuse_code" > .local/open-source-readiness/deep-audit/raw/reuse-lint.exit
+      - name: Run ScanCode and sanitize its summary
+        continue-on-error: true
+        env:
+          SCANCODE_CACHE: ${{ runner.temp }}/scancode-cache
+          SCANCODE_TEMP: ${{ runner.temp }}/scancode-temp
+        run: |
+          mkdir -p .local/open-source-readiness/deep-audit/raw "$SCANCODE_CACHE" "$SCANCODE_TEMP" "$RUNNER_TEMP/scancode-tree"
+          git archive --format=tar HEAD | tar -xf - -C "$RUNNER_TEMP/scancode-tree"
+          scancode --license --copyright --info --package --strip-root \
+            --json-pp .local/open-source-readiness/deep-audit/raw/scancode-tree.json "$RUNNER_TEMP/scancode-tree"
+          python scripts/summarize_scancode.py \
+            .local/open-source-readiness/deep-audit/raw/scancode-tree.json \
+            --output .local/open-source-readiness/deep-audit/scancode-summary.json
+      - name: Clone a clean checkout and run artifact audit
+        id: clean_room
+        continue-on-error: true
+        run: |
+          git clone --no-local --branch "$GITHUB_REF_NAME" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/clean-checkout"
+          python scripts/run_clean_room_audit.py \
+            --source "$RUNNER_TEMP/clean-checkout" \
+            --output .local/open-source-readiness/deep-audit/clean-room
+      - name: Scan built artifacts with Syft
+        continue-on-error: true
+        run: |
+          mkdir -p .local/open-source-readiness/deep-audit/raw
+          syft="$RUNNER_TEMP/tools/syft"
+          test -x "$syft"
+          wheel=$(find .local/open-source-readiness/deep-audit/clean-room/direct -name '*.whl' -print -quit)
+          sdist=$(find .local/open-source-readiness/deep-audit/clean-room/direct -name '*.tar.gz' -print -quit)
+          test -n "$wheel" && "$syft" "$wheel" -o cyclonedx-json=.local/open-source-readiness/deep-audit/raw/syft-wheel.json
+          test -n "$sdist" && "$syft" "$sdist" -o cyclonedx-json=.local/open-source-readiness/deep-audit/raw/syft-sdist.json
+          test -f .local/open-source-readiness/deep-audit/raw/syft-wheel.json && \
+            python scripts/compare_artifact_sbom.py \
+              .local/open-source-readiness/deep-audit/raw/syft-wheel.json \
+              --pyproject pyproject.toml \
+              --output .local/open-source-readiness/deep-audit/artifact-sbom-summary.json
+      - name: Upload sanitized audit summaries only
+        if: ${{ !cancelled() && steps.secret_scan.outcome == 'success' && steps.secret_gate.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: deep-compliance-audit-summaries-${{ github.sha }}
+          retention-days: 3
+          if-no-files-found: warn
+          path: |
+            .local/open-source-readiness/deep-audit/secret-scan-summary.json
+            .local/open-source-readiness/deep-audit/dependency-audit-summary.json
+            .local/open-source-readiness/deep-audit/scancode-summary.json
+            .local/open-source-readiness/deep-audit/artifact-sbom-summary.json
+            .local/open-source-readiness/deep-audit/clean-room/clean-room-summary.json
+
+  windows-bundle-inventory:
+    name: Manual Windows bridge inventory
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build unsigned bridge
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir ".[dev,bridge]"
+          powershell -ExecutionPolicy Bypass -File .\plugin\build_bridge.ps1 -PythonCommand python -Clean
+          .\plugin\dist\diptrace_mcp_bridge.exe --help
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\plugin\package_plugin.ps1 `
+            -BridgePath .\plugin\dist\diptrace_mcp_bridge.exe `
+            -OutputZip .\plugin\dist\diptrace_mcp_windows_plugin-unsigned.zip
+      - name: Inventory PyInstaller archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .local\open-source-readiness\deep-audit\raw | Out-Null
+          pyi-archive_viewer --recursive .\plugin\dist\diptrace_mcp_bridge.exe > .local\open-source-readiness\deep-audit\raw\pyinstaller-archive.txt
+          python scripts\summarize_pyinstaller_inventory.py `
+            .local\open-source-readiness\deep-audit\raw\pyinstaller-archive.txt `
+            --output .local\open-source-readiness\deep-audit\windows-bundle-inventory.json
+      - name: Verify unsigned state and signing fail-closed behavior
+        shell: pwsh
+        run: |
+          $path = Resolve-Path .\plugin\dist\diptrace_mcp_bridge.exe
+          $signature = Get-AuthenticodeSignature -FilePath $path
+          [ordered]@{ status = [string]$signature.Status } |
+            ConvertTo-Json -Compress |
+            Set-Content .local\open-source-readiness\deep-audit\authenticode-status.json
+          if ([string]$signature.Status -ne "NotSigned") { throw "Expected current development bridge to be unsigned" }
+          $env:SIGNING_REQUIRED = "true"
+          $env:EXPECTED_SIGNER_SUBJECT = "test-only-no-certificate"
+          & powershell -NoProfile -ExecutionPolicy Bypass -File .\plugin\verify_signature.ps1 -Path $path -RequireSigned
+          if ($LASTEXITCODE -eq 0) { throw "SIGNING_REQUIRED did not fail closed" }
+          [ordered]@{ signing_required = $true; unsigned_result = "rejected" } |
+            ConvertTo-Json -Compress |
+            Set-Content .local\open-source-readiness\deep-audit\signing-required-test.json
+      - name: Scan Windows bundle and plugin ZIP with pinned Syft
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tools = Join-Path $env:RUNNER_TEMP "syft"
+          New-Item -ItemType Directory -Force $tools | Out-Null
+          $archive = Join-Path $env:RUNNER_TEMP "syft.zip"
+          Invoke-WebRequest `
+            -Uri "https://github.com/anchore/syft/releases/download/v1.50.0/syft_1.50.0_windows_amd64.zip" `
+            -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne `
+              "815ee6973ec5dff6a671d7f41b0e78835a8c45b91d5a39f4743ea1cee833d3be") {
+            throw "Syft checksum mismatch"
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath $tools -Force
+          $syft = Join-Path $tools "syft.exe"
+          $env:SYFT_CHECK_FOR_APP_UPDATE = "false"
+          & $syft .\plugin\dist\diptrace_mcp_bridge.exe `
+            -o "cyclonedx-json=.local\open-source-readiness\deep-audit\raw\syft-bridge.json"
+          & $syft .\plugin\dist\diptrace_mcp_windows_plugin-unsigned.zip `
+            -o "cyclonedx-json=.local\open-source-readiness\deep-audit\raw\syft-plugin-zip.json"
+          python scripts\compare_artifact_sbom.py `
+            .local\open-source-readiness\deep-audit\raw\syft-bridge.json `
+            --pyproject pyproject.toml `
+            --output .local\open-source-readiness\deep-audit\artifact-sbom-bridge-summary.json
+          python scripts\compare_artifact_sbom.py `
+            .local\open-source-readiness\deep-audit\raw\syft-plugin-zip.json `
+            --pyproject pyproject.toml `
+            --output .local\open-source-readiness\deep-audit\artifact-sbom-plugin-summary.json
+      - name: Upload sanitized Windows summaries only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-bundle-inventory-${{ github.sha }}
+          retention-days: 3
+          if-no-files-found: warn
+          path: |
+            .local/open-source-readiness/deep-audit/windows-bundle-inventory.json
+            .local/open-source-readiness/deep-audit/authenticode-status.json
+            .local/open-source-readiness/deep-audit/signing-required-test.json
+            .local/open-source-readiness/deep-audit/artifact-sbom-bridge-summary.json
+            .local/open-source-readiness/deep-audit/artifact-sbom-plugin-summary.json
