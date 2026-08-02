@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 140831,
-  "canonical_descriptor_sha256": "384f8355475f158faec06218d931f3b2f433fdaede6fabf68813d3ba3b4222d2",
+  "canonical_descriptor_bytes": 142746,
+  "canonical_descriptor_sha256": "073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db",
   "format_version": 1,
   "tool_count": 159,
   "tools": [
@@ -1288,7 +1288,7 @@
       }
     },
     {
-      "description": "Rank route connections by deterministic corridor congestion without editing. All distances are in millimetres, regardless of the document's own Units attribute. Input schema: diptrace://schemas/tool-inputs.",
+      "description": "Rank route connections by deterministic corridor congestion without editing. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. All distances are in millimetres, regardless of the document's own Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
           "connections": {
@@ -5444,7 +5444,7 @@
       }
     },
     {
-      "description": "Plan a coupled route; omitted clearance comes from document DRC. All distances are in millimetres, regardless of the document's own Units attribute.",
+      "description": "Plan a coupled route; omitted clearance comes from document DRC. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. All distances are in millimetres, regardless of the document's own Units attribute.",
       "inputSchema": {
         "properties": {
           "clearance": {
@@ -6515,7 +6515,7 @@
       }
     },
     {
-      "description": "Rotate selected PCB components or schematic parts transactionally. All distances are in millimetres, regardless of the document's own Units attribute. Input schema: diptrace://schemas/tool-inputs. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
+      "description": "Rotate selected PCB components or schematic parts transactionally. Component angle semantics have not yet been independently validated against a live DipTrace GUI edit and re-export. Inspect the transaction preview and verify the result through DipTrace before relying on rotation changes. All distances are in millimetres, regardless of the document's own Units attribute. Input schema: diptrace://schemas/tool-inputs. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
       "inputSchema": {
         "properties": {
           "allow_locked": {
@@ -6621,7 +6621,7 @@
       }
     },
     {
-      "description": "Route one pad-to-pad connection with bounded deterministic 45-degree A*.\n\nOmit clearance to use the applicable document DRC TraceToTrace rule. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
+      "description": "Route one pad-to-pad connection with bounded deterministic 45-degree A*.\n\nOmit clearance to use the applicable document DRC TraceToTrace rule. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
       "inputSchema": {
         "properties": {
           "avoid_component_bodies": {
@@ -6807,7 +6807,7 @@
       }
     },
     {
-      "description": "Route multiple connections sequentially with bounded rip-up/retry. All distances are in millimetres, regardless of the document's own Units attribute. Input schema: diptrace://schemas/tool-inputs. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
+      "description": "Route multiple connections sequentially with bounded rip-up/retry. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. All distances are in millimetres, regardless of the document's own Units attribute. Input schema: diptrace://schemas/tool-inputs. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
       "inputSchema": {
         "properties": {
           "connections": {
@@ -6894,7 +6894,7 @@
       }
     },
     {
-      "description": "Route a coupled pair; omitted clearance comes from document DRC. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
+      "description": "Route a coupled pair; omitted clearance comes from document DRC. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
       "inputSchema": {
         "properties": {
           "clearance": {
@@ -7069,7 +7069,7 @@
       }
     },
     {
-      "description": "Route exported ratlines; omitted clearance comes from document DRC. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
+      "description": "Route exported ratlines; omitted clearance comes from document DRC. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
       "inputSchema": {
         "properties": {
           "clearance": {

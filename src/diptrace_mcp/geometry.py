@@ -4,6 +4,8 @@ import math
 from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass, replace
 
+from .errors import InvalidArgumentError
+
 UNIT_TO_MM: dict[str, float] = {"mm": 1.0, "inch": 25.4, "mil": 0.0254}
 
 
@@ -11,7 +13,10 @@ def to_mm(value: float, unit: str) -> float:
     try:
         scale = UNIT_TO_MM[unit.casefold()]
     except KeyError as exc:
-        raise ValueError(f"Unsupported coordinate unit: {unit!r}") from exc
+        raise InvalidArgumentError(
+            "Unsupported coordinate unit",
+            details={"unit": str(unit)[:32]},
+        ) from exc
     return float(value) * scale
 
 
@@ -19,7 +24,10 @@ def from_mm(value: float, unit: str) -> float:
     try:
         scale = UNIT_TO_MM[unit.casefold()]
     except KeyError as exc:
-        raise ValueError(f"Unsupported coordinate unit: {unit!r}") from exc
+        raise InvalidArgumentError(
+            "Unsupported coordinate unit",
+            details={"unit": str(unit)[:32]},
+        ) from exc
     return float(value) / scale
 
 
