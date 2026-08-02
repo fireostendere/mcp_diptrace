@@ -6,12 +6,16 @@ from __future__ import annotations
 import argparse
 import collections
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 
 def _safe_path(value: object) -> str:
-    return str(value or "").replace("\\", "/").lstrip("/")
+    text = str(value or "").replace("\\", "/")
+    if re.match(r"^(?:/|[A-Za-z]:/)", text):
+        return "<absolute-path>"
+    return text
 
 
 def summarize(source: Path) -> dict[str, Any]:

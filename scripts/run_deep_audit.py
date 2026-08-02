@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -132,6 +133,14 @@ def _relative_path(value: object) -> str:
     text = text.replace("\\", "/")
     if text.startswith(root_text + "/"):
         text = text.removeprefix(root_text + "/")
+    current_match = re.search(r"/(?:current)/(.+)$", text)
+    if current_match:
+        return current_match.group(1)
+    history_match = re.search(r"/history/[0-9a-f]{40}/(.+)$", text)
+    if history_match:
+        return history_match.group(1)
+    if re.match(r"^(?:/|[A-Za-z]:/)", text):
+        return "<absolute-path>"
     return text.lstrip("/")
 
 

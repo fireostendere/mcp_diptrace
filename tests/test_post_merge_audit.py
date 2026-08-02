@@ -6,10 +6,13 @@ from pathlib import Path
 import pytest
 import yaml
 
+from scripts.compare_artifact_sbom import _safe_component_name
 from scripts.run_clean_room_audit import _safe_output as safe_clean_output
-from scripts.run_deep_audit import DEFAULT_OUTPUT
+from scripts.run_deep_audit import DEFAULT_OUTPUT, _relative_path
 from scripts.run_deep_audit import _safe_output as safe_deep_output
 from scripts.run_dependency_audit import _groups
+from scripts.summarize_pyinstaller_inventory import _member_from_line
+from scripts.summarize_scancode import _safe_path
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -20,6 +23,15 @@ def test_raw_audit_output_is_confined_to_ignored_private_tree() -> None:
         safe_deep_output(ROOT / "docs")
     with pytest.raises(ValueError):
         safe_clean_output(ROOT / "release-dist")
+
+
+def test_sanitized_summaries_do_not_retain_absolute_paths() -> None:
+    assert _relative_path("/tmp/audit/current/docs/README.md") == "docs/README.md"
+    assert _relative_path("/tmp/audit/history/" + "a" * 40 + "/docs/README.md") == "docs/README.md"
+    assert _relative_path("C:/Users/private/a.txt") == "<absolute-path>"
+    assert _safe_component_name("/tmp/syft/file") == "<absolute-path>"
+    assert _safe_path("C:/Users/private/a.txt") == "<absolute-path>"
+    assert _member_from_line("  C:\\Users\\private\\secret.dll") == "<absolute-path>"
 
 
 def test_secret_allowlist_is_only_the_narrow_ignored_private_path() -> None:

@@ -15,7 +15,14 @@ def _member_from_line(line: str) -> str | None:
     if not value or value.startswith("(") or value.startswith("Contents"):
         return None
     match = re.search(r"([A-Za-z0-9_.+/-]+(?:\\[A-Za-z0-9_.+ -]+)*)$", value)
-    return match.group(1).replace("\\", "/") if match else None
+    if not match:
+        return None
+    member = match.group(1).replace("\\", "/")
+    if re.match(r"^(?:/|[A-Za-z]:/)", member) or re.search(
+        r"(?:^|/)Users/[^/]+/", member, re.IGNORECASE
+    ):
+        return "<absolute-path>"
+    return member
 
 
 def summarize(source: Path) -> dict[str, Any]:

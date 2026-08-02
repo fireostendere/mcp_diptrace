@@ -21,12 +21,19 @@ def _name(requirement: str) -> str:
     return value.lower().replace("_", "-")
 
 
+def _safe_component_name(value: object) -> str:
+    text = str(value or "").replace("\\", "/")
+    if re.match(r"^(?:/|[A-Za-z]:/)", text):
+        return "<absolute-path>"
+    return text
+
+
 def summarize(sbom: Path, pyproject: Path) -> dict[str, Any]:
     data = json.loads(sbom.read_text(encoding="utf-8"))
     components = data.get("components", []) if isinstance(data, dict) else []
     observed = sorted(
         {
-            str(item.get("name", "")).lower().replace("_", "-")
+            _safe_component_name(item.get("name")).lower().replace("_", "-")
             for item in components
             if isinstance(item, dict) and item.get("name")
         }
