@@ -13,6 +13,14 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 
 Это пока не полная замена интерактивному EDA-движку DipTrace. Для проверенных PCB/schematic live-путей уже есть контролируемые Windows/WSL apply, cancel, wrong-SHA, GUI, save и re-export доказательства. Главный незакрытый слой теперь — более широкие redistributable evidence для остальных writers, вариантов исходных файлов, native libraries и optional external-tool путей. Создание/изменение native Component/Pattern Libraries и native manufacturing outputs по-прежнему намеренно не заявлены как готовые возможности.
 
+Ограничения evidence явно раскрыты: live GUI/re-export проверка Component Angle
+ещё не выполнена, поэтому результаты rotation содержат structured warning.
+Routing и offline trace-to-trace review учитывают board defaults и NetClass
+правила затронутых сетей; trace-to-object и placement clearance пока частичны.
+Публичный XML inventory содержит только project-authored observations, не является
+нормативной спецификацией DipTrace и не заявляет разрешение Novarm или universal
+совместимость с DipTrace 5.3.
+
 Актуальный порядок работ и критерии завершения находятся в [roadmap](docs/ROADMAP.md). Фактическую доступность конкретной операции всегда определяет `get_capabilities`.
 
 ## Статус публичного релиза
@@ -372,6 +380,8 @@ schema и выбраны по письменному механическому 
 - native Component/Pattern Library mutation недоступна до verified DipTrace 5.3 round-trip fixtures;
 - schematic wire authoring и ratline generation требуют дополнительного real DipTrace 5.3 round-trip evidence;
 - real-openEMS golden validation остаётся внешней acceptance-задачей.
+- направление, единицы, нормализация и side/mirror semantics угла `rotate_components` требуют live GUI evidence; до этого нужно проверять preview и structured warning;
+- NetClass rules пока не применяются к trace-object и placement clearance; эти результаты явно partial и не являются полным DRC sign-off.
 
 ## Документация
 

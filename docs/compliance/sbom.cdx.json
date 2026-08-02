@@ -168,30 +168,6 @@
       "type": "library"
     },
     {
-      "bom-ref": "pkg:pypi/pypdf",
-      "licenses": [
-        {
-          "license": {
-            "id": "BSD-3-Clause"
-          }
-        }
-      ],
-      "name": "pypdf",
-      "properties": [
-        {
-          "name": "diptrace-mcp:declared-groups",
-          "value": "development"
-        },
-        {
-          "name": "diptrace-mcp:license-review",
-          "value": "human_review_required"
-        }
-      ],
-      "purl": "pkg:pypi/pypdf",
-      "scope": "optional",
-      "type": "library"
-    },
-    {
       "bom-ref": "pkg:pypi/pytest",
       "licenses": [
         {
@@ -364,7 +340,7 @@
     "properties": [
       {
         "name": "diptrace-mcp:inspected-commit",
-        "value": "f4ea60352a560d03f0cee45d500c186530e6f5f6"
+        "value": "be582bdd2186e986be085d578dc902043f575500"
       },
       {
         "name": "diptrace-mcp:inspection-date",
@@ -383,7 +359,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:62f5058a-c1cf-568c-9141-059d61319c56",
+  "serialNumber": "urn:uuid:9f2f7155-ee35-5a32-b4b1-d3f4a3deb19c",
   "specVersion": "1.5",
   "version": 1
 }

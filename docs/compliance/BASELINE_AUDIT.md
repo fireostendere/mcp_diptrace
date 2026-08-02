@@ -15,6 +15,13 @@ This report contains repository facts and bounded audit observations. It is not
 legal advice, an independent audit, a DipTrace permission record, a signing
 record, or an OpenAI application decision.
 
+This is a historical baseline report, not a current release manifest. Its
+references to tracked extracts, source PDFs, the source-derived inventory, and
+the then-installed `pypdf` dependency describe the inspected baseline only.
+The current public-tree decision and replacement inventory are recorded in
+[REFERENCE_MATERIALS_AUDIT.md](../REFERENCE_MATERIALS_AUDIT.md) and
+[DIPTRACE_MATERIALS_STATUS.md](DIPTRACE_MATERIALS_STATUS.md).
+
 ## Repository and CI inventory
 
 The repository contains the Python MCP server, packaged skills, Windows bridge

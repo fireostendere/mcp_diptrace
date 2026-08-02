@@ -15,6 +15,14 @@ It is not yet a full replacement for DipTrace's interactive EDA engine. PCB and 
 
 Native Component/Pattern Library mutation and native manufacturing output generation are therefore intentionally not presented as completed capabilities.
 
+Current evidence limits are explicit: live Component Angle GUI/re-export validation
+is still pending, so rotation results carry a structured warning. Routing and
+offline trace-to-trace review resolve board defaults and affected NetClass rules;
+trace-to-object and placement clearance remain partial. The public XML inventory
+contains project-authored observations only; it is not a normative DipTrace
+specification and does not claim Novarm permission or universal DipTrace 5.3
+compatibility.
+
 See [the roadmap](docs/ROADMAP.md) for the current priority order and exit criteria. Runtime truth for a specific document always comes from `get_capabilities`.
 
 ## Public Release Status
@@ -373,6 +381,8 @@ themselves with an agent host; point that host at the installed `diptrace_mcp/sk
 - Native Component/Pattern Library mutation remains unavailable until verified DipTrace 5.3 round-trip fixtures exist.
 - Authored schematic wires and generated ratlines still need broader real DipTrace 5.3 round-trip evidence.
 - Real-openEMS golden validation remains external-runtime acceptance work.
+- `rotate_components` angle direction, units, normalization, and side/mirror semantics remain live-GUI evidence questions; inspect its preview and structured warning before relying on the change.
+- NetClass rules are not yet applied to trace-object or placement clearance paths; their results disclose the partial status and are not full DRC sign-off.
 
 ## Documentation
 

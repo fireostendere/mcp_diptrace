@@ -1,12 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- disclose pending live component-angle evidence and expose structured evidence warnings;
+- resolve routing and trace-to-trace review clearances from board defaults plus affected NetClasses;
+- add a centralized service-to-MCP error boundary with stable public error codes and safe details;
+- remove verbatim external reference extracts and source-derived inventory from public surfaces;
+- add a clean-room factual inventory generator and a pending DipTrace 5.3 fixture-pack manifest;
+- document the remaining live-evidence, provenance, and partial-clearance limitations.
+
 This file records user-visible project changes. Version `0.1.0` was the first
 tagged release; the withdrawn `0.1.1` release and the corrected `0.1.2`
 development release are retained as separate historical records.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
-## Unreleased
 
 ### Documentation
 
