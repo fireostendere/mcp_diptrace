@@ -386,6 +386,26 @@ def synthesize_routes_with_retry(
                 }
                 for item in routed
             ],
+            "clearance_resolutions": [
+                {
+                    key: item.metrics[key]
+                    for key in (
+                        "requested_clearance_mm",
+                        "required_clearance_mm",
+                        "effective_clearance_mm",
+                        "clearance_sources",
+                        "netclass_rules_applied",
+                        "netclass_rules_ignored",
+                        "clearance_rule_status",
+                    )
+                    if key in item.metrics
+                }
+                for item in routed
+            ],
+            "netclass_rules_ignored": any(
+                bool(item.metrics.get("netclass_rules_ignored", False))
+                for item in routed
+            ),
             "elapsed_ms": (time.monotonic() - started) * 1_000.0,
         },
     )

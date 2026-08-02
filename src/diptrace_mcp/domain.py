@@ -1421,6 +1421,9 @@ class CapabilityReport(StrictModel):
     registered_checks: list[str] = Field(default_factory=list)
     workflow_prompts: list[dict[str, Any]] = Field(default_factory=list)
     trust_model: dict[str, Any] = Field(default_factory=dict)
+    clearance_rule_status: dict[str, Any] = Field(default_factory=dict)
+    netclass_rules_ignored: bool = False
+    evidence_warnings: list[dict[str, Any]] = Field(default_factory=list)
 
 
 ImpedanceStructure = Literal[
