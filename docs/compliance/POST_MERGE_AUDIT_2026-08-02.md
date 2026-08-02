@@ -27,18 +27,28 @@ The sanitized summaries in this document are updated from local or manual
 workflow runs. Raw reports are never committed and remain only under the
 ignored `.local/open-source-readiness/deep-audit/` directory.
 
-- Secret scan: Gitleaks and detect-secrets scan the current tracked tree and
-  all reachable Git objects; `.local/` is not staged or scanned. Findings are
-  summarized by rule/plugin and relative path only. A finding is a stop-and-
-  rotate event, not an item to suppress broadly.
-- Dependency audit: pip-audit checks runtime, geometry, build, PyInstaller,
-  and development requirement groups separately. It does not modify
-  `pyproject.toml` and does not claim that a clean advisory result proves
-  general security.
-- License audit: ScanCode, REUSE, pip-licenses, existing SBOM generation, and
-  third-party notices are compared. Automated identification is not legal
-  clearance; the current dependency inventory and notices retain human-review
-  flags, including transitive and PyInstaller content.
+- Secret scan: Gitleaks 8.30.1 and detect-secrets 1.5.0 both returned zero
+  findings for 297 tracked files and 1,634 reachable Git blobs. `.local/` was
+  not staged or scanned. Findings are summarized by rule/plugin and relative
+  path only. A finding is a stop-and-rotate event, not an item to suppress
+  broadly.
+- Dependency audit: pip-audit 2.10.1 checked runtime, geometry, build,
+  PyInstaller, and development groups separately. Runtime, geometry, build,
+  and PyInstaller groups were clean. Development has one actionable finding:
+  `pytest` 8.4.2 is affected by `PYSEC-2026-1845` (aliases
+  `CVE-2025-71176` and `GHSA-6w46-j5rx-g56g`), with fix `9.0.3`. The advisory
+  concerns local UNIX temporary-directory handling and is not a runtime or
+  wheel dependency finding. No dependency was changed automatically;
+  upgrading the development constraint and rerunning the full matrix is a
+  HUMAN ACTION REQUIRED decision.
+- License audit: REUSE 6.2.0 is not compliant for this tree because many
+  project files lack REUSE headers/annotations. ScanCode Toolkit 32.5.0
+  found 295 files, 267 without a file-level license expression, and several
+  `LicenseRef` expressions around external/reference material. pip-licenses,
+  deterministic SBOM generation, and third-party notices remain engineering
+  inventories. Automated identification is not legal clearance; no mechanical
+  mass-header change was made, and transitive/PyInstaller content remains
+  human review.
 - Clean-room build: a fresh clone/worktree must be clean, build wheel and
   sdist, audit the release allowlist, rebuild a wheel from sdist, compare every
   member SHA-256, install only declared runtime dependencies, run CLI help,
@@ -55,17 +65,31 @@ ignored `.local/open-source-readiness/deep-audit/` directory.
   bundle when those artifacts exist. Differences from `pyproject.toml`,
   `dependency-inventory.json`, `sbom.cdx.json`, and
   `THIRD_PARTY_NOTICES.md` are recorded as review items, not silently merged
-  into the deterministic project SBOM.
+  into the deterministic project SBOM. Syft 1.50.0 found no vendored Python
+  dependency components in the wheel or sdist, so all declared dependencies
+  appear as `declared_not_observed`; this is expected for a non-vendoring
+  package, not proof that dependency review is complete. Windows bundle and
+  plugin ZIP scans are deferred to the manual Windows job.
+
+The successful clean-room run used audit-branch source commit
+`18521404a683ea8364c52f320238a5d9ec1d8d4e`: direct wheel and sdist built,
+allowlist passed, wheel rebuilt from sdist, all 79 wheel members matched by
+SHA-256, clean installation passed, and CLI/MCP smoke returned zero. The
+sanitized artifacts had 79 wheel members and 303 sdist members; direct wheel
+SHA-256 was
+`1f2deb2db4f6d0ba53b7f25fd7556f623e7fa0a96daafc800171d1ee5b090994` and the
+same wheel was produced from sdist. Sdist hashes are intentionally treated as
+per-build evidence because archive metadata can change between builds.
 
 ## Findings and limitations
 
 The API verification found two policy/documentation mismatches: strict
 up-to-date checks are enabled and all three merge methods are allowed. The
-ruleset was not changed automatically. No local Windows/PowerShell run was
-possible, so Windows bundle/signature evidence remains pending the manual
-workflow. No independent legal, DipTrace-permission, independent-release-
-reviewer, conduct-channel, succession/recovery, or full bundled-dependency
-clearance claim is made.
+ruleset was not changed automatically. The development-only pytest advisory,
+REUSE gaps, unresolved ScanCode `LicenseRef` results, and missing local
+Windows/PowerShell evidence remain explicit findings. No independent legal,
+DipTrace-permission, independent-release-reviewer, conduct-channel,
+succession/recovery, or full bundled-dependency clearance claim is made.
 
 ## Reproduction
 
