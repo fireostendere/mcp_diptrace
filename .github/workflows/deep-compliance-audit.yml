@@ -48,6 +48,15 @@ jobs:
         env:
           GITLEAKS_BIN: ${{ runner.temp }}/tools/gitleaks
         run: python scripts/run_deep_audit.py
+      - name: Enforce secret scan fail-closed
+        id: secret_gate
+        if: always()
+        run: |
+          status=$(python -c 'import json; print(json.load(open(".local/open-source-readiness/deep-audit/secret-scan-summary.json"))["status"])')
+          if [ "$status" != "clean" ]; then
+            echo "HUMAN ACTION REQUIRED: secret scan status is $status; no audit artifact may be uploaded" >&2
+            exit 1
+          fi
       - name: Run dependency audit
         id: dependency_scan
         continue-on-error: true
@@ -98,7 +107,7 @@ jobs:
               --pyproject pyproject.toml \
               --output .local/open-source-readiness/deep-audit/artifact-sbom-summary.json
       - name: Upload sanitized audit summaries only
-        if: always()
+        if: ${{ !cancelled() && steps.secret_scan.outcome == 'success' && steps.secret_gate.outcome == 'success' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: deep-compliance-audit-summaries-${{ github.sha }}

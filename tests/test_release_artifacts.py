@@ -19,6 +19,7 @@ from scripts.audit_release_artifacts import (
     is_publication_safe_path,
     load_allowlist,
 )
+from scripts.hatch_build import _validated_release_paths
 
 
 def test_release_allowlist_matches_publication_safe_tracked_files() -> None:
@@ -55,6 +56,15 @@ def test_release_allowlist_contains_build_hook_and_auditor() -> None:
     assert "scripts/audit_release_artifacts.py" in paths
     assert "scripts/hatch_build.py" in paths
     assert "scripts/release_artifact_allowlist.txt" in paths
+
+
+def test_hatch_build_rejects_windows_separator_in_allowlist(tmp_path: Path) -> None:
+    manifest = tmp_path / "scripts" / "release_artifact_allowlist.txt"
+    manifest.parent.mkdir()
+    manifest.write_text("src\\private.txt\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unsafe"):
+        _validated_release_paths(tmp_path)
 
 
 def test_project_license_is_apache2_and_allowlisted() -> None:

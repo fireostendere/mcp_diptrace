@@ -40,6 +40,8 @@ def test_deep_workflow_is_manual_read_only_and_does_not_use_secrets() -> None:
     assert workflow["permissions"] == {"contents": "read"}
     assert "pull_request_target" not in text
     assert "secrets." not in text
+    assert "Enforce secret scan fail-closed" in text
+    assert "steps.secret_gate.outcome == 'success'" in text
     uses = re.findall(r"^\s*- uses:\s*([^\s#]+)", text, re.MULTILINE)
     assert uses
     assert all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", value) for value in uses)
