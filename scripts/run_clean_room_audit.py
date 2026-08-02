@@ -38,6 +38,8 @@ _PLACEHOLDER_USERS = {
     "<user>",
     "alice",
     "maintainer",
+    "name",
+    "operator",
     "private-owner",
     "test-user",
     "user",
@@ -93,8 +95,8 @@ def _archive_audit(path: Path) -> dict[str, Any]:
         text = content.decode("utf-8", errors="ignore")
         if any(marker and marker in text for marker in local_markers):
             content_hits.append(name)
-        windows_users = re.findall(r"[A-Za-z]:\\Users\\([^\\/\s\"'<>]+)", text)
-        unix_users = re.findall(r"/mnt/c/Users/([^/\s\"'<>]+)", text)
+        windows_users = re.findall(r"[A-Za-z]:\\Users\\([A-Za-z0-9._-]+)", text)
+        unix_users = re.findall(r"/mnt/c/Users/([A-Za-z0-9._-]+)", text)
         personal_users = [
             user
             for user in windows_users + unix_users
