@@ -5,6 +5,29 @@ objects and metrics. A wholly unavailable check returns a structured skip reason
 partially supported check can instead disclose skipped geometry in its metrics.
 `FindingStore` persists a report keyed by document SHA.
 
+## NetClass clearance disclosure
+
+Current status: `partial / ignored by routing clearance resolution`.
+
+Before the NetClass-aware resolver is enabled, routing and offline clearance
+checks read the per-layer `DRC/LayClearances/LayClearance.TraceToTrace` value
+and an explicitly requested clearance. They do not read the clearance stored
+under a referenced `NetClasses/NetClass/LayProperties/LayProperty`. This
+affects `route_connection`, `route_net`, `route_connections`, differential-pair
+routing, congestion ordering, and the trace-to-trace offline review. Placement
+and board-edge clearance are separate geometry checks and are not evidence that
+NetClass rules were applied.
+
+When a requested value is absent, the current fallback is the maximum available
+per-layer board DRC rule; a missing applicable board rule fails closed. An
+explicit value is currently accepted as supplied, even when it is lower than a
+NetClass rule, because that rule is not yet resolved. These results are not a
+full DRC sign-off and must not be treated as one.
+
+A routing or review result must expose `netclass_rules_ignored: true` and a
+`clearance_rule_status` object with the fallback source and warning code. The
+disclosure is part of the result contract, not only a log message.
+
 ## Coverage Status
 
 The table below is a representative release-review matrix, not a fabrication-house

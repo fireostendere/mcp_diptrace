@@ -13,6 +13,11 @@ refuse rather than guess.
 
 ## Q1: Is `Component/@Angle` in radians or degrees?
 
+**Current status:** `NOT RUN — live DipTrace GUI evidence unavailable in the current
+environment`. `rotate_components` therefore remains an evidence-gated operation: its
+preview/result carries `component_angle_live_validation_pending` until an independent
+DipTrace GUI edit and fresh DipTrace XML re-export are reviewed.
+
 **Question:** Does DipTrace interpret an ordinary PCB or schematic
 `Component/@Angle` value as radians or degrees?
 
@@ -35,6 +40,10 @@ The repository provides a stricter two-component control/probe
 values and UI observations without treating either convention as the expected answer.
 
 **Who can perform:** Human with a licensed DipTrace installation.
+
+**Human action required:** Follow
+[`q1-component-angle.HUMAN_ACTION_REQUIRED.md`](evidence_capture/q1-component-angle.HUMAN_ACTION_REQUIRED.md).
+Do not mark Q1 closed from a parser round-trip, a synthetic fixture, or an MCP-written XML file.
 
 ---
 

@@ -1,0 +1,17 @@
+{
+  "schema_version": "diptrace-evidence-result-v1",
+  "recipe_id": "q1-component-angle",
+  "status": "NOT_RUN",
+  "evidence_id": null,
+  "captured_at": null,
+  "diptrace_version": null,
+  "diptrace_build": null,
+  "observed_semantics": null,
+  "pass": false,
+  "limitations": [
+    "No live DipTrace PCB Layout GUI executable or active session was available in the capture environment.",
+    "The current Windows installation probe found DipTrace Viewer, CompEdit, and support files only.",
+    "No XML was promoted to evidence and no angle unit, direction, normalization, or side interaction was inferred."
+  ],
+  "human_action_required": "docs/evidence_capture/q1-component-angle.HUMAN_ACTION_REQUIRED.md"
+}
