@@ -35,6 +35,7 @@ _BANNED_NAME_PARTS = (
     "release-dist",
 )
 _PLACEHOLDER_USERS = {
+    "...",
     "<user>",
     "alice",
     "maintainer",
