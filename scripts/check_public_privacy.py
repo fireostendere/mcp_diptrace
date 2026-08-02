@@ -39,6 +39,10 @@ REQUIRED_IGNORED_PATHS = (
     "docs/private/operator-notes.md",
     "SIGNPATH_ORGANIZATION_ID.account.json",
     "OPENAI_APPLICATION_DRAFT.md",
+    ".local/open-source-readiness/openai/application_draft.md",
+    "permission_request.md",
+    "forum_post.md",
+    "signpath_organization_id.account.json",
 )
 
 

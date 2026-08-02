@@ -14,6 +14,12 @@ $RepoRoot = Split-Path -Parent $PluginDir
 $Verifier = Join-Path $PluginDir "verify_signature.ps1"
 $ResolvedOutput = [IO.Path]::GetFullPath($OutputZip)
 $Stage = Join-Path ([IO.Path]::GetTempPath()) ("diptrace-mcp-plugin-" + [guid]::NewGuid().ToString("N"))
+$ExpectedSettingNames = @(
+    "component.settings.xml",
+    "pattern.settings.xml",
+    "pcb.settings.xml",
+    "schematic.settings.xml"
+)
 
 try {
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Verifier `
@@ -30,7 +36,13 @@ try {
     Copy-Item -LiteralPath (Join-Path $PluginDir "install_plugin.ps1") -Destination (Join-Path $Stage "install_plugin.ps1")
     Copy-Item -LiteralPath (Join-Path $RepoRoot "docs\INSTALL_FROM_RELEASE.md") -Destination (Join-Path $Stage "INSTALL_FROM_RELEASE.md")
     Copy-Item -LiteralPath (Join-Path $RepoRoot "docs\LIVE_EXCHANGE_PATHS.md") -Destination (Join-Path $Stage "LIVE_EXCHANGE_PATHS.md")
-    Copy-Item -LiteralPath (Join-Path $PluginDir "settings\*.settings.xml") -Destination (Join-Path $Stage "settings")
+    foreach ($SettingName in $ExpectedSettingNames) {
+        $SettingSource = Join-Path (Join-Path $PluginDir "settings") $SettingName
+        if (-not (Test-Path -LiteralPath $SettingSource -PathType Leaf)) {
+            throw "Required plug-in setting is missing: $SettingName"
+        }
+        Copy-Item -LiteralPath $SettingSource -Destination (Join-Path $Stage "settings") -Force
+    }
     Compress-Archive -Path (Join-Path $Stage "*") -DestinationPath $ResolvedOutput -Force
     Get-FileHash -LiteralPath $ResolvedOutput -Algorithm SHA256 | Format-Table -AutoSize
 }

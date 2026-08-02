@@ -21,9 +21,19 @@ jobs:
     name: Build, test, and package bridge
     runs-on: windows-latest
     steps:
+      - name: Require a protected ref for signing
+        if: ${{ inputs.signing_required == true }}
+        shell: pwsh
+        env:
+          WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          if ($env:WORKFLOW_REF -ne "refs/heads/main") {
+            throw "HUMAN ACTION REQUIRED: signing is allowed only from the protected main ref"
+          }
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
+          ref: ${{ github.sha }}
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
@@ -62,7 +72,7 @@ jobs:
 
   protected-signing-handoff:
     name: Protected SignPath handoff
-    if: ${{ inputs.signing_required == true }}
+    if: ${{ inputs.signing_required == true && github.ref == 'refs/heads/main' }}
     needs: build-test-package
     runs-on: windows-latest
     environment: windows-signing
@@ -74,11 +84,13 @@ jobs:
           SIGNPATH_PROJECT_ID: ${{ vars.SIGNPATH_PROJECT_ID }}
           SIGNPATH_SIGNING_POLICY_ID: ${{ vars.SIGNPATH_SIGNING_POLICY_ID }}
           SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          EXPECTED_SIGNER_SUBJECT: ${{ inputs.expected_signer_subject }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_ORGANIZATION_ID) -or
               [string]::IsNullOrWhiteSpace($env:SIGNPATH_PROJECT_ID) -or
               [string]::IsNullOrWhiteSpace($env:SIGNPATH_SIGNING_POLICY_ID) -or
-              [string]::IsNullOrWhiteSpace($env:SIGNPATH_API_TOKEN)) {
+              [string]::IsNullOrWhiteSpace($env:SIGNPATH_API_TOKEN) -or
+              [string]::IsNullOrWhiteSpace($env:EXPECTED_SIGNER_SUBJECT)) {
             throw "HUMAN ACTION REQUIRED: configure the protected SignPath integration before requesting signing"
           }
           throw "HUMAN ACTION REQUIRED: replace this reviewed handoff with the approved pinned SignPath action"

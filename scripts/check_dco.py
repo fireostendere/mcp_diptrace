@@ -41,8 +41,9 @@ def _commit_ids(base: str | None, head: str | None, commit: str | None) -> list[
     if head == _ZERO_SHA:
         raise ValueError("head SHA is the all-zero GitHub event placeholder")
     if base == _ZERO_SHA:
-        return [head]
-    output = _git("rev-list", "--no-merges", f"{base}..{head}")
+        output = _git("rev-list", "--topo-order", "--reverse", head)
+        return [line for line in output.splitlines() if line]
+    output = _git("rev-list", "--topo-order", "--reverse", f"{base}..{head}")
     return [line for line in output.splitlines() if line]
 
 

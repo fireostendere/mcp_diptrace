@@ -40,5 +40,18 @@ scancode-results*.json
 *SIGNPATH*ID*
 *.identity.json
 *.account.json
+# Keep the same protection on case-sensitive filesystems used by CI.
+*openai*application*
+*application_draft*
+*permission_request*
+*forum_announcement*
+*forum_post*
+*outreach_draft*
+*submission_confirmation*
+*human_actions_private*
+*diptrace_permission_request*
+*signpath*id*
+*.IDENTITY.JSON
+*.ACCOUNT.JSON
 
 reference/diptrace-xml/sources/*.pdf

@@ -4,6 +4,9 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
+import scripts.check_dco as check_dco
 from scripts.check_dco import has_dco_signoff
 from scripts.check_provenance_inventory import validate_inventory
 from scripts.check_public_privacy import (
@@ -19,6 +22,24 @@ def test_dco_checker_accepts_and_rejects_signoff_lines() -> None:
     assert has_dco_signoff("subject\n\nSigned-off-by: Contributor <contributor@example.com>\n")
     assert not has_dco_signoff("subject\n\nReviewed-by: Contributor <contributor@example.com>\n")
     assert not has_dco_signoff("subject\n\nSigned-off-by: no-email\n")
+
+
+def test_dco_range_keeps_merge_commits(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def fake_git(*args: str) -> str:
+        calls.append(args)
+        if args[0] == "rev-list":
+            return "merge-sha\nleaf-sha\n"
+        if args[-1] == "merge-sha":
+            return "Merge commit\n"
+        return "Leaf commit\nSigned-off-by: Person <person@example.com>\n"
+
+    monkeypatch.setattr(check_dco, "_git", fake_git)
+    missing = check_dco.check_range(base="base-sha", head="head-sha")
+
+    assert missing == [{"sha": "merge-sha", "subject": "Merge commit"}]
+    assert ("rev-list", "--topo-order", "--reverse", "base-sha..head-sha") in calls
 
 
 def test_private_path_deny_list_is_explicit_without_generic_word_matches() -> None:
@@ -85,3 +106,8 @@ def test_signing_material_has_no_real_account_values_and_keeps_unsigned_mode_exp
     assert "signtool verify /pa /v" in verifier
     assert "HUMAN ACTION REQUIRED" in workflow
     assert "api.openai.com" not in signing
+    assert "SIGNING_REQUIRED" in verifier
+    assert "expected signer subject is required" in verifier.lower()
+    assert "Require a protected ref for signing" in workflow
+    package_script = (ROOT / "plugin/package_plugin.ps1").read_text(encoding="utf-8")
+    assert '-LiteralPath (Join-Path $PluginDir "settings\\*.settings.xml")' not in package_script

@@ -30,6 +30,14 @@ REQUIRED_COLUMNS = (
     "evidence_reference",
     "human_action_required",
 )
+SURFACE_COLUMNS = (
+    "included_in_git",
+    "included_in_sdist",
+    "included_in_wheel",
+    "included_in_windows_executable",
+    "included_in_release_assets",
+)
+ALLOWED_SURFACE_VALUES = {"yes", "no", "partial"}
 
 
 def validate_inventory(path: Path = DEFAULT_PATH) -> list[str]:
@@ -57,6 +65,14 @@ def validate_inventory(path: Path = DEFAULT_PATH) -> list[str]:
 
     seen: set[str] = set()
     for line_number, row in enumerate(rows, start=2):
+        if None in row or any(value is None for value in row.values()):
+            errors.append(
+                f"line {line_number}: row must contain exactly {len(REQUIRED_COLUMNS)} columns"
+            )
+            continue
+        if any(not row[column].strip() for column in REQUIRED_COLUMNS):
+            errors.append(f"line {line_number}: required inventory fields must not be empty")
+            continue
         path_or_pattern = row["path_or_pattern"]
         if not path_or_pattern or path_or_pattern in seen:
             errors.append(f"line {line_number}: empty or duplicate path_or_pattern")
@@ -65,7 +81,19 @@ def validate_inventory(path: Path = DEFAULT_PATH) -> list[str]:
             errors.append(f"line {line_number}: path_or_pattern must be repository-relative")
         if not row["category"] or not row["redistribution_status"]:
             errors.append(f"line {line_number}: category and redistribution status are required")
-    if not any(row["human_action_required"].strip().lower() == "yes" for row in rows):
+        for column in SURFACE_COLUMNS:
+            if row[column].strip().lower() not in ALLOWED_SURFACE_VALUES:
+                errors.append(
+                    f"line {line_number}: {column} must be one of "
+                    f"{sorted(ALLOWED_SURFACE_VALUES)!r}"
+                )
+        if row["human_action_required"].strip().lower() not in {"yes", "no"}:
+            errors.append(f"line {line_number}: human_action_required must be yes or no")
+    if not any(
+        row.get("human_action_required", "").strip().lower() == "yes"
+        for row in rows
+        if None not in row and all(value is not None for value in row.values())
+    ):
         errors.append("inventory must preserve at least one explicit human action")
     return errors
 

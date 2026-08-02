@@ -82,6 +82,19 @@ def test_static_analysis_runs_compliance_gates() -> None:
     assert "python scripts/generate_compliance_inventory.py --check" in commands
 
 
+def test_dco_job_uses_the_actual_pr_head_and_is_not_a_post_merge_gate() -> None:
+    workflow_path = ROOT / ".github/workflows/ci.yml"
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    dco = workflow["jobs"]["dco"]
+    assert dco["if"] == "${{ github.event_name == 'pull_request' }}"
+    dco_checkout = dco["steps"][0]
+    assert dco_checkout["with"]["fetch-depth"] == 0
+    assert dco_checkout["with"]["ref"] == "${{ github.event.pull_request.head.sha }}"
+    command_step = dco["steps"][1]
+    assert command_step["env"]["BASE_SHA"] == "${{ github.event.pull_request.base.sha }}"
+    assert command_step["env"]["HEAD_SHA"] == "${{ github.event.pull_request.head.sha }}"
+
+
 def test_all_workflow_actions_are_pinned_to_full_commit_shas() -> None:
     uses_pattern = re.compile(r"^\s*-?\s*uses:\s*([^\s#]+)", re.MULTILINE)
     sha_pattern = re.compile(r"^[^@]+@[0-9a-f]{40}$")

@@ -8,13 +8,25 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ResolvedPath = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).Path
+$SigningRequired = $false
+if (-not [string]::IsNullOrWhiteSpace($env:SIGNING_REQUIRED)) {
+    switch ($env:SIGNING_REQUIRED.Trim().ToLowerInvariant()) {
+        "true" { $SigningRequired = $true }
+        "false" { $SigningRequired = $false }
+        default { throw "SIGNING_REQUIRED must be exactly true or false" }
+    }
+}
+$EffectiveRequireSigned = [bool]$RequireSigned -or $SigningRequired
+if ($EffectiveRequireSigned -and [string]::IsNullOrWhiteSpace($ExpectedSignerSubject)) {
+    throw "An expected signer subject is required when signing is required"
+}
 $Signature = Get-AuthenticodeSignature -FilePath $ResolvedPath
 $Status = [string]$Signature.Status
 
 if ($Status -notin @("Valid", "NotSigned")) {
     throw "Authenticode verification returned status '$Status' for $ResolvedPath"
 }
-if ($RequireSigned -and $Status -ne "Valid") {
+if ($EffectiveRequireSigned -and $Status -ne "Valid") {
     throw "A signed artifact is required, but the artifact status is '$Status'"
 }
 
@@ -33,7 +45,7 @@ if ($Status -eq "Valid") {
             "received '$SignerSubject'."
         )
     }
-    if ($RequireSigned -and -not $TimestampPresent) {
+    if ($EffectiveRequireSigned -and -not $TimestampPresent) {
         throw "A valid signed artifact without an Authenticode timestamp is not accepted"
     }
 
@@ -52,6 +64,6 @@ if ($Status -eq "Valid") {
     status = $Status
     signer_subject = $SignerSubject
     timestamp_present = $TimestampPresent
-    signing_required = [bool]$RequireSigned
+    signing_required = $EffectiveRequireSigned
     signtool_available = $null -ne $SignTool
 } | ConvertTo-Json -Compress

@@ -206,6 +206,7 @@ jobs:
 
   dco:
     name: DCO
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -213,8 +214,9 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Check commit sign-offs
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: python scripts/check_dco.py --base "$BASE_SHA" --head "$HEAD_SHA"

@@ -28,14 +28,16 @@ Keep these stages distinct:
 The repository provides `plugin/verify_signature.ps1` and
 `plugin/package_plugin.ps1` for stages 5–7. With no signing requirement,
 `package_plugin.ps1` explicitly permits `NotSigned` and the output remains an
-unsigned development artifact. With `-RequireSigned`, it requires a valid
-signature, the configured signer subject when supplied, and an Authenticode
-timestamp. If `signtool.exe` is available, it also runs `signtool verify /pa /v`.
+unsigned development artifact. With `-RequireSigned` or
+`SIGNING_REQUIRED=true`, it requires a valid signature, a non-empty expected
+signer subject, and an Authenticode timestamp. If `signtool.exe` is available,
+it also runs `signtool verify /pa /v`.
 
 ## Configuration boundary
 
 Use environment variables or protected GitHub variables/secrets only; never
-commit their values:
+commit their values. Direct packaging treats `SIGNING_REQUIRED=true` exactly
+like `-RequireSigned`; unknown values fail closed:
 
 ```text
 SIGNPATH_ORGANIZATION_ID     # protected variable; not a public identifier
