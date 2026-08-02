@@ -72,17 +72,18 @@ ignored `.local/open-source-readiness/deep-audit/` directory.
   package, not proof that dependency review is complete. Windows bundle and
   plugin ZIP scans are deferred to the manual Windows job.
 
-The successful clean-room run used audit-branch source commit
-`1f3d79fc4662bcb5f53488a65bd1d3a84594dd41`: direct wheel and sdist built,
+The final successful clean-room run used audit-branch source commit
+`52703517f3b8cd9ec6ec35175ac1b6b63b235ec2`: direct wheel and sdist built,
 allowlist passed, wheel rebuilt from sdist, all 79 wheel members matched by
 SHA-256, clean installation passed, and CLI/MCP smoke returned zero. The
 sanitized artifacts had 79 wheel members and 303 sdist members; direct wheel
 SHA-256 was
 `1f2deb2db4f6d0ba53b7f25fd7556f623e7fa0a96daafc800171d1ee5b090994`; the
 sdist SHA-256 for that run was
-`5f36e685af749e0078f63240311dd37bfbfc83c2789be5680cfaf7817862c786`. Sdist
+`ee143134379cc1290e5c7aeceeb84cd9cc442955ddcabc00a0ccb92ede994bcd`. Sdist
 hashes are intentionally treated as per-build evidence because archive metadata
-can change between builds.
+can change between builds and this report is itself part of the source
+distribution.
 
 ## Findings and limitations
 
