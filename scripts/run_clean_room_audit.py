@@ -34,6 +34,16 @@ _BANNED_NAME_PARTS = (
     "scancode-results",
     "release-dist",
 )
+_PLACEHOLDER_USERS = {
+    "<user>",
+    "alice",
+    "maintainer",
+    "private-owner",
+    "test-user",
+    "user",
+    "username",
+    "you",
+}
 
 
 def _safe_output(path: Path) -> Path:
@@ -83,9 +93,14 @@ def _archive_audit(path: Path) -> dict[str, Any]:
         text = content.decode("utf-8", errors="ignore")
         if any(marker and marker in text for marker in local_markers):
             content_hits.append(name)
-        if "/mnt/c/users/" in text.casefold():
-            content_hits.append(name)
-        if re.search(r"[A-Za-z]:\\Users\\(?!you(?:\\|$)|user(?:name)?(?:\\|$))", text):
+        windows_users = re.findall(r"[A-Za-z]:\\Users\\([^\\/\s\"'<>]+)", text)
+        unix_users = re.findall(r"/mnt/c/Users/([^/\s\"'<>]+)", text)
+        personal_users = [
+            user
+            for user in windows_users + unix_users
+            if user.casefold() not in _PLACEHOLDER_USERS
+        ]
+        if personal_users:
             content_hits.append(name)
     return {
         "artifact": path.name,

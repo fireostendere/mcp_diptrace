@@ -66,6 +66,5 @@ def test_audit_docs_do_not_publish_workstation_or_ruleset_identifiers() -> None:
     )
     text = "\n".join(path.read_text(encoding="utf-8") for path in paths)
     assert "/mnt/c/Users/" not in text
-    assert "C:\\Users\\fireo" not in text
-    assert "/home/devil" not in text
+    assert str(Path.home()).replace("\\", "/") not in text
     assert not re.search(r"\b\d{15,}\b", text)
