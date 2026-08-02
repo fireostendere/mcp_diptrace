@@ -183,14 +183,14 @@ def resolve_clearance(
     netclass_sources: list[dict[str, Any]] = []
     netclass_layers: set[str] = set()
     for net in nets or []:
-        sources, covered = _class_clearance(
+        class_sources, covered = _class_clearance(
             snapshot,
             net=net,
             layer_ids=layer_ids,
             classes=classes,
             names=names,
         )
-        netclass_sources.extend(sources)
+        netclass_sources.extend(class_sources)
         netclass_layers.update(covered)
 
     unresolved_layers = [
