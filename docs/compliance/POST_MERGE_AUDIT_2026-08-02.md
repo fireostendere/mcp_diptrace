@@ -28,7 +28,7 @@ workflow runs. Raw reports are never committed and remain only under the
 ignored `.local/open-source-readiness/deep-audit/` directory.
 
 - Secret scan: Gitleaks 8.30.1 and detect-secrets 1.5.0 both returned zero
-  findings for 297 tracked files and 1,634 reachable Git blobs. `.local/` was
+  findings for 309 tracked files and 1,662 reachable Git blobs. `.local/` was
   not staged or scanned. Findings are summarized by rule/plugin and relative
   path only. A finding is a stop-and-rotate event, not an item to suppress
   broadly.
@@ -43,7 +43,7 @@ ignored `.local/open-source-readiness/deep-audit/` directory.
   HUMAN ACTION REQUIRED decision.
 - License audit: REUSE 6.2.0 is not compliant for this tree because many
   project files lack REUSE headers/annotations. ScanCode Toolkit 32.5.0
-  found 295 files, 267 without a file-level license expression, and several
+  found 307 files, 278 without a file-level license expression, and several
   `LicenseRef` expressions around external/reference material. pip-licenses,
   deterministic SBOM generation, and third-party notices remain engineering
   inventories. Automated identification is not legal clearance; no mechanical
@@ -72,14 +72,16 @@ ignored `.local/open-source-readiness/deep-audit/` directory.
   plugin ZIP scans are deferred to the manual Windows job.
 
 The successful clean-room run used audit-branch source commit
-`18521404a683ea8364c52f320238a5d9ec1d8d4e`: direct wheel and sdist built,
+`1f3d79fc4662bcb5f53488a65bd1d3a84594dd41`: direct wheel and sdist built,
 allowlist passed, wheel rebuilt from sdist, all 79 wheel members matched by
 SHA-256, clean installation passed, and CLI/MCP smoke returned zero. The
 sanitized artifacts had 79 wheel members and 303 sdist members; direct wheel
 SHA-256 was
-`1f2deb2db4f6d0ba53b7f25fd7556f623e7fa0a96daafc800171d1ee5b090994` and the
-same wheel was produced from sdist. Sdist hashes are intentionally treated as
-per-build evidence because archive metadata can change between builds.
+`1f2deb2db4f6d0ba53b7f25fd7556f623e7fa0a96daafc800171d1ee5b090994`; the
+sdist SHA-256 for that run was
+`5f36e685af749e0078f63240311dd37bfbfc83c2789be5680cfaf7817862c786`. Sdist
+hashes are intentionally treated as per-build evidence because archive metadata
+can change between builds.
 
 ## Findings and limitations
 
