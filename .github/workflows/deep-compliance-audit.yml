@@ -86,10 +86,12 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p .local/open-source-readiness/deep-audit/raw
+          syft="$RUNNER_TEMP/tools/syft"
+          test -x "$syft"
           wheel=$(find .local/open-source-readiness/deep-audit/clean-room/direct -name '*.whl' -print -quit)
           sdist=$(find .local/open-source-readiness/deep-audit/clean-room/direct -name '*.tar.gz' -print -quit)
-          test -n "$wheel" && syft "$wheel" -o cyclonedx-json=.local/open-source-readiness/deep-audit/raw/syft-wheel.json
-          test -n "$sdist" && syft "$sdist" -o cyclonedx-json=.local/open-source-readiness/deep-audit/raw/syft-sdist.json
+          test -n "$wheel" && "$syft" "$wheel" -o cyclonedx-json=.local/open-source-readiness/deep-audit/raw/syft-wheel.json
+          test -n "$sdist" && "$syft" "$sdist" -o cyclonedx-json=.local/open-source-readiness/deep-audit/raw/syft-sdist.json
           test -f .local/open-source-readiness/deep-audit/raw/syft-wheel.json && \
             python scripts/compare_artifact_sbom.py \
               .local/open-source-readiness/deep-audit/raw/syft-wheel.json \
