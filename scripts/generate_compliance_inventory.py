@@ -28,7 +28,6 @@ KNOWN_LICENSES = {
     "mcp": "MIT",
     "mypy": "MIT",
     "pydantic": "MIT",
-    "pypdf": "BSD-3-Clause",
     "pyinstaller": "GPL-2.0-or-later WITH Bootloader-exception",
     "pytest": "MIT",
     "pytest-cov": "MIT",
@@ -162,9 +161,9 @@ def _build_outputs(inspected_commit: str, inspected_date: str) -> dict[str, str]
             "bundled_native_libraries": [
                 "Windows PyInstaller bridge bundle must be inspected per release"
             ],
-            "source_extracts": [
-                "DipTrace reference extracts and generated inventory are excluded from archives "
-                "until permission is confirmed"
+            "reference_materials": [
+                "Verbatim external documentation extracts are removed; the replacement inventory "
+                "contains project-authored fixture observations only"
             ],
         },
     }
@@ -272,8 +271,8 @@ def _build_outputs(inspected_commit: str, inspected_date: str) -> dict[str, str]
             "before any bundled release.",
             "- Inspect the actual Windows bridge bundle and record all bundled native "
             "libraries and notices.",
-            "- Keep DipTrace reference extracts and generated inventory outside release "
-            "archives until their redistribution basis is confirmed.",
+            "- Keep any external documentation material outside release archives; the replacement "
+            "factual inventory is project-authored observation data and is not a normative source.",
         ]
     )
 

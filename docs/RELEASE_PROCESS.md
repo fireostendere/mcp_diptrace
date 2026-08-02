@@ -54,7 +54,7 @@ python scripts/audit_release_artifacts.py \
   --dist-dir release-dist \
   --check-allowlist
 python scripts/extract_spec_inventory.py \
-  --sources reference/diptrace-xml/extracted_text \
+  --sources tests/fixtures \
   --out reference/diptrace-xml/spec_inventory.json \
   --check
 python scripts/report_format_coverage.py --check

@@ -82,7 +82,7 @@ Run the maintained gates before review:
   --dist-dir release-dist \
   --check-allowlist
 ./.venv/bin/python scripts/extract_spec_inventory.py \
-  --sources reference/diptrace-xml/extracted_text \
+  --sources tests/fixtures \
   --out reference/diptrace-xml/spec_inventory.json \
   --check
 ./.venv/bin/python scripts/report_format_coverage.py --check

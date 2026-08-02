@@ -4,45 +4,38 @@
 
 | Metric | Value |
 | --- | --- |
-| Total elements in spec | 270 |
-| XML attributes in spec | 727 |
-| Element text-content definitions | 232 |
-| Explicit attribute omission clauses | 4 |
-| Documented parent/child relationships | 90 across 80 parents |
-| Normalized (reader produces typed field) | 58 |
-| Written only (writer can create/modify) | 19 |
-| Mentioned only (literal, not an XML call) | 22 |
-| Passthrough (unknown XML, kept byte-for-byte) | 171 |
-| **Coverage** | **28.5%** |
+| Total observed elements | 107 |
+| Observed XML attributes | 300 |
+| Element text-content observations | 0 |
+| Project-authored omission clauses | 0 |
+| Documented parent/child relationships | 143 across 61 parents |
+| Normalized (reader produces typed field) | 72 |
+| Written only (writer can create/modify) | 18 |
+| Mentioned only (literal, not an XML call) | 7 |
+| Passthrough (unknown XML, kept byte-for-byte) | 10 |
+| **Coverage** | **84.1%** |
 
 ## Inventory Provenance
 
-The inventory is generated from the three official PDFs named in
-[`spec_inventory.json`](../reference/diptrace-xml/spec_inventory.json). The PDFs
-are not redistributed. Canonical per-page text extracted with the pinned
-`pypdf==6.14.2` is committed under
-[`reference/diptrace-xml/extracted_text/`](../reference/diptrace-xml/extracted_text/),
-with both PDF and intermediate SHA-256 values recorded in the inventory.
-CI regenerates the inventory from that offline intermediate before computing this
-report. A maintainer with the original PDFs can independently re-extract the same
-intermediate and compare it byte-for-byte.
+The inventory is a clean-room factual summary generated from the project-owned
+XML fixtures listed in `spec_inventory.json`. It records observed element and
+attribute names and bounded observed values only. It contains no PDF material,
+extracted documentation text, normative descriptions, or copied examples.
+Each source is SHA-256 bound, marked `synthetic_fixture`, and explicitly excluded
+from accepted DipTrace trust evidence until an independent acceptance audit
+confirms its provenance and any required redistribution basis.
 
-Only literal XML examples introduce element names. Scalar element content is
-recorded separately from attributes, and prose that merely mentions `<Element>`
-does not change parser ownership. The public PDFs contain four explicit
-attribute-level absence clauses; no additional `omitted_when` conditions are
-inferred.
+Coverage below is coverage of the project-authored factual vocabulary against
+the current reader/writer call sites; it is not a normative DipTrace format specification.
 
 ## Normalized Elements
 
 - `AddField`
 - `AddFields`
 - `BoardOutline`
-- `Bus`
 - `Buses`
 - `CenterPoint`
 - `CenterPoints`
-- `ClearanceDetails`
 - `Component`
 - `Components`
 - `ConnectivityCheck`
@@ -50,9 +43,12 @@ inferred.
 - `CopperPour`
 - `CopperPours`
 - `DRC`
+- `DefPad`
 - `DifferentialPair`
 - `DifferentialPairs`
 - `ERC`
+- `Hole`
+- `Holes`
 - `Item`
 - `Lay`
 - `LayClearance`
@@ -64,54 +60,66 @@ inferred.
 - `LayerStackItem`
 - `LayerStackItems`
 - `Library`
+- `Lines`
+- `MainStack`
 - `MaskPaste`
 - `Material`
+- `Model3D`
 - `Net`
 - `NetClass`
 - `NetClasses`
 - `Nets`
+- `Number`
+- `Offset`
 - `Pad`
 - `PadPoint`
 - `PadPoints`
+- `PadStyle`
+- `PadStyles`
 - `Pads`
 - `Part`
+- `Pattern`
+- `Patterns`
 - `Pin`
 - `Pins`
 - `Point`
 - `Points`
 - `Ratline`
 - `Ratlines`
+- `Rotate`
+- `Routing`
 - `Segment`
 - `Segments`
+- `Settings`
 - `Shape`
 - `Shapes`
 - `Sheet`
+- `SheetSettings`
 - `Sheets`
 - `Trace`
 - `Traces`
 - `ViaStyle`
 - `ViaStyles`
-- `Wire`
 - `Wires`
+- `Zoom`
 
 ## Written-Only Elements
 
 - `ActiveSheet`
+- `Board`
 - `GNDTemplate`
-- `Group`
-- `Groups`
 - `Id`
 - `LayerName`
 - `LayerStackName`
 - `Name`
-- `Panel`
+- `Name_Unique`
+- `Origin`
 - `PartName`
 - `PartRefDes`
 - `RefDes`
+- `Schematic`
 - `Source`
 - `Text`
-- `TextLine`
-- `TextLines`
 - `Type`
 - `VCCTemplate`
 - `Value`
@@ -119,201 +127,25 @@ inferred.
 ## Mentioned-Only Elements
 
 - `Assy`
-- `BotSegments`
-- `Columns`
-- `Courtyard`
-- `DatasheetMarking`
-- `HorzTabsX`
-- `ManufacturerMarking`
-- `NameMarking`
 - `NegPoint`
 - `NegPoints`
-- `Polygon`
 - `PosPoint`
 - `PosPoints`
 - `RefDesMarking`
-- `Signal`
 - `Silk`
-- `TopSegments`
-- `TraceClearance`
-- `ValueMarking`
-- `VertTabsY`
-- `ViaHole`
-- `ViaSize`
 
 ## Passthrough Elements
 
-- `AddFieldsGlobal`
-- `AllowedVias`
-- `Assembly`
-- `AssemblyExclude`
-- `AssemblyName`
-- `AssemblyVariant`
-- `AssemblyVariants`
-- `AutoUpdate`
-- `Autorouting`
-- `AxisColor`
-- `BlindLay`
-- `BlockId`
-- `BoardClearance`
-- `Border`
-- `BottomComponentLock`
-- `BottomMargin`
-- `BottomRightBlock`
-- `BusConnector`
-- `BusConnectors`
-- `CTC_Cells`
-- `Category`
-- `CategoryType`
-- `CategoryTypes`
-- `Cell`
-- `Cells`
-- `ClassToClass`
-- `ColWidths`
-- `Column`
-- `ColumnWidths`
-- `CompBorders`
-- `CompOutline`
-- `CompRotate`
-- `ConnectedTeardrops`
-- `CustomSpoke`
-- `CustomSpokes`
-- `DRCDone`
-- `DatasheetGlobal`
-- `DesignCache`
-- `DesignError`
-- `DesignErrors`
-- `Dimension`
-- `Dimensions`
-- `DisplayName`
-- `DisplaySheet`
-- `DisplayTitles`
-- `EditInactiveLayer`
-- `FanoutLength`
-- `Field`
-- `Fields`
-- `FlipTextAuto`
-- `Folder`
-- `Folders`
-- `FontColor`
-- `FontLineWidth`
-- `FontName`
-- `FontScale`
-- `FontSize`
-- `FontVector`
-- `FontWidth`
-- `GndNetName`
-- `HSheet`
-- `HidePower`
-- `HideRingLay`
-- `HierarchyPath`
-- `HierarchySheets`
-- `HorzBorderSize`
-- `HorzZones`
-- `IntCon`
-- `InternalConnections`
-- `JumperLayer`
-- `LayerClearances`
-- `LayerDisplayMode`
-- `LayerPanel`
-- `Lays`
-- `LeftMargin`
-- `LengthRule`
-- `LengthRules`
-- `Lib`
-- `Libs`
-- `LockNetStructure`
-- `MainLengthRule`
-- `ManufacturerGlobal`
-- `NameGlobal`
-- `NegSeparateTraces`
-- `NegTrace`
-- `NodeSize`
-- `NonSignal`
-- `NonSignals`
-- `NumberOfPoints`
-- `OutputNet`
-- `PadId`
-- `PasteMaskShrink`
-- `Path`
-- `PatternGlobal`
-- `PictureFile`
-- `PictureVector`
-- `PinNumbers`
-- `PointerText`
-- `PointsPerSummary`
-- `Polygons`
-- `PosSeparateTraces`
-- `PosTrace`
-- `Position`
-- `ProjectDir`
-- `ProjectLibs`
-- `RealTimeMode`
-- `RefDesGlobal`
-- `ReferenceNet`
-- `RemovedDifferentialPair`
-- `RemovedDifferentialPairs`
-- `RightMargin`
-- `RouteLayers`
-- `Router`
-- `RowHeights`
-- `Rule`
-- `Rules`
-- `Scale`
-- `SecondSource`
-- `SecondSourceRefDes`
-- `SecondSourceType`
-- `SecondStartValue`
-- `SecondStep`
-- `SecondStopValue`
-- `Separator`
-- `SheetHeight`
-- `SheetWidth`
-- `Show`
-- `ShowCompFiducials`
-- `ShowList`
-- `SignalDelayLength`
-- `Signals`
-- `Simulator`
-- `Size`
-- `Snap`
-- `SolderMaskSwell`
-- `SourceRefDes`
-- `SourceType`
-- `StackLength`
-- `Standard`
-- `StartFrequency`
-- `StartTime`
-- `StartValue`
-- `Step`
-- `StopFrequency`
-- `StopTime`
-- `StopValue`
-- `SubType`
-- `Table`
-- `Tables`
-- `Teardrop`
-- `TeardropParams`
-- `Teardrops`
-- `Titles`
-- `TopComponentLock`
-- `TopMargin`
-- `TraceWidth`
-- `UId`
-- `UpdateIds`
-- `UsePartFontColor`
-- `ValueGlobal`
-- `Var`
-- `Variation`
-- `VertBorderSize`
-- `VertZones`
-- `Visible`
-- `X`
-- `XPos`
-- `Y`
-- `YIdentical`
-- `YPos`
-- `YSize`
+- `Data`
+- `Datasheet`
+- `Filename`
+- `FutureComponentData`
+- `FutureExtension`
+- `FuturePatternData`
+- `FutureStackupExtension`
+- `Manufacturer`
+- `Note`
+- `PadNumber`
 
 ## What Passthrough Means
 

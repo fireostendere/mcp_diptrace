@@ -260,7 +260,8 @@ def render_probe_pack(questions: Sequence[OpenQuestion]) -> str:
         "# DipTrace Operator Probe Pack",
         "",
         "This generated pack turns each maintained open question into an operator-facing "
-        "procedure. It copies the unknown and experiment verbatim; it does not answer the "
+        "procedure. It reproduces project-authored question and experiment text; it does "
+        "not answer the "
         "question, authenticate an export, grant provenance, or promote anything into "
         "`tests/fixtures/acceptance/`.",
         "",

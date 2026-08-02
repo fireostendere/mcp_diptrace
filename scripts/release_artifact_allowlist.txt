@@ -21,6 +21,7 @@ benchmarks/benchmark_core.py
 benchmarks/benchmark_large_board.py
 benchmarks/synthetic_board.py
 docs/ACCEPTANCE_SEED_AUDIT.md
+docs/API_ERRORS.md
 docs/ARCHITECTURE.md
 docs/CODE_REVIEW_2026-07-31.md
 docs/DEVELOPMENT.md
@@ -68,7 +69,9 @@ docs/compliance/sbom.cdx.json
 docs/evidence_capture/open-save.attestations.template.json
 docs/evidence_capture/operator-answers.template.json
 docs/evidence_capture/pcb-format-question.recipe.template.json
+docs/evidence_capture/q1-component-angle.HUMAN_ACTION_REQUIRED.md
 docs/evidence_capture/q1-component-angle.recipe.json
+docs/evidence_capture/q1-component-angle.result.json
 docs/evidence_capture/reexport.attestations.template.json
 docs/evidence_capture/source.attestations.template.json
 docs/releases/v0.1.0.md
@@ -88,6 +91,7 @@ plugin/verify_signature.ps1
 pyproject.toml
 reference/diptrace-xml/REFERENCE.md
 reference/diptrace-xml/SKILL.md
+reference/diptrace-xml/spec_inventory.json
 reference/mcp-tools-list.snapshot.json
 scripts/audit_acceptance_seeds.py
 scripts/audit_reference_materials.py
@@ -146,12 +150,15 @@ src/diptrace_mcp/bom.py
 src/diptrace_mcp/bridge.py
 src/diptrace_mcp/capabilities.py
 src/diptrace_mcp/capability_model.py
+src/diptrace_mcp/clearance.py
 src/diptrace_mcp/config.py
 src/diptrace_mcp/connectivity.py
 src/diptrace_mcp/data/trusted_provenance_registry.json
 src/diptrace_mcp/design_compare.py
 src/diptrace_mcp/domain.py
+src/diptrace_mcp/error_boundary.py
 src/diptrace_mcp/errors.py
+src/diptrace_mcp/evidence_status.py
 src/diptrace_mcp/exports.py
 src/diptrace_mcp/external_adapters.py
 src/diptrace_mcp/external_process.py
@@ -227,6 +234,7 @@ tests/test_capability_parity.py
 tests/test_capture_diptrace_evidence.py
 tests/test_check_coverage.py
 tests/test_ci_workflow.py
+tests/test_clearance_resolution.py
 tests/test_config_paths.py
 tests/test_connectivity.py
 tests/test_copper_pour_obstacles.py
@@ -234,6 +242,7 @@ tests/test_creation_sha_gate.py
 tests/test_cross_platform_exchange_paths.py
 tests/test_diptrace53_fixture_manifest.py
 tests/test_documentation_links.py
+tests/test_error_boundary.py
 tests/test_evidence_mcp.py
 tests/test_exports.py
 tests/test_external_process.py

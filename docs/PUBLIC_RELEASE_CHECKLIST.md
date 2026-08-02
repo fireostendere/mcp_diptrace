@@ -27,8 +27,12 @@ stage status of v0.1.2.
 - [ ] Dependency and bundled-content licenses are reviewed.
 - [ ] Windows bridge and PyInstaller redistribution obligations are reviewed.
 - [ ] Wheel-shipped skills and schemas are reviewed.
-- [ ] Extracted specification text and generated inventory are approved for
-      redistribution; until then, future release archives exclude them.
+- [x] Verbatim external specification extracts and source PDFs are absent from
+      the current Git tree and release surfaces; no history rewrite was done.
+- [ ] Any Novarm/DipTrace redistribution permission is confirmed in writing;
+      none is claimed by this repository.
+- [x] The replacement factual inventory is project-authored and generated from
+      own XML fixtures; it does not claim normative or vendor clearance.
 - [ ] Every distributed fixture and evidence artifact has documented
       provenance and redistribution permission.
 - [ ] Trademark and non-affiliation wording is approved.
@@ -93,7 +97,8 @@ in [SECURITY.md](../SECURITY.md).
 - [x] CI builds, verifies, and smoke-runs the unsigned Windows bridge
       executable.
 - [x] Exact public MCP `tools/list` snapshot is committed and gated.
-- [x] Specification inventory and format coverage have reproducibility gates.
+- [x] Clean-room factual inventory and format coverage have reproducibility
+      gates; the inventory is observation data, not a vendor specification.
 - [x] Acceptance seed audit fails closed and reports zero accepted seeds.
 - [x] Windows DipTrace 5.2.0.4 ↔ WSL MCP live acceptance covers the tested PCB/Schematic apply, cancel, and wrong-SHA matrix, with GUI/save/re-export checks and no phantom path.
 - [x] The exact final PR head `759234f209927e3c033e44d63494d3ca3cfae150`

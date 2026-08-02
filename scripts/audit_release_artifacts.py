@@ -69,7 +69,7 @@ _BLOCKED_PREFIXES = (
     "reference/diptrace-xml/extracted_text/",
     "reference/diptrace-xml/sources/",
 )
-_BLOCKED_PATHS = frozenset({"reference/diptrace-xml/spec_inventory.json"})
+_BLOCKED_PATHS = frozenset()
 _BLOCKED_SUFFIXES = frozenset(
     {".der", ".dll", ".docx", ".eli", ".exe", ".key", ".lib", ".p12", ".pdf", ".pem", ".pfx"}
 )
