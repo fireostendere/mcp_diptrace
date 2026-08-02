@@ -17,6 +17,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   GitHub CI coverage measurement.
 - Reconciled the public release checklist with the verification work that was
   completed during publication.
+- Opened contribution intake under DCO 1.1, added provenance/privacy checks,
+  and added reproducible dependency, SBOM, and signing-preparation records.
+- Removed forum-announcement drafts from the public tree; external announcement
+  materials are maintained privately by the repository owner.
 
 ## 0.1.2 - 2026-08-01
 
@@ -29,7 +33,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Documentation
 
-- Added Russian and English forum announcements.
 - Added the release installation guide.
 - Added the withdrawn `v0.1.1` record and the `v0.1.2` release record.
 

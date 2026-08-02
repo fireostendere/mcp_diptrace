@@ -1,0 +1,284 @@
+{
+  "components": [
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "build",
+        "development"
+      ],
+      "declared_requirements": [
+        "hatchling>=1.27,<2"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "hatchling",
+      "normalized_name": "hatchling",
+      "purl": "pkg:pypi/hatchling",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": true,
+      "declared_groups": [
+        "development"
+      ],
+      "declared_requirements": [
+        "hypothesis>=6.135,<7"
+      ],
+      "human_review_required": true,
+      "license": "MPL-2.0",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "hypothesis",
+      "normalized_name": "hypothesis",
+      "purl": "pkg:pypi/hypothesis",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "development"
+      ],
+      "declared_requirements": [
+        "jsonschema>=4.24,<5"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "jsonschema",
+      "normalized_name": "jsonschema",
+      "purl": "pkg:pypi/jsonschema",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "runtime"
+      ],
+      "declared_requirements": [
+        "mcp>=1.28.1,<2"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "mcp",
+      "normalized_name": "mcp",
+      "purl": "pkg:pypi/mcp",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "development"
+      ],
+      "declared_requirements": [
+        "mypy>=1.16,<2"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "mypy",
+      "normalized_name": "mypy",
+      "purl": "pkg:pypi/mypy",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "runtime"
+      ],
+      "declared_requirements": [
+        "pydantic>=2.11,<3"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "pydantic",
+      "normalized_name": "pydantic",
+      "purl": "pkg:pypi/pydantic",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": true,
+      "declared_groups": [
+        "bridge"
+      ],
+      "declared_requirements": [
+        "pyinstaller>=6.14,<7"
+      ],
+      "human_review_required": true,
+      "license": "GPL-2.0-or-later WITH Bootloader-exception",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "pyinstaller",
+      "normalized_name": "pyinstaller",
+      "purl": "pkg:pypi/pyinstaller",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "development"
+      ],
+      "declared_requirements": [
+        "pypdf==6.14.2"
+      ],
+      "human_review_required": true,
+      "license": "BSD-3-Clause",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "pypdf",
+      "normalized_name": "pypdf",
+      "purl": "pkg:pypi/pypdf",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "development"
+      ],
+      "declared_requirements": [
+        "pytest>=8.4,<9"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "pytest",
+      "normalized_name": "pytest",
+      "purl": "pkg:pypi/pytest",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "development"
+      ],
+      "declared_requirements": [
+        "pytest-cov>=6.2,<7"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "pytest-cov",
+      "normalized_name": "pytest-cov",
+      "purl": "pkg:pypi/pytest-cov",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "development"
+      ],
+      "declared_requirements": [
+        "PyYAML>=6.0,<7"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "PyYAML",
+      "normalized_name": "pyyaml",
+      "purl": "pkg:pypi/pyyaml",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "development"
+      ],
+      "declared_requirements": [
+        "ruff>=0.12,<1"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "ruff",
+      "normalized_name": "ruff",
+      "purl": "pkg:pypi/ruff",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "geometry"
+      ],
+      "declared_requirements": [
+        "shapely>=2.0,<3"
+      ],
+      "human_review_required": true,
+      "license": "BSD-3-Clause",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "shapely",
+      "normalized_name": "shapely",
+      "purl": "pkg:pypi/shapely",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "runtime"
+      ],
+      "declared_requirements": [
+        "typing-extensions>=4.12,<5"
+      ],
+      "human_review_required": true,
+      "license": "PSF-2.0",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "typing-extensions",
+      "normalized_name": "typing-extensions",
+      "purl": "pkg:pypi/typing-extensions",
+      "version": null
+    }
+  ],
+  "generated_by": "scripts/generate_compliance_inventory.py",
+  "groups": {
+    "bridge": [
+      "pyinstaller"
+    ],
+    "build": [
+      "hatchling"
+    ],
+    "development": [
+      "PyYAML",
+      "hatchling",
+      "hypothesis",
+      "jsonschema",
+      "mypy",
+      "pypdf",
+      "pytest",
+      "pytest-cov",
+      "ruff"
+    ],
+    "geometry": [
+      "shapely"
+    ],
+    "runtime": [
+      "mcp",
+      "pydantic",
+      "typing-extensions"
+    ]
+  },
+  "human_review_required": {
+    "bundled_native_libraries": [
+      "Windows PyInstaller bridge bundle must be inspected per release"
+    ],
+    "copyleft_or_special_terms": [
+      "hypothesis",
+      "pyinstaller"
+    ],
+    "source_extracts": [
+      "DipTrace reference extracts and generated inventory are excluded from archives until permission is confirmed"
+    ],
+    "unknown_license_metadata": []
+  },
+  "inspected_commit": "e57422e545c6b94aefe52c044c64d72a74a8c373",
+  "inspected_date": "2026-08-02",
+  "project": {
+    "license": "Apache-2.0",
+    "name": "diptrace-mcp",
+    "version": "0.1.2"
+  },
+  "resolution": {
+    "kind": "declarative-direct-dependency-inventory",
+    "resolved_versions": "not embedded; resolve in a clean release environment",
+    "source": "pyproject.toml",
+    "transitive_dependencies": "not enumerated by this deterministic source inventory"
+  },
+  "schema_version": 1
+}

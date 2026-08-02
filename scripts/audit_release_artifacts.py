@@ -63,7 +63,13 @@ _PUBLICATION_ROOT_NAMES = {
     "pyproject.toml",
 }
 _BLOCKED_PARTS = frozenset({".agents", ".codex", ".git", ".vscode", "etc"})
-_BLOCKED_PREFIXES = ("docs/private/", "tests/fixtures/acceptance/")
+_BLOCKED_PREFIXES = (
+    "docs/private/",
+    "tests/fixtures/acceptance/",
+    "reference/diptrace-xml/extracted_text/",
+    "reference/diptrace-xml/sources/",
+)
+_BLOCKED_PATHS = frozenset({"reference/diptrace-xml/spec_inventory.json"})
 _BLOCKED_SUFFIXES = frozenset(
     {".der", ".dll", ".docx", ".eli", ".exe", ".key", ".lib", ".p12", ".pdf", ".pem", ".pfx"}
 )
@@ -119,9 +125,12 @@ def is_publication_safe_path(raw_path: str) -> bool:
     except ReleaseArtifactError:
         return False
     path = PurePosixPath(relative)
-    if any(part in _BLOCKED_PARTS for part in path.parts):
+    folded = relative.casefold()
+    if any(part.casefold() in _BLOCKED_PARTS for part in path.parts):
         return False
-    if relative.startswith(_BLOCKED_PREFIXES):
+    if any(folded.startswith(prefix.casefold()) for prefix in _BLOCKED_PREFIXES):
+        return False
+    if folded in {blocked.casefold() for blocked in _BLOCKED_PATHS}:
         return False
     if path.suffix.lower() in _BLOCKED_SUFFIXES:
         return False

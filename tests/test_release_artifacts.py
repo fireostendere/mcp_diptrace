@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import os
 import subprocess
 import sys
 import tarfile
@@ -33,6 +34,11 @@ def test_release_allowlist_matches_publication_safe_tracked_files() -> None:
         ".vscode/settings.json",
         "etc/private-library.eli",
         "docs/private/operator-notes.md",
+        "reference/diptrace-xml/extracted_text/DipTraceXML_Pcb_En.pages.json",
+        "reference/diptrace-xml/EXTRACTED_TEXT/DipTraceXML_Pcb_En.pages.json",
+        "reference/diptrace-xml/spec_inventory.json",
+        "reference/diptrace-xml/SPEC_INVENTORY.JSON",
+        "reference/diptrace-xml/sources/notes.txt",
         "tests/fixtures/acceptance/diptrace_5_3/real-board.xml",
         "plugin/dist/diptrace_mcp_bridge.exe",
         "../outside.txt",
@@ -125,6 +131,10 @@ def test_hatch_build_hook_excludes_dirty_untracked_files(tmp_path: Path) -> None
         check=False,
         capture_output=True,
         text=True,
+        # pytest-cov exports a relative source root for child processes. Hatch
+        # changes cwd to this temporary project, which would make coverage
+        # count the copied package as an unexecuted second source tree.
+        env={key: value for key, value in os.environ.items() if not key.startswith("COV_CORE_")},
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
 

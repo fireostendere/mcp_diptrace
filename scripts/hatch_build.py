@@ -10,7 +10,13 @@ from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 _ALLOWLIST = "scripts/release_artifact_allowlist.txt"
 _BLOCKED_PARTS = frozenset({".agents", ".codex", ".git", ".vscode", "etc"})
-_BLOCKED_PREFIXES = ("docs/private/", "tests/fixtures/acceptance/")
+_BLOCKED_PREFIXES = (
+    "docs/private/",
+    "tests/fixtures/acceptance/",
+    "reference/diptrace-xml/extracted_text/",
+    "reference/diptrace-xml/sources/",
+)
+_BLOCKED_PATHS = frozenset({"reference/diptrace-xml/spec_inventory.json"})
 
 
 def _validated_release_paths(root: Path) -> tuple[str, ...]:
@@ -25,12 +31,14 @@ def _validated_release_paths(root: Path) -> tuple[str, ...]:
         if not relative or relative.startswith("#"):
             continue
         path = PurePosixPath(relative)
+        folded = relative.casefold()
         if (
             relative != path.as_posix()
             or path.is_absolute()
             or ".." in path.parts
-            or any(part in _BLOCKED_PARTS for part in path.parts)
-            or relative.startswith(_BLOCKED_PREFIXES)
+            or any(part.casefold() in _BLOCKED_PARTS for part in path.parts)
+            or any(folded.startswith(prefix.casefold()) for prefix in _BLOCKED_PREFIXES)
+            or folded in {blocked.casefold() for blocked in _BLOCKED_PATHS}
         ):
             raise ValueError(
                 f"unsafe release path in {_ALLOWLIST}:{line_number}: {relative!r}"

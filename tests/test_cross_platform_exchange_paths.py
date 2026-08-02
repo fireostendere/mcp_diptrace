@@ -26,7 +26,7 @@ def test_windows_exchange_path_maps_to_wsl_without_metadata_rewrite(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mount_root = tmp_path / "mnt"
-    allowed = mount_root / "c" / "Users" / "fireo"
+    allowed = mount_root / "c" / "Users" / "test-user"
     exchange = allowed / "AppData" / "Local" / "Temp" / "DipTrace" / "plugin_exchange.xml"
     exchange.parent.mkdir(parents=True)
     exchange.write_bytes((FIXTURES / "schematic.xml").read_bytes())
@@ -42,7 +42,7 @@ def test_windows_exchange_path_maps_to_wsl_without_metadata_rewrite(
     metadata = store.create(exchange)
     session_id = str(metadata["session_id"])
     windows_path = (
-        r"C:\Users\fireo\AppData\Local\Temp\DipTrace\plugin_exchange.xml"
+        r"C:\Users\test-user\AppData\Local\Temp\DipTrace\plugin_exchange.xml"
     )
     store.update_metadata(
         session_id,
@@ -82,7 +82,7 @@ def test_windows_path_maps_to_explicit_wsl_mount_root(
     mount_root = tmp_path / "mnt"
     monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
     monkeypatch.setenv("DIPTRACE_MCP_WSL_MOUNT_ROOT", str(mount_root))
-    raw_path = r"C:\Users\fireo\AppData\Local\Temp\DipTrace\plugin_exchange.xml"
+    raw_path = r"C:\Users\test-user\AppData\Local\Temp\DipTrace\plugin_exchange.xml"
 
     resolved = sessions_module._exchange_path_for_runtime(
         raw_path,
@@ -95,7 +95,7 @@ def test_windows_path_maps_to_explicit_wsl_mount_root(
         mount_root
         / "c"
         / "Users"
-        / "fireo"
+        / "test-user"
         / "AppData"
         / "Local"
         / "Temp"
@@ -105,7 +105,7 @@ def test_windows_path_maps_to_explicit_wsl_mount_root(
 
 
 def test_windows_runtime_keeps_native_windows_path() -> None:
-    raw_path = r"C:\Users\fireo\AppData\Local\Temp\DipTrace\plugin_exchange.xml"
+    raw_path = r"C:\Users\test-user\AppData\Local\Temp\DipTrace\plugin_exchange.xml"
 
     resolved = sessions_module._exchange_path_for_runtime(
         raw_path,
@@ -120,7 +120,7 @@ def test_windows_runtime_keeps_native_windows_path() -> None:
 def test_windows_runtime_rejects_wsl_path_labeled_as_windows() -> None:
     with pytest.raises(SessionError, match="does not match its recorded platform") as caught:
         sessions_module._exchange_path_for_runtime(
-            "/mnt/c/Users/fireo/AppData/Local/Temp/DipTrace/plugin_exchange.xml",
+            "/mnt/c/Users/test-user/AppData/Local/Temp/DipTrace/plugin_exchange.xml",
             "windows",
             runtime_os_name="nt",
             runtime_platform="win32",
@@ -149,7 +149,7 @@ def test_request_finish_rejects_platform_path_mismatch_before_control_publish(
     monkeypatch.setenv("DIPTRACE_MCP_WSL_MOUNT_ROOT", str(tmp_path / "mnt"))
     store.update_metadata(
         session_id,
-        exchange_path="/mnt/c/Users/fireo/plugin_exchange.xml",
+        exchange_path="/mnt/c/Users/test-user/plugin_exchange.xml",
         exchange_path_platform="windows",
     )
 
@@ -184,7 +184,7 @@ def test_windows_origin_is_rejected_outside_windows_or_wsl(
 
     with pytest.raises(SessionError, match="accessible only from Windows or WSL") as caught:
         sessions_module._exchange_path_for_runtime(
-            r"C:\Users\fireo\plugin_exchange.xml",
+            r"C:\Users\test-user\plugin_exchange.xml",
             "windows",
             runtime_os_name="posix",
             runtime_platform="linux",
@@ -201,7 +201,7 @@ def test_relative_wsl_mount_root_is_rejected(
 
     with pytest.raises(SessionError, match="must be absolute") as caught:
         sessions_module._exchange_path_for_runtime(
-            r"C:\Users\fireo\plugin_exchange.xml",
+            r"C:\Users\test-user\plugin_exchange.xml",
             "windows",
             runtime_os_name="posix",
             runtime_platform="linux",

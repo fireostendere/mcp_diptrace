@@ -34,13 +34,16 @@ The repository publishes its participation and release policy:
   [installation from published release assets](docs/INSTALL_FROM_RELEASE.md);
 - [changelog](CHANGELOG.md) and [citation metadata](CITATION.cff).
 
-General contributions remain closed until contribution-provenance terms are
-approved. Suspected vulnerabilities must be reported through the private
+Issues and pull requests are welcome under the DCO 1.1 and provenance rules in
+[CONTRIBUTING.md](CONTRIBUTING.md); the repository owner retains merge
+authority. Suspected vulnerabilities must be reported through the private
 security channel published in [SECURITY.md](SECURITY.md), never in public
 issues. A verified Code of Conduct channel does not yet exist, so a Code of
-Conduct policy is not published. Contribution-provenance and signing work
-remain explicit blockers. The repository does not claim an existing community,
-adoption, sponsorship, vendor endorsement, or support program acceptance.
+Conduct policy is not published. Signing, dependency, bundled-content, and
+independent-review work remain explicit blockers for stronger release claims.
+The repository does not claim an existing community, adoption, sponsorship,
+vendor endorsement, or support program acceptance. External grant or
+application materials are maintained privately by the repository owner.
 
 Version 0.1.2 is the current development-stage release. Its tag, unsigned
 artifacts, `SHA256SUMS.txt`, and provenance record in
@@ -384,6 +387,8 @@ themselves with an agent host; point that host at the installed `diptrace_mcp/sk
 - [Impedance and SI](docs/IMPEDANCE_AND_SI.md)
 - [External adapters](docs/EXTERNAL_ADAPTERS.md)
 - [Security and policy](docs/SECURITY_AND_POLICY.md)
+- [Compliance and provenance](docs/compliance/INDEPENDENT_REVIEW_PACKAGE.md)
+- [Windows signing preparation](docs/SIGNING.md)
 - [Testing and benchmarks](docs/TESTING.md)
 - [Skill contracts](docs/SKILL_CONTRACTS.md)
 - [PCB skills](skills/README.md)

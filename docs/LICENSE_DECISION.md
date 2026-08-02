@@ -69,10 +69,11 @@ checklist.
   contributor patent license with termination provisions was preferred over
   MIT's silence on patents, and MPL-2.0 file-level copyleft was not a project
   goal for bridge and packaged-skill changes.
-- Contribution provenance: general contributions remain closed until DCO, CLA,
-  or equivalent terms are approved; see
-  [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md). Existing commits
-  were authored by the repository owner, who can license them.
+- Contribution provenance: new contributions use the Developer Certificate of
+  Origin 1.1 in [`DCO`](../DCO), with the workflow and AI/provenance disclosure
+  requirements in [CONTRIBUTING.md](../CONTRIBUTING.md). Existing commits were
+  authored by the repository owner, who can license them. This record does not
+  claim that every historical commit has a DCO sign-off.
 - Documentation and fixture treatment: code, documentation, and packaged
   skills are covered by the same license. Fixtures and evidence artifacts with
   unresolved redistribution permission are not distributed: the release

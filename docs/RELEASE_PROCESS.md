@@ -10,6 +10,11 @@ job, and the Windows CI artifact is unsigned.
 
 A release presented as independently reviewed, signed, or production-ready is prohibited while the corresponding blocking items in [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) remain open. A development-stage unsigned release may proceed only through an explicit solo-maintainer exception recorded with its limitations, artifact hashes, test evidence, and rollback decision. The GitHub repository owner is the only currently documented administrative authority.
 
+Contribution intake uses the DCO 1.1 and provenance requirements in
+[`CONTRIBUTING.md`](../CONTRIBUTING.md). External announcement, grant, and
+application materials are maintained outside Git. They must not be copied into
+release records, source archives, or release assets.
+
 ## 1. Approve scope and authority
 
 Before changing a version or creating a tag:
@@ -79,6 +84,12 @@ into a release and do not cover the Windows bridge executable. Rebuild the
 wheel from the source distribution in the release environment and compare it
 with the direct wheel before publication.
 
+The reference-document extraction bundles and generated specification inventory
+are engineering inputs with unresolved redistribution status. They are kept
+out of future source archives and wheels until a human confirms a redistribution
+basis; the local regeneration command remains available to an operator with
+legitimate source documents.
+
 The Python wheel contains the MCP server and eight packaged skills. It does
 not contain the PowerShell build/installer scripts or DipTrace plug-in settings
 needed for complete Windows live-bridge deployment; publish and verify those
@@ -107,8 +118,8 @@ Only after every gate is complete:
    public files in a clean environment;
 4. publish release notes that distinguish implemented, runtime-available, and
    DipTrace-verified capabilities; and
-5. publish announcements only after every URL, version, license, checksum,
-   support statement, and contact has been verified.
+5. publish any external announcement only after every URL, version, license,
+   checksum, support statement, and contact has been verified privately.
 
 No automated package-index publication is configured by this policy.
 
