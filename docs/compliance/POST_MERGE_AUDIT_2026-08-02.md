@@ -28,7 +28,8 @@ workflow runs. Raw reports are never committed and remain only under the
 ignored `.local/open-source-readiness/deep-audit/` directory.
 
 - Secret scan: Gitleaks 8.30.1 and detect-secrets 1.5.0 both returned zero
-  findings for 309 tracked files and 1,662 reachable Git blobs. `.local/` was
+  findings for the current tracked tree and all reachable Git blobs. The
+  sanitized local summary records the exact file/blob counts; `.local/` was
   not staged or scanned. Findings are summarized by rule/plugin and relative
   path only. A finding is a stop-and-rotate event, not an item to suppress
   broadly.
