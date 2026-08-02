@@ -204,6 +204,9 @@ src/diptrace_mcp/xml_document.py
 tests/fixture_hashes.sha256
 tests/fixtures/component_library.xml
 tests/fixtures/diff_pair_pcb.xml
+tests/fixtures/diptrace-5.3/README.md
+tests/fixtures/diptrace-5.3/manifest.json
+tests/fixtures/diptrace-5.3/manifest.schema.json
 tests/fixtures/diptrace_5_3/README.md
 tests/fixtures/diptrace_5_3/manifest.pending.schema.json
 tests/fixtures/diptrace_5_3/manifest.schema.json
@@ -241,6 +244,7 @@ tests/test_copper_pour_obstacles.py
 tests/test_creation_sha_gate.py
 tests/test_cross_platform_exchange_paths.py
 tests/test_diptrace53_fixture_manifest.py
+tests/test_diptrace53_fixture_pack.py
 tests/test_documentation_links.py
 tests/test_error_boundary.py
 tests/test_evidence_mcp.py

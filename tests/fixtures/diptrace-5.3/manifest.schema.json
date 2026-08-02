@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/diptrace-mcp/diptrace-5.3-fixture-pack-pending-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "diptrace_version",
+    "diptrace_build",
+    "created_by",
+    "source_kind",
+    "redistribution_basis",
+    "contains_third_party_design",
+    "accepted_for_trust",
+    "fixtures"
+  ],
+  "properties": {
+    "schema_version": {"const": "diptrace-fixture-pack-pending-v1"},
+    "status": {"const": "HUMAN_ACTION_REQUIRED"},
+    "diptrace_version": {"type": ["string", "null"]},
+    "diptrace_build": {"type": ["string", "null"]},
+    "created_by": {"const": "project maintainer"},
+    "source_kind": {"const": "planned_controlled_real_export"},
+    "redistribution_basis": {"type": "string", "minLength": 1},
+    "contains_third_party_design": {"const": false},
+    "accepted_for_trust": {"const": false},
+    "fixtures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "scenario",
+          "source_type",
+          "sha256",
+          "diptrace_version",
+          "diptrace_build",
+          "source_kind",
+          "evidence_id",
+          "confidence",
+          "accepted_for_trust",
+          "created_by",
+          "redistribution_basis",
+          "contains_third_party_design"
+        ],
+        "properties": {
+          "file": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+\\.xml$"},
+          "scenario": {"type": "string", "minLength": 1},
+          "source_type": {
+            "enum": [
+              "DipTrace-PCB",
+              "DipTrace-Schematic",
+              "DipTrace-ComponentLibrary",
+              "DipTrace-PatternLibrary"
+            ]
+          },
+          "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+          "diptrace_version": {"type": ["string", "null"]},
+          "diptrace_build": {"type": ["string", "null"]},
+          "source_kind": {"const": "planned_controlled_real_export"},
+          "evidence_id": {"type": "string", "minLength": 1},
+          "confidence": {"const": "pending"},
+          "accepted_for_trust": {"const": false},
+          "created_by": {"const": "project maintainer"},
+          "redistribution_basis": {"type": "string", "minLength": 1},
+          "contains_third_party_design": {"const": false}
+        }
+      }
+    }
+  }
+}
