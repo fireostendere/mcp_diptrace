@@ -364,7 +364,7 @@
     "properties": [
       {
         "name": "diptrace-mcp:inspected-commit",
-        "value": "e57422e545c6b94aefe52c044c64d72a74a8c373"
+        "value": "f4ea60352a560d03f0cee45d500c186530e6f5f6"
       },
       {
         "name": "diptrace-mcp:inspection-date",
@@ -383,7 +383,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:3be9a4bf-f554-5cc3-9b20-4950c9bb267e",
+  "serialNumber": "urn:uuid:62f5058a-c1cf-568c-9141-059d61319c56",
   "specVersion": "1.5",
   "version": 1
 }

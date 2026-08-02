@@ -27,8 +27,18 @@ only on synthetic fixtures is not evidence of DipTrace behavior.
 No release may bypass a blocker in
 [the public-release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md). The
 repository owner is responsible for deciding whether a blocker is resolved and
-for preserving the evidence behind that decision. This document does not
-claim that branch protection or any GitHub ruleset is enabled.
+for preserving the evidence behind that decision.
+
+As checked on 2026-08-02, `main` is covered by the active GitHub ruleset
+documented in [BRANCH_PROTECTION_STATUS.md](docs/compliance/BRANCH_PROTECTION_STATUS.md).
+Changes are required to come through pull requests with conversation resolution,
+DCO, and the required technical CI checks; force-pushes and branch deletion are
+blocked. Required approvals are `0` for the current solo-maintainer mode. The
+ruleset is an administrative GitHub setting, not a second reviewer: the owner
+retains the administrative ability to change it, and this document does not
+claim independent review or a second maintainer. The API also reports strict
+up-to-date checks and all three merge methods; those facts are retained in the
+dated status record rather than silently changed here.
 
 ## Missing governance functions
 

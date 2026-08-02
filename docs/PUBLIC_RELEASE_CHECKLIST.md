@@ -2,9 +2,9 @@
 
 ## Snapshot status
 
-Audited repository state: 2026-08-01.
+Audited repository state: 2026-08-02.
 
-**Status: v0.1.2 is a verified development-stage release under an explicit solo-maintainer exception.** The repository has an OSI-approved project-wide license (Apache-2.0, committed as `LICENSE`), private vulnerability reporting published as `SECURITY.md`, an unsigned-binary disclosure, a completed 2026-07-31 live acceptance matrix, green exact-head CI, and verified public release assets. It still has no verified conduct channel, approved contribution terms, signed release artifact, dependency/bundled-content legal review, or independent release reviewer, so it must not be represented as independently reviewed, signed, or production-ready.
+**Status: v0.1.2 is a verified development-stage release under an explicit solo-maintainer exception.** The repository has an OSI-approved project-wide license (Apache-2.0, committed as `LICENSE`), open DCO 1.1 contribution intake, private vulnerability reporting published as `SECURITY.md`, an active main-branch ruleset, an unsigned-binary disclosure, a completed 2026-07-31 live acceptance matrix, green exact-head CI, and verified public release assets. It still has no verified conduct channel, signed release artifact, dependency/bundled-content legal review, or independent release reviewer, so it must not be represented as independently reviewed, signed, or production-ready.
 
 Checked boxes below describe repository or release facts in the audited state.
 Unchecked boxes are blockers for stronger publication, redistribution, governance,
@@ -22,6 +22,8 @@ stage status of v0.1.2.
       [LICENSE_DECISION.md](LICENSE_DECISION.md).
 - [x] DCO 1.1 is published in [`DCO`](../DCO) and contribution provenance
       requirements are documented in [CONTRIBUTING.md](../CONTRIBUTING.md).
+- [x] Contribution intake is open under DCO 1.1 and the provenance/privacy
+      checks in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - [ ] Dependency and bundled-content licenses are reviewed.
 - [ ] Windows bridge and PyInstaller redistribution obligations are reviewed.
 - [ ] Wheel-shipped skills and schemas are reviewed.
@@ -37,6 +39,13 @@ Until the remaining redistribution and review items are complete, do not claim e
 
 - [x] Current GitHub repository authority is documented in
       [GOVERNANCE.md](../GOVERNANCE.md).
+- [x] The default `main` branch has an active ruleset requiring pull requests,
+      conversation resolution, DCO, and the eight technical CI contexts;
+      force-push and deletion are blocked and approvals are `0` for the
+      solo-maintainer mode. Evidence is in
+      [BRANCH_PROTECTION_STATUS.md](compliance/BRANCH_PROTECTION_STATUS.md).
+- [x] The ruleset was exercised by test PR #41, which was closed without merge;
+      its one-file test branch is not present in `main`.
 - [ ] Independent merge reviewer and release approver are identified.
 - [ ] Repository succession and recovery are documented.
 - [x] Private security reporting is enabled (GitHub private vulnerability
@@ -45,8 +54,6 @@ Until the remaining redistribution and review items are complete, do not claim e
 - [ ] Confidential conduct enforcement and a backup reviewer are enabled and
       tested.
 - [ ] Conflict-of-interest and recusal rules are approved.
-- [x] Contribution intake is open after license selection under DCO 1.1 and
-      the provenance/privacy rules in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - [x] DCO 1.1 and contribution terms are published; no CLA is claimed.
 - [x] Bug, feature, and compatibility-evidence issue forms are committed.
 - [x] A pull-request template covers scope, tests, provenance, and safety.

@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Documentation
 
+- Activated and verified the main-branch GitHub ruleset; pull requests require
+  DCO plus the eight technical CI contexts.
+- Completed a post-merge security and compliance audit of the current tree and
+  reachable Git history.
+- Added reproducible deep secret-scanning, dependency-audit, and clean-room
+  audit tools; their raw reports remain owner-private.
 - Finalized the post-publication `v0.1.2` provenance with the immutable release
   commit, exact-head CI run, public asset inventory, checksum verification, and
   public-download smoke results.

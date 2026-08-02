@@ -20,6 +20,40 @@ python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 python -m benchmarks.benchmark_large_board --components 500
 ```
 
+## Deep compliance and clean-room audit
+
+The following commands are manual or release-audit checks, not replacements
+for the nine existing required CI contexts. They use the pinned tool versions
+listed in `docs/compliance/POST_MERGE_AUDIT_2026-08-02.md`; raw output is kept
+below the ignored `.local/open-source-readiness/deep-audit/` directory.
+
+```bash
+python scripts/run_deep_audit.py
+python scripts/run_dependency_audit.py
+reuse lint
+scancode --license --copyright --info --package --strip-root \
+  --json-pp .local/open-source-readiness/deep-audit/raw/scancode-tree.json .
+python scripts/summarize_scancode.py \
+  .local/open-source-readiness/deep-audit/raw/scancode-tree.json \
+  --output .local/open-source-readiness/deep-audit/scancode-summary.json
+syft release-dist/diptrace_mcp-*.whl \
+  -o cyclonedx-json=.local/open-source-readiness/deep-audit/raw/syft-wheel.json
+python scripts/compare_artifact_sbom.py \
+  .local/open-source-readiness/deep-audit/raw/syft-wheel.json \
+  --pyproject pyproject.toml \
+  --output .local/open-source-readiness/deep-audit/artifact-sbom-summary.json
+git clone --no-local --branch audit/post-merge-hardening . /tmp/diptrace-mcp-clean
+python scripts/run_clean_room_audit.py \
+  --source /tmp/diptrace-mcp-clean \
+  --output .local/open-source-readiness/deep-audit/clean-room
+```
+
+The Windows-only bundle inventory is reproducible through the manual
+`deep-compliance-audit.yml` workflow. It uses `pyi-archive_viewer`, runs
+`Get-AuthenticodeSignature`, and tests `SIGNING_REQUIRED` without making a
+SignPath request. A green automated scan is not a legal opinion, a signing
+claim, or a DipTrace compatibility claim.
+
 CI responsibilities:
 
 - full pytest on Linux with Python 3.10 and 3.13 using the core dependency set;
