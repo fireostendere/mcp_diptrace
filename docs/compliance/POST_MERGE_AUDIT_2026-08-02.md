@@ -8,6 +8,12 @@
 - no tag, release, history rewrite, SignPath request, DipTrace request, or
   private-document publication is part of this audit.
 
+The older `BASELINE_AUDIT.md`, `INDEPENDENT_REVIEW_PACKAGE.md`, and
+`PROVENANCE_INVENTORY.csv` retain their historical `e57422e5…` binding. They
+are not current-state evidence. The current state is recorded here; the
+regenerated dependency inventory, SBOM, and third-party notices are bound to
+the post-merge main commit above.
+
 ## Ruleset and test PR
 
 GitHub API evidence is summarized in
