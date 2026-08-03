@@ -48,7 +48,7 @@ def _assert_wire_error(
     assert "CallToolResult" not in serialized
     assert "Traceback" not in serialized
     assert str(state_dir) not in serialized
-    assert "/home/" not in serialized
+    assert "/tmp/fixture-secret/" not in serialized
     assert "INTERNAL_SECRET_VALUE" not in serialized
 
 
@@ -155,7 +155,7 @@ def test_typed_domain_value_error_and_oserror_are_bounded_end_to_end(
         _assert_wire_error(value_error, "INTERNAL_ERROR", state_dir=tmp_path / "value-state")
 
         def raise_os_error(self: DipTraceService, path: str | None = None) -> dict[str, Any]:
-            raise OSError("/home/devil/SECRET_PATH")
+            raise OSError("/tmp/fixture-secret/SECRET_PATH")
 
         monkeypatch.setattr(DipTraceService, "document_info", raise_os_error)
         os_error = await _call(
