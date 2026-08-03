@@ -20,7 +20,9 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Apply focused source and test changes
-        run: python scripts/_apply_clearance_report_fix.py
+        run: |
+          python scripts/_apply_clearance_report_fix.py
+          python scripts/_adjust_clearance_test_semantics.py
       - name: Install development dependencies
         run: python -m pip install -e ".[dev,geometry]"
       - name: Format and lint modified files
