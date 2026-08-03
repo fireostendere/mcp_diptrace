@@ -23,6 +23,7 @@ jobs:
         run: |
           python scripts/_apply_clearance_report_fix.py
           python scripts/_adjust_clearance_test_semantics.py
+          python scripts/_adjust_clearance_typing.py
       - name: Install development dependencies
         run: python -m pip install -e ".[dev,geometry]"
       - name: Format and lint modified files
