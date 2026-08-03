@@ -26,6 +26,16 @@ Pydantic `ValidationError` or the typed `InvalidArgumentError`. On the wire,
 failures also set MCP's native `isError` flag; `structuredContent` and the text
 content carry the same stable envelope.
 
+The transport contract is tested through an in-memory connected MCP session
+using `session.call_tool`, not only by calling a registered Python function.
+Those tests assert one outer `CallToolResult`, one JSON error envelope, matching
+text and `structuredContent`, and no nested or stringified `CallToolResult`.
+They cover a missing document, schema failures (including missing, wrong-type,
+extra-field, and non-finite numeric inputs), typed domain errors, raw
+`ValueError`, `KeyError`, `AssertionError`, `OSError`, and a representative
+external-adapter failure. No registered public tool is asynchronous at present;
+the async wrapper itself remains covered by the boundary unit tests.
+
 The stable public taxonomy is:
 
 | Code | Meaning | Retryable default |
@@ -46,11 +56,11 @@ safe. Mutations still require the existing transaction and SHA-256 gates.
 
 The registered-tool surface is generated in `src/diptrace_mcp/server.py`; every
 registered callable is wrapped by `error_boundary.wrap_tool_callable`, and the
-argument-validation and tool-run hooks use the same boundary. The contract tests
-exercise typed errors, raw `ValueError`, `KeyError`, `AssertionError`, `OSError`,
-async calls, redaction, transport `isError`, and JSON serializability. The
-project service layer also validates the same high-risk unit and numeric inputs
-before mutation.
+argument-validation and tool-run hooks use the same boundary. A registry
+traversal test proves that all 159 snapshot tools carry all three boundary
+markers; end-to-end tests cover representative groups rather than invoking all
+159 tools with every possible invalid input. The project service layer also
+validates the same high-risk unit and numeric inputs before mutation.
 
 ## Boundary audit matrix
 

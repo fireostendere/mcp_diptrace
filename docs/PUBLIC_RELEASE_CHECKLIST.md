@@ -2,7 +2,8 @@
 
 ## Snapshot status
 
-Audited repository state: 2026-08-02.
+Audited repository state: 2026-08-03 (main SHA
+`3f06ffc084154f59a116540694f071c513323215`).
 
 **Status: v0.1.2 is a verified development-stage release under an explicit solo-maintainer exception.** The repository has an OSI-approved project-wide license (Apache-2.0, committed as `LICENSE`), open DCO 1.1 contribution intake, private vulnerability reporting published as `SECURITY.md`, an active main-branch ruleset, an unsigned-binary disclosure, a completed 2026-07-31 live acceptance matrix, green exact-head CI, and verified public release assets. It still has no verified conduct channel, signed release artifact, dependency/bundled-content legal review, or independent release reviewer, so it must not be represented as independently reviewed, signed, or production-ready.
 
@@ -44,9 +45,12 @@ Until the remaining redistribution and review items are complete, do not claim e
 - [x] Current GitHub repository authority is documented in
       [GOVERNANCE.md](../GOVERNANCE.md).
 - [x] The default `main` branch has an active ruleset requiring pull requests,
-      conversation resolution, DCO, and the eight technical CI contexts;
-      force-push and deletion are blocked and approvals are `0` for the
-      solo-maintainer mode. Evidence is in
+      conversation resolution, DCO, and nine unique technical CI contexts
+      (eleven API status records); force-push and deletion are blocked and
+      approvals are `0` for the solo-maintainer mode. The API also reports
+      strict up-to-date checks, all three merge methods, and a repository-role
+      pull-request bypass. These are external, owner-changeable settings;
+      evidence is in
       [BRANCH_PROTECTION_STATUS.md](compliance/BRANCH_PROTECTION_STATUS.md).
 - [x] The ruleset was exercised by test PR #41, which was closed without merge;
       its one-file test branch is not present in `main`.

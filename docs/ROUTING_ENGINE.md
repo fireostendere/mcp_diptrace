@@ -35,11 +35,17 @@ normalized pad coordinates; the grid is not used to move or reinterpret a pad. T
 coupled differential-pair centerline still requires on-grid center anchors because
 arbitrary uncoupled pair escapes are not implemented.
 
-Route `clearance` is an explicit override. When omitted, the router reads
-`DRC/LayClearances/LayClearance/@TraceToTrace` for every requested routing layer and
-uses the maximum applicable value. If any requested layer lacks that rule, routing
-fails with `capability_unavailable`; it does not fall back to the former hardcoded
-`0.2 mm` value or silently use zero.
+Route `clearance` is an explicit requested value, not a lowering override. The
+shared resolver reads `DRC/LayClearances/LayClearance/@TraceToTrace` for every
+requested routing layer and the applicable
+`NetClasses/NetClass/LayProperties/LayProperty/@Clearance` for every affected
+net. It applies `effective = max(board defaults, affected NetClass rules,
+explicit request)`, and publishes the requested, required, effective, source
+records, and `clearance_rule_status` in route metrics. If any requested layer
+lacks both a board rule and an applicable NetClass rule while no explicit value
+was supplied, routing fails with `capability_unavailable`; it does not fall back
+to the former hardcoded `0.2 mm` value or silently use zero. Unknown NetClass
+references fail closed rather than being guessed.
 
 Legacy `layer="Top", max_vias=0` preserves single-layer behavior. Multi-layer routing is
 enabled only with explicit `preferred_layers`, `via_style`, and `max_vias>0`; an unknown

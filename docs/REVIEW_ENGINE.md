@@ -36,6 +36,30 @@ clearance still use their DRC/geometry-specific rules and do not apply NetClass
 clearance; their results expose `netclass_rules_ignored: true`. Board-edge
 clearance is a separate geometry rule.
 
+### Trace-to-trace completeness
+
+`pcb.trace_clearance` does not treat a trace with an absent or unresolved
+owning net as compliant. Each candidate pair is counted in
+`candidate_pairs_checked` and then in exactly one of `evaluated_pairs`,
+`skipped_unresolved_net_pairs`, or `skipped_clearance_resolution_pairs`.
+Unresolved pairs produce no violation finding because no safe effective rule was
+calculated, but they set `clearance_review_complete: false`, add a stable
+`warning_codes` value, and appear in report-level `skipped_reasons` with the
+pair segment ids and safe unresolved-net/class details. A missing rule set is
+also a partial result; when possible, all same-layer unlike-net candidates are
+counted before the resolver reports the rule as unavailable. A skipped pair is
+never counted as evaluated or compliant.
+
+Trace-clearance findings publish the compact `rule_source` label plus the
+project-authored `rule_sources` records from the shared resolver. The records
+contain only source kind, layer/net/class identifiers, normalized millimetres,
+and a stable project rule path. `clearance_rule_status.effective_rule_source`
+and the resolution's requested/required/effective values explain whether the
+effective result came from board defaults, NetClass rules, or an explicit
+request. The router and review use the same resolution object and expose the
+same effective source label; this remains an offline structural review, not a
+DipTrace DRC sign-off.
+
 Affected routing, planning, congestion, and review results contain
 `requested_clearance_mm`, `required_clearance_mm`, `effective_clearance_mm`,
 `clearance_sources`, `netclass_rules_applied`, `netclass_rules_ignored`, and
@@ -101,10 +125,14 @@ Tools aggregate registry checks by category: `run_drc`, `run_erc`, `run_board_re
 
 A finding contains ID, check, category, severity, confidence, explanation, object and net
 references, layer, location, bounding box, measured and required values, delta, rule
-source, suggested actions, and suppression state. A report contains metrics, assumptions,
-skipped checks, registry completeness, and a resource URI. `completeness` is only the
-fraction of selected registered checks that did not return a whole-check skip; it does
-not include missing rows from the matrix and is not manufacturing completeness.
+source, structured rule sources, requested/required/effective clearance values where
+applicable, suggested actions, and suppression state. A report contains metrics,
+assumptions, skipped checks, report-level `skipped_reasons`, registry completeness, and
+a resource URI. `completeness` is only the fraction of selected registered checks that
+did not return a whole-check skip; it does not include unresolved pairs or missing rows
+from the matrix and is not manufacturing completeness. Consumers must inspect the
+trace-clearance counters and `clearance_review_complete` before treating the report as
+complete.
 
 ## Heuristic Analyses
 

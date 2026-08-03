@@ -7,6 +7,12 @@
 - add a centralized service-to-MCP error boundary with stable public error codes and safe details;
 - remove verbatim external reference extracts and source-derived inventory from public surfaces;
 - add a clean-room factual inventory generator and a pending DipTrace 5.3 fixture-pack manifest;
+- make unresolved trace-clearance pairs explicit and publish their structured
+  skip reasons and effective clearance rule sources;
+- verify the service-to-MCP error contract through connected
+  `session.call_tool` calls and prevent nested typed-result error wrapping;
+- refresh the dated external GitHub ruleset evidence without changing the
+  ruleset;
 - document the remaining live-evidence, provenance, and partial-clearance limitations.
 
 This file records user-visible project changes. Version `0.1.0` was the first
@@ -18,7 +24,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Documentation
 
 - Activated and verified the main-branch GitHub ruleset; pull requests require
-  DCO plus the eight technical CI contexts.
+  DCO plus nine unique technical CI contexts (eleven API status records).
 - Completed a post-merge security and compliance audit of the current tree and
   reachable Git history.
 - Added reproducible deep secret-scanning, dependency-audit, and clean-room
