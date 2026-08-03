@@ -44,11 +44,17 @@ owning net as compliant. Each candidate pair is counted in
 `skipped_unresolved_net_pairs`, or `skipped_clearance_resolution_pairs`.
 Unresolved pairs produce no violation finding because no safe effective rule was
 calculated, but they set `clearance_review_complete: false`, add a stable
-`warning_codes` value, and appear in report-level `skipped_reasons` with the
-pair segment ids and safe unresolved-net/class details. A missing rule set is
-also a partial result; when possible, all same-layer unlike-net candidates are
-counted before the resolver reports the rule as unavailable. A skipped pair is
-never counted as evaluated or compliant.
+`warning_codes` value, and appear in report-level `skipped_reasons` with safe
+unresolved-net/class details. Detailed pair reasons are bounded by
+`MAX_SKIPPED_PAIR_REASONS`; `skipped_pair_reasons_total` and
+`skipped_pair_reasons_truncated` disclose omitted detail records. A missing rule
+set returns a whole-check partial result without enumerating quadratic same-layer
+pairs; `candidate_pairs_not_enumerated: true` makes that boundary explicit. A
+skipped pair is never counted as evaluated or compliant.
+
+`netclass_rules_ignored` is reserved for paths that actually ignore or cannot
+resolve NetClass rules. An absent owning net still makes the clearance review
+partial, but it does not by itself claim that a NetClass rule was ignored.
 
 Trace-clearance findings publish the compact `rule_source` label plus the
 project-authored `rule_sources` records from the shared resolver. The records

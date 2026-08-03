@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import diptrace_mcp.review as review_module
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.capabilities import get_capabilities
 from diptrace_mcp.config import Settings
@@ -43,9 +44,7 @@ def test_registry_runs_real_board_connectivity_checks() -> None:
     ]
     codes = [finding.check_id for finding in findings]
     assert "pcb.net_without_traces" in codes
-    without_traces = next(
-        item for item in findings if item.check_id == "pcb.net_without_traces"
-    )
+    without_traces = next(item for item in findings if item.check_id == "pcb.net_without_traces")
     assert without_traces.severity == "error"
     assert without_traces.net_ids
     assert metrics["pcb.net_without_traces"]["nets_checked"] == 2
@@ -64,13 +63,9 @@ def test_degenerate_trace_check_does_not_claim_connectivity_analysis() -> None:
         ET.tostring(root, encoding="utf-8", xml_declaration=True),
     )
 
-    findings, metrics, _, _ = run_checks(
-        build_snapshot(document), categories={"connectivity"}
-    )
+    findings, metrics, _, _ = run_checks(build_snapshot(document), categories={"connectivity"})
 
-    finding = next(
-        item for item in findings if item.check_id == "pcb.degenerate_trace_path"
-    )
+    finding = next(item for item in findings if item.check_id == "pcb.degenerate_trace_path")
     assert "dangling" not in finding.title.lower()
     assert finding.object_ids
     assert metrics["pcb.degenerate_trace_path"]["traces_checked"] >= 1
@@ -94,9 +89,7 @@ def test_component_overlap_finding_is_geometry_backed() -> None:
         ET.tostring(root, encoding="utf-8", xml_declaration=True),
     )
 
-    findings, _, _, _ = run_checks(
-        build_snapshot(document), categories={"placement"}
-    )
+    findings, _, _, _ = run_checks(build_snapshot(document), categories={"placement"})
     overlap = next(item for item in findings if item.check_id == "pcb.component_overlap")
     assert overlap.severity == "error"
     assert len(overlap.object_ids) == 2
@@ -129,9 +122,7 @@ def test_trace_clearance_uses_segment_geometry_and_drc_rule() -> None:
         ET.tostring(root, encoding="utf-8", xml_declaration=True),
     )
 
-    findings, metrics, _, _ = run_checks(
-        build_snapshot(document), categories={"clearance"}
-    )
+    findings, metrics, _, _ = run_checks(build_snapshot(document), categories={"clearance"})
     violation = next(item for item in findings if item.check_id == "pcb.trace_clearance")
     assert violation.measured == pytest.approx(0.05)
     assert violation.required == pytest.approx(0.2)
@@ -186,9 +177,7 @@ def _trace_pair_snapshot(
     snapshot = build_snapshot(document)
     assert snapshot.board is not None
     added = next(
-        item
-        for item in snapshot.board.traces
-        if item.attributes.get("Id") == "review-pair"
+        item for item in snapshot.board.traces if item.attributes.get("Id") == "review-pair"
     )
     if unresolved_net_id != "__keep__":
         added.net_id = unresolved_net_id
@@ -255,20 +244,18 @@ def test_trace_clearance_discloses_unresolved_owning_net(
 
     trace_metrics = metrics["pcb.trace_clearance"]
     assert findings == []
-    assert skipped == [
-        {"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}
-    ]
+    assert skipped == [{"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}]
     assert trace_metrics["candidate_pairs_checked"] == 1
     assert trace_metrics["evaluated_pairs"] == 0
     assert trace_metrics["skipped_unresolved_net_pairs"] == 1
     assert trace_metrics["skipped_clearance_resolution_pairs"] == 0
     assert trace_metrics["clearance_review_complete"] is False
     assert trace_metrics["warning_codes"] == ["trace_net_unresolved"]
-    assert trace_metrics["skipped_pair_reasons"][0]["reason_code"] == (
-        "trace_net_unresolved"
-    )
+    assert trace_metrics["skipped_pair_reasons"][0]["reason_code"] == ("trace_net_unresolved")
     assert metrics["clearance_review_complete"] is False
+    assert trace_metrics["clearance_rule_status"]["netclass_rules_ignored"] is False
     assert metrics["netclass_rules_ignored"] is True
+    assert metrics["clearance_rule_status"]["partial_review"] is True
 
 
 def test_trace_clearance_discloses_unknown_netclass_and_does_not_find_violation() -> None:
@@ -278,9 +265,7 @@ def test_trace_clearance_discloses_unknown_netclass_and_does_not_find_violation(
 
     trace_metrics = metrics["pcb.trace_clearance"]
     assert findings == []
-    assert skipped == [
-        {"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}
-    ]
+    assert skipped == [{"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}]
     assert trace_metrics["candidate_pairs_checked"] == 1
     assert trace_metrics["evaluated_pairs"] == 0
     assert trace_metrics["skipped_unresolved_net_pairs"] == 0
@@ -297,17 +282,26 @@ def test_trace_clearance_reports_whole_check_skip_when_rules_are_absent() -> Non
     trace_metrics = metrics["pcb.trace_clearance"]
     assert findings == []
     assert skipped == [
-        {"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}
+        {
+            "check_id": "pcb.trace_clearance",
+            "reason": "trace_clearance_rules_unavailable",
+        }
     ]
-    assert trace_metrics["candidate_pairs_checked"] >= 1
+    assert trace_metrics["candidate_pairs_checked"] == 0
+    assert trace_metrics["candidate_pairs_not_enumerated"] is True
     assert trace_metrics["evaluated_pairs"] == 0
-    assert trace_metrics["skipped_clearance_resolution_pairs"] >= 1
+    assert trace_metrics["skipped_clearance_resolution_pairs"] == 0
+    assert trace_metrics["skipped_pair_reasons_total"] == 1
+    assert trace_metrics["skipped_pair_reasons_truncated"] is False
     assert trace_metrics["warning_codes"] == ["trace_clearance_rules_unavailable"]
-    assert any(
-        item["reason_code"] == "trace_clearance_rules_unavailable"
-        and item.get("scope") == "check"
-        for item in trace_metrics["skipped_pair_reasons"]
-    )
+    assert trace_metrics["skipped_pair_reasons"] == [
+        {
+            "reason_code": "trace_clearance_rules_unavailable",
+            "scope": "check",
+        }
+    ]
+    assert metrics["netclass_rules_ignored"] is False
+    assert metrics["clearance_review_complete"] is False
 
 
 def test_trace_clearance_reports_evaluated_and_skipped_pairs_together() -> None:
@@ -317,21 +311,32 @@ def test_trace_clearance_reports_evaluated_and_skipped_pairs_together() -> None:
 
     trace_metrics = metrics["pcb.trace_clearance"]
     assert any(item.check_id == "pcb.trace_clearance" for item in findings)
-    assert skipped == [
-        {"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}
-    ]
+    assert skipped == [{"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}]
     assert trace_metrics["candidate_pairs_checked"] >= 2
     assert trace_metrics["evaluated_pairs"] >= 1
     assert trace_metrics["skipped_unresolved_net_pairs"] >= 1
     assert trace_metrics["clearance_review_complete"] is False
 
 
+def test_trace_clearance_bounds_skipped_pair_reason_details(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(review_module, "MAX_SKIPPED_PAIR_REASONS", 1)
+    snapshot = _trace_pair_snapshot(add_second_unresolved=True)
+
+    _, metrics, _, _ = run_checks(snapshot, categories={"clearance"})
+
+    trace_metrics = metrics["pcb.trace_clearance"]
+    assert trace_metrics["skipped_pair_reasons_total"] > 1
+    assert len(trace_metrics["skipped_pair_reasons"]) == 1
+    assert trace_metrics["skipped_pair_reasons_truncated"] is True
+    assert trace_metrics["clearance_review_complete"] is False
+
+
 def test_router_and_trace_review_use_the_same_netclass_clearance() -> None:
     original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
     root = ET.fromstring(original.raw_bytes)
-    property_element = root.find(
-        "./Board/NetClasses/NetClass[@Id='0']/LayProperties/LayProperty"
-    )
+    property_element = root.find("./Board/NetClasses/NetClass[@Id='0']/LayProperties/LayProperty")
     assert property_element is not None
     property_element.set("Clearance", "0.45")
     traces = root.find("./Board/Nets/Net[@Id='0']/Traces")
@@ -377,20 +382,14 @@ def test_router_and_trace_review_use_the_same_netclass_clearance() -> None:
     assert route.clearance_resolution["effective_clearance_mm"] == pytest.approx(0.45)
     assert route.metrics["effective_rule_source"] == "netclass_and_board"
     assert violation.required == pytest.approx(0.45)
-    assert metrics["pcb.trace_clearance"]["clearance_rule_status"][
-        "netclass_rules_applied"
-    ] is True
+    assert metrics["pcb.trace_clearance"]["clearance_rule_status"]["netclass_rules_applied"] is True
     assert violation.rule_source == "netclass_and_board"
     assert violation.required_clearance_mm == pytest.approx(0.45)
     assert violation.requested_clearance_mm is None
     assert violation.effective_clearance_mm == pytest.approx(0.45)
     assert violation.clearance_rule_status is not None
-    assert violation.clearance_rule_status["effective_rule_source"] == (
-        "netclass_and_board"
-    )
-    assert {
-        item["kind"] for item in violation.rule_sources
-    } == {"board_default", "netclass"}
+    assert violation.clearance_rule_status["effective_rule_source"] == ("netclass_and_board")
+    assert {item["kind"] for item in violation.rule_sources} == {"board_default", "netclass"}
 
 
 @pytest.mark.skipif(not shapely_available(), reason="geometry extra is not installed")
@@ -404,14 +403,10 @@ def test_spatial_drc_uses_transformed_exact_pad_geometry() -> None:
     assert obstacle.geometry.kind == "rectangle"
     assert obstacle.geometry.rotation_deg == pytest.approx(45.0)
     assert obstacle.bbox is not None
-    assert obstacle.bbox["max_x"] - obstacle.bbox["min_x"] == pytest.approx(
-        1.979898987, rel=1e-6
-    )
+    assert obstacle.bbox["max_x"] - obstacle.bbox["min_x"] == pytest.approx(1.979898987, rel=1e-6)
 
     findings, metrics, _, _ = run_checks(snapshot, categories={"clearance"})
-    violation = next(
-        item for item in findings if item.check_id == "pcb.trace_object_clearance"
-    )
+    violation = next(item for item in findings if item.check_id == "pcb.trace_object_clearance")
     assert violation.measured == pytest.approx(0.0)
     assert violation.required == pytest.approx(0.2)
     assert violation.rule_source.endswith("TraceToPad")
@@ -423,9 +418,7 @@ def test_erc_reports_unconnected_pin_not_intentional_no_connect() -> None:
     findings, metrics, _, count = run_checks(build_snapshot(document))
 
     assert count == 5
-    unconnected = [
-        item for item in findings if item.check_id == "schematic.unconnected_pin"
-    ]
+    unconnected = [item for item in findings if item.check_id == "schematic.unconnected_pin"]
     assert len(unconnected) == 1
     assert unconnected[0].object_ids
     assert metrics["schematic.unconnected_pin"]["pins_checked"] == 6
@@ -460,10 +453,7 @@ def test_review_service_persists_report_and_resources(tmp_path: Path) -> None:
 
     stored = service.get_findings(report_id)
     assert any(item["finding_id"] == finding_id for item in stored["findings"])
-    assert (
-        service.get_finding(finding_id)["finding"]["check_id"]
-        == "pcb.net_without_traces"
-    )
+    assert service.get_finding(finding_id)["finding"]["check_id"] == "pcb.net_without_traces"
     resource = service.review_resource(report_id)
     assert report_id in resource
     assert "pcb.net_without_traces" in resource
@@ -481,6 +471,6 @@ def test_review_discloses_unimplemented_silk_to_pad_with_pad_geometry(
     result = service.run_review(str(board), profile="board_review")
 
     assert "pcb.silk_to_pad" not in registry.ids()
-    assert {"check_id": "pcb.silk_to_pad", "reason": "not_implemented"} in result[
-        "result"
-    ]["skipped_checks"]
+    assert {"check_id": "pcb.silk_to_pad", "reason": "not_implemented"} in result["result"][
+        "skipped_checks"
+    ]

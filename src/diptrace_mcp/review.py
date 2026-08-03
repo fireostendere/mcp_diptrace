@@ -18,6 +18,20 @@ from .spatial import SpatialIndex
 
 CheckFunction = Callable[[DocumentSnapshot], tuple[list[Finding], dict[str, Any]]]
 
+MAX_SKIPPED_PAIR_REASONS = 100
+
+
+def _append_bounded_reason(
+    reasons: list[dict[str, Any]],
+    reason: dict[str, Any],
+    *,
+    total: int,
+) -> int:
+    next_total = total + 1
+    if len(reasons) < MAX_SKIPPED_PAIR_REASONS:
+        reasons.append(reason)
+    return next_total
+
 
 @dataclass(frozen=True, slots=True)
 class RegisteredCheck:
@@ -216,6 +230,39 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
     ]
     base_status = clearance_rule_status(snapshot, operation="offline_clearance_review")
     rules_available = bool(clearance_by_layer or netclass_clearances)
+    if not rules_available:
+        unavailable_warning_codes = ["trace_clearance_rules_unavailable"]
+        final_status = {
+            **base_status,
+            "clearance_review_complete": False,
+            "partial_review": True,
+            "warning_code": unavailable_warning_codes[0],
+            "warning_codes": unavailable_warning_codes,
+        }
+        segment_count = sum(
+            max(0, len(trace.attributes.get("points", [])) - 1) for trace in snapshot.board.traces
+        )
+        return [], {
+            "segments_checked": segment_count,
+            "candidate_pairs_checked": 0,
+            "candidate_pairs_not_enumerated": True,
+            "evaluated_pairs": 0,
+            "skipped_unresolved_net_pairs": 0,
+            "skipped_clearance_resolution_pairs": 0,
+            "skipped_netclass_pairs": 0,
+            "skipped_pair_reasons": [
+                {
+                    "reason_code": "trace_clearance_rules_unavailable",
+                    "scope": "check",
+                }
+            ],
+            "skipped_pair_reasons_total": 1,
+            "skipped_pair_reasons_truncated": False,
+            "warning_codes": unavailable_warning_codes,
+            "clearance_review_complete": False,
+            "clearance_rule_status": final_status,
+            "partial_skipped": "trace_clearance_rules_unavailable",
+        }
     maximum_clearance = max([*clearance_by_layer.values(), *netclass_clearances], default=0.0)
     segment_records: list[ObjectRecord] = []
     segment_geometry: dict[str, tuple[Point, Point, float, str, str]] = {}
@@ -245,35 +292,19 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
     index = SpatialIndex.build(segment_records, cell_size_mm=5.0)
     findings: list[Finding] = []
     seen: set[tuple[str, str]] = set()
-    net_by_id = {
-        item.xml_id: item
-        for item in snapshot.board.nets
-        if item.xml_id is not None
-    }
+    net_by_id = {item.xml_id: item for item in snapshot.board.nets if item.xml_id is not None}
     candidate_pairs_checked = 0
     evaluated_pairs = 0
     skipped_unresolved_net_pairs = 0
     skipped_clearance_resolution_pairs = 0
     skipped_pair_reasons: list[dict[str, Any]] = []
+    skipped_pair_reasons_total = 0
     warning_codes: set[str] = set()
-    if not rules_available:
-        warning_codes.add("trace_clearance_rules_unavailable")
-        skipped_pair_reasons.append(
-            {
-                "reason_code": "trace_clearance_rules_unavailable",
-                "scope": "check",
-            }
-        )
     for segment in segment_records:
         assert segment.bbox is not None
-        candidates = (
-            index.query(BBox(**segment.bbox), layers={segment.layer or ""})
-            if rules_available
-            else (
-                item
-                for item in segment_records
-                if item.layer == segment.layer
-            )
+        candidates = index.query(
+            BBox(**segment.bbox),
+            layers={segment.layer or ""},
         )
         for other in candidates:
             if segment.stable_id == other.stable_id:
@@ -310,12 +341,14 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
                 ]
                 skipped_unresolved_net_pairs += 1
                 warning_codes.add("trace_net_unresolved")
-                skipped_pair_reasons.append(
+                skipped_pair_reasons_total = _append_bounded_reason(
+                    skipped_pair_reasons,
                     {
                         "reason_code": "trace_net_unresolved",
                         "pair_segment_ids": [first, second],
                         "unresolved_sides": unresolved_sides,
-                    }
+                    },
+                    total=skipped_pair_reasons_total,
                 )
                 continue
             try:
@@ -328,19 +361,19 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
             except NetClassResolutionError as exc:
                 skipped_clearance_resolution_pairs += 1
                 warning_codes.add("trace_netclass_unresolved")
-                skipped_pair_reasons.append(
+                skipped_pair_reasons_total = _append_bounded_reason(
+                    skipped_pair_reasons,
                     {
                         "reason_code": "trace_netclass_unresolved",
                         "pair_segment_ids": [first, second],
                         "details": {
-                            "net_ids": [
-                                value for value in (segment.net_id, other.net_id) if value
-                            ],
+                            "net_ids": [value for value in (segment.net_id, other.net_id) if value],
                             "unresolved_class_reference": str(
                                 exc.details.get("unresolved_class_reference", "unknown")
                             ),
                         },
-                    }
+                    },
+                    total=skipped_pair_reasons_total,
                 )
                 continue
             except CapabilityUnavailableError:
@@ -351,17 +384,17 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
                     else "trace_clearance_resolution_unavailable"
                 )
                 warning_codes.add(unavailable_code)
-                skipped_pair_reasons.append(
+                skipped_pair_reasons_total = _append_bounded_reason(
+                    skipped_pair_reasons,
                     {
                         "reason_code": unavailable_code,
                         "pair_segment_ids": [first, second],
                         "details": {
                             "layer_id": layer,
-                            "net_ids": [
-                                value for value in (segment.net_id, other.net_id) if value
-                            ],
+                            "net_ids": [value for value in (segment.net_id, other.net_id) if value],
                         },
-                    }
+                    },
+                    total=skipped_pair_reasons_total,
                 )
                 continue
             required = resolution.effective_clearance_mm
@@ -401,11 +434,7 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
                         ],
                     )
                 )
-    partial = bool(
-        not rules_available
-        or skipped_unresolved_net_pairs
-        or skipped_clearance_resolution_pairs
-    )
+    partial = bool(skipped_unresolved_net_pairs or skipped_clearance_resolution_pairs)
     final_status = {
         **base_status,
         "clearance_review_complete": not partial,
@@ -413,7 +442,6 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
     if partial:
         final_status.update(
             {
-                "netclass_rules_ignored": True,
                 "partial_review": True,
                 "warning_code": sorted(warning_codes)[0],
                 "warning_codes": sorted(warning_codes),
@@ -427,16 +455,15 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
         "skipped_clearance_resolution_pairs": skipped_clearance_resolution_pairs,
         "skipped_netclass_pairs": skipped_clearance_resolution_pairs,
         "skipped_pair_reasons": skipped_pair_reasons,
+        "skipped_pair_reasons_total": skipped_pair_reasons_total,
+        "skipped_pair_reasons_truncated": (skipped_pair_reasons_total > len(skipped_pair_reasons)),
+        "candidate_pairs_not_enumerated": False,
         "warning_codes": sorted(warning_codes),
         "clearance_review_complete": not partial,
         "clearance_rule_status": final_status,
     }
     if partial:
-        metrics["partial_skipped"] = (
-            "trace_clearance_rules_unavailable"
-            if not rules_available and candidate_pairs_checked == 0
-            else "trace_clearance_partial"
-        )
+        metrics["partial_skipped"] = "trace_clearance_partial"
     return findings, metrics
 
 
@@ -703,26 +730,30 @@ def run_checks(
         else:
             findings.extend(check_findings)
             if partial_reason is not None:
-                skipped.append(
-                    {"check_id": check.check_id, "reason": str(partial_reason)}
-                )
+                skipped.append({"check_id": check.check_id, "reason": str(partial_reason)})
         metrics[check.check_id] = check_metrics
         check_status = check_metrics.get("clearance_rule_status")
-        if check_metrics.get("clearance_review_complete") is False:
+        check_incomplete = check_metrics.get("clearance_review_complete") is False
+        if check_incomplete:
             metrics["clearance_review_complete"] = False
-        if isinstance(check_status, dict) and check_status.get(
-            "netclass_rules_ignored", False
-        ):
+            if isinstance(check_status, dict):
+                warning_codes = check_status.get("warning_codes", [])
+                if not isinstance(warning_codes, list):
+                    warning_codes = []
+                warning_code = check_status.get("warning_code")
+                if warning_code is not None and warning_code not in warning_codes:
+                    warning_codes = [*warning_codes, warning_code]
+                metrics["clearance_rule_status"] = {
+                    **metrics["clearance_rule_status"],
+                    "clearance_review_complete": False,
+                    "partial_review": True,
+                    "warning_code": warning_code,
+                    "warning_codes": warning_codes,
+                }
+        if isinstance(check_status, dict) and check_status.get("netclass_rules_ignored", False):
             metrics["netclass_rules_ignored"] = True
             metrics["clearance_rule_status"] = {
                 **metrics["clearance_rule_status"],
                 "netclass_rules_ignored": True,
-                "clearance_review_complete": metrics["clearance_review_complete"],
-                "warning_code": check_status.get(
-                    "warning_code", "netclass_rules_ignored"
-                ),
-                "warning_codes": check_status.get(
-                    "warning_codes", [check_status.get("warning_code", "netclass_rules_ignored")]
-                ),
             }
     return findings, metrics, skipped, len(checks)
