@@ -434,6 +434,9 @@ def synthesize_route(
             "detour": detour,
             "clearance_mm": clearance,
             "clearance_source": clearance_source,
+            "effective_rule_source": clearance_resolution.clearance_rule_status[
+                "effective_rule_source"
+            ],
             **clearance_resolution.as_dict(),
             "elapsed_ms": (time.monotonic() - started) * 1_000.0,
             "obstacle_count": sum(len(items) for items in obstacles.values()),
@@ -718,6 +721,9 @@ def synthesize_differential_pair_route(
             "center_spacing_mm": spacing,
             "clearance_mm": clearance,
             "clearance_source": clearance_source,
+            "effective_rule_source": clearance_resolution.clearance_rule_status[
+                "effective_rule_source"
+            ],
             **clearance_resolution.as_dict(),
             "via_count_per_net": via_count,
             "symmetric_via_count": via_count * 2,

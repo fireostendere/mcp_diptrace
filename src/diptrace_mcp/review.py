@@ -7,7 +7,7 @@ from typing import Any
 
 from .adapters import DocumentSnapshot
 from .advanced_review import register_advanced_checks
-from .clearance import clearance_rule_status, resolve_clearance
+from .clearance import clearance_rule_status, clearance_source_label, resolve_clearance
 from .domain import ObjectRecord
 from .errors import CapabilityUnavailableError, NetClassResolutionError
 from .findings import Finding, make_finding
@@ -214,13 +214,8 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
         for item in net_class.findall("./LayProperties/LayProperty")
         if item.get("Clearance") is not None
     ]
-    if not clearance_by_layer and not netclass_clearances:
-        return [], {
-            "skipped": "trace_clearance_rules_unavailable",
-            "clearance_rule_status": clearance_rule_status(
-                snapshot, operation="offline_clearance_review"
-            ),
-        }
+    base_status = clearance_rule_status(snapshot, operation="offline_clearance_review")
+    rules_available = bool(clearance_by_layer or netclass_clearances)
     maximum_clearance = max([*clearance_by_layer.values(), *netclass_clearances], default=0.0)
     segment_records: list[ObjectRecord] = []
     segment_geometry: dict[str, tuple[Point, Point, float, str, str]] = {}
@@ -250,30 +245,78 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
     index = SpatialIndex.build(segment_records, cell_size_mm=5.0)
     findings: list[Finding] = []
     seen: set[tuple[str, str]] = set()
-    skipped_netclass_pairs = 0
+    net_by_id = {
+        item.xml_id: item
+        for item in snapshot.board.nets
+        if item.xml_id is not None
+    }
+    candidate_pairs_checked = 0
+    evaluated_pairs = 0
+    skipped_unresolved_net_pairs = 0
+    skipped_clearance_resolution_pairs = 0
+    skipped_pair_reasons: list[dict[str, Any]] = []
+    warning_codes: set[str] = set()
+    if not rules_available:
+        warning_codes.add("trace_clearance_rules_unavailable")
+        skipped_pair_reasons.append(
+            {
+                "reason_code": "trace_clearance_rules_unavailable",
+                "scope": "check",
+            }
+        )
     for segment in segment_records:
         assert segment.bbox is not None
-        for other in index.query(BBox(**segment.bbox), layers={segment.layer or ""}):
-            if segment.stable_id == other.stable_id or segment.net_id == other.net_id:
+        candidates = (
+            index.query(BBox(**segment.bbox), layers={segment.layer or ""})
+            if rules_available
+            else (
+                item
+                for item in segment_records
+                if item.layer == segment.layer
+            )
+        )
+        for other in candidates:
+            if segment.stable_id == other.stable_id:
+                continue
+            if (
+                segment.net_id is not None
+                and other.net_id is not None
+                and segment.net_id == other.net_id
+                and segment.net_id in net_by_id
+            ):
                 continue
             first, second = sorted((segment.stable_id, other.stable_id))
             pair = (first, second)
             if pair in seen:
                 continue
             seen.add(pair)
+            candidate_pairs_checked += 1
             a1, a2, width_a, trace_a, layer = segment_geometry[segment.stable_id]
             b1, b2, width_b, trace_b, _ = segment_geometry[other.stable_id]
-            net_a = next(
-                (item for item in snapshot.board.nets if item.xml_id == segment.net_id),
-                None,
-            )
-            net_b = next(
-                (item for item in snapshot.board.nets if item.xml_id == other.net_id),
-                None,
-            )
+            net_a = net_by_id.get(segment.net_id or "")
+            net_b = net_by_id.get(other.net_id or "")
             if net_a is None or net_b is None:
-                # A trace without a resolvable owning net is not safe to
-                # evaluate as a class-aware result.
+                unresolved_sides = [
+                    {
+                        "side": side,
+                        "segment_id": item.stable_id,
+                        "net_id": item.net_id,
+                    }
+                    for side, item, net in (
+                        ("a", segment, net_a),
+                        ("b", other, net_b),
+                    )
+                    if net is None
+                ]
+                skipped_unresolved_net_pairs += 1
+                warning_codes.add("trace_net_unresolved")
+                skipped_pair_reasons.append(
+                    {
+                        "reason_code": "trace_net_unresolved",
+                        "pair_segment_ids": [first, second],
+                        "unresolved_sides": unresolved_sides,
+                    }
+                )
                 continue
             try:
                 resolution = resolve_clearance(
@@ -282,16 +325,51 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
                     None,
                     nets=[net_a, net_b],
                 )
-            except (CapabilityUnavailableError, NetClassResolutionError):
-                # The report-level disclosure remains visible; this pair is
-                # deliberately not treated as compliant or non-compliant.
-                skipped_netclass_pairs += 1
+            except NetClassResolutionError as exc:
+                skipped_clearance_resolution_pairs += 1
+                warning_codes.add("trace_netclass_unresolved")
+                skipped_pair_reasons.append(
+                    {
+                        "reason_code": "trace_netclass_unresolved",
+                        "pair_segment_ids": [first, second],
+                        "details": {
+                            "net_ids": [
+                                value for value in (segment.net_id, other.net_id) if value
+                            ],
+                            "unresolved_class_reference": str(
+                                exc.details.get("unresolved_class_reference", "unknown")
+                            ),
+                        },
+                    }
+                )
+                continue
+            except CapabilityUnavailableError:
+                skipped_clearance_resolution_pairs += 1
+                unavailable_code = (
+                    "trace_clearance_rules_unavailable"
+                    if not rules_available
+                    else "trace_clearance_resolution_unavailable"
+                )
+                warning_codes.add(unavailable_code)
+                skipped_pair_reasons.append(
+                    {
+                        "reason_code": unavailable_code,
+                        "pair_segment_ids": [first, second],
+                        "details": {
+                            "layer_id": layer,
+                            "net_ids": [
+                                value for value in (segment.net_id, other.net_id) if value
+                            ],
+                        },
+                    }
+                )
                 continue
             required = resolution.effective_clearance_mm
             measured = max(
                 0.0,
                 segment_distance(a1, a2, b1, b2) - (width_a + width_b) / 2.0,
             )
+            evaluated_pairs += 1
             if measured + 1e-9 < required:
                 findings.append(
                     make_finding(
@@ -307,20 +385,59 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
                         measured=measured,
                         required=required,
                         units="mm",
-                        rule_source="DRC/LayClearances/LayClearance.TraceToTrace",
+                        rule_source=clearance_source_label(
+                            resolution.clearance_sources,
+                            required_clearance_mm=resolution.required_clearance_mm,
+                            effective_clearance_mm=resolution.effective_clearance_mm,
+                            requested_clearance_mm=resolution.requested_clearance_mm,
+                        ),
+                        rule_sources=list(resolution.clearance_sources),
+                        clearance_rule_status=dict(resolution.clearance_rule_status),
+                        required_clearance_mm=resolution.required_clearance_mm,
+                        requested_clearance_mm=resolution.requested_clearance_mm,
+                        effective_clearance_mm=resolution.effective_clearance_mm,
                         suggested_actions=[
                             "Reroute one segment or change the applicable rule explicitly."
                         ],
                     )
                 )
-    return findings, {
-        "segments_checked": len(segment_records),
-        "candidate_pairs_checked": len(seen),
-        "skipped_netclass_pairs": skipped_netclass_pairs,
-        "clearance_rule_status": clearance_rule_status(
-            snapshot, operation="offline_clearance_review"
-        ),
+    partial = bool(
+        not rules_available
+        or skipped_unresolved_net_pairs
+        or skipped_clearance_resolution_pairs
+    )
+    final_status = {
+        **base_status,
+        "clearance_review_complete": not partial,
     }
+    if partial:
+        final_status.update(
+            {
+                "netclass_rules_ignored": True,
+                "partial_review": True,
+                "warning_code": sorted(warning_codes)[0],
+                "warning_codes": sorted(warning_codes),
+            }
+        )
+    metrics = {
+        "segments_checked": len(segment_records),
+        "candidate_pairs_checked": candidate_pairs_checked,
+        "evaluated_pairs": evaluated_pairs,
+        "skipped_unresolved_net_pairs": skipped_unresolved_net_pairs,
+        "skipped_clearance_resolution_pairs": skipped_clearance_resolution_pairs,
+        "skipped_netclass_pairs": skipped_clearance_resolution_pairs,
+        "skipped_pair_reasons": skipped_pair_reasons,
+        "warning_codes": sorted(warning_codes),
+        "clearance_review_complete": not partial,
+        "clearance_rule_status": final_status,
+    }
+    if partial:
+        metrics["partial_skipped"] = (
+            "trace_clearance_rules_unavailable"
+            if not rules_available and candidate_pairs_checked == 0
+            else "trace_clearance_partial"
+        )
+    return findings, metrics
 
 
 @registry.register("pcb.trace_object_clearance", "clearance", "pcb")
@@ -574,6 +691,7 @@ def run_checks(
             snapshot, operation="offline_clearance_review"
         ),
         "netclass_rules_ignored": False,
+        "clearance_review_complete": True,
     }
     skipped: list[dict[str, str]] = []
     for check in checks:
@@ -590,6 +708,8 @@ def run_checks(
                 )
         metrics[check.check_id] = check_metrics
         check_status = check_metrics.get("clearance_rule_status")
+        if check_metrics.get("clearance_review_complete") is False:
+            metrics["clearance_review_complete"] = False
         if isinstance(check_status, dict) and check_status.get(
             "netclass_rules_ignored", False
         ):
@@ -597,8 +717,12 @@ def run_checks(
             metrics["clearance_rule_status"] = {
                 **metrics["clearance_rule_status"],
                 "netclass_rules_ignored": True,
+                "clearance_review_complete": metrics["clearance_review_complete"],
                 "warning_code": check_status.get(
                     "warning_code", "netclass_rules_ignored"
+                ),
+                "warning_codes": check_status.get(
+                    "warning_codes", [check_status.get("warning_code", "netclass_rules_ignored")]
                 ),
             }
     return findings, metrics, skipped, len(checks)
