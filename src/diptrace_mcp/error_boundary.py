@@ -232,7 +232,7 @@ def invoke_with_error_boundary(
     try:
         return function(*args, **kwargs)
     except Exception as exc:
-        if not isinstance(exc, (DipTraceMcpError, ValueError, ValidationError)):
+        if not isinstance(exc, (DipTraceMcpError, ValidationError)):
             logger.exception("Unexpected failure in MCP tool %s", tool_name)
         result = exception_to_error_result(exc)
         return error_result_to_mcp_result(result) if mcp_result else result
@@ -253,12 +253,14 @@ def wrap_tool_callable(
             try:
                 return await cast(Awaitable[Any], function(*args, **kwargs))
             except Exception as exc:
-                if not isinstance(exc, (DipTraceMcpError, ValueError, ValidationError)):
+                if not isinstance(exc, (DipTraceMcpError, ValidationError)):
                     logger.exception("Unexpected failure in MCP tool %s", tool_name)
                 result = exception_to_error_result(exc)
                 return error_result_to_mcp_result(result) if mcp_result else result
 
-        return cast(_F, async_wrapper)
+        wrapped = cast(_F, async_wrapper)
+        cast(Any, wrapped).__diptrace_mcp_error_boundary__ = True
+        return wrapped
 
     @wraps(function)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -270,4 +272,6 @@ def wrap_tool_callable(
             **kwargs,
         )
 
-    return cast(_F, wrapper)
+    wrapped = cast(_F, wrapper)
+    cast(Any, wrapped).__diptrace_mcp_error_boundary__ = True
+    return wrapped

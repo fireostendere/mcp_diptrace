@@ -16,7 +16,9 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 Ограничения evidence явно раскрыты: live GUI/re-export проверка Component Angle
 ещё не выполнена, поэтому результаты rotation содержат structured warning.
 Routing и offline trace-to-trace review учитывают board defaults и NetClass
-правила затронутых сетей; trace-to-object и placement clearance пока частичны.
+правила затронутых сетей; unresolved owning net, неизвестный класс или
+отсутствующее правило делают trace review явно partial и попадают в structured
+счётчики результата; trace-to-object и placement clearance пока частичны.
 Публичный XML inventory содержит только project-authored observations, не является
 нормативной спецификацией DipTrace и не заявляет разрешение Novarm или universal
 совместимость с DipTrace 5.3.

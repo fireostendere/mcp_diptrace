@@ -9,6 +9,7 @@ document so malformed numeric values retain the existing byte-location errors.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -41,6 +42,69 @@ class ClearanceResolution:
             "netclass_rules_ignored": self.netclass_rules_ignored,
             "clearance_rule_status": dict(self.clearance_rule_status),
         }
+
+
+def clearance_source_label(
+    sources: Iterable[dict[str, Any]],
+    *,
+    required_clearance_mm: float | None = None,
+    effective_clearance_mm: float | None = None,
+    requested_clearance_mm: float | None = None,
+) -> str:
+    """Return a stable summary of the rule kinds represented by ``sources``.
+
+    The source records themselves remain the authoritative explanation.  This
+    label is only a compact finding/report discriminator and never contains XML
+    objects or source text.
+    """
+
+    source_list = [dict(item) for item in sources]
+    kinds = {str(item.get("kind", "")) for item in source_list}
+    if (
+        required_clearance_mm is not None
+        and effective_clearance_mm is not None
+        and requested_clearance_mm is not None
+    ):
+        board_values = [
+            float(item["value_mm"])
+            for item in source_list
+            if item.get("kind") == "board_default"
+        ]
+        netclass_values = [
+            float(item["value_mm"])
+            for item in source_list
+            if item.get("kind") == "netclass"
+        ]
+        board_max = max(board_values, default=0.0)
+        netclass_max = max(netclass_values, default=0.0)
+        # A requested value is part of the effective rule explanation only
+        # when it raises the mandatory document rules.  A NetClass is part of
+        # that compact label when it raises the board default (or is the only
+        # document rule); all detailed source records remain in the result.
+        kinds = set()
+        if board_values:
+            kinds.add("board_default")
+        if netclass_values and (
+            not board_values or netclass_max > board_max + 1e-12
+        ):
+            kinds.add("netclass")
+        if requested_clearance_mm > required_clearance_mm + 1e-12 or not (
+            board_values or netclass_values
+        ):
+            kinds.add("explicit_requested")
+    labels = {
+        "netclass": "netclass",
+        "board_default": "board",
+        "explicit_requested": "explicit",
+    }
+    ordered = [
+        labels[kind]
+        for kind in ("netclass", "board_default", "explicit_requested")
+        if kind in kinds
+    ]
+    if ordered == ["board"]:
+        return "board_default"
+    return "_and_".join(ordered) if ordered else "unresolved"
 
 
 def _layer_name_map(snapshot: DocumentSnapshot) -> dict[str, str]:
@@ -264,6 +328,12 @@ def resolve_clearance(
         ),
         "warning_code": None,
         "clearance_source": source_label,
+        "effective_rule_source": clearance_source_label(
+            sources,
+            required_clearance_mm=required,
+            effective_clearance_mm=effective,
+            requested_clearance_mm=requested,
+        ),
         "unknown_class_references": [],
     }
     return ClearanceResolution(

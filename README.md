@@ -18,7 +18,9 @@ Native Component/Pattern Library mutation and native manufacturing output genera
 Current evidence limits are explicit: live Component Angle GUI/re-export validation
 is still pending, so rotation results carry a structured warning. Routing and
 offline trace-to-trace review resolve board defaults and affected NetClass rules;
-trace-to-object and placement clearance remain partial. The public XML inventory
+unresolved owning nets, unknown classes, or unavailable rules make the trace
+review explicitly partial and are counted in its structured result; trace-to-object
+and placement clearance remain partial. The public XML inventory
 contains project-authored observations only; it is not a normative DipTrace
 specification and does not claim Novarm permission or universal DipTrace 5.3
 compatibility.

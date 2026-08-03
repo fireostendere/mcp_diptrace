@@ -48,6 +48,11 @@ class Finding(StrictModel):
     delta: float | None = None
     units: str | None = None
     rule_source: str | None = None
+    rule_sources: list[dict[str, Any]] = Field(default_factory=list)
+    clearance_rule_status: dict[str, Any] | None = None
+    required_clearance_mm: float | None = None
+    requested_clearance_mm: float | None = None
+    effective_clearance_mm: float | None = None
     pour_geometry: Literal["boundary_only"] | None = None
     geometry_accuracy: Literal["exact", "approximate"] | None = None
     suggested_actions: list[str] = Field(default_factory=list)
@@ -65,6 +70,7 @@ class ReviewReport(StrictModel):
     metrics: dict[str, Any] = Field(default_factory=dict)
     assumptions: list[str] = Field(default_factory=list)
     skipped_checks: list[dict[str, str]] = Field(default_factory=list)
+    skipped_reasons: list[dict[str, Any]] = Field(default_factory=list)
     completeness: float = Field(ge=0.0, le=1.0)
 
     def summary(self) -> dict[str, Any]:
@@ -79,6 +85,7 @@ class ReviewReport(StrictModel):
             "by_severity": counts,
             "completeness": self.completeness,
             "skipped_check_count": len(self.skipped_checks),
+            "skipped_reason_count": len(self.skipped_reasons),
         }
 
 
@@ -104,6 +111,11 @@ def make_finding(
     required: float | None = None,
     units: str | None = None,
     rule_source: str | None = None,
+    rule_sources: list[dict[str, Any]] | None = None,
+    clearance_rule_status: dict[str, Any] | None = None,
+    required_clearance_mm: float | None = None,
+    requested_clearance_mm: float | None = None,
+    effective_clearance_mm: float | None = None,
     pour_geometry: Literal["boundary_only"] | None = None,
     geometry_accuracy: Literal["exact", "approximate"] | None = None,
     suggested_actions: list[str] | None = None,
@@ -131,6 +143,13 @@ def make_finding(
         delta=delta,
         units=units,
         rule_source=rule_source,
+        rule_sources=[dict(item) for item in (rule_sources or [])],
+        clearance_rule_status=(
+            dict(clearance_rule_status) if clearance_rule_status is not None else None
+        ),
+        required_clearance_mm=required_clearance_mm,
+        requested_clearance_mm=requested_clearance_mm,
+        effective_clearance_mm=effective_clearance_mm,
         pour_geometry=pour_geometry,
         geometry_accuracy=geometry_accuracy,
         suggested_actions=list(suggested_actions or []),
@@ -264,6 +283,18 @@ class FindingStore(RecordStore):
         report_id = deterministic_id("report", document_id, source_sha256, profile)
         completed = max(0, registered_check_count - len(skipped_checks))
         completeness = completed / registered_check_count if registered_check_count else 1.0
+        skipped_reasons: list[dict[str, Any]] = []
+        for check_id, check_metrics in metrics.items():
+            if not isinstance(check_metrics, dict):
+                continue
+            reasons = check_metrics.get("skipped_pair_reasons", [])
+            if not isinstance(reasons, list):
+                continue
+            for reason in reasons:
+                if isinstance(reason, dict):
+                    skipped_reasons.append(
+                        {"check_id": str(check_id), "reason": dict(reason)}
+                    )
         report = ReviewReport(
             report_id=report_id,
             document_id=document_id,
@@ -277,6 +308,7 @@ class FindingStore(RecordStore):
             metrics=metrics,
             assumptions=assumptions,
             skipped_checks=skipped_checks,
+            skipped_reasons=skipped_reasons,
             completeness=completeness,
         )
         self.store(report)

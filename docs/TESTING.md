@@ -20,6 +20,21 @@ python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 python -m benchmarks.benchmark_large_board --components 500
 ```
 
+The MCP error boundary has a separate protocol-level contract suite. It uses
+`create_connected_server_and_client_session` and `session.call_tool` to verify
+schema, typed-domain, external, unexpected, and typed-result failures. It also
+asserts one outer `CallToolResult`, matching text/structured envelopes, safe
+details, and registry coverage for all 159 registered tools:
+
+```bash
+pytest -q tests/test_mcp_error_contracts.py
+```
+
+The declared development constraint remains `pytest>=8.4,<9`. Pytest 9 is
+checked only in a separate clean environment against the same project and MCP
+SDK versions; a successful probe does not by itself change the supported CI
+matrix or dependency constraint.
+
 ## Deep compliance and clean-room audit
 
 The following commands are manual or release-audit checks, not replacements

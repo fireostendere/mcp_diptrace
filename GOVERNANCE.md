@@ -29,7 +29,8 @@ No release may bypass a blocker in
 repository owner is responsible for deciding whether a blocker is resolved and
 for preserving the evidence behind that decision.
 
-As checked on 2026-08-02, `main` is covered by the active GitHub ruleset
+As checked on 2026-08-03 at main SHA
+`3f06ffc084154f59a116540694f071c513323215`, `main` is covered by the active GitHub ruleset
 documented in [BRANCH_PROTECTION_STATUS.md](docs/compliance/BRANCH_PROTECTION_STATUS.md).
 Changes are required to come through pull requests with conversation resolution,
 DCO, and the required technical CI checks; force-pushes and branch deletion are
@@ -37,8 +38,9 @@ blocked. Required approvals are `0` for the current solo-maintainer mode. The
 ruleset is an administrative GitHub setting, not a second reviewer: the owner
 retains the administrative ability to change it, and this document does not
 claim independent review or a second maintainer. The API also reports strict
-up-to-date checks and all three merge methods; those facts are retained in the
-dated status record rather than silently changed here.
+up-to-date checks, all three merge methods, and a repository-role pull-request
+bypass; those facts are retained in the dated status record and are not
+immutability claims.
 
 ## Missing governance functions
 

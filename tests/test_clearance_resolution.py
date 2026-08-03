@@ -46,6 +46,9 @@ def test_one_netclass_rule_is_required_and_explicit_cannot_lower_it() -> None:
     assert resolution.netclass_rules_applied is True
     assert resolution.netclass_rules_ignored is False
     assert resolution.clearance_rule_status["clearance_source"] == "netclass_promoted"
+    assert resolution.clearance_rule_status["effective_rule_source"] == (
+        "netclass_and_board"
+    )
 
 
 def test_two_nets_from_different_classes_use_the_maximum_rule() -> None:
@@ -94,6 +97,24 @@ def test_explicit_larger_than_required_wins_and_resolution_is_deterministic() ->
     assert first.required_clearance_mm == pytest.approx(0.2)
     assert first.effective_clearance_mm == pytest.approx(0.9)
     assert first.clearance_rule_status["clearance_source"] == "caller"
+    assert first.clearance_rule_status["effective_rule_source"] == "board_and_explicit"
+
+
+def test_netclass_only_rule_source_is_explicit() -> None:
+    def netclass_only(root: ET.Element) -> None:
+        for item in root.findall("./Board/DRC/LayClearances/LayClearance"):
+            item.attrib.pop("TraceToTrace", None)
+        property_element = root.find(
+            "./Board/NetClasses/NetClass/LayProperties/LayProperty"
+        )
+        assert property_element is not None
+        property_element.set("Clearance", "0.45")
+
+    snapshot = build_snapshot(_document(netclass_only))
+    resolution = resolve_clearance(snapshot, ["0"], None, nets=[_net(snapshot, "VCC")])
+
+    assert resolution.required_clearance_mm == pytest.approx(0.45)
+    assert resolution.clearance_rule_status["effective_rule_source"] == "netclass"
 
 
 def test_unassigned_net_uses_board_default_and_missing_rule_fails_closed() -> None:
@@ -106,6 +127,9 @@ def test_unassigned_net_uses_board_default_and_missing_rule_fails_closed() -> No
     assert resolve_clearance(
         snapshot, ["0"], None, nets=[_net(snapshot, "VCC")]
     ).effective_clearance_mm == pytest.approx(0.2)
+    assert resolve_clearance(
+        snapshot, ["0"], None, nets=[_net(snapshot, "VCC")]
+    ).clearance_rule_status["effective_rule_source"] == "board_default"
 
     def no_rules(root: ET.Element) -> None:
         root.find("./Board/DRC/LayClearances/LayClearance").attrib.pop("TraceToTrace")

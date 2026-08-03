@@ -7381,16 +7381,23 @@ class DipTraceService:
                 "findings": [finding.model_dump() for finding in report.findings],
                 "metrics": report.metrics,
                 "clearance_rule_status": report.metrics.get("clearance_rule_status"),
+                "clearance_review_complete": report.metrics.get(
+                    "clearance_review_complete", True
+                ),
                 "netclass_rules_ignored": report.metrics.get(
                     "netclass_rules_ignored", False
                 ),
                 "assumptions": report.assumptions,
                 "skipped_checks": report.skipped_checks,
+                "skipped_reasons": report.skipped_reasons,
             },
             resources=resources,
         )
         response["clearance_rule_status"] = report.metrics.get(
             "clearance_rule_status"
+        )
+        response["clearance_review_complete"] = report.metrics.get(
+            "clearance_review_complete", True
         )
         response["netclass_rules_ignored"] = report.metrics.get(
             "netclass_rules_ignored", False

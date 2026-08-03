@@ -1,10 +1,10 @@
 # Main branch protection status
 
-Checked: 2026-08-02
+Checked: 2026-08-03
 
 The checked default branch was `main` at
-`f4ea60352a560d03f0cee45d500c186530e6f5f6` (the ordinary merge commit for PR
-#40). The active ruleset is named **Protect main** and targets the default
+`3f06ffc084154f59a116540694f071c513323215` (the merge commit for PR #43). The
+active ruleset is named **Protect main** (id `20233687`) and targets the default
 branch through GitHub's `~DEFAULT_BRANCH` ref condition.
 
 ## Rules observed through GitHub API
@@ -15,30 +15,29 @@ branch through GitHub's `~DEFAULT_BRANCH` ref condition.
 - required conversation/thread resolution is enabled;
 - code-owner, last-push approval, and required reviewer rules are not enabled;
 - deletion and non-fast-forward updates are blocked;
-- nine unique required status contexts are present:
+- GitHub returned eleven required-status records, representing nine unique
+  contexts:
   `DCO`, `static-analysis`, `test-linux (3.10)`, `test-linux (3.13)`,
   `test-linux geometry + coverage (3.12)`,
   `test-linux no-Shapely fallback (3.12)`, `test-macos`, `test-windows`, and
   `build-windows-bridge`;
-- GitHub returned duplicate entries for `test-linux (3.10)` and
-  `build-windows-bridge` with and without an integration identifier; they are
-  recorded as one context each above and were not changed automatically;
+- duplicate records for `test-linux (3.10)` and `build-windows-bridge` differ
+  only by the GitHub Actions integration identifier; they are recorded as one
+  unique context each above and were not changed automatically;
 - the API reports `strict_required_status_checks_policy: true`, so branches
-  must be up to date before merging. This differs from the earlier intended
-  setting and requires an owner decision if that policy is not wanted;
+  must be up to date before merging;
 - the API reports all three merge methods (`merge`, `squash`, and `rebase`)
-  as allowed. This differs from the earlier ordinary-merge-only expectation
-  and requires an owner decision if ordinary merge is the intended policy;
-- no bypass actor was exposed in the unauthenticated ruleset response. This
-  record therefore does not claim that bypass is impossible or that the
-  administrator cannot change the ruleset.
+  as allowed;
+- a repository-role bypass actor with id `5` is present for pull requests, and
+  the authenticated audit identity reports `current_user_can_bypass:
+  pull_requests_only`. This is an observed GitHub setting, not an assertion
+  about the human identity behind that role or about immutable administration.
 
-The ruleset was queried with the repository ruleset REST endpoints and checked
-against the public PR #41 test record. PR #41 (`test: verify branch protection`)
-was closed without merge, had one changed file (`branch-protection-test.txt`),
-and its remote head branch was absent at the audit check. The file is absent
-from `main`. No status contexts were returned for the short-lived test head,
-so this document does not claim that a complete CI run was recorded for PR #41.
+The ruleset was queried read-only with the repository ruleset REST endpoints on
+2026-08-03. Classic branch-protection lookup returned no protected-branch
+record; the active ruleset is the observed enforcement mechanism. This audit
+does not change the ruleset, infer owner intent, or claim that the settings
+cannot be changed externally.
 
 Settings link: [GitHub branch rules](https://github.com/fireostendere/mcp_diptrace/settings/rules).
 

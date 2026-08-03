@@ -36,6 +36,10 @@ The repository provides a stricter two-component control/probe
 [operator capture recipe](evidence_capture/q1-component-angle.recipe.json). It records the literal
 values and UI observations without treating either convention as the expected answer.
 
+The post-merge review keeps this question at `NOT RUN`: no live GUI edit and
+independent DipTrace re-export were available. The rotate tool therefore keeps
+its caveat and structured `component_angle_live_validation_pending` warning.
+
 **Who can perform:** Human with a licensed DipTrace installation. HUMAN ACTION REQUIRED:
 follow
 [`q1-component-angle.HUMAN_ACTION_REQUIRED.md`](evidence_capture/q1-component-angle.HUMAN_ACTION_REQUIRED.md).
