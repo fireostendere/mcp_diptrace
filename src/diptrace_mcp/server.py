@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, cast
 
+from mcp import types
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -15,7 +17,7 @@ from .error_boundary import (
     exception_to_error_result,
     wrap_tool_callable,
 )
-from .errors import ObjectNotFoundError
+from .errors import DipTraceMcpError, InternalStateError, ObjectNotFoundError
 from .operations import (
     AddTestpointOperation,
     PinEndpoint,
@@ -36,6 +38,8 @@ from .scaffolding import (
 from .service import DipTraceService
 from .synchronization import ComponentSyncMapping, SyncPlacement
 from .xml_document import XmlEdit
+
+logger = logging.getLogger(__name__)
 
 
 class XmlEditInput(BaseModel):
@@ -382,19 +386,38 @@ def _finalize_tool_descriptions(mcp: FastMCP) -> None:
             "call_fn_with_arg_validation",
             validate_with_boundary,
         )
+        cast(Any, validate_with_boundary).__diptrace_mcp_validation_boundary__ = True
 
         original_run = tool.run
 
         async def run_with_boundary(
             *args: Any,
             _original_run: Any = original_run,
+            _metadata: Any = tool.fn_metadata,
             **kwargs: Any,
         ) -> Any:
             try:
-                return await _original_run(*args, **kwargs)
+                # FastMCP's output conversion validates typed return models.  An
+                # error CallToolResult cannot satisfy a successful tool's output
+                # schema, so stop conversion at this boundary and pass transport
+                # errors through exactly once. Successful values are converted by
+                # the same SDK metadata after this check.
+                kwargs["convert_result"] = False
+                raw_result = await _original_run(*args, **kwargs)
+                if isinstance(raw_result, types.CallToolResult):
+                    return raw_result
+                return _metadata.convert_result(raw_result)
             except Exception as exc:
+                if not isinstance(exc, (DipTraceMcpError, ValidationError)):
+                    logger.exception("Unexpected MCP tool boundary failure")
+                if isinstance(exc, ValidationError):
+                    exc = InternalStateError(
+                        "MCP tool output conversion failed",
+                        cause=exc,
+                    )
                 return error_result_to_mcp_result(exception_to_error_result(exc))
 
+        cast(Any, run_with_boundary).__diptrace_mcp_run_boundary__ = True
         object.__setattr__(tool, "run", run_with_boundary)
 
 

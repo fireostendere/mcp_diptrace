@@ -262,6 +262,7 @@ tests/test_large_synthetic_board.py
 tests/test_libraries.py
 tests/test_live_apply_binding.py
 tests/test_live_session_lifecycle.py
+tests/test_mcp_error_contracts.py
 tests/test_mcp_tool_chain.py
 tests/test_mcp_tools_snapshot.py
 tests/test_model_cache.py
