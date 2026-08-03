@@ -250,8 +250,8 @@
     ],
     "unknown_license_metadata": []
   },
-  "inspected_commit": "be582bdd2186e986be085d578dc902043f575500",
-  "inspected_date": "2026-08-02",
+  "inspected_commit": "a73ac649d156148b33c89f4c31009727eb0e8264",
+  "inspected_date": "2026-08-03",
   "project": {
     "license": "Apache-2.0",
     "name": "diptrace-mcp",

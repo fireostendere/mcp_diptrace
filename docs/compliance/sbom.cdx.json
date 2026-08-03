@@ -340,18 +340,18 @@
     "properties": [
       {
         "name": "diptrace-mcp:inspected-commit",
-        "value": "be582bdd2186e986be085d578dc902043f575500"
+        "value": "a73ac649d156148b33c89f4c31009727eb0e8264"
       },
       {
         "name": "diptrace-mcp:inspection-date",
-        "value": "2026-08-02"
+        "value": "2026-08-03"
       },
       {
         "name": "diptrace-mcp:resolution",
         "value": "declarative-direct-dependency-inventory"
       }
     ],
-    "timestamp": "2026-08-02T00:00:00Z",
+    "timestamp": "2026-08-03T00:00:00Z",
     "tools": [
       {
         "name": "generate_compliance_inventory.py",
@@ -359,7 +359,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:9f2f7155-ee35-5a32-b4b1-d3f4a3deb19c",
+  "serialNumber": "urn:uuid:91f410a9-a4a9-51bb-962c-c5147ac04134",
   "specVersion": "1.5",
   "version": 1
 }
