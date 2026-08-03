@@ -82,7 +82,7 @@ Run the maintained gates before review:
   --dist-dir release-dist \
   --check-allowlist
 ./.venv/bin/python scripts/extract_spec_inventory.py \
-  --sources reference/diptrace-xml/extracted_text \
+  --sources tests/fixtures \
   --out reference/diptrace-xml/spec_inventory.json \
   --check
 ./.venv/bin/python scripts/report_format_coverage.py --check
@@ -92,6 +92,13 @@ Run the maintained gates before review:
 
 See [TESTING.md](docs/TESTING.md) for coverage, geometry, bridge, ingest, and
 large-board commands.
+
+## Required CI gate
+
+Required GitHub Actions checks are a merge gate. A pull request is not
+merge-ready while any required check is failing, red, or still pending on its
+current head commit. After the final push, inspect the checks for that exact
+commit and resolve failures before requesting merge.
 
 Requested changes must:
 

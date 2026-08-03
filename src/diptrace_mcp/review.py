@@ -7,7 +7,9 @@ from typing import Any
 
 from .adapters import DocumentSnapshot
 from .advanced_review import register_advanced_checks
+from .clearance import clearance_rule_status, resolve_clearance
 from .domain import ObjectRecord
+from .errors import CapabilityUnavailableError, NetClassResolutionError
 from .findings import Finding, make_finding
 from .geometry import BBox, Point, point_in_polygon, segment_distance
 from .geometry_backend import line_to_shape_distance, shapely_available
@@ -206,9 +208,20 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
         for element in snapshot.document.container.findall("./DRC/LayClearances/LayClearance")
         if element.get("TraceToTrace") is not None
     }
-    if not clearance_by_layer:
-        return [], {"skipped": "trace_clearance_rules_unavailable"}
-    maximum_clearance = max(clearance_by_layer.values())
+    netclass_clearances = [
+        xml_number_mm(snapshot.document, item, "Clearance")
+        for net_class in snapshot.document.container.findall("./NetClasses/NetClass")
+        for item in net_class.findall("./LayProperties/LayProperty")
+        if item.get("Clearance") is not None
+    ]
+    if not clearance_by_layer and not netclass_clearances:
+        return [], {
+            "skipped": "trace_clearance_rules_unavailable",
+            "clearance_rule_status": clearance_rule_status(
+                snapshot, operation="offline_clearance_review"
+            ),
+        }
+    maximum_clearance = max([*clearance_by_layer.values(), *netclass_clearances], default=0.0)
     segment_records: list[ObjectRecord] = []
     segment_geometry: dict[str, tuple[Point, Point, float, str, str]] = {}
     for trace in snapshot.board.traces:
@@ -237,6 +250,7 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
     index = SpatialIndex.build(segment_records, cell_size_mm=5.0)
     findings: list[Finding] = []
     seen: set[tuple[str, str]] = set()
+    skipped_netclass_pairs = 0
     for segment in segment_records:
         assert segment.bbox is not None
         for other in index.query(BBox(**segment.bbox), layers={segment.layer or ""}):
@@ -249,7 +263,31 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
             seen.add(pair)
             a1, a2, width_a, trace_a, layer = segment_geometry[segment.stable_id]
             b1, b2, width_b, trace_b, _ = segment_geometry[other.stable_id]
-            required = clearance_by_layer.get(layer, maximum_clearance)
+            net_a = next(
+                (item for item in snapshot.board.nets if item.xml_id == segment.net_id),
+                None,
+            )
+            net_b = next(
+                (item for item in snapshot.board.nets if item.xml_id == other.net_id),
+                None,
+            )
+            if net_a is None or net_b is None:
+                # A trace without a resolvable owning net is not safe to
+                # evaluate as a class-aware result.
+                continue
+            try:
+                resolution = resolve_clearance(
+                    snapshot,
+                    [layer],
+                    None,
+                    nets=[net_a, net_b],
+                )
+            except (CapabilityUnavailableError, NetClassResolutionError):
+                # The report-level disclosure remains visible; this pair is
+                # deliberately not treated as compliant or non-compliant.
+                skipped_netclass_pairs += 1
+                continue
+            required = resolution.effective_clearance_mm
             measured = max(
                 0.0,
                 segment_distance(a1, a2, b1, b2) - (width_a + width_b) / 2.0,
@@ -278,6 +316,10 @@ def check_trace_clearance(snapshot: DocumentSnapshot) -> tuple[list[Finding], di
     return findings, {
         "segments_checked": len(segment_records),
         "candidate_pairs_checked": len(seen),
+        "skipped_netclass_pairs": skipped_netclass_pairs,
+        "clearance_rule_status": clearance_rule_status(
+            snapshot, operation="offline_clearance_review"
+        ),
     }
 
 
@@ -299,7 +341,12 @@ def check_trace_object_clearance(
         default=0.0,
     )
     if maximum <= 0.0:
-        return [], {"skipped": "trace_to_copper_rules_unavailable"}
+        return [], {
+            "skipped": "trace_to_copper_rules_unavailable",
+            "clearance_rule_status": clearance_rule_status(
+                snapshot, operation="trace_object_clearance"
+            ),
+        }
     obstacles = [
         item
         for item in [
@@ -418,6 +465,9 @@ def check_trace_object_clearance(
         ),
         "skipped_geometry": skipped_geometry,
         "geometry_backend": "shapely_geos" if shapely_available() else "pure_python",
+        "clearance_rule_status": clearance_rule_status(
+            snapshot, operation="trace_object_clearance"
+        ),
     }
 
 
@@ -519,7 +569,12 @@ def run_checks(
 ) -> tuple[list[Finding], dict[str, Any], list[dict[str, str]], int]:
     checks = registry.checks(snapshot.document.kind, categories)
     findings: list[Finding] = []
-    metrics: dict[str, Any] = {}
+    metrics: dict[str, Any] = {
+        "clearance_rule_status": clearance_rule_status(
+            snapshot, operation="offline_clearance_review"
+        ),
+        "netclass_rules_ignored": False,
+    }
     skipped: list[dict[str, str]] = []
     for check in checks:
         check_findings, check_metrics = check.function(snapshot)
@@ -534,4 +589,16 @@ def run_checks(
                     {"check_id": check.check_id, "reason": str(partial_reason)}
                 )
         metrics[check.check_id] = check_metrics
+        check_status = check_metrics.get("clearance_rule_status")
+        if isinstance(check_status, dict) and check_status.get(
+            "netclass_rules_ignored", False
+        ):
+            metrics["netclass_rules_ignored"] = True
+            metrics["clearance_rule_status"] = {
+                **metrics["clearance_rule_status"],
+                "netclass_rules_ignored": True,
+                "warning_code": check_status.get(
+                    "warning_code", "netclass_rules_ignored"
+                ),
+            }
     return findings, metrics, skipped, len(checks)

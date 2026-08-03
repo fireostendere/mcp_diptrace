@@ -323,7 +323,7 @@ def test_router_defaults_clearance_to_document_drc() -> None:
     assert result.metrics["clearance_source"] == "document_drc_trace_to_trace"
 
 
-def test_router_refuses_missing_drc_clearance_instead_of_using_setup_default() -> None:
+def test_router_uses_netclass_clearance_when_drc_default_is_missing() -> None:
     original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
     root = ET.fromstring(original.raw_bytes)
     rule = root.find("./Board/DRC/LayClearances/LayClearance[@Lay='0']")
@@ -334,18 +334,16 @@ def test_router_refuses_missing_drc_clearance_instead_of_using_setup_default() -
         ET.tostring(root, encoding="utf-8", xml_declaration=True),
     )
 
-    with pytest.raises(
-        CapabilityUnavailableError,
-        match="applicable DRC TraceToTrace rules are unavailable",
-    ) as error:
-        synthesize_route(
-            build_snapshot(document),
-            _config(document).model_copy(update={"clearance": None}),
-        )
+    result = synthesize_route(
+        build_snapshot(document),
+        _config(document).model_copy(update={"clearance": None}),
+    )
 
-    assert error.value.payload.details["missing_layer_ids"] == ["0"]
+    assert result.metrics["clearance_mm"] == pytest.approx(0.2)
+    assert result.metrics["required_clearance_mm"] == pytest.approx(0.2)
+    assert result.metrics["clearance_source"] == "netclass_promoted"
     # Settings/Routing/@TraceClearance remains present in the fixture; it is not
-    # silently substituted for the missing DRC rule.
+    # substituted. The affected NetClass supplies the documented fallback.
 
 
 def test_multilayer_default_clearance_uses_maximum_applicable_drc_rule() -> None:

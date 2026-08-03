@@ -16,7 +16,7 @@ _BLOCKED_PREFIXES = (
     "reference/diptrace-xml/extracted_text/",
     "reference/diptrace-xml/sources/",
 )
-_BLOCKED_PATHS = frozenset({"reference/diptrace-xml/spec_inventory.json"})
+_BLOCKED_PATHS = frozenset()
 
 
 def _validated_release_paths(root: Path) -> tuple[str, ...]:

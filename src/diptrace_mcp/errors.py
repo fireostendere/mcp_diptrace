@@ -16,7 +16,12 @@ class ErrorPayload:
     jobid: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = asdict(self)
+        # ``recoverable`` is retained for bridge/job compatibility.  Public MCP
+        # tools use the less ambiguous ``retryable`` spelling at the transport
+        # boundary.
+        payload["retryable"] = self.recoverable
+        return payload
 
 
 class DipTraceMcpError(RuntimeError):
@@ -33,6 +38,7 @@ class DipTraceMcpError(RuntimeError):
         object_ids: list[str] | None = None,
         txid: str | None = None,
         jobid: str | None = None,
+        cause: BaseException | None = None,
     ) -> None:
         super().__init__(message)
         self._code = code or self.code
@@ -40,6 +46,9 @@ class DipTraceMcpError(RuntimeError):
         self.object_ids = object_ids or []
         self.txid = txid
         self.jobid = jobid
+        # Retain the cause for local diagnostics without making it part of the
+        # serializable payload.
+        self.cause = cause
 
     @property
     def payload(self) -> ErrorPayload:
@@ -160,3 +169,50 @@ class JobCancelledError(DipTraceMcpError):
 
 class InsufficientStackupDataError(DipTraceMcpError):
     code = "insufficient_stackup_data"
+
+
+class InvalidArgumentError(DipTraceMcpError):
+    """A caller supplied an argument that cannot be applied safely."""
+
+    code = "invalid_argument"
+    recoverable = False
+
+
+class ObjectConflictError(DipTraceMcpError):
+    """A requested mutation conflicts with current document state."""
+
+    code = "conflict"
+    recoverable = True
+
+
+class UnsupportedOperationError(DipTraceMcpError):
+    """The requested operation is outside the supported bounded surface."""
+
+    code = "unsupported_operation"
+    recoverable = False
+
+
+class SafetyGateError(DipTraceMcpError):
+    """A safety or evidence gate prevents the operation."""
+
+    code = "safety_gate"
+    recoverable = False
+
+
+class InternalStateError(DipTraceMcpError):
+    """An invariant or state-store failure occurred internally."""
+
+    code = "internal_error"
+    recoverable = False
+
+
+class NetClassResolutionError(CapabilityUnavailableError):
+    """A referenced NetClass cannot be resolved without guessing."""
+
+    code = "unknown_net_class"
+    recoverable = False
+
+
+# Public spelling used by the service→MCP contract documentation.  Keep the
+# historical mixed-case name as the canonical implementation for compatibility.
+DipTraceMCPError = DipTraceMcpError

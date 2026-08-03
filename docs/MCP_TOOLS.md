@@ -51,9 +51,12 @@ Opaque IDs are provenance-bound: object/stable IDs come from `query_objects` or 
 model/list tools; transaction, plan, report, export, and job IDs come from the corresponding
 create/run tool. Callers must not invent them.
 
-MCP tool failures currently use the transport's error response and human-readable message.
-Exception classes retain internal codes for service tests and persisted job failures, but the MCP
-wire does not promise a structured `code` or `suggested_action` payload.
+MCP tool failures use a bounded structured error envelope with a stable public code, safe details,
+and `retryable`; implementation exception text and causes are never returned. The service retains
+its internal exception taxonomy for local diagnostics and persisted job records. `rotate_components`
+also carries an evidence warning until Q1 has an independently reviewed live DipTrace GUI
+edit/re-export. Routing results expose the clearance resolution and NetClass status described in
+[REVIEW_ENGINE.md](REVIEW_ENGINE.md).
 
 ## Read and Query
 

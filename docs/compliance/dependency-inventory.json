@@ -119,22 +119,6 @@
         "development"
       ],
       "declared_requirements": [
-        "pypdf==6.14.2"
-      ],
-      "human_review_required": true,
-      "license": "BSD-3-Clause",
-      "license_basis": "engineering mapping from project metadata; human verification required",
-      "name": "pypdf",
-      "normalized_name": "pypdf",
-      "purl": "pkg:pypi/pypdf",
-      "version": null
-    },
-    {
-      "copyleft_or_special_terms": false,
-      "declared_groups": [
-        "development"
-      ],
-      "declared_requirements": [
         "pytest>=8.4,<9"
       ],
       "human_review_required": true,
@@ -240,7 +224,6 @@
       "hypothesis",
       "jsonschema",
       "mypy",
-      "pypdf",
       "pytest",
       "pytest-cov",
       "ruff"
@@ -262,13 +245,13 @@
       "hypothesis",
       "pyinstaller"
     ],
-    "source_extracts": [
-      "DipTrace reference extracts and generated inventory are excluded from archives until permission is confirmed"
+    "reference_materials": [
+      "Verbatim external documentation extracts are removed; the replacement inventory contains project-authored fixture observations only"
     ],
     "unknown_license_metadata": []
   },
-  "inspected_commit": "f4ea60352a560d03f0cee45d500c186530e6f5f6",
-  "inspected_date": "2026-08-02",
+  "inspected_commit": "a73ac649d156148b33c89f4c31009727eb0e8264",
+  "inspected_date": "2026-08-03",
   "project": {
     "license": "Apache-2.0",
     "name": "diptrace-mcp",

@@ -40,6 +40,9 @@ decision record that authorized the work when one exists.
 List the exact commands and environments used. State any platform, licensed
 DipTrace, signing, or external-tool checks that were not run.
 
+- [ ] All required CI checks for the current head commit are green. A red or
+      pending required check means this pull request is not merge-ready.
+
 ## Review notes
 
 Explain error-contract, transaction, evidence-level, performance, signing,

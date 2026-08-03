@@ -11,6 +11,7 @@ from diptrace_mcp.capabilities import get_capabilities
 from diptrace_mcp.config import Settings
 from diptrace_mcp.geometry_backend import shapely_available
 from diptrace_mcp.review import registry, run_checks
+from diptrace_mcp.routing import RouteConnectionConfig, synthesize_route
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.xml_document import DipTraceDocument
 
@@ -137,6 +138,61 @@ def test_trace_clearance_uses_segment_geometry_and_drc_rule() -> None:
     assert violation.delta == pytest.approx(-0.15)
     assert violation.layer == "0"
     assert metrics["pcb.trace_clearance"]["candidate_pairs_checked"] >= 1
+
+
+def test_router_and_trace_review_use_the_same_netclass_clearance() -> None:
+    original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    property_element = root.find(
+        "./Board/NetClasses/NetClass[@Id='0']/LayProperties/LayProperty"
+    )
+    assert property_element is not None
+    property_element.set("Clearance", "0.45")
+    traces = root.find("./Board/Nets/Net[@Id='0']/Traces")
+    assert traces is not None
+    trace = ET.SubElement(traces, "Trace", {"Id": "0", "Selected": "N"})
+    points = ET.SubElement(trace, "Points")
+    ET.SubElement(points, "Point", {"Id": "0", "X": "10", "Y": "10.3"})
+    ET.SubElement(
+        points,
+        "Point",
+        {
+            "Id": "1",
+            "X": "20",
+            "Y": "10.3",
+            "Lay": "0",
+            "Width": "0.25",
+            "ViaStyle": "-1",
+        },
+    )
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+    snapshot = build_snapshot(document)
+    assert snapshot.board is not None
+    vcc = next(item for item in snapshot.board.nets if item.name == "VCC")
+    start, end = vcc.relationships["endpoints"]
+    route = synthesize_route(
+        snapshot,
+        RouteConnectionConfig(
+            net=vcc.stable_id,
+            start_object_id=start,
+            end_object_id=end,
+            layer="Top",
+            width=0.25,
+            clearance=None,
+        ),
+    )
+
+    findings, metrics, _, _ = run_checks(snapshot, categories={"clearance"})
+
+    violation = next(item for item in findings if item.check_id == "pcb.trace_clearance")
+    assert route.clearance_resolution["effective_clearance_mm"] == pytest.approx(0.45)
+    assert violation.required == pytest.approx(0.45)
+    assert metrics["pcb.trace_clearance"]["clearance_rule_status"][
+        "netclass_rules_applied"
+    ] is True
 
 
 @pytest.mark.skipif(not shapely_available(), reason="geometry extra is not installed")

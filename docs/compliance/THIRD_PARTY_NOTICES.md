@@ -5,7 +5,7 @@ This file is a reproducible engineering inventory of direct dependencies declare
 for redistribution. Verify each dependency's current license text, notices, transitive
 dependencies, and any bundled native library before publishing an artifact.
 
-Inventory binding: commit `f4ea60352a560d03f0cee45d500c186530e6f5f6`, inspected date `2026-08-02`.
+Inventory binding: commit `a73ac649d156148b33c89f4c31009727eb0e8264`, inspected date `2026-08-03`.
 
 The Python wheel declares dependencies but does not vendor them. The Windows bridge is a
 PyInstaller bundle and requires a separate per-build contents and notice review.
@@ -19,7 +19,6 @@ PyInstaller bundle and requires a separate per-build contents and notice review.
 | `mypy` | development | mypy>=1.16,<2 | `MIT` | human review required |
 | `pydantic` | runtime | pydantic>=2.11,<3 | `MIT` | human review required |
 | `pyinstaller` | bridge | pyinstaller>=6.14,<7 | `GPL-2.0-or-later WITH Bootloader-exception` | human review required |
-| `pypdf` | development | pypdf==6.14.2 | `BSD-3-Clause` | human review required |
 | `pytest` | development | pytest>=8.4,<9 | `MIT` | human review required |
 | `pytest-cov` | development | pytest-cov>=6.2,<7 | `MIT` | human review required |
 | `PyYAML` | development | PyYAML>=6.0,<7 | `MIT` | human review required |
@@ -32,4 +31,4 @@ PyInstaller bundle and requires a separate per-build contents and notice review.
 - Resolve unknown or incomplete license metadata from authoritative upstream files.
 - Review `hypothesis` and the PyInstaller licensing/bootloader exception before any bundled release.
 - Inspect the actual Windows bridge bundle and record all bundled native libraries and notices.
-- Keep DipTrace reference extracts and generated inventory outside release archives until their redistribution basis is confirmed.
+- Keep any external documentation material outside release archives; the replacement factual inventory is project-authored observation data and is not a normative source.

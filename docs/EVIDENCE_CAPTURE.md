@@ -1,5 +1,19 @@
 # Operator-assisted DipTrace evidence capture
 
+## Current hardening status
+
+Q1 (`Component/@Angle`) is `NOT RUN` in this branch because no usable DipTrace
+PCB Layout executable was available. The exact operator handoff is
+[`q1-component-angle.HUMAN_ACTION_REQUIRED.md`](evidence_capture/q1-component-angle.HUMAN_ACTION_REQUIRED.md),
+and the machine-readable result remains
+[`q1-component-angle.result.json`](evidence_capture/q1-component-angle.result.json).
+No synthetic fixture or MCP writer round-trip can close that question.
+
+Evidence capture records provenance and observations; it does not grant
+redistribution rights. Public factual inventories are generated only from
+project-authored XML fixtures or separately reviewed controlled exports. External
+documentation text and source PDFs are not inputs to the public inventory.
+
 ## Outcome
 
 `scripts/capture_diptrace_evidence.py` is a standard-library CLI for collecting an

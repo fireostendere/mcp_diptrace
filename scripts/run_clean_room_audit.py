@@ -29,7 +29,6 @@ _BANNED_NAME_PARTS = (
     "forum_announcement",
     "reference/diptrace-xml/extracted_text",
     "reference/diptrace-xml/sources",
-    "reference/diptrace-xml/spec_inventory.json",
     "private/",
     "scancode-results",
     "release-dist",

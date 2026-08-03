@@ -1,7 +1,7 @@
 # Open Questions — DipTrace XML Format
 
-This document tracks known, high-impact compatibility questions that the public
-specifications and committed evidence do not settle. It is not exhaustive. Each question
+This document tracks known, high-impact compatibility questions that the current
+implementation and committed evidence do not settle. It is not exhaustive. Each question
 states the production dependency, a stable code-symbol reference, and an experiment that
 requires a real DipTrace installation or other human-controlled evidence.
 
@@ -14,7 +14,8 @@ refuse rather than guess.
 ## Q1: Is `Component/@Angle` in radians or degrees?
 
 **Question:** Does DipTrace interpret an ordinary PCB or schematic
-`Component/@Angle` value as radians or degrees?
+`Component/@Angle` value as radians or degrees? Current status: `NOT RUN` because
+no usable DipTrace PCB Layout GUI was available in this environment.
 
 **Why the code depends on it:** The reader
 `src/diptrace_mcp/adapters.py::_component_records` applies `math.degrees()`, while the
@@ -22,11 +23,12 @@ primary writer `src/diptrace_mcp/semantic_compiler.py::_set_angle_attribute` app
 `math.radians()`. Those functions are exact inverses, so a writer-reader round trip cannot
 validate the convention.
 
-**What is documented:** The public specification says only “Component rotation angle.”
-It explicitly says radians for text and pictures and degrees for table orientation, but
-states no unit for `Component/@Angle`.
+**What is documented:** The public tree does not redistribute external specification
+text. The implementation has a reader/writer convention, but it is not live
+evidence and cannot answer the unit question.
 
-**Experiment:** In DipTrace, place one component, set its rotation to exactly 90 degrees,
+**Experiment:** Status is `NOT RUN`: no usable DipTrace PCB Layout GUI was available in
+the current environment. In DipTrace, place one component, set its rotation to exactly 90 degrees,
 and export XML without passing the file through MCP. Read the literal value. Approximately
 `1.5708` means radians; `90` means degrees.
 
@@ -34,7 +36,10 @@ The repository provides a stricter two-component control/probe
 [operator capture recipe](evidence_capture/q1-component-angle.recipe.json). It records the literal
 values and UI observations without treating either convention as the expected answer.
 
-**Who can perform:** Human with a licensed DipTrace installation.
+**Who can perform:** Human with a licensed DipTrace installation. HUMAN ACTION REQUIRED:
+follow
+[`q1-component-angle.HUMAN_ACTION_REQUIRED.md`](evidence_capture/q1-component-angle.HUMAN_ACTION_REQUIRED.md).
+Do not mark Q1 closed from a parser round-trip, a synthetic fixture, or an MCP-written XML file.
 
 ---
 
@@ -49,13 +54,12 @@ values and UI observations without treating either convention as the expected an
 working exchange file back when `src/diptrace_mcp/service.py::DipTraceService.finish_live_session`
 requests apply. There is no per-object survival check before that replacement.
 
-**What is documented:** The public plug-in specification defines `ImpMode=All` as importing
-all regardless of object-specific settings. The repository's
+**What is documented:** The shipped profiles set `ImpMode=All`. The repository's
 [exchange reference](../reference/diptrace-xml/REFERENCE.md#exchange-lifecycle) records list
 replacement behavior, and a committed
 [compatibility observation](XML_COMPATIBILITY.md#preservation-rules) records one live
-round trip in which DipTrace removed unreferenced embedded pattern records. The public
-plug-in specification does not enumerate everything that an `ExpMode=All` export may omit.
+round trip in which DipTrace removed unreferenced embedded pattern records. The current
+project evidence does not enumerate everything that an `ExpMode=All` export may omit.
 The current profiles are
 [`pcb.settings.xml`](../plugin/settings/pcb.settings.xml) and
 [`schematic.settings.xml`](../plugin/settings/schematic.settings.xml).
@@ -121,11 +125,10 @@ deletes every existing child and writes a fixed set, including `Jumper="0"` and 
 `src/diptrace_mcp/routing_compiler.py::_replace_trace` relies on that rewrite. Any
 condition-dependent attribute outside that set is lost.
 
-**What is documented:** PCB specification section 4.20.1.6.1.2.1 names 16 trace-point
-attributes: `Id`, `X`, `Y`, `Lay`, `Width`, `Jumper`, `Arc`, `ViaStyle`, `PhaseFwd`,
-`PhaseBack`, `PairPoint`, `PairSubPoint`, `PairNecked`, `Meander`, `MeanderAngle`, and
-`Selected`. What remains unknown is the real 5.3 combination and required semantics for
-each geometry, not the existence of the documented names.
+**What is documented:** The clean-room inventory records only `Point` attributes
+observed in project-owned XML. It does not establish a required set or DipTrace 5.3
+semantics for any routing geometry. The real combination and preservation behavior
+remain unknown for each geometry.
 
 **Experiment:** Export one minimal example each of a straight trace, arc, top and bottom
 jumper, via transition, necked segment, meander, and differential pair. Preserve the raw
@@ -150,12 +153,10 @@ set to `All`, does `Selected="Y"` control or persist the post-import UI selectio
 persistent user-visible state, those writers intentionally clear it.
 
 **What is documented:** The
-[public plug-in specification text](../reference/diptrace-xml/extracted_text/DipTrace_Plugins.pages.json)
-says that a PCB/Schematic object selector set to `Selected` considers incoming
-`Selected="Y"`. That filtering behavior is settled. The shipped profiles use selector
-`All`, and the specification does not state whether selection/highlighting persists after
-import. For Component/Pattern Editor import, the specification says `Selected` is
-equivalent to `All`; that is a separate documented rule.
+The current public tree intentionally contains no verbatim external specification text.
+The clean-room inventory records only project-owned XML observations, so this question
+requires a separately captured primary source or controlled live probe. Do not infer
+selection persistence from a synthetic fixture.
 
 **Experiment:** Under a temporary PCB or schematic profile whose object selector is `All`,
 import otherwise identical new objects with `Selected="Y"` and `Selected="N"`. Inspect the
@@ -261,15 +262,13 @@ how do full-library saves differ from partial/current-object exports?
 and `src/diptrace_mcp/library_adapters.py::_components` read observed library structures,
 but the repository's reproducible inventory has no standalone Component/Pattern format
 source and there is no native library writer. Reader success does not prove mutation
-semantics. A local
-[reference-material audit](REFERENCE_MATERIALS_AUDIT.md#contradictions-and-unsupported-claims)
-also found mutually contradictory, unverified statements about `UID32`; neither statement
+semantics. A local [reference-material audit](REFERENCE_MATERIALS_AUDIT.md#material-classification)
+found that the available library material has unresolved provenance; no `UID32` statement
 is promoted here.
 
-**What is documented:** The public plug-in specification documents editor export/import
-modes such as `Library All`, `Library Add`, `Library Insert`, `Component All`, `Part All`,
-and `Edit`. It does not document the complete library XML schema or identity/canonicalization
-rules.
+**What is documented:** The project has no standalone Component/Pattern library
+writer and its clean-room inventory does not establish complete library XML identity or
+canonicalization rules. Editor mode names are not treated as an accepted mutation contract.
 
 **Experiment:** Use separate disposable copies of minimal Component and Pattern libraries
 and capture these controls without assuming an answer:
@@ -319,10 +318,10 @@ whether the design changes, and the process/host exit behavior. Re-export after 
 
 ---
 
-## Q13: Which DipTrace 5.3 XML elements and attributes are absent from the public specifications?
+## Q13: Which DipTrace 5.3 XML elements and attributes are absent from current observations?
 
-**Question:** What XML vocabulary or semantics were added after the public 4.3-era PCB and
-schematic specifications?
+**Question:** What XML vocabulary or semantics does DipTrace 5.3 emit that is absent from
+the current project-owned observation inventory?
 
 **Why the code depends on it:** `src/diptrace_mcp/adapters.py::build_snapshot` exposes only
 known normalized structures, while
@@ -330,8 +329,7 @@ known normalized structures, while
 raw XML is generally preserved, but it may remain invisible to analysis or be at risk when
 an owning parent is regenerated.
 
-**Experiment:** Inspect the `Docs` directory from a DipTrace 5.3 installation for newer
-specifications. Export representative 5.3 PCB and schematic designs and compare all element
+**Experiment:** Export representative 5.3 PCB and schematic designs and compare all element
 paths and attributes with `reference/diptrace-xml/spec_inventory.json`. Record unknowns;
 do not promote them from a synthetic fixture alone.
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -74,10 +75,14 @@ def test_generated_inventory_and_sbom_are_bound_to_same_commit_and_date() -> Non
     )
     sbom = json.loads((ROOT / "docs/compliance/sbom.cdx.json").read_text(encoding="utf-8"))
     assert re.fullmatch(r"[0-9a-f]{40}", inventory["inspected_commit"])
-    assert inventory["inspected_date"] == "2026-08-02"
+    inspected_date = inventory["inspected_date"]
+    assert isinstance(inspected_date, str)
+    assert re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", inspected_date)
+    date.fromisoformat(inspected_date)
     properties = {item["name"]: item["value"] for item in sbom["metadata"]["properties"]}
     assert properties["diptrace-mcp:inspected-commit"] == inventory["inspected_commit"]
-    assert properties["diptrace-mcp:inspection-date"] == inventory["inspected_date"]
+    assert properties["diptrace-mcp:inspection-date"] == inspected_date
+    assert sbom["metadata"]["timestamp"] == f"{inspected_date}T00:00:00Z"
     assert sbom["bomFormat"] == "CycloneDX"
     assert sbom["specVersion"] == "1.5"
 

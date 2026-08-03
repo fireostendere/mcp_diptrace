@@ -13,24 +13,17 @@ The runtime source of truth is `get_capabilities`. This document describes the m
 
 Standalone Component/Pattern Libraries are currently supported for normalized reading and validation. Native library mutation remains evidence-gated and is not registered as a normal capability.
 
-## Official Format Evidence
+## Evidence boundary
 
 The implementation uses three evidence classes; they are not interchangeable.
 
-### Public specification evidence
+### Project-authored factual inventory
 
-The reproducible [specification inventory](../reference/diptrace-xml/spec_inventory.json) is
-generated from exactly three maintained public sources:
-
-- the PCB XML specification;
-- the Schematic XML specification;
-- the executable plug-in settings specification.
-
-The committed [per-page text bundles](../reference/diptrace-xml/extracted_text/) record the source
-URL and hashes used by the offline generator check. The plug-in specification documents
-Component Editor and Pattern Editor *exchange settings* and import/export mode names. It is not a
-standalone Component Library or Pattern Library XML format reference. No such standalone format
-source is part of the reproducible inventory.
+The reproducible [factual inventory](../reference/diptrace-xml/spec_inventory.json) is generated
+from project-owned XML fixtures and future explicitly marked controlled exports. It records
+observed element/attribute names and bounded values with SHA-256 provenance. It contains no
+verbatim external documentation, explanatory paragraphs, or copied examples. Its coverage is a
+parser/fixture observation and is not a normative DipTrace format specification.
 
 ### Observed compatibility evidence
 
@@ -46,7 +39,10 @@ Reader support and a successful local parse do not close those writer questions.
 
 `Version` is preserved in document identity and compatibility reports, but it is not the sole compatibility gate. Readers use feature detection, tolerate documented optional/default fields, preserve unknown sections, and require each writer to validate the structures it needs.
 
-A live import/re-export acceptance run with DipTrace 5.3 has confirmed real Schematic XML using `Version="5.3.0.2"`. A separate DipTrace 5.2.0.4 Windows/WSL campaign confirmed the tested PCB and Schematic live apply/cancel/wrong-SHA paths, including independent re-export for applied changes and no host mutation for cancelled/refused changes. Component and Pattern Library exports have also been observed from DipTrace 5.3, while some public specification examples remain 4.3-era. Application version and XML `Version` are therefore treated as related but non-equivalent evidence.
+No live DipTrace PCB Layout executable was available during this branch's Q1
+probe. Existing synthetic fixtures and prior acceptance records remain bounded
+to their exact evidence scope; they do not establish universal DipTrace 5.3
+writer compatibility.
 
 ## Implemented Readers
 

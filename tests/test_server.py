@@ -27,6 +27,7 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
         ) as session:
             tools = await session.list_tools()
             tool_names = {tool.name for tool in tools.tools}
+            tool_descriptions = {tool.name: tool.description or "" for tool in tools.tools}
             assert "summarize_design" in tool_names
             assert "apply_xml_edits" in tool_names
             assert "get_capabilities" in tool_names
@@ -56,6 +57,11 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert "route_net" in tool_names
             assert "route_diff_pair" in tool_names
             assert "plan_diff_pair_route" in tool_names
+            assert (
+                "component angle semantics have not yet been independently validated"
+                in tool_descriptions["rotate_components"].casefold()
+            )
+            assert "NetClass" in tool_descriptions["route_connection"]
             assert "plan_route_nets" in tool_names
             assert "apply_route_plan" in tool_names
             assert "export_bom" in tool_names
@@ -79,6 +85,10 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             caps = await session.call_tool("get_capabilities", {"path": "pcb.xml"})
             assert not caps.isError
             assert caps.structuredContent["read_capabilities"]["board_model"] is True
+            assert caps.structuredContent["evidence_warnings"][0]["code"] == (
+                "component_angle_live_validation_pending"
+            )
+            assert caps.structuredContent["netclass_rules_ignored"] is True
 
             board = await session.call_tool(
                 "get_board_model",

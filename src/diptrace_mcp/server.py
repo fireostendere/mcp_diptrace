@@ -6,10 +6,16 @@ import os
 from typing import Annotated, Any, Literal
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .config import Settings
 from .domain import BoardModelSection, QuerySelector
+from .error_boundary import (
+    error_result_to_mcp_result,
+    exception_to_error_result,
+    wrap_tool_callable,
+)
+from .errors import ObjectNotFoundError
 from .operations import (
     AddTestpointOperation,
     PinEndpoint,
@@ -265,6 +271,25 @@ _DRY_RUN_DESCRIPTION = (
     "`dry_run=true` previews without writing. Set `dry_run=false` only after "
     "inspecting the preview and pass its `expected_sha256`."
 )
+_COMPONENT_ANGLE_CAVEAT = (
+    "Component angle semantics have not yet been independently validated against "
+    "a live DipTrace GUI edit and re-export. Inspect the transaction preview and "
+    "verify the result through DipTrace before relying on rotation changes."
+)
+_NETCLASS_CLEARANCE_DISCLOSURE = (
+    "Clearance resolution applies the maximum of explicit requested clearance, "
+    "board DRC TraceToTrace defaults, and all affected NetClass LayProperty "
+    "Clearance rules. The structured result includes clearance_rule_status and "
+    "the effective value; this is not a full DipTrace DRC sign-off."
+)
+_CLEARANCE_TOOLS = {
+    "route_connection",
+    "route_net",
+    "route_connections",
+    "route_diff_pair",
+    "plan_diff_pair_route",
+    "analyze_routing_congestion",
+}
 _COMPATIBILITY_ALIAS_DESCRIPTIONS = {
     "analyze_controlled_impedance": "Alias: validate_impedance_constraints.",
     "check_silkscreen": "Alias: run_silkscreen_check.",
@@ -321,6 +346,10 @@ def _finalize_tool_descriptions(mcp: FastMCP) -> None:
             tool.name,
             (tool.description or "").strip(),
         )
+        if tool.name == "rotate_components" and _COMPONENT_ANGLE_CAVEAT not in description:
+            description = f"{description} {_COMPONENT_ANGLE_CAVEAT}".strip()
+        if tool.name in _CLEARANCE_TOOLS and _NETCLASS_CLEARANCE_DISCLOSURE not in description:
+            description = f"{description} {_NETCLASS_CLEARANCE_DISCLOSURE}".strip()
         if has_geometric_input and DISTANCE_UNITS_DESCRIPTION not in description:
             description = f"{description} {DISTANCE_UNITS_DESCRIPTION}".strip()
         if (has_selector or tool.name in _GENERIC_SCHEMA_TOOLS) and (
@@ -332,6 +361,41 @@ def _finalize_tool_descriptions(mcp: FastMCP) -> None:
         ):
             description = f"{description} {_DRY_RUN_DESCRIPTION}".strip()
         tool.description = description
+        tool.fn = wrap_tool_callable(tool.fn, tool.name, mcp_result=True)
+
+        original_validate = tool.fn_metadata.call_fn_with_arg_validation
+
+        async def validate_with_boundary(
+            *args: Any,
+            _original_validate: Any = original_validate,
+            **kwargs: Any,
+        ) -> Any:
+            try:
+                return await _original_validate(*args, **kwargs)
+            except Exception as exc:
+                if not isinstance(exc, ValidationError):
+                    raise
+                return error_result_to_mcp_result(exception_to_error_result(exc))
+
+        object.__setattr__(
+            tool.fn_metadata,
+            "call_fn_with_arg_validation",
+            validate_with_boundary,
+        )
+
+        original_run = tool.run
+
+        async def run_with_boundary(
+            *args: Any,
+            _original_run: Any = original_run,
+            **kwargs: Any,
+        ) -> Any:
+            try:
+                return await _original_run(*args, **kwargs)
+            except Exception as exc:
+                return error_result_to_mcp_result(exception_to_error_result(exc))
+
+        object.__setattr__(tool, "run", run_with_boundary)
 
 
 def create_server(
@@ -2737,7 +2801,10 @@ def create_server(
         """Stored structured review report."""
         report = service.findings.read(report_id)
         if report.document_id != document_id:
-            raise ValueError("Review report does not belong to the requested document")
+            raise ObjectNotFoundError(
+                "Review report is not associated with the requested document",
+                details={"report_id": report_id},
+            )
         return service.review_resource(report_id)
 
     @mcp.resource(

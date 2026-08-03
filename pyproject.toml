@@ -43,7 +43,6 @@ dev = [
   "hypothesis>=6.135,<7",
   "jsonschema>=4.24,<5",
   "mypy>=1.16,<2",
-  "pypdf==6.14.2",
   "pytest>=8.4,<9",
   "pytest-cov>=6.2,<7",
   "PyYAML>=6.0,<7",

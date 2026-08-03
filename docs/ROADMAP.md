@@ -73,27 +73,27 @@ experiments for DipTrace's emitted/accepted encoding and BOM behavior, and Q17 s
 requires a real DipTrace-generated DSN/SES pair. Refusals remain until that evidence is
 available.
 
-### Format Coverage (measured from official specifications)
+### Format Coverage (measured from project-owned observations)
 
-The reproducible inventory extracted from the official DipTrace XML specifications (PCB and
-Schematic, v4.3.0.3, 2023) contains **270 literal XML elements**, **727 XML attributes**, and
-**232 element text-content definitions**. Prose-only tag mentions and text values previously
-misclassified as attributes are excluded. Current coverage against this measured inventory:
+The reproducible clean-room inventory is generated from project-owned XML
+fixtures. It contains observed element and attribute vocabulary only; it is not
+a normative DipTrace specification and does not establish universal 5.3
+compatibility. Current coverage against this measured observation set:
 
 | Metric | Value |
 | --- | --- |
-| Total literal XML elements in spec | 270 |
-| XML attributes in spec | 727 |
-| Element text-content definitions | 232 |
-| Explicit attribute omission clauses | 4 |
-| Documented parent/child relationships | 90 across 80 parents |
+| Observed XML elements | see `FORMAT_COVERAGE.md` |
+| Observed XML attributes | see `FORMAT_COVERAGE.md` |
+| Element text-content definitions | not inventoried by this clean-room generator |
+| External specification clauses | not included |
+| Observed parent/child relationships | see `FORMAT_COVERAGE.md` |
 | Normalized (reader produces typed field) | 58 |
 | Written only (writer can create/modify) | 19 |
 | Mentioned only (literal, not an XML call) | 22 |
 | Passthrough (unknown XML, kept byte-for-byte) | 171 |
 | **Coverage** | **28.5%** |
 
-See [FORMAT_COVERAGE.md](FORMAT_COVERAGE.md) for the full element-by-element inventory, and
+See [FORMAT_COVERAGE.md](FORMAT_COVERAGE.md) for the full project-owned observation inventory, and
 [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) for the current maintained set of high-impact unresolved
 compatibility questions.
 

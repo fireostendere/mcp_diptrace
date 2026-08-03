@@ -16,6 +16,7 @@ from .config import (
     DEFAULT_LIVE_SESSION_TTL_SECONDS,
 )
 from .domain import CapabilityReport
+from .evidence_status import component_angle_evidence_warnings
 from .geometry_backend import backend_report
 from .xml_document import DipTraceDocument
 
@@ -169,6 +170,7 @@ def capability_report(
 ) -> CapabilityReport:
     """Render capability state from an existing snapshot or server-only context."""
 
+    from .clearance import clearance_rule_status
     from .review import registry
 
     capability_tables = render_capability_tables(snapshot)
@@ -258,6 +260,11 @@ def capability_report(
             document_kind=document_kind,
             document_trust=trust_context,
         ),
+        clearance_rule_status=clearance_rule_status(snapshot, operation="capability"),
+        # Capability metadata describes the bounded surface, including the
+        # trace-to-object review paths that still use DRC-only rules.
+        netclass_rules_ignored=True,
+        evidence_warnings=component_angle_evidence_warnings(),
     )
 
 

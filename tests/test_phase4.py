@@ -342,10 +342,16 @@ def test_semantic_tools_append_to_transaction_commit_and_rollback(
         txid=txid,
     )
     assert second["transaction"]["operation_count"] == 2
+    assert second["evidence_warnings"][0]["code"] == (
+        "component_angle_live_validation_pending"
+    )
     assert "operations" not in second["transaction"]
     assert second["transaction"]["compiled_patch_count"] == 3
 
     committed = service.commit_transaction(txid, source_sha)
+    assert committed["evidence_warnings"][0]["affected_operation"] == (
+        "rotate_components"
+    )
     commit_sha = committed["transaction"]["committed_sha256"]
     root = ET.parse(board).getroot()
     component = root.find("./Board/Components/Component[@Id='0']")

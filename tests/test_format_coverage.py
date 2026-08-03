@@ -66,17 +66,8 @@ def test_real_coverage_spot_checks_and_partitions_inventory() -> None:
     coverage = compute_coverage(inventory, SOURCE)
     normalized = set(coverage["normalized_elements"])
 
-    assert {
-        "CopperPour",
-        "DifferentialPair",
-        "MaskPaste",
-        "PadPoint",
-        "PadPoints",
-        "AddField",
-        "AddFields",
-        "ClearanceDetails",
-    } <= normalized
-    assert {"Id", "RefDes", "LineWidth"}.isdisjoint(normalized)
+    assert {"CopperPour", "DifferentialPair", "MaskPaste", "PadPoint", "PadPoints"} <= normalized
+    assert "Id" not in normalized
 
     classes = [
         set(coverage["normalized_elements"]),

@@ -3,6 +3,8 @@
 # SHA-256 proves byte integrity only, not DipTrace provenance or validation.
 d6c9616e05572d7f430a0a8964667af621800ee688dd94102a6ac584c7f54455  tests/fixtures/component_library.xml
 5411e7d442e55c3c2dd0b5366bee9cc6db3f02a92e1b7fa25cf707b4555ba6fd  tests/fixtures/diff_pair_pcb.xml
+890be08427a00768da4e1dafe80ebcc5dda96f82262cf5b423c5281c3e3d4d8e  tests/fixtures/diptrace-5.3/manifest.json
+3f346476b511ee3fa99140fbeb8cecbbbef8bb603afde0fa2d0c55a0a7c1b8d6  tests/fixtures/diptrace-5.3/manifest.schema.json
 5f22e60f363f69a08a65435ded9031870fad7df84661f9edeb8e18a6ec1175d0  tests/fixtures/diptrace_5_3/manifest.pending.schema.json
 919cc73443b303c27dd31117b91984c6ac4b6c88178d14e371d5b06bdf6d924c  tests/fixtures/diptrace_5_3/manifest.schema.json
 75a86bd992ae5f6fbbc625a90939a464a40d21d8271fe4fff4a703178c9d634b  tests/fixtures/diptrace_5_3/power_multilayer/expected_summary.json

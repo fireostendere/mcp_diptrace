@@ -41,8 +41,8 @@ conclusion that any one of them is legally or strategically correct.
   distribution requirements.
 - Review the PyInstaller-built Windows bridge and everything bundled into it.
 - Review wheel-shipped `skills/` content and its shared schema.
-- Review `reference/diptrace-xml/extracted_text/`, generated inventory data,
-  official-document excerpts, and redistribution obligations.
+- Review the removed external-document extracts, generated factual inventory
+  data, and redistribution obligations.
 - Review every fixture and evidence artifact. Possession of a DipTrace export
   does not itself grant redistribution permission.
 - Review descriptive use of DipTrace and Novarm names and marks.

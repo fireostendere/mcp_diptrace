@@ -5,6 +5,43 @@ objects and metrics. A wholly unavailable check returns a structured skip reason
 partially supported check can instead disclose skipped geometry in its metrics.
 `FindingStore` persists a report keyed by document SHA.
 
+## NetClass clearance disclosure
+
+Current status: `implemented for routing and trace-to-trace review; partial for
+trace-to-object and placement clearance`.
+
+The shared resolver reads per-layer `DRC/LayClearances/LayClearance.TraceToTrace`
+board defaults and the `Clearance` value under each affected
+`NetClasses/NetClass/LayProperties/LayProperty`. For every route, it applies the
+monotonic precedence:
+
+```text
+required = max(board default, every affected NetClass rule)
+effective = max(required, explicit requested clearance)
+```
+
+An explicit value can increase the effective clearance but cannot lower a
+mandatory rule. A missing NetClass assignment falls back to the board default.
+An unknown class reference fails closed for routing with `unknown_net_class`; the
+offline review skips that pair and reports the unresolved class in structured
+metrics. A missing rule with no explicit value also fails closed rather than
+guessing. No object-specific clearance is currently passed into this shared
+resolver; trace-object and placement rules remain the separate partial paths
+described below.
+
+This resolver is used by `route_connection`, `route_net`, `route_connections`,
+differential-pair routing, congestion ordering, route plans, and the
+`pcb.trace_clearance` offline check. `pcb.trace_object_clearance` and placement
+clearance still use their DRC/geometry-specific rules and do not apply NetClass
+clearance; their results expose `netclass_rules_ignored: true`. Board-edge
+clearance is a separate geometry rule.
+
+Affected routing, planning, congestion, and review results contain
+`requested_clearance_mm`, `required_clearance_mm`, `effective_clearance_mm`,
+`clearance_sources`, `netclass_rules_applied`, `netclass_rules_ignored`, and
+`clearance_rule_status`. Capability metadata also lists the partial paths. These
+results are not a full DipTrace DRC or fabrication sign-off.
+
 ## Coverage Status
 
 The table below is a representative release-review matrix, not a fabrication-house

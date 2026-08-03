@@ -22,6 +22,7 @@ from .backups import BackupStore
 from .bom import compare_bom_records, extract_bom, group_bom, review_bom
 from .capabilities import capability_report as build_capability_report
 from .capability_model import MAX_TRANSACTION_OPERATIONS
+from .clearance import resolve_clearance
 from .config import Settings
 from .connectivity import build_connectivity_graph
 from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
@@ -63,6 +64,7 @@ from .errors import (
     DocumentError,
     DrcRegressionError,
     EditError,
+    ObjectNotFoundError,
     PathAccessError,
     RoundtripValidationError,
     RoutingError,
@@ -70,6 +72,7 @@ from .errors import (
     Sha256MismatchError,
     TransactionConflictError,
 )
+from .evidence_status import component_angle_evidence_warnings
 from .exports import (
     ExportStore,
     create_bom_export,
@@ -173,6 +176,8 @@ from .review import run_checks
 from .routing import (
     DifferentialPairRouteConfig,
     RouteConnectionConfig,
+    _find_net,
+    _route_layers,
     synthesize_differential_pair_route,
     synthesize_route,
 )
@@ -1559,7 +1564,14 @@ class DipTraceService:
 
     def resolve_target(self, path: str | None) -> DocumentTarget:
         if path:
-            resolved = self.settings.resolve_allowed_path(path)
+            try:
+                resolved = self.settings.resolve_allowed_path(path)
+            except FileNotFoundError as exc:
+                raise ObjectNotFoundError(
+                    "The requested document does not exist",
+                    details={"resource": "document"},
+                    cause=exc,
+                ) from exc
             return DocumentTarget(
                 resolved,
                 self.sessions.session_id_for_working_path(resolved),
@@ -3204,6 +3216,11 @@ class DipTraceService:
         validation_after = _validation_response_summary(
             preview["validation_after_preview"]
         )
+        angle_evidence_warnings = (
+            component_angle_evidence_warnings()
+            if any(operation.kind == "rotate_components" for operation in operations)
+            else []
+        )
         return {
             "ok": True,
             "written": False,
@@ -3214,11 +3231,21 @@ class DipTraceService:
                 "validation_after_preview": validation_after,
                 "warnings_metadata": warning_metadata,
                 "limitations_metadata": limitation_metadata,
+                **(
+                    {"evidence_warnings": angle_evidence_warnings}
+                    if angle_evidence_warnings
+                    else {}
+                ),
             },
             "warnings": warnings,
             "limitations": limitations,
             "resources": response_resources,
             "preview": preview_metadata,
+            **(
+                {"evidence_warnings": angle_evidence_warnings}
+                if angle_evidence_warnings
+                else {}
+            ),
         }
 
     def validate_transaction(self, txid: str) -> dict[str, Any]:
@@ -3470,6 +3497,11 @@ class DipTraceService:
         )
         warnings, warning_metadata = _bounded_messages(applied.warnings)
         limitations, limitation_metadata = _bounded_messages(preview["limitations"])
+        angle_evidence_warnings = (
+            component_angle_evidence_warnings()
+            if any(operation.kind == "rotate_components" for operation in operations)
+            else []
+        )
         return {
             "ok": True,
             "written": True,
@@ -3479,10 +3511,20 @@ class DipTraceService:
                 "compiled_patch_count": applied.patch_count,
                 "warnings_metadata": warning_metadata,
                 "limitations_metadata": limitation_metadata,
+                **(
+                    {"evidence_warnings": angle_evidence_warnings}
+                    if angle_evidence_warnings
+                    else {}
+                ),
             },
             "warnings": warnings,
             "limitations": limitations,
             "resources": tx_preview_resources(txid),
+            **(
+                {"evidence_warnings": angle_evidence_warnings}
+                if angle_evidence_warnings
+                else {}
+            ),
         }
 
     @staticmethod
@@ -5971,8 +6013,15 @@ class DipTraceService:
             "points": [point.as_dict() for point in route.points],
             "path": [point.model_dump(mode="json") for point in route.operation.points],
             "metrics": route.metrics,
+            "clearance_resolution": route.clearance_resolution,
             "assumptions": route.assumptions,
         }
+        response["clearance_rule_status"] = route.clearance_resolution[
+            "clearance_rule_status"
+        ]
+        response["netclass_rules_ignored"] = route.clearance_resolution[
+            "netclass_rules_ignored"
+        ]
         response["warnings"] = [*response.get("warnings", []), *route.warnings]
         response["limitations"] = [
             *response.get("limitations", []),
@@ -6031,7 +6080,38 @@ class DipTraceService:
             working = applied.document
             working_snapshot = build_snapshot(working, live_session=target.is_live)
         response = self._run_semantic_operations(operations, path, dry_run, expected_sha256, txid)
-        response["routing"] = {"connection_count": len(operations), "routes": metrics}
+        response["routing"] = {
+            "connection_count": len(operations),
+            "routes": metrics,
+            "clearance_resolutions": [
+                {
+                    key: item[key]
+                    for key in (
+                        "requested_clearance_mm",
+                        "required_clearance_mm",
+                        "effective_clearance_mm",
+                        "clearance_sources",
+                        "netclass_rules_applied",
+                        "netclass_rules_ignored",
+                        "clearance_rule_status",
+                    )
+                    if key in item
+                }
+                for item in metrics
+            ],
+        }
+        response["clearance_rule_status"] = {
+            "per_route": [item.get("clearance_rule_status") for item in metrics],
+            "netclass_rules_applied": all(
+                bool(item.get("netclass_rules_applied", False)) for item in metrics
+            ),
+            "netclass_rules_ignored": any(
+                bool(item.get("netclass_rules_ignored", False)) for item in metrics
+            ),
+        }
+        response["netclass_rules_ignored"] = response["clearance_rule_status"][
+            "netclass_rules_ignored"
+        ]
         return response
 
     def route_diff_pair(
@@ -6081,8 +6161,15 @@ class DipTraceService:
             "positive_points": [point.as_dict() for point in route.positive_points],
             "negative_points": [point.as_dict() for point in route.negative_points],
             "metrics": route.metrics,
+            "clearance_resolution": route.clearance_resolution,
             "assumptions": route.assumptions,
         }
+        response["clearance_rule_status"] = route.clearance_resolution[
+            "clearance_rule_status"
+        ]
+        response["netclass_rules_ignored"] = route.clearance_resolution[
+            "netclass_rules_ignored"
+        ]
         response["warnings"] = [*response.get("warnings", []), *route.warnings]
         response["limitations"] = [
             *response.get("limitations", []),
@@ -6164,12 +6251,19 @@ class DipTraceService:
             diff=preview["diff"],
         )
         record = self.plans.read(record.plan_id)
-        return self._read_success(
+        response = self._read_success(
             snapshot.info,
             {"plan": record.model_dump(mode="json")},
             limitations=record.limitations,
             resources=resources,
         )
+        response["clearance_rule_status"] = route.clearance_resolution[
+            "clearance_rule_status"
+        ]
+        response["netclass_rules_ignored"] = route.clearance_resolution[
+            "netclass_rules_ignored"
+        ]
+        return response
 
     def plan_route_nets(
         self,
@@ -6252,7 +6346,30 @@ class DipTraceService:
             unresolved=[],
             candidates=candidates,
             score={"total_length_mm": total_length},
-            metrics={"connection_count": len(operations), "total_length_mm": total_length},
+            metrics={
+                "connection_count": len(operations),
+                "total_length_mm": total_length,
+                "clearance_resolutions": [
+                    {
+                        key: item["metrics"][key]
+                        for key in (
+                            "requested_clearance_mm",
+                            "required_clearance_mm",
+                            "effective_clearance_mm",
+                            "clearance_sources",
+                            "netclass_rules_applied",
+                            "netclass_rules_ignored",
+                            "clearance_rule_status",
+                        )
+                        if key in item["metrics"]
+                    }
+                    for item in candidates
+                ],
+                "netclass_rules_ignored": any(
+                    bool(item["metrics"].get("netclass_rules_ignored", False))
+                    for item in candidates
+                ),
+            },
             assumptions=["Connections are routed sequentially with bounded 45-degree A*."],
             warnings=[],
             limitations=["No push-and-shove or rip-up/retry is implemented."],
@@ -6268,12 +6385,25 @@ class DipTraceService:
             diff=preview["diff"],
         )
         record = self.plans.read(record.plan_id)
-        return self._read_success(
+        response = self._read_success(
             snapshot.info,
             {"plan": record.model_dump(mode="json")},
             limitations=record.limitations,
             resources=resources,
         )
+        response["clearance_rule_status"] = {
+            "per_route": [
+                item["metrics"].get("clearance_rule_status") for item in candidates
+            ],
+            "netclass_rules_ignored": any(
+                bool(item["metrics"].get("netclass_rules_ignored", False))
+                for item in candidates
+            ),
+        }
+        response["netclass_rules_ignored"] = response["clearance_rule_status"][
+            "netclass_rules_ignored"
+        ]
+        return response
 
     def apply_route_plan(
         self,
@@ -6527,6 +6657,18 @@ class DipTraceService:
             synthesis.operations, path, dry_run, expected_sha256, txid
         )
         response["routing"] = synthesis.metrics
+        response["clearance_rule_status"] = {
+            "per_route": [
+                item.get("clearance_rule_status")
+                for item in synthesis.metrics.get("clearance_resolutions", [])
+            ],
+            "netclass_rules_ignored": bool(
+                synthesis.metrics.get("netclass_rules_ignored", False)
+            ),
+        }
+        response["netclass_rules_ignored"] = response["clearance_rule_status"][
+            "netclass_rules_ignored"
+        ]
         if synthesis.failed:
             response.setdefault("warnings", []).append(
                 f"{len(synthesis.failed)} connection(s) could not be routed; "
@@ -6556,12 +6698,41 @@ class DipTraceService:
             ordering=ordering,
         )
         snapshot = self.models.get(document, live_session=target.is_live)
+        clearance_resolutions = []
+        for _index, config in ordered:
+            net = _find_net(snapshot, config.net)
+            layer_ids, _start_layer, _end_layer = _route_layers(snapshot, config)
+            # Congestion ranking uses the same clearance resolver as routing;
+            # the returned resolution is part of the read-only decision record.
+            clearance_resolutions.append(
+                resolve_clearance(
+                    snapshot,
+                    layer_ids,
+                    config.clearance,
+                    nets=[net],
+                ).as_dict()
+            )
         return self._read_success(
             snapshot.info,
             {
                 "ordering": ordering,
                 "routing_order": [index for index, _config in ordered],
                 "priorities": [item.as_dict() for item in priorities],
+                "clearance_resolutions": clearance_resolutions,
+                "clearance_rule_status": {
+                    "per_route": [
+                        item["clearance_rule_status"]
+                        for item in clearance_resolutions
+                    ],
+                    "netclass_rules_ignored": any(
+                        item["netclass_rules_ignored"]
+                        for item in clearance_resolutions
+                    ),
+                },
+                "netclass_rules_ignored": any(
+                    item["netclass_rules_ignored"]
+                    for item in clearance_resolutions
+                ),
             },
             limitations=[
                 "Congestion ranking is a deterministic corridor/bounding-box heuristic, "
@@ -7203,17 +7374,28 @@ class DipTraceService:
             f"diptrace://document/{snapshot.info.document_id}/review/{report.report_id}",
             f"diptrace://document/{snapshot.info.document_id}/findings",
         ]
-        return self._read_success(
+        response = self._read_success(
             snapshot.info,
             {
                 "summary": report.summary(),
                 "findings": [finding.model_dump() for finding in report.findings],
                 "metrics": report.metrics,
+                "clearance_rule_status": report.metrics.get("clearance_rule_status"),
+                "netclass_rules_ignored": report.metrics.get(
+                    "netclass_rules_ignored", False
+                ),
                 "assumptions": report.assumptions,
                 "skipped_checks": report.skipped_checks,
             },
             resources=resources,
         )
+        response["clearance_rule_status"] = report.metrics.get(
+            "clearance_rule_status"
+        )
+        response["netclass_rules_ignored"] = report.metrics.get(
+            "netclass_rules_ignored", False
+        )
+        return response
 
     def get_findings(self, report_id: str) -> dict[str, Any]:
         report = self.findings.read(report_id)
