@@ -1,22 +1,20 @@
-name: One-shot clearance report fix
+name: Package clearance report fix
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/bound-clearance-partial-report
+      - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply-and-verify:
-    if: ${{ !contains(github.event.head_commit.message, '[one-shot applied]') }}
+  apply-verify-package:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           fetch-depth: 0
-          ref: fix/bound-clearance-partial-report
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.12'
@@ -34,13 +32,15 @@ jobs:
         run: python -m pytest -q tests/test_review.py tests/test_clearance_resolution.py
       - name: Run strict typing
         run: python -m mypy --no-incremental src/diptrace_mcp
-      - name: Commit verified fix and remove one-shot machinery
-        env:
-          TARGET_BRANCH: fix/bound-clearance-partial-report
+      - name: Package verified files
         run: |
-          git config user.name "fireostendere"
-          git config user.email "87851878+fireostendere@users.noreply.github.com"
-          git rm scripts/_apply_clearance_report_fix.py .github/workflows/one-shot-clearance-report-fix.yml
-          git add src/diptrace_mcp/review.py tests/test_review.py docs/REVIEW_ENGINE.md CHANGELOG.md
-          git commit -s -m "fix: bound partial clearance review output [one-shot applied]"
-          git push origin "HEAD:${TARGET_BRANCH}"
+          mkdir -p packaged/src/diptrace_mcp packaged/tests packaged/docs
+          cp src/diptrace_mcp/review.py packaged/src/diptrace_mcp/review.py
+          cp tests/test_review.py packaged/tests/test_review.py
+          cp docs/REVIEW_ENGINE.md packaged/docs/REVIEW_ENGINE.md
+          cp CHANGELOG.md packaged/CHANGELOG.md
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: clearance-report-fix
+          path: packaged
+          retention-days: 1
