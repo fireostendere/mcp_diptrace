@@ -9,6 +9,9 @@
 - add a clean-room factual inventory generator and a pending DipTrace 5.3 fixture-pack manifest;
 - make unresolved trace-clearance pairs explicit and publish their structured
   skip reasons and effective clearance rule sources;
+- bound partial trace-clearance detail output, avoid quadratic pair enumeration
+  when rules are unavailable, and separate partial-review status from actual
+  NetClass-rule omission;
 - verify the service-to-MCP error contract through connected
   `session.call_tool` calls and prevent nested typed-result error wrapping;
 - refresh the dated external GitHub ruleset evidence without changing the
