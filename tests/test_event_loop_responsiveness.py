@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
