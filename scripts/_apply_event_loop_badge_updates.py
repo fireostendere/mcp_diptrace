@@ -90,7 +90,7 @@ entries = [
     for line in allowlist_path.read_text(encoding="utf-8").splitlines()
     if line.strip()
 ]
-new_entries = {
+permanent_entries = {
     "docs/ASYNC_EXECUTION.md",
     "docs/badges/coverage.svg",
     "scripts/audit_event_loop.py",
@@ -98,9 +98,47 @@ new_entries = {
     "tests/test_badges.py",
     "tests/test_event_loop_responsiveness.py",
 }
+temporary_entries = {
+    ".github/workflows/one-shot-event-loop-badges.yml",
+    "scripts/_apply_event_loop_badge_updates.py",
+    "scripts/_apply_event_loop_offload.py",
+}
+new_entries = permanent_entries | temporary_entries
 if new_entries.intersection(entries):
     raise RuntimeError("one or more event-loop/badge paths are already allowlisted")
 entries.extend(new_entries)
 if len(entries) != len(set(entries)):
     raise RuntimeError("release allowlist contains duplicate paths")
 allowlist_path.write_text("\n".join(sorted(entries)) + "\n", encoding="utf-8")
+
+# The one-shot workflow must pass the release-surface audit while its three
+# temporary implementation files are still tracked. Immediately before the
+# final commit, the workflow removes those files. This local hook then removes
+# their matching allowlist entries, verifies the final tracked tree, and stages
+# the corrected allowlist. The hook lives only in the ephemeral Actions clone.
+hook_path = Path(".git/hooks/pre-commit")
+hook_path.write_text(
+    """#!/usr/bin/env bash
+set -euo pipefail
+python - <<'PY'
+from pathlib import Path
+
+path = Path("scripts/release_artifact_allowlist.txt")
+temporary = {
+    ".github/workflows/one-shot-event-loop-badges.yml",
+    "scripts/_apply_event_loop_badge_updates.py",
+    "scripts/_apply_event_loop_offload.py",
+}
+entries = [
+    line.strip()
+    for line in path.read_text(encoding="utf-8").splitlines()
+    if line.strip() and line.strip() not in temporary
+]
+path.write_text("\\n".join(sorted(entries)) + "\\n", encoding="utf-8")
+PY
+git add scripts/release_artifact_allowlist.txt
+python -m pytest -q tests/test_release_artifacts.py
+""",
+    encoding="utf-8",
+)
+hook_path.chmod(0o755)
