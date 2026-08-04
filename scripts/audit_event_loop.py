@@ -18,10 +18,11 @@ HEAVY_TOOL_NAMES = {
     "route_diff_pair",
     "route_net",
 }
+_OFFLOAD_MARKER = "__diptrace_mcp_thread_offload__"
 
 
 def audit_event_loop_boundary() -> dict[str, Any]:
-    """Audit the public tool registry's synchronous worker-thread boundary."""
+    """Audit the project-owned worker-thread boundary around FastMCP v1 tools."""
 
     with tempfile.TemporaryDirectory(prefix="diptrace-mcp-event-loop-audit-") as tmp:
         root = Path(tmp)
@@ -36,42 +37,54 @@ def audit_event_loop_boundary() -> dict[str, Any]:
         server = create_server(settings)
 
     tools = server._tool_manager._tools
-    sync_tools = sorted(
-        name for name, tool in tools.items() if not inspect.iscoroutinefunction(tool.fn)
+    offloaded_tools = sorted(
+        name for name, tool in tools.items() if getattr(tool.fn, _OFFLOAD_MARKER, False)
     )
-    async_tools = sorted(
-        name for name, tool in tools.items() if inspect.iscoroutinefunction(tool.fn)
+    unprotected_sync_tools = sorted(
+        name
+        for name, tool in tools.items()
+        if not inspect.iscoroutinefunction(tool.fn)
+        and not getattr(tool.fn, _OFFLOAD_MARKER, False)
+    )
+    unreviewed_async_tools = sorted(
+        name
+        for name, tool in tools.items()
+        if inspect.iscoroutinefunction(tool.fn)
+        and not getattr(tool.fn, _OFFLOAD_MARKER, False)
     )
     missing_heavy_tools = sorted(HEAVY_TOOL_NAMES.difference(tools))
-    async_heavy_tools = sorted(HEAVY_TOOL_NAMES.intersection(async_tools))
+    heavy_tools_without_offload = sorted(
+        name
+        for name in HEAVY_TOOL_NAMES.intersection(tools)
+        if not getattr(tools[name].fn, _OFFLOAD_MARKER, False)
+    )
 
-    status = "pass"
     reasons: list[str] = []
-    if async_tools:
-        status = "fail"
+    if unprotected_sync_tools:
+        reasons.append("One or more synchronous public tools execute without thread offload.")
+    if unreviewed_async_tools:
         reasons.append(
-            "Public async tool callables bypass the project-wide synchronous FastMCP "
-            "worker-thread contract and require an explicit non-blocking review."
+            "One or more native async public tools lack an explicit non-blocking review marker."
         )
     if missing_heavy_tools:
-        status = "fail"
         reasons.append("Expected routing tools are missing from the public registry.")
-    if async_heavy_tools:
-        status = "fail"
-        reasons.append("One or more CPU-heavy routing tools are registered as async callables.")
+    if heavy_tools_without_offload:
+        reasons.append("One or more CPU-heavy routing tools lack thread offload.")
 
     return {
-        "status": status,
+        "status": "pass" if not reasons else "fail",
         "tool_count": len(tools),
-        "sync_tool_count": len(sync_tools),
-        "async_tool_count": len(async_tools),
-        "async_tools": async_tools,
+        "offloaded_tool_count": len(offloaded_tools),
+        "offloaded_tools": offloaded_tools,
+        "unprotected_sync_tools": unprotected_sync_tools,
+        "unreviewed_async_tools": unreviewed_async_tools,
         "heavy_tools": sorted(HEAVY_TOOL_NAMES),
         "missing_heavy_tools": missing_heavy_tools,
-        "async_heavy_tools": async_heavy_tools,
+        "heavy_tools_without_offload": heavy_tools_without_offload,
         "execution_contract": (
-            "All public tools remain synchronous callables at registration time; FastMCP "
-            "executes synchronous callables through its AnyIO worker-thread boundary."
+            "FastMCP v1 invokes synchronous tools on the event loop. DipTrace MCP replaces "
+            "each registered synchronous callable with an async wrapper that executes the "
+            "original callable through anyio.to_thread.run_sync."
         ),
         "reasons": reasons,
     }
@@ -90,8 +103,8 @@ def main() -> int:
     else:
         print(
             "event-loop audit: "
-            f"{result['status']} — {result['sync_tool_count']} sync tools, "
-            f"{result['async_tool_count']} async tools"
+            f"{result['status']} — {result['offloaded_tool_count']}/"
+            f"{result['tool_count']} tools offloaded"
         )
         for reason in result["reasons"]:
             print(f"- {reason}")
