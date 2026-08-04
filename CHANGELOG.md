@@ -22,6 +22,10 @@
   behavior;
 - add Windows CI smoke/audit coverage for no-Python installation, settings
   profiles, Unicode paths, client-config backups, checksums, and unsigned status;
+- audit the FastMCP synchronous worker-thread boundary and add connected
+  responsiveness probes for blocking I/O and CPU-heavy work;
+- publish CI status and deterministic coverage-gate badges whose threshold is
+  generated from the enforced workflow value;
 - harden 0.2.0 release preparation with state ownership markers, compensating
   plug-in rollback, working portable paths, final-asset checksums, and complete
   executable-signature gates.
