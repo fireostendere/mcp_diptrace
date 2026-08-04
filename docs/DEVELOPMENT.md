@@ -1,83 +1,92 @@
 # Development
 
-## Structure
+## Current baseline
+
+The current source/package version is `0.2.0`. The public MCP contract contains
+159 tools. `DipTraceService` remains the stable public Facade; domain
+implementations live under `src/diptrace_mcp/services/`.
+
+The 0.2.0 Windows installer and portable bundle build in CI, but the release is
+not tagged or published while the remaining human acceptance gates are open.
+
+## Repository structure
 
 ```text
 src/diptrace_mcp/
-  adapters.py          XML-to-domain adapters and semantic write compiler
-  capabilities.py      feature discovery payloads
-  bridge.py            Windows bridge process and GUI
-  config.py            environment and path policy
-  domain.py            normalized models and transaction records
-  geometry.py          pure geometry primitives
-  inspector.py         legacy read facade over the normalized model
-  connectivity.py      normalized logical/physical connectivity graph
-  impedance.py         verified preliminary analytical microstrip model
-  policy.py            policy-profile enforcement
-  operations.py        semantic write operations
-  preview.py           deterministic SVG/JSON previews
-  record_store.py      safe persistence seam shared by state-backed stores
-  server.py            FastMCP registration and CLI
-  service.py           public Facade, dependency assembly, and safety callbacks
+  server.py             FastMCP registration, transports, errors, offload boundary
+  service.py            public Facade, dependency assembly, safety callbacks
   services/
-    context.py          typed shared context and single document gateway
-    documents.py        normalized document/query/read models
+    context.py          typed shared context and single DocumentGateway
+    documents.py        document/query/read models
     bom.py              BOM and component/library metadata reads
-    review.py           reviews and read-only analysis
+    review.py           reviews, findings, and read-only analysis
     discovery.py        document discovery
     exports.py          bounded exports
-    jobs.py              job records and resources
+    jobs.py             job records and resources
     external_jobs.py    external adapters and guarded jobs
-    routing.py           routing analysis and plans
-    placement.py        placement analysis and plans
-    semantic_operations.py explicit semantic operation wrappers
+    routing.py          routing analysis and plans
+    placement.py        placement/silkscreen plans
+    semantic_operations.py explicit semantic wrappers
     semantic_engine.py  guarded semantic execution and preview
-    synchronization.py  schematic-to-PCB synchronization
+    synchronization.py  schematic-to-PCB synchronisation
     xml_writes.py       guarded raw XML edits
-    scaffolding.py      document creation
+    scaffolding.py      synthetic and seed-based document creation
     transactions.py     transaction workflows and recovery
     evidence.py         provenance and fail-closed trust
     live_sessions.py    live-session lifecycle
-  sessions.py          shared live-session state
-  transactions.py      transaction store and artifacts
-  external_adapters.py typed Freerouting process boundary
-  exports.py           bounded generic export artifacts
-  xml_document.py      secure XML parsing and guarded edits
+  adapters.py           XML-to-domain adapters
+  bridge.py             Windows bridge process and GUI
+  capabilities.py       runtime capability payloads
+  config.py             environment, paths, and retention settings
+  domain.py             normalised models and records
+  error_boundary.py     public MCP error envelope
+  external_process.py   bounded external-process runner
+  geometry.py           geometry primitives
+  inspector.py          read/inspection helpers
+  model_cache.py        bounded normalised snapshot cache
+  operations.py         typed semantic operations
+  policy.py             policy profiles
+  preview.py            deterministic SVG/JSON previews
+  record_store.py       shared safe persistence seam
+  sessions.py           live-session state
+  transactions.py       transaction store and artifacts
+  xml_document.py       secure XML parsing and guarded writes
 plugin/
-  bridge_entry.py       checked PyInstaller entry point
-  settings/            official DipTrace plug-in settings structure
-  build_bridge.ps1     PyInstaller build
-  install_plugin.ps1
+  bridge_entry.py       PyInstaller bridge entry point
+  settings/             PCB/Schematic/Component/Pattern profiles
+  build_bridge.ps1      bridge build
+  install_plugin.ps1    advanced plug-in installation
+packaging/
+  diptrace_mcp_server.spec
+  diptrace_mcp_configure.spec
+  windows-constraints.txt
+installer/
+  DipTraceMCP.iss       Inno Setup installer/uninstaller
 scripts/
-  generate_pcb_skills.py  consolidated-skill validator and hash-manifest generator
+  build_windows_server.ps1
+  build_windows_configurator.ps1
+  build_windows_installer.ps1
+  audit_release_artifacts.py
+  audit_windows_bundle.py
+  check_service_facade_contract.py
+  validate_service_decomposition.py
 skills/
-  catalog.json         authoritative eight-workflow inventory
-  capability-map.json  runtime tools, limitations, and unavailable contracts
-  shared/              one result schema for every skill
-  */SKILL.md            concise source-authored agent workflows shipped in the wheel
-  SOURCES.sha256        reproducible source and evidence-CLI mirror hashes
+  catalog.json
+  capability-map.json
+  shared/result.schema.json
+  */SKILL.md
 tests/
-  fixtures/            minimal PCB and Schematic XML
-  test_skill_packages.py  skill capability, link, wheel, hash, and forward-path checks
+  fixtures/
+  test_*.py
 ```
 
-Windows packaging sources are deliberately separate from the Python wheel:
-
-```text
-packaging/diptrace_mcp_server.spec       explicit PyInstaller onedir server
-packaging/diptrace_mcp_configure.spec    frozen client configurator
-installer/DipTraceMCP.iss                Inno Setup wizard and uninstaller
-scripts/build_windows_installer.ps1      staged installer/portable build
-.github/workflows/windows-installer.yml  Windows build, smoke, and audit jobs
-```
-
-The normal user does not need this toolchain. The Windows bundle uses pinned
-runtime constraints and a pinned Inno Setup 6.4.2 prerequisite; it does not
-download anything during end-user installation. `--onefile` is intentionally
-not used for the server because predictable stdio startup, diagnostics, and
-native geometry loading are more important than a smaller outer file.
+The Python wheel contains the MCP server and packaged skills. Windows bridge,
+settings, standalone server, configurator, installer, and portable assets are
+separate build outputs.
 
 ## Environment
+
+Linux/macOS/WSL:
 
 ```bash
 python3 -m venv .venv
@@ -92,129 +101,209 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
 
-## Checks
+Install `.[dev,geometry]` when running the exact Shapely/GEOS path.
+
+## Core checks
+
+Run from the repository root:
 
 ```bash
+python -m pytest -q
+python -m ruff check --no-cache src tests benchmarks scripts plugin
+python -m mypy --no-incremental src/diptrace_mcp plugin
 python scripts/generate_pcb_skills.py --check
 python scripts/generate_mcp_tools_snapshot.py --check
-pytest -q
-ruff check --no-cache src tests benchmarks scripts plugin
-python -m compileall -q src tests
-python scripts/mcp_smoke.py
-mypy --no-incremental src/diptrace_mcp plugin
-python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
+python scripts/check_service_facade_contract.py --check
+python scripts/validate_service_decomposition.py --check
+python scripts/audit_event_loop.py --json
+python scripts/generate_coverage_badge.py --check
+python scripts/extract_spec_inventory.py \
+  --sources tests/fixtures \
+  --out reference/diptrace-xml/spec_inventory.json \
+  --check
+python scripts/report_format_coverage.py --check
+python scripts/make_probe_pack.py --check
+python scripts/ingest_fixtures.py --dry-run --synthetic --json
+python scripts/audit_acceptance_seeds.py
 ```
 
-Windows packaging checks (on a Windows runner with the pinned Inno Setup
-compiler) are:
-
-```powershell
-.\scripts\build_windows_server.ps1 -PythonCommand python -Clean
-.\plugin\build_bridge.ps1 -PythonCommand python -Clean
-.\scripts\build_windows_installer.ps1 -Version 0.1.2 -IsccPath "$env:ISCC_PATH"
-python scripts\audit_windows_bundle.py --root <extracted-portable> --sha256 <SHA256SUMS.txt>
-python scripts\frozen_server_smoke.py --server <server.exe> --workspace <workspace>
-```
-
-The CI workflow also tests silent install/uninstall, repair/idempotency,
-Unicode and spaced paths, client-config backup/atomic update, workspace
-preservation, optional state removal, and fail-closed unsigned verification.
-Local WSL cannot compile or execute the Windows EXEs; those results must come
-from the exact Windows workflow run.
-
-`plugin/bridge_entry.py` is the current hand-maintained Python inventory under
-`plugin/`. The directory-level Ruff and Mypy commands intentionally include any
-future Python sources there. Generated PyInstaller distribution output is ignored
-by Git and explicitly excluded from both static analyzers. PowerShell build and
-installer scripts are outside the Python static-analysis scope.
-
-By default, the smoke test uses a deterministic in-memory MCP transport. To verify a
-separate stdio process, run:
+Build and audit Python release archives:
 
 ```bash
-python scripts/mcp_smoke.py --transport stdio
+rm -rf release-dist
+python -m hatchling build -d release-dist
+python scripts/audit_release_artifacts.py \
+  --dist-dir release-dist \
+  --check-allowlist
 ```
 
-Tests do not require an installed DipTrace application and operate on XML fixtures. The
-real MCP SDK and Pydantic v2 are used; shadow compatibility shims are prohibited.
-The eight source-authored skill packages have no package-local `agents/`, `evals/`,
-examples, or duplicated schemas. `tests/test_skill_packages.py` resolves every
-advertised capability against the public tool registry, verifies all source and
-installed-wheel links, checks the one shared result schema, executes the trust-neutral
-evidence dry-run, and caps the packaged skill payload at 400 KiB. The two packaged evidence CLIs
-must remain byte-identical to their maintained root scripts.
+The committed release allowlist must contain every publication-safe tracked
+file and no private, redirected, oversized, special, or unexpected archive
+member.
 
-## Local Run
+## Public contract checks
+
+The MCP snapshot is generated through the public in-memory transport:
+
+```bash
+python scripts/generate_mcp_tools_snapshot.py --check
+```
+
+Current expected values:
+
+- 159 tools;
+- 142,746 canonical UTF-8 bytes;
+- SHA-256 `073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db`.
+
+The service-Facade checks are:
+
+```bash
+python scripts/check_service_facade_contract.py --check
+python scripts/validate_service_decomposition.py --check
+```
+
+They currently cover 157 public signatures, 148 explicit delegations, all 195
+Facade methods, and the persistent-write classification used by the
+service-decomposition inventory.
+
+## Local server
 
 ```bash
 DIPTRACE_MCP_WORKSPACE="$PWD/tests/fixtures" diptrace-mcp
 ```
 
-Streamable HTTP:
+Streamable HTTP is intended for loopback development only:
 
 ```bash
 diptrace-mcp --transport streamable-http --host 127.0.0.1 --port 8765
 ```
 
-## Testing the Bridge Without DipTrace
+To run the standalone smoke helper:
 
-Copy a fixture to a temporary directory and start the bridge in headless mode:
+```bash
+python scripts/mcp_smoke.py
+python scripts/mcp_smoke.py --transport stdio
+```
+
+## Bridge testing without DipTrace
+
+Copy a fixture to a temporary allowed root and start the bridge in headless
+mode:
 
 ```bash
 cp tests/fixtures/pcb.xml /tmp/plugin_exchange.xml
 DIPTRACE_MCP_WORKSPACE=/tmp \
-  DIPTRACE_MCP_STATE_DIR=/tmp/diptrace-state \
-  python -m diptrace_mcp.bridge --headless --timeout 30 /tmp/plugin_exchange.xml
+DIPTRACE_MCP_STATE_DIR=/tmp/diptrace-state \
+python -m diptrace_mcp.bridge \
+  --headless \
+  --timeout 30 \
+  /tmp/plugin_exchange.xml
 ```
 
-In another process, call `SessionStore.request_finish("cancel")` or start the MCP server
-with the same `DIPTRACE_MCP_STATE_DIR`.
+In another process, use the MCP server or the session store to request `apply`
+or `cancel`.
 
-CI runs `python scripts/smoke_bridge_headless.py`, which performs the complete
-cross-process `apply` handshake in a temporary directory and verifies the
-replacement and cleanup. Headless exit code `0` means a requested `apply` or
-`cancel` was finalized, `2` means the timeout elapsed and the bridge cancelled
-the session, and `1` means a post-argument startup, configuration, XML, session,
-or control-processing failure. As with other `argparse` CLIs, an invalid or
-incomplete command line also exits `2` before a session exists. Fatal failures
-after the exchange path has been resolved inside an allowed root are recorded
-as typed JSON in `diptrace_mcp_bridge.log` beside the exchange file, capped at
-64 KiB.
+CI also runs:
 
-## SDK Versions
+```bash
+python scripts/smoke_bridge_headless.py
+```
 
-The project uses the stable MCP Python SDK 1.x line and pins an upper bound of `<2`.
-As of July 2026, SDK 2.x is still a pre-release line with breaking changes, while 1.x is
-the recommended production line. A future major-version upgrade requires a separate
-review of the FastMCP API, MCP Inspector, transports, and client configuration.
+Headless bridge exit codes:
 
-## Adding a Domain-Specific Tool
+- `0`: requested apply/cancel finalised;
+- `2`: timeout elapsed and the session was cancelled, or argparse rejected the
+  command before a session existed;
+- `1`: post-argument startup, configuration, XML, session, or control failure.
 
-1. Add a domain model or pure function to a permanent module and expose its use
-   through an explicit Facade method only when it is part of the stable API.
-2. Add a fixture, or extend an existing fixture with the smallest official XML fragment required.
-3. Cover the pure function with a test.
-4. Register a thin wrapper in `server.py`.
-5. Regenerate `reference/mcp-tools-list.snapshot.json`; inspect the complete
-   public descriptor diff rather than accepting it mechanically.
-6. Update the tool table in `docs/USAGE.md`.
-7. Update `get_capabilities`, limitations, and the relevant skill contract.
+A headless pass proves the project-owned bridge protocol, not DipTrace host
+import behaviour.
 
-For service refactors, read `docs/SERVICE_DECOMPOSITION.md` first. Pass narrow,
-typed dependencies or callbacks; never pass the complete Facade as a parent and
-never create a duplicate store/cache/session manager. Keep domain methods
-synchronous so the existing server-owned AnyIO thread-offload boundary remains
-the only MCP offload layer. Transaction, evidence trust,
-semantic writes, routing application, external process lifecycle, and live
-sessions must retain their existing safety gates and require characterization
-and parity review before any further boundary change.
+## Windows bundle build
 
-## Format Rules
+These commands require Windows and the pinned build prerequisites:
 
-- Do not invent XML element names or numeric semantics.
-- Verify changes against the specifications installed with DipTrace or the official documentation page.
-- Do not parse legacy binary `.dip` or `.dch` files as XML.
-- Preserve exact `Id`, `UpdateId`, and cross-list references.
-- Every new write operation must support preview, match guards, hash guards, and backup.
-- Keep application-version compatibility separate from XML-format evidence. Prefer
-  feature detection and round-trip fixtures over assumptions based solely on `Version`.
+```powershell
+.\scripts\build_windows_server.ps1 -PythonCommand python -Clean
+.\plugin\build_bridge.ps1 -PythonCommand python -Clean
+.\scripts\build_windows_configurator.ps1 -PythonCommand python -Clean
+.\scripts\build_windows_installer.ps1 `
+  -Version 0.2.0 `
+  -IsccPath "$env:ISCC_PATH"
+```
+
+Audit extracted portable output and the generated checksum file:
+
+```powershell
+python scripts\audit_windows_bundle.py `
+  --root <extracted-portable> `
+  --sha256 <SHA256SUMS.txt>
+
+python scripts\frozen_server_smoke.py `
+  --server <server.exe> `
+  --workspace <workspace>
+```
+
+The Windows workflow also covers bridge/server/configurator smoke, installer and
+portable creation, silent install/repair/uninstall, Unicode and spaced paths,
+client-configuration backup and atomic update, workspace preservation, optional
+owned-state removal, checksums, provenance, and unsigned-status verification.
+
+Linux/WSL cannot replace exact native Windows workflow evidence for these
+artifacts.
+
+## Service-layer rules
+
+Before modifying service boundaries, read
+[`SERVICE_DECOMPOSITION.md`](SERVICE_DECOMPOSITION.md).
+
+Required rules:
+
+- keep `DipTraceService` as the explicit stable public Facade;
+- pass narrow typed dependencies or callbacks;
+- do not pass the complete Facade into a domain service;
+- do not create duplicate stores, caches, session managers, transaction stores,
+  policies, or document loaders;
+- keep domain methods synchronous;
+- preserve the single server-owned AnyIO offload boundary;
+- preserve SHA, policy, backup, atomic-write, trust, transaction, plan,
+  external-process, and live-session gates;
+- update the Facade manifest and negative parity tests when a public contract
+  intentionally changes.
+
+## Adding or changing a tool
+
+1. Implement or reuse a typed domain model/function.
+2. Expose the operation through an explicit Facade method when it belongs to the
+   stable public API.
+3. Register a thin server wrapper.
+4. Add focused unit tests and a public transport test where appropriate.
+5. Update capability discovery and error/safety behaviour.
+6. Regenerate the complete MCP snapshot.
+7. Update the relevant docs and skill contract.
+8. Keep real DipTrace verification claims separate from fixture-tested
+   implementation claims.
+
+## Fixtures and evidence
+
+Ordinary tests use project-owned synthetic or sanitised XML fixtures and do not
+require DipTrace to be installed.
+
+Do not commit user projects, proprietary libraries, external PDFs, screenshots,
+or local evidence automatically. Controlled evidence requires exact hashes,
+role separation, source type, version/build metadata, provenance, and explicit
+redistribution status.
+
+The package-owned trust registry is separate from user-supplied evidence. Local
+manifests and sidecars cannot mint high trust.
+
+## Release work
+
+The current 0.2.0 candidate process is documented in:
+
+- [`RELEASE_0_2_0_CHECKLIST.md`](RELEASE_0_2_0_CHECKLIST.md);
+- [`releases/v0.2.0.md`](releases/v0.2.0.md);
+- [`RELEASE_PROCESS.md`](RELEASE_PROCESS.md).
+
+Do not create or move a tag, replace published assets, or claim signed or
+production-ready status from CI alone.

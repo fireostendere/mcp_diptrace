@@ -5,470 +5,287 @@
 [![CI](https://github.com/fireostendere/mcp_diptrace/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fireostendere/mcp_diptrace/actions/workflows/ci.yml)
 [![Coverage gate](docs/badges/coverage.svg)](.github/workflows/ci.yml)
 
-DipTrace MCP — локальный Model Context Protocol сервер для чтения, анализа, инженерного ревью и контролируемого изменения проектов DipTrace через официальные XML-форматы. Репозиторий содержит два связанных компонента:
+DipTrace MCP — локальный Model Context Protocol сервер для чтения, анализа,
+инженерного ревью и контролируемого изменения XML-проектов DipTrace. Проект
+состоит из двух связанных компонентов:
 
 - `diptrace-mcp` — MCP-сервер для Codex, Claude Desktop и других MCP-клиентов;
-- `diptrace_mcp_bridge.exe` — исполняемый плагин-мост для проекта, открытого в PCB Layout или Schematic Capture.
+- `diptrace_mcp_bridge.exe` — Windows-плагин, который обменивается XML с
+  проектом, открытым в PCB Layout или Schematic Capture.
 
-## Текущий уровень готовности
+## Текущее состояние
 
-Проект уже пригоден для инженерного использования с человеком в контуре: чтения и ревью PCB/schematic, безопасных semantic edits, schematic authoring, синхронизации schematic → PCB, локального placement/routing, анализа differential pairs и подготовки review-артефактов.
+Исходный код и build metadata уже имеют версию **0.2.0**. Последний
+опубликованный GitHub-релиз пока остаётся **v0.1.2**. Версия 0.2.0 —
+проверенный unsigned release candidate уровня alpha/development-stage; тег и
+публичный релиз не создаются, пока не закрыты оставшиеся проверки на реальной
+Windows и в DipTrace.
 
-Это пока не полная замена интерактивному EDA-движку DipTrace. Для проверенных PCB/schematic live-путей уже есть контролируемые Windows/WSL apply, cancel, wrong-SHA, GUI, save и re-export доказательства. Главный незакрытый слой теперь — более широкие redistributable evidence для остальных writers, вариантов исходных файлов, native libraries и optional external-tool путей. Создание/изменение native Component/Pattern Libraries и native manufacturing outputs по-прежнему намеренно не заявлены как готовые возможности.
+Текущий код пригоден для инженерной работы с человеком в контуре: чтения PCB,
+schematic и libraries; structured review; guarded semantic writes; schematic
+authoring и synchronization; bounded placement/routing; live PCB/Schematic
+exchange; Windows installer и portable candidate builds.
 
-Ограничения evidence явно раскрыты: live GUI/re-export проверка Component Angle
-ещё не выполнена, поэтому результаты rotation содержат structured warning.
-Routing и offline trace-to-trace review учитывают board defaults и NetClass
-правила затронутых сетей; unresolved owning net, неизвестный класс или
-отсутствующее правило делают trace review явно partial и попадают в structured
-счётчики результата; trace-to-object и placement clearance пока частичны.
-Публичный XML inventory содержит только project-authored observations, не является
-нормативной спецификацией DipTrace и не заявляет разрешение Novarm или universal
-совместимость с DipTrace 5.3.
-
-Актуальный порядок работ и критерии завершения находятся в [roadmap](docs/ROADMAP.md). Фактическую доступность конкретной операции всегда определяет `get_capabilities`. Проектный worker-thread boundary вокруг FastMCP v1 и connected responsiveness-тесты описаны в [Async Execution and Event-Loop Safety](docs/ASYNC_EXECUTION.md).
+Проект не заменяет интерактивный EDA-движок DipTrace. Native mutation
+Component/Pattern Library и native manufacturing output намеренно недоступны.
+Для конкретной установки, документа, policy и внешних adapter фактическим
+источником истины является `get_capabilities`.
 
 ## Статус публичного релиза
 
-Проект лицензирован под Apache License 2.0 — OSI-approved open-source
-лицензией; полный текст закоммичен как [`LICENSE`](LICENSE). Обоснование
-выбора записано в
-[docs/LICENSE_DECISION.md](docs/LICENSE_DECISION.md).
+Проект использует OSI-approved open-source лицензию `LICENSE` Apache-2.0.
+Правила участия и релиза находятся в `CONTRIBUTING.md`, `GOVERNANCE.md`,
+`docs/LICENSE_DECISION.md`, `docs/PUBLIC_RELEASE_CHECKLIST.md`,
+`docs/RELEASE_PROCESS.md`, `CHANGELOG.md` и `CITATION.cff`. Сообщения о
+security отправляются через приватный канал; проверенный Code of Conduct канал
+для enforcement пока не опубликован.
 
-В репозитории опубликованы правила участия и релиза:
+- Последний опубликованный development release — `v0.1.2`; его source distribution,
+  wheel, Windows bridge executable, hashes и provenance неизменны.
+- Текущая версия source/package — `0.2.0`; это reviewed candidate без tag и
+  публикации.
+- Windows installer, bridge, standalone executable, configurator и portable
+  bundle 0.2.0 проходят CI, но ещё не являются публичными downloads.
+- Python archives собираются по точному allowlist и проверяются по wheel entry
+  points, packaged skills, bounds и каждому `RECORD` hash/size.
+- Candidate Windows binaries unsigned; CI и SHA-256 не являются code signature,
+  production-ready или universal-compatibility claim не заявляется.
 
-- [процесс contribution](CONTRIBUTING.md);
-- [текущий governance](GOVERNANCE.md);
-- [license decision matrix и запись о выборе](docs/LICENSE_DECISION.md);
-- [чек-лист публичного релиза](docs/PUBLIC_RELEASE_CHECKLIST.md) и
-  [release process](docs/RELEASE_PROCESS.md), включая
-  [установку из опубликованных release assets](docs/INSTALL_FROM_RELEASE.md);
-  [аудит и архитектура Windows installer](docs/WINDOWS_INSTALLER.md);
-- [changelog](CHANGELOG.md) и [citation metadata](CITATION.cff).
+Запись кандидата и оставшиеся gate находятся в
+[`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) и
+[`docs/RELEASE_0_2_0_CHECKLIST.md`](docs/RELEASE_0_2_0_CHECKLIST.md).
+Инструкции для уже опубликованного v0.1.2 находятся в
+[`docs/INSTALL_FROM_RELEASE.md`](docs/INSTALL_FROM_RELEASE.md).
 
-Issues и pull requests принимаются по правилам DCO 1.1 и provenance из
-[CONTRIBUTING.md](CONTRIBUTING.md); право merge остаётся у владельца
-репозитория. Подозрения на уязвимости отправляйте только через приватный
-security-канал, опубликованный в [SECURITY.md](SECURITY.md), а не в публичных
-issues. Проверенного канала для Code of Conduct пока нет, поэтому политика
-Code of Conduct не публикуется. Signing, dependency, bundled-content и
-independent-review остаются явными blockers для более сильных release claims.
-Ветка `main` защищена pull request, DCO и обязательными CI-проверками; текущая
-проверка правил опубликована в
-[docs/compliance/BRANCH_PROTECTION_STATUS.md](docs/compliance/BRANCH_PROTECTION_STATUS.md).
-Репозиторий не заявляет существующее сообщество, adoption, sponsorship, vendor
-endorsement или участие в support program. Внешние grant/application
-материалы владелец репозитория хранит приватно.
+## Публичный MCP-контракт
 
-Текущий development-stage релиз — версия 0.1.2. Его tag, unsigned-артефакты,
-`SHA256SUMS.txt` и provenance-запись в
-[docs/releases/v0.1.2.md](docs/releases/v0.1.2.md) указывают на один и тот же
-commit. Предыдущий релиз `v0.1.1` сохранён для аудита, но явно
-[withdrawn](docs/releases/v0.1.1.md) из-за рассинхронизации документации и
-несогласованности release-документов; его старые assets не являются актуальными.
-CI собирает Python source distribution и wheel по точному versioned
-allowlist и проверяет их содержимое, ограничения, entry points, packaged
-skills и wheel `RECORD`. Wheel содержит MCP-сервер и packaged skills; для
-полной live-интеграции на Windows также нужны отдельно поставляемые bridge
-settings, installer и executable. Путь установки без clone описан в
-[INSTALL_FROM_RELEASE.md](docs/INSTALL_FROM_RELEASE.md).
+Текущая публичная поверхность содержит:
 
-Эта ветка добавляет будущий Windows asset path, но не создаёт и не изменяет
-GitHub release. Пока dedicated Windows workflow не пройдёт для exact head и
-maintainer не опубликует assets, имена installer из quick start обозначают
-build outputs, а не уже доступные download-файлы.
+- 159 зарегистрированных MCP tools;
+- 157 публичных методов `DipTraceService`;
+- 148 явных Facade → domain-service делегаций;
+- один server-owned AnyIO worker-thread boundary для всех зарегистрированных
+  tools.
 
-## Что уже работает
+Полный wire-level `tools/list` закреплён в
+[`reference/mcp-tools-list.snapshot.json`](reference/mcp-tools-list.snapshot.json):
+159 tools, 142 746 canonical UTF-8 bytes, SHA-256
+`073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db`.
 
-- runtime capability discovery через `get_capabilities`, включая точные причины недоступности;
-- project scaffolding: новые schematic/PCB XML-документы с листами, контуром, слоями, stackup, via styles, net classes и DRC (`create_schematic_document`, `create_pcb_document`); вызывающий код может задать литерал XML `format_version`, но это не преобразует структуру scaffold и не подтверждает совместимость; **это synthetic MCP-generated XML, а не DipTrace-verified файлы**;
-- seed-based создание проекта: копирование реального DipTrace-exported XML seed с сохранением provenance (`create_document_from_seed`);
-- schematic authoring: листы, размещение part по библиотечному `ComponentStyle`, pin/net connectivity, провода по официальной структуре `Wire`/`Points` и net labels (`add_sheet`, `place_part`, `connect_pins`, `disconnect_pins`, `add_wire`, `delete_wire`, `add_net_label`);
-- schematic-to-PCB synchronization RefDes/value/fields, footprint references, pin-to-pad connectivity, nets и ratlines; по умолчанию используется additive mode, а guarded `exact` reconciliation может удалять подтверждённые расхождения и затронутые traces только при изменении endpoint set;
-- копирование проверенных pattern-library subtrees при schematic-to-PCB sync;
-- официальные параметры панелизации DipTrace (`Panel`, V-Scoring / Tab Routing) через `set_panelization` и `clear_panelization`;
-- нормализованные domain models для PCB, schematic, Component Library и Pattern Library;
-- стабильные object references, structured selectors, connectivity graph и spatial queries;
-- геометрия в миллиметрах, transforms, mirroring, arcs, optional exact GEOS geometry и SVG/JSON preview;
-- raw-preserving XML patches для поддерживаемых UTF-8/UTF-16LE/BE/ASCII/Latin-1
-  sources: unknown XML, исходный BOM, line endings и форматирование вне изменяемых
-  узлов сохраняются; неподдерживаемые кодировки приводят к fail-closed результату;
-- semantic transactions с plan, preview, validation, expected SHA-256, commit, backup и rollback;
-- move/rotate/side/lock/property/pattern/alignment/distribution/group operations для компонентов и частей;
-- board-text edits, документированные NetClass rules и standalone-pad test points;
-- чтение и validation Component/Pattern Libraries, включая pin-to-pad checks;
-- ограниченные registry-based offline DRC/ERC review с persistent findings,
-  structured skips и явной [матрицей implemented/partial/missing](docs/REVIEW_ENGINE.md);
-- deterministic silkscreen planner и bounded local placement planner;
-- explicit trace/via operations, bounded multi-layer 45-degree A* и symmetric via insertion;
-- congestion-ordered multi-net routing с bounded rip-up/retry (`route_connections`) и read-only priority evidence (`analyze_routing_congestion`);
-- atomic coupled differential-pair routing от centerline;
-- bounded DSN export, Freerouting jobs и guarded SES inspect/import;
-- stackup, net length/skew, differential-pair geometry, return-path heuristics и preliminary analytical impedance: Hammerstad-Jensen microstrip (single/differential) и IPC-2141 centered symmetric stripline;
-- ngspice batch adapter для пользовательских netlists с typed log results;
-- optional typed openEMS-runner adapter для frequency-dependent centered/off-center stripline с bounded jobs и строгим parsing результата;
-- ограниченные профили BOM, DFM/DFA/DFT, thermal-metadata, assembly и
-  design-comparison review; их ограничения по геометрии и evidence описаны явно, и они
-  не являются fabrication- или assembly-sign-off;
-- generic BOM, fabrication-review и assembly-review manifests;
-- policy profiles `read_only`, `review`, `interactive_edit`, `automation`, `manufacturing`;
-- live- и offline-работа через MCP stdio или Streamable HTTP.
+Наличие tool в registry не означает доступность для любого документа и не
+является доказательством реального DipTrace round-trip. Подробности находятся в
+[`docs/MCP_TOOLS.md`](docs/MCP_TOOLS.md).
 
-`get_capabilities` — авторитетный источник для конкретной установки и документа. Зарегистрированный MCP tool может быть недоступен, если активный source type не содержит требуемую геометрию, rules, stackup или внешний adapter.
+## Основные возможности
 
-## Статус проверки
+### Чтение и модели
 
-CI разделяет проверки по платформам и назначению:
+- normalised models для PCB, schematic, Component Library и Pattern Library;
+- стабильные object identifiers, selectors, spatial queries и connectivity;
+- design rules, stackup, net classes, via styles, traces, pours, lengths и
+  differential pairs;
+- BOM extraction, consistency checks и bounded export records;
+- byte-preserving XML-доступ для поддерживаемых кодировок с отказом на hostile
+  DTD/entity input.
 
-- полный pytest на Linux с Python 3.10, 3.12 и 3.13;
-- Ruff, strict Mypy и generated-skill checks на Linux/Python 3.12;
-- полный pytest и CLI smoke tests на macOS и Windows/Python 3.12;
-- нативная Windows-сборка с проверкой и smoke-запуском `diptrace_mcp_bridge.exe`.
+### Review и анализ
 
-Текущая ветка `main` проходит эту матрицу. Regression coverage включает fail-closed trust authority boundary, обязательные категории semantic comparison для PCB и schematic, Windows atomic-job поведение и terminal cancellation semantics для Freerouting, ngspice и openEMS.
+- bounded DRC/ERC, connectivity, BOM, assembly, DFM/DFA/DFT, thermal-metadata и
+  design-comparison workflows;
+- persistent findings и явные skipped/partial categories;
+- NetClass-aware routing и trace-to-trace clearance resolution;
+- предварительные расчёты Hammerstad-Jensen microstrip и IPC-2141 centred
+  stripline;
+- optional typed process boundaries для Freerouting, ngspice и openEMS.
 
-Synthetic 4.3 fixtures покрывают PCB, schematic, Component Library, Pattern Library, geometry, transactions, review, routing, DSN/SES и MCP contracts. Отдельно проведены две контролируемые live acceptance-кампании:
+Эти проверки помогают инженеру, но не являются fabrication, assembly или
+regulatory sign-off.
 
-- DipTrace 5.3.0.2, schematic: source-SHA conflict protection, backup equality, atomic write, 41 scoped `RefDesMarking`-правка, bridge apply, независимый re-export, стабильные normalized counts и отсутствие новых offline ERC errors;
-- DipTrace 5.2.0.4 на Windows с MCP-сервером в WSL: PCB apply/cancel/wrong-SHA и Schematic apply/cancel/wrong-SHA, Windows-native exchange-path metadata, отсутствие фантомного `C:\mnt\c\...`, GUI-подтверждение для применяемых изменений, Save As/re-export, semantic comparison и неизменная connectivity/counts.
+### Контролируемые изменения
 
-Кампания 2026-07-31 завершилась как `ACCEPTANCE: PASS`, `RELEASE BLOCKER: NO` для этой матрицы. Это сильное доказательство для проверенных путей, но не обещание полной совместимости со всеми версиями DipTrace, всеми XML objects, всеми MCP tools и optional adapters. См. [отчёт acceptance](docs/LIVE_ACCEPTANCE_2026-07-31.md) и [code review](docs/CODE_REVIEW_2026-07-31.md).
+- move, rotate, side, lock, value, property, pattern, alignment, distribution и
+  grouping для компонентов и schematic parts;
+- board-text, NetClass, test-point, trace, via и panelisation edits;
+- schematic sheets, parts, wires, labels, connectivity и no-connect state;
+- additive и guarded exact schematic-to-PCB synchronization;
+- synthetic PCB/schematic scaffolding и seed-based creation;
+- transaction preview, validation, expected SHA-256, commit, backup, rollback и
+  консервативные write-impact limits;
+- live `apply`/`cancel` через bridge с повторной проверкой exchange path,
+  working SHA и original-file SHA.
+
+Где предусмотрено, значение по умолчанию — `dry_run=true`. Raw XML editing
+остаётся expert escape hatch.
+
+### Placement и routing
+
+- deterministic silkscreen и bounded local placement plans;
+- trace/via primitives и bounded multi-layer 45-degree A* routing;
+- congestion-ordered multi-net routing с bounded batch-local rip-up/retry;
+- atomic centreline-based differential-pair routing;
+- DSN export, guarded Freerouting jobs и SES inspection/import.
+
+Router не является push-and-shove, free-angle или global EDA autorouter.
 
 ## Архитектура
 
 ```text
-MCP-клиент                    diptrace-mcp
-(Codex/Claude)  <-------->    анализ и guarded XML edits
-                                      |
-                                      | shared state directory
-                                      v
-DipTrace       <-------->    diptrace_mcp_bridge.exe
-               temporary plugin_exchange.xml
+MCP client (Codex / Claude / другой)
+                 |
+                 | stdio или loopback Streamable HTTP
+                 v
+       FastMCP server.py
+                 |
+                 v
+  публичный Facade DipTraceService
+                 |
+                 +--> typed in-process domain services
+                 +--> shared stores, cache, policy и document gateway
+                 |
+                 v
+       XML files / shared state
+                 ^
+                 |
+       diptrace_mcp_bridge.exe
+                 ^
+                 |
+              DipTrace
 ```
 
-DipTrace запускает плагин отдельным `.exe` и передаёт путь к временному XML. Bridge хранит рабочую копию в `%LOCALAPPDATA%\DipTraceMCP`, ждёт MCP `apply` или `cancel`, проверяет SHA-256 рабочей копии, который видел caller, заново убеждается, что исходный exchange-файл не изменился и всё ещё находится внутри allowed root, и завершает процесс только после финализации сессии. После `apply` DipTrace импортирует exchange XML обратно. В metadata путь хранится в native-синтаксисе процесса bridge; WSL-сервер вычисляет `/mnt/<drive>/...` только в памяти и никогда не записывает этот derived path обратно.
+`DipTraceService` остаётся стабильным публичным Facade и владельцем top-level
+dependencies. Реализации доменов находятся в `src/diptrace_mcp/services/`;
+они получают узкие typed dependencies, не держат весь Facade и не создают
+дублирующие stores. См. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) и
+[`docs/SERVICE_DECOMPOSITION.md`](docs/SERVICE_DECOMPOSITION.md).
 
-## Требования
+## Модель безопасности
 
-- Python 3.10 или новее;
-- Windows 10/11 для live-интеграции с настольным DipTrace;
-- DipTrace build с поддержкой executable XML plug-ins;
-- MCP-клиент, например Codex или Claude Desktop;
-- PowerShell и права администратора только для установки плагина в `C:\Program Files\DipTrace`/`DipTrace5`.
+Основные write invariants:
 
-Offline XML analysis также работает в Linux, macOS и WSL.
+1. caller paths остаются внутри configured allowed roots;
+2. входной XML ограничивается по размеру, reparsed и проверяется до mutation;
+3. preview и commit привязаны к точным SHA-256;
+4. существующий target получает backup до replacement;
+5. запись выполняется через temporary file и `os.replace`;
+6. применяются policy и консервативные write-impact limits;
+7. live apply повторно проверяет working SHA, exchange path и original exchange
+   SHA;
+8. explicit cancel не меняет exchange XML;
+9. пользовательские sidecars не могут самостоятельно выдать высокий trust.
 
-## Быстрый старт на Windows
+Capability report намеренно не заявляет полное trust-invalidation coverage для
+`plan_apply`, `ses_import`, `schematic_to_pcb_sync` и `live_session_apply`.
+Q1 Component Angle GUI/re-export evidence также остаётся `NOT_RUN`, поэтому
+rotation results содержат structured warning.
 
-Для обычной установки Windows скачайте `DipTrace-MCP-Setup-<version>.exe` из
-release assets. Installer работает только в Windows и сейчас является
-неподписанным development-stage артефактом.
+## Обработка данных
 
-1. Скачайте `DipTrace-MCP-Setup-<version>.exe` и проверьте SHA-256 по
-   `SHA256SUMS.txt`.
-2. Запустите installer.
-3. Выберите workspace проектов DipTrace и MCP-клиент (Codex, Claude Desktop,
-   оба или пропустить).
-4. Нажмите Install и дождитесь встроенной проверки `--help`.
-5. Перезапустите выбранный MCP-клиент и проверьте `get_capabilities`.
+- `DIPTRACE_MCP_WORKSPACE` задаёт обычный workspace; пути дополнительно
+  ограничиваются `DIPTRACE_MCP_ALLOWED_ROOTS` и literal caller-path checks.
+- `DIPTRACE_MCP_STATE_DIR` хранит локальные records, а live session —
+  `original.xml` и `working.xml`; финализация выполняется через `apply` или
+  `cancel`.
+- Freerouting, ngspice и openEMS запускаются только через typed local process
+  boundaries и isolated job directories; online sourcing по умолчанию отключён.
+- MCP `stdio` использует локальные process pipes и не открывает network listener.
+- `streamable-http` предназначен только для trusted loopback, например
+  `127.0.0.1:8765`; OAuth и multi-user isolation не реализованы.
+- User projects, private evidence, proprietary libraries и screenshots не
+  загружаются и не коммитятся автоматически; внешние данные и публикацию
+  контролирует оператор.
 
-Installer размещает self-contained server в
-`%LOCALAPPDATA%\Programs\DipTraceMCP`, writable state — в
-`%LOCALAPPDATA%\DipTraceMCP`, и никогда не удаляет выбранный workspace. Для
-Codex и Claude Desktop используются сохранение неизвестных полей, backup,
-atomic write и idempotent update. Если Codex не установлен, готовая команда
-сохраняется в `codex_setup.txt`, а установка server не считается failed.
+## Установка
 
-Дополнительный fallback `DipTrace-MCP-Portable-<version>.zip` содержит тот же
-no-Python server bundle, существующий bridge, четыре settings-профиля и
-configurator.
+### Текущий source tree
 
-Installer обнаруживает проверенные DipTrace roots в `Program Files` и
-`Program Files (x86)` для `DipTrace5`/`DipTrace`, а также подходящие uninstall
-registry entries. Нужен известный module executable или plugin module
-directory; это не обещает поддержку любого layout DipTrace. Если установка не
-найдена, используйте Browse либо Server only.
+Требуется Python 3.10 или новее.
 
-Shapely/GEOS входит в Windows bundle только после успешного exact geometry
-smoke в Windows CI. Эта ветка не заявляет full geometry или полное live
-DipTrace round-trip доказательство; Q1 rotation evidence всё ещё pending,
-разрешение или endorsement Novarm не заявлены.
+```bash
+git clone https://github.com/fireostendere/mcp_diptrace.git
+cd mcp_diptrace
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+diptrace-mcp --help
+```
 
-### Advanced / Developer installation
-
-Путь через source/wheel остаётся доступным для maintainers и пользователей
-Linux, macOS и WSL. Он требует Python, virtual environment и обычных шагов
-сборки/ручной установки плагина.
-
-#### 1. Установить MCP-сервер
+Windows PowerShell:
 
 ```powershell
 git clone https://github.com/fireostendere/mcp_diptrace.git
 cd mcp_diptrace
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
-```
-
-Для exact polygon/ellipse/obround/swept-trace geometry и поддерживаемых exact
-spatial-clearance путей установите optional GEOS backend:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[geometry]"
-```
-
-Проверка entry point:
-
-```powershell
 .\.venv\Scripts\diptrace-mcp.exe --help
 ```
 
-#### 2. Собрать и установить DipTrace-плагин
+Установите `.[geometry]`, когда нужны exact Shapely/GEOS geometry paths. Source
+installation не устанавливает executable plug-in DipTrace автоматически;
+advanced-путь описан в [`plugin/`](plugin/) и
+[`docs/USAGE.md`](docs/USAGE.md).
 
-Соберите неподписанный executable локально из исходного кода:
+### Опубликованные release assets
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\plugin\build_bridge.ps1
-```
+Для последнего immutable public release используйте
+[`v0.1.2`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.2).
+Installer и portable bundle 0.2.0 пока являются только candidate build outputs.
+Имена файлов из candidate-документации нельзя считать существующими downloads
+до публикации `v0.2.0`.
 
-Закройте все модули DipTrace, откройте PowerShell от имени администратора и установите bridge в PCB Layout, Schematic Capture, Component Editor и Pattern Editor:
+## Проверка
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\plugin\install_plugin.ps1
-```
+CI matrix включает:
 
-Installer сначала проверяет `C:\Program Files\DipTrace5`, затем legacy `C:\Program Files\DipTrace`. Для другой установки:
+- Linux Python 3.10, 3.12 и 3.13;
+- macOS и Windows Python 3.12;
+- Shapely/GEOS и отдельный no-Shapely fallback;
+- Ruff, strict Mypy, DCO, public tool snapshot, service-Facade contract,
+  service-decomposition safety, event-loop responsiveness, release artifacts и
+  provenance/compliance checks;
+- native Windows bridge, standalone server, configurator, installer и portable
+  bundle builds/smoke tests.
 
-```powershell
-.\plugin\install_plugin.ps1 -DipTraceDir "D:\Apps\DipTrace" -Mode All
-```
+Exact head release-candidate PR #49 прошёл CI run `30940972328` и Windows
+installer run `30940972331`. Ранее controlled live acceptance проверил отдельные
+пути DipTrace 5.3 schematic и DipTrace 5.2.0.4 PCB/Schematic. Это не доказывает
+универсальную совместимость со всеми версиями DipTrace 5.x.
 
-`-Mode Both` устанавливает только PCB/Schematic. `-Mode Libraries` — только Component/Pattern Editor bridges. Library sessions экспортируют активную библиотеку целиком, но используют `ImpMode=None`; завершайте их через `cancel`, потому что native library mutation пока evidence-gated.
+## Оставшиеся release blockers для v0.2.0
 
-#### 3. Подключить Codex
-
-```powershell
-codex mcp add diptrace `
-  --env "DIPTRACE_MCP_WORKSPACE=C:\Users\you\Documents\DipTrace" `
-  -- "C:\path\to\mcp_diptrace\.venv\Scripts\diptrace-mcp.exe"
-
-codex mcp list
-```
-
-Либо перенесите настройки из [`examples/codex-config.toml`](examples/codex-config.toml) в `~/.codex/config.toml` и замените пути.
-
-#### 4. Открыть live-сессию
-
-1. Откройте и сохраните design или library в DipTrace.
-2. Выберите `Tools > Plugins > DipTrace MCP Bridge`.
-3. Оставьте окно bridge открытым, пока MCP-клиент выполняет чтение, planning и edits.
-4. Сначала попросите клиента прочитать и проверить документ.
-5. Для write-operation сначала требуйте dry-run/transaction preview и проверьте changed object IDs.
-6. Commit выполняйте с SHA из preview, затем запустите post-write checks, прочитайте последний SHA рабочего документа и вызовите `finish_live_session(action="apply", expected_sha256="...")`; для отмены hash не нужен.
-
-Кнопки bridge выполняют те же явные apply/cancel действия. Окно показывает привязанный
-к SHA и ограниченный impact summary: normalized/structural counts и не более первых 20
-изменённых stable IDs; unavailable и truncated состояния явно раскрываются. Live apply
-проверяет тот же консервативный лимит 500 объектов дважды: при публикации MCP request и
-непосредственно в bridge перед заменой. Component и Pattern Editor profiles являются
-read-only (`ImpMode=None`); неизвестные profiles также закрыты fail-closed.
-
-`finish_live_session` ограниченно ждёт только локальный результат bridge: `applied`,
-`cancelled` или `not_acknowledged`. `applied` означает, что bridge заменил и проверил
-локальный exchange XML; это не подтверждение от DipTrace host. Заведомо мёртвый bridge
-в той же platform/PID namespace автоматически получает статус `abandoned`. PID namespaces
-Windows и WSL никогда не отождествляются по догадке; orphan с неизвестной liveness
-завершается по настраиваемому двухчасовому TTL либо явно через
-`abandon_live_session(reason="...")`, который никогда не применяет working XML.
-Lifecycle-изменения Windows/WSL используют общий атомарный lease-каталог с nonce:
-нативные `flock` и Windows byte locks на NTFS не взаимодействуют. Обычные операции
-никогда не завершают и не снимают неизвестного владельца lease; явный abandon
-возвращает типизированный timeout вместо риска split-brain writer.
-
-## Offline-режим
-
-Передайте путь внутри `DIPTRACE_MCP_WORKSPACE` или `DIPTRACE_MCP_ALLOWED_ROOTS`:
-
-> Запусти `summarize_design` для `boards/controller.xml`, затем покажи цепи питания.
-
-Legacy binary `.dip`/`.dch` сначала экспортируйте через `File > Export > DipTrace XML`. Native XML `.dip`/`.dch` можно читать напрямую только если файл действительно начинается с официального DipTrace XML root.
-
-## Обработка данных
-
-- Переданные через MCP пути design/source должны разрешаться внутри
-  `DIPTRACE_MCP_WORKSPACE` или `DIPTRACE_MCP_ALLOWED_ROOTS`. State directory и пути к
-  executable являются отдельными operator-owned settings.
-- `DIPTRACE_MCP_STATE_DIR` может содержать полный design XML в session working copies
-  и transaction snapshots, а также operations, previews, plans, review reports,
-  external-job logs/results, exports и backups. Считайте этот каталог чувствительными
-  данными проекта и задавайте ему соответствующие права доступа.
-- В live session DipTrace передаёт временный exchange path. Bridge копирует input в
-  `original.xml` и `working.xml` внутри state directory; только явный `apply` с
-  expected SHA-256 рабочего файла копирует результат обратно в exchange path.
-  `cancel` оставляет исходный exchange input без изменений.
-- Offline backups хранятся в настроенном центральном state tree с ключом из hash
-  канонического target path, а не в неявном backup-каталоге рядом с design. Если
-  требуется такое разделение, размещайте `DIPTRACE_MCP_STATE_DIR` вне project.
-  Count/age retention удаляет только validated terminal records и истёкшие backup
-  histories на best-effort основе; active, nonterminal, corrupt или unverifiable state
-  может остаться, а thresholds не являются storage quotas.
-- Freerouting, ngspice и openEMS runner — необязательные локальные subprocesses,
-  запускаемые только соответствующими tools. Их isolated job directories и bounded
-  logs/results сохраняются в state directory. Process containment не создаёт network
-  sandbox для этих сторонних программ.
-- Transport `stdio` по умолчанию обменивается запросами и результатами с настроенным
-  локальным MCP-клиентом. Необязательный `streamable-http` слушает заданные host/port;
-  по умолчанию это loopback (`127.0.0.1:8765`), встроенной remote authentication нет.
-  Оставляйте его на loopback, если не настроен authenticated reverse proxy.
-
-Подробные границы описаны в [Usage: Backups and State Directory](docs/USAGE.md#11-backups-and-state-directory),
-[Security and Policy](docs/SECURITY_AND_POLICY.md) и
-[External Adapters](docs/EXTERNAL_ADAPTERS.md).
-
-## Безопасность изменений
-
-High-level writes по умолчанию работают в preview/dry-run режиме. Рекомендуемый workflow:
-
-1. загрузить документ и зафиксировать SHA-256;
-2. создать или staged scoped semantic operations;
-3. проверить diff и SVG/JSON preview;
-4. повторно запустить применимые ограниченные connectivity/DRC/ERC checks и проверить
-   каждый skip;
-5. commit с `expected_sha256`;
-6. повторно распарсить изменённый XML и выполнить post-write checks;
-7. явно применить live session либо выполнить rollback/cancel.
-
-`apply_xml_edits` остаётся expert escape hatch. Он требует exact match counts, сохраняет bytes вне target nodes, reparses результат, создаёт backup перед commit и отклоняет SHA conflicts.
-
-Creation tools могут создать отсутствующий target без hash. Замена существующего target
-требует одновременно `overwrite=true` и его текущий, наблюдавшийся вызывающей стороной
-`expected_sha256`; `expected_seed_sha256` привязывает seed input и не заменяет target hash.
-
-XML с `DOCTYPE` или `ENTITY` отклоняется. Переданные клиентом пути design/source
-ограничены configured roots; server state и executable paths являются отдельными
-operator-owned settings. Внешние процессы запускаются только через typed allowlisted
-adapters.
-
-### WO-11 safety checkpoint — 2026-07-25
-
-- Пути из MCP calls интерпретируются буквально: переменные окружения и `~` не
-  подставляются. Expansion применяется только к operator-owned конфигурации сервера;
-  переданные клиентом пути design/source остаются под allowed-root check.
-- Поддерживаемые XML writes сохраняют обнаруженные source codec/BOM и untouched
-  bytes. Raw edits и raw-preserving semantic edits повторно парсятся и должны
-  совпадать с запрошенным semantic element tree; чистый UTF-32 input сейчас
-  отклоняется fail closed.
-- Typed request data, нормализованные XML numbers и числовые SES tokens отклоняют
-  `NaN` и бесконечности. DSN output отклоняет quoted values, которым нужны
-  непроверенные escaping или non-ASCII encoding, а SES input отклоняет backslash
-  escapes и literal controls в quoted tokens. Реальные конвенции DipTrace остаются
-  открытыми evidence questions.
-- У external adapters есть bounded streaming logs/results и общий concurrency limit.
-  POSIX process groups и Windows kill-on-close Job Objects ограничивают дочерние
-  процессы, а завершение root processes явно ожидается.
-- Offline backups находятся в центральном state directory и изолированы по hash
-  канонического target path. Existing target сохраняется в backup до замены; у нового
-  target ещё нет исходных bytes для backup. Retention удаляет validated terminal
-  records и истёкшие per-target backup histories, защищает active/nonterminal state и
-  считает count/age thresholds целями cleanup, а не жёсткими квотами.
-
-## Модель доверия
-
-Сервер разделяет provenance и authority. Клиент может передать evidence, но не может сам повысить документ до high-trust validation level.
-
-- **Synthetic MCP-generated**: XML из `create_schematic_document`/`create_pcb_document` имеет `synthetic_parser_only`, пока нет более сильного независимо проверенного evidence.
-- **Seed-based**: `create_document_from_seed` копирует реальный DipTrace export и сохраняет provenance, но копирование само по себе не создаёт round-trip authority.
-- **Публичный приём user-supplied evidence**: `validate_roundtrip_evidence` без записи проверяет разные allowed-root роли source/saved/re-export, точные SHA-256, source type, привязку к документу и, если передан re-export, structural semantic comparison. `record_roundtrip_evidence` после повторной проверки этих gates явно записывает только manifest и provenance sidecar. Оба инструмента сообщают `authority=user_supplied`, сохраняют `requires_diptrace_verification=true` и никогда не дают high trust.
-- **High trust**: package-owned exact-hash registry реализован и раскрывается
-  через capabilities/resources, но сейчас в нём 0 reviewed entries. Ни один
-  существующий документ не повышается. Для
-  [первой записи нужна независимая проверка человеком](docs/TRUSTED_PROVENANCE_REGISTRY.md);
-  user/workspace data не может добавить запись.
-
-Trust invalidation после MCP write реализован для основных проверенных путей, но capability layer намеренно **не заявляет полное покрытие всех write paths**. Отдельно остаются неполностью закрытыми `plan_apply`, `ses_import`, `schematic_to_pcb_sync` и `live_session_apply`; их полное fail-closed trust invalidation входит в ближайший roadmap. Поэтому `get_capabilities` имеет приоритет над более общими описаниями документации.
-
-Evidence manifests повторно валидируются при использовании и rollback; path aliases, source-type mismatch, stale hashes, неполные comparison categories и semantic differences приводят к fail-closed результату.
-
-## Статус pattern recommendation
-
-Текущий baseline умеет читать и валидировать существующие Pattern Libraries, сравнивать pad mapping и назначать компоненту уже существующий pattern при точном совпадении pad numbers. Pattern Editor bridge sessions намеренно read-only.
-
-Persistent feedback/recommendation tools — `record_pattern_example`, `accept_pattern_suggestion`, `reject_pattern_suggestion` — пока не реализованы. До их разработки roadmap ставит выше закрытие реального DipTrace 5.3 evidence layer: fixture pack, trust-invalidation coverage и mask/paste/courtyard semantics.
-
-После evidence closure планируется append-only provenance-bound feedback dataset, deterministic retrieval похожих принятых примеров и измеримый ranked recommendation workflow. Fine-tuning остаётся более поздней необязательной стадией.
-
-Создание или изменение native Pattern/Component Libraries остаётся заблокировано до controlled DipTrace 5.3 before/after и open/save/re-export fixtures, подтверждающих writer semantics.
-
-## Поставляемые агентские скиллы
-
-Wheel теперь включает восемь компактных workflows в `diptrace_mcp/skills`: project intake,
-library audit, schematic ERC review, testpoint planning, critical-net routing, signal-integrity
-review, release gating и operator-assisted evidence capture. Они используют одну общую result
-schema и выбраны по письменному механическому survival rule; прежний дублированный каталог из
-57 пакетов не поставляется.
-
-Скиллы оркестрируют зарегистрированные MCP tools и два поставляемых evidence CLI. Они не добавляют
-скрытых EDA capabilities, не повышают trust evidence, не переопределяют runtime
-`get_capabilities` и не регистрируются в agent host автоматически: укажите host путь к
-установленному каталогу `diptrace_mcp/skills`. См.
-[поставляемый каталог и ограничения](skills/README.md).
-
-## Известные ограничения
-
-- сервер не автоматизирует GUI DipTrace;
-- DipTrace синхронно ждёт завершения live plug-in session;
-- одновременно поддерживается одна live-сессия;
-- LLM не заменяет visual review, ERC/DRC и инженерное решение;
-- local router не реализует push-and-shove, free-angle routing или dynamic neck-down; congestion-aware ordering и bounded rip-up/retry доступны через `route_connections`;
-- automatic via routing на multilayer board требует подтверждённый `Lay1`/`Lay2` span;
-- coupled router требует совместимых endpoint spacing/orientation и не синтезирует произвольные uncoupled escapes;
-- `calculate_impedance` остаётся preliminary analytical estimate; field-solver result доступен только через настроенный `run_openems_stripline_analysis` backend;
-- `place_part` ссылается на library `ComponentStyle` по имени; symbol graphics и pin mapping DipTrace разрешает из собственных libraries при import;
-- ngspice adapter запускает user-supplied netlists и не генерирует netlist из design;
-- openEMS adapter требует совместимый внешний JSON runner; solver не bundled, а committed parser fixture синтетический;
-- copper-pour boundaries не считаются authoritative refill geometry;
-- generic fabrication manifests не содержат Gerber или NC Drill;
-- persistent pattern-training/recommendation tools пока отсутствуют;
-- native Component/Pattern Library mutation недоступна до verified DipTrace 5.3 round-trip fixtures;
-- schematic wire authoring и ratline generation требуют дополнительного real DipTrace 5.3 round-trip evidence;
-- real-openEMS golden validation остаётся внешней acceptance-задачей.
-- направление, единицы, нормализация и side/mirror semantics угла `rotate_components` требуют live GUI evidence; до этого нужно проверять preview и structured warning;
-- NetClass rules пока не применяются к trace-object и placement clearance; эти результаты явно partial и не являются полным DRC sign-off.
+- clean Windows 11 install, repair и uninstall acceptance;
+- реальный текущий DipTrace 5 в PCB, Schematic, Component и Pattern modules;
+- реальные Codex и Claude Desktop configuration/restart checks;
+- elevated plug-in install с сохранением original user profile;
+- custom-state preservation acceptance;
+- final frozen artifacts, per-file checksums, public-download verification и
+  необходимый внешний legal review.
 
 ## Документация
 
-- [Roadmap и фактический статус](docs/ROADMAP.md)
-- [XML compatibility](docs/XML_COMPATIBILITY.md)
-- [Полное руководство](docs/USAGE.md)
+- [Использование](docs/USAGE.md)
+- [MCP tools и resources](docs/MCP_TOOLS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
-- [Domain model](docs/DOMAIN_MODEL.md)
-- [Geometry engine](docs/GEOMETRY_ENGINE.md)
-- [Transactions](docs/TRANSACTIONS.md)
-- [MCP tools](docs/MCP_TOOLS.md)
-- [Review engine](docs/REVIEW_ENGINE.md)
-- [Placement engine](docs/PLACEMENT_ENGINE.md)
-- [Routing engine](docs/ROUTING_ENGINE.md)
-- [Impedance and SI](docs/IMPEDANCE_AND_SI.md)
-- [External adapters](docs/EXTERNAL_ADAPTERS.md)
-- [Security and policy](docs/SECURITY_AND_POLICY.md)
-- [Compliance and provenance](docs/compliance/INDEPENDENT_REVIEW_PACKAGE.md)
-- [Windows signing preparation](docs/SIGNING.md)
-- [Testing and benchmarks](docs/TESTING.md)
-- [Skill contracts](docs/SKILL_CONTRACTS.md)
-- [PCB skills](skills/README.md)
 - [Разработка](docs/DEVELOPMENT.md)
-- [Windows/WSL live exchange paths](docs/LIVE_EXCHANGE_PATHS.md)
-- [Live acceptance 2026-07-31](docs/LIVE_ACCEPTANCE_2026-07-31.md)
-- [Code review 2026-07-31](docs/CODE_REVIEW_2026-07-31.md)
-- [English README](README.md)
+- [Тестирование](docs/TESTING.md)
+- [Roadmap и фактическое состояние](docs/ROADMAP.md)
+- [Покрытие review](docs/REVIEW_ENGINE.md)
+- [Security и policy](docs/SECURITY_AND_POLICY.md)
+- [Transactions](docs/TRANSACTIONS.md)
+- [Windows installer](docs/WINDOWS_INSTALLER.md)
+- [Release process](docs/RELEASE_PROCESS.md)
+- [Открытые вопросы совместимости](docs/OPEN_QUESTIONS.md)
 
-## Разработка
+## Участие и security
 
-```bash
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install -e '.[dev]'
-python scripts/generate_pcb_skills.py --check
-python -m pytest -q
-python -m ruff check --no-cache src tests benchmarks scripts
-python -m mypy --no-incremental src/diptrace_mcp
-```
+Contributions принимаются по DCO 1.1 и provenance/privacy rules из
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Merge authority остаётся у владельца
+репозитория. Подозрения на уязвимость отправляйте только через приватный канал
+из [`SECURITY.md`](SECURITY.md), а не в публичные issues.
+
+Проект не заявляет Novarm/DipTrace endorsement, production deployments,
+independent review, signed binaries, universal compatibility или complete
+manufacturing sign-off.
+
+## Лицензия
+
+Apache License 2.0. См. [`LICENSE`](LICENSE).

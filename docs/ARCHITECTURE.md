@@ -1,186 +1,137 @@
 # DipTrace MCP Architecture
 
-## Components
+## Scope
 
-### MCP Server
+DipTrace MCP is a local MCP server with an optional Windows executable bridge
+for designs opened in DipTrace. The architecture separates protocol exposure,
+use-case orchestration, domain logic, persistence, XML safety, and the external
+DipTrace exchange process.
 
-`src/diptrace_mcp/server.py` creates the FastMCP server and registers tools, resources,
-and prompts. It contains no file-format logic; calls are delegated to `DipTraceService`.
+The current source/package version is `0.2.0`. Version `v0.1.2` remains the
+latest published release; the 0.2.0 tree is an unpublished release candidate.
 
-### Service Layer
+## High-level flow
 
-`src/diptrace_mcp/service.py` remains the stable public `DipTraceService` Facade
-and the owner of top-level dependency assembly. Its methods delegate explicitly
-to ordinary synchronous, in-process services under
-`src/diptrace_mcp/services/`; no service imports or holds the complete Facade:
-
-* `DocumentService` owns normalized document models, object/query and inspector
-  reads, connectivity, document resources, and bounded XML fragments.
-* `BomService` owns BOM extraction/review/consistency and component/library
-  metadata reads. Export artifact creation is delegated to `ExportService`,
-  which receives the Facade-owned shared `ExportStore`.
-* `ReviewService` owns registered review reports/findings plus pure read-only
-  signal-integrity, impedance, differential-pair, copper-pour, and return-path
-  analysis. Review execution retains its existing report persistence in the
-  shared `FindingStore`.
-* `DiscoveryService`, `ExportService`, `JobService`, and `ExternalJobsService`
-  own document discovery, bounded export artifacts, job records, and external
-  adapter orchestration.
-* `RoutingService` and `PlacementService` own routing/placement analysis and
-  plan operations, while `SemanticOperationsService` owns explicit semantic
-  operation wrappers.
-* `SemanticEngineService`, `SynchronizationService`, `XmlWriteService`, and
-  `ScaffoldingService` own guarded semantic execution, schematic/PCB sync,
-  raw XML edits, and document creation.
-* `TransactionService`, `EvidenceService`, and `LiveSessionService` own the
-  transaction, fail-closed trust/evidence, and live-session implementations.
-
-`ServiceContext` contains exact shared dependency types, and `DocumentGateway`
-is the single path/session-aware loader and document-target registry. Services
-receive these existing instances; they do not create stores, model caches,
-sessions, transactions, or a second document loader. Facade methods remain
-explicit and type checked. There is no dynamic forwarding, mixin hierarchy,
-service locator, RPC boundary, or extra process.
-
-The remaining Facade responsibilities are deliberately narrow:
-
-- literal caller-path resolution and allowed-root enforcement;
-- top-level construction and singleton ownership of stores, caches, and managers;
-- capability/status reporting and workflow prompt-name registration;
-- compatibility wrappers for existing private seams;
-- callbacks for allowed-path resolution, SHA gates, atomic writes, provenance
-  sidecars, trust invalidation, and stored-plan application.
-
-The service is not claimed to be fully decomposed: the remaining Facade code is
-coordination and safety infrastructure. The complete current method-level map
-and extraction roadmap are in
-[`SERVICE_DECOMPOSITION.md`](SERVICE_DECOMPOSITION.md).
-
-Caller-supplied paths do not expand environment variables or `~`. Expansion is limited
-to server-owned path configuration loaded from the environment. Caller-supplied design
-and source paths then pass the ordinary allowed-root check; configured executable paths
-remain a separate typed operator boundary.
-
-### XML Layer
-
-`src/diptrace_mcp/xml_document.py` implements:
-
-- validation of a `<Source Type="DipTrace-...">` root;
-- document-size limits;
-- rejection of `DOCTYPE` and `ENTITY` declarations;
-- detection and recording of the source encoding, byte order, and BOM;
-- ElementTree-compatible XPath;
-- exact match-count guards;
-- a bounded set of edit operations;
-- byte-preserving replacement encoding for supported UTF-8, UTF-16LE/BE, US-ASCII,
-  and ISO-8859-1 documents;
-- reparsing and semantic-tree equality checks after raw or semantic modifications;
-- SHA-256, diff generation, atomic writes, and backups.
-
-Clean UTF-32 input currently fails closed; the DTD/entity guard still detects hostile
-UTF-32 byte layouts before ordinary parsing. The open encoding/BOM compatibility questions describe what DipTrace itself
-emits and accepts; the preservation behavior here is an MCP safety invariant rather
-than host-format evidence.
-
-Normalized models reject non-finite floats. XML and SES number parsing additionally
-checks conversion and unit-scaling results before geometry or rule comparisons can use
-them.
-
-### Inspector
-
-`src/diptrace_mcp/inspector.py` understands the principal structures in the official XML format:
-
-- `Source/Board/Components/Component`;
-- `Source/Board/Nets/Net`;
-- `Source/Schematic/Components/Part`;
-- `Source/Schematic/Nets/Net`;
-- PCB DRC, routing, net classes, and via styles;
-- Schematic ERC and net classes.
-
-Unknown sections remain accessible through `read_xml_fragment`.
-
-### Normalized Model Cache
-
-`src/diptrace_mcp/model_cache.py` retains recently built normalized snapshots by
-resolved path, source SHA-256, and live-session state. LRU eviction enforces both an
-entry count and `DIPTRACE_MCP_MODEL_CACHE_MAX_BYTES`. The byte total is a recursive
-`sys.getsizeof` estimate over the retained source bytes, XML tree, indexes, and
-normalized models; it is an operational cache budget, not an exact process-RSS
-measurement. A single snapshot above the budget is returned to its caller but is not
-cached.
-
-### Scaffolding
-
-`src/diptrace_mcp/scaffolding.py` generates brand-new schematic and PCB documents from
-typed options (`SchematicScaffold`, `PcbScaffold`): sheets, board outline, copper layers,
-layer stackup, via styles, net classes, and DRC defaults, following the official XML
-specifications. Generated bytes are always parsed back through `DipTraceDocument` before
-they reach the filesystem. New targets need no target hash; replacing an existing target
-requires `overwrite=true` and its current `expected_sha256`. The backup writer binds the
-same bytes again before it creates recovery state and performs the atomic replacement.
-
-### Multi-Net Routing
-
-`src/diptrace_mcp/multirouter.py` orchestrates sequential multi-net routing on top of
-`routing.py` and the semantic compiler: each routed connection is committed to a working
-document so later connections route around it, and a bounded rip-up/retry pass recovers
-failures using batch-local candidates only. The ordered operation list replays through
-the standard transactional preview/commit path.
-
-### Bridge
-
-`src/diptrace_mcp/bridge.py` is compiled into `diptrace_mcp_bridge.exe`. DipTrace starts
-it with one positional argument: the path to `plugin_exchange.xml`.
-
-## Live-Session Sequence
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant D as DipTrace
-    participant B as Bridge EXE
-    participant S as Shared state
-    participant M as MCP server
-    participant C as MCP client
-
-    U->>D: Tools / Plugins / DipTrace MCP Bridge
-    D->>B: exe plugin_exchange.xml
-    B->>S: original.xml + working.xml + active.json
-    B-->>D: process remains active
-    U->>C: inspect or edit design
-    C->>M: MCP tool calls
-    M->>S: read or atomically update working.xml
-    M->>S: atomically update metadata.json
-    M->>S: publish control.json apply/cancel
-    B->>S: verify expected SHA-256
-    alt apply
-        B->>D: overwrite plugin_exchange.xml and exit
-        D->>D: import XML
-    else cancel
-        B-->>D: exit without modifying exchange XML
-    end
+```text
+MCP client
+(Codex / Claude / other)
+        |
+        | stdio or loopback Streamable HTTP
+        v
+src/diptrace_mcp/server.py
+        |
+        v
+DipTraceService public Facade
+        |
+        +--> typed in-process domain services
+        +--> policy, stores, model cache, document gateway
+        |
+        v
+XML files and shared state
+        ^
+        |
+diptrace_mcp_bridge.exe
+        ^
+        |
+DipTrace executable XML plug-in contract
 ```
 
-## Why DipTrace Waits
+There is no RPC layer between the Facade and domain services. Services are
+ordinary synchronous Python objects. `server.py` owns the asynchronous MCP
+boundary and offloads every registered tool through the project-owned AnyIO
+worker-thread wrapper.
 
-The official plug-in contract is synchronous. DipTrace creates an XML exchange file,
-starts the plug-in executable, and reads the same file after the process exits. The
-bridge must therefore remain active while MCP operations are being performed. A
-A separate state directory is necessary because `plugin_exchange.xml` is temporary and owned by DipTrace. Session metadata stores that exchange path in the native syntax of the bridge process plus an immutable platform field. A WSL server derives its drive-mount view in memory only; persisting `/mnt/c/...` into Windows-origin metadata is invalid and is rejected before a finish control marker can be published.
+## MCP server
 
-## State Layout
+`src/diptrace_mcp/server.py` creates the FastMCP server and registers tools,
+resources, prompts, transport configuration, and the public error boundary. It
+contains no DipTrace file-format implementation. Calls are delegated to the
+stable `DipTraceService` Facade.
+
+The public contract currently contains 159 tools. The full wire-level
+`tools/list` model is frozen in
+`reference/mcp-tools-list.snapshot.json` and checked in CI.
+
+## Service Facade and domain services
+
+`src/diptrace_mcp/service.py` remains the public Facade and top-level dependency
+owner. It creates shared stores, policy, cache, trust registry, and the single
+`DocumentGateway`, then constructs each domain service once.
+
+Domain implementations live under `src/diptrace_mcp/services/`:
+
+- `DocumentService`: normalised documents, selectors, models, connectivity,
+  resources, and bounded XML reads;
+- `BomService`: BOM and component/library metadata reads;
+- `ReviewService`: review reports, findings, and read-only engineering analysis;
+- `DiscoveryService`: document discovery;
+- `ExportService`: bounded export records and artifacts;
+- `JobService`: job records and resources;
+- `ExternalJobsService`: Freerouting, ngspice, and openEMS orchestration;
+- `RoutingService`: routing analysis, plans, and apply paths;
+- `PlacementService`: placement and silkscreen planning/apply paths;
+- `SemanticOperationsService`: explicit semantic-operation wrappers;
+- `SemanticEngineService`: guarded semantic execution and preview;
+- `SynchronizationService`: schematic-to-PCB synchronisation;
+- `XmlWriteService`: guarded raw XML edits and raw previews;
+- `ScaffoldingService`: synthetic and seed-based document creation;
+- `TransactionService`: transaction preview, commit, rollback, and recovery;
+- `EvidenceService`: provenance, comparison, and fail-closed trust;
+- `LiveSessionService`: live-session lifecycle operations.
+
+`ServiceContext` shares only exact typed dependencies. `DocumentGateway` is the
+single path/session-aware document loader and document-target registry. Domain
+services do not import or hold the complete Facade and do not create duplicate
+stores, caches, sessions, transactions, or policies.
+
+The remaining Facade responsibilities are intentionally limited to:
+
+- top-level dependency assembly and singleton ownership;
+- allowed-root and literal caller-path resolution;
+- capability/status reporting and prompt registration;
+- compatibility wrappers for existing private seams;
+- callbacks for SHA gates, atomic writes, provenance sidecars, trust
+  invalidation, and stored-plan application.
+
+The complete method inventory and parity checks are documented in
+[`SERVICE_DECOMPOSITION.md`](SERVICE_DECOMPOSITION.md). The current contract
+contains 157 public Facade methods, 148 explicit delegations, and nine
+Facade-owned public methods.
+
+## Shared state and dependency ownership
+
+One server instance owns one instance of each stateful dependency:
+
+```text
+DipTraceService
+├── Settings / Policy
+├── DocumentGateway
+├── ModelCache
+├── SessionStore
+├── TransactionStore
+├── PlanStore
+├── FindingStore
+├── JobStore / ExternalJobManager
+├── ExportStore
+├── BackupStore
+├── RawPreviewStore (lazy)
+├── TrustedProvenanceRegistry (package-owned)
+└── domain services
+```
+
+Persistent records are stored below the configured state directory. The main
+state layout is:
 
 ```text
 DipTraceMCP/
   active.json
   offline_backups/<canonical-target-sha256>/
-    target.json
-    backup.<timestamp>.<content-sha256>.<nonce>.bak
   transactions/
   jobs/
   plans/
   exports/
   reviews/
+  raw_previews/
   sessions/<session-id>/
     metadata.json
     original.xml
@@ -189,120 +140,196 @@ DipTraceMCP/
     backups/
 ```
 
-JSON and XML files are written through a temporary file in the same directory followed
-by `os.replace`. This prevents readers from observing a partially written file.
-`control.json` is published only after finish-request metadata is durable and acts as
-the cross-process commit marker. JSON reads use a short bounded retry for transient
-Windows sharing violations; malformed or persistently unreadable state still fails the
-session explicitly.
+Record stores validate identifiers and confined paths before reading or
+removing entries. Retention is count-and-age based and protects active,
+nonterminal, corrupt, redirected, or otherwise unverifiable state. Cleanup
+limits are soft targets, not guaranteed storage quotas.
 
-The six persistent record stores apply a count-and-age cleanup policy at construction.
-Only validated terminal records with an embedded identifier matching their confined
-path are candidates. Active and nonterminal records are protected. Redirected, corrupt,
-unknown-status, or otherwise unverifiable state is left untouched. Offline backup
-histories are isolated by canonical target-path hash, pruned at construction and after
-successful replacement, and removed when their final valid backup expires. The
-configured thresholds are cleanup targets rather than hard storage quotas, so protected
-or unverifiable state may remain above them.
+## XML layer
 
-## Safety Invariants
+`src/diptrace_mcp/xml_document.py` provides the core file-safety boundary:
 
-1. No more than one live session may be active at a time.
-2. `Source@Type` cannot change within an edit call.
-3. The `<Source>` root cannot be replaced or deleted.
-4. Every edit specifies an exact `expected_matches` value.
-5. `dry_run=true` is the default.
-6. Commit requires the `expected_sha256` returned by preview.
-7. Before an existing target is replaced, its original bytes are captured in the
-   appropriate central or live-session backup store. Synthetic and seed-copy overwrites
-   additionally require the current target `expected_sha256`. A newly created target has
-   no prior bytes and therefore reports no backup.
-8. The bridge reparses XML before `apply`.
-9. Live apply requires the caller-observed working SHA before `control.json` is
-   published; the bridge verifies it again before replacement.
-10. The bridge re-resolves the metadata exchange path inside the configured allowed
-    roots, requires a non-linked single regular file with its original SHA, and verifies
-    the exact SHA after atomic replacement.
-11. Explicit `cancel` leaves the exchange XML unchanged.
-12. A finish request publishes `control.json` only after `metadata.json` is complete.
-13. The exchange path remains in bridge-native syntax. Cross-platform runtime translation is in-memory only, and path/platform disagreement fails closed.
+- bounded document reads;
+- root/source-type validation;
+- layered rejection of `DOCTYPE` and `ENTITY` declarations;
+- source encoding, byte-order, BOM, and line-ending detection;
+- exact match-count guards;
+- bounded raw and semantic edits;
+- preservation of supported UTF-8, UTF-16LE/BE, US-ASCII, and ISO-8859-1
+  representations outside targeted regions;
+- reparsing and semantic-tree checks after modification;
+- SHA-256, bounded diffs, backups, and atomic replacement.
 
-## External Process Runner
+Unsupported or ambiguous input fails closed. Clean UTF-32 is not accepted as a
+normal write source. Non-finite numeric values are rejected before they can
+enter geometry, rules, or comparison logic.
 
-Freerouting, ngspice, and openEMS use the shared bounded runner. It accepts typed,
-server-selected command vectors only, starts with `shell=false` in an isolated job
-directory, drains output continuously into a bounded tail, and shares one global
-concurrency limit. POSIX roots start in a new session so timeout and cancellation can
-terminate the process group. Windows roots start suspended, are assigned to a Job
-Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, and are resumed only after assignment;
-closing the owned job handle terminates descendants even if the root already exited.
-The root process is explicitly waited and reaped on completion and failure paths.
+## Normalised models and cache
 
-The DSN writer is deliberately narrower than a general Specctra serializer: it rejects
-quoted values requiring escaping or a non-ASCII encoding convention. The SES parser
-rejects backslash escapes and literal controls in quoted tokens. A real DipTrace DSN/SES
-pair is still required before those conventions can be broadened.
+Adapters and inspectors convert the supported PCB, schematic, Component
+Library, and Pattern Library XML structures into typed domain models. Unknown
+sections remain available through bounded XML-fragment reads and are preserved
+by targeted edits.
 
-## Trust Model
+`ModelCache` keys snapshots by resolved path, source SHA-256, and live-session
+state. It applies LRU entry and estimated-byte budgets. A snapshot larger than
+the configured budget may be returned to the current caller but is not retained.
 
-The server is designed for a trusted local MCP client. It restricts filesystem paths,
-but a user or model can still intentionally request a structurally valid yet
-engineering-invalid change. `apply_xml_edits` must therefore be treated as a confirmed
-write tool.
+## Scaffolding and seed-based creation
 
-Streamable HTTP should listen only on loopback. The project does not implement OAuth or
-multi-user isolation.
+`ScaffoldingService` can create synthetic PCB and schematic XML from typed
+options. The structure follows project-owned observations and the maintained
+4.3-era scaffold model; changing the literal `format_version` is not a format
+conversion and does not establish compatibility with a particular DipTrace
+build.
 
-## Plug-in Settings
+`create_document_from_seed` instead copies a real user-supplied DipTrace-exported
+XML seed while preserving unknown content and provenance constraints. Neither
+path automatically grants high-trust round-trip status.
 
-Templates in `plugin/settings` follow the structure documented by the official DipTrace
-plug-in specification:
+New targets require no target SHA. Replacing an existing target requires
+`overwrite=true` and the current `expected_sha256`, followed by backup and
+atomic replacement.
 
-```xml
-<Source Type="DipTrace_Pcb_Plugin" Name="DipTrace MCP Bridge" ExeFile="diptrace_mcp_bridge.exe">
-  <Settings>
-    <ExpMode>All</ExpMode>
-    <ImpMode>All</ImpMode>
-    ...
-  </Settings>
-</Source>
+## Semantic write and transaction flow
+
+High-level semantic writes use the same guarded sequence:
+
+```text
+load exact source bytes
+  -> validate policy and source SHA
+  -> parse typed operation(s)
+  -> build modified bytes
+  -> reparse and run bounded checks
+  -> compute conservative write impact
+  -> preview / transaction record
+  -> require expected SHA at commit
+  -> backup existing bytes
+  -> atomic replacement
+  -> update provenance/trust state
 ```
 
-`ExpMode=All` is required when the MCP server needs complete PCB or schematic context,
-and `ImpMode=All` allows the returned full document to be imported. Component and Pattern
-Editor profiles use the official `ExpMode=Library All` with `ImpMode=None`: they expose
-the complete active library to the existing readers while keeping the live path
-read-only until evidence-gated library writers exist. DipTrace reads plug-in folders and
-`settings.xml` when the corresponding module starts, so module restart is required after
-installing or changing plug-in settings.
+Transactions persist snapshots and metadata for preview, validation, commit,
+rollback, and recovery. Exact conflict-checked rollback is the only write-impact
+restoration exemption and still passes the active policy.
 
-## WSL Compatibility
+The conservative write-impact gate counts both normalised objects and exact XML
+elements. These views may overlap, so a change affecting fewer than 500 unique
+physical objects may still be refused rather than undercounted.
 
-The Windows bridge writes to `%LOCALAPPDATA%\DipTraceMCP`. A Linux process in WSL
-accesses the same directory through
-`/mnt/c/Users/<user>/AppData/Local/DipTraceMCP`. The protocol uses ordinary files only
-and requires no Windows-to-WSL socket connection.
+## Review, placement, and routing
 
-Session metadata records the bridge platform, PID namespace, PID, and a Linux `/proc`
-or Windows creation-time process token. Liveness is consulted only from the same exact
-platform/namespace;
-a WSL PID is never used to infer whether a Windows bridge is alive. Same-namespace death
-transitions the state to terminal `abandoned`. Cross-namespace liveness remains
-`unknown` until the configurable two-hour TTL or an explicit
-`abandon_live_session(reason)` action. Apply remains separately bound to the original exchange path/hash, current working hash, and two independent write-impact checks. The 2026-07-31 DipTrace 5.2.0.4 Windows/WSL campaign verified this path for PCB and Schematic apply/cancel/wrong-SHA outcomes, with no phantom `C:\mnt\c\...` target.
+Review services persist structured findings and explicit skip/partial status.
+They do not convert incomplete geometry or unavailable rules into a clean
+result. The authoritative implementation matrix is
+[`REVIEW_ENGINE.md`](REVIEW_ENGINE.md).
 
-Lifecycle mutations use an atomic lease directory rather than `flock` or Windows
-byte-range locking: those native lock families do not coordinate across the two NTFS
-views. The lease carries a nonce and process identity. It is reclaimed automatically
-only when that exact same-namespace owner is provably dead; an unknown
-cross-namespace lease owner is not force-reclaimed because the old writer cannot be
-fenced safely. Dead-owner recovery itself uses a second atomic reaper gate. A process
-crash while holding that short-lived gate remains a fail-closed administrative
-recovery case rather than guessing that a different namespace is dead.
+Placement and routing are bounded engineering helpers:
 
-## Verified DipTrace Baseline
+- deterministic silkscreen and local placement plans;
+- trace/via primitives and multi-layer 45-degree A*;
+- congestion-ordered multi-net routing with bounded batch-local rip-up/retry;
+- centreline-based coupled differential-pair routing;
+- DSN export and guarded SES inspection/import.
 
-The live bridge design follows the official executable plug-in flow published by
-Novarm: the module generates `plugin_exchange.xml`, passes its path to the configured
-`.exe`, waits for completion, and then imports the updated file. This documentation was
-reviewed against DipTrace 5.3.0.2 and the currently published 2024 plug-in specification.
+They are not equivalent to a full global placer, push-and-shove router, or
+free-angle EDA engine.
+
+## External process boundary
+
+Freerouting, ngspice, and openEMS use typed server-selected command vectors and
+a shared bounded runner. Processes start with `shell=false`, in isolated job
+directories, with continuously drained bounded output tails and one global
+concurrency budget.
+
+POSIX jobs use process groups for timeout/cancellation cleanup. Windows jobs use
+Job Objects with kill-on-close semantics and explicit root-process reaping.
+External availability is runtime-dependent and separate from core parser/write
+trust.
+
+## Windows live bridge
+
+`src/diptrace_mcp/bridge.py` is compiled into `diptrace_mcp_bridge.exe`.
+DipTrace invokes it with a temporary `plugin_exchange.xml` path and waits for the
+process to exit.
+
+The bridge copies the source into a session state directory, records the native
+exchange path and its original SHA-256, and remains active while MCP operations
+inspect or modify `working.xml`.
+
+```mermaid
+sequenceDiagram
+    participant D as DipTrace
+    participant B as Bridge EXE
+    participant S as Shared state
+    participant M as MCP server
+    participant C as MCP client
+
+    D->>B: start with plugin_exchange.xml
+    B->>S: original.xml + working.xml + metadata
+    C->>M: inspect/edit tool calls
+    M->>S: read or atomically update working.xml
+    C->>M: finish_live_session(apply/cancel)
+    M->>S: validate SHA and publish control.json
+    B->>S: revalidate working/original/path gates
+    alt apply
+        B->>D: replace exchange XML and exit
+    else cancel
+        B-->>D: exit without replacing exchange XML
+    end
+```
+
+A Windows-origin session keeps the exchange path in Windows syntax. A WSL
+server derives `/mnt/<drive>/...` only in memory. Persisting a translated WSL
+path into Windows-origin metadata is invalid and fails closed.
+
+The executable plug-in protocol provides no explicit DipTrace-host import
+acknowledgement after process exit. Local finalisation reports therefore remain
+bounded to `applied`, `cancelled`, or `not_acknowledged` rather than claiming
+host confirmation.
+
+## Safety invariants
+
+1. Caller-controlled paths remain inside configured allowed roots.
+2. The XML root/source type cannot be silently replaced.
+3. Raw edits require exact match counts.
+4. `dry_run=true` is the default where exposed.
+5. Commit/apply requires the caller-observed expected SHA-256.
+6. Existing targets are backed up before replacement.
+7. All persistent JSON/XML writes use same-directory temporary files and
+   atomic replacement.
+8. Live apply rechecks the working SHA, exchange path, original exchange SHA,
+   and write impact before replacement.
+9. Explicit cancel leaves the exchange XML unchanged.
+10. User-controlled evidence cannot grant package-owned high trust.
+11. Streamable HTTP is intended for loopback use; OAuth and multi-user isolation
+    are not implemented.
+
+## Evidence boundary and known gaps
+
+Controlled live evidence exists for selected DipTrace 5.3 schematic and
+DipTrace 5.2.0.4 PCB/Schematic workflows. It does not establish universal
+DipTrace 5.x compatibility.
+
+The capability report intentionally retains unresolved trust-invalidation
+coverage for:
+
+- `plan_apply`;
+- `ses_import`;
+- `schematic_to_pcb_sync`;
+- `live_session_apply`.
+
+Q1 Component Angle GUI/re-export evidence remains `NOT_RUN`; rotation output
+must retain its warning. Native library writers, native manufacturing outputs,
+and broad redistributable DipTrace 5.3 fixtures remain outside the verified
+boundary.
+
+## Packaging boundary
+
+The Python wheel contains the MCP server and packaged skills. Complete Windows
+live integration additionally requires the separately built bridge, settings,
+standalone server, configurator, installer, or portable bundle.
+
+The 0.2.0 Windows assets build in CI but are not published while the release
+candidate remains untagged. Candidate executables are unsigned unless a real
+protected signing workflow is completed and every executable verifies.
