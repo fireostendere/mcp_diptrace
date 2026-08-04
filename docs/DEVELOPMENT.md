@@ -18,12 +18,26 @@ src/diptrace_mcp/
   preview.py           deterministic SVG/JSON previews
   record_store.py      safe persistence seam shared by state-backed stores
   server.py            FastMCP registration and CLI
-  service.py           public Facade, dependency assembly, and safety workflows
+  service.py           public Facade, dependency assembly, and safety callbacks
   services/
     context.py          typed shared context and single document gateway
     documents.py        normalized document/query/read models
     bom.py              BOM and component/library metadata reads
     review.py           reviews and read-only analysis
+    discovery.py        document discovery
+    exports.py          bounded exports
+    jobs.py              job records and resources
+    external_jobs.py    external adapters and guarded jobs
+    routing.py           routing analysis and plans
+    placement.py        placement analysis and plans
+    semantic_operations.py explicit semantic operation wrappers
+    semantic_engine.py  guarded semantic execution and preview
+    synchronization.py  schematic-to-PCB synchronization
+    xml_writes.py       guarded raw XML edits
+    scaffolding.py      document creation
+    transactions.py     transaction workflows and recovery
+    evidence.py         provenance and fail-closed trust
+    live_sessions.py    live-session lifecycle
   sessions.py          shared live-session state
   transactions.py      transaction store and artifacts
   external_adapters.py typed Freerouting process boundary
@@ -176,7 +190,8 @@ review of the FastMCP API, MCP Inspector, transports, and client configuration.
 
 ## Adding a Domain-Specific Tool
 
-1. Add a domain model or pure function to a permanent module and a use case to `service.py`.
+1. Add a domain model or pure function to a permanent module and expose its use
+   through an explicit Facade method only when it is part of the stable API.
 2. Add a fixture, or extend an existing fixture with the smallest official XML fragment required.
 3. Cover the pure function with a test.
 4. Register a thin wrapper in `server.py`.
@@ -189,9 +204,10 @@ For service refactors, read `docs/SERVICE_DECOMPOSITION.md` first. Pass narrow,
 typed dependencies or callbacks; never pass the complete Facade as a parent and
 never create a duplicate store/cache/session manager. Keep domain methods
 synchronous so the existing server-owned AnyIO thread-offload boundary remains
-the only MCP offload layer. Do not extract transactions, evidence trust,
-semantic writes, routing application, external process lifecycle, or live
-sessions without a new characterization/parity review.
+the only MCP offload layer. Transaction, evidence trust,
+semantic writes, routing application, external process lifecycle, and live
+sessions must retain their existing safety gates and require characterization
+and parity review before any further boundary change.
 
 ## Format Rules
 

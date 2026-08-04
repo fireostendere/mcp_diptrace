@@ -9,21 +9,31 @@ and prompts. It contains no file-format logic; calls are delegated to `DipTraceS
 
 ### Service Layer
 
-`src/diptrace_mcp/service.py` remains the stable public `DipTraceService` Facade.
-It is still responsible for top-level dependency assembly and for the sensitive
-write, transaction, evidence, external-job, placement, routing, and live-session
-workflows. Its low-risk read paths delegate explicitly to ordinary in-process
-services under `src/diptrace_mcp/services/`:
+`src/diptrace_mcp/service.py` remains the stable public `DipTraceService` Facade
+and the owner of top-level dependency assembly. Its methods delegate explicitly
+to ordinary synchronous, in-process services under
+`src/diptrace_mcp/services/`; no service imports or holds the complete Facade:
 
 * `DocumentService` owns normalized document models, object/query and inspector
   reads, connectivity, document resources, and bounded XML fragments.
 * `BomService` owns BOM extraction/review/consistency and component/library
-  metadata reads. Export artifact creation remains in the Facade until the later
-  exports phase because it writes the shared export store.
+  metadata reads. Export artifact creation is delegated to `ExportService`,
+  which receives the Facade-owned shared `ExportStore`.
 * `ReviewService` owns registered review reports/findings plus pure read-only
   signal-integrity, impedance, differential-pair, copper-pour, and return-path
   analysis. Review execution retains its existing report persistence in the
   shared `FindingStore`.
+* `DiscoveryService`, `ExportService`, `JobService`, and `ExternalJobsService`
+  own document discovery, bounded export artifacts, job records, and external
+  adapter orchestration.
+* `RoutingService` and `PlacementService` own routing/placement analysis and
+  plan operations, while `SemanticOperationsService` owns explicit semantic
+  operation wrappers.
+* `SemanticEngineService`, `SynchronizationService`, `XmlWriteService`, and
+  `ScaffoldingService` own guarded semantic execution, schematic/PCB sync,
+  raw XML edits, and document creation.
+* `TransactionService`, `EvidenceService`, and `LiveSessionService` own the
+  transaction, fail-closed trust/evidence, and live-session implementations.
 
 `ServiceContext` contains exact shared dependency types, and `DocumentGateway`
 is the single path/session-aware loader and document-target registry. Services
@@ -32,17 +42,18 @@ sessions, transactions, or a second document loader. Facade methods remain
 explicit and type checked. There is no dynamic forwarding, mixin hierarchy,
 service locator, RPC boundary, or extra process.
 
-The remaining Facade responsibilities include:
+The remaining Facade responsibilities are deliberately narrow:
 
 - literal caller-path resolution and allowed-root enforcement;
-- orchestrating preview, write, and backup operations;
-- trust/evidence authorization and provenance invalidation;
-- transaction begin/stage/preview/validate/commit/rollback;
-- semantic XML writes, document creation, routing application, and plan apply;
-- external process lifecycle, exports, discovery, and live-session apply/cancel.
+- top-level construction and singleton ownership of stores, caches, and managers;
+- capability/status reporting and workflow prompt-name registration;
+- compatibility wrappers for existing private seams;
+- callbacks for allowed-path resolution, SHA gates, atomic writes, provenance
+  sidecars, trust invalidation, and stored-plan application.
 
-This is phase one only; the monolith is intentionally not described as fully
-decomposed. The complete method-level map and later extraction roadmap are in
+The service is not claimed to be fully decomposed: the remaining Facade code is
+coordination and safety infrastructure. The complete current method-level map
+and extraction roadmap are in
 [`SERVICE_DECOMPOSITION.md`](SERVICE_DECOMPOSITION.md).
 
 Caller-supplied paths do not expand environment variables or `~`. Expansion is limited
