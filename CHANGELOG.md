@@ -2,26 +2,45 @@
 
 ## Unreleased
 
+No unreleased user-visible changes are recorded after the `v0.2.1` release
+candidate.
+
+## 0.2.1 - 2026-08-05
+
 ### Added
 
 - Deterministic Windows MCPB packaging with a versioned manifest, reproducible
   archive layout, and sibling SHA-256 file.
 - Official MCP Registry metadata template and concrete `server.json` generator
-  for a future immutable MCPB release.
+  for the immutable `v0.2.1` MCPB asset.
 - Focused MCPB and Registry metadata tests and distribution documentation for
   the official Registry, Smithery, and awesome-mcp-servers.
+- Guarded PyPI Trusted Publishing through GitHub OpenID Connect with a minimal
+  tag-bound publish job and no long-lived API token.
+- Strict wheel and source-distribution metadata checks plus clean installation
+  and CLI smoke for both Python artifacts.
+- Candidate release checklist and release record for the PyPI, MCPB, Registry,
+  and Smithery publication sequence.
 
 ### Changed
 
+- Bumped the Python package and fallback version to `0.2.1`.
 - Synchronized English/Russian README, release records, and installation
-  instructions with the published `v0.2.0` prerelease.
+  instructions with the new package and distribution route.
 - Added the canonical ownership marker
   `io.github.fireostendere/diptrace-mcp`.
 - Removed the completed one-shot automatic v0.2.0 publication trigger and
   restored the signing workflow to manual preparation only.
+- Kept the existing unsigned alpha/development and evidence limitations explicit
+  across all new distribution channels.
 
-No new tag, GitHub Release, PyPI package, official Registry entry, Smithery
-entry, or replacement v0.2.0 asset is included in these unreleased changes.
+### Publication boundary
+
+- Existing `v0.2.0` tags and assets remain immutable.
+- PyPI publication is permitted only from annotated tag `v0.2.1` through the
+  protected `pypi` environment and `.github/workflows/pypi.yml`.
+- The GitHub Release, PyPI project, MCP Registry version, and Smithery entry are
+  not created by the release-preparation pull request itself.
 
 ## 0.2.0 - 2026-08-04
 
@@ -196,6 +215,7 @@ Version `0.1.0` is published as tag `v0.1.0`; its provenance record is
 [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) and the release assets on
 GitHub.
 
+[0.2.1]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.1
 [0.2.0]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0
 [0.1.2]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.2
 [0.1.0]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.0
