@@ -23,6 +23,11 @@ INVENTORY_PATH = ROOT / "docs" / "SERVICE_DECOMPOSITION.md"
 ALWAYS_WRITE_CAPABLE = frozenset(
     {
         "set_workflow_prompt_names",
+        "_atomic_write_bytes",
+        "_write_provenance_sidecar_callback",
+        "_invalidate_document_trust_after_write_callback",
+        "_run_semantic_write",
+        "_run_semantic_operations",
         "invalidate_document_trust_after_write",
         "group_bom",
         "record_roundtrip_evidence",
