@@ -1,0 +1,46 @@
+name: Cleanup event-loop release allowlist
+
+on:
+  push:
+    branches:
+      - perf/event-loop-responsiveness-badges
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: ${{ !contains(github.event.head_commit.message, '[allowlist-cleaned]') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          ref: perf/event-loop-responsiveness-badges
+      - name: Remove temporary workflow paths from release allowlist
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/release_artifact_allowlist.txt")
+          remove = {
+              ".github/workflows/one-shot-event-loop-badges.yml",
+              ".github/workflows/cleanup-event-loop-allowlist.yml",
+          }
+          entries = [
+              line.strip()
+              for line in path.read_text(encoding="utf-8").splitlines()
+              if line.strip() and line.strip() not in remove
+          ]
+          path.write_text("\n".join(sorted(entries)) + "\n", encoding="utf-8")
+          PY
+      - name: Commit allowlist cleanup
+        env:
+          TARGET_BRANCH: perf/event-loop-responsiveness-badges
+        run: |
+          git config user.name "fireostendere"
+          git config user.email "87851878+fireostendere@users.noreply.github.com"
+          git add scripts/release_artifact_allowlist.txt
+          git commit -s -m "ci: remove temporary workflow allowlist entries [allowlist-cleaned]"
+          git push origin "HEAD:${TARGET_BRANCH}"
