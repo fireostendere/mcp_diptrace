@@ -131,8 +131,8 @@ helpers.
 an alias to its one dictionary. The pure bounded-response helpers are shared
 from `services.context`; no second cache or store was introduced.
 
-At this stage `service.py` is 6,951 lines and 274,846 bytes. The largest new
-module is `services/review.py` at 572 lines. `DipTraceService` still exposes
+At this stage `service.py` is 6,955 lines and 274,203 bytes. The largest new
+module is `services/review.py` at 573 lines. `DipTraceService` still exposes
 197 methods, including explicit Facade wrappers and private safety helpers.
 
 ## Complete method inventory
@@ -382,5 +382,5 @@ continues to apply `anyio.to_thread.run_sync` to all 159 registered tools.
 | Domain | Methods | Existing characterization/fixture coverage | New Facade/direct-service parity coverage | Side-effect check |
 | --- | --- | --- | --- | --- |
 | Documents | `board_model`, `schematic_model`, `query_objects`, `get_object`, `get_connectivity_graph`, `document_resource`, `summarize`, `components`, `component`, `nets`, `rules`, `read_xml` | `tests/test_service.py`, `tests/test_inspector.py`, `tests/test_bounded_payloads.py`, `tests/test_connectivity.py`, fixture XML under `tests/fixtures` | `tests/test_service_facade_contract.py` compares complete payloads for representative PCB, schematic, and paged model calls | model-cache entry identity and state-record counts unchanged |
-| BOM/library | `library_model`, library query/get/validate methods, `get_bom`, `review_bom`, `compare_bom_to_design`, `find_missing_component_fields`, `group_bom`, duplicate/consistency methods | `tests/test_advanced_review.py`, `tests/test_library_adapters.py`, `tests/test_bom.py` | `tests/test_service_facade_contract.py` compares complete payloads and typed exceptions | transaction/session/finding record counts unchanged for read-only calls |
+| BOM/library | `library_model`, library query/get/validate methods, `get_bom`, `review_bom`, `compare_bom_to_design`, `find_missing_component_fields`, `group_bom`, duplicate/consistency methods | `tests/test_advanced_review.py`, `tests/test_libraries.py` | `tests/test_service_facade_contract.py` compares complete payloads and typed exceptions | transaction/session/finding record counts unchanged for read-only calls |
 | Review/analysis | `run_review`, `get_findings`, `get_finding`, `review_resource`, `findings_resource`, and phase-one signal-integrity/impedance/return-path methods | `tests/test_review.py`, `tests/test_advanced_review.py`, `tests/test_signal_integrity.py`, `tests/test_impedance_invariants.py` | `tests/test_service_facade_contract.py` compares report/finding/resource and representative stackup payloads; report persistence is asserted explicitly | review report creation remains the existing documented side effect; analysis calls remain read-only |
