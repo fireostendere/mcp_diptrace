@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import inspect
 import json
 from pathlib import Path
@@ -15,8 +16,18 @@ from diptrace_mcp.error_boundary import (
 from diptrace_mcp.errors import ObjectNotFoundError
 from diptrace_mcp.server import create_server
 from diptrace_mcp.service import DipTraceService
-from scripts.check_service_facade_contract import main as check_facade_contract
-from scripts.validate_service_decomposition import main as validate_decomposition
+from scripts.check_service_facade_contract import (
+    _delegation,
+)
+from scripts.check_service_facade_contract import (
+    main as check_facade_contract,
+)
+from scripts.validate_service_decomposition import (
+    _write_capable_methods,
+)
+from scripts.validate_service_decomposition import (
+    main as validate_decomposition,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = Path(__file__).parents[1] / "reference" / "mcp-tools-list.snapshot.json"
@@ -48,6 +59,92 @@ def _state_entries(service: DipTraceService) -> set[str]:
 def test_complete_facade_manifest_and_delegation_inventory() -> None:
     assert check_facade_contract(["--check"]) == 0
     assert validate_decomposition(["--check"]) == 0
+
+
+def _method_from_source(source: str, name: str) -> ast.FunctionDef:
+    tree = ast.parse(source)
+    service = next(node for node in tree.body if isinstance(node, ast.ClassDef))
+    return next(
+        node
+        for node in service.body
+        if isinstance(node, ast.FunctionDef) and node.name == name
+    )
+
+
+def test_delegation_checker_rejects_attribute_reference_without_call() -> None:
+    method = _method_from_source(
+        """
+class DipTraceService:
+    def board_model(self, path):
+        self._document_service.board_model
+        return {\"broken\": True}
+""",
+        "board_model",
+    )
+
+    with pytest.raises(ValueError, match="only an optional docstring"):
+        _delegation(method)
+
+
+def test_delegation_checker_rejects_swapped_or_missing_forwarding() -> None:
+    swapped = _method_from_source(
+        """
+class DipTraceService:
+    def board_model(self, path, section):
+        return self._document_service.board_model(section, path)
+""",
+        "board_model",
+    )
+    missing = _method_from_source(
+        """
+class DipTraceService:
+    def board_model(self, path, section):
+        return self._document_service.board_model(path)
+""",
+        "board_model",
+    )
+    substituted = _method_from_source(
+        """
+class DipTraceService:
+    def board_model(self, path, section):
+        return self._document_service.board_model(path + ".bak", section)
+""",
+        "board_model",
+    )
+
+    with pytest.raises(ValueError, match="permutes positional"):
+        _delegation(swapped)
+    with pytest.raises(ValueError, match="exactly once"):
+        _delegation(missing)
+    with pytest.raises(ValueError, match="transforms Facade parameter"):
+        _delegation(substituted)
+
+
+def test_manifest_records_function_kind_and_public_descriptors() -> None:
+    manifest = json.loads(
+        (Path(__file__).parents[1] / "reference" / "service-facade-contract.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["schema_version"] == 2
+    assert all(
+        signature["function_kind"] in {"sync", "async"}
+        and isinstance(signature["decorators"], list)
+        for signature in manifest["signatures"]
+    )
+    raw_previews = next(
+        signature for signature in manifest["signatures"] if signature["name"] == "raw_previews"
+    )
+    assert raw_previews["function_kind"] == "sync"
+    assert raw_previews["decorators"] == ["property"]
+
+
+def test_safety_effect_audit_distinguishes_persistent_and_pure_methods() -> None:
+    write_capable = _write_capable_methods()
+
+    assert {"export_bom", "inspect_autorouter_result", "run_review"} <= write_capable
+    assert "group_bom" not in write_capable
+    assert "review_testpoint_coverage" not in write_capable
 
 
 def test_facade_exposes_extracted_methods_with_stable_signatures() -> None:

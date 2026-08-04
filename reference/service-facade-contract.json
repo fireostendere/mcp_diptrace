@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "base_sha": "1e1e8b7402533297795207ce2452b85eaea2e36c",
   "source": "src/diptrace_mcp/service.py",
   "public_method_count": 157,
@@ -18,6 +18,10 @@
   "signatures": [
     {
       "name": "raw_previews",
+      "function_kind": "sync",
+      "decorators": [
+        "property"
+      ],
       "parameters": [
         {
           "name": "self",
@@ -31,6 +35,8 @@
     },
     {
       "name": "set_workflow_prompt_names",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -51,6 +57,8 @@
     },
     {
       "name": "resolve_effective_document_trust",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -78,6 +86,8 @@
     },
     {
       "name": "invalidate_document_trust_after_write",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -112,6 +122,8 @@
     },
     {
       "name": "resolve_target",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -132,6 +144,8 @@
     },
     {
       "name": "load",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -152,6 +166,8 @@
     },
     {
       "name": "load_document_id",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -172,6 +188,8 @@
     },
     {
       "name": "status",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -185,6 +203,8 @@
     },
     {
       "name": "get_capabilities",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -205,6 +225,8 @@
     },
     {
       "name": "trusted_provenance_registry_report",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -218,6 +240,8 @@
     },
     {
       "name": "document_info",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -238,6 +262,8 @@
     },
     {
       "name": "board_model",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -279,6 +305,8 @@
     },
     {
       "name": "schematic_model",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -299,6 +327,8 @@
     },
     {
       "name": "library_model",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -319,6 +349,8 @@
     },
     {
       "name": "scan_component_libraries",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -346,6 +378,8 @@
     },
     {
       "name": "scan_pattern_libraries",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -373,6 +407,8 @@
     },
     {
       "name": "query_library_items",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -414,6 +450,8 @@
     },
     {
       "name": "get_library_component",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -448,6 +486,8 @@
     },
     {
       "name": "get_library_pattern",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -482,6 +522,8 @@
     },
     {
       "name": "validate_library_component",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -516,6 +558,8 @@
     },
     {
       "name": "validate_library_pattern",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -550,6 +594,8 @@
     },
     {
       "name": "validate_pin_pad_mapping",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -584,6 +630,8 @@
     },
     {
       "name": "get_bom",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -618,6 +666,8 @@
     },
     {
       "name": "export_bom",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -645,6 +695,8 @@
     },
     {
       "name": "export_fabrication_outputs",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -679,6 +731,8 @@
     },
     {
       "name": "export_assembly_outputs",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -713,6 +767,8 @@
     },
     {
       "name": "review_bom",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -733,6 +789,8 @@
     },
     {
       "name": "compare_bom_to_design",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -760,6 +818,8 @@
     },
     {
       "name": "find_missing_component_fields",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -787,6 +847,8 @@
     },
     {
       "name": "group_bom",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -814,6 +876,8 @@
     },
     {
       "name": "detect_duplicate_bom_items",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -834,6 +898,8 @@
     },
     {
       "name": "validate_mpn_consistency",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -854,6 +920,8 @@
     },
     {
       "name": "validate_value_pattern_consistency",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -874,6 +942,8 @@
     },
     {
       "name": "compare_schematic_to_pcb",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -901,6 +971,8 @@
     },
     {
       "name": "sync_schematic_to_pcb",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1005,6 +1077,8 @@
     },
     {
       "name": "query_objects",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1053,6 +1127,8 @@
     },
     {
       "name": "get_object",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1080,6 +1156,8 @@
     },
     {
       "name": "get_connectivity_graph",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1100,6 +1178,8 @@
     },
     {
       "name": "document_resource",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1127,6 +1207,8 @@
     },
     {
       "name": "transaction_summary_resource",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1147,6 +1229,8 @@
     },
     {
       "name": "raw_preview_diff_resource",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1167,6 +1251,8 @@
     },
     {
       "name": "summarize",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1187,6 +1273,8 @@
     },
     {
       "name": "components",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1228,6 +1316,8 @@
     },
     {
       "name": "component",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1255,6 +1345,8 @@
     },
     {
       "name": "nets",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1303,6 +1395,8 @@
     },
     {
       "name": "rules",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1323,6 +1417,8 @@
     },
     {
       "name": "read_xml",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1364,6 +1460,8 @@
     },
     {
       "name": "apply_edits",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1405,6 +1503,8 @@
     },
     {
       "name": "create_document",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1474,6 +1574,8 @@
     },
     {
       "name": "create_document_from_seed",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1522,6 +1624,8 @@
     },
     {
       "name": "begin_transaction",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1556,6 +1660,8 @@
     },
     {
       "name": "stage_operations",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1583,6 +1689,8 @@
     },
     {
       "name": "preview_transaction",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1603,6 +1711,8 @@
     },
     {
       "name": "validate_transaction",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1623,6 +1733,8 @@
     },
     {
       "name": "commit_transaction",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1664,6 +1776,8 @@
     },
     {
       "name": "rollback_transaction",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1705,6 +1819,8 @@
     },
     {
       "name": "list_transactions",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1718,6 +1834,8 @@
     },
     {
       "name": "validate_roundtrip_evidence",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1780,6 +1898,8 @@
     },
     {
       "name": "record_roundtrip_evidence",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1842,6 +1962,8 @@
     },
     {
       "name": "move_components",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1932,6 +2054,8 @@
     },
     {
       "name": "set_component_value",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -1987,6 +2111,8 @@
     },
     {
       "name": "rotate_components",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2063,6 +2189,8 @@
     },
     {
       "name": "set_component_side",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2125,6 +2253,8 @@
     },
     {
       "name": "set_component_lock",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2180,6 +2310,8 @@
     },
     {
       "name": "set_component_properties",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2263,6 +2395,8 @@
     },
     {
       "name": "set_component_pattern",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2325,6 +2459,8 @@
     },
     {
       "name": "align_components",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2394,6 +2530,8 @@
     },
     {
       "name": "distribute_components",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2470,6 +2608,8 @@
     },
     {
       "name": "group_components",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2532,6 +2672,8 @@
     },
     {
       "name": "ungroup_components",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2594,6 +2736,8 @@
     },
     {
       "name": "list_board_texts",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2621,6 +2765,8 @@
     },
     {
       "name": "move_board_texts",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2704,6 +2850,8 @@
     },
     {
       "name": "rotate_board_texts",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2773,6 +2921,8 @@
     },
     {
       "name": "set_text_visibility",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2835,6 +2985,8 @@
     },
     {
       "name": "set_text_style",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2925,6 +3077,8 @@
     },
     {
       "name": "set_pin_no_connect",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -2980,6 +3134,8 @@
     },
     {
       "name": "rename_net",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3035,6 +3191,8 @@
     },
     {
       "name": "add_sheet",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3090,6 +3248,8 @@
     },
     {
       "name": "place_part",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3229,6 +3389,8 @@
     },
     {
       "name": "connect_pins",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3291,6 +3453,8 @@
     },
     {
       "name": "disconnect_pins",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3339,6 +3503,8 @@
     },
     {
       "name": "add_wire",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3422,6 +3588,8 @@
     },
     {
       "name": "delete_wire",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3470,6 +3638,8 @@
     },
     {
       "name": "add_net_label",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3553,6 +3723,8 @@
     },
     {
       "name": "set_panelization",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3601,6 +3773,8 @@
     },
     {
       "name": "clear_panelization",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3642,6 +3816,8 @@
     },
     {
       "name": "update_net_class_rules",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3774,6 +3950,8 @@
     },
     {
       "name": "assign_nets_to_class",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3829,6 +4007,8 @@
     },
     {
       "name": "list_testpoints",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3856,6 +4036,8 @@
     },
     {
       "name": "find_testpoint_candidates",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3918,6 +4100,8 @@
     },
     {
       "name": "add_testpoints",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -3966,6 +4150,8 @@
     },
     {
       "name": "move_testpoints",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4056,6 +4242,8 @@
     },
     {
       "name": "remove_testpoints",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4111,6 +4299,8 @@
     },
     {
       "name": "review_testpoint_coverage",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4138,6 +4328,8 @@
     },
     {
       "name": "add_trace",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4228,6 +4420,8 @@
     },
     {
       "name": "replace_trace",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4304,6 +4498,8 @@
     },
     {
       "name": "delete_trace",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4359,6 +4555,8 @@
     },
     {
       "name": "set_trace_width",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4421,6 +4619,8 @@
     },
     {
       "name": "add_via",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4504,6 +4704,8 @@
     },
     {
       "name": "move_via",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4580,6 +4782,8 @@
     },
     {
       "name": "delete_via",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4628,6 +4832,8 @@
     },
     {
       "name": "set_via_style",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4683,6 +4889,8 @@
     },
     {
       "name": "list_unrouted_connections",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4710,6 +4918,8 @@
     },
     {
       "name": "get_route_details",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4744,6 +4954,8 @@
     },
     {
       "name": "get_stackup",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4764,6 +4976,8 @@
     },
     {
       "name": "measure_net_lengths",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4798,6 +5012,8 @@
     },
     {
       "name": "analyze_length_group",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4832,6 +5048,8 @@
     },
     {
       "name": "list_differential_pairs",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4866,6 +5084,8 @@
     },
     {
       "name": "get_differential_pair",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4893,6 +5113,8 @@
     },
     {
       "name": "analyze_differential_pair",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4920,6 +5142,8 @@
     },
     {
       "name": "analyze_differential_pairs",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4940,6 +5164,8 @@
     },
     {
       "name": "validate_differential_pair",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -4967,6 +5193,8 @@
     },
     {
       "name": "calculate_impedance",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5043,6 +5271,8 @@
     },
     {
       "name": "suggest_trace_geometry_for_impedance",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5105,6 +5335,8 @@
     },
     {
       "name": "analyze_stackup_for_impedance",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5125,6 +5357,8 @@
     },
     {
       "name": "validate_impedance_constraints",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5152,6 +5386,8 @@
     },
     {
       "name": "analyze_controlled_impedance_nets",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5179,6 +5415,8 @@
     },
     {
       "name": "list_copper_pours",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5213,6 +5451,8 @@
     },
     {
       "name": "analyze_plane_continuity",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5233,6 +5473,8 @@
     },
     {
       "name": "analyze_return_path",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5274,6 +5516,8 @@
     },
     {
       "name": "route_connection",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5441,6 +5685,8 @@
     },
     {
       "name": "route_net",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5545,6 +5791,8 @@
     },
     {
       "name": "route_diff_pair",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5677,6 +5925,8 @@
     },
     {
       "name": "plan_diff_pair_route",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5788,6 +6038,8 @@
     },
     {
       "name": "plan_route_nets",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5871,6 +6123,8 @@
     },
     {
       "name": "apply_route_plan",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5912,6 +6166,8 @@
     },
     {
       "name": "export_autorouter_dsn",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -5939,6 +6195,8 @@
     },
     {
       "name": "run_external_autorouter",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6001,6 +6259,8 @@
     },
     {
       "name": "inspect_autorouter_result",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6035,6 +6295,8 @@
     },
     {
       "name": "import_autorouter_ses",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6076,6 +6338,8 @@
     },
     {
       "name": "route_connections",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6145,6 +6409,8 @@
     },
     {
       "name": "analyze_routing_congestion",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6179,6 +6445,8 @@
     },
     {
       "name": "run_ngspice_simulation",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6220,6 +6488,8 @@
     },
     {
       "name": "run_openems_stripline_analysis",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6324,6 +6594,8 @@
     },
     {
       "name": "get_job_status",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6344,6 +6616,8 @@
     },
     {
       "name": "get_job_result",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6364,6 +6638,8 @@
     },
     {
       "name": "cancel_job",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6384,6 +6660,8 @@
     },
     {
       "name": "list_jobs",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6404,6 +6682,8 @@
     },
     {
       "name": "list_exports",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6417,6 +6697,8 @@
     },
     {
       "name": "export_resource",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6444,6 +6726,8 @@
     },
     {
       "name": "job_resource",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6471,6 +6755,8 @@
     },
     {
       "name": "plan_silkscreen",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6540,6 +6826,8 @@
     },
     {
       "name": "analyze_placement",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6581,6 +6869,8 @@
     },
     {
       "name": "generate_placement_candidates",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6615,6 +6905,8 @@
     },
     {
       "name": "score_placement",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6663,6 +6955,8 @@
     },
     {
       "name": "plan_component_placement",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6697,6 +6991,8 @@
     },
     {
       "name": "apply_component_placement_plan",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6738,6 +7034,8 @@
     },
     {
       "name": "apply_silkscreen_plan",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6779,6 +7077,8 @@
     },
     {
       "name": "plan_resource",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6806,6 +7106,8 @@
     },
     {
       "name": "run_review",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6840,6 +7142,8 @@
     },
     {
       "name": "get_findings",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6860,6 +7164,8 @@
     },
     {
       "name": "get_finding",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6880,6 +7186,8 @@
     },
     {
       "name": "review_resource",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6900,6 +7208,8 @@
     },
     {
       "name": "findings_resource",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6920,6 +7230,8 @@
     },
     {
       "name": "finish_live_session",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6947,6 +7259,8 @@
     },
     {
       "name": "abandon_live_session",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",
@@ -6967,6 +7281,8 @@
     },
     {
       "name": "scan_documents",
+      "function_kind": "sync",
+      "decorators": [],
       "parameters": [
         {
           "name": "self",

@@ -108,6 +108,8 @@ def _public_methods(source: str) -> list[ast.FunctionDef | ast.AsyncFunctionDef]
 def _signature(method: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, object]:
     return {
         "name": method.name,
+        "function_kind": "async" if isinstance(method, ast.AsyncFunctionDef) else "sync",
+        "decorators": [_unparse(decorator) for decorator in method.decorator_list],
         "parameters": _parameter_specs(method),
         "return_annotation": _unparse(method.returns),
     }
@@ -129,6 +131,114 @@ class _DelegationVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+def _parameter_names(method: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
+    arguments = method.args
+    return [
+        argument.arg
+        for argument in [*arguments.posonlyargs, *arguments.args]
+    ] + [
+        argument.arg for argument in arguments.kwonlyargs
+    ] + ([arguments.vararg.arg] if arguments.vararg is not None else []) + (
+        [arguments.kwarg.arg] if arguments.kwarg is not None else []
+    )
+
+
+def _service_call(
+    method: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> tuple[str, str, ast.Call] | None:
+    """Return the only valid service call in a strict Facade wrapper.
+
+    A delegated wrapper is deliberately constrained to an optional docstring
+    followed by one ``return self._..._service.method(...)`` statement.  This
+    keeps the public Facade transparent and makes argument forwarding auditable
+    from the AST instead of treating an attribute reference as delegation.
+    """
+
+    body = list(method.body)
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body.pop(0)
+    if len(body) != 1 or not isinstance(body[0], ast.Return):
+        raise ValueError(
+            f"{method.name} delegated wrapper must contain only an optional docstring "
+            "and one return statement"
+        )
+    returned = body[0].value
+    if not isinstance(returned, ast.Call) or not isinstance(returned.func, ast.Attribute):
+        raise ValueError(
+            f"{method.name} delegated wrapper must return a domain-service call"
+        )
+    service = returned.func.value
+    if not (
+        isinstance(service, ast.Attribute)
+        and isinstance(service.value, ast.Name)
+        and service.value.id == "self"
+        and service.attr.endswith("_service")
+    ):
+        raise ValueError(
+            f"{method.name} delegated wrapper must return self._..._service.method(...)"
+        )
+    return service.attr, returned.func.attr, returned
+
+
+def _validate_forwarding(
+    method: ast.FunctionDef | ast.AsyncFunctionDef,
+    call: ast.Call,
+) -> None:
+    parameters = _parameter_names(method)
+    if parameters and parameters[0] == "self":
+        parameters = parameters[1:]
+    parameter_set = set(parameters)
+    forwarded: list[str] = []
+    positional_forwarded: list[str] = []
+
+    def record(value: ast.AST, *, positional: bool) -> None:
+        if isinstance(value, ast.Name) and value.id in parameter_set:
+            forwarded.append(value.id)
+            if positional:
+                positional_forwarded.append(value.id)
+            return
+        referenced = {
+            node.id
+            for node in ast.walk(value)
+            if isinstance(node, ast.Name) and node.id in parameter_set
+        }
+        if referenced:
+            names = ", ".join(sorted(referenced))
+            raise ValueError(
+                f"{method.name} transforms Facade parameter(s) {names} instead of "
+                "forwarding them directly"
+            )
+
+    for argument in call.args:
+        record(argument.value if isinstance(argument, ast.Starred) else argument, positional=True)
+    for keyword in call.keywords:
+        record(keyword.value, positional=False)
+
+    missing = [name for name in parameters if name not in forwarded]
+    duplicated = sorted(name for name in parameter_set if forwarded.count(name) > 1)
+    if missing or duplicated:
+        details: list[str] = []
+        if missing:
+            details.append(f"missing {missing!r}")
+        if duplicated:
+            details.append(f"duplicated {duplicated!r}")
+        raise ValueError(
+            f"{method.name} delegated wrapper does not forward each Facade parameter "
+            f"exactly once ({'; '.join(details)})"
+        )
+
+    positions = [parameters.index(name) for name in positional_forwarded]
+    if positions != sorted(positions):
+        raise ValueError(
+            f"{method.name} delegated wrapper permutes positional Facade parameters"
+        )
+
+
 def _delegation(method: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, str] | None:
     visitor = _DelegationVisitor()
     visitor.visit(method)
@@ -140,6 +250,15 @@ def _delegation(method: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, str
             f"{sorted(visitor.matches)}"
         )
     service, target_method = next(iter(visitor.matches))
+    strict_call = _service_call(method)
+    if strict_call is None:
+        raise AssertionError("service reference disappeared while validating delegation")
+    strict_service, strict_target, call = strict_call
+    if (strict_service, strict_target) != (service, target_method):
+        raise ValueError(
+            f"{method.name} has an uncalled or mismatched domain-service reference"
+        )
+    _validate_forwarding(method, call)
     return {"service": service, "method": target_method}
 
 
@@ -167,7 +286,7 @@ def _build_manifest(base_sha: str, current_source: str) -> dict[str, object]:
     public_names = {method.name for method in current_methods}
     facade_owned = sorted(public_names - current_delegations.keys())
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "base_sha": base_sha,
         "source": SOURCE_RELATIVE_PATH.as_posix(),
         "public_method_count": len(base_signatures),
@@ -187,6 +306,11 @@ def _load_manifest() -> dict[str, object]:
 
 def _check(current_source: str) -> list[str]:
     manifest = _load_manifest()
+    if manifest.get("schema_version") != 2:
+        return [
+            "facade contract manifest must use schema_version 2; regenerate it "
+            "with --generate"
+        ]
     expected_signatures = manifest["signatures"]
     if not isinstance(expected_signatures, list):
         return ["manifest signatures must be a list"]
