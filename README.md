@@ -34,6 +34,25 @@ The Windows executables are unsigned. CI and SHA-256 establish tested behaviour
 and byte identity, not a trusted publisher signature, universal compatibility,
 or production readiness.
 
+## Public Release Status
+
+The project uses the OSI-approved Apache-2.0 open-source `LICENSE`. Participation
+and release controls are documented in `CONTRIBUTING.md`, `GOVERNANCE.md`,
+`docs/LICENSE_DECISION.md`, `docs/PUBLIC_RELEASE_CHECKLIST.md`,
+`docs/RELEASE_PROCESS.md`, `CHANGELOG.md`, and `CITATION.cff`. Security reports
+use the private security channel; a verified Code of Conduct enforcement channel
+is not yet published.
+
+- Latest published development release: `v0.2.0`; its source distribution,
+  wheel, hashes, and provenance are immutable.
+- The Windows installer, bridge, standalone executable, configurator, and
+  portable bundle are published as unsigned development assets.
+- Python archives are built from an exact allowlist and audited for entry
+  points, packaged skills, bounds, and every `RECORD` hash and size.
+- CI and SHA-256 do not create a code-signing or production-readiness claim.
+- Future MCPB, official Registry, Smithery, or PyPI publication must use a new
+  immutable version and must not replace existing `v0.2.0` bytes.
+
 ## What it provides
 
 The public MCP surface contains 159 registered tools, 157 public
@@ -151,6 +170,23 @@ The main write invariants are:
 
 Q1 Component Angle GUI/re-export validation remains `NOT_RUN`, and several real
 Windows/DipTrace/client acceptance items remain disclosed limitations.
+
+## Data Handling
+
+- `DIPTRACE_MCP_WORKSPACE` selects the ordinary workspace; caller paths remain
+  subject to `DIPTRACE_MCP_ALLOWED_ROOTS` and literal path checks.
+- `DIPTRACE_MCP_STATE_DIR` stores local records plus live-session `original.xml`
+  and `working.xml`; explicit `apply` or `cancel` controls finalisation.
+- Freerouting, ngspice, and openEMS run only through typed local process
+  boundaries and isolated job directories; online sourcing is disabled by
+  default.
+- MCP `stdio` keeps traffic on local process pipes and does not create a network
+  listener.
+- `streamable-http` is intended only for trusted loopback use, for example
+  `127.0.0.1:8765`; OAuth and multi-user isolation are not implemented.
+- User projects, private evidence, proprietary libraries, and screenshots are
+  not uploaded or committed automatically; the operator controls external data
+  and publication.
 
 ## Documentation
 
