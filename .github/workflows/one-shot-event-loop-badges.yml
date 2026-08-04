@@ -4,16 +4,13 @@ on:
   push:
     branches:
       - perf/event-loop-responsiveness-badges
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
 
 jobs:
   apply-test-commit:
-    if: ${{ !contains(github.event.head_commit.message || github.event.pull_request.title, '[event-loop-badges-applied]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[event-loop-badges-applied]') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -60,8 +57,7 @@ jobs:
           python -m pytest -q \
             tests/test_badges.py \
             tests/test_ci_workflow.py \
-            tests/test_documentation_links.py \
-            tests/test_release_artifacts.py
+            tests/test_documentation_links.py
       - name: Verify generated and compliance surfaces
         run: |
           python scripts/generate_compliance_inventory.py --check
@@ -78,6 +74,7 @@ jobs:
             .github/workflows/one-shot-event-loop-badges.yml \
             scripts/_apply_event_loop_badge_updates.py \
             scripts/_apply_event_loop_offload.py
+          python -m pytest -q tests/test_release_artifacts.py
           git add \
             .github/workflows/ci.yml \
             CHANGELOG.md \
