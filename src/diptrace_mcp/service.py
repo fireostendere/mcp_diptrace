@@ -4,33 +4,23 @@ import json
 import math
 import os
 import re
-import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, cast
 
-from . import __version__, inspector
-from .adapters import (
-    DocumentSnapshot,
-    build_snapshot,
-    document_id_for,
-    get_board_model,
-    get_schematic_model,
-)
+from . import __version__
+from .adapters import DocumentSnapshot, build_snapshot
 from .backups import BackupStore
-from .bom import compare_bom_records, extract_bom, group_bom, review_bom
 from .capabilities import capability_report as build_capability_report
 from .capability_model import MAX_TRANSACTION_OPERATIONS
 from .clearance import resolve_clearance
 from .config import Settings
-from .connectivity import build_connectivity_graph
 from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
 from .domain import (
     _HIGH_TRUST_LEVELS,
     _TRUSTED_EVIDENCE_AUTHORITIES,
     _USER_SUPPLIABLE_TRUST_LEVELS,
-    BOARD_MODEL_COLLECTION_SECTIONS,
     BoardModelSection,
     DocumentInfo,
     DocumentProvenance,
@@ -38,14 +28,10 @@ from .domain import (
     EvidenceFileRecord,
     FieldSolverRequest,
     FixtureValidationLevel,
-    ImpedanceInput,
     JobStatus,
-    LibraryComponent,
-    LibraryPattern,
     ObjectRecord,
     PlanStatus,
     ProvenanceAuthority,
-    QueryRequest,
     QuerySelector,
     SemanticComparisonEvidence,
     SourceType,
@@ -64,11 +50,9 @@ from .errors import (
     DocumentError,
     DrcRegressionError,
     EditError,
-    ObjectNotFoundError,
     PathAccessError,
     RoundtripValidationError,
     RoutingError,
-    SessionError,
     Sha256MismatchError,
     TransactionConflictError,
 )
@@ -82,24 +66,7 @@ from .exports import (
 from .external_adapters import ExternalJobManager
 from .findings import FindingStore
 from .geometry import BBox, Point, distance, point_in_polygon
-from .impedance import (
-    analyze_stackup,
-    synthesize_microstrip_width,
-)
-from .impedance import calculate_impedance as calculate_impedance_estimate
 from .jobs import JobStore, job_resources
-from .lengths import analyze_differential_pair as analyze_pair_geometry
-from .lengths import (
-    measure_net_length,
-    resolve_differential_pair,
-    resolve_net,
-)
-from .library_adapters import (
-    get_library_item,
-    get_library_model,
-    query_library_items,
-    validate_library,
-)
 from .model_cache import ModelCache
 from .multirouter import (
     RoutingOrder,
@@ -170,8 +137,6 @@ from .provenance_registry import (
     RegistryAuthorizationError,
     TrustedProvenanceRegistry,
 )
-from .return_path import analyze_plane_continuity as analyze_plane_geometry
-from .return_path import analyze_return_path as analyze_return_geometry
 from .review import run_checks
 from .routing import (
     DifferentialPairRouteConfig,
@@ -190,6 +155,22 @@ from .scaffolding import (
     validate_format_version,
 )
 from .semantic_compiler import SemanticApplyResult, apply_semantic_operations
+from .services.bom import BomService
+from .services.context import (
+    DocumentGateway,
+    DocumentTarget,
+    ServiceContext,
+    read_success,
+    validate_page,
+)
+from .services.context import (
+    bounded_text as _bounded_text,
+)
+from .services.context import (
+    json_size as _json_size,
+)
+from .services.documents import DocumentService
+from .services.review import ReviewService
 from .sessions import LiveWorkingGuard, SessionAction, SessionStore
 from .silkscreen import SilkscreenPlanConfig, plan_silkscreen
 from .specctra import (
@@ -233,22 +214,6 @@ EVIDENCE_LIST_PREVIEW_LIMIT = 25
 EVIDENCE_TEXT_CHARACTER_LIMIT = 512
 
 
-def _json_size(value: Any) -> int:
-    return len(
-        json.dumps(
-            value,
-            ensure_ascii=False,
-            sort_keys=True,
-        ).encode("utf-8")
-    )
-
-
-def _bounded_text(value: str, limit: int) -> tuple[str, bool]:
-    if len(value) <= limit:
-        return value, False
-    return value[:limit], True
-
-
 def _finalize_raw_edit_response(result: dict[str, Any]) -> dict[str, Any]:
     result["response_byte_limit"] = RAW_EDIT_RESPONSE_BYTE_LIMIT
     result["serialized_response_bytes"] = 0
@@ -289,68 +254,6 @@ def _bounded_raw_edit_previews(
             }
         )
     return bounded
-
-
-def _bounded_board_item(
-    item: Any,
-    *,
-    item_index: int,
-    full_model_resource: str,
-) -> tuple[Any, bool]:
-    rendered = (
-        item.model_dump(mode="json") if hasattr(item, "model_dump") else item
-    )
-    full_item_bytes = _json_size(rendered)
-    if full_item_bytes <= BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT:
-        return rendered, False
-
-    summary: dict[str, Any] = {}
-    if isinstance(rendered, dict):
-        for key in (
-            "stable_id",
-            "kind",
-            "id",
-            "xml_id",
-            "index",
-            "name",
-            "label",
-            "refdes",
-            "value",
-            "layer",
-            "side",
-        ):
-            scalar = rendered.get(key)
-            if isinstance(scalar, str):
-                summary[key], _ = _bounded_text(scalar, 512)
-            elif key in rendered and (
-                scalar is None or isinstance(scalar, (bool, int, float))
-            ):
-                summary[key] = scalar
-    elif isinstance(rendered, str):
-        summary["value_prefix"], _ = _bounded_text(rendered, 1_000)
-
-    payload_metadata: dict[str, Any] = {
-        "detail": "summary",
-        "item_index": item_index,
-        "full_item_bytes": full_item_bytes,
-        "detail_byte_limit": BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT,
-        "full_model_resource": full_model_resource,
-        "reason": "nested_item_exceeds_computational_payload_cap",
-    }
-    if isinstance(rendered, dict):
-        omitted_fields = [key for key in rendered if key not in summary]
-        payload_metadata["omitted_field_count"] = len(omitted_fields)
-        payload_metadata["omitted_fields"] = [
-            _bounded_text(str(key), 128)[0] for key in omitted_fields[:32]
-        ]
-        payload_metadata["omitted_fields_truncated"] = len(omitted_fields) > 32
-    elif isinstance(rendered, str):
-        payload_metadata["omitted_character_count"] = max(
-            0,
-            len(rendered) - len(summary.get("value_prefix", "")),
-        )
-    summary["_payload"] = payload_metadata
-    return summary, True
 
 
 def _validation_response_summary(value: dict[str, Any]) -> dict[str, Any]:
@@ -521,16 +424,6 @@ def transaction_response_summary(record: TransactionRecord) -> dict[str, Any]:
         "summary_resource": f"diptrace://transaction/{record.txid}/summary",
         "operations_resource": f"diptrace://transaction/{record.txid}/operations",
     }
-
-
-@dataclass(frozen=True)
-class DocumentTarget:
-    path: Path
-    live_session_id: str | None = None
-
-    @property
-    def is_live(self) -> bool:
-        return self.live_session_id is not None
 
 
 @dataclass(frozen=True)
@@ -1123,7 +1016,25 @@ class DipTraceService:
         # This package-owned file is the only production root for registry
         # authority. Workspace and state-directory data cannot replace it.
         self._trusted_provenance_registry = TrustedProvenanceRegistry.load_embedded()
-        self._document_targets: dict[str, DocumentTarget] = {}
+        self._service_context = ServiceContext(
+            settings=settings,
+            policy=self.policy,
+            model_cache=self.models,
+            transaction_store=self.transactions,
+            session_store=self.sessions,
+            finding_store=self.findings,
+        )
+        self._document_gateway = DocumentGateway(settings, self.sessions)
+        self._document_targets = self._document_gateway.targets
+        self._document_service = DocumentService(
+            self._service_context,
+            self._document_gateway,
+        )
+        self._bom_service = BomService(self._service_context, self._document_gateway)
+        self._review_service = ReviewService(
+            self._service_context,
+            self._document_gateway,
+        )
         self._workflow_prompt_names: tuple[str, ...] = ()
 
     @property
@@ -1563,33 +1474,10 @@ class DipTraceService:
         )
 
     def resolve_target(self, path: str | None) -> DocumentTarget:
-        if path:
-            try:
-                resolved = self.settings.resolve_allowed_path(path)
-            except FileNotFoundError as exc:
-                raise ObjectNotFoundError(
-                    "The requested document does not exist",
-                    details={"resource": "document"},
-                    cause=exc,
-                ) from exc
-            return DocumentTarget(
-                resolved,
-                self.sessions.session_id_for_working_path(resolved),
-            )
-        active = self.sessions.active_metadata()
-        if active is None:
-            raise SessionError(
-                "No active DipTrace session. Pass an XML path or launch Tools > Plugins > "
-                "DipTrace MCP Bridge in DipTrace."
-            )
-        session_id = str(active["session_id"])
-        return DocumentTarget(self.sessions.working_path(session_id), session_id)
+        return self._document_gateway.resolve_target(path)
 
     def load(self, path: str | None) -> tuple[DipTraceDocument, DocumentTarget]:
-        target = self.resolve_target(path)
-        document = DipTraceDocument.load(target.path, self.settings.max_document_bytes)
-        self._document_targets[document_id_for(document)] = target
-        return document, target
+        return self._document_gateway.load(path)
 
     def _load_overwrite_target(
         self,
@@ -1808,22 +1696,7 @@ class DipTraceService:
         return backup_bytes
 
     def load_document_id(self, document_id: str) -> tuple[DipTraceDocument, DocumentTarget]:
-        try:
-            target = self._document_targets[document_id]
-        except KeyError as exc:
-            raise DocumentError(
-                f"Document id is not registered in this server process: {document_id}",
-                code="document_not_found",
-                details={"document_id": document_id},
-            ) from exc
-        document = DipTraceDocument.load(target.path, self.settings.max_document_bytes)
-        if document_id_for(document) != document_id:
-            raise DocumentError(
-                f"Document identity changed for registered path: {target.path}",
-                code="document_not_found",
-                details={"document_id": document_id},
-            )
-        return document, target
+        return self._document_gateway.load_document_id(document_id)
 
     def status(self) -> dict[str, Any]:
         active = self.sessions.active_metadata()
@@ -1977,158 +1850,13 @@ class DipTraceService:
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        self._validate_page(offset, limit)
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        info = snapshot.info
-        model = snapshot.board
-        if model is None:
-            raise DocumentError("PCB model is only available for PCB documents")
-        resource_uri = f"diptrace://document/{info.document_id}/board-model"
-        section_counts = {
-            name: len(getattr(model, name)) for name in BOARD_MODEL_COLLECTION_SECTIONS
-        }
-        limitations = list(info.compatibility.get("limitations", []))
-        if model.warnings and section != "warnings":
-            limitations.append(
-                "Board-model warnings are not duplicated inline; page section='warnings' "
-                "or read the full-model resource."
-            )
-        if section == "summary":
-            result: dict[str, Any] = {
-                "contract_version": 1,
-                "section": "summary",
-                "available_sections": ["summary", *BOARD_MODEL_COLLECTION_SECTIONS],
-                "section_counts": section_counts,
-                "outline_available": model.outline is not None,
-                "rules_available": bool(model.rules),
-                "stackup_completeness": model.stackup.completeness,
-                "response_byte_limit": BOARD_MODEL_RESPONSE_BYTE_LIMIT,
-                "item_detail_byte_limit": BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT,
-                "full_model_resource": resource_uri,
-            }
-            response = self._read_success(
-                info,
-                result,
-                resources=[resource_uri],
-                limitations=limitations,
-            )
-            for _ in range(4):
-                serialized_size = _json_size(response)
-                if result.get("serialized_response_bytes") == serialized_size:
-                    break
-                result["serialized_response_bytes"] = serialized_size
-            if _json_size(response) > BOARD_MODEL_RESPONSE_BYTE_LIMIT:
-                raise DocumentError("Board-model summary exceeds its payload cap")
-            return response
-        if section not in BOARD_MODEL_COLLECTION_SECTIONS:
-            raise DocumentError(f"Unknown board-model section: {section}")
-
-        section_items = getattr(model, section)
-        total_count = len(section_items)
-        requested_items = section_items[offset : offset + limit]
-        rendered_items: list[Any] = []
-        summarized_flags: list[bool] = []
-        summarized_count = 0
-        consumed_count = 0
-
-        def build_response(*, byte_limited: bool) -> dict[str, Any]:
-            next_offset = offset + consumed_count
-            has_more = next_offset < total_count
-            result = {
-                "contract_version": 1,
-                "section": section,
-                "page": {
-                    "offset": offset,
-                    "limit": limit,
-                    "returned_count": consumed_count,
-                    "total_count": total_count,
-                    "has_more": has_more,
-                    "next_offset": next_offset if has_more else None,
-                    "byte_limited": byte_limited,
-                    "detail_limited": summarized_count > 0,
-                    "summarized_item_count": summarized_count,
-                    "response_byte_limit": BOARD_MODEL_RESPONSE_BYTE_LIMIT,
-                    "item_detail_byte_limit": BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT,
-                    "serialized_response_bytes": 0,
-                },
-                "items": rendered_items,
-                "full_model_resource": resource_uri,
-            }
-            response = self._read_success(
-                info,
-                result,
-                resources=[resource_uri],
-                limitations=limitations,
-            )
-            page = response["result"]["page"]
-            for _ in range(4):
-                serialized_size = _json_size(response)
-                if page["serialized_response_bytes"] == serialized_size:
-                    break
-                page["serialized_response_bytes"] = serialized_size
-            return response
-
-        response = build_response(byte_limited=False)
-        for relative_index, item in enumerate(requested_items):
-            rendered, summarized = _bounded_board_item(
-                item,
-                item_index=offset + relative_index,
-                full_model_resource=resource_uri,
-            )
-            rendered_items.append(rendered)
-            summarized_flags.append(summarized)
-            consumed_count += 1
-            summarized_count += int(summarized)
-            candidate = build_response(byte_limited=False)
-            if _json_size(candidate) > BOARD_MODEL_RESPONSE_BYTE_LIMIT:
-                rendered_items.pop()
-                summarized_flags.pop()
-                consumed_count -= 1
-                summarized_count -= int(summarized)
-                response = build_response(byte_limited=True)
-                break
-            response = candidate
-        else:
-            response = build_response(byte_limited=False)
-
-        while (
-            _json_size(response) > BOARD_MODEL_RESPONSE_BYTE_LIMIT
-            and rendered_items
-        ):
-            rendered_items.pop()
-            removed_was_summarized = summarized_flags.pop()
-            consumed_count -= 1
-            if removed_was_summarized:
-                summarized_count -= 1
-            response = build_response(byte_limited=True)
-        if _json_size(response) > BOARD_MODEL_RESPONSE_BYTE_LIMIT:
-            raise DocumentError("Board-model response metadata exceeds its payload cap")
-        return response
+        return self._document_service.board_model(path, section=section, offset=offset, limit=limit)
 
     def schematic_model(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        info = snapshot.info
-        model = snapshot.schematic
-        if model is None:
-            raise DocumentError("Schematic model is only available for schematic documents")
-        return self._read_success(
-            info,
-            model.model_dump(),
-            resources=[f"diptrace://document/{info.document_id}/schematic-model"],
-            warnings=model.warnings,
-        )
+        return self._document_service.schematic_model(path)
 
     def library_model(self, path: str) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        model = get_library_model(document)
-        return self._read_success(
-            snapshot.info,
-            model.model_dump(),
-            warnings=model.warnings,
-        )
+        return self._bom_service.library_model(path)
 
     def scan_component_libraries(
         self, root: str | None = None, recursive: bool = True
@@ -2147,21 +1875,7 @@ class DipTraceService:
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        self._validate_page(offset, limit)
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        model = get_library_model(document)
-        items = query_library_items(model, query)
-        return self._read_success(
-            snapshot.info,
-            {
-                "matched_count": len(items),
-                "offset": offset,
-                "limit": limit,
-                "items": items[offset : offset + limit],
-            },
-            warnings=model.warnings,
-        )
+        return self._bom_service.query_library_items(path, query, offset, limit)
 
     def get_library_component(
         self,
@@ -2169,7 +1883,7 @@ class DipTraceService:
         stable_id_value: str | None = None,
         name: str | None = None,
     ) -> dict[str, Any]:
-        return self._get_library_item(path, "component", stable_id_value, name)
+        return self._bom_service.get_library_component(path, stable_id_value, name)
 
     def get_library_pattern(
         self,
@@ -2177,7 +1891,7 @@ class DipTraceService:
         stable_id_value: str | None = None,
         name: str | None = None,
     ) -> dict[str, Any]:
-        return self._get_library_item(path, "pattern", stable_id_value, name)
+        return self._bom_service.get_library_pattern(path, stable_id_value, name)
 
     def validate_library_component(
         self,
@@ -2185,7 +1899,7 @@ class DipTraceService:
         stable_id_value: str | None = None,
         name: str | None = None,
     ) -> dict[str, Any]:
-        return self._validate_library_item(path, "component", stable_id_value, name)
+        return self._bom_service.validate_library_component(path, stable_id_value, name)
 
     def validate_library_pattern(
         self,
@@ -2193,7 +1907,7 @@ class DipTraceService:
         stable_id_value: str | None = None,
         name: str | None = None,
     ) -> dict[str, Any]:
-        return self._validate_library_item(path, "pattern", stable_id_value, name)
+        return self._bom_service.validate_library_pattern(path, stable_id_value, name)
 
     def validate_pin_pad_mapping(
         self,
@@ -2201,18 +1915,7 @@ class DipTraceService:
         stable_id_value: str | None = None,
         name: str | None = None,
     ) -> dict[str, Any]:
-        result = self._validate_library_item(path, "component", stable_id_value, name)
-        mapping_codes = {
-            "attached_pattern_not_found",
-            "duplicate_pin_number",
-            "missing_pin_number",
-            "pin_pad_mapping_missing",
-        }
-        findings = [item for item in result["result"]["findings"] if item["code"] in mapping_codes]
-        result["result"]["findings"] = findings
-        result["result"]["finding_count"] = len(findings)
-        result["result"]["valid"] = not any(item["severity"] == "error" for item in findings)
-        return result
+        return self._bom_service.validate_pin_pad_mapping(path, stable_id_value, name)
 
     def get_bom(
         self,
@@ -2221,22 +1924,7 @@ class DipTraceService:
         grouped: bool = False,
         include_dnp: bool = True,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        records = extract_bom(snapshot)
-        if grouped:
-            records = group_bom(records, include_dnp=include_dnp)
-        elif not include_dnp:
-            records = [record for record in records if not record.dnp]
-        return self._read_success(
-            snapshot.info,
-            {
-                "record_count": len(records),
-                "grouped": grouped,
-                "include_dnp": include_dnp,
-                "items": [record.model_dump(mode="json") for record in records],
-            },
-        )
+        return self._bom_service.get_bom(path, grouped=grouped, include_dnp=include_dnp)
 
     def export_bom(
         self,
@@ -2315,12 +2003,7 @@ class DipTraceService:
         )
 
     def review_bom(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        records = extract_bom(snapshot)
-        result = review_bom(records)
-        result["items"] = [record.model_dump(mode="json") for record in records]
-        return self._read_success(snapshot.info, result)
+        return self._bom_service.review_bom(path)
 
     def compare_bom_to_design(
         self,
@@ -2328,12 +2011,7 @@ class DipTraceService:
         *,
         path: str | None = None,
     ) -> dict[str, Any]:
-        if len(external_records) > 100_000:
-            raise DocumentError("At most 100000 external BOM rows are accepted")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        result = compare_bom_records(extract_bom(snapshot), external_records)
-        return self._read_success(snapshot.info, result)
+        return self._bom_service.compare_bom_to_design(external_records, path=path)
 
     def find_missing_component_fields(
         self,
@@ -2341,31 +2019,7 @@ class DipTraceService:
         *,
         path: str | None = None,
     ) -> dict[str, Any]:
-        if not required_fields or len(required_fields) > 100:
-            raise DocumentError("required_fields must contain between 1 and 100 names")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        records = extract_bom(snapshot)
-        missing: list[dict[str, Any]] = []
-        for record in records:
-            standard = {
-                "value": record.value,
-                "pattern": record.pattern,
-                "manufacturer": record.manufacturer,
-                "mpn": record.mpn,
-                "variant": record.variant,
-            }
-            available = {
-                **{key.casefold(): value for key, value in record.fields.items()},
-                **standard,
-            }
-            absent = [field for field in required_fields if not available.get(field.casefold())]
-            if absent:
-                missing.append({"refdes": record.refdes, "missing_fields": absent})
-        return self._read_success(
-            snapshot.info,
-            {"record_count": len(records), "missing_count": len(missing), "items": missing},
-        )
+        return self._bom_service.find_missing_component_fields(required_fields, path=path)
 
     def group_bom(
         self,
@@ -2373,37 +2027,16 @@ class DipTraceService:
         *,
         include_dnp: bool = True,
     ) -> dict[str, Any]:
-        return self.get_bom(path, grouped=True, include_dnp=include_dnp)
+        return self._bom_service.group_bom(path, include_dnp=include_dnp)
 
     def detect_duplicate_bom_items(self, path: str | None = None) -> dict[str, Any]:
-        response = self.get_bom(path, grouped=True, include_dnp=True)
-        duplicates = [item for item in response["result"]["items"] if int(item["quantity"]) > 1]
-        response["result"] = {
-            "duplicate_group_count": len(duplicates),
-            "items": duplicates,
-            "definition": "Same MPN/manufacturer/value/pattern/DNP/variant identity.",
-        }
-        return response
+        return self._bom_service.detect_duplicate_bom_items(path)
 
     def validate_mpn_consistency(self, path: str | None = None) -> dict[str, Any]:
-        response = self.review_bom(path)
-        response["result"]["findings"] = [
-            item
-            for item in response["result"]["findings"]
-            if item["code"] == "bom.mpn_inconsistent"
-        ]
-        response["result"]["valid"] = not response["result"]["findings"]
-        return response
+        return self._bom_service.validate_mpn_consistency(path)
 
     def validate_value_pattern_consistency(self, path: str | None = None) -> dict[str, Any]:
-        response = self.review_bom(path)
-        response["result"]["findings"] = [
-            item
-            for item in response["result"]["findings"]
-            if item["code"] in {"bom.mpn_inconsistent", "bom.multipart_inconsistent"}
-        ]
-        response["result"]["valid"] = not response["result"]["findings"]
-        return response
+        return self._bom_service.validate_value_pattern_consistency(path)
 
     def compare_schematic_to_pcb(self, schematic_path: str, pcb_path: str) -> dict[str, Any]:
         schematic_document, schematic_target = self.load(schematic_path)
@@ -2480,65 +2113,16 @@ class DipTraceService:
         limit: int = 100,
         sort_by: str = "stable_id",
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        request = QueryRequest.model_validate(
-            {
-                "selector": selector or {},
-                "offset": offset,
-                "limit": limit,
-                "sort_by": sort_by,
-            }
-        )
-        snapshot = self.models.get(document, live_session=target.is_live)
-        info = snapshot.info
-        result = snapshot.query(request)
-        return self._read_success(info, result.model_dump())
+        return self._document_service.query_objects(path, selector, offset, limit, sort_by)
 
     def get_object(self, stable_id_value: str, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        info = snapshot.info
-        record = snapshot.get_object(stable_id_value)
-        result = record.model_dump()
-        element = snapshot.elements.get(stable_id_value)
-        result["source_xml"] = (
-            ET.tostring(element, encoding="unicode") if element is not None else None
-        )
-        return self._read_success(info, result)
+        return self._document_service.get_object(stable_id_value, path)
 
     def get_connectivity_graph(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        graph = build_connectivity_graph(snapshot)
-        return self._read_success(
-            snapshot.info,
-            graph.model_dump(mode="json"),
-            warnings=graph.warnings,
-            resources=[f"diptrace://document/{snapshot.info.document_id}/connectivity"],
-        )
+        return self._document_service.get_connectivity_graph(path)
 
     def document_resource(self, document_id: str, resource: str) -> str:
-        document, target = self.load_document_id(document_id)
-        if resource == "summary":
-            payload = inspector.summarize(document, live_session=target.is_live)
-        elif resource == "board-model":
-            payload = get_board_model(document, live_session=target.is_live).model_dump()
-        elif resource == "schematic-model":
-            payload = get_schematic_model(document, live_session=target.is_live).model_dump()
-        elif resource == "stackup":
-            model = get_board_model(document, live_session=target.is_live)
-            payload = model.stackup.model_dump(mode="json")
-        elif resource == "connectivity":
-            snapshot = self.models.get(document, live_session=target.is_live)
-            payload = build_connectivity_graph(snapshot).model_dump(mode="json")
-        elif resource == "library-model":
-            payload = get_library_model(document).model_dump()
-        else:
-            raise DocumentError(
-                f"Unknown document resource: {resource}",
-                code="object_not_found",
-            )
-        return json.dumps(payload, ensure_ascii=False, indent=2)
+        return self._document_service.document_resource(document_id, resource)
 
     def transaction_summary_resource(self, txid: str) -> str:
         return json.dumps(
@@ -2551,8 +2135,7 @@ class DipTraceService:
         return self.raw_previews.read_diff(preview_id)
 
     def summarize(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        return inspector.summarize(document, live_session=target.is_live)
+        return self._document_service.summarize(path)
 
     def components(
         self,
@@ -2561,21 +2144,10 @@ class DipTraceService:
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        self._validate_page(offset, limit)
-        document, target = self.load(path)
-        return {
-            **inspector.components(document, query, offset, limit, live_session=target.is_live),
-            "live_session": target.is_live,
-        }
+        return self._document_service.components(path, query, offset, limit)
 
     def component(self, refdes: str, path: str | None = None) -> dict[str, Any]:
-        if not refdes.strip():
-            raise DocumentError("refdes cannot be empty")
-        document, target = self.load(path)
-        return {
-            **inspector.component(document, refdes, live_session=target.is_live),
-            "live_session": target.is_live,
-        }
+        return self._document_service.component(refdes, path)
 
     def nets(
         self,
@@ -2585,26 +2157,10 @@ class DipTraceService:
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        self._validate_page(offset, limit)
-        document, target = self.load(path)
-        return {
-            **inspector.nets(
-                document,
-                query,
-                include_endpoints,
-                offset,
-                limit,
-                live_session=target.is_live,
-            ),
-            "live_session": target.is_live,
-        }
+        return self._document_service.nets(path, query, include_endpoints, offset, limit)
 
     def rules(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        return {
-            **inspector.design_rules(document, live_session=target.is_live),
-            "live_session": target.is_live,
-        }
+        return self._document_service.rules(path)
 
     def read_xml(
         self,
@@ -2613,24 +2169,7 @@ class DipTraceService:
         max_matches: int = 25,
         max_characters: int = 20_000,
     ) -> dict[str, Any]:
-        if not 1 <= max_matches <= 100:
-            raise DocumentError("max_matches must be between 1 and 100")
-        if not 1 <= max_characters <= 100_000:
-            raise DocumentError("max_characters must be between 1 and 100000")
-        document, target = self.load(path)
-        fragments = document.xml_fragments(xpath, max_matches)
-        rendered = "\n\n".join(fragments)
-        truncated = len(rendered) > max_characters
-        if truncated:
-            rendered = rendered[:max_characters] + "\n... XML output truncated ..."
-        return {
-            "path": str(document.path),
-            "live_session": target.is_live,
-            "xpath": xpath,
-            "match_count": len(fragments),
-            "truncated": truncated,
-            "xml": rendered,
-        }
+        return self._document_service.read_xml(path, xpath, max_matches, max_characters)
 
     def apply_edits(
         self,
@@ -5513,21 +5052,7 @@ class DipTraceService:
         )
 
     def get_stackup(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Stackup is only available for PCB documents")
-        return self._read_success(
-            snapshot.info,
-            snapshot.board.stackup.model_dump(mode="json"),
-            warnings=snapshot.board.stackup.warnings,
-            limitations=(
-                ["Physical LayerStackItems are absent from this XML export."]
-                if snapshot.board.stackup.source == "missing"
-                else []
-            ),
-            resources=[f"diptrace://document/{snapshot.info.document_id}/stackup"],
-        )
+        return self._review_service.get_stackup(path)
 
     def measure_net_lengths(
         self,
@@ -5536,30 +5061,10 @@ class DipTraceService:
         nets: list[str] | None = None,
         effective_dielectric_constant: float | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Net-length measurement requires a PCB document")
-        references = nets or [net.stable_id for net in snapshot.board.nets]
-        measurements = [
-            measure_net_length(
-                snapshot,
-                reference,
-                effective_dielectric_constant=effective_dielectric_constant,
-            )
-            for reference in references
-        ]
-        return self._read_success(
-            snapshot.info,
-            {
-                "matched_count": len(measurements),
-                "measurements": [item.model_dump(mode="json") for item in measurements],
-                "units": {"length": "mm", "delay": "ps"},
-            },
-            limitations=[
-                "Geometric length follows exported trace centerlines; package and pin delay "
-                "are not included."
-            ],
+        return self._review_service.measure_net_lengths(
+            path,
+            nets=nets,
+            effective_dielectric_constant=effective_dielectric_constant,
         )
 
     def analyze_length_group(
@@ -5569,28 +5074,7 @@ class DipTraceService:
         tolerance_mm: float | None = None,
         path: str | None = None,
     ) -> dict[str, Any]:
-        if len(nets) < 2:
-            raise DocumentError("Length-group analysis requires at least two nets")
-        if tolerance_mm is not None and tolerance_mm < 0:
-            raise DocumentError("tolerance_mm cannot be negative")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        measurements = [measure_net_length(snapshot, net) for net in nets]
-        lengths = [item.geometric_length_mm for item in measurements]
-        minimum = min(lengths)
-        maximum = max(lengths)
-        delta = maximum - minimum
-        return self._read_success(
-            snapshot.info,
-            {
-                "measurements": [item.model_dump(mode="json") for item in measurements],
-                "minimum_length_mm": minimum,
-                "maximum_length_mm": maximum,
-                "delta_mm": delta,
-                "tolerance_mm": tolerance_mm,
-                "within_tolerance": tolerance_mm is None or delta <= tolerance_mm,
-            },
-        )
+        return self._review_service.analyze_length_group(nets, tolerance_mm=tolerance_mm, path=path)
 
     def list_differential_pairs(
         self,
@@ -5599,86 +5083,19 @@ class DipTraceService:
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        self._validate_page(offset, limit)
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Differential pairs require a PCB document")
-        pairs = snapshot.board.differential_pairs
-        return self._read_success(
-            snapshot.info,
-            {
-                "matched_count": len(pairs),
-                "offset": offset,
-                "limit": limit,
-                "items": [item.model_dump(mode="json") for item in pairs[offset : offset + limit]],
-            },
-        )
+        return self._review_service.list_differential_pairs(path, offset=offset, limit=limit)
 
     def get_differential_pair(self, pair: str, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        result = resolve_differential_pair(snapshot, pair)
-        return self._read_success(snapshot.info, result.model_dump(mode="json"))
+        return self._review_service.get_differential_pair(pair, path)
 
     def analyze_differential_pair(self, pair: str, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        result = analyze_pair_geometry(snapshot, pair)
-        return self._read_success(
-            snapshot.info,
-            result.model_dump(mode="json"),
-            warnings=result.warnings,
-            limitations=[
-                "Coupling and gap are geometry heuristics; this is not a field-solver result."
-            ],
-        )
+        return self._review_service.analyze_differential_pair(pair, path)
 
     def analyze_differential_pairs(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Differential pairs require a PCB document")
-        analyses = [
-            analyze_pair_geometry(snapshot, pair.stable_id)
-            for pair in snapshot.board.differential_pairs
-        ]
-        return self._read_success(
-            snapshot.info,
-            {
-                "matched_count": len(analyses),
-                "items": [item.model_dump(mode="json") for item in analyses],
-                "failed_check_count": sum(
-                    1 for item in analyses for check in item.checks if not bool(check["passed"])
-                ),
-                "skipped_check_count": sum(
-                    len(item.skipped_checks) for item in analyses
-                ),
-                "incomplete_pair_count": sum(
-                    not item.fully_evaluated for item in analyses
-                ),
-            },
-            limitations=[
-                "Coupling and gap are geometry heuristics; this is not a field-solver result."
-            ],
-        )
+        return self._review_service.analyze_differential_pairs(path)
 
     def validate_differential_pair(self, pair: str, path: str | None = None) -> dict[str, Any]:
-        response = self.analyze_differential_pair(pair, path)
-        checks = response["result"]["checks"]
-        fully_evaluated = bool(response["result"]["fully_evaluated"])
-        response["result"]["valid"] = fully_evaluated and all(
-            bool(check["passed"]) for check in checks
-        )
-        response["result"]["evaluated_check_count"] = len(checks)
-        response["result"]["status"] = (
-            "valid"
-            if response["result"]["valid"]
-            else "incomplete"
-            if not fully_evaluated
-            else "invalid"
-        )
-        return response
+        return self._review_service.validate_differential_pair(pair, path)
 
     def calculate_impedance(
         self,
@@ -5693,33 +5110,17 @@ class DipTraceService:
         target_ohm: float | None = None,
         tolerance_ohm: float | None = None,
     ) -> dict[str, Any]:
-        values = ImpedanceInput.model_validate(
-            {
-                "structure": structure,
-                "width_mm": width_mm,
-                "copper_thickness_mm": copper_thickness_mm,
-                "dielectric_height_mm": dielectric_height_mm,
-                "dielectric_constant": dielectric_constant,
-                "gap_mm": gap_mm,
-                "frequency_hz": frequency_hz,
-                "target_ohm": target_ohm,
-                "tolerance_ohm": tolerance_ohm,
-            }
+        return self._review_service.calculate_impedance(
+            structure=structure,
+            width_mm=width_mm,
+            copper_thickness_mm=copper_thickness_mm,
+            dielectric_height_mm=dielectric_height_mm,
+            dielectric_constant=dielectric_constant,
+            gap_mm=gap_mm,
+            frequency_hz=frequency_hz,
+            target_ohm=target_ohm,
+            tolerance_ohm=tolerance_ohm,
         )
-        result = calculate_impedance_estimate(values)
-        return {
-            "ok": True,
-            "document": None,
-            "result": result.model_dump(mode="json"),
-            "warnings": result.warnings,
-            "limitations": [
-                "Analytical preliminary estimate only; not a full-wave or fabrication-coupon "
-                "result."
-            ],
-            "resources": [],
-            "transaction": None,
-            "job": None,
-        }
 
     def suggest_trace_geometry_for_impedance(
         self,
@@ -5732,7 +5133,7 @@ class DipTraceService:
         maximum_width_mm: float,
         tolerance_ohm: float = 0.01,
     ) -> dict[str, Any]:
-        result = synthesize_microstrip_width(
+        return self._review_service.suggest_trace_geometry_for_impedance(
             target_ohm=target_ohm,
             copper_thickness_mm=copper_thickness_mm,
             dielectric_height_mm=dielectric_height_mm,
@@ -5741,31 +5142,9 @@ class DipTraceService:
             maximum_width_mm=maximum_width_mm,
             tolerance_ohm=tolerance_ohm,
         )
-        return {
-            "ok": True,
-            "document": None,
-            "result": result,
-            "warnings": result["result"]["warnings"],
-            "limitations": [
-                "Width synthesis uses the same preliminary Hammerstad-Jensen microstrip model."
-            ],
-            "resources": [],
-            "transaction": None,
-            "job": None,
-        }
 
     def analyze_stackup_for_impedance(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Stackup analysis requires a PCB document")
-        result = analyze_stackup(snapshot.board.stackup)
-        return self._read_success(
-            snapshot.info,
-            result,
-            warnings=snapshot.board.stackup.warnings,
-            limitations=result["limitations"],
-        )
+        return self._review_service.analyze_stackup_for_impedance(path)
 
     def validate_impedance_constraints(
         self,
@@ -5773,123 +5152,7 @@ class DipTraceService:
         *,
         path: str | None = None,
     ) -> dict[str, Any]:
-        if not constraints:
-            raise DocumentError("At least one explicit impedance constraint is required")
-        if len(constraints) > 1_000:
-            raise DocumentError("At most 1000 impedance constraints are accepted")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Impedance validation requires a PCB document")
-        stackup_analysis = analyze_stackup(snapshot.board.stackup)
-        candidates = stackup_analysis["microstrip_candidates"]
-        layer_names = {
-            str(layer.get("id", "")): str(layer.get("name", "")) for layer in snapshot.board.layers
-        }
-        results: list[dict[str, Any]] = []
-        for index, raw_constraint in enumerate(constraints):
-            net_ref = str(raw_constraint.get("net", "")).strip()
-            layer_ref = str(raw_constraint.get("layer", "")).strip()
-            if not net_ref or not layer_ref:
-                raise DocumentError(
-                    f"Constraint {index} requires net and layer",
-                    details={"constraint_index": index},
-                )
-            net = resolve_net(snapshot, net_ref)
-            target_ohm = float(raw_constraint.get("target_ohm", 0.0))
-            tolerance_ohm = float(raw_constraint.get("tolerance_ohm", 0.0))
-            if target_ohm <= 0 or tolerance_ohm < 0:
-                raise DocumentError(
-                    f"Constraint {index} has invalid target/tolerance",
-                    details={"constraint_index": index},
-                )
-            canonical_layer = layer_names.get(layer_ref, layer_ref)
-            stack_candidates = [
-                item for item in candidates if item["signal_layer"] == canonical_layer
-            ]
-            if len(stack_candidates) != 1:
-                results.append(
-                    {
-                        "net_id": net.stable_id,
-                        "net": net.name,
-                        "layer": layer_ref,
-                        "status": "skipped",
-                        "reason": "No unique complete microstrip geometry exists for this layer.",
-                    }
-                )
-                continue
-            widths = {
-                float(width)
-                for trace in snapshot.board.traces
-                if trace.parent_id == net.stable_id
-                for segment_index, width in enumerate(trace.attributes.get("segment_widths_mm", []))
-                if width is not None
-                and (
-                    segment_index >= len(trace.attributes.get("segment_layers", []))
-                    or str(trace.attributes["segment_layers"][segment_index]) == layer_ref
-                    or layer_names.get(str(trace.attributes["segment_layers"][segment_index]), "")
-                    == canonical_layer
-                )
-            }
-            if raw_constraint.get("width_mm") is not None:
-                widths = {float(raw_constraint["width_mm"])}
-            if not widths:
-                results.append(
-                    {
-                        "net_id": net.stable_id,
-                        "net": net.name,
-                        "layer": layer_ref,
-                        "status": "skipped",
-                        "reason": "No routed width exists on the requested layer.",
-                    }
-                )
-                continue
-            stack_candidate = stack_candidates[0]
-            estimates = [
-                calculate_impedance_estimate(
-                    ImpedanceInput(
-                        structure="microstrip",
-                        width_mm=width,
-                        copper_thickness_mm=float(
-                            stack_candidate.get("copper_thickness_mm") or 0.0
-                        ),
-                        dielectric_height_mm=float(stack_candidate["dielectric_height_mm"]),
-                        dielectric_constant=float(stack_candidate["dielectric_constant"]),
-                        target_ohm=target_ohm,
-                        tolerance_ohm=tolerance_ohm,
-                        source=f"stackup:{snapshot.info.document_id}:{canonical_layer}",
-                    )
-                )
-                for width in sorted(widths)
-            ]
-            results.append(
-                {
-                    "net_id": net.stable_id,
-                    "net": net.name,
-                    "layer": layer_ref,
-                    "status": "evaluated",
-                    "valid": all(item.within_tolerance is True for item in estimates),
-                    "estimates": [item.model_dump(mode="json") for item in estimates],
-                    "stackup_geometry": stack_candidate,
-                }
-            )
-        evaluated = [item for item in results if item["status"] == "evaluated"]
-        return self._read_success(
-            snapshot.info,
-            {
-                "constraint_count": len(constraints),
-                "evaluated_count": len(evaluated),
-                "skipped_count": len(results) - len(evaluated),
-                "valid": bool(evaluated)
-                and len(evaluated) == len(results)
-                and all(bool(item["valid"]) for item in evaluated),
-                "items": results,
-            },
-            limitations=[
-                "Only explicit single-ended outer-layer microstrip constraints are evaluated.",
-                "Reference-plane net continuity and solder mask are not inferred by this tool.",
-            ],
-        )
+        return self._review_service.validate_impedance_constraints(constraints, path=path)
 
     def analyze_controlled_impedance_nets(
         self,
@@ -5897,7 +5160,7 @@ class DipTraceService:
         *,
         path: str | None = None,
     ) -> dict[str, Any]:
-        return self.validate_impedance_constraints(constraints, path=path)
+        return self._review_service.analyze_controlled_impedance_nets(constraints, path=path)
 
     def list_copper_pours(
         self,
@@ -5906,34 +5169,10 @@ class DipTraceService:
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        self._validate_page(offset, limit)
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Copper pours require a PCB document")
-        items = snapshot.board.copper_pours
-        return self._read_success(
-            snapshot.info,
-            {
-                "matched_count": len(items),
-                "offset": offset,
-                "limit": limit,
-                "items": [item.model_dump(mode="json") for item in items[offset : offset + limit]],
-            },
-            limitations=[
-                "Exported polygons are pour boundaries, not authoritative refilled copper."
-            ],
-        )
+        return self._review_service.list_copper_pours(path, offset=offset, limit=limit)
 
     def analyze_plane_continuity(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        result = analyze_plane_geometry(snapshot)
-        return self._read_success(
-            snapshot.info,
-            result,
-            limitations=result["limitations"],
-        )
+        return self._review_service.analyze_plane_continuity(path)
 
     def analyze_return_path(
         self,
@@ -5943,20 +5182,11 @@ class DipTraceService:
         nets: list[str] | None = None,
         reference_nets: list[str] | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        result = analyze_return_geometry(
-            snapshot,
+        return self._review_service.analyze_return_path(
+            path,
+            stitching_radius_mm=stitching_radius_mm,
             nets=nets,
             reference_nets=reference_nets,
-            stitching_radius_mm=stitching_radius_mm,
-        )
-        return self._read_success(
-            snapshot.info,
-            result.model_dump(mode="json"),
-            limitations=[
-                "Geometry-based heuristic only; exported pour boundaries are not final refill."
-            ],
         )
 
     def route_connection(
@@ -7335,96 +6565,19 @@ class DipTraceService:
         profile: str,
         categories: set[str] | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        findings, metrics, skipped, registered_check_count = run_checks(
-            snapshot, categories=categories
-        )
-        unsupported_checks: list[dict[str, str]] = []
-        assumptions = [
-            "All coordinates are normalized to millimetres.",
-            "Checks use exported XML geometry only and do not invoke DipTrace DRC/ERC.",
-        ]
-        if snapshot.board is not None:
-            assumptions.append(
-                "Component bboxes are estimated when footprint courtyard/body geometry is absent."
-            )
-            unsupported_checks.append(
-                {
-                    "check_id": "pcb.silk_to_pad",
-                    "reason": "not_implemented",
-                }
-            )
-        report = self.findings.create_report(
-            document_id=snapshot.info.document_id,
-            source_sha256=snapshot.info.sha256,
-            profile=profile,
-            findings=findings,
-            metrics=metrics,
-            assumptions=assumptions,
-            skipped_checks=skipped,
-            registered_check_count=registered_check_count,
-        )
-        if unsupported_checks:
-            # Unsupported, unregistered checks are disclosures, not registry entries. Add them
-            # after the registry-only completeness calculation, then persist the full disclosure.
-            report.skipped_checks.extend(unsupported_checks)
-            self.findings.store(report)
-        resources = [
-            f"diptrace://document/{snapshot.info.document_id}/review/{report.report_id}",
-            f"diptrace://document/{snapshot.info.document_id}/findings",
-        ]
-        response = self._read_success(
-            snapshot.info,
-            {
-                "summary": report.summary(),
-                "findings": [finding.model_dump() for finding in report.findings],
-                "metrics": report.metrics,
-                "clearance_rule_status": report.metrics.get("clearance_rule_status"),
-                "clearance_review_complete": report.metrics.get(
-                    "clearance_review_complete", True
-                ),
-                "netclass_rules_ignored": report.metrics.get(
-                    "netclass_rules_ignored", False
-                ),
-                "assumptions": report.assumptions,
-                "skipped_checks": report.skipped_checks,
-                "skipped_reasons": report.skipped_reasons,
-            },
-            resources=resources,
-        )
-        response["clearance_rule_status"] = report.metrics.get(
-            "clearance_rule_status"
-        )
-        response["clearance_review_complete"] = report.metrics.get(
-            "clearance_review_complete", True
-        )
-        response["netclass_rules_ignored"] = report.metrics.get(
-            "netclass_rules_ignored", False
-        )
-        return response
+        return self._review_service.run_review(path, profile=profile, categories=categories)
 
     def get_findings(self, report_id: str) -> dict[str, Any]:
-        report = self.findings.read(report_id)
-        return {
-            "ok": True,
-            "report": report.summary(),
-            "findings": [finding.model_dump() for finding in report.findings],
-        }
+        return self._review_service.get_findings(report_id)
 
     def get_finding(self, finding_id: str) -> dict[str, Any]:
-        return {"ok": True, "finding": self.findings.get_finding(finding_id).model_dump()}
+        return self._review_service.get_finding(finding_id)
 
     def review_resource(self, report_id: str) -> str:
-        report = self.findings.read(report_id)
-        return json.dumps(report.model_dump(), ensure_ascii=False, indent=2)
+        return self._review_service.review_resource(report_id)
 
     def findings_resource(self, document_id: str) -> str:
-        reports = []
-        for report in reversed(self.findings.list_reports()):
-            if report.document_id == document_id:
-                reports.append(report.model_dump())
-        return json.dumps({"document_id": document_id, "reports": reports}, indent=2)
+        return self._review_service.findings_resource(document_id)
 
     def finish_live_session(
         self,
@@ -7528,18 +6681,7 @@ class DipTraceService:
         stable_id_value: str | None,
         name: str | None,
     ) -> dict[str, Any]:
-        if stable_id_value is None and name is None:
-            raise DocumentError("A stable_id or name is required", code="scope_required")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        model = get_library_model(document)
-        item = get_library_item(
-            model,
-            stable_id_value=stable_id_value,
-            name=name,
-            kind=kind,
-        )
-        return self._read_success(snapshot.info, item.model_dump(), warnings=model.warnings)
+        return self._bom_service._get_library_item(path, kind, stable_id_value, name)
 
     def _validate_library_item(
         self,
@@ -7548,37 +6690,7 @@ class DipTraceService:
         stable_id_value: str | None,
         name: str | None,
     ) -> dict[str, Any]:
-        if stable_id_value is None and name is None:
-            raise DocumentError("A stable_id or name is required", code="scope_required")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        model = get_library_model(document)
-        item = get_library_item(
-            model,
-            stable_id_value=stable_id_value,
-            name=name,
-            kind=kind,
-        )
-        related_ids = {item.stable_id}
-        if isinstance(item, LibraryComponent):
-            related_ids.update(pin.stable_id for pin in item.pins)
-        elif isinstance(item, LibraryPattern):
-            related_ids.update(pad.stable_id for pad in item.pads)
-        findings = [
-            finding
-            for finding in validate_library(model)
-            if finding.object_id is None or finding.object_id in related_ids
-        ]
-        return self._read_success(
-            snapshot.info,
-            {
-                "item": item.model_dump(),
-                "valid": not any(finding.severity == "error" for finding in findings),
-                "finding_count": len(findings),
-                "findings": [finding.model_dump() for finding in findings],
-            },
-            warnings=model.warnings,
-        )
+        return self._bom_service._validate_library_item(path, kind, stable_id_value, name)
 
     def _run_semantic_write(
         self,
@@ -7830,20 +6942,14 @@ class DipTraceService:
         limitations: list[str] | None = None,
         resources: list[str] | None = None,
     ) -> dict[str, Any]:
-        return {
-            "ok": True,
-            "document": info.model_dump(),
-            "result": result,
-            "warnings": list(warnings or []),
-            "limitations": list(limitations or info.compatibility.get("limitations", [])),
-            "resources": list(resources or []),
-            "transaction": None,
-            "job": None,
-        }
+        return read_success(
+            info,
+            result,
+            warnings=warnings,
+            limitations=limitations,
+            resources=resources,
+        )
 
     @staticmethod
     def _validate_page(offset: int, limit: int) -> None:
-        if offset < 0:
-            raise DocumentError("offset cannot be negative")
-        if not 1 <= limit <= 500:
-            raise DocumentError("limit must be between 1 and 500")
+        validate_page(offset, limit)

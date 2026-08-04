@@ -50,6 +50,7 @@ docs/REVIEW_ENGINE.md
 docs/ROADMAP.md
 docs/ROUTING_ENGINE.md
 docs/SECURITY_AND_POLICY.md
+docs/SERVICE_DECOMPOSITION.md
 docs/SIGNING.md
 docs/SKILL_CONTRACTS.md
 docs/TESTING.md
@@ -215,6 +216,11 @@ src/diptrace_mcp/scaffolding.py
 src/diptrace_mcp/semantic_compiler.py
 src/diptrace_mcp/server.py
 src/diptrace_mcp/service.py
+src/diptrace_mcp/services/__init__.py
+src/diptrace_mcp/services/bom.py
+src/diptrace_mcp/services/context.py
+src/diptrace_mcp/services/documents.py
+src/diptrace_mcp/services/review.py
 src/diptrace_mcp/sessions.py
 src/diptrace_mcp/silkscreen.py
 src/diptrace_mcp/spatial.py
