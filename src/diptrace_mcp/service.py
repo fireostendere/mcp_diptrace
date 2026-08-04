@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import math
 import os
 import re
 from collections.abc import Sequence
@@ -65,7 +64,7 @@ from .exports import (
 )
 from .external_adapters import ExternalJobManager
 from .findings import FindingStore
-from .geometry import BBox, Point, distance, point_in_polygon
+from .geometry import Point, distance
 from .jobs import JobStore, job_resources
 from .model_cache import ModelCache
 from .multirouter import (
@@ -74,45 +73,9 @@ from .multirouter import (
     synthesize_routes_with_retry,
 )
 from .operations import (
-    AddNetLabelOperation,
-    AddSheetOperation,
-    AddTestpointOperation,
-    AddTraceOperation,
-    AddViaOperation,
-    AddWireOperation,
-    AssignNetsToClassOperation,
-    ClearPanelizationOperation,
-    ConnectPinsOperation,
     DeleteTraceOperation,
-    DeleteViaOperation,
-    DeleteWireOperation,
-    DisconnectPinsOperation,
-    GroupComponentsOperation,
-    MoveBoardTextsOperation,
-    MoveComponentsOperation,
-    MoveTestpointsOperation,
-    MoveViaOperation,
-    PlacePartOperation,
-    RemoveTestpointsOperation,
-    RenameNetOperation,
-    ReplaceTraceOperation,
-    RotateBoardTextsOperation,
-    RotateComponentsOperation,
     SemanticOperation,
-    SetComponentLockOperation,
-    SetComponentPatternOperation,
-    SetComponentPropertiesOperation,
-    SetComponentSideOperation,
-    SetComponentValueOperation,
-    SetPanelizationOperation,
-    SetPinNoConnectOperation,
-    SetTextStyleOperation,
-    SetTextVisibilityOperation,
-    SetTraceWidthOperation,
-    SetViaStyleOperation,
     SyncSchematicToPcbOperation,
-    UngroupComponentsOperation,
-    UpdateNetClassRulesOperation,
     parse_semantic_operations,
 )
 from .placement import (
@@ -171,6 +134,7 @@ from .services.context import (
 )
 from .services.documents import DocumentService
 from .services.review import ReviewService
+from .services.semantic_operations import SemanticOperationsService
 from .sessions import LiveWorkingGuard, SessionAction, SessionStore
 from .silkscreen import SilkscreenPlanConfig, plan_silkscreen
 from .specctra import (
@@ -344,13 +308,10 @@ def _bounded_evidence_comparison(
                 EVIDENCE_TEXT_CHARACTER_LIMIT,
             )
             rendered_item[key] = bounded
-            unsupported_characters_truncated = (
-                unsupported_characters_truncated or was_truncated
-            )
+            unsupported_characters_truncated = unsupported_characters_truncated or was_truncated
         rendered_unsupported.append(rendered_item)
     unsupported_truncated = (
-        len(rendered_unsupported) < len(unsupported)
-        or unsupported_characters_truncated
+        len(rendered_unsupported) < len(unsupported) or unsupported_characters_truncated
     )
     result["unsupported_categories"] = rendered_unsupported
     field_bounds["unsupported_categories"] = {
@@ -413,9 +374,7 @@ def transaction_response_summary(record: TransactionRecord) -> dict[str, Any]:
         **changed_id_summary,
         "risk": record.risk.model_dump(mode="json"),
         "validation_before": _validation_response_summary(record.validation_before),
-        "validation_after_preview": _validation_response_summary(
-            record.validation_after_preview
-        ),
+        "validation_after_preview": _validation_response_summary(record.validation_after_preview),
         "preview_resources": record.preview_resources,
         "preview_metadata": record.preview_metadata,
         "backup_available": record.backup_path is not None,
@@ -439,9 +398,8 @@ class RoundtripEvidenceEvaluation:
 
     @property
     def failed(self) -> bool:
-        return (
-            self.semantic_comparison is not None
-            and not bool(self.semantic_comparison.get("passed"))
+        return self.semantic_comparison is not None and not bool(
+            self.semantic_comparison.get("passed")
         )
 
 
@@ -1035,6 +993,12 @@ class DipTraceService:
             self._service_context,
             self._document_gateway,
         )
+        self._semantic_operations_service = SemanticOperationsService(
+            self._service_context,
+            self._document_gateway,
+            self._run_semantic_write,
+            self._run_semantic_operations,
+        )
         self._workflow_prompt_names: tuple[str, ...] = ()
 
     @property
@@ -1584,12 +1548,8 @@ class DipTraceService:
                 details={
                     "phase": phase,
                     "path": str(path),
-                    "expected_sha256": (
-                        sha256_bytes(expected) if expected is not None else None
-                    ),
-                    "current_sha256": (
-                        sha256_bytes(current) if current is not None else None
-                    ),
+                    "expected_sha256": (sha256_bytes(expected) if expected is not None else None),
+                    "current_sha256": (sha256_bytes(current) if current is not None else None),
                 },
                 txid=txid,
             )
@@ -1616,12 +1576,8 @@ class DipTraceService:
                     "phase": phase,
                     "path": str(path),
                     "written_sha256": sha256_bytes(written),
-                    "previous_sha256": (
-                        sha256_bytes(previous) if previous is not None else None
-                    ),
-                    "current_sha256": (
-                        sha256_bytes(current) if current is not None else None
-                    ),
+                    "previous_sha256": (sha256_bytes(previous) if previous is not None else None),
+                    "current_sha256": (sha256_bytes(current) if current is not None else None),
                 },
                 txid=txid,
             )
@@ -1644,9 +1600,7 @@ class DipTraceService:
                     "phase": phase,
                     "path": str(path),
                     "written_sha256": sha256_bytes(written),
-                    "previous_sha256": (
-                        sha256_bytes(previous) if previous is not None else None
-                    ),
+                    "previous_sha256": (sha256_bytes(previous) if previous is not None else None),
                     "current_sha256": (
                         sha256_bytes(after_error) if after_error is not None else None
                     ),
@@ -1740,9 +1694,7 @@ class DipTraceService:
             document_trust={
                 "validation_level": effective_trust.validation_level.value,
                 "trust_authority": effective_trust.authority,
-                "requires_diptrace_verification": (
-                    effective_trust.requires_diptrace_verification
-                ),
+                "requires_diptrace_verification": (effective_trust.requires_diptrace_verification),
                 "evidence_manifest_path": effective_trust.evidence_manifest_path,
                 "evidence_manifest_sha256": effective_trust.evidence_manifest_sha256,
                 "warnings": effective_trust.warnings,
@@ -1782,27 +1734,17 @@ class DipTraceService:
         report["limits"]["max_external_log_bytes"] = self.settings.max_external_log_bytes
         report["limits"]["max_external_processes"] = self.settings.max_external_processes
         report["limits"]["max_external_result_bytes"] = self.settings.max_external_result_bytes
-        report["limits"]["max_board_model_response_bytes"] = (
-            BOARD_MODEL_RESPONSE_BYTE_LIMIT
-        )
-        report["limits"]["max_board_model_item_detail_bytes"] = (
-            BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT
-        )
+        report["limits"]["max_board_model_response_bytes"] = BOARD_MODEL_RESPONSE_BYTE_LIMIT
+        report["limits"]["max_board_model_item_detail_bytes"] = BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT
         report["limits"]["max_raw_edit_response_bytes"] = RAW_EDIT_RESPONSE_BYTE_LIMIT
-        report["limits"]["max_raw_edit_xpath_characters"] = (
-            RAW_EDIT_XPATH_CHARACTER_LIMIT
-        )
+        report["limits"]["max_raw_edit_xpath_characters"] = RAW_EDIT_XPATH_CHARACTER_LIMIT
         report["limits"]["max_diff_lines"] = DEFAULT_DIFF_LINE_LIMIT
         report["limits"]["max_diff_characters"] = DEFAULT_DIFF_CHARACTER_LIMIT
-        report["limits"]["max_preview_copper_records"] = (
-            PREVIEW_COPPER_RECORD_LIMIT
-        )
+        report["limits"]["max_preview_copper_records"] = PREVIEW_COPPER_RECORD_LIMIT
         report["limits"]["max_preview_copper_points"] = PREVIEW_COPPER_POINT_LIMIT
         report["limits"]["retention_max_records"] = self.settings.retention_max_records
         report["limits"]["retention_max_age_days"] = self.settings.retention_max_age_days
-        report["limits"]["live_session_ttl_seconds"] = (
-            self.settings.live_session_ttl_seconds
-        )
+        report["limits"]["live_session_ttl_seconds"] = self.settings.live_session_ttl_seconds
         registry_report = self.trusted_provenance_registry_report()
         report["trust_model"]["trusted_registry"] = registry_report
         report["trust_model"]["high_trust_authority"] = (
@@ -2214,9 +2156,7 @@ class DipTraceService:
             "operations": bounded_previews,
             "operations_metadata": {
                 "edit_count": len(bounded_previews),
-                "total_match_count": sum(
-                    int(preview["matches"]) for preview in bounded_previews
-                ),
+                "total_match_count": sum(int(preview["matches"]) for preview in bounded_previews),
                 "snippets_inline": False,
                 "xpath_character_limit": RAW_EDIT_XPATH_CHARACTER_LIMIT,
             },
@@ -2252,11 +2192,10 @@ class DipTraceService:
 
         assert expected_sha256 is not None
         if target.live_session_id:
+
             def finalize_live_raw_edit(_mutation: object) -> None:
                 DipTraceDocument.load(target.path, self.settings.max_document_bytes)
-                sidecar_path = target.path.with_suffix(
-                    target.path.suffix + ".provenance.json"
-                )
+                sidecar_path = target.path.with_suffix(target.path.suffix + ".provenance.json")
                 try:
                     previous_sidecar = sidecar_path.read_bytes()
                 except FileNotFoundError:
@@ -2552,9 +2491,7 @@ class DipTraceService:
                     # An exact byte copy does not preserve the manifest's
                     # path-role binding. A new reviewed evidence entry for the
                     # target is required before the copy may regain authority.
-                    trust_provenance = (
-                        "seed_copy_trusted_registry_requires_target_evidence"
-                    )
+                    trust_provenance = "seed_copy_trusted_registry_requires_target_evidence"
                     parent_level = evidence.validation_level
                 except EditError:
                     trust_provenance = "seed_copy_trusted_registry_validation_failed"
@@ -2752,9 +2689,7 @@ class DipTraceService:
         warnings, warning_metadata = _bounded_messages(preview["warnings"])
         limitations, limitation_metadata = _bounded_messages(preview["limitations"])
         validation_before = _validation_response_summary(preview["validation_before"])
-        validation_after = _validation_response_summary(
-            preview["validation_after_preview"]
-        )
+        validation_after = _validation_response_summary(preview["validation_after_preview"])
         angle_evidence_warnings = (
             component_angle_evidence_warnings()
             if any(operation.kind == "rotate_components" for operation in operations)
@@ -2780,11 +2715,7 @@ class DipTraceService:
             "limitations": limitations,
             "resources": response_resources,
             "preview": preview_metadata,
-            **(
-                {"evidence_warnings": angle_evidence_warnings}
-                if angle_evidence_warnings
-                else {}
-            ),
+            **({"evidence_warnings": angle_evidence_warnings} if angle_evidence_warnings else {}),
         }
 
     def validate_transaction(self, txid: str) -> dict[str, Any]:
@@ -2911,9 +2842,7 @@ class DipTraceService:
                             "phase": "commit_failure_state_read",
                             "source_restored": compensation_error is None,
                             "current_sha256": (
-                                sha256_bytes(current_bytes)
-                                if current_bytes is not None
-                                else None
+                                sha256_bytes(current_bytes) if current_bytes is not None else None
                             ),
                             "source_sha256": sha256_bytes(source_bytes),
                             "attempted_sha256": sha256_bytes(applied.raw_bytes),
@@ -2935,9 +2864,7 @@ class DipTraceService:
                             "transaction_status": latest.status,
                             "source_restored": compensation_error is None,
                             "current_sha256": (
-                                sha256_bytes(current_bytes)
-                                if current_bytes is not None
-                                else None
+                                sha256_bytes(current_bytes) if current_bytes is not None else None
                             ),
                             "source_sha256": sha256_bytes(source_bytes),
                             "attempted_sha256": sha256_bytes(applied.raw_bytes),
@@ -2986,9 +2913,7 @@ class DipTraceService:
                     details={
                         "phase": "commit_state_read",
                         "current_sha256": (
-                            sha256_bytes(current_bytes)
-                            if current_bytes is not None
-                            else None
+                            sha256_bytes(current_bytes) if current_bytes is not None else None
                         ),
                         "source_sha256": sha256_bytes(source_bytes),
                         "attempted_sha256": committed_sha256,
@@ -2997,10 +2922,7 @@ class DipTraceService:
                     },
                     txid=txid,
                 ) from state_exc
-            if (
-                latest.status == "committed"
-                and latest.committed_sha256 == committed_sha256
-            ):
+            if latest.status == "committed" and latest.committed_sha256 == committed_sha256:
                 updated = latest
             else:
                 recovery_bytes = self._load_transaction_backup_bytes(
@@ -3059,11 +2981,7 @@ class DipTraceService:
             "warnings": warnings,
             "limitations": limitations,
             "resources": tx_preview_resources(txid),
-            **(
-                {"evidence_warnings": angle_evidence_warnings}
-                if angle_evidence_warnings
-                else {}
-            ),
+            **({"evidence_warnings": angle_evidence_warnings} if angle_evidence_warnings else {}),
         }
 
     @staticmethod
@@ -3487,10 +3405,7 @@ class DipTraceService:
         critical_warnings = [
             warning
             for warning in saved_snapshot.warnings
-            if any(
-                token in warning.casefold()
-                for token in ("error", "invalid", "missing")
-            )
+            if any(token in warning.casefold() for token in ("error", "invalid", "missing"))
         ]
         if critical_warnings:
             bounded_warnings, _ = _bounded_messages(critical_warnings)
@@ -3552,13 +3467,9 @@ class DipTraceService:
             passed=bool(comparison["passed"]),
             comparison_complete=bool(comparison["comparison_complete"]),
             compared_categories=list(comparison.get("compared_categories", [])),
-            missing_required_categories=list(
-                comparison.get("missing_required_categories", [])
-            ),
+            missing_required_categories=list(comparison.get("missing_required_categories", [])),
             differences=list(comparison.get("differences", [])),
-            ignored_normalizations=list(
-                comparison.get("ignored_normalizations", [])
-            ),
+            ignored_normalizations=list(comparison.get("ignored_normalizations", [])),
             unsupported_categories=[
                 UnsupportedCategory.model_validate(item)
                 for item in unsupported_raw
@@ -3589,10 +3500,7 @@ class DipTraceService:
 
         expected_files = [
             ("document", evaluation.document_path, evaluation.document_sha256),
-            *[
-                (role, Path(record.path), record.sha256)
-                for role, record in role_records
-            ],
+            *[(role, Path(record.path), record.sha256) for role, record in role_records],
         ]
         for role, role_path, expected_sha256 in expected_files:
             try:
@@ -3669,9 +3577,7 @@ class DipTraceService:
         manifest_path: Path | None = None,
         manifest_sha256: str | None = None,
     ) -> dict[str, Any]:
-        comparison, comparison_bounds = _bounded_evidence_comparison(
-            evaluation.semantic_comparison
-        )
+        comparison, comparison_bounds = _bounded_evidence_comparison(evaluation.semantic_comparison)
         failed = evaluation.failed
         evidence_status = "failed" if failed else ("recorded" if written else "recordable")
         role_sha256: dict[str, str] = {
@@ -3780,9 +3686,7 @@ class DipTraceService:
             source=evaluation.source,
             saved=evaluation.saved,
             reexport=evaluation.reexport,
-            semantic_comparison=self._semantic_evidence_record(
-                evaluation.semantic_comparison
-            ),
+            semantic_comparison=self._semantic_evidence_record(evaluation.semantic_comparison),
             validation_level=evidence_level,
             status="failed" if evaluation.failed else "recorded",
             created_at=utc_now(),
@@ -3851,18 +3755,19 @@ class DipTraceService:
         grid_snap: float | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        op = MoveComponentsOperation.model_validate(
-            {
-                "selector": selector or {},
-                "dx": dx,
-                "dy": dy,
-                "absolute_x": absolute_x,
-                "absolute_y": absolute_y,
-                "grid_snap": grid_snap,
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.move_components(
+            selector,
+            dx,
+            dy,
+            absolute_x,
+            absolute_y,
+            path,
+            dry_run,
+            expected_sha256,
+            txid,
+            grid_snap,
+            allow_locked,
         )
-        return self._run_semantic_write(op, path, dry_run, expected_sha256, txid)
 
     def set_component_value(
         self,
@@ -3873,8 +3778,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        op = SetComponentValueOperation.model_validate({"selector": selector or {}, "value": value})
-        return self._run_semantic_write(op, path, dry_run, expected_sha256, txid)
+        return self._semantic_operations_service.set_component_value(
+            selector, value, path, dry_run, expected_sha256, txid
+        )
 
     def rotate_components(
         self,
@@ -3888,16 +3794,17 @@ class DipTraceService:
         allowed_angles: list[float] | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = RotateComponentsOperation.model_validate(
-            {
-                "selector": selector or {},
-                "angle_deg": angle_deg,
-                "mode": mode,
-                "allowed_angles": allowed_angles or [],
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.rotate_components(
+            selector,
+            angle_deg,
+            mode,
+            path,
+            dry_run,
+            expected_sha256,
+            txid,
+            allowed_angles,
+            allow_locked,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def set_component_side(
         self,
@@ -3909,10 +3816,9 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = SetComponentSideOperation.model_validate(
-            {"selector": selector or {}, "side": side, "allow_locked": allow_locked}
+        return self._semantic_operations_service.set_component_side(
+            selector, side, path, dry_run, expected_sha256, txid, allow_locked
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def set_component_lock(
         self,
@@ -3923,10 +3829,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = SetComponentLockOperation.model_validate(
-            {"selector": selector or {}, "locked": locked}
+        return self._semantic_operations_service.set_component_lock(
+            selector, locked, path, dry_run, expected_sha256, txid
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def set_component_properties(
         self,
@@ -3942,17 +3847,18 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = SetComponentPropertiesOperation.model_validate(
-            {
-                "selector": selector or {},
-                "name": name,
-                "value": value,
-                "refdes": refdes,
-                "fields": fields or {},
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.set_component_properties(
+            selector,
+            name=name,
+            value=value,
+            refdes=refdes,
+            fields=fields,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+            allow_locked=allow_locked,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def set_component_pattern(
         self,
@@ -3965,14 +3871,15 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = SetComponentPatternOperation.model_validate(
-            {
-                "selector": selector,
-                "pattern_style": pattern_style,
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.set_component_pattern(
+            selector,
+            pattern_style,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+            allow_locked=allow_locked,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def align_components(
         self,
@@ -3986,61 +3893,15 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        valid = {"left", "center_x", "right", "top", "center_y", "bottom"}
-        if alignment not in valid:
-            raise DocumentError(
-                f"alignment must be one of {sorted(valid)}", code="geometry_invalid"
-            )
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Component alignment requires a PCB document")
-        query = QuerySelector.model_validate(selector)
-        records = snapshot.select(query, kinds={"component"})
-        if len(records) < 2:
-            raise DocumentError(
-                "Component alignment requires at least two matched components",
-                code="scope_required",
-            )
-        if any(record.position is None or record.bbox is None for record in records):
-            raise DocumentError(
-                "All aligned components require position and bbox geometry",
-                code="geometry_invalid",
-            )
-        records.sort(key=lambda item: item.stable_id)
-
-        def coordinate(record: ObjectRecord) -> float:
-            box = record.bbox
-            assert box is not None
-            return {
-                "left": box["min_x"],
-                "center_x": (box["min_x"] + box["max_x"]) / 2.0,
-                "right": box["max_x"],
-                "top": box["min_y"],
-                "center_y": (box["min_y"] + box["max_y"]) / 2.0,
-                "bottom": box["max_y"],
-            }[alignment]
-
-        aligned_value = target_value if target_value is not None else coordinate(records[0])
-        x_axis = alignment in {"left", "center_x", "right"}
-        operations: list[SemanticOperation] = []
-        for record in records:
-            assert record.position is not None
-            delta = aligned_value - coordinate(record)
-            operations.append(
-                MoveComponentsOperation(
-                    selector=QuerySelector(ids=[record.stable_id]),
-                    absolute_x=record.position["x"] + delta if x_axis else None,
-                    absolute_y=record.position["y"] + delta if not x_axis else None,
-                    allow_locked=allow_locked,
-                )
-            )
-        return self._run_semantic_operations(
-            operations,
-            path,
-            dry_run,
-            expected_sha256,
-            txid,
+        return self._semantic_operations_service.align_components(
+            selector,
+            alignment,
+            target_value=target_value,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+            allow_locked=allow_locked,
         )
 
     def distribute_components(
@@ -4056,84 +3917,16 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        if axis not in {"x", "y"} or mode not in {"centers", "gaps"}:
-            raise DocumentError(
-                "axis must be x/y and mode must be centers/gaps", code="geometry_invalid"
-            )
-        if spacing is not None and spacing < 0:
-            raise DocumentError("spacing cannot be negative", code="geometry_invalid")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Component distribution requires a PCB document")
-        records = snapshot.select(QuerySelector.model_validate(selector), kinds={"component"})
-        if len(records) < 3:
-            raise DocumentError(
-                "Component distribution requires at least three matched components",
-                code="scope_required",
-            )
-        if any(record.position is None or record.bbox is None for record in records):
-            raise DocumentError(
-                "All distributed components require position and bbox geometry",
-                code="geometry_invalid",
-            )
-        center_key = "x" if axis == "x" else "y"
-        minimum_key = "min_x" if axis == "x" else "min_y"
-        maximum_key = "max_x" if axis == "x" else "max_y"
-        records.sort(
-            key=lambda record: (
-                record.position[center_key] if record.position is not None else 0.0,
-                record.stable_id,
-            )
-        )
-
-        def position(record: ObjectRecord) -> dict[str, float]:
-            assert record.position is not None
-            return record.position
-
-        def box(record: ObjectRecord) -> dict[str, float]:
-            assert record.bbox is not None
-            return record.bbox
-
-        targets: list[float] = []
-        if mode == "centers":
-            first = position(records[0])[center_key]
-            step = (
-                spacing
-                if spacing is not None
-                else (position(records[-1])[center_key] - first) / (len(records) - 1)
-            )
-            targets = [first + index * step for index in range(len(records))]
-        else:
-            boxes = [box(record) for record in records]
-            first_edge = boxes[0][minimum_key]
-            total_size = sum(item[maximum_key] - item[minimum_key] for item in boxes)
-            gap = (
-                spacing
-                if spacing is not None
-                else (boxes[-1][maximum_key] - first_edge - total_size) / (len(records) - 1)
-            )
-            cursor = first_edge
-            for item in boxes:
-                size = item[maximum_key] - item[minimum_key]
-                targets.append(cursor + size / 2.0)
-                cursor += size + gap
-        operations = []
-        for record, target_coordinate in zip(records, targets, strict=True):
-            operations.append(
-                MoveComponentsOperation(
-                    selector=QuerySelector(ids=[record.stable_id]),
-                    absolute_x=target_coordinate if axis == "x" else None,
-                    absolute_y=target_coordinate if axis == "y" else None,
-                    allow_locked=allow_locked,
-                )
-            )
-        return self._run_semantic_operations(
-            operations,
-            path,
-            dry_run,
-            expected_sha256,
-            txid,
+        return self._semantic_operations_service.distribute_components(
+            selector,
+            axis,
+            mode=mode,
+            spacing=spacing,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+            allow_locked=allow_locked,
         )
 
     def group_components(
@@ -4147,14 +3940,15 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = GroupComponentsOperation.model_validate(
-            {
-                "selector": selector,
-                "group_id": group_id,
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.group_components(
+            selector,
+            group_id=group_id,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+            allow_locked=allow_locked,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def ungroup_components(
         self,
@@ -4167,28 +3961,22 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = UngroupComponentsOperation.model_validate(
-            {
-                "selector": selector,
-                "remove_empty_groups": remove_empty_groups,
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.ungroup_components(
+            selector,
+            remove_empty_groups=remove_empty_groups,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+            allow_locked=allow_locked,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def list_board_texts(
         self,
         path: str | None = None,
         selector: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        query = QuerySelector.model_validate(selector or {})
-        records = snapshot.select(query, kinds={"component_text", "board_text"})
-        return self._read_success(
-            snapshot.info,
-            {"matched_count": len(records), "items": [item.model_dump() for item in records]},
-        )
+        return self._semantic_operations_service.list_board_texts(path, selector)
 
     def move_board_texts(
         self,
@@ -4204,17 +3992,18 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = MoveBoardTextsOperation.model_validate(
-            {
-                "selector": selector or {},
-                "dx": dx,
-                "dy": dy,
-                "absolute_x": absolute_x,
-                "absolute_y": absolute_y,
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.move_board_texts(
+            selector,
+            dx=dx,
+            dy=dy,
+            absolute_x=absolute_x,
+            absolute_y=absolute_y,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+            allow_locked=allow_locked,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def rotate_board_texts(
         self,
@@ -4227,15 +4016,9 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = RotateBoardTextsOperation.model_validate(
-            {
-                "selector": selector or {},
-                "angle_deg": angle_deg,
-                "mode": mode,
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.rotate_board_texts(
+            selector, angle_deg, mode, path, dry_run, expected_sha256, txid, allow_locked
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def set_text_visibility(
         self,
@@ -4247,14 +4030,9 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = SetTextVisibilityOperation.model_validate(
-            {
-                "selector": selector or {},
-                "visibility": visibility,
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.set_text_visibility(
+            selector, visibility, path, dry_run, expected_sha256, txid, allow_locked
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def set_text_style(
         self,
@@ -4271,18 +4049,19 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = SetTextStyleOperation.model_validate(
-            {
-                "selector": selector or {},
-                "font_size": font_size,
-                "font_width": font_width,
-                "horizontal_align": horizontal_align,
-                "vertical_align": vertical_align,
-                "mirrored": mirrored,
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.set_text_style(
+            selector,
+            font_size=font_size,
+            font_width=font_width,
+            horizontal_align=horizontal_align,
+            vertical_align=vertical_align,
+            mirrored=mirrored,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+            allow_locked=allow_locked,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def set_pin_no_connect(
         self,
@@ -4293,10 +4072,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = SetPinNoConnectOperation.model_validate(
-            {"selector": selector or {}, "no_connect": no_connect}
+        return self._semantic_operations_service.set_pin_no_connect(
+            selector, no_connect, path, dry_run, expected_sha256, txid
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def rename_net(
         self,
@@ -4307,10 +4085,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = RenameNetOperation.model_validate(
-            {"selector": selector or {}, "new_name": new_name}
+        return self._semantic_operations_service.rename_net(
+            selector, new_name, path, dry_run, expected_sha256, txid
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def add_sheet(
         self,
@@ -4321,8 +4098,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = AddSheetOperation.model_validate({"name": name, "sheet_type": sheet_type})
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+        return self._semantic_operations_service.add_sheet(
+            name, sheet_type, path, dry_run, expected_sha256, txid
+        )
 
     def place_part(
         self,
@@ -4346,25 +4124,26 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = PlacePartOperation.model_validate(
-            {
-                "component_style": component_style,
-                "refdes": refdes,
-                "x": x,
-                "y": y,
-                "pin_count": pin_count,
-                "name": name,
-                "value": value,
-                "sheet": sheet,
-                "angle_deg": angle_deg,
-                "component_part": component_part,
-                "part_number": part_number,
-                "part_refdes": part_refdes,
-                "part_name": part_name,
-                "allow_shared_refdes": allow_shared_refdes,
-            }
+        return self._semantic_operations_service.place_part(
+            component_style,
+            refdes,
+            x,
+            y,
+            pin_count=pin_count,
+            name=name,
+            value=value,
+            sheet=sheet,
+            angle_deg=angle_deg,
+            component_part=component_part,
+            part_number=part_number,
+            part_refdes=part_refdes,
+            part_name=part_name,
+            allow_shared_refdes=allow_shared_refdes,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def connect_pins(
         self,
@@ -4376,10 +4155,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = ConnectPinsOperation.model_validate(
-            {"net": net, "pins": pins, "allow_reconnect": allow_reconnect}
+        return self._semantic_operations_service.connect_pins(
+            net, pins, allow_reconnect, path, dry_run, expected_sha256, txid
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def disconnect_pins(
         self,
@@ -4389,8 +4167,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = DisconnectPinsOperation.model_validate({"selector": selector or {}})
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+        return self._semantic_operations_service.disconnect_pins(
+            selector, path, dry_run, expected_sha256, txid
+        )
 
     def add_wire(
         self,
@@ -4405,17 +4184,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = AddWireOperation.model_validate(
-            {
-                "net": net,
-                "points": points,
-                "start": start,
-                "end": end,
-                "sheet": sheet,
-                "hidden_power": hidden_power,
-            }
+        return self._semantic_operations_service.add_wire(
+            net, points, start, end, sheet, hidden_power, path, dry_run, expected_sha256, txid
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def delete_wire(
         self,
@@ -4425,8 +4196,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = DeleteWireOperation.model_validate({"selector": selector or {}})
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+        return self._semantic_operations_service.delete_wire(
+            selector, path, dry_run, expected_sha256, txid
+        )
 
     def add_net_label(
         self,
@@ -4441,17 +4213,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = AddNetLabelOperation.model_validate(
-            {
-                "net": net,
-                "x": x,
-                "y": y,
-                "sheet": sheet,
-                "text": text,
-                "font_size": font_size,
-            }
+        return self._semantic_operations_service.add_net_label(
+            net, x, y, sheet, text, font_size, path, dry_run, expected_sha256, txid
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def set_panelization(
         self,
@@ -4461,8 +4225,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = SetPanelizationOperation.model_validate(panel)
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+        return self._semantic_operations_service.set_panelization(
+            panel, path, dry_run, expected_sha256, txid
+        )
 
     def clear_panelization(
         self,
@@ -4471,8 +4236,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = ClearPanelizationOperation.model_validate({})
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+        return self._semantic_operations_service.clear_panelization(
+            path, dry_run, expected_sha256, txid
+        )
 
     def update_net_class_rules(
         self,
@@ -4495,24 +4261,25 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = UpdateNetClassRulesOperation.model_validate(
-            {
-                "class_name": class_name,
-                "layer": layer,
-                "width": width,
-                "min_width": min_width,
-                "max_width": max_width,
-                "clearance": clearance,
-                "neck_width": neck_width,
-                "differential_gap": differential_gap,
-                "max_uncoupled_length": max_uncoupled_length,
-                "tolerance": tolerance,
-                "check_length": check_length,
-                "fixed_length": fixed_length,
-                "length_delta": length_delta,
-            }
+        return self._semantic_operations_service.update_net_class_rules(
+            class_name,
+            layer=layer,
+            width=width,
+            min_width=min_width,
+            max_width=max_width,
+            clearance=clearance,
+            neck_width=neck_width,
+            differential_gap=differential_gap,
+            max_uncoupled_length=max_uncoupled_length,
+            tolerance=tolerance,
+            check_length=check_length,
+            fixed_length=fixed_length,
+            length_delta=length_delta,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def assign_nets_to_class(
         self,
@@ -4523,36 +4290,16 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = AssignNetsToClassOperation.model_validate(
-            {"selector": selector or {}, "class_name": class_name}
+        return self._semantic_operations_service.assign_nets_to_class(
+            selector, class_name, path, dry_run, expected_sha256, txid
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def list_testpoints(
         self,
         path: str | None = None,
         selector: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        query = QuerySelector.model_validate(selector or {})
-        records = snapshot.select(query, kinds={"testpoint"})
-        net_names = {
-            record.xml_id: record.name
-            for record in snapshot.objects.values()
-            if record.kind == "net" and record.xml_id is not None
-        }
-        items = []
-        for record in records:
-            payload = record.model_dump()
-            payload["net_name"] = (
-                net_names.get(record.net_id) if record.net_id is not None else None
-            )
-            items.append(payload)
-        return self._read_success(
-            snapshot.info,
-            {"matched_count": len(items), "items": items},
-        )
+        return self._semantic_operations_service.list_testpoints(path, selector)
 
     def find_testpoint_candidates(
         self,
@@ -4565,106 +4312,14 @@ class DipTraceService:
         grid: float = 2.54,
         candidates_per_net: int = 10,
     ) -> dict[str, Any]:
-        if not target_nets:
-            raise DocumentError("target_nets cannot be empty", code="scope_required")
-        if side not in {"Top", "Bottom"}:
-            raise DocumentError("side must be Top or Bottom", code="geometry_invalid")
-        if probe_diameter <= 0 or clearance < 0 or grid <= 0:
-            raise DocumentError("probe_diameter and grid must be positive")
-        if not 1 <= candidates_per_net <= 100:
-            raise DocumentError("candidates_per_net must be between 1 and 100")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None or snapshot.board.outline is None:
-            raise DocumentError("A PCB board outline is required", code="geometry_invalid")
-        outline = [Point(**item) for item in snapshot.board.outline.get("points", [])]
-        board_box = BBox(**snapshot.board.outline["bbox"])
-        obstacles = [
-            BBox(**record.bbox).expand(clearance + probe_diameter / 2.0)
-            for record in snapshot.objects.values()
-            if record.kind in {"component", "testpoint", "keepout"}
-            and record.bbox is not None
-            and (record.side in {None, side} or record.kind == "keepout")
-        ]
-        free_points: list[Point] = []
-        x = math.ceil(board_box.min_x / grid) * grid
-        while x <= board_box.max_x and len(free_points) < 5_000:
-            y = math.ceil(board_box.min_y / grid) * grid
-            while y <= board_box.max_y and len(free_points) < 5_000:
-                point = Point(x, y)
-                if point_in_polygon(point, outline) and not any(
-                    obstacle.contains_point(point) for obstacle in obstacles
-                ):
-                    free_points.append(point)
-                y += grid
-            x += grid
-        net_records = [
-            record
-            for record in snapshot.objects.values()
-            if record.kind == "net"
-            and any(
-                candidate.casefold()
-                in {(record.name or "").casefold(), record.stable_id.casefold()}
-                for candidate in target_nets
-            )
-        ]
-        missing = [
-            candidate
-            for candidate in target_nets
-            if not any(
-                candidate.casefold()
-                in {(record.name or "").casefold(), record.stable_id.casefold()}
-                for record in net_records
-            )
-        ]
-        if missing:
-            raise DocumentError(
-                "Some target nets were not found",
-                code="object_not_found",
-                details={"missing_nets": missing},
-            )
-        candidates: list[dict[str, Any]] = []
-        for net in net_records:
-            endpoints = [
-                snapshot.objects[object_id]
-                for object_id in net.relationships.get("endpoints", [])
-                if object_id in snapshot.objects
-                and snapshot.objects[object_id].position is not None
-            ]
-            ranked = sorted(
-                free_points,
-                key=lambda point: min(
-                    (
-                        distance(point, Point(**endpoint.position))
-                        for endpoint in endpoints
-                        if endpoint.position is not None
-                    ),
-                    default=0.0,
-                ),
-            )[:candidates_per_net]
-            for rank, point in enumerate(ranked, start=1):
-                candidates.append(
-                    {
-                        "candidate_id": f"tpc_{net.stable_id}_{rank}",
-                        "net_id": net.stable_id,
-                        "net_name": net.name,
-                        "position": point.as_dict(),
-                        "side": side,
-                        "probe_diameter": probe_diameter,
-                        "clearance": clearance,
-                    }
-                )
-        return self._read_success(
-            snapshot.info,
-            {
-                "matched_net_count": len(net_records),
-                "candidate_count": len(candidates),
-                "candidates": candidates,
-            },
-            limitations=[
-                "Candidates use exported bbox geometry; enclosure and fixture shadowing "
-                "are not modeled."
-            ],
+        return self._semantic_operations_service.find_testpoint_candidates(
+            target_nets,
+            path=path,
+            side=side,
+            probe_diameter=probe_diameter,
+            clearance=clearance,
+            grid=grid,
+            candidates_per_net=candidates_per_net,
         )
 
     def add_testpoints(
@@ -4675,10 +4330,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        if not testpoints:
-            raise DocumentError("testpoints cannot be empty", code="scope_required")
-        operations = [AddTestpointOperation.model_validate(item) for item in testpoints]
-        return self._run_semantic_operations(operations, path, dry_run, expected_sha256, txid)
+        return self._semantic_operations_service.add_testpoints(
+            testpoints, path, dry_run, expected_sha256, txid
+        )
 
     def move_testpoints(
         self,
@@ -4695,18 +4349,19 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = MoveTestpointsOperation.model_validate(
-            {
-                "selector": selector or {},
-                "dx": dx,
-                "dy": dy,
-                "absolute_x": absolute_x,
-                "absolute_y": absolute_y,
-                "grid_snap": grid_snap,
-                "allow_locked": allow_locked,
-            }
+        return self._semantic_operations_service.move_testpoints(
+            selector,
+            dx=dx,
+            dy=dy,
+            absolute_x=absolute_x,
+            absolute_y=absolute_y,
+            grid_snap=grid_snap,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+            allow_locked=allow_locked,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def remove_testpoints(
         self,
@@ -4717,41 +4372,16 @@ class DipTraceService:
         txid: str | None = None,
         allow_locked: bool = False,
     ) -> dict[str, Any]:
-        operation = RemoveTestpointsOperation.model_validate(
-            {"selector": selector or {}, "allow_locked": allow_locked}
+        return self._semantic_operations_service.remove_testpoints(
+            selector, path, dry_run, expected_sha256, txid, allow_locked
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def review_testpoint_coverage(
         self,
         target_nets: list[str] | None = None,
         path: str | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        nets = [record for record in snapshot.objects.values() if record.kind == "net"]
-        if target_nets:
-            requested = {name.casefold() for name in target_nets}
-            nets = [record for record in nets if (record.name or "").casefold() in requested]
-        testpoint_net_ids = {
-            record.net_id
-            for record in snapshot.objects.values()
-            if record.kind == "testpoint" and record.net_id is not None
-        }
-        covered = [record for record in nets if record.xml_id in testpoint_net_ids]
-        uncovered = [record for record in nets if record.xml_id not in testpoint_net_ids]
-        coverage = len(covered) / len(nets) if nets else 1.0
-        return self._read_success(
-            snapshot.info,
-            {
-                "target_net_count": len(nets),
-                "covered_count": len(covered),
-                "coverage": coverage,
-                "covered_nets": [record.name for record in covered],
-                "uncovered_nets": [record.name for record in uncovered],
-            },
-            limitations=["Coverage counts explicit MCP/DipTrace standalone pad testpoints only."],
-        )
+        return self._semantic_operations_service.review_testpoint_coverage(target_nets, path)
 
     def add_trace(
         self,
@@ -4768,18 +4398,19 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = AddTraceOperation.model_validate(
-            {
-                "net": net,
-                "start_object_id": start_object_id,
-                "end_object_id": end_object_id,
-                "points": points,
-                "layer": layer,
-                "width": width,
-                "clearance": clearance,
-            }
+        return self._semantic_operations_service.add_trace(
+            net=net,
+            start_object_id=start_object_id,
+            end_object_id=end_object_id,
+            points=points,
+            layer=layer,
+            width=width,
+            clearance=clearance,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def replace_trace(
         self,
@@ -4794,16 +4425,17 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = ReplaceTraceOperation.model_validate(
-            {
-                "trace_id": trace_id,
-                "points": points,
-                "layer": layer,
-                "width": width,
-                "clearance": clearance,
-            }
+        return self._semantic_operations_service.replace_trace(
+            trace_id,
+            points,
+            layer=layer,
+            width=width,
+            clearance=clearance,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def delete_trace(
         self,
@@ -4815,13 +4447,14 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = DeleteTraceOperation.model_validate(
-            {
-                "selector": selector,
-                "allow_connectivity_regression": allow_connectivity_regression,
-            }
+        return self._semantic_operations_service.delete_trace(
+            selector,
+            allow_connectivity_regression=allow_connectivity_regression,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def set_trace_width(
         self,
@@ -4834,14 +4467,15 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = SetTraceWidthOperation.model_validate(
-            {
-                "selector": selector,
-                "width": width,
-                "segment_indices": segment_indices or [],
-            }
+        return self._semantic_operations_service.set_trace_width(
+            selector,
+            width,
+            segment_indices=segment_indices,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def add_via(
         self,
@@ -4857,17 +4491,18 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = AddViaOperation.model_validate(
-            {
-                "trace_id": trace_id,
-                "x": x,
-                "y": y,
-                "via_style": via_style,
-                "layer_before": layer_before,
-                "layer_after": layer_after,
-            }
+        return self._semantic_operations_service.add_via(
+            trace_id,
+            x,
+            y,
+            via_style,
+            layer_before=layer_before,
+            layer_after=layer_after,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def move_via(
         self,
@@ -4882,16 +4517,17 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = MoveViaOperation.model_validate(
-            {
-                "selector": selector,
-                "dx": dx,
-                "dy": dy,
-                "absolute_x": absolute_x,
-                "absolute_y": absolute_y,
-            }
+        return self._semantic_operations_service.move_via(
+            selector,
+            dx=dx,
+            dy=dy,
+            absolute_x=absolute_x,
+            absolute_y=absolute_y,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def delete_via(
         self,
@@ -4902,8 +4538,9 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = DeleteViaOperation.model_validate({"selector": selector})
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
+        return self._semantic_operations_service.delete_via(
+            selector, path=path, dry_run=dry_run, expected_sha256=expected_sha256, txid=txid
+        )
 
     def set_via_style(
         self,
@@ -4915,10 +4552,14 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        operation = SetViaStyleOperation.model_validate(
-            {"selector": selector, "via_style": via_style}
+        return self._semantic_operations_service.set_via_style(
+            selector,
+            via_style,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        return self._run_semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def list_unrouted_connections(
         self,
@@ -5246,12 +4887,8 @@ class DipTraceService:
             "clearance_resolution": route.clearance_resolution,
             "assumptions": route.assumptions,
         }
-        response["clearance_rule_status"] = route.clearance_resolution[
-            "clearance_rule_status"
-        ]
-        response["netclass_rules_ignored"] = route.clearance_resolution[
-            "netclass_rules_ignored"
-        ]
+        response["clearance_rule_status"] = route.clearance_resolution["clearance_rule_status"]
+        response["netclass_rules_ignored"] = route.clearance_resolution["netclass_rules_ignored"]
         response["warnings"] = [*response.get("warnings", []), *route.warnings]
         response["limitations"] = [
             *response.get("limitations", []),
@@ -5394,12 +5031,8 @@ class DipTraceService:
             "clearance_resolution": route.clearance_resolution,
             "assumptions": route.assumptions,
         }
-        response["clearance_rule_status"] = route.clearance_resolution[
-            "clearance_rule_status"
-        ]
-        response["netclass_rules_ignored"] = route.clearance_resolution[
-            "netclass_rules_ignored"
-        ]
+        response["clearance_rule_status"] = route.clearance_resolution["clearance_rule_status"]
+        response["netclass_rules_ignored"] = route.clearance_resolution["netclass_rules_ignored"]
         response["warnings"] = [*response.get("warnings", []), *route.warnings]
         response["limitations"] = [
             *response.get("limitations", []),
@@ -5443,9 +5076,7 @@ class DipTraceService:
             max_detour=max_detour,
         )
         route = synthesize_differential_pair_route(snapshot, config)
-        resolved_config = config.model_copy(
-            update={"clearance": route.operation.clearance}
-        )
+        resolved_config = config.model_copy(update={"clearance": route.operation.clearance})
         preview = self._preview_semantic_operations(document, [route.operation])
         record = self.plans.create(
             plan_type="diff_pair_route",
@@ -5487,12 +5118,8 @@ class DipTraceService:
             limitations=record.limitations,
             resources=resources,
         )
-        response["clearance_rule_status"] = route.clearance_resolution[
-            "clearance_rule_status"
-        ]
-        response["netclass_rules_ignored"] = route.clearance_resolution[
-            "netclass_rules_ignored"
-        ]
+        response["clearance_rule_status"] = route.clearance_resolution["clearance_rule_status"]
+        response["netclass_rules_ignored"] = route.clearance_resolution["netclass_rules_ignored"]
         return response
 
     def plan_route_nets(
@@ -5622,12 +5249,9 @@ class DipTraceService:
             resources=resources,
         )
         response["clearance_rule_status"] = {
-            "per_route": [
-                item["metrics"].get("clearance_rule_status") for item in candidates
-            ],
+            "per_route": [item["metrics"].get("clearance_rule_status") for item in candidates],
             "netclass_rules_ignored": any(
-                bool(item["metrics"].get("netclass_rules_ignored", False))
-                for item in candidates
+                bool(item["metrics"].get("netclass_rules_ignored", False)) for item in candidates
             ),
         }
         response["netclass_rules_ignored"] = response["clearance_rule_status"][
@@ -5892,9 +5516,7 @@ class DipTraceService:
                 item.get("clearance_rule_status")
                 for item in synthesis.metrics.get("clearance_resolutions", [])
             ],
-            "netclass_rules_ignored": bool(
-                synthesis.metrics.get("netclass_rules_ignored", False)
-            ),
+            "netclass_rules_ignored": bool(synthesis.metrics.get("netclass_rules_ignored", False)),
         }
         response["netclass_rules_ignored"] = response["clearance_rule_status"][
             "netclass_rules_ignored"
@@ -5950,18 +5572,13 @@ class DipTraceService:
                 "priorities": [item.as_dict() for item in priorities],
                 "clearance_resolutions": clearance_resolutions,
                 "clearance_rule_status": {
-                    "per_route": [
-                        item["clearance_rule_status"]
-                        for item in clearance_resolutions
-                    ],
+                    "per_route": [item["clearance_rule_status"] for item in clearance_resolutions],
                     "netclass_rules_ignored": any(
-                        item["netclass_rules_ignored"]
-                        for item in clearance_resolutions
+                        item["netclass_rules_ignored"] for item in clearance_resolutions
                     ),
                 },
                 "netclass_rules_ignored": any(
-                    item["netclass_rules_ignored"]
-                    for item in clearance_resolutions
+                    item["netclass_rules_ignored"] for item in clearance_resolutions
                 ),
             },
             limitations=[
