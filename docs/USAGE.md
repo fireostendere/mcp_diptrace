@@ -23,7 +23,21 @@ For installation without cloning the repository, download the versioned wheel,
 source archive, Windows bridge/plugin package, and checksums from GitHub Release
 v0.1.2 and follow [INSTALL_FROM_RELEASE.md](INSTALL_FROM_RELEASE.md).
 
-### 2.1 Windows
+### 2.1 Windows one-click installer
+
+Download `DipTrace-MCP-Setup-<version>.exe`, verify its SHA-256, run it, choose
+the workspace and Codex/Claude/skip option, and restart the MCP client after
+installation. The installer performs the server `--help` smoke and writes a
+sanitized install log. Use `get_capabilities` as the runtime verification.
+
+The installer supports Full, Server only, Repair/upgrade, and Custom flows.
+It detects only validated DipTrace roots (known module executables or plugin
+module directories) in the documented Program Files locations and matching
+uninstall registry entries. A missing or ambiguous installation can be browsed
+explicitly, or integration can be skipped. It never places runtime state in
+Program Files and never removes a workspace during uninstall.
+
+### 2.2 Advanced / Developer installation (Python)
 
 Install Python 3.10 or later. The project CI covers Python 3.10, 3.12, and 3.13. Check
 the installed version:
@@ -54,7 +68,7 @@ geometry extra:
 .\.venv\Scripts\python.exe -m pip install -e ".[geometry]"
 ```
 
-### 2.2 Linux and macOS
+### 2.3 Linux and macOS
 
 The live bridge is a Windows executable, but the offline MCP server is cross-platform:
 
@@ -65,7 +79,7 @@ python -m pip install -e .
 diptrace-mcp --help
 ```
 
-### 2.3 WSL
+### 2.4 WSL
 
 DipTrace runs on Windows while the MCP server may run in WSL. Both processes must use
 the same Windows state directory:

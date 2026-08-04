@@ -34,6 +34,8 @@ _PUBLICATION_PREFIXES = (
     "benchmarks/",
     "docs/",
     "examples/",
+    "installer/",
+    "packaging/",
     "plugin/",
     "reference/",
     "scripts/",
@@ -97,6 +99,7 @@ _REQUIRED_WHEEL_FILES = frozenset(
 _REQUIRED_ENTRY_POINTS = {
     "diptrace-mcp": "diptrace_mcp.server:main",
     "diptrace-mcp-bridge": "diptrace_mcp.bridge:main",
+    "diptrace-mcp-configure": "diptrace_mcp.windows_configurator:main",
 }
 _REQUIRED_PROJECT_URLS = {
     "Documentation": "https://github.com/fireostendere/mcp_diptrace#documentation",

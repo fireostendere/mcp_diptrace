@@ -1,5 +1,33 @@
 # Install from GitHub Release Assets
 
+## Windows one-click path
+
+The target primary Windows asset is `DipTrace-MCP-Setup-<version>.exe`. This is
+the ordinary user flow once a release publishes it:
+
+1. Download the installer and verify its SHA-256 against `SHA256SUMS.txt`.
+2. Run it and choose the DipTrace project workspace.
+3. Choose Codex, Claude Desktop, both, or no client configuration.
+4. Click Install, then restart the MCP client.
+5. Verify `get_capabilities`.
+
+The installer is Windows-only, currently unsigned, and development-stage. It
+does not download code, Python, or dependencies during installation. The
+server is installed as an onedir self-contained application under
+`%LOCALAPPDATA%\Programs\DipTraceMCP`; writable state and install logs are
+kept under `%LOCALAPPDATA%\DipTraceMCP` (or the chosen state directory).
+DipTrace plug-in files under protected `Program Files` paths are the only
+operation that may trigger a narrowly scoped elevation prompt. The workspace,
+state backups, logs, and client backups are preserved by default on uninstall.
+
+The target fallback asset is `DipTrace-MCP-Portable-<version>.zip`. Extract it, run
+`tools\diptrace_mcp_configure.exe` or the packaged helper, choose a workspace,
+and run the server smoke check. It does not require Python.
+
+The bundle's current geometry status is determined by the Windows CI exact
+geometry probe. Do not infer full geometry, universal DipTrace compatibility,
+Q1 rotation validation, or Novarm permission from a successful install.
+
 This is the no-clone installation path for the development-stage `v0.1.2`
 release. Use the [GitHub Release v0.1.2](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.2)
 page and download the assets for the same version:
@@ -13,6 +41,14 @@ page and download the assets for the same version:
 
 The Python package is not published to PyPI. The Windows binary is unsigned.
 Use the GitHub release URL as the source and verify the checksums before use.
+
+No new release or tag was created by the installer work. Therefore the two
+`DipTrace-MCP-*` names above describe the future asset set and are not claims
+that the existing `v0.1.2` page already contains them.
+
+The wheel/source procedure below is the Advanced / Developer installation
+path. It remains useful for Linux, macOS, WSL, maintainers, and users who need
+editable Python code.
 
 ## 1. Verify SHA-256
 

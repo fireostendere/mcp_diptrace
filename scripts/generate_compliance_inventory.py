@@ -34,6 +34,7 @@ KNOWN_LICENSES = {
     "pyyaml": "MIT",
     "ruff": "MIT",
     "shapely": "BSD-3-Clause",
+    "tomli": "MIT",
     "typing-extensions": "PSF-2.0",
 }
 COPyleft = {"hypothesis", "pyinstaller"}

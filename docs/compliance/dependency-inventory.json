@@ -103,7 +103,7 @@
         "bridge"
       ],
       "declared_requirements": [
-        "pyinstaller>=6.14,<7"
+        "pyinstaller==6.14.2"
       ],
       "human_review_required": true,
       "license": "GPL-2.0-or-later WITH Bootloader-exception",
@@ -119,7 +119,7 @@
         "development"
       ],
       "declared_requirements": [
-        "pytest>=8.4,<9"
+        "pytest>=9.0.3,<10"
       ],
       "human_review_required": true,
       "license": "MIT",
@@ -196,6 +196,24 @@
     {
       "copyleft_or_special_terms": false,
       "declared_groups": [
+        "development",
+        "runtime"
+      ],
+      "declared_requirements": [
+        "tomli>=2.0,<3",
+        "tomli>=2.0,<3; python_version < '3.11'"
+      ],
+      "human_review_required": true,
+      "license": "MIT",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "tomli",
+      "normalized_name": "tomli",
+      "purl": "pkg:pypi/tomli",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
         "runtime"
       ],
       "declared_requirements": [
@@ -226,7 +244,8 @@
       "mypy",
       "pytest",
       "pytest-cov",
-      "ruff"
+      "ruff",
+      "tomli"
     ],
     "geometry": [
       "shapely"
@@ -234,6 +253,7 @@
     "runtime": [
       "mcp",
       "pydantic",
+      "tomli",
       "typing-extensions"
     ]
   },
@@ -250,12 +270,12 @@
     ],
     "unknown_license_metadata": []
   },
-  "inspected_commit": "a73ac649d156148b33c89f4c31009727eb0e8264",
-  "inspected_date": "2026-08-03",
+  "inspected_commit": "08ff658a5e35a72b70747d5d506f8f03ec8f8cc3",
+  "inspected_date": "2026-08-04",
   "project": {
     "license": "Apache-2.0",
     "name": "diptrace-mcp",
-    "version": "0.1.2"
+    "version": "0.2.0"
   },
   "resolution": {
     "kind": "declarative-direct-dependency-inventory",

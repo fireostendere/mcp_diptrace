@@ -1,0 +1,300 @@
+name: Windows one-click installer
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  INNO_SETUP_URL: https://github.com/jrsoftware/issrc/releases/download/is-6_4_2/innosetup-6.4.2.exe
+  INNO_SETUP_SHA256: 238e2cf82c212a3879a050e02d787283c54bcb72d5cb6070830942de56627d5b
+
+jobs:
+  build-server:
+    name: Build standalone server
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build onedir server with exact Windows constraints
+        shell: pwsh
+        run: .\scripts\build_windows_server.ps1 -PythonCommand python -OutputDir dist\windows-server -Clean
+      - name: Server CLI smoke
+        shell: pwsh
+        run: |
+          & .\dist\windows-server\diptrace_mcp_server\diptrace_mcp_server.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "server --help failed" }
+          & .\dist\windows-server\diptrace_mcp_server\diptrace_mcp_server.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "server --version failed" }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: diptrace-server-onedir
+          path: dist/windows-server/diptrace_mcp_server
+          if-no-files-found: error
+
+  build-bridge:
+    name: Build existing Windows bridge
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build the repository bridge pipeline
+        shell: pwsh
+        run: .\plugin\build_bridge.ps1 -PythonCommand python -Clean
+      - name: Bridge CLI and unsigned signature smoke
+        shell: pwsh
+        run: |
+          & .\plugin\dist\diptrace_mcp_bridge.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "bridge --help failed" }
+          .\plugin\verify_signature.ps1 -Path .\plugin\dist\diptrace_mcp_bridge.exe
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: diptrace-bridge-exe
+          path: plugin/dist/diptrace_mcp_bridge.exe
+          if-no-files-found: error
+
+  build-installer:
+    name: Build Inno Setup and portable assets
+    needs: [build-server, build-bridge]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: diptrace-server-onedir
+          path: dist/windows-server/diptrace_mcp_server
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: diptrace-bridge-exe
+          path: plugin/dist
+      - name: Build configurator
+        shell: pwsh
+        run: .\scripts\build_windows_configurator.ps1 -PythonCommand python -OutputDir dist\windows-configurator -Clean
+      - name: Download and verify pinned Inno Setup compiler
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:RUNNER_TEMP 'innosetup-6.4.2.exe'
+          Invoke-WebRequest -Uri $env:INNO_SETUP_URL -OutFile $package
+          $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $env:INNO_SETUP_SHA256) { throw "Inno Setup prerequisite hash mismatch" }
+          $process = Start-Process -FilePath $package -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Inno Setup prerequisite installation failed" }
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $iscc)) { throw "Pinned ISCC.exe was not installed" }
+          "ISCC_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build unsigned installer and portable fallback
+        shell: pwsh
+        run: .\scripts\build_windows_installer.ps1 -Version 0.1.2 -PythonCommand python -BridgePath .\plugin\dist\diptrace_mcp_bridge.exe -IsccPath "$env:ISCC_PATH" -OutputDir dist\windows-artifacts -SkipBuild
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: diptrace-windows-artifacts
+          path: dist/windows-artifacts
+          if-no-files-found: error
+
+  installer-smoke:
+    name: Silent install, upgrade, uninstall, and stdio smoke
+    needs: build-installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: diptrace-windows-artifacts
+          path: dist/windows-artifacts
+      - name: Verify portable bundle and checksum manifest
+        shell: pwsh
+        run: |
+          $portable = Get-ChildItem .\dist\windows-artifacts\portable\DipTrace-MCP-Portable-*.zip | Select-Object -First 1
+          Expand-Archive -LiteralPath $portable.FullName -DestinationPath "$env:RUNNER_TEMP\portable" -Force
+          python scripts/audit_windows_bundle.py --root "$env:RUNNER_TEMP\portable" --sha256 "$env:RUNNER_TEMP\portable\SHA256SUMS.txt" --json
+          & "$env:RUNNER_TEMP\portable\app\diptrace_mcp_server.exe" --help
+          if ($LASTEXITCODE -ne 0) { throw "portable server smoke failed" }
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\portable-workspace" | Out-Null
+          Copy-Item -LiteralPath .\tests\fixtures\pcb.xml -Destination "$env:RUNNER_TEMP\portable-workspace\pcb.xml"
+      - name: Silent server-only install with spaces and Unicode workspace
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe | Select-Object -First 1
+          $root = Join-Path $env:RUNNER_TEMP 'DipTrace MCP installer smoke'
+          $install = Join-Path $root 'installed server'
+          $workspace = Join-Path $root 'Проекты DipTrace'
+          $state = Join-Path $root 'local state'
+          $setupLog = Join-Path $root 'setup.log'
+          New-Item -ItemType Directory -Force -Path $workspace | Out-Null
+          Set-Content -LiteralPath (Join-Path $workspace 'fixture.txt') -Value 'preserve' -Encoding utf8
+          $setupArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$setupLog`"", '/TYPE=server', '/SERVERONLY', '/CLIENT=none', "/DIR=`"$install`"", "/WORKSPACE=`"$workspace`"", "/STATEDIR=`"$state`"")
+          $setupProcess = Start-Process -FilePath $setup.FullName -ArgumentList $setupArgs -Wait -PassThru
+          $setupExit = $setupProcess.ExitCode
+          if ($setupExit -ne 0) {
+            Write-Host "Silent server-only setup exit code: $setupExit"
+            if (Test-Path -LiteralPath $setupLog) { Get-Content -LiteralPath $setupLog }
+            $stateLogs = Join-Path $state 'logs'
+            if (Test-Path -LiteralPath $stateLogs) {
+              Get-ChildItem -LiteralPath $stateLogs -File | ForEach-Object {
+                Write-Host "--- $($_.FullName) ---"
+                Get-Content -LiteralPath $_.FullName
+              }
+            }
+            throw "silent server-only install failed"
+          }
+          $server = Join-Path $install 'app\diptrace_mcp_server.exe'
+          & $server --help
+          if ($LASTEXITCODE -ne 0) { throw "installed server --help failed" }
+          $manifestPath = Join-Path $install 'installation-manifest.json'
+          if (-not (Test-Path -LiteralPath $manifestPath)) { throw "installation manifest missing" }
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+          if ($manifest.PSObject.Properties.Name -notcontains 'created_by') { throw "installer did not write the runtime installation manifest" }
+          $stateMarker = Join-Path $install 'state-dir.txt'
+          if (-not (Test-Path -LiteralPath $stateMarker)) { throw "installer state marker missing" }
+          $actualState = (Get-Content -LiteralPath $stateMarker -Raw).Trim()
+          Write-Host "Installer manifest state_dir: $($manifest.state_dir)"
+          Write-Host "Installer state marker: $actualState"
+          Write-Host "Expected state directory: $state"
+          if ([IO.Path]::GetFullPath($actualState) -ne [IO.Path]::GetFullPath($state)) { throw "installer resolved a different state directory" }
+          $stateLogs = Join-Path $state 'logs'
+          if (-not (Test-Path -LiteralPath $stateLogs)) {
+            throw "install log directory missing"
+          }
+          if (-not (Get-ChildItem -LiteralPath $stateLogs -Filter 'install-*.log')) { throw "install log missing" }
+          Set-Content -LiteralPath (Join-Path $state 'keep.txt') -Value 'keep' -Encoding utf8
+          $uninstallProcess = Start-Process -FilePath (Join-Path $install 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+          if ($uninstallProcess.ExitCode -ne 0) { throw "silent default uninstall failed" }
+          if (-not (Test-Path -LiteralPath (Join-Path $workspace 'fixture.txt'))) { throw "workspace was removed" }
+          if (-not (Test-Path -LiteralPath (Join-Path $state 'keep.txt'))) { throw "state was removed by default" }
+      - name: Full install, repair/idempotency, and optional state removal
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe | Select-Object -First 1
+          $root = Join-Path $env:RUNNER_TEMP 'DipTrace MCP full smoke'
+          $diptrace = Join-Path $root 'DipTrace5'
+          $install = Join-Path $root 'installed full'
+          $workspace = Join-Path $root 'Рабочие проекты'
+          $state = Join-Path $root 'state'
+          New-Item -ItemType Directory -Force -Path $diptrace, $workspace | Out-Null
+          Set-Content -LiteralPath (Join-Path $diptrace 'Pcb.exe') -Value 'synthetic module' -Encoding utf8
+          Set-Content -LiteralPath (Join-Path $workspace 'fixture.txt') -Value 'preserve' -Encoding utf8
+          function Invoke-BoundedInstallerProcess {
+            param(
+              [Parameter(Mandatory = $true)] [string]$FilePath,
+              [Parameter(Mandatory = $true)] [string[]]$ArgumentList,
+              [Parameter(Mandatory = $true)] [string]$Label
+            )
+            Write-Host "Starting $Label"
+            $process = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -PassThru
+            if (-not $process.WaitForExit(180000)) {
+              Write-Host "$Label exceeded the 180 second CI bound; terminating its process tree."
+              & taskkill.exe /PID $process.Id /T /F | Out-Host
+              throw "$Label timed out"
+            }
+            $process.Refresh()
+            Write-Host "$Label exited with code $($process.ExitCode)"
+            return $process.ExitCode
+          }
+          $fullSetupArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TYPE=full', '/CLIENT=none', "/DIR=`"$install`"", "/DIPTRACE=`"$diptrace`"", "/WORKSPACE=`"$workspace`"", "/STATEDIR=`"$state`"")
+          if ((Invoke-BoundedInstallerProcess -FilePath $setup.FullName -ArgumentList $fullSetupArgs -Label 'silent full install') -ne 0) { throw "silent full install failed" }
+          foreach ($module in @('Pcb','Schematic','CompEdit','PattEdit')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $diptrace "Plugins\$module\DipTraceMCP\settings.xml"))) { throw "settings missing for $module" }
+          }
+          $ownedStateMarker = Join-Path $state 'records\owned.txt'
+          $unknownStateMarker = Join-Path $state 'user-state.txt'
+          New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ownedStateMarker) | Out-Null
+          Set-Content -LiteralPath $ownedStateMarker -Value 'remove' -Encoding utf8
+          Set-Content -LiteralPath $unknownStateMarker -Value 'preserve' -Encoding utf8
+          if ((Invoke-BoundedInstallerProcess -FilePath $setup.FullName -ArgumentList $fullSetupArgs -Label 'repair/second install') -ne 0) { throw "repair/second install failed" }
+          $uninstallLog = Join-Path $root 'optional-state-uninstall.log'
+          $uninstallArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/REMOVE_STATE', "/LOG=`"$uninstallLog`"")
+          try {
+            if ((Invoke-BoundedInstallerProcess -FilePath (Join-Path $install 'unins000.exe') -ArgumentList $uninstallArgs -Label 'optional state uninstall') -ne 0) { throw "optional state uninstall failed" }
+          } catch {
+            if (Test-Path -LiteralPath $uninstallLog) {
+              Write-Host '--- optional-state-uninstall.log ---'
+              Get-Content -LiteralPath $uninstallLog -Tail 120
+            }
+            throw
+          }
+          foreach ($module in @('Pcb','Schematic','CompEdit','PattEdit')) {
+            if (Test-Path -LiteralPath (Join-Path $diptrace "Plugins\$module\DipTraceMCP")) { throw "plugin directory survived uninstall for $module" }
+          }
+          if (-not (Test-Path -LiteralPath (Join-Path $workspace 'fixture.txt'))) { throw "workspace was removed on full uninstall" }
+          if (Test-Path -LiteralPath $ownedStateMarker) { throw "optional state removal did not remove owned state" }
+          if (-not (Test-Path -LiteralPath $unknownStateMarker)) { throw "optional state removal removed unknown user state" }
+      - name: Frozen server MCP stdio initialize tools/list capabilities and read-only XML tool
+        shell: pwsh
+        run: |
+          $portable = "$env:RUNNER_TEMP\portable\app\diptrace_mcp_server.exe"
+          $smoke = python scripts/frozen_server_smoke.py --server "$portable" --workspace "$env:RUNNER_TEMP\portable-workspace" --document pcb.xml --timeout 45
+          if ($LASTEXITCODE -ne 0) { throw "frozen server MCP smoke failed" }
+          $smoke
+          $help = Measure-Command {
+            & $portable --help | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "portable --help failed during timing" }
+          }
+          $installer = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe | Select-Object -First 1
+          $portableZip = Get-ChildItem .\dist\windows-artifacts\portable\DipTrace-MCP-Portable-*.zip | Select-Object -First 1
+          $serverBytes = (Get-ChildItem "$env:RUNNER_TEMP\portable\app" -File -Recurse | Measure-Object -Property Length -Sum).Sum
+          "server_bundle_bytes=$serverBytes"
+          "bridge_bytes=$((Get-Item "$env:RUNNER_TEMP\portable\bridge\diptrace_mcp_bridge.exe").Length)"
+          "portable_zip_bytes=$($portableZip.Length)"
+          "installer_bytes=$($installer.Length)"
+          "server_help_seconds=$([math]::Round($help.TotalSeconds, 3))"
+
+  artifact-audit:
+    name: Artifact, provenance, and unsigned-status audit
+    needs: build-installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: diptrace-windows-artifacts
+          path: dist/windows-artifacts
+      - name: Audit portable contents and hashes
+        shell: pwsh
+        run: |
+          $portable = Get-ChildItem .\dist\windows-artifacts\portable\DipTrace-MCP-Portable-*.zip | Select-Object -First 1
+          Expand-Archive -LiteralPath $portable.FullName -DestinationPath "$env:RUNNER_TEMP\audit-portable" -Force
+          python scripts/audit_windows_bundle.py --root "$env:RUNNER_TEMP\audit-portable" --sha256 "$env:RUNNER_TEMP\audit-portable\SHA256SUMS.txt" --json
+      - name: Verify unsigned development artifacts fail closed when signing is required
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe | Select-Object -First 1
+          $result = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+          if ($result.Status -ne 'NotSigned') { Write-Host "Installer status is $($result.Status); retaining evidence." }
+          $requireSignExit = 0
+          try {
+            & .\plugin\verify_signature.ps1 -Path $installer.FullName -RequireSigned -ExpectedSignerSubject 'HUMAN_ACTION_REQUIRED'
+            $requireSignExit = $LASTEXITCODE
+          } catch {
+            Write-Host "Expected fail-closed signing result: $($_.Exception.Message)"
+            $requireSignExit = 1
+          }
+          if ($requireSignExit -eq 0) { throw "unsigned installer passed a required-signing check" }
+          Write-Host "Unsigned installer correctly failed the required-signing check."

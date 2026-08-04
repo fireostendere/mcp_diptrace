@@ -43,6 +43,32 @@ function Test-IsPathWithin {
         )
 }
 
+function Test-DipTraceLayout {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    $ExecutableNames = @("Pcb.exe", "Schematic.exe", "CompEdit.exe", "PattEdit.exe")
+    $ModuleDirectories = @(
+        "Plugins\Pcb",
+        "Plugins\Schematic",
+        "Plugins\CompEdit",
+        "Plugins\PattEdit"
+    )
+    foreach ($Name in $ExecutableNames) {
+        if (Test-Path -LiteralPath (Join-Path $Root $Name) -PathType Leaf) {
+            return $true
+        }
+    }
+    foreach ($Relative in $ModuleDirectories) {
+        if (Test-Path -LiteralPath (Join-Path $Root $Relative) -PathType Container) {
+            return $true
+        }
+    }
+    return $false
+}
+
 function Get-Sha256Hex {
     param(
         [Parameter(Mandatory = $true)]
@@ -88,7 +114,9 @@ function Assert-CopiedFile {
 if (-not $DipTraceDir) {
     $InstallCandidates = @(
         (Join-Path $env:ProgramFiles "DipTrace5"),
-        (Join-Path $env:ProgramFiles "DipTrace")
+        (Join-Path $env:ProgramFiles "DipTrace"),
+        (Join-Path ${env:ProgramFiles(x86)} "DipTrace5"),
+        (Join-Path ${env:ProgramFiles(x86)} "DipTrace")
     )
     $DipTraceDir = $InstallCandidates |
         Where-Object { Test-Path -LiteralPath $_ -PathType Container } |
@@ -100,6 +128,13 @@ if (-not $DipTraceDir) {
 
 if (-not (Test-Path -LiteralPath $DipTraceDir -PathType Container)) {
     throw "DipTrace directory not found: $DipTraceDir"
+}
+$DipTraceDir = (Resolve-Path -LiteralPath $DipTraceDir -ErrorAction Stop).Path
+if (-not $Uninstall -and -not (Test-DipTraceLayout -Root $DipTraceDir)) {
+    throw (
+        "DipTrace directory is not recognized: expected Pcb.exe, Schematic.exe, " +
+        "CompEdit.exe, PattEdit.exe, or a Plugins module directory under $DipTraceDir"
+    )
 }
 
 $ProtectedRoots = @($env:ProgramFiles, ${env:ProgramFiles(x86)}) |

@@ -10,6 +10,7 @@ $VenvDir = Join-Path $RepoRoot ".venv-bridge"
 $BuildDir = Join-Path $RepoRoot ".build\pyinstaller"
 $DistDir = Join-Path $PluginDir "dist"
 $EntryPoint = Join-Path $PluginDir "bridge_entry.py"
+$Constraints = Join-Path $RepoRoot "packaging\windows-constraints.txt"
 
 if ($Clean) {
     Remove-Item -Recurse -Force $VenvDir, $BuildDir, $DistDir -ErrorAction SilentlyContinue
@@ -33,7 +34,7 @@ $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 # produces an executable that fails with ModuleNotFoundError at runtime.
 Push-Location $RepoRoot
 try {
-    & $VenvPython -m pip install ".[bridge]"
+    & $VenvPython -m pip install --disable-pip-version-check -c $Constraints ".[bridge]"
 } finally {
     Pop-Location
 }
