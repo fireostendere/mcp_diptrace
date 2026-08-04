@@ -2,7 +2,7 @@ DipTrace MCP — Windows no-Python bundle
 
 Recommended path
 ----------------
-Run DipTrace-MCP-Setup-0.2.0.exe and follow the wizard.
+Run DipTrace-MCP-Setup-0.2.1.exe and follow the wizard.
 
 Portable fallback
 -----------------
