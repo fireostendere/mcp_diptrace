@@ -2,71 +2,67 @@
 
 ## Unreleased
 
-- complete the first service-facade decomposition pass with typed shared context,
-  a single document gateway, and explicit in-process domain services;
-- extract document/read models, BOM/component metadata, review/findings and
-  signal-integrity analysis, discovery, exports, jobs, external adapters,
-  routing, placement, semantic operations, synchronization, XML writes,
-  scaffolding, transactions, evidence/trust, and live sessions while preserving
-  the 159-tool MCP surface;
-- preserve singleton store ownership, explicit Facade signatures, stable error
-  contracts, SHA/policy/atomic-write boundaries, live-session leases, and the
-  server-owned thread-offload boundary;
-- document the remaining Facade assembly/callback responsibilities and the
-  follow-on plan-application/capability candidates;
-- disclose pending live component-angle evidence and expose structured evidence warnings;
-- resolve routing and trace-to-trace review clearances from board defaults plus affected NetClasses;
-- add a centralized service-to-MCP error boundary with stable public error codes and safe details;
-- remove verbatim external reference extracts and source-derived inventory from public surfaces;
-- add a clean-room factual inventory generator and a pending DipTrace 5.3 fixture-pack manifest;
-- make unresolved trace-clearance pairs explicit and publish their structured
-  skip reasons and effective clearance rule sources;
-- bound partial trace-clearance detail output, avoid quadratic pair enumeration
-  when rules are unavailable, and separate partial-review status from actual
-  NetClass-rule omission;
-- verify the service-to-MCP error contract through connected
-  `session.call_tool` calls and prevent nested typed-result error wrapping;
-- refresh the dated external GitHub ruleset evidence without changing the
-  ruleset;
-- document the remaining live-evidence, provenance, and partial-clearance limitations.
-- add a Windows onedir server bundle, safe Codex/Claude configurator, Inno Setup
-  installer, portable fallback, install manifest, and fail-closed upgrade/uninstall
-  behavior;
-- add Windows CI smoke/audit coverage for no-Python installation, settings
-  profiles, Unicode paths, client-config backups, checksums, and unsigned status;
-- audit the FastMCP synchronous worker-thread boundary and add connected
-  responsiveness probes for blocking I/O and CPU-heavy work;
-- publish CI status and deterministic coverage-gate badges whose threshold is
-  generated from the enforced workflow value;
-- harden 0.2.0 release preparation with state ownership markers, compensating
-  plug-in rollback, working portable paths, final-asset checksums, and complete
-  executable-signature gates.
+No unreleased user-visible changes are recorded after the `v0.2.0`
+finalisation candidate.
+
+## 0.2.0 - 2026-08-04
+
+### Added
+
+- Windows onedir server, Inno Setup installer, portable bundle, and guarded
+  Codex/Claude Desktop configurator.
+- Typed in-process domain services for document reads, BOM and component
+  metadata, review, discovery, exports, jobs, external adapters, routing,
+  placement, semantic operations, synchronization, XML writes, scaffolding,
+  transactions, evidence, and live sessions.
+- Central service-to-MCP error boundary with stable public error codes and
+  bounded safe details.
+- NetClass-aware routing and trace-to-trace review-clearance resolution with
+  structured partial-review and skip reporting.
+- Clean-room factual inventory generation, pending current-version fixture
+  manifests, evidence warnings, SBOM, dependency inventory, provenance records,
+  and deterministic release-artifact auditing.
+- Project-owned AnyIO worker-thread boundary and connected responsiveness probes
+  for all registered MCP tools.
+
+### Changed
+
+- Completed the first service-Facade decomposition pass while preserving the
+  159-tool MCP surface, all 157 public `DipTraceService` signatures, and 148
+  explicit delegations.
+- Preserved singleton store ownership, stable error contracts,
+  SHA/policy/atomic-write boundaries, live-session leases, and the server-owned
+  thread-offload boundary.
+- Removed verbatim external reference extracts and source-derived inventory from
+  public surfaces.
+- Hardened installer ownership, compensating plug-in rollback, uninstall/state
+  preservation, portable paths, final-asset checksums, and executable-signature
+  gates.
+- Published CI status and deterministic coverage-gate metadata generated from
+  the enforced workflow threshold.
+
+### Validation and limitations
+
+- Exact PR #48 implementation head passed CI run `30933874564`, Windows
+  installer run `30933874350`, `1074 passed, 4 skipped` on the geometry-enabled
+  Linux coverage job, and `1062 passed, 16 skipped` on Windows.
+- Exact PR #49 release-preparation head passed CI run `30940972328` and Windows
+  installer run `30940972331` across Linux 3.10/3.12/3.13, macOS, Windows,
+  geometry, fallback, static analysis, DCO, MCP contract, decomposition,
+  provenance, and artifact audits.
+- The release is an explicitly unsigned alpha/development prerelease. SHA-256
+  checks establish byte identity, not publisher trust.
+- Universal DipTrace 5.x compatibility, production readiness, independent
+  review, Novarm/DipTrace endorsement, and complete manufacturing sign-off are
+  not claimed.
+- Q1 Component Angle GUI/re-export evidence remains `NOT_RUN`; runtime
+  `get_capabilities` remains authoritative for each installation and document.
 
 This file records user-visible project changes. Version `0.1.0` was the first
 tagged release; the withdrawn `0.1.1` release and the corrected `0.1.2`
 development release are retained as separate historical records.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
-### Documentation
-
-- Activated and verified the main-branch GitHub ruleset; pull requests require
-  DCO plus nine unique technical CI contexts (eleven API status records).
-- Completed a post-merge security and compliance audit of the current tree and
-  reachable Git history.
-- Added reproducible deep secret-scanning, dependency-audit, and clean-room
-  audit tools; their raw reports remain owner-private.
-- Finalized the post-publication `v0.1.2` provenance with the immutable release
-  commit, exact-head CI run, public asset inventory, checksum verification, and
-  public-download smoke results.
-- Distinguished the frozen candidate coverage measurement from the exact-head
-  GitHub CI coverage measurement.
-- Reconciled the public release checklist with the verification work that was
-  completed during publication.
-- Opened contribution intake under DCO 1.1, added provenance/privacy checks,
-  and added reproducible dependency, SBOM, and signing-preparation records.
-- Removed forum-announcement drafts from the public tree; external announcement
-  materials are maintained privately by the repository owner.
 
 ## 0.1.2 - 2026-08-01
 
@@ -81,16 +77,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Added the release installation guide.
 - Added the withdrawn `v0.1.1` record and the `v0.1.2` release record.
+- Activated and verified the main-branch GitHub ruleset; pull requests require
+  DCO plus nine unique technical CI contexts.
+- Completed a post-merge security and compliance audit of the current tree and
+  reachable Git history.
+- Added reproducible deep secret-scanning, dependency-audit, and clean-room
+  audit tools; raw reports remain owner-private.
+- Finalized the post-publication `v0.1.2` provenance with the immutable release
+  commit, exact-head CI run, public asset inventory, checksum verification, and
+  public-download smoke results.
+- Opened contribution intake under DCO 1.1 and added provenance/privacy checks.
 
 ### Validation
 
 - Frozen candidate/local run: Python 3.12.3, Shapely 2.1.2, GEOS 3.13.1,
   991 passed, 4 skipped, 16,922 statements, 2,379 missed, and 85.941378%
   total coverage.
-- Exact-head GitHub CI run `30709466348`: all eight required Linux, macOS,
-  Windows, geometry, fallback, static-analysis, generated-artifact, and native
-  bridge jobs passed; its Python 3.12.13 coverage result was 991 passed,
-  4 skipped, 16,922 statements, 2,375 missed, and 85.9650% total.
+- Exact-head GitHub CI run `30709466348`: all required Linux, macOS, Windows,
+  geometry, fallback, static-analysis, generated-artifact, and native bridge
+  jobs passed; its Python 3.12.13 coverage result was 991 passed, 4 skipped,
+  16,922 statements, 2,375 missed, and 85.9650% total.
 - Wheel/sdist audit, direct-wheel versus sdist-rebuilt-wheel comparison,
   clean-wheel installation, CLI and MCP stdio smoke, exact-CI Windows bridge
   provenance, plug-in ZIP/settings validation, checksums, and public-download
@@ -117,14 +123,16 @@ that a critical runtime vulnerability existed is made. It is superseded by
 
 - Completed Windows DipTrace 5.2.0.4 ↔ WSL MCP live acceptance for PCB and
   Schematic apply/cancel/wrong-SHA paths, including GUI checks, independent
-  save/re-export comparisons, path invariants, and connectivity/count preservation.
-- Added focused unit coverage for non-WSL Windows-path refusal, relative WSL mount
-  roots, POSIX-path refusal on Windows, and invalid path-platform metadata.
+  save/re-export comparisons, path invariants, and connectivity/count
+  preservation.
+- Added focused unit coverage for non-WSL Windows-path refusal, relative WSL
+  mount roots, POSIX-path refusal on Windows, and invalid path-platform metadata.
 
 ### Documentation
 
-- Reconciled English and Russian readiness, testing, architecture, compatibility,
-  usage, roadmap, and release-policy documentation with the 2026-07-31 evidence.
+- Reconciled English and Russian readiness, testing, architecture,
+  compatibility, usage, roadmap, and release-policy documentation with the
+  2026-07-31 evidence.
 - Added a dated code-review record and live-acceptance record.
 
 ## 0.1.0 - 2026-07-30
@@ -144,8 +152,8 @@ that a critical runtime vulnerability existed is made. It is superseded by
 - Citation metadata for the repository's current development state.
 - An exact, versioned release-file allowlist and CI audit for Python source
   distributions and wheels.
-- Public package metadata for repository, documentation, and issue links,
-  plus EDA-focused classifiers without a premature license classifier.
+- Public package metadata for repository, documentation, and issue links, plus
+  EDA-focused classifiers without a premature license classifier.
 
 ### Fixed
 
@@ -162,12 +170,14 @@ that a critical runtime vulnerability existed is made. It is superseded by
   remain open for a fully verified release line.
 - No community size, adoption, sponsorship, vendor endorsement, signed binary,
   package-index release, or support-program acceptance is asserted.
-- Python wheels intentionally contain the MCP server and eight packaged
-  skills, while Windows bridge installation scripts and settings remain
-  separate source/release assets.
+- Python wheels intentionally contain the MCP server and eight packaged skills,
+  while Windows bridge installation scripts and settings remain separate
+  source/release assets.
 
 Version `0.1.0` is published as tag `v0.1.0`; its provenance record is
 [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) and the release assets on
 GitHub.
 
+[0.2.0]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0
+[0.1.2]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.2
 [0.1.0]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.0
