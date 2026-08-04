@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from typing import cast
 from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).absolute().parents[1]
@@ -57,7 +58,10 @@ def generate(version: str, mcpb_url: str, digest: str) -> dict[str, object]:
         "__MCPB_URL__": mcpb_url,
         "__MCPB_SHA256__": digest,
     }
-    result = _replace(template, replacements)
+    replaced = _replace(template, replacements)
+    if not isinstance(replaced, dict):
+        raise RegistryMetadataError("registry template root must be an object")
+    result = cast(dict[str, object], replaced)
     encoded = json.dumps(result, sort_keys=True)
     if "__" in encoded:
         raise RegistryMetadataError("unresolved registry template placeholder")
