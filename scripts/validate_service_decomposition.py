@@ -28,6 +28,8 @@ ALWAYS_WRITE_CAPABLE = frozenset(
         "_atomic_write_bytes",
         "_write_provenance_sidecar_callback",
         "_invalidate_document_trust_after_write_callback",
+        "_raw_preview_store_provider",
+        "raw_previews",
         "_run_semantic_write",
         "_run_semantic_operations",
         "invalidate_document_trust_after_write",
@@ -95,6 +97,7 @@ PURE_FUNCTION_NAMES = frozenset(
         "apply_semantic_operations",
     }
 )
+FACADE_PERSISTENT_CONSTRUCTOR_NAMES = frozenset({"RawPreviewStore"})
 
 
 def _all_methods() -> dict[str, MethodNode]:
@@ -150,11 +153,11 @@ def _facade_service_classes() -> dict[str, str]:
 
 
 def _delegated_service_targets() -> dict[str, tuple[str, str]]:
-    """Return public Facade methods and their constructed service class targets."""
+    """Return Facade methods and their constructed service class targets."""
 
     service_classes = _facade_service_classes()
     result: dict[str, tuple[str, str]] = {}
-    for name, method in _public_methods().items():
+    for name, method in _all_methods().items():
         body = list(method.body)
         if (
             body
@@ -257,6 +260,19 @@ def _delegated_persistent_methods() -> set[str]:
     return result
 
 
+def _facade_persistent_methods() -> set[str]:
+    result: set[str] = set()
+    for name, method in _all_methods().items():
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in FACADE_PERSISTENT_CONSTRUCTOR_NAMES
+            for node in ast.walk(method)
+        ):
+            result.add(name)
+    return result
+
+
 def _write_capable_methods() -> set[str]:
     result = set(ALWAYS_WRITE_CAPABLE)
     for name, method in _public_methods().items():
@@ -268,6 +284,7 @@ def _write_capable_methods() -> set[str]:
         if any(parameter.arg == "dry_run" for parameter in parameters):
             result.add(name)
     result.update(_delegated_persistent_methods())
+    result.update(_facade_persistent_methods())
     return result
 
 

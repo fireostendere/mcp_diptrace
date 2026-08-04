@@ -111,6 +111,25 @@ class DipTraceService:
 """,
         "board_model",
     )
+    keyword_swapped = _method_from_source(
+        """
+class DipTraceService:
+    def board_model(self, source_path, saved_path):
+        return self._document_service.board_model(
+            source_path=saved_path,
+            saved_path=source_path,
+        )
+""",
+        "board_model",
+    )
+    keyword_only_positional = _method_from_source(
+        """
+class DipTraceService:
+    def board_model(self, path, *, section):
+        return self._document_service.board_model(path, section)
+""",
+        "board_model",
+    )
 
     with pytest.raises(ValueError, match="permutes positional"):
         _delegation(swapped)
@@ -118,6 +137,10 @@ class DipTraceService:
         _delegation(missing)
     with pytest.raises(ValueError, match="transforms Facade parameter"):
         _delegation(substituted)
+    with pytest.raises(ValueError, match="maps Facade parameter"):
+        _delegation(keyword_swapped)
+    with pytest.raises(ValueError, match="keyword-only"):
+        _delegation(keyword_only_positional)
 
 
 def test_manifest_records_function_kind_and_public_descriptors() -> None:
@@ -142,7 +165,14 @@ def test_manifest_records_function_kind_and_public_descriptors() -> None:
 def test_safety_effect_audit_distinguishes_persistent_and_pure_methods() -> None:
     write_capable = _write_capable_methods()
 
-    assert {"export_bom", "inspect_autorouter_result", "run_review"} <= write_capable
+    assert {
+        "_export_release_manifest",
+        "export_bom",
+        "inspect_autorouter_result",
+        "raw_previews",
+        "_raw_preview_store_provider",
+        "run_review",
+    } <= write_capable
     assert "group_bom" not in write_capable
     assert "review_testpoint_coverage" not in write_capable
 

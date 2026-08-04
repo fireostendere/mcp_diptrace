@@ -143,6 +143,26 @@ def _parameter_names(method: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str
     )
 
 
+def _parameter_kinds(method: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, str]:
+    arguments = method.args
+    kinds = {
+        argument.arg: "positional_only"
+        for argument in arguments.posonlyargs
+    }
+    kinds.update(
+        {
+            argument.arg: "positional_or_keyword"
+            for argument in arguments.args
+        }
+    )
+    if arguments.vararg is not None:
+        kinds[arguments.vararg.arg] = "var_positional"
+    kinds.update({argument.arg: "keyword_only" for argument in arguments.kwonlyargs})
+    if arguments.kwarg is not None:
+        kinds[arguments.kwarg.arg] = "var_keyword"
+    return kinds
+
+
 def _service_call(
     method: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> tuple[str, str, ast.Call] | None:
@@ -189,19 +209,66 @@ def _validate_forwarding(
     method: ast.FunctionDef | ast.AsyncFunctionDef,
     call: ast.Call,
 ) -> None:
-    parameters = _parameter_names(method)
+    parameter_kinds = _parameter_kinds(method)
+    parameters = list(parameter_kinds)
     if parameters and parameters[0] == "self":
         parameters = parameters[1:]
+        parameter_kinds.pop("self", None)
     parameter_set = set(parameters)
     forwarded: list[str] = []
     positional_forwarded: list[str] = []
 
-    def record(value: ast.AST, *, positional: bool) -> None:
+    def record(
+        value: ast.AST,
+        *,
+        form: str,
+        keyword_name: str | None = None,
+    ) -> None:
         if isinstance(value, ast.Name) and value.id in parameter_set:
-            forwarded.append(value.id)
-            if positional:
-                positional_forwarded.append(value.id)
+            name = value.id
+            kind = parameter_kinds[name]
+            if form == "keyword":
+                if keyword_name != name:
+                    raise ValueError(
+                        f"{method.name} delegated wrapper maps Facade parameter "
+                        f"{name!r} to keyword {keyword_name!r}"
+                    )
+                if kind == "positional_only":
+                    raise ValueError(
+                        f"{method.name} delegated wrapper passes positional-only "
+                        f"parameter {name!r} as a keyword"
+                    )
+            elif form == "positional":
+                if kind == "keyword_only":
+                    raise ValueError(
+                        f"{method.name} delegated wrapper passes keyword-only "
+                        f"parameter {name!r} positionally"
+                    )
+                if kind in {"var_positional", "var_keyword"}:
+                    raise ValueError(
+                        f"{method.name} delegated wrapper must preserve the "
+                        f"*{name} forwarding form"
+                    )
+                positional_forwarded.append(name)
+            elif form == "starred":
+                if kind != "var_positional":
+                    raise ValueError(
+                        f"{method.name} delegated wrapper must use *args only "
+                        f"for var-positional parameter {name!r}"
+                    )
+            elif form == "kwargs":
+                if kind != "var_keyword":
+                    raise ValueError(
+                        f"{method.name} delegated wrapper must use **kwargs only "
+                        f"for var-keyword parameter {name!r}"
+                    )
+            forwarded.append(name)
             return
+        if form in {"starred", "kwargs"}:
+            raise ValueError(
+                f"{method.name} delegated wrapper must forward *args/**kwargs "
+                "directly"
+            )
         referenced = {
             node.id
             for node in ast.walk(value)
@@ -215,9 +282,15 @@ def _validate_forwarding(
             )
 
     for argument in call.args:
-        record(argument.value if isinstance(argument, ast.Starred) else argument, positional=True)
+        if isinstance(argument, ast.Starred):
+            record(argument.value, form="starred")
+        else:
+            record(argument, form="positional")
     for keyword in call.keywords:
-        record(keyword.value, positional=False)
+        if keyword.arg is None:
+            record(keyword.value, form="kwargs")
+        else:
+            record(keyword.value, form="keyword", keyword_name=keyword.arg)
 
     missing = [name for name in parameters if name not in forwarded]
     duplicated = sorted(name for name in parameter_set if forwarded.count(name) > 1)
