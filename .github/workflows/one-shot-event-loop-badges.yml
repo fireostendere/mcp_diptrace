@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - perf/event-loop-responsiveness-badges
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply-test-commit:
-    if: ${{ !contains(github.event.head_commit.message, '[event-loop-badges-applied]') }}
+    if: ${{ !contains(github.event.head_commit.message || github.event.pull_request.title, '[event-loop-badges-applied]') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
