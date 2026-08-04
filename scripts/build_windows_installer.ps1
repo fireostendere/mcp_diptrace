@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "0.2.0",
+    [string]$Version = "0.2.1",
     [string]$PythonCommand = "py",
     [string]$BridgePath,
     [string]$IsccPath,
@@ -78,117 +78,89 @@ function Test-StagedBundle([string]$Root) {
     }
 }
 
+function Assert-Signature([string]$Path, [bool]$Required) {
+    $verify = Join-Path $RepoRoot 'plugin\verify_signature.ps1'
+    $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $verify, '-Path', $Path)
+    if ($Required) {
+        $args += '-Required'
+        if (-not [string]::IsNullOrWhiteSpace($ExpectedSignerSubject)) {
+            $args += @('-ExpectedSubject', $ExpectedSignerSubject)
+        }
+    }
+    Invoke-Checked 'powershell' $args
+}
+
 try {
     if (-not $SkipBuild) {
-        $serverArgs = @('-PythonCommand', $PythonCommand, '-OutputDir', 'dist\windows-server', '-Clean')
+        $serverArgs = @('-ExecutionPolicy', 'Bypass', '-File', (Join-Path $RepoRoot 'scripts\build_windows_server.ps1'), '-PythonCommand', $PythonCommand, '-OutputDir', 'dist\windows-server', '-Clean')
         if ($NoGeometry) { $serverArgs += '-NoGeometry' }
-        Invoke-Checked (Join-Path $RepoRoot 'scripts\build_windows_server.ps1') $serverArgs
-        Invoke-Checked (Join-Path $RepoRoot 'scripts\build_windows_configurator.ps1') @('-PythonCommand', $PythonCommand, '-OutputDir', 'dist\windows-configurator', '-Clean')
-        if (-not $BridgePath) { $BridgePath = $BridgeDefault }
-        if (-not (Test-Path -LiteralPath $BridgePath -PathType Leaf)) {
-            Invoke-Checked (Join-Path $RepoRoot 'plugin\build_bridge.ps1') @('-PythonCommand', $PythonCommand, '-Clean')
-        }
+        Invoke-Checked 'powershell' $serverArgs
+        Invoke-Checked 'powershell' @('-ExecutionPolicy', 'Bypass', '-File', (Join-Path $RepoRoot 'scripts\build_windows_configurator.ps1'), '-PythonCommand', $PythonCommand, '-OutputDir', 'dist\windows-configurator', '-Clean')
+        Invoke-Checked 'powershell' @('-ExecutionPolicy', 'Bypass', '-File', (Join-Path $RepoRoot 'plugin\build_bridge.ps1'), '-PythonCommand', $PythonCommand, '-Clean')
     }
-    if (-not $BridgePath) { $BridgePath = $BridgeDefault }
-    Assert-Directory $ServerDist 'server distribution'
+
+    Assert-Directory $ServerDist 'standalone server distribution'
     Assert-Directory $ConfiguratorDist 'configurator distribution'
+    if ([string]::IsNullOrWhiteSpace($BridgePath)) { $BridgePath = $BridgeDefault }
+    $BridgePath = [IO.Path]::GetFullPath($BridgePath)
     Assert-File $BridgePath 'bridge executable'
 
-    New-Item -ItemType Directory -Force -Path $Stage, $InstallerDir, $PortableDir | Out-Null
-    New-Item -ItemType Directory -Force -Path (Join-Path $Stage 'app'), (Join-Path $Stage 'bridge'), (Join-Path $Stage 'settings-templates'), (Join-Path $Stage 'tools'), (Join-Path $Stage 'tools\settings') | Out-Null
-    Copy-Item -Path (Join-Path $ServerDist '*') -Destination (Join-Path $Stage 'app') -Recurse -Force
-    Copy-Item -LiteralPath $BridgePath -Destination (Join-Path $Stage 'bridge\diptrace_mcp_bridge.exe') -Force
-    Copy-Item -Path (Join-Path $RepoRoot 'plugin\settings\*') -Destination (Join-Path $Stage 'settings-templates') -Force
-    Copy-Item -Path (Join-Path $RepoRoot 'plugin\settings\*') -Destination (Join-Path $Stage 'tools\settings') -Force
-    Copy-Item -Path (Join-Path $ConfiguratorDist '*') -Destination (Join-Path $Stage 'tools\diptrace_mcp_configure') -Recurse -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'plugin\install_plugin.ps1') -Destination (Join-Path $Stage 'tools\install_plugin.ps1') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'plugin\uninstall_plugin.ps1') -Destination (Join-Path $Stage 'tools\uninstall_plugin.ps1') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'packaging\install_portable.ps1') -Destination (Join-Path $Stage 'tools\install_portable.ps1') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'packaging\write_installation_manifest.ps1') -Destination (Join-Path $Stage 'tools\write_installation_manifest.ps1') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'packaging\remove_owned_state.ps1') -Destination (Join-Path $Stage 'tools\remove_owned_state.ps1') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'LICENSE') -Destination (Join-Path $Stage 'LICENSE') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'packaging\README_FIRST.txt') -Destination (Join-Path $Stage 'README_FIRST.txt') -Force
-    [IO.File]::WriteAllText((Join-Path $Stage 'VERSION'), $Version + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
-    $template = [ordered]@{
-        schema_version = 2
-        product_id = 'diptrace-mcp'
-        version = $Version
-        state_marker_file = '.diptrace-mcp-state-owner.json'
-        owned_install_relative_paths = @('app', 'bridge', 'settings-templates', 'tools', 'LICENSE', 'README_FIRST.txt', 'VERSION', 'installation-manifest.json')
-        owned_state_paths = @('logs', 'sessions', 'records', 'offline_backups', 'codex_setup.txt')
-        signing_status = if ($SigningRequired) { 'signed-required' } else { 'unsigned-until-verified' }
-    }
-    [IO.File]::WriteAllText((Join-Path $Stage 'installation-manifest.template.json'), ($template | ConvertTo-Json -Depth 4) + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
+    Assert-Signature $BridgePath ([bool]$SigningRequired)
+    Assert-Signature (Join-Path $ServerDist 'diptrace_mcp_server.exe') ([bool]$SigningRequired)
+    Assert-Signature (Join-Path $ConfiguratorDist 'diptrace_mcp_configure.exe') ([bool]$SigningRequired)
+
+    if (Test-Path -LiteralPath $Stage) { Remove-Item -LiteralPath $Stage -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $Stage | Out-Null
+    Copy-Item -LiteralPath $ServerDist -Destination (Join-Path $Stage 'app') -Recurse
+    New-Item -ItemType Directory -Force -Path (Join-Path $Stage 'bridge') | Out-Null
+    Copy-Item -LiteralPath $BridgePath -Destination (Join-Path $Stage 'bridge\diptrace_mcp_bridge.exe')
+    Copy-Item -LiteralPath $ConfiguratorDist -Destination (Join-Path $Stage 'tools\diptrace_mcp_configure') -Recurse
+    New-Item -ItemType Directory -Force -Path (Join-Path $Stage 'tools\settings') | Out-Null
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'plugin\settings\*.xml') -Destination (Join-Path $Stage 'tools\settings')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'plugin\install_plugin.ps1') -Destination (Join-Path $Stage 'tools')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'plugin\uninstall_plugin.ps1') -Destination (Join-Path $Stage 'tools')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'packaging\install_portable.ps1') -Destination (Join-Path $Stage 'tools')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'packaging\remove_owned_state.ps1') -Destination (Join-Path $Stage 'tools')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'packaging\write_installation_manifest.ps1') -Destination (Join-Path $Stage 'tools')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'packaging\README_FIRST.txt') -Destination $Stage
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'LICENSE') -Destination $Stage
+    New-Item -ItemType Directory -Force -Path (Join-Path $Stage 'docs') | Out-Null
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'SECURITY.md') -Destination (Join-Path $Stage 'docs')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\INSTALL_FROM_RELEASE.md') -Destination (Join-Path $Stage 'docs')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\SECURITY_AND_POLICY.md') -Destination (Join-Path $Stage 'docs')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\compliance\THIRD_PARTY_NOTICES.md') -Destination (Join-Path $Stage 'docs')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\compliance\dependency-inventory.json') -Destination (Join-Path $Stage 'docs')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\compliance\sbom.cdx.json') -Destination (Join-Path $Stage 'docs')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\compliance\PROVENANCE_INVENTORY.csv') -Destination (Join-Path $Stage 'docs')
+
     Test-StagedBundle $Stage
-    $inventory = @(
-        Get-ChildItem -LiteralPath $Stage -File -Recurse | Sort-Object FullName | ForEach-Object {
-            [ordered]@{
-                path = Relative-PortablePath $Stage $_.FullName
-                bytes = $_.Length
-                sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            }
-        }
-    )
-    [IO.File]::WriteAllText((Join-Path $Stage 'artifact-inventory.json'), ($inventory | ConvertTo-Json -Depth 4) + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
     Write-ShaManifest $Stage
 
+    New-Item -ItemType Directory -Force -Path $InstallerDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $PortableDir | Out-Null
+
+    if ([string]::IsNullOrWhiteSpace($IsccPath)) {
+        $candidate = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+        if (Test-Path -LiteralPath $candidate) { $IsccPath = $candidate }
+    }
+    if ([string]::IsNullOrWhiteSpace($IsccPath)) { throw 'ISCC.exe was not found; pass -IsccPath' }
+    Assert-File $IsccPath 'Inno Setup compiler'
+
+    $iss = Join-Path $RepoRoot 'installer\DipTraceMCP.iss'
+    Invoke-Checked $IsccPath @("/DAppVersion=$Version", "/DStageDir=$Stage", "/DOutputDir=$InstallerDir", $iss)
+    Assert-File $InstallerOutput 'installer output'
+    Assert-Signature $InstallerOutput ([bool]$SigningRequired)
+
     if (Test-Path -LiteralPath $PortableOutput) { Remove-Item -LiteralPath $PortableOutput -Force }
-    Compress-Archive -Path (Join-Path $Stage '*') -DestinationPath $PortableOutput -CompressionLevel Optimal
-    Assert-File $PortableOutput 'portable package'
+    Compress-Archive -LiteralPath (Join-Path $Stage '*') -DestinationPath $PortableOutput -CompressionLevel Optimal
+    Assert-File $PortableOutput 'portable output'
 
-    if (-not $IsccPath) {
-        $isccCommand = Get-Command ISCC.exe -ErrorAction SilentlyContinue
-        if ($isccCommand) { $IsccPath = $isccCommand.Source }
-    }
-    Assert-File $IsccPath 'pinned Inno Setup ISCC.exe'
-    $isccVersions = @()
-    $fileVersion = (Get-Item -LiteralPath $IsccPath).VersionInfo.ProductVersion -replace '\s', ''
-    if ($fileVersion -and $fileVersion -ne '0.0.0.0') { $isccVersions += $fileVersion }
-    foreach ($registryPath in @(
-            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1',
-            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1',
-            'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1'
-        )) {
-        $displayVersion = (Get-ItemProperty -LiteralPath $registryPath -Name DisplayVersion -ErrorAction SilentlyContinue).DisplayVersion
-        if ($displayVersion) { $isccVersions += ([string]$displayVersion -replace '\s', '') }
-    }
-    foreach ($argument in @('/?')) {
-        $isccBanner = (& $IsccPath $argument 2>&1 | Out-String)
-        $isccMatch = [regex]::Match($isccBanner, '(?im)Inno Setup(?: Compiler)?\s+([0-9]+\.[0-9]+\.[0-9]+)')
-        if ($isccMatch.Success) { $isccVersions += $isccMatch.Groups[1].Value }
-    }
-    $isccVersion = $isccVersions | Where-Object { $_.StartsWith('6.4.2') } | Select-Object -First 1
-    if (-not $isccVersion) { throw "Inno Setup 6.4.2 is required; found $($isccVersions -join ', ')" }
-    $issArgs = @(
-        ("/DAppVersion={0}" -f $Version)
-        ("/DStageDir={0}" -f $Stage)
-        ("/DOutputDir={0}" -f $InstallerDir)
-        (Join-Path $RepoRoot 'installer\DipTraceMCP.iss')
-    )
-    Write-Host ("ISCC compile arguments ({0}): {1}" -f $issArgs.Count, ($issArgs -join ' | '))
-    Invoke-Checked -File $IsccPath -Arguments $issArgs
-    Assert-File $InstallerOutput 'Inno Setup installer'
+    Write-ReleaseAssetShaManifest (Join-Path $OutputRoot 'SHA256SUMS.txt') @($InstallerOutput, $PortableOutput)
 
-    $verifyScript = Join-Path $RepoRoot 'plugin\verify_signature.ps1'
-    $signatureTargets = @(
-        $InstallerOutput,
-        $BridgePath,
-        (Join-Path $ServerDist 'diptrace_mcp_server.exe'),
-        (Join-Path $ConfiguratorDist 'diptrace_mcp_configure.exe')
-    )
-    foreach ($signatureTarget in $signatureTargets) {
-        $verifyArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $verifyScript, '-Path', $signatureTarget)
-        if ($SigningRequired) {
-            $verifyArgs += @('-ExpectedSignerSubject', $ExpectedSignerSubject, '-RequireSigned')
-        }
-        Invoke-Checked 'powershell.exe' $verifyArgs
-    }
-    $releaseChecksums = Join-Path $OutputRoot 'SHA256SUMS.txt'
-    Write-ReleaseAssetShaManifest -Path $releaseChecksums -Assets @($InstallerOutput, $PortableOutput)
-    Assert-File $releaseChecksums 'release asset checksum manifest'
-    Write-Host "Installer: $InstallerOutput" -ForegroundColor Green
-    Write-Host "Portable: $PortableOutput" -ForegroundColor Green
-    Write-Host "Checksums: $releaseChecksums" -ForegroundColor Green
-} finally {
+    Write-Host "Installer: $InstallerOutput"
+    Write-Host "Portable: $PortableOutput"
+    Write-Host "Checksums: $(Join-Path $OutputRoot 'SHA256SUMS.txt')"
+}
+finally {
     if (Test-Path -LiteralPath $Stage) { Remove-Item -LiteralPath $Stage -Recurse -Force }
 }
