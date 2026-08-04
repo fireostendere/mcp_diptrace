@@ -40,8 +40,8 @@ Component/Pattern Library и native manufacturing output намеренно не
 security отправляются через приватный канал; проверенный Code of Conduct канал
 для enforcement пока не опубликован.
 
-- Последний опубликованный development release — `v0.1.2`; его source
-  distribution, wheel, Windows bridge executable, hashes и provenance неизменны.
+- Последний опубликованный development release — `v0.1.2`; его source distribution,
+  wheel, Windows bridge executable, hashes и provenance неизменны.
 - Текущая версия source/package — `0.2.0`; это reviewed candidate без tag и
   публикации.
 - Windows installer, bridge, standalone executable, configurator и portable
