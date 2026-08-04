@@ -9,11 +9,10 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from . import __version__
-from .adapters import DocumentSnapshot, build_snapshot
+from .adapters import build_snapshot
 from .backups import BackupStore
 from .capabilities import capability_report as build_capability_report
 from .capability_model import MAX_TRANSACTION_OPERATIONS
-from .clearance import resolve_clearance
 from .config import Settings
 from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
 from .domain import (
@@ -25,7 +24,6 @@ from .domain import (
     DocumentProvenance,
     EvidenceAuthority,
     EvidenceFileRecord,
-    FieldSolverRequest,
     FixtureValidationLevel,
     ObjectRecord,
     PlanStatus,
@@ -49,7 +47,6 @@ from .errors import (
     EditError,
     PathAccessError,
     RoundtripValidationError,
-    RoutingError,
     Sha256MismatchError,
     TransactionConflictError,
 )
@@ -59,13 +56,10 @@ from .exports import (
 )
 from .external_adapters import ExternalJobManager
 from .findings import FindingStore
-from .geometry import Point, distance
-from .jobs import JobStore, job_resources
+from .jobs import JobStore
 from .model_cache import ModelCache
 from .multirouter import (
     RoutingOrder,
-    plan_connection_order,
-    synthesize_routes_with_retry,
 )
 from .operations import (
     DeleteTraceOperation,
@@ -96,14 +90,6 @@ from .provenance_registry import (
     TrustedProvenanceRegistry,
 )
 from .review import run_checks
-from .routing import (
-    DifferentialPairRouteConfig,
-    RouteConnectionConfig,
-    _find_net,
-    _route_layers,
-    synthesize_differential_pair_route,
-    synthesize_route,
-)
 from .scaffolding import (
     DEFAULT_FORMAT_VERSION,
     PcbScaffold,
@@ -130,16 +116,15 @@ from .services.context import (
 from .services.discovery import DiscoveryService
 from .services.documents import DocumentService
 from .services.exports import ExportService
+from .services.external_jobs import ExternalJobsService
 from .services.jobs import JobService
 from .services.review import ReviewService
+from .services.routing import RoutingService
 from .services.semantic_operations import SemanticOperationsService
 from .sessions import LiveWorkingGuard, SessionAction, SessionStore
 from .silkscreen import SilkscreenPlanConfig, plan_silkscreen
 from .specctra import (
     dsn_export_limitations,
-    export_dsn,
-    parse_ses,
-    session_to_operations,
 )
 from .synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan
 from .transactions import (
@@ -1003,6 +988,24 @@ class DipTraceService:
             self._document_gateway,
             self._run_semantic_write,
             self._run_semantic_operations,
+        )
+        self._external_jobs_service = ExternalJobsService(
+            self._service_context,
+            self._document_gateway,
+            self.plans,
+            self.jobs,
+            self.external_jobs,
+            self._preview_semantic_operations,
+            self._apply_stored_plan,
+        )
+        self._routing_service = RoutingService(
+            self._service_context,
+            self._document_gateway,
+            self.plans,
+            self._run_semantic_write,
+            self._run_semantic_operations,
+            self._preview_semantic_operations,
+            self._apply_stored_plan,
         )
         self._workflow_prompt_names: tuple[str, ...] = ()
 
@@ -4537,59 +4540,7 @@ class DipTraceService:
         *,
         nets: list[str] | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Unrouted connections require a PCB document")
-        requested = {item.casefold() for item in nets or []}
-        items: list[dict[str, Any]] = []
-        for index, ratline in enumerate(snapshot.board.ratlines):
-            endpoints = ratline.get("endpoints", [])
-            if len(endpoints) != 2:
-                continue
-            pad_ids = [endpoint.get("pad_id") for endpoint in endpoints]
-            if any(pad_id is None for pad_id in pad_ids):
-                continue
-            first = snapshot.get_object(str(pad_ids[0]))
-            second = snapshot.get_object(str(pad_ids[1]))
-            if first.net_id is None or first.net_id != second.net_id:
-                continue
-            net = next(
-                (item for item in snapshot.board.nets if item.xml_id == first.net_id),
-                None,
-            )
-            if net is None or (
-                requested
-                and (net.name or "").casefold() not in requested
-                and net.stable_id.casefold() not in requested
-            ):
-                continue
-            positions = [endpoint.get("position") for endpoint in endpoints]
-            ratline_length = (
-                distance(Point(**positions[0]), Point(**positions[1]))
-                if positions[0] is not None and positions[1] is not None
-                else None
-            )
-            items.append(
-                {
-                    "connection_id": f"ratline:{index}",
-                    "net_id": net.stable_id,
-                    "net": net.name,
-                    "net_class": net.attributes.get("net_class"),
-                    "endpoints": endpoints,
-                    "ratline_length_mm": ratline_length,
-                    "priority": 0,
-                    "differential_pair": None,
-                }
-            )
-        return self._read_success(
-            snapshot.info,
-            {"matched_count": len(items), "items": items},
-            limitations=[
-                "Unrouted connections are derived from exported Ratlines.",
-                "Priority and differential-pair enrichment are not implemented yet.",
-            ],
-        )
+        return self._routing_service.list_unrouted_connections(path, nets=nets)
 
     def get_route_details(
         self,
@@ -4598,69 +4549,7 @@ class DipTraceService:
         net: str | None = None,
         path: str | None = None,
     ) -> dict[str, Any]:
-        if (trace_id is None) == (net is None):
-            raise DocumentError("Specify exactly one of trace_id or net", code="scope_required")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.board is None:
-            raise DocumentError("Route details require a PCB document")
-        if trace_id is not None:
-            traces = [snapshot.get_object(trace_id)]
-            if traces[0].kind != "trace":
-                raise DocumentError(f"Object is not a trace: {trace_id}")
-        else:
-            assert net is not None
-            net_matches = [
-                item
-                for item in snapshot.board.nets
-                if item.stable_id == net
-                or item.xml_id == net
-                or (item.name or "").casefold() == net.casefold()
-            ]
-            if len(net_matches) != 1:
-                raise DocumentError(f"Unique net was not found: {net}")
-            traces = [
-                item for item in snapshot.board.traces if item.parent_id == net_matches[0].stable_id
-            ]
-        per_layer: dict[str, float] = {}
-        total_length = 0.0
-        via_ids: list[str] = []
-        items: list[dict[str, Any]] = []
-        for trace in traces:
-            points = [Point(**item) for item in trace.attributes.get("points", [])]
-            layers = trace.attributes.get("segment_layers", [])
-            segment_lengths: list[float] = []
-            for segment_index, (start, end) in enumerate(zip(points, points[1:], strict=False)):
-                length = distance(start, end)
-                segment_lengths.append(length)
-                layer = (
-                    str(layers[segment_index]) if segment_index < len(layers) else trace.layer or ""
-                )
-                per_layer[layer] = per_layer.get(layer, 0.0) + length
-                total_length += length
-            via_ids.extend(trace.relationships.get("vias", []))
-            items.append(
-                {
-                    **trace.model_dump(mode="json"),
-                    "segment_lengths_mm": segment_lengths,
-                    "bend_count": max(0, len(points) - 2),
-                }
-            )
-        return self._read_success(
-            snapshot.info,
-            {
-                "trace_count": len(traces),
-                "traces": items,
-                "total_length_mm": total_length,
-                "per_layer_length_mm": per_layer,
-                "via_count": len(set(via_ids)),
-                "via_ids": sorted(set(via_ids)),
-                "layer_transition_count": len(set(via_ids)),
-            },
-            limitations=[
-                "Length is geometric centerline length; arc and electrical delay are not included."
-            ],
-        )
+        return self._routing_service.get_route_details(trace_id=trace_id, net=net, path=path)
 
     def get_stackup(self, path: str | None = None) -> dict[str, Any]:
         return self._review_service.get_stackup(path)
@@ -4826,9 +4715,7 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        config = RouteConnectionConfig(
+        return self._routing_service.route_connection(
             net=net,
             start_object_id=start_object_id,
             end_object_id=end_object_id,
@@ -4837,7 +4724,7 @@ class DipTraceService:
             clearance=clearance,
             grid=grid,
             bend_cost=bend_cost,
-            preferred_layers=preferred_layers or [],
+            preferred_layers=preferred_layers,
             start_layer=start_layer,
             end_layer=end_layer,
             via_style=via_style,
@@ -4847,24 +4734,11 @@ class DipTraceService:
             max_nodes=max_nodes,
             time_budget_ms=time_budget_ms,
             avoid_component_bodies=avoid_component_bodies,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        route = synthesize_route(snapshot, config)
-        response = self._run_semantic_write(route.operation, path, dry_run, expected_sha256, txid)
-        response["routing"] = {
-            "points": [point.as_dict() for point in route.points],
-            "path": [point.model_dump(mode="json") for point in route.operation.points],
-            "metrics": route.metrics,
-            "clearance_resolution": route.clearance_resolution,
-            "assumptions": route.assumptions,
-        }
-        response["clearance_rule_status"] = route.clearance_resolution["clearance_rule_status"]
-        response["netclass_rules_ignored"] = route.clearance_resolution["netclass_rules_ignored"]
-        response["warnings"] = [*response.get("warnings", []), *route.warnings]
-        response["limitations"] = [
-            *response.get("limitations", []),
-            *route.limitations,
-        ]
-        return response
 
     def route_net(
         self,
@@ -4883,73 +4757,21 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        pairs = self._unrouted_pairs(snapshot, [net])
-        if not pairs:
-            raise DocumentError(f"No exported unrouted connection was found for net: {net}")
-        operations: list[SemanticOperation] = []
-        metrics: list[dict[str, Any]] = []
-        working = document
-        working_snapshot = snapshot
-        for pair in pairs:
-            route = synthesize_route(
-                working_snapshot,
-                RouteConnectionConfig(
-                    net=pair["net_id"],
-                    start_object_id=pair["start_object_id"],
-                    end_object_id=pair["end_object_id"],
-                    layer=layer,
-                    width=width,
-                    clearance=clearance,
-                    grid=grid,
-                    preferred_layers=preferred_layers or [],
-                    via_style=via_style,
-                    max_vias=max_vias,
-                    via_cost=via_cost,
-                ),
-            )
-            operations.append(route.operation)
-            metrics.append(route.metrics)
-            applied = apply_semantic_operations(
-                working, [route.operation], live_session=target.is_live
-            )
-            working = applied.document
-            working_snapshot = build_snapshot(working, live_session=target.is_live)
-        response = self._run_semantic_operations(operations, path, dry_run, expected_sha256, txid)
-        response["routing"] = {
-            "connection_count": len(operations),
-            "routes": metrics,
-            "clearance_resolutions": [
-                {
-                    key: item[key]
-                    for key in (
-                        "requested_clearance_mm",
-                        "required_clearance_mm",
-                        "effective_clearance_mm",
-                        "clearance_sources",
-                        "netclass_rules_applied",
-                        "netclass_rules_ignored",
-                        "clearance_rule_status",
-                    )
-                    if key in item
-                }
-                for item in metrics
-            ],
-        }
-        response["clearance_rule_status"] = {
-            "per_route": [item.get("clearance_rule_status") for item in metrics],
-            "netclass_rules_applied": all(
-                bool(item.get("netclass_rules_applied", False)) for item in metrics
-            ),
-            "netclass_rules_ignored": any(
-                bool(item.get("netclass_rules_ignored", False)) for item in metrics
-            ),
-        }
-        response["netclass_rules_ignored"] = response["clearance_rule_status"][
-            "netclass_rules_ignored"
-        ]
-        return response
+        return self._routing_service.route_net(
+            net,
+            layer=layer,
+            width=width,
+            clearance=clearance,
+            grid=grid,
+            preferred_layers=preferred_layers,
+            via_style=via_style,
+            max_vias=max_vias,
+            via_cost=via_cost,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+        )
 
     def route_diff_pair(
         self,
@@ -4972,43 +4794,25 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        route = synthesize_differential_pair_route(
-            snapshot,
-            DifferentialPairRouteConfig(
-                pair=pair,
-                start_pad_point_id=start_pad_point_id,
-                end_pad_point_id=end_pad_point_id,
-                layer=layer,
-                preferred_layers=preferred_layers or [],
-                width=width,
-                gap=gap,
-                clearance=clearance,
-                grid=grid,
-                via_style=via_style,
-                max_vias=max_vias,
-                via_cost=via_cost,
-                max_detour=max_detour,
-            ),
+        return self._routing_service.route_diff_pair(
+            pair,
+            layer=layer,
+            preferred_layers=preferred_layers,
+            width=width,
+            gap=gap,
+            clearance=clearance,
+            grid=grid,
+            via_style=via_style,
+            max_vias=max_vias,
+            via_cost=via_cost,
+            max_detour=max_detour,
+            start_pad_point_id=start_pad_point_id,
+            end_pad_point_id=end_pad_point_id,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        response = self._run_semantic_write(route.operation, path, dry_run, expected_sha256, txid)
-        response["routing"] = {
-            "center_points": [point.as_dict() for point in route.center_points],
-            "positive_points": [point.as_dict() for point in route.positive_points],
-            "negative_points": [point.as_dict() for point in route.negative_points],
-            "metrics": route.metrics,
-            "clearance_resolution": route.clearance_resolution,
-            "assumptions": route.assumptions,
-        }
-        response["clearance_rule_status"] = route.clearance_resolution["clearance_rule_status"]
-        response["netclass_rules_ignored"] = route.clearance_resolution["netclass_rules_ignored"]
-        response["warnings"] = [*response.get("warnings", []), *route.warnings]
-        response["limitations"] = [
-            *response.get("limitations", []),
-            *route.limitations,
-        ]
-        return response
 
     def plan_diff_pair_route(
         self,
@@ -5028,14 +4832,10 @@ class DipTraceService:
         end_pad_point_id: str | None = None,
         path: str | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        config = DifferentialPairRouteConfig(
-            pair=pair,
-            start_pad_point_id=start_pad_point_id,
-            end_pad_point_id=end_pad_point_id,
+        return self._routing_service.plan_diff_pair_route(
+            pair,
             layer=layer,
-            preferred_layers=preferred_layers or [],
+            preferred_layers=preferred_layers,
             width=width,
             gap=gap,
             clearance=clearance,
@@ -5044,53 +4844,10 @@ class DipTraceService:
             max_vias=max_vias,
             via_cost=via_cost,
             max_detour=max_detour,
+            start_pad_point_id=start_pad_point_id,
+            end_pad_point_id=end_pad_point_id,
+            path=path,
         )
-        route = synthesize_differential_pair_route(snapshot, config)
-        resolved_config = config.model_copy(update={"clearance": route.operation.clearance})
-        preview = self._preview_semantic_operations(document, [route.operation])
-        record = self.plans.create(
-            plan_type="diff_pair_route",
-            document_id=snapshot.info.document_id,
-            source_sha256=snapshot.info.sha256,
-            target_path=target.path,
-            config=resolved_config.model_dump(mode="json"),
-            operations=[route.operation.model_dump(mode="json")],
-            changed_ids=[
-                route.operation.pair,
-                route.operation.positive_net,
-                route.operation.negative_net,
-            ],
-            unresolved=[],
-            candidates=[{"metrics": route.metrics}],
-            score={"absolute_skew_mm": float(route.metrics["absolute_skew_mm"])},
-            metrics=route.metrics,
-            assumptions=route.assumptions,
-            warnings=route.warnings,
-            limitations=route.limitations,
-        )
-        resources = self.plans.store_preview(
-            record.plan_id,
-            svg=preview["svg"],
-            geometry={
-                **preview["json"],
-                "plan_id": record.plan_id,
-                "center_points": [point.as_dict() for point in route.center_points],
-                "positive_points": [point.as_dict() for point in route.positive_points],
-                "negative_points": [point.as_dict() for point in route.negative_points],
-                "metrics": route.metrics,
-            },
-            diff=preview["diff"],
-        )
-        record = self.plans.read(record.plan_id)
-        response = self._read_success(
-            snapshot.info,
-            {"plan": record.model_dump(mode="json")},
-            limitations=record.limitations,
-            resources=resources,
-        )
-        response["clearance_rule_status"] = route.clearance_resolution["clearance_rule_status"]
-        response["netclass_rules_ignored"] = route.clearance_resolution["netclass_rules_ignored"]
-        return response
 
     def plan_route_nets(
         self,
@@ -5106,128 +4863,18 @@ class DipTraceService:
         via_cost: float = 5.0,
         path: str | None = None,
     ) -> dict[str, Any]:
-        if not nets:
-            raise DocumentError("At least one net is required", code="scope_required")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        pairs = self._unrouted_pairs(snapshot, nets)
-        if not pairs:
-            raise DocumentError("No matching exported unrouted connections were found")
-        if len(pairs) > 20:
-            raise DocumentError("A local route plan is limited to 20 connections")
-        operations: list[SemanticOperation] = []
-        candidates: list[dict[str, Any]] = []
-        working = document
-        working_snapshot = snapshot
-        for pair in pairs:
-            route = synthesize_route(
-                working_snapshot,
-                RouteConnectionConfig(
-                    net=pair["net_id"],
-                    start_object_id=pair["start_object_id"],
-                    end_object_id=pair["end_object_id"],
-                    layer=layer,
-                    width=width,
-                    clearance=clearance,
-                    grid=grid,
-                    preferred_layers=preferred_layers or [],
-                    via_style=via_style,
-                    max_vias=max_vias,
-                    via_cost=via_cost,
-                ),
-            )
-            operations.append(route.operation)
-            candidates.append(
-                {
-                    "net_id": pair["net_id"],
-                    "points": [point.as_dict() for point in route.points],
-                    "metrics": route.metrics,
-                }
-            )
-            applied = apply_semantic_operations(
-                working, [route.operation], live_session=target.is_live
-            )
-            working = applied.document
-            working_snapshot = build_snapshot(working, live_session=target.is_live)
-        preview = self._preview_semantic_operations(document, operations)
-        total_length = sum(float(item["metrics"]["length_mm"]) for item in candidates)
-        resolved_clearance = float(candidates[0]["metrics"]["clearance_mm"])
-        record = self.plans.create(
-            plan_type="route_nets",
-            document_id=snapshot.info.document_id,
-            source_sha256=snapshot.info.sha256,
-            target_path=target.path,
-            config={
-                "nets": nets,
-                "layer": layer,
-                "width": width,
-                "clearance": resolved_clearance,
-                "grid": grid,
-                "preferred_layers": preferred_layers or [],
-                "via_style": via_style,
-                "max_vias": max_vias,
-                "via_cost": via_cost,
-            },
-            operations=[operation.model_dump(mode="json") for operation in operations],
-            changed_ids=sorted({pair["net_id"] for pair in pairs}),
-            unresolved=[],
-            candidates=candidates,
-            score={"total_length_mm": total_length},
-            metrics={
-                "connection_count": len(operations),
-                "total_length_mm": total_length,
-                "clearance_resolutions": [
-                    {
-                        key: item["metrics"][key]
-                        for key in (
-                            "requested_clearance_mm",
-                            "required_clearance_mm",
-                            "effective_clearance_mm",
-                            "clearance_sources",
-                            "netclass_rules_applied",
-                            "netclass_rules_ignored",
-                            "clearance_rule_status",
-                        )
-                        if key in item["metrics"]
-                    }
-                    for item in candidates
-                ],
-                "netclass_rules_ignored": any(
-                    bool(item["metrics"].get("netclass_rules_ignored", False))
-                    for item in candidates
-                ),
-            },
-            assumptions=["Connections are routed sequentially with bounded 45-degree A*."],
-            warnings=[],
-            limitations=["No push-and-shove or rip-up/retry is implemented."],
+        return self._routing_service.plan_route_nets(
+            nets,
+            layer=layer,
+            width=width,
+            clearance=clearance,
+            grid=grid,
+            preferred_layers=preferred_layers,
+            via_style=via_style,
+            max_vias=max_vias,
+            via_cost=via_cost,
+            path=path,
         )
-        resources = self.plans.store_preview(
-            record.plan_id,
-            svg=preview["svg"],
-            geometry={
-                **preview["json"],
-                "plan_id": record.plan_id,
-                "routes": candidates,
-            },
-            diff=preview["diff"],
-        )
-        record = self.plans.read(record.plan_id)
-        response = self._read_success(
-            snapshot.info,
-            {"plan": record.model_dump(mode="json")},
-            limitations=record.limitations,
-            resources=resources,
-        )
-        response["clearance_rule_status"] = {
-            "per_route": [item["metrics"].get("clearance_rule_status") for item in candidates],
-            "netclass_rules_ignored": any(
-                bool(item["metrics"].get("netclass_rules_ignored", False)) for item in candidates
-            ),
-        }
-        response["netclass_rules_ignored"] = response["clearance_rule_status"][
-            "netclass_rules_ignored"
-        ]
-        return response
 
     def apply_route_plan(
         self,
@@ -5237,18 +4884,8 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        plan = self.plans.read(plan_id)
-        if plan.plan_type not in {"route_nets", "diff_pair_route"}:
-            raise DocumentError(
-                f"Unexpected route plan type for {plan_id}: {plan.plan_type}",
-                code="transaction_conflict",
-            )
-        return self._apply_stored_plan(
-            plan_id,
-            expected_plan_type=plan.plan_type,
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
+        return self._routing_service.apply_route_plan(
+            plan_id, dry_run=dry_run, expected_sha256=expected_sha256, txid=txid
         )
 
     def export_autorouter_dsn(
@@ -5257,39 +4894,7 @@ class DipTraceService:
         *,
         design_name: str | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        dsn = export_dsn(snapshot, design_name=design_name)
-        record = self.external_jobs.create_export_job(
-            snapshot.info,
-            target.path,
-            dsn,
-            manifest={
-                "format": "Specctra DSN",
-                "serializer": "diptrace-mcp-bounded-v1",
-                "document_id": snapshot.info.document_id,
-                "source_sha256": snapshot.info.sha256,
-                "coordinate_units": "mm",
-                "resolution": 1000,
-                "assumptions": [
-                    "DipTrace board coordinates are emitted directly in Specctra millimetres.",
-                    "Only embedded pattern shapes accepted by capability validation are emitted.",
-                    "Quoted tokens use only printable ASCII excluding quote and backslash; "
-                    "no escape convention is assumed.",
-                ],
-            },
-        )
-        response = self._read_success(
-            snapshot.info,
-            {"job": record.model_dump(mode="json")},
-            resources=job_resources(record.jobid),
-            limitations=[
-                "The bounded serializer rejects cutouts, keepouts, pours and unsupported "
-                "pad shapes, plus identifiers requiring unverified escaping or encoding."
-            ],
-        )
-        response["job"] = record.model_dump(mode="json")
-        return response
+        return self._external_jobs_service.export_autorouter_dsn(path, design_name=design_name)
 
     def run_external_autorouter(
         self,
@@ -5302,47 +4907,15 @@ class DipTraceService:
         timeout_seconds: int | None = None,
         ignore_net_classes: list[str] | None = None,
     ) -> dict[str, Any]:
-        self.policy.require_external_execution(operation="run_external_autorouter")
-        if dsn_job_id is not None and dsn_path is not None:
-            raise DocumentError("Pass either dsn_job_id or dsn_path, not both")
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if dsn_job_id is not None:
-            export_job = self.jobs.read(dsn_job_id)
-            if export_job.job_type != "dsn_export" or export_job.status != "completed":
-                raise DocumentError("dsn_job_id must identify a completed DSN export job")
-            if export_job.source_sha256 != snapshot.info.sha256:
-                raise Sha256MismatchError(
-                    "DSN export was created from a different document revision",
-                    details={
-                        "dsn_source_sha256": export_job.source_sha256,
-                        "current_sha256": snapshot.info.sha256,
-                    },
-                )
-            dsn = self.jobs.artifact_path(dsn_job_id, "input.dsn").read_bytes()
-        elif dsn_path is not None:
-            source = self.settings.resolve_allowed_path(dsn_path)
-            if source.stat().st_size > self.settings.max_document_bytes:
-                raise DocumentError("DSN input exceeds the document size limit")
-            dsn = source.read_bytes()
-        else:
-            dsn = export_dsn(snapshot)
-        record = self.external_jobs.start_freerouting(
-            snapshot.info,
-            target.path,
-            dsn,
+        return self._external_jobs_service.run_external_autorouter(
+            path,
+            dsn_job_id=dsn_job_id,
+            dsn_path=dsn_path,
             max_passes=max_passes,
             threads=threads,
             timeout_seconds=timeout_seconds,
-            ignore_net_classes=list(ignore_net_classes or []),
+            ignore_net_classes=ignore_net_classes,
         )
-        response = self._read_success(
-            snapshot.info,
-            {"job": record.model_dump(mode="json")},
-            resources=job_resources(record.jobid),
-        )
-        response["job"] = record.model_dump(mode="json")
-        return response
 
     def inspect_autorouter_result(
         self,
@@ -5351,86 +4924,8 @@ class DipTraceService:
         *,
         via_style: str | None = None,
     ) -> dict[str, Any]:
-        job = self.jobs.read(jobid)
-        if job.job_type != "freerouting" or job.status != "completed":
-            raise DocumentError(
-                "Autorouter result inspection requires a completed Freerouting job",
-                details={"jobid": jobid, "status": job.status, "job_type": job.job_type},
-            )
-        target_path = path or job.target_path
-        if target_path is None:
-            raise DocumentError("Autorouter job has no associated DipTrace target")
-        document, target = self.load(target_path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        if snapshot.info.sha256 != job.source_sha256:
-            raise Sha256MismatchError(
-                "DipTrace document changed after the autorouter job was created",
-                details={
-                    "job_source_sha256": job.source_sha256,
-                    "current_sha256": snapshot.info.sha256,
-                },
-            )
-        ses_path = self.jobs.artifact_path(jobid, "output.ses")
-        session = parse_ses(ses_path.read_bytes(), max_bytes=self.settings.max_document_bytes)
-        operation_plan = session_to_operations(snapshot, session, via_style=via_style)
-        plan_record = None
-        resources = job_resources(jobid)
-        if operation_plan.operations:
-            preview = self._preview_semantic_operations(
-                document, cast(list[SemanticOperation], operation_plan.operations)
-            )
-            plan_record = self.plans.create(
-                plan_type="autorouter_ses_import",
-                document_id=snapshot.info.document_id,
-                source_sha256=snapshot.info.sha256,
-                target_path=target.path,
-                config={"jobid": jobid, "via_style": via_style},
-                operations=[
-                    operation.model_dump(mode="json") for operation in operation_plan.operations
-                ],
-                changed_ids=sorted({operation.net for operation in operation_plan.operations}),
-                unresolved=operation_plan.skipped,
-                candidates=[item.model_dump(mode="json") for item in session.routes],
-                score={"imported_length_mm": float(operation_plan.metrics["imported_length_mm"])},
-                metrics=operation_plan.metrics,
-                assumptions=[
-                    "SES coordinates are converted using the routes resolution scope.",
-                    "Only non-branching two-endpoint nets without existing traces are importable.",
-                ],
-                warnings=session.warnings,
-                limitations=[
-                    "Branched nets and partial replacement of existing routing are "
-                    "inspection-only.",
-                    "Via-containing routes require an explicit DipTrace via_style mapping.",
-                ],
-            )
-            plan_resources = self.plans.store_preview(
-                plan_record.plan_id,
-                svg=preview["svg"],
-                geometry={
-                    **preview["json"],
-                    "jobid": jobid,
-                    "ses_metrics": operation_plan.metrics,
-                },
-                diff=preview["diff"],
-            )
-            resources.extend(plan_resources)
-            plan_record = self.plans.read(plan_record.plan_id)
-        return self._read_success(
-            snapshot.info,
-            {
-                "session": session.model_dump(mode="json"),
-                "inspection": {
-                    **operation_plan.metrics,
-                    "imported_nets": operation_plan.imported_nets,
-                    "skipped": operation_plan.skipped,
-                },
-                "plan": plan_record.model_dump(mode="json") if plan_record else None,
-            },
-            resources=resources,
-            limitations=[
-                "Inspection is geometric/topological and never trusts external DRC results."
-            ],
+        return self._external_jobs_service.inspect_autorouter_result(
+            jobid, path, via_style=via_style
         )
 
     def import_autorouter_ses(
@@ -5441,12 +4936,8 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        return self._apply_stored_plan(
-            plan_id,
-            expected_plan_type="autorouter_ses_import",
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
+        return self._external_jobs_service.import_autorouter_ses(
+            plan_id, dry_run=dry_run, expected_sha256=expected_sha256, txid=txid
         )
 
     def route_connections(
@@ -5462,44 +4953,16 @@ class DipTraceService:
         txid: str | None = None,
     ) -> dict[str, Any]:
         """Route multiple connections sequentially with bounded rip-up/retry."""
-
-        configs = [RouteConnectionConfig.model_validate(item) for item in connections]
-        document, _target = self.load(path)
-        synthesis = synthesize_routes_with_retry(
-            document,
-            configs,
+        return self._routing_service.route_connections(
+            connections,
             ripup_retry=ripup_retry,
             max_ripup_attempts=max_ripup_attempts,
             ordering=ordering,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        if not synthesis.operations:
-            raise RoutingError(
-                "No connection could be routed",
-                details={"failed": synthesis.failed},
-            )
-        response = self._run_semantic_operations(
-            synthesis.operations, path, dry_run, expected_sha256, txid
-        )
-        response["routing"] = synthesis.metrics
-        response["clearance_rule_status"] = {
-            "per_route": [
-                item.get("clearance_rule_status")
-                for item in synthesis.metrics.get("clearance_resolutions", [])
-            ],
-            "netclass_rules_ignored": bool(synthesis.metrics.get("netclass_rules_ignored", False)),
-        }
-        response["netclass_rules_ignored"] = response["clearance_rule_status"][
-            "netclass_rules_ignored"
-        ]
-        if synthesis.failed:
-            response.setdefault("warnings", []).append(
-                f"{len(synthesis.failed)} connection(s) could not be routed; "
-                "see routing metrics for details."
-            )
-            response["routing"]["failed"] = synthesis.failed
-        if synthesis.ripups:
-            response["routing"]["ripups"] = synthesis.ripups
-        return response
 
     def analyze_routing_congestion(
         self,
@@ -5509,52 +4972,8 @@ class DipTraceService:
         path: str | None = None,
     ) -> dict[str, Any]:
         """Rank routing connections deterministically without changing the document."""
-
-        configs = [RouteConnectionConfig.model_validate(item) for item in connections]
-        if not configs:
-            raise RoutingError("At least one connection is required")
-        document, target = self.load(path)
-        ordered, priorities = plan_connection_order(
-            document,
-            configs,
-            ordering=ordering,
-        )
-        snapshot = self.models.get(document, live_session=target.is_live)
-        clearance_resolutions = []
-        for _index, config in ordered:
-            net = _find_net(snapshot, config.net)
-            layer_ids, _start_layer, _end_layer = _route_layers(snapshot, config)
-            # Congestion ranking uses the same clearance resolver as routing;
-            # the returned resolution is part of the read-only decision record.
-            clearance_resolutions.append(
-                resolve_clearance(
-                    snapshot,
-                    layer_ids,
-                    config.clearance,
-                    nets=[net],
-                ).as_dict()
-            )
-        return self._read_success(
-            snapshot.info,
-            {
-                "ordering": ordering,
-                "routing_order": [index for index, _config in ordered],
-                "priorities": [item.as_dict() for item in priorities],
-                "clearance_resolutions": clearance_resolutions,
-                "clearance_rule_status": {
-                    "per_route": [item["clearance_rule_status"] for item in clearance_resolutions],
-                    "netclass_rules_ignored": any(
-                        item["netclass_rules_ignored"] for item in clearance_resolutions
-                    ),
-                },
-                "netclass_rules_ignored": any(
-                    item["netclass_rules_ignored"] for item in clearance_resolutions
-                ),
-            },
-            limitations=[
-                "Congestion ranking is a deterministic corridor/bounding-box heuristic, "
-                "not a global routing or push-and-shove solver."
-            ],
+        return self._routing_service.analyze_routing_congestion(
+            connections, ordering=ordering, path=path
         )
 
     def run_ngspice_simulation(
@@ -5566,47 +4985,9 @@ class DipTraceService:
         timeout_seconds: int | None = None,
     ) -> dict[str, Any]:
         """Run a user-supplied ngspice netlist as a bounded external batch job."""
-
-        self.policy.require_external_execution(operation="run_ngspice_simulation")
-        if (netlist is None) == (netlist_path is None):
-            raise DocumentError("Pass exactly one of netlist or netlist_path")
-        max_netlist_bytes = 256 * 1024
-        if netlist_path is not None:
-            source = self.settings.resolve_allowed_path(netlist_path)
-            if source.stat().st_size > max_netlist_bytes:
-                raise DocumentError("Netlist file exceeds the 256 KiB limit")
-            netlist_bytes = source.read_bytes()
-        else:
-            assert netlist is not None
-            netlist_bytes = netlist.encode("utf-8")
-        if len(netlist_bytes) > max_netlist_bytes:
-            raise DocumentError("Netlist exceeds the 256 KiB limit")
-        info: DocumentInfo | None = None
-        target_path: Path | None = None
-        if path is not None:
-            document, target = self.load(path)
-            info = self.models.get(document, live_session=target.is_live).info
-            target_path = target.path
-        record = self.external_jobs.start_ngspice(
-            info,
-            target_path,
-            netlist_bytes,
-            timeout_seconds=timeout_seconds,
+        return self._external_jobs_service.run_ngspice_simulation(
+            netlist=netlist, netlist_path=netlist_path, path=path, timeout_seconds=timeout_seconds
         )
-        return {
-            "ok": True,
-            "document": info.model_dump() if info is not None else None,
-            "result": {"job": record.model_dump(mode="json")},
-            "warnings": [],
-            "limitations": [
-                "The netlist is user-supplied; the server does not verify its electrical "
-                "correctness.",
-                "Simulation results are ngspice output, not in-circuit measurements.",
-            ],
-            "resources": job_resources(record.jobid),
-            "transaction": None,
-            "job": record.model_dump(mode="json"),
-        }
 
     def run_openems_stripline_analysis(
         self,
@@ -5626,48 +5007,21 @@ class DipTraceService:
         timeout_seconds: int | None = None,
     ) -> dict[str, Any]:
         """Start a bounded off-center/centered stripline field-solver job."""
-
-        self.policy.require_external_execution(operation="run_openems_stripline_analysis")
-        request = FieldSolverRequest(
+        return self._external_jobs_service.run_openems_stripline_analysis(
             width_mm=width_mm,
             copper_thickness_mm=copper_thickness_mm,
             lower_dielectric_height_mm=lower_dielectric_height_mm,
             upper_dielectric_height_mm=upper_dielectric_height_mm,
             dielectric_constant=dielectric_constant,
+            frequencies_hz=frequencies_hz,
             dielectric_loss_tangent=dielectric_loss_tangent,
             conductor_conductivity_s_per_m=conductor_conductivity_s_per_m,
-            frequencies_hz=frequencies_hz,
             trace_length_mm=trace_length_mm,
             port_impedance_ohm=port_impedance_ohm,
             mesh_cells_per_wavelength=mesh_cells_per_wavelength,
-        )
-        info: DocumentInfo | None = None
-        target_path: Path | None = None
-        if path is not None:
-            document, target = self.load(path)
-            info = self.models.get(document, live_session=target.is_live).info
-            target_path = target.path
-        record = self.external_jobs.start_openems(
-            info,
-            target_path,
-            request,
+            path=path,
             timeout_seconds=timeout_seconds,
         )
-        return {
-            "ok": True,
-            "document": info.model_dump() if info is not None else None,
-            "result": {"job": record.model_dump(mode="json")},
-            "warnings": [],
-            "limitations": [
-                "The result is produced by the configured openEMS runner and is not a "
-                "fabrication guarantee.",
-                "Mesh, port, convergence, material, and loss assumptions remain part of the "
-                "solver result and must be reviewed.",
-            ],
-            "resources": job_resources(record.jobid),
-            "transaction": None,
-            "job": record.model_dump(mode="json"),
-        }
 
     def get_job_status(self, jobid: str) -> dict[str, Any]:
         return self._job_service.get_job_status(jobid)
@@ -5689,39 +5043,6 @@ class DipTraceService:
 
     def job_resource(self, jobid: str, artifact: str) -> str:
         return self._job_service.job_resource(jobid, artifact)
-
-    @staticmethod
-    def _unrouted_pairs(
-        snapshot: DocumentSnapshot,
-        nets: list[str],
-    ) -> list[dict[str, str]]:
-        if snapshot.board is None:
-            raise DocumentError("Routing requires a PCB document")
-        requested = {item.casefold() for item in nets}
-        pairs: list[dict[str, str]] = []
-        for ratline in snapshot.board.ratlines:
-            endpoints = ratline.get("endpoints", [])
-            if len(endpoints) != 2 or any(item.get("pad_id") is None for item in endpoints):
-                continue
-            first = snapshot.get_object(str(endpoints[0]["pad_id"]))
-            second = snapshot.get_object(str(endpoints[1]["pad_id"]))
-            if first.net_id is None or first.net_id != second.net_id:
-                continue
-            net = next((item for item in snapshot.board.nets if item.xml_id == first.net_id), None)
-            if net is None or not (
-                (net.name or "").casefold() in requested
-                or net.stable_id.casefold() in requested
-                or (net.xml_id or "").casefold() in requested
-            ):
-                continue
-            pairs.append(
-                {
-                    "net_id": net.stable_id,
-                    "start_object_id": first.stable_id,
-                    "end_object_id": second.stable_id,
-                }
-            )
-        return pairs
 
     def plan_silkscreen(
         self,
