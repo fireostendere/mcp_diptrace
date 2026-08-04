@@ -42,8 +42,8 @@ universal compatibility или production readiness.
 отправляются через приватный канал; проверенный Code of Conduct канал для
 enforcement пока не опубликован.
 
-- Последний опубликованный development release — `v0.2.0`; его source
-  distribution, wheel, hashes и provenance immutable.
+- Последний опубликованный development release — `v0.2.0`; его source distribution,
+  wheel, hashes и provenance immutable.
 - Windows installer, bridge, standalone executable, configurator и portable
   bundle опубликованы как unsigned development assets.
 - Python archives собираются по точному allowlist и проверяются по entry points,
