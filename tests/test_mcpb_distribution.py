@@ -2,12 +2,28 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).absolute().parents[1]
+
+
+def _build_command(server: Path, output: Path, version: str = "9.8.7") -> list[str]:
+    return [
+        sys.executable,
+        str(ROOT / "scripts" / "build_mcpb.py"),
+        "--server-dir",
+        str(server),
+        "--output-dir",
+        str(output),
+        "--version",
+        version,
+    ]
 
 
 def test_build_mcpb_and_checksum(tmp_path: Path) -> None:
@@ -17,26 +33,17 @@ def test_build_mcpb_and_checksum(tmp_path: Path) -> None:
     (server / "_internal" / "runtime.dat").write_bytes(b"runtime")
     output = tmp_path / "output"
 
-    subprocess.run(
-        [
-            sys.executable,
-            str(ROOT / "scripts" / "build_mcpb.py"),
-            "--server-dir",
-            str(server),
-            "--output-dir",
-            str(output),
-            "--version",
-            "9.8.7",
-        ],
-        cwd=ROOT,
-        check=True,
-    )
+    subprocess.run(_build_command(server, output), cwd=ROOT, check=True)
 
     bundle = output / "DipTrace-MCP-9.8.7-windows.mcpb"
     checksum = output / "DipTrace-MCP-9.8.7-windows.mcpb.sha256"
     assert bundle.is_file()
     expected = hashlib.sha256(bundle.read_bytes()).hexdigest()
     assert checksum.read_text(encoding="utf-8") == f"{expected}  {bundle.name}\n"
+
+    first_bytes = bundle.read_bytes()
+    subprocess.run(_build_command(server, output), cwd=ROOT, check=True)
+    assert bundle.read_bytes() == first_bytes
 
     with zipfile.ZipFile(bundle) as archive:
         names = archive.namelist()
@@ -55,6 +62,31 @@ def test_build_mcpb_and_checksum(tmp_path: Path) -> None:
     assert manifest["server"]["entry_point"] == "server/diptrace_mcp_server.exe"
     assert manifest["compatibility"]["platforms"] == ["win32"]
     assert manifest["user_config"]["workspace"]["required"] is True
+
+
+def test_build_mcpb_rejects_symlinked_server_tree(tmp_path: Path) -> None:
+    if not hasattr(os, "symlink"):
+        pytest.skip("symlinks are unavailable")
+
+    server = tmp_path / "server-build"
+    server.mkdir()
+    (server / "diptrace_mcp_server.exe").write_bytes(b"fake executable")
+    source = tmp_path / "runtime.dat"
+    source.write_bytes(b"runtime")
+    link = server / "runtime-link.dat"
+    try:
+        link.symlink_to(source)
+    except OSError:
+        pytest.skip("symlink creation is unavailable in this environment")
+
+    result = subprocess.run(
+        _build_command(server, tmp_path / "output"),
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "contains a symlink" in result.stderr
 
 
 def test_generate_registry_server_json(tmp_path: Path) -> None:
