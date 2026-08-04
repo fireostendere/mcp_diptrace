@@ -21,35 +21,35 @@ published GitHub release is still **v0.1.2**. Version 0.2.0 is a reviewed,
 unsigned development-stage release candidate; it is not tagged or published
 while the remaining real Windows and DipTrace acceptance gates are open.
 
-The current code is usable as a human-in-the-loop engineering tool for:
-
-- PCB, schematic, Component Library, and Pattern Library reading;
-- structured queries, connectivity, BOM, review, and bounded engineering
-  analysis;
-- guarded semantic edits with preview, expected SHA-256, backup, commit, and
-  rollback;
-- schematic authoring and schematic-to-PCB synchronisation;
-- bounded placement, local and multi-net routing, differential-pair routing,
-  and preliminary SI analysis;
-- live PCB/Schematic exchange through the Windows bridge;
-- Windows installer, portable bundle, and Codex/Claude configuration builds.
+The current code is usable as a human-in-the-loop engineering tool for PCB,
+schematic, and library reading; structured review; guarded semantic writes;
+schematic authoring and synchronisation; bounded placement/routing; live
+PCB/Schematic exchange; and Windows installer/portable candidate builds.
 
 It is not a replacement for DipTrace's interactive EDA engine. Native
 Component/Pattern Library mutation and native manufacturing-output generation
 are intentionally unavailable. Runtime `get_capabilities` is authoritative for
 a particular installation, document, policy, and external-adapter setup.
 
-## Release status
+## Public Release Status
 
-The project is Apache-2.0 licensed and currently alpha/development-stage.
+The project uses the OSI-approved Apache-2.0 open-source `LICENSE`. Participation
+and release controls are documented in `CONTRIBUTING.md`, `GOVERNANCE.md`,
+`docs/LICENSE_DECISION.md`, `docs/PUBLIC_RELEASE_CHECKLIST.md`,
+`docs/RELEASE_PROCESS.md`, `CHANGELOG.md`, and `CITATION.cff`. Security reports
+use the private security channel; a verified Code of Conduct enforcement channel
+is not yet published.
 
-- Latest published release: `v0.1.2`.
-- Current source/package version: `0.2.0`.
-- Current 0.2.0 state: reviewed candidate, **not tagged and not published**.
-- Windows 0.2.0 installer and portable assets build successfully in GitHub
-  Actions, but they are not public release downloads yet.
-- Candidate executables are unsigned; a successful CI run or matching SHA-256
-  is not a code signature.
+- Latest published development release: `v0.1.2`; its source distribution,
+  wheel, Windows bridge executable, hashes, and provenance remain immutable.
+- Current source/package version: `0.2.0`; it is a reviewed candidate and is not
+  tagged or published.
+- The 0.2.0 Windows installer, bridge, standalone executable, configurator, and
+  portable bundle pass CI but are not public release downloads yet.
+- Python archives are built from an exact allowlist and audited for wheel entry
+  points, packaged skills, bounds, and every `RECORD` hash/size.
+- Candidate Windows binaries are unsigned; CI and SHA-256 are not code
+  signatures, and no production-ready or universal-compatibility claim is made.
 
 The candidate record and remaining gates are in
 [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) and
@@ -176,6 +176,23 @@ The capability report intentionally does not claim complete trust-invalidation
 coverage for `plan_apply`, `ses_import`, `schematic_to_pcb_sync`, and
 `live_session_apply`. Q1 Component Angle GUI/re-export evidence also remains
 `NOT_RUN`, so rotation results retain a structured warning.
+
+## Data Handling
+
+- `DIPTRACE_MCP_WORKSPACE` selects the ordinary design workspace; paths remain
+  subject to `DIPTRACE_MCP_ALLOWED_ROOTS` and literal caller-path checks.
+- `DIPTRACE_MCP_STATE_DIR` stores local records plus live-session `original.xml`
+  and `working.xml`; explicit `apply` or `cancel` controls finalisation.
+- Freerouting, ngspice, and openEMS run only through typed local process
+  boundaries and isolated job directories; online sourcing is disabled by
+  default.
+- MCP `stdio` keeps traffic on local process pipes and does not create a network
+  listener.
+- `streamable-http` is intended only for trusted loopback use, for example
+  `127.0.0.1:8765`; OAuth and multi-user isolation are not implemented.
+- User projects, private evidence, proprietary libraries, and screenshots are
+  not uploaded or committed automatically; the operator controls external data
+  and publication.
 
 ## Installation
 
