@@ -95,6 +95,7 @@ from .specctra import (
 from .transactions import (
     TransactionStore,
 )
+from .write_limits import WriteImpact, require_write_impact
 from .xml_document import (
     DEFAULT_DIFF_CHARACTER_LIMIT,
     DEFAULT_DIFF_LINE_LIMIT,
@@ -210,7 +211,7 @@ class DipTraceService:
         self._evidence_service = EvidenceService(
             self._service_context,
             self._document_gateway,
-            self._trusted_provenance_registry,
+            self._trusted_provenance_registry_provider,
             self._atomic_write_bytes,
             self._write_provenance_sidecar_callback,
             self._evaluate_roundtrip_evidence_callback,
@@ -246,6 +247,7 @@ class DipTraceService:
             self._load_and_validate_evidence_manifest,
             self._load_and_authorize_trusted_registry_evidence,
             self._write_provenance_sidecar_callback,
+            self._require_write_impact_callback,
         )
         self._transaction_service = TransactionService(
             self._service_context,
@@ -264,6 +266,13 @@ class DipTraceService:
     @staticmethod
     def _atomic_write_bytes(path: Path, data: bytes) -> None:
         atomic_write_bytes(path, data)
+
+    @staticmethod
+    def _require_write_impact_callback(impact: WriteImpact, *, operation: str) -> None:
+        require_write_impact(impact, operation=operation)
+
+    def _trusted_provenance_registry_provider(self) -> TrustedProvenanceRegistry:
+        return self._trusted_provenance_registry
 
     def _write_provenance_sidecar_callback(
         self,

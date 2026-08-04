@@ -25,7 +25,7 @@ from ..scaffolding import (
     validate_format_version,
 )
 from ..services.context import ServiceContext, read_success
-from ..write_limits import require_write_impact, write_impact
+from ..write_limits import WriteImpact, write_impact
 from ..xml_document import (
     DipTraceDocument,
     atomic_write_bytes,
@@ -76,6 +76,10 @@ class WriteProvenanceSidecar(Protocol):
     def __call__(self, document_path: Path, provenance: DocumentProvenance) -> None: ...
 
 
+class RequireWriteImpact(Protocol):
+    def __call__(self, impact: WriteImpact, *, operation: str) -> None: ...
+
+
 class ScaffoldingService:
     """Implementation for synthetic document creation and exact seed copies."""
 
@@ -90,6 +94,7 @@ class ScaffoldingService:
         load_and_validate_evidence_manifest: LoadAndValidateEvidenceManifest,
         load_and_authorize_trusted_registry_evidence: (LoadAndAuthorizeTrustedRegistryEvidence),
         write_provenance_sidecar: WriteProvenanceSidecar,
+        require_write_impact: RequireWriteImpact,
     ) -> None:
         self.context = context
         self.backups = backups
@@ -102,6 +107,7 @@ class ScaffoldingService:
             load_and_authorize_trusted_registry_evidence
         )
         self.write_provenance_sidecar = write_provenance_sidecar
+        self.require_write_impact = require_write_impact
 
     def create_document(
         self,
@@ -148,7 +154,7 @@ class ScaffoldingService:
             expected_sha256=expected_sha256,
         )
         impact = write_impact(previous, candidate)
-        require_write_impact(impact, operation="create_document")
+        self.require_write_impact(impact, operation="create_document")
         if previous is not None:
             assert expected_sha256 is not None
             self.require_current_target_sha256(target, expected_sha256)
@@ -254,7 +260,7 @@ class ScaffoldingService:
             expected_sha256=expected_sha256,
         )
         impact = write_impact(previous, seed_doc)
-        require_write_impact(impact, operation="create_document_from_seed")
+        self.require_write_impact(impact, operation="create_document_from_seed")
         # Copy seed bytes verbatim — do not modify unknown XML
         if previous is not None:
             assert expected_sha256 is not None

@@ -59,6 +59,10 @@ class AtomicWriteBytes(Protocol):
     def __call__(self, path: Path, data: bytes) -> None: ...
 
 
+class TrustedRegistryProvider(Protocol):
+    def __call__(self) -> TrustedProvenanceRegistry: ...
+
+
 class WriteProvenanceSidecar(Protocol):
     def __call__(self, document_path: Path, provenance: DocumentProvenance) -> None: ...
 
@@ -703,14 +707,14 @@ class EvidenceService:
         self,
         context: ServiceContext,
         gateway: DocumentGateway,
-        trusted_registry: TrustedProvenanceRegistry,
+        trusted_registry: TrustedRegistryProvider,
         atomic_write_bytes: AtomicWriteBytes,
         write_provenance_sidecar: WriteProvenanceSidecar,
         evaluate_roundtrip_evidence: EvaluateRoundtripEvidence,
     ) -> None:
         self.context = context
         self.gateway = gateway
-        self.trusted_registry = trusted_registry
+        self.trusted_registry_provider = trusted_registry
         self.atomic_write_bytes = atomic_write_bytes
         self.write_provenance_sidecar = write_provenance_sidecar
         self.evaluate_roundtrip_evidence = evaluate_roundtrip_evidence
@@ -937,7 +941,7 @@ class EvidenceService:
                 code="trusted_registry_entry_missing",
             )
         try:
-            self.trusted_registry.authorize(
+            self.trusted_registry_provider().authorize(
                 entry_id=entry_id,
                 document_sha256=provenance.current_document_sha256,
                 evidence_manifest_sha256=evidence.manifest_sha256,
