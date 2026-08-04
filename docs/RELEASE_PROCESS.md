@@ -2,61 +2,67 @@
 
 ## Current release status
 
-Version 0.1.2 remains the latest published development-stage release, with
-unsigned artifacts and provenance in
-[releases/v0.1.2.md](releases/v0.1.2.md). Version 0.2.0 is the current release
-candidate on `release/v0.2.0`; its candidate record is
-[releases/v0.2.0.md](releases/v0.2.0.md). It is not tagged or published while
-the blocking items in [RELEASE_0_2_0_CHECKLIST.md](RELEASE_0_2_0_CHECKLIST.md)
-remain open. The previous `v0.1.1` release is explicitly withdrawn in
-[releases/v0.1.1.md](releases/v0.1.1.md). CI has no package-index publication
-job, and the Windows candidate artifacts are unsigned.
+Version `v0.1.2` remains the latest published development-stage release.
+Version `0.2.0` is the current source/package version and an unpublished release
+candidate.
 
-A release presented as independently reviewed, signed, or production-ready is prohibited while the corresponding blocking items in [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) remain open. A development-stage unsigned release may proceed only through an explicit solo-maintainer exception recorded with its limitations, artifact hashes, test evidence, and rollback decision. The GitHub repository owner is the only currently documented administrative authority.
+The 0.2.0 service decomposition and release-preparation pull requests are merged
+to `main`:
 
-Contribution intake uses the DCO 1.1 and provenance requirements in
-[`CONTRIBUTING.md`](../CONTRIBUTING.md). External announcement, grant, and
-application materials are maintained outside Git. They must not be copied into
-release records, source archives, or release assets.
+- PR #48 squash commit:
+  `a4c9023cdbc982e5bc8e1867945105c18f49f3f5`;
+- PR #49 merge commit:
+  `4fdefcd5464d57fa7bef2aa7391eb5b0507798f6`;
+- exact PR #49 CI run `30940972328`: success;
+- exact PR #49 Windows installer run `30940972331`: success.
+
+The candidate is **not tagged or published** while the blocking items in
+[`RELEASE_0_2_0_CHECKLIST.md`](RELEASE_0_2_0_CHECKLIST.md) remain open. Its
+candidate record is [`releases/v0.2.0.md`](releases/v0.2.0.md).
+
+CI does not publish to PyPI. Current candidate Windows executables are unsigned.
+A release presented as signed, independently reviewed, production-ready, or
+universally compatible is prohibited without corresponding evidence.
+
+A development-stage unsigned release may proceed only under the documented
+solo-maintainer exception with exact commit identity, artifact hashes, test and
+acceptance evidence, limitations, and rollback decision.
 
 ## 1. Approve scope and authority
 
-Before changing a version or creating a tag:
+Before changing release metadata or creating a tag:
 
-1. identify the release manager and an independent reviewer in the release
-   record;
-2. identify a working private security channel and conduct-enforcement path;
-3. confirm the selected OSI-approved license (Apache-2.0) and finish the
-   ownership, dependency, bundled-content, fixture, documentation, and binary
-   redistribution audits;
-4. select the compatibility statement and supported-version window;
-5. freeze the exact commit; and
-6. move user-visible entries from `Unreleased` in
-   [CHANGELOG.md](../CHANGELOG.md) to the approved version and date.
+1. identify the release manager;
+2. identify an independent reviewer when one exists, or record the explicit
+   solo-maintainer exception;
+3. confirm the Apache-2.0 project license and current contribution/provenance
+   rules;
+4. review dependency, bundled-content, fixture, documentation, and binary
+   redistribution status;
+5. choose the supported compatibility statement;
+6. complete the required real Windows/DipTrace/client acceptance;
+7. freeze the exact commit;
+8. move user-visible changes from `Unreleased` into the approved version/date;
+9. update citation and release documentation to the same immutable identity.
 
-For a correction release, use one temporary release branch and one pull
-request. Preserve the original release commit with an explicit Git revert;
-do not rewrite `main`, move the old tag, or replace old release assets. Merge
-the PR only after every required job passes for that exact PR head.
+Do not claim Novarm/DipTrace endorsement, affiliation, approval, or permission
+without explicit evidence.
 
-No announcement may describe unverified DipTrace behavior as verified or
-implemented.
+## 2. Run repository quality gates
 
-## 2. Run quality gates
-
-Use a clean checkout of the frozen commit and run:
+Use a clean checkout of the exact candidate commit:
 
 ```bash
-python -m pip install -e ".[dev,geometry]"
+python -m pip install -e '.[dev,geometry]'
 python -m pytest -q
 python -m ruff check --no-cache src tests benchmarks scripts plugin
 python -m mypy --no-incremental src/diptrace_mcp plugin
 python scripts/generate_pcb_skills.py --check
 python scripts/generate_mcp_tools_snapshot.py --check
-python -m hatchling build -d release-dist
-python scripts/audit_release_artifacts.py \
-  --dist-dir release-dist \
-  --check-allowlist
+python scripts/check_service_facade_contract.py --check
+python scripts/validate_service_decomposition.py --check
+python scripts/audit_event_loop.py --json
+python scripts/generate_coverage_badge.py --check
 python scripts/extract_spec_inventory.py \
   --sources tests/fixtures \
   --out reference/diptrace-xml/spec_inventory.json \
@@ -65,101 +71,161 @@ python scripts/report_format_coverage.py --check
 python scripts/make_probe_pack.py --check
 python scripts/ingest_fixtures.py --dry-run --synthetic --json
 python scripts/audit_acceptance_seeds.py
-python scripts/measure_mcp_surface.py --baseline-bytes 121335 --max-growth-percent 15
-python scripts/verify_geometry_backend.py --expect shapely_geos
-python scripts/smoke_bridge_headless.py
+rm -rf release-dist
+python -m hatchling build -d release-dist
+python scripts/audit_release_artifacts.py \
+  --dist-dir release-dist \
+  --check-allowlist
 ```
 
-All required GitHub Actions jobs must pass on the same commit. A missing platform result cannot be replaced by a local claim. When release notes claim live PCB or Schematic integration, attach a dated acceptance record for the exact server/bridge baseline and clearly separate local host evidence from public CI.
+All required GitHub Actions jobs must pass on the same pull-request head. A
+missing platform result cannot be replaced by a local assertion.
 
-## 3. Build and inspect
+Current public contract expectations are:
 
-Build only from the frozen commit. Inspect:
+- 159 MCP tools;
+- 142,746 canonical snapshot bytes;
+- MCP snapshot SHA-256
+  `073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db`;
+- 157 public Facade methods;
+- 148 explicit delegations.
 
-- the source archive, Python source distribution, and wheel;
-- wheel contents, entry points, packaged skills, and generated schemas;
-- the Windows bridge and its runtime dependencies;
-- dependency, license, attribution, and notice material; and
-- a SHA-256 manifest covering every release artifact.
+## 3. Complete real acceptance
 
-The committed build hook and release-artifact audit constrain the Python
-archives to an exact versioned allowlist. They do not turn a development build
-into a release and do not cover the Windows bridge executable. Rebuild the
-wheel from the source distribution in the release environment and compare it
-with the direct wheel before publication.
+For a release that claims Windows and live DipTrace integration, record dated
+acceptance from the staged/final assets rather than the source tree.
 
-The reference-document extraction bundles and generated specification inventory
-are engineering inputs with unresolved redistribution status. They are kept
-out of future source archives and wheels until a human confirms a redistribution
-basis; the local regeneration command remains available to an operator with
-legitimate source documents.
+Minimum 0.2.0 matrix:
 
-The Python wheel contains the MCP server and eight packaged skills. It does
-not contain the PowerShell build/installer scripts or DipTrace plug-in settings
-needed for complete Windows live-bridge deployment; publish and verify those
-as separate release assets.
+- clean Windows 11 install;
+- repair/idempotent reinstall;
+- uninstall with workspace and user-state preservation;
+- a current real DipTrace 5 installation;
+- PCB Layout, Schematic Capture, Component Editor, and Pattern Editor profiles;
+- real Codex configuration, restart, and `get_capabilities`;
+- real Claude Desktop configuration, restart, and `get_capabilities`;
+- elevated plug-in installation under Program Files while user configuration
+  remains in the original profile;
+- at least one fresh PCB and Schematic live apply/cancel/wrong-SHA path;
+- GUI/save/re-export confirmation for applied changes;
+- proof that cancel/refusal does not reach the host document.
 
-The Windows development asset set additionally contains
-`DipTrace-MCP-Setup-<version>.exe` and
-`DipTrace-MCP-Portable-<version>.zip`. The installer is the primary user asset;
-the ZIP is a no-Python fallback. Both are built from the staged onedir server,
-the existing bridge pipeline, the four settings profiles, and the standalone
-configurator. The installer does not fetch runtime code. Its writable state is
-outside the installed application, and its uninstaller preserves workspaces,
-backups, logs, client-config backups, and state by default.
+Record exact OS, DipTrace, MCP client, Python/build, installer, and asset hashes.
+Do not broaden the compatibility claim beyond the tested matrix.
 
-The current bundle build includes Shapely/GEOS only when the exact Windows
-geometry smoke passes. A successful installer build does not establish live
-DipTrace semantics, Q1 rotation validation, universal DipTrace-version
-support, or permission/endorsement from Novarm.
+Q1 Component Angle GUI/re-export validation remains a separate evidence gate.
+It must stay `NOT_RUN` unless captured and reviewed.
 
-The Windows bridge is currently unsigned. A public binary must either be
-signed by an approved identity or carry an explicit, reviewed unsigned-binary
-disclosure. CI success is not a code signature.
+## 4. Build final assets
 
-The same rule applies to the server executable and installer. The unsigned
-development path calculates SHA-256 values and records
-`unsigned-until-verified`; `SIGNING_REQUIRED=true` must fail closed and verify
-Authenticode after signing. No test certificate, self-made certificate, or
-SignPath request may be represented as a trusted signature.
+Build only from the frozen commit. The intended asset set is:
 
-## 4. Stage and verify
+- `DipTrace-MCP-Setup-0.2.0.exe`;
+- `DipTrace-MCP-Portable-0.2.0.zip`;
+- `diptrace_mcp-0.2.0-py3-none-any.whl`;
+- `diptrace_mcp-0.2.0.tar.gz`;
+- `SHA256SUMS.txt`;
+- current SBOM, dependency inventory, third-party notices, and provenance
+  records.
 
-Stage artifacts in a non-public channel controlled by the release manager.
-Install the staged wheel and bridge rather than the source tree. Run CLI, public MCP `tools/list`, skill-delivery, and headless bridge smoke tests on supported platforms. For a release that claims Windows live integration, run fresh-session PCB and Schematic apply/cancel/wrong-SHA acceptance, verify GUI/save/re-export behavior for applied changes, and prove cancelled/refused changes do not reach the host document. Download the staged artifacts and verify their hashes.
+Inspect:
 
-The release record must contain the frozen commit, artifact hashes, test
-results, approvers, supported environments, known limitations, security
-channel, artifact retention policy, and rollback decision.
+- source archive, sdist, and wheel contents;
+- wheel entry points, packaged skills, schemas, and `RECORD` hashes/sizes;
+- bridge, standalone server, configurator, installer, and portable inventory;
+- runtime dependencies and notices;
+- source-distribution rebuild parity;
+- SHA-256 coverage for every final asset;
+- Authenticode status for every executable.
 
-For Windows, also retain the exact workflow run, Python version, pinned
-PyInstaller/constraint file, Inno Setup compiler version and package SHA-256,
-portable inventory/checksum report, installer size, server cold-start and MCP
-initialize timings, Authenticode status, SBOM, and sanitized provenance
-inventory. Unknown timings or missing native Windows results remain blockers
-for stronger claims.
+A successful build does not establish real DipTrace semantics or a trusted code
+signature.
 
-## 5. Publish
+## 5. Signing decision
 
-Only after every gate is complete:
+The default 0.2.0 candidate decision is an explicitly unsigned development
+release.
 
-1. create the approved annotated tag from the exact merge commit;
-2. publish immutable artifacts and checksums;
-3. download the published artifacts again and verify installation from those
-   public files in a clean environment;
-4. publish release notes that distinguish implemented, runtime-available, and
-   DipTrace-verified capabilities; and
-5. publish any external announcement only after every URL, version, license,
-   checksum, support statement, and contact has been verified privately.
+A signed claim is allowed only when:
 
-No automated package-index publication is configured by this policy.
+- a real protected signing identity is configured;
+- the protected signing workflow is executed for the final assets;
+- every distributed executable verifies;
+- the release record contains the signer/verification evidence.
 
-## 6. Post-release and rollback
+Self-signed, test, or merely configured certificates must not be represented as
+trusted signing.
 
-Monitor the published security and support paths. Never replace an immutable
-artifact under an existing version. If a release is defective, publish a new
-version or withdraw it according to the selected registry policy.
+## 6. Stage and verify
 
-The incident record must state the affected version and hashes, reason,
-confidentiality or unsafe-mutation impact, required user action, replacement
-version or support status, and disclosure decision.
+Stage the exact final files in a non-public release-manager-controlled channel.
+From clean environments:
+
+- verify `SHA256SUMS.txt`;
+- install the wheel and run CLI/MCP stdio smoke;
+- install and uninstall the Windows installer;
+- extract and smoke the portable bundle;
+- verify `tools/list` and `get_capabilities`;
+- verify packaged skills and schemas;
+- run the real acceptance matrix where claimed;
+- confirm final asset filenames, sizes, hashes, and unsigned/signed status.
+
+The release record must contain:
+
+- exact commit and tag target;
+- acceptance versions and results;
+- CI/workflow run IDs;
+- final asset names, sizes, and SHA-256 values;
+- signing status;
+- supported environments and known limitations;
+- security/support paths;
+- rollback/withdrawal decision.
+
+## 7. Publish
+
+Only after every required gate passes:
+
+1. merge the final release-finalisation PR;
+2. verify the merge commit matches the approved release tree;
+3. create annotated tag `v0.2.0` from that commit;
+4. publish immutable assets and checksums;
+5. mark the release as development/prerelease when appropriate;
+6. publish notes that distinguish implemented, runtime-available, and real
+   DipTrace-verified capabilities;
+7. avoid production-ready, signed, universal-compatibility, or endorsement
+   claims not supported by evidence.
+
+No automated package-index publication is configured.
+
+## 8. Public-download verification
+
+After publication, download the public files again rather than reusing local
+build output.
+
+Repeat:
+
+- SHA-256 verification;
+- clean wheel installation and CLI/MCP stdio smoke;
+- Windows installer install/repair/uninstall;
+- portable-bundle smoke;
+- asset inventory and signing-status checks.
+
+Update `docs/releases/v0.2.0.md` with the immutable release URL, tag SHA,
+publication date, asset sizes/hashes, and public-download results.
+
+## 9. Post-release and rollback
+
+Monitor the published security and support paths. Never replace bytes under an
+existing tag/version.
+
+If a material problem is discovered:
+
+- preserve the tag and original asset bytes;
+- mark the release withdrawn when appropriate;
+- record affected versions/hashes and required user action;
+- publish a corrected version rather than moving the old tag;
+- document whether confidentiality, unsafe mutation, installation, or evidence
+  claims were affected.
+
+Before publication, a candidate may be abandoned by closing or reverting its
+release-finalisation PR. Do not rewrite `main` history or move existing tags.
