@@ -28,7 +28,6 @@ from .domain import (
     ObjectRecord,
     PlanStatus,
     ProvenanceAuthority,
-    QuerySelector,
     SemanticComparisonEvidence,
     SourceType,
     TransactionRecord,
@@ -66,15 +65,6 @@ from .operations import (
     SemanticOperation,
     SyncSchematicToPcbOperation,
     parse_semantic_operations,
-)
-from .placement import (
-    PlacementConfig,
-    PlacementProposal,
-    PlacementWeights,
-    analyze_placement,
-    generate_placement_candidates,
-    plan_component_placement,
-    score_placement_proposal,
 )
 from .plans import PlanStore
 from .policy import Policy
@@ -118,11 +108,11 @@ from .services.documents import DocumentService
 from .services.exports import ExportService
 from .services.external_jobs import ExternalJobsService
 from .services.jobs import JobService
+from .services.placement import PlacementService
 from .services.review import ReviewService
 from .services.routing import RoutingService
 from .services.semantic_operations import SemanticOperationsService
 from .sessions import LiveWorkingGuard, SessionAction, SessionStore
-from .silkscreen import SilkscreenPlanConfig, plan_silkscreen
 from .specctra import (
     dsn_export_limitations,
 )
@@ -1004,6 +994,13 @@ class DipTraceService:
             self.plans,
             self._run_semantic_write,
             self._run_semantic_operations,
+            self._preview_semantic_operations,
+            self._apply_stored_plan,
+        )
+        self._placement_service = PlacementService(
+            self._service_context,
+            self._document_gateway,
+            self.plans,
             self._preview_semantic_operations,
             self._apply_stored_plan,
         )
@@ -5056,63 +5053,15 @@ class DipTraceService:
         include_board_texts: bool = False,
         avoid_component_bodies: bool = False,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        config = SilkscreenPlanConfig.model_validate(
-            {
-                "selector": selector or {},
-                "clearance": clearance,
-                "board_edge_clearance": board_edge_clearance,
-                "grid": grid,
-                "search_steps": search_steps,
-                "include_board_texts": include_board_texts,
-                "avoid_component_bodies": avoid_component_bodies,
-            }
-        )
-        planned = plan_silkscreen(snapshot, config)
-        record = self.plans.create(
-            plan_type="silkscreen",
-            document_id=snapshot.info.document_id,
-            source_sha256=snapshot.info.sha256,
-            target_path=target.path,
-            config=config.model_dump(mode="json"),
-            operations=[operation.model_dump(mode="json") for operation in planned.operations],
-            changed_ids=planned.changed_ids,
-            unresolved=planned.unresolved,
-            candidates=planned.candidates,
-            score=planned.score,
-            metrics=planned.metrics,
-            assumptions=planned.assumptions,
-            warnings=planned.warnings,
-            limitations=planned.limitations,
-        )
-        if planned.operations:
-            preview = self._preview_semantic_operations(document, planned.operations)
-        else:
-            preview = {
-                "svg": render_preview_svg(snapshot, snapshot, []),
-                "json": render_preview_json(snapshot, snapshot, []),
-                "diff": "",
-            }
-        resources = self.plans.store_preview(
-            record.plan_id,
-            svg=preview["svg"],
-            geometry={
-                **preview["json"],
-                "plan_id": record.plan_id,
-                "candidates": planned.candidates,
-                "unresolved": planned.unresolved,
-                "score": planned.score,
-            },
-            diff=preview["diff"],
-        )
-        record = self.plans.read(record.plan_id)
-        return self._read_success(
-            snapshot.info,
-            {"plan": record.model_dump(mode="json")},
-            warnings=planned.warnings,
-            limitations=planned.limitations,
-            resources=resources,
+        return self._placement_service.plan_silkscreen(
+            path,
+            selector=selector,
+            clearance=clearance,
+            board_edge_clearance=board_edge_clearance,
+            grid=grid,
+            search_steps=search_steps,
+            include_board_texts=include_board_texts,
+            avoid_component_bodies=avoid_component_bodies,
         )
 
     def analyze_placement(
@@ -5123,18 +5072,8 @@ class DipTraceService:
         spacing: float = 0.2,
         board_edge_clearance: float = 0.5,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        result = analyze_placement(
-            snapshot,
-            QuerySelector.model_validate(selector or {}),
-            spacing=spacing,
-            board_edge_clearance=board_edge_clearance,
-        )
-        return self._read_success(
-            snapshot.info,
-            result,
-            limitations=["Component bounds are estimated when body/courtyard geometry is absent."],
+        return self._placement_service.analyze_placement(
+            path, selector=selector, spacing=spacing, board_edge_clearance=board_edge_clearance
         )
 
     def generate_placement_candidates(
@@ -5143,19 +5082,7 @@ class DipTraceService:
         path: str | None = None,
         **options: Any,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        config = self._placement_config(selector, options)
-        candidates = generate_placement_candidates(snapshot, config)
-        return self._read_success(
-            snapshot.info,
-            {
-                "matched_count": len(candidates),
-                "config": config.model_dump(mode="json"),
-                "items": candidates,
-            },
-            limitations=["Candidate geometry uses normalized component bounds."],
-        )
+        return self._placement_service.generate_placement_candidates(selector, path, **options)
 
     def score_placement(
         self,
@@ -5166,19 +5093,12 @@ class DipTraceService:
         board_edge_clearance: float = 0.5,
         weights: dict[str, float] | None = None,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        config = PlacementConfig(
+        return self._placement_service.score_placement(
+            placements,
+            path,
             spacing=spacing,
             board_edge_clearance=board_edge_clearance,
-            weights=PlacementWeights.model_validate(weights or {}),
-        )
-        proposals = [PlacementProposal.model_validate(item) for item in placements]
-        score, violations = score_placement_proposal(snapshot, proposals, config)
-        return self._read_success(
-            snapshot.info,
-            {"score": score, "violations": violations},
-            limitations=["Ratsnest cost uses component anchors, not exact pad anchors."],
+            weights=weights,
         )
 
     def plan_component_placement(
@@ -5187,81 +5107,7 @@ class DipTraceService:
         path: str | None = None,
         **options: Any,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        config = self._placement_config(selector, options)
-        planned = plan_component_placement(snapshot, config)
-        before_findings, _, _, _ = run_checks(snapshot, categories={"placement"})
-        if planned.operations:
-            applied = apply_semantic_operations(
-                document, planned.operations, live_session=target.is_live
-            )
-            after_snapshot = build_snapshot(applied.document, live_session=target.is_live)
-            after_findings, _, _, _ = run_checks(after_snapshot, categories={"placement"})
-            preview = self._preview_semantic_operations(document, planned.operations)
-        else:
-            after_findings = before_findings
-            preview = {
-                "svg": render_preview_svg(snapshot, snapshot, []),
-                "json": render_preview_json(snapshot, snapshot, []),
-                "diff": "",
-            }
-        before_errors = sum(item.severity == "error" for item in before_findings)
-        after_errors = sum(item.severity == "error" for item in after_findings)
-        if after_errors > before_errors:
-            raise DrcRegressionError(
-                "Placement plan introduces new placement DRC errors",
-                details={
-                    "errors_before": before_errors,
-                    "errors_after": after_errors,
-                },
-                object_ids=planned.changed_ids,
-            )
-        metrics = {
-            **planned.metrics,
-            "validation": {
-                "placement_errors_before": before_errors,
-                "placement_errors_after": after_errors,
-                "no_new_placement_errors": after_errors <= before_errors,
-            },
-        }
-        record = self.plans.create(
-            plan_type="component_placement",
-            document_id=snapshot.info.document_id,
-            source_sha256=snapshot.info.sha256,
-            target_path=target.path,
-            config=config.model_dump(mode="json"),
-            operations=[operation.model_dump(mode="json") for operation in planned.operations],
-            changed_ids=planned.changed_ids,
-            unresolved=planned.unresolved,
-            candidates=planned.candidates,
-            score=planned.score,
-            metrics=metrics,
-            assumptions=planned.assumptions,
-            warnings=planned.warnings,
-            limitations=planned.limitations,
-        )
-        resources = self.plans.store_preview(
-            record.plan_id,
-            svg=preview["svg"],
-            geometry={
-                **preview["json"],
-                "plan_id": record.plan_id,
-                "candidates": planned.candidates,
-                "unresolved": planned.unresolved,
-                "score": planned.score,
-                "validation": metrics["validation"],
-            },
-            diff=preview["diff"],
-        )
-        record = self.plans.read(record.plan_id)
-        return self._read_success(
-            snapshot.info,
-            {"plan": record.model_dump(mode="json")},
-            warnings=planned.warnings,
-            limitations=planned.limitations,
-            resources=resources,
-        )
+        return self._placement_service.plan_component_placement(selector, path, **options)
 
     def apply_component_placement_plan(
         self,
@@ -5271,12 +5117,8 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        return self._apply_stored_plan(
-            plan_id,
-            expected_plan_type="component_placement",
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
+        return self._placement_service.apply_component_placement_plan(
+            plan_id, dry_run=dry_run, expected_sha256=expected_sha256, txid=txid
         )
 
     def apply_silkscreen_plan(
@@ -5287,12 +5129,8 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        return self._apply_stored_plan(
-            plan_id,
-            expected_plan_type="silkscreen",
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
+        return self._placement_service.apply_silkscreen_plan(
+            plan_id, dry_run=dry_run, expected_sha256=expected_sha256, txid=txid
         )
 
     def _apply_stored_plan(
@@ -5353,13 +5191,6 @@ class DipTraceService:
         )
         response["plan"] = updated.model_dump(mode="json")
         return response
-
-    @staticmethod
-    def _placement_config(selector: dict[str, Any], options: dict[str, Any]) -> PlacementConfig:
-        payload = {"selector": selector, **options}
-        if "weights" in payload:
-            payload["weights"] = PlacementWeights.model_validate(payload["weights"] or {})
-        return PlacementConfig.model_validate(payload)
 
     def plan_resource(self, plan_id: str, resource: str) -> str:
         if resource == "summary":
