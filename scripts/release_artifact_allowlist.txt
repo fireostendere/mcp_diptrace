@@ -83,6 +83,7 @@ docs/evidence_capture/source.attestations.template.json
 docs/releases/v0.1.0.md
 docs/releases/v0.1.1.md
 docs/releases/v0.1.2.md
+docs/releases/v0.2.0.md
 examples/claude_desktop_config.json
 examples/codex-config.toml
 installer/DipTraceMCP.iss
