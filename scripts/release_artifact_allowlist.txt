@@ -6,6 +6,7 @@
 .github/pull_request_template.md
 .github/workflows/ci.yml
 .github/workflows/deep-compliance-audit.yml
+.github/workflows/mcpb.yml
 .github/workflows/windows-installer.yml
 .github/workflows/windows-signing.yml
 .gitignore
@@ -38,6 +39,7 @@ docs/INSTALL_FROM_RELEASE.md
 docs/LICENSE_DECISION.md
 docs/LIVE_ACCEPTANCE_2026-07-31.md
 docs/LIVE_EXCHANGE_PATHS.md
+docs/MCP_DISTRIBUTION.md
 docs/MCP_TOOLS.md
 docs/OPEN_QUESTIONS.md
 docs/PLACEMENT_ENGINE.md
@@ -93,6 +95,10 @@ packaging/diptrace_mcp_configure.spec
 packaging/diptrace_mcp_server.spec
 packaging/inno_setup_prerequisite.json
 packaging/install_portable.ps1
+packaging/mcpb/README.md
+packaging/mcpb/README_FIRST.md
+packaging/mcpb/manifest.template.json
+packaging/registry/server.template.json
 packaging/remove_owned_state.ps1
 packaging/windows-constraints.txt
 packaging/write_installation_manifest.ps1
@@ -117,6 +123,7 @@ scripts/audit_event_loop.py
 scripts/audit_reference_materials.py
 scripts/audit_release_artifacts.py
 scripts/audit_windows_bundle.py
+scripts/build_mcpb.py
 scripts/build_windows_configurator.ps1
 scripts/build_windows_installer.ps1
 scripts/build_windows_server.ps1
@@ -134,6 +141,7 @@ scripts/generate_coverage_badge.py
 scripts/generate_fixture_hash_manifest.py
 scripts/generate_mcp_tools_snapshot.py
 scripts/generate_pcb_skills.py
+scripts/generate_registry_server_json.py
 scripts/gitleaks.toml
 scripts/hatch_build.py
 scripts/ingest_fixtures.py
@@ -317,6 +325,7 @@ tests/test_live_session_lifecycle.py
 tests/test_mcp_error_contracts.py
 tests/test_mcp_tool_chain.py
 tests/test_mcp_tools_snapshot.py
+tests/test_mcpb_distribution.py
 tests/test_model_cache.py
 tests/test_models.py
 tests/test_multirouter.py
