@@ -1,55 +1,35 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from . import __version__
 from .adapters import build_snapshot
 from .backups import BackupStore
 from .capabilities import capability_report as build_capability_report
-from .capability_model import MAX_TRANSACTION_OPERATIONS
 from .config import Settings
 from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
 from .domain import (
-    _HIGH_TRUST_LEVELS,
-    _TRUSTED_EVIDENCE_AUTHORITIES,
-    _USER_SUPPLIABLE_TRUST_LEVELS,
     BoardModelSection,
     DocumentInfo,
     DocumentProvenance,
-    EvidenceAuthority,
-    EvidenceFileRecord,
-    FixtureValidationLevel,
-    ObjectRecord,
     PlanStatus,
-    ProvenanceAuthority,
     SemanticComparisonEvidence,
-    SourceType,
     TransactionRecord,
-    TrustedRoundtripEvidence,
-    UnsupportedCategory,
-    UserSuppliedRoundtripEvidence,
     ValidatedEvidence,
-    requires_diptrace_verification,
 )
 from .errors import (
     ConfirmationRequiredError,
     ConnectivityRegressionError,
-    DipTraceMcpError,
     DocumentError,
     DrcRegressionError,
     EditError,
-    PathAccessError,
-    RoundtripValidationError,
     Sha256MismatchError,
     TransactionConflictError,
 )
-from .evidence_status import component_angle_evidence_warnings
 from .exports import (
     ExportStore,
 )
@@ -76,14 +56,12 @@ from .preview import (
 )
 from .previews import RawPreviewStore
 from .provenance_registry import (
-    RegistryAuthorizationError,
     TrustedProvenanceRegistry,
 )
 from .review import run_checks
 from .scaffolding import (
     DEFAULT_FORMAT_VERSION,
 )
-from .semantic_compiler import SemanticApplyResult, apply_semantic_operations
 from .services.bom import BomService
 from .services.context import (
     DocumentGateway,
@@ -100,6 +78,13 @@ from .services.context import (
 )
 from .services.discovery import DiscoveryService
 from .services.documents import DocumentService
+from .services.evidence import (
+    EffectiveTrust,
+    EvidenceService,
+    RoundtripEvidenceEvaluation,
+    _fail_closed_trust,  # noqa: F401 - preserved private compatibility import
+    _semantic_roundtrip_check,  # noqa: F401 - preserved private compatibility import
+)
 from .services.exports import ExportService
 from .services.external_jobs import ExternalJobsService
 from .services.jobs import JobService
@@ -108,6 +93,12 @@ from .services.review import ReviewService
 from .services.routing import RoutingService
 from .services.scaffolding import ScaffoldingService
 from .services.semantic_operations import SemanticOperationsService
+from .services.transactions import (
+    TransactionService,
+    _apply_bounded_semantic_operations,
+    _require_transaction_capacity,
+    transaction_response_summary,
+)
 from .sessions import LiveWorkingGuard, SessionAction, SessionStore
 from .specctra import (
     dsn_export_limitations,
@@ -115,9 +106,6 @@ from .specctra import (
 from .synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan
 from .transactions import (
     TransactionStore,
-    default_risk,
-    tx_preview_resources,
-    tx_summary_resources,
 )
 from .write_limits import require_write_impact, write_impact
 from .xml_document import (
@@ -139,12 +127,6 @@ BOARD_MODEL_RESPONSE_BYTE_LIMIT = 256 * 1024
 BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT = 32 * 1024
 RAW_EDIT_RESPONSE_BYTE_LIMIT = 128 * 1024
 RAW_EDIT_XPATH_CHARACTER_LIMIT = 128
-TRANSACTION_CHANGED_ID_PREVIEW_LIMIT = 500
-TRANSACTION_MESSAGE_PREVIEW_LIMIT = 100
-TRANSACTION_MESSAGE_CHARACTER_LIMIT = 1_000
-EVIDENCE_RESPONSE_BYTE_LIMIT = 64 * 1024
-EVIDENCE_LIST_PREVIEW_LIMIT = 25
-EVIDENCE_TEXT_CHARACTER_LIMIT = 512
 
 
 def _finalize_raw_edit_response(result: dict[str, Any]) -> dict[str, Any]:
@@ -187,731 +169,6 @@ def _bounded_raw_edit_previews(
             }
         )
     return bounded
-
-
-def _validation_response_summary(value: dict[str, Any]) -> dict[str, Any]:
-    return {
-        key: value[key]
-        for key in ("document_id", "kind", "sha256", "review_errors")
-        if key in value
-    }
-
-
-def _bounded_messages(values: list[str]) -> tuple[list[str], dict[str, Any]]:
-    rendered: list[str] = []
-    truncated_characters = False
-    for value in values[:TRANSACTION_MESSAGE_PREVIEW_LIMIT]:
-        bounded, truncated = _bounded_text(value, TRANSACTION_MESSAGE_CHARACTER_LIMIT)
-        rendered.append(bounded)
-        truncated_characters = truncated_characters or truncated
-    return rendered, {
-        "total_count": len(values),
-        "returned_count": len(rendered),
-        "truncated": len(rendered) < len(values) or truncated_characters,
-    }
-
-
-def _bounded_changed_ids(values: list[str]) -> dict[str, Any]:
-    rendered = values[:TRANSACTION_CHANGED_ID_PREVIEW_LIMIT]
-    return {
-        "changed_ids": rendered,
-        "changed_id_count": len(values),
-        "changed_ids_truncated": len(rendered) < len(values),
-    }
-
-
-def _bounded_evidence_comparison(
-    comparison: dict[str, Any] | None,
-) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    """Return a stable comparison preview without exposing unbounded parser output."""
-
-    if comparison is None:
-        return None, {"truncated": False, "fields": {}}
-
-    result: dict[str, Any] = {
-        "passed": bool(comparison.get("passed")),
-        "comparison_complete": bool(comparison.get("comparison_complete")),
-    }
-    field_bounds: dict[str, dict[str, Any]] = {}
-    truncated = False
-    for field_name in (
-        "compared_categories",
-        "missing_required_categories",
-        "differences",
-        "ignored_normalizations",
-        "parse_warnings",
-    ):
-        raw_values = comparison.get(field_name, [])
-        values = raw_values if isinstance(raw_values, list) else []
-        rendered: list[str] = []
-        characters_truncated = False
-        for value in values[:EVIDENCE_LIST_PREVIEW_LIMIT]:
-            bounded, was_truncated = _bounded_text(
-                str(value),
-                EVIDENCE_TEXT_CHARACTER_LIMIT,
-            )
-            rendered.append(bounded)
-            characters_truncated = characters_truncated or was_truncated
-        field_truncated = len(rendered) < len(values) or characters_truncated
-        result[field_name] = rendered
-        field_bounds[field_name] = {
-            "total_count": len(values),
-            "returned_count": len(rendered),
-            "truncated": field_truncated,
-        }
-        truncated = truncated or field_truncated
-
-    unsupported_raw = comparison.get("unsupported_categories", [])
-    unsupported = unsupported_raw if isinstance(unsupported_raw, list) else []
-    rendered_unsupported: list[dict[str, str]] = []
-    unsupported_characters_truncated = False
-    for item in unsupported[:EVIDENCE_LIST_PREVIEW_LIMIT]:
-        if not isinstance(item, dict):
-            continue
-        rendered_item: dict[str, str] = {}
-        for key in ("category", "severity", "reason"):
-            if key not in item:
-                continue
-            bounded, was_truncated = _bounded_text(
-                str(item[key]),
-                EVIDENCE_TEXT_CHARACTER_LIMIT,
-            )
-            rendered_item[key] = bounded
-            unsupported_characters_truncated = unsupported_characters_truncated or was_truncated
-        rendered_unsupported.append(rendered_item)
-    unsupported_truncated = (
-        len(rendered_unsupported) < len(unsupported) or unsupported_characters_truncated
-    )
-    result["unsupported_categories"] = rendered_unsupported
-    field_bounds["unsupported_categories"] = {
-        "total_count": len(unsupported),
-        "returned_count": len(rendered_unsupported),
-        "truncated": unsupported_truncated,
-    }
-    truncated = truncated or unsupported_truncated
-    return result, {"truncated": truncated, "fields": field_bounds}
-
-
-def _finalize_evidence_response(result: dict[str, Any]) -> dict[str, Any]:
-    """Attach and enforce the public evidence response byte bound."""
-
-    result["response_byte_limit"] = EVIDENCE_RESPONSE_BYTE_LIMIT
-    result["serialized_response_bytes"] = 0
-    for _ in range(8):
-        serialized_size = _json_size(result)
-        if result["serialized_response_bytes"] == serialized_size:
-            break
-        result["serialized_response_bytes"] = serialized_size
-    if (
-        result["serialized_response_bytes"] != _json_size(result)
-        or _json_size(result) > EVIDENCE_RESPONSE_BYTE_LIMIT
-    ):
-        raise EditError("Evidence response metadata exceeds its payload cap")
-    return result
-
-
-def transaction_response_summary(record: TransactionRecord) -> dict[str, Any]:
-    """Return stable transaction state without echoing staged operation payloads."""
-
-    changed_id_summary = _bounded_changed_ids(record.changed_ids)
-    target_path, target_path_truncated = _bounded_text(record.target_path, 4_096)
-    error: dict[str, Any] | None = None
-    if record.error:
-        error = {}
-        if "code" in record.error:
-            error["code"] = record.error["code"]
-        message = record.error.get("message")
-        if isinstance(message, str):
-            error["message"], error["message_truncated"] = _bounded_text(
-                message,
-                TRANSACTION_MESSAGE_CHARACTER_LIMIT,
-            )
-    return {
-        "txid": record.txid,
-        "document_id": record.document_id,
-        "status": record.status,
-        "target_path": target_path,
-        "target_path_truncated": target_path_truncated,
-        "source_sha256": record.source_sha256,
-        "expected_sha256": record.expected_sha256,
-        "committed_sha256": record.committed_sha256,
-        "rolled_back_sha256": record.rolled_back_sha256,
-        "created_at": record.created_at,
-        "updated_at": record.updated_at,
-        "operation_count": len(record.operations),
-        "compiled_patch_count": record.compiled_patch_count,
-        **changed_id_summary,
-        "risk": record.risk.model_dump(mode="json"),
-        "validation_before": _validation_response_summary(record.validation_before),
-        "validation_after_preview": _validation_response_summary(record.validation_after_preview),
-        "preview_resources": record.preview_resources,
-        "preview_metadata": record.preview_metadata,
-        "backup_available": record.backup_path is not None,
-        "error": error,
-        "note_count": len(record.notes),
-        "summary_resource": f"diptrace://transaction/{record.txid}/summary",
-        "operations_resource": f"diptrace://transaction/{record.txid}/operations",
-    }
-
-
-@dataclass(frozen=True)
-class RoundtripEvidenceEvaluation:
-    """Validated, SHA-bound evidence inputs shared by preview and record paths."""
-
-    document_path: Path
-    document_sha256: str
-    source: EvidenceFileRecord
-    saved: EvidenceFileRecord
-    reexport: EvidenceFileRecord | None
-    semantic_comparison: dict[str, Any] | None
-
-    @property
-    def failed(self) -> bool:
-        return self.semantic_comparison is not None and not bool(
-            self.semantic_comparison.get("passed")
-        )
-
-
-def same_file_role(path_a: Path, path_b: Path) -> bool:
-    """Return whether two evidence roles identify the same filesystem object."""
-    try:
-        if path_a.exists() and path_b.exists():
-            return os.path.samefile(path_a, path_b)
-    except OSError:
-        pass
-    try:
-        left = os.path.normcase(os.path.abspath(path_a.resolve(strict=False)))
-        right = os.path.normcase(os.path.abspath(path_b.resolve(strict=False)))
-    except (OSError, ValueError):
-        left = os.path.normcase(os.path.abspath(path_a))
-        right = os.path.normcase(os.path.abspath(path_b))
-    return left == right
-
-
-def _require_transaction_capacity(operation_count: int) -> None:
-    if operation_count > MAX_TRANSACTION_OPERATIONS:
-        raise EditError(
-            "Transaction would exceed "
-            f"{MAX_TRANSACTION_OPERATIONS} operations limit ({operation_count} staged)"
-        )
-
-
-def _apply_bounded_semantic_operations(
-    document: DipTraceDocument,
-    operations: list[SemanticOperation],
-    *,
-    live_session: bool = False,
-) -> SemanticApplyResult:
-    """Compile a semantic write and enforce the independent object cap."""
-
-    result = apply_semantic_operations(
-        document,
-        operations,
-        live_session=live_session,
-    )
-    impact = write_impact(
-        document,
-        result.document,
-        compiler_changed_ids=result.changed_ids,
-    )
-    require_write_impact(impact, operation="semantic write")
-    result.changed_ids = list(impact.changed_ids)
-    return result
-
-
-# ── Effective trust resolution ───────────────────────────────────────────
-
-
-@dataclass(frozen=True)
-class EffectiveTrust:
-    """Resolved trust state for a document, derived from sidecar + manifest."""
-
-    validation_level: FixtureValidationLevel
-    authority: str
-    requires_diptrace_verification: bool
-    evidence_manifest_path: str | None = None
-    evidence_manifest_sha256: str | None = None
-    warnings: list[dict[str, str]] = field(default_factory=list)
-
-
-def _fail_closed_trust(
-    *,
-    reason: str = "evidence_validation_failed",
-    warning_code: str = "evidence_manifest_sha_mismatch",
-) -> EffectiveTrust:
-    """Return a fail-closed trust result."""
-    return EffectiveTrust(
-        validation_level=FixtureValidationLevel.synthetic_parser_only,
-        authority="invalid_or_untrusted_evidence",
-        requires_diptrace_verification=True,
-        warnings=[{"code": warning_code, "detail": reason}],
-    )
-
-
-# ── Required comparison categories ───────────────────────────────────────
-
-REQUIRED_PCB_COMPARISON_CATEGORIES: frozenset[str] = frozenset(
-    {
-        "source_type",
-        "board_outline",
-        "copper_layers",
-        "components",
-        "pads",
-        "nets",
-        "traces",
-        "vias",
-        "via_styles",
-    }
-)
-
-REQUIRED_SCHEMATIC_COMPARISON_CATEGORIES: frozenset[str] = frozenset(
-    {
-        "source_type",
-        "sheets",
-        "hierarchy",
-        "parts",
-        "patterns",
-        "pins",
-        "pin_net_membership",
-        "wires",
-        "wire_geometry",
-        "labels",
-    }
-)
-
-
-# ── Semantic comparison policy ─────────────────────────────────────────────
-
-SEMANTIC_COMPARISON_POLICY_V1: dict[str, Any] = {
-    "ignored_xml_sections": frozenset(
-        {
-            "FutureExtension",
-        }
-    ),
-    "critical_xml_sections": frozenset(
-        {
-            # Unknown XML sections outside the allowlist are critical because they
-            # may contain electrical semantics we cannot verify.
-        }
-    ),
-    "informational_xml_sections": frozenset(
-        {
-            "Shapes",  # Text/shapes are cosmetic
-        }
-    ),
-    "normalizations": frozenset(
-        {
-            "whitespace_in_text",
-            "attribute_order",
-            "xml_declaration_encoding",
-        }
-    ),
-}
-
-
-def _detected_semantic_normalizations(
-    source: DipTraceDocument,
-    reexport: DipTraceDocument,
-) -> list[str]:
-    """Report representation differences the semantic comparison actually ignores.
-
-    These detectors are observational: they never remove a semantic difference or
-    turn a failed comparison into a pass.  A name is returned only when the two
-    parsed documents exhibit that specific, policy-allowlisted representation
-    difference.
-    """
-
-    detected: set[str] = set()
-
-    source_encoding = (
-        source.encoding.casefold().replace("_", "-"),
-        source.bom,
-        (source.declared_encoding or "").casefold().replace("_", "-"),
-    )
-    reexport_encoding = (
-        reexport.encoding.casefold().replace("_", "-"),
-        reexport.bom,
-        (reexport.declared_encoding or "").casefold().replace("_", "-"),
-    )
-    if source.raw_bytes != reexport.raw_bytes and source_encoding != reexport_encoding:
-        detected.add("xml_declaration_encoding")
-
-    source_elements = list(source.root.iter())
-    reexport_elements = list(reexport.root.iter())
-    source_shape = [(element.tag, len(element)) for element in source_elements]
-    reexport_shape = [(element.tag, len(element)) for element in reexport_elements]
-
-    # Attribute order and formatting whitespace are compared only when the element
-    # trees have the same shape, so unrelated elements cannot be paired merely
-    # because they happen to occupy the same traversal position.
-    if source_shape == reexport_shape:
-        for left, right in zip(source_elements, reexport_elements, strict=True):
-            if left.attrib == right.attrib and tuple(left.attrib.items()) != tuple(
-                right.attrib.items()
-            ):
-                detected.add("attribute_order")
-
-            for left_text, right_text in (
-                (left.text, right.text),
-                (left.tail, right.tail),
-            ):
-                if left_text == right_text:
-                    continue
-                if (left_text or "").strip() == (right_text or "").strip():
-                    detected.add("whitespace_in_text")
-
-    configured = SEMANTIC_COMPARISON_POLICY_V1["normalizations"]
-    return sorted(detected & configured)
-
-
-def _semantic_roundtrip_check(
-    source: DipTraceDocument, reexport: DipTraceDocument
-) -> dict[str, Any]:
-    """Compare electrically meaningful normalized DipTrace structures."""
-    differences: list[str] = []
-    compared: list[str] = ["source_type"]
-    unsupported: list[dict[str, str]] = []
-    warnings: list[str] = []
-
-    if source.source_type != reexport.source_type:
-        differences.append(f"source_type: {source.source_type!r} vs {reexport.source_type!r}")
-
-    source_snapshot = build_snapshot(source)
-    reexport_snapshot = build_snapshot(reexport)
-    warnings.extend(source_snapshot.warnings)
-    warnings.extend(reexport_snapshot.warnings)
-
-    def rounded(value: Any) -> Any:
-        if isinstance(value, float):
-            return round(value, 6)
-        if isinstance(value, dict):
-            return tuple(sorted((str(key), rounded(item)) for key, item in value.items()))
-        if isinstance(value, list):
-            return tuple(rounded(item) for item in value)
-        return value
-
-    def record_key(record: ObjectRecord) -> tuple[str, str, str]:
-        return (record.xml_id or "", record.refdes or "", record.label or record.stable_id)
-
-    def compare_category(name: str, left: Any, right: Any) -> None:
-        compared.append(name)
-        if rounded(left) != rounded(right):
-            differences.append(f"{name}: semantic content differs")
-
-    if source_snapshot.board is not None and reexport_snapshot.board is not None:
-        sb = source_snapshot.board
-        rb = reexport_snapshot.board
-        compare_category("board_outline", sb.outline, rb.outline)
-        compare_category("copper_layers", sb.layers, rb.layers)
-        compare_category(
-            "via_styles",
-            [item.model_dump(mode="json") for item in sb.via_styles],
-            [item.model_dump(mode="json") for item in rb.via_styles],
-        )
-
-        def component_sig(item: ObjectRecord) -> Any:
-            return (
-                record_key(item),
-                item.name,
-                item.value,
-                item.side,
-                item.locked,
-                item.position,
-                rounded(item.rotation_deg),
-                item.mirrored,
-                item.attributes.get("pattern_style"),
-                item.attributes.get("pattern_name"),
-            )
-
-        compare_category(
-            "components",
-            [component_sig(item) for item in sorted(sb.components, key=record_key)],
-            [component_sig(item) for item in sorted(rb.components, key=record_key)],
-        )
-
-        def endpoint_sig(item: ObjectRecord) -> Any:
-            return (
-                record_key(item),
-                item.parent_id,
-                item.net_id,
-                item.net_name,
-                item.position,
-                item.layer,
-                item.attributes,
-            )
-
-        compare_category(
-            "pads",
-            [endpoint_sig(item) for item in sorted(sb.pads, key=record_key)],
-            [endpoint_sig(item) for item in sorted(rb.pads, key=record_key)],
-        )
-
-        def net_sig(item: ObjectRecord) -> Any:
-            return (
-                record_key(item),
-                item.name,
-                item.locked,
-                item.attributes.get("net_class", item.attributes.get("NetClass")),
-                sorted(item.relationships.get("endpoints", [])),
-                sorted(item.relationships.get("traces", [])),
-                sorted(item.relationships.get("vias", [])),
-            )
-
-        compare_category(
-            "nets",
-            [net_sig(item) for item in sorted(sb.nets, key=record_key)],
-            [net_sig(item) for item in sorted(rb.nets, key=record_key)],
-        )
-
-        def trace_pair_membership(board: Any) -> dict[str, list[tuple[str, str]]]:
-            membership: dict[str, list[tuple[str, str]]] = {}
-            for pair in board.differential_pairs:
-                for segment in pair.segments:
-                    if segment.positive_trace_xml_id:
-                        membership.setdefault(segment.positive_trace_xml_id, []).append(
-                            (pair.name, "positive")
-                        )
-                    if segment.negative_trace_xml_id:
-                        membership.setdefault(segment.negative_trace_xml_id, []).append(
-                            (pair.name, "negative")
-                        )
-            return membership
-
-        source_pairs = trace_pair_membership(sb)
-        reexport_pairs = trace_pair_membership(rb)
-
-        def trace_sig(item: ObjectRecord, pairs: dict[str, list[tuple[str, str]]]) -> Any:
-            attrs = item.attributes
-            return (
-                record_key(item),
-                item.net_id,
-                item.net_name,
-                item.layer,
-                item.locked,
-                attrs.get("Connected1"),
-                attrs.get("Connected2"),
-                attrs.get("points", []),
-                attrs.get("segment_widths_mm", []),
-                attrs.get("segment_layers", []),
-                attrs.get("point_via_styles", []),
-                attrs.get("point_arc_middle", []),
-                sorted(pairs.get(item.xml_id or "", [])),
-            )
-
-        compare_category(
-            "traces",
-            [trace_sig(item, source_pairs) for item in sorted(sb.traces, key=record_key)],
-            [trace_sig(item, reexport_pairs) for item in sorted(rb.traces, key=record_key)],
-        )
-
-        def via_sig(item: ObjectRecord) -> Any:
-            attrs = item.attributes
-            return (
-                record_key(item),
-                item.parent_id,
-                item.net_id,
-                item.net_name,
-                item.position,
-                item.layer,
-                item.locked,
-                attrs.get("via_style"),
-                attrs.get("layer_start_id"),
-                attrs.get("layer_end_id"),
-                attrs.get("span_layer_ids", []),
-                attrs.get("diameter_mm"),
-                attrs.get("hole_mm"),
-            )
-
-        compare_category(
-            "vias",
-            [via_sig(item) for item in sorted(sb.vias, key=record_key)],
-            [via_sig(item) for item in sorted(rb.vias, key=record_key)],
-        )
-        compare_category(
-            "differential_pairs",
-            [item.model_dump(mode="json", exclude={"stable_id"}) for item in sb.differential_pairs],
-            [item.model_dump(mode="json", exclude={"stable_id"}) for item in rb.differential_pairs],
-        )
-
-    if source_snapshot.schematic is not None and reexport_snapshot.schematic is not None:
-        ss = source_snapshot.schematic
-        rs = reexport_snapshot.schematic
-        compare_category("sheets", ss.sheets, rs.sheets)
-
-        def part_sig(item: ObjectRecord) -> Any:
-            attrs = item.attributes
-            return (
-                record_key(item),
-                item.name,
-                item.value,
-                item.position,
-                rounded(item.rotation_deg),
-                item.mirrored,
-                item.locked,
-                attrs.get("sheet"),
-                attrs.get("component_style"),
-                attrs.get("component_part"),
-                attrs.get("part_number"),
-            )
-
-        compare_category(
-            "parts",
-            [part_sig(item) for item in sorted(ss.parts, key=record_key)],
-            [part_sig(item) for item in sorted(rs.parts, key=record_key)],
-        )
-        compare_category(
-            "patterns",
-            [
-                (record_key(item), item.attributes.get("component_style"))
-                for item in sorted(ss.parts, key=record_key)
-            ],
-            [
-                (record_key(item), item.attributes.get("component_style"))
-                for item in sorted(rs.parts, key=record_key)
-            ],
-        )
-
-        def pin_sig(item: ObjectRecord) -> Any:
-            return (
-                record_key(item),
-                item.parent_id,
-                item.net_id,
-                item.net_name,
-                item.attributes,
-            )
-
-        source_pins = [pin_sig(item) for item in sorted(ss.pins, key=record_key)]
-        reexport_pins = [pin_sig(item) for item in sorted(rs.pins, key=record_key)]
-        compare_category("pins", source_pins, reexport_pins)
-        compare_category(
-            "pin_net_membership",
-            [(item.xml_id, item.net_id, item.net_name) for item in sorted(ss.pins, key=record_key)],
-            [(item.xml_id, item.net_id, item.net_name) for item in sorted(rs.pins, key=record_key)],
-        )
-
-        def schematic_net_sig(item: ObjectRecord) -> Any:
-            return (
-                record_key(item),
-                item.name,
-                item.locked,
-                sorted(item.relationships.get("endpoints", [])),
-            )
-
-        compare_category(
-            "schematic_nets",
-            [schematic_net_sig(item) for item in sorted(ss.nets, key=record_key)],
-            [schematic_net_sig(item) for item in sorted(rs.nets, key=record_key)],
-        )
-
-        def wire_sig(item: ObjectRecord, include_geometry: bool) -> Any:
-            base = (
-                record_key(item),
-                item.net_id,
-                item.net_name,
-                item.locked,
-                item.attributes.get("sheet"),
-            )
-            return base + ((item.attributes.get("points", []),) if include_geometry else ())
-
-        compare_category(
-            "wires",
-            [wire_sig(item, False) for item in sorted(ss.wires, key=record_key)],
-            [wire_sig(item, False) for item in sorted(rs.wires, key=record_key)],
-        )
-        compare_category(
-            "wire_geometry",
-            [wire_sig(item, True) for item in sorted(ss.wires, key=record_key)],
-            [wire_sig(item, True) for item in sorted(rs.wires, key=record_key)],
-        )
-        compare_category(
-            "hierarchy",
-            [
-                (record_key(item), item.attributes.get("sheet"))
-                for item in sorted(ss.parts, key=record_key)
-            ],
-            [
-                (record_key(item), item.attributes.get("sheet"))
-                for item in sorted(rs.parts, key=record_key)
-            ],
-        )
-        compare_category(
-            "buses",
-            ss.buses,
-            rs.buses,
-        )
-
-        def label_signatures(document: DipTraceDocument) -> list[Any]:
-            labels: list[Any] = []
-            for element in document.container.iter():
-                if "label" not in str(element.tag).casefold():
-                    continue
-                labels.append(
-                    (
-                        element.tag,
-                        tuple(sorted(element.attrib.items())),
-                        (element.text or "").strip(),
-                        tuple(
-                            (
-                                child.tag,
-                                tuple(sorted(child.attrib.items())),
-                                (child.text or "").strip(),
-                            )
-                            for child in element
-                        ),
-                    )
-                )
-            return sorted(labels, key=repr)
-
-        compare_category("labels", label_signatures(source), label_signatures(reexport))
-
-    known_root_children = {"Library", "Board", "Schematic"}
-    has_critical_unsupported = False
-    for document_label, document in (("source", source), ("reexport", reexport)):
-        for child in document.root:
-            if child.tag not in known_root_children:
-                unsupported.append(
-                    {
-                        "category": f"unknown_xml_section:{child.tag}",
-                        "severity": "critical",
-                        "reason": f"Unknown top-level section in {document_label}",
-                    }
-                )
-                has_critical_unsupported = True
-
-    required: set[str] = {"source_type"}
-    if source_snapshot.board is not None or reexport_snapshot.board is not None:
-        required.update(REQUIRED_PCB_COMPARISON_CATEGORIES)
-        required.add("differential_pairs")
-    if source_snapshot.schematic is not None or reexport_snapshot.schematic is not None:
-        required.update(REQUIRED_SCHEMATIC_COMPARISON_CATEGORIES)
-        required.update({"schematic_nets", "buses"})
-
-    missing_required = sorted(required - set(compared))
-    comparison_complete = not missing_required
-    if missing_required:
-        differences.append("missing_required_categories: " + ", ".join(missing_required))
-
-    critical_warnings = [
-        warning
-        for warning in warnings
-        if any(token in warning.casefold() for token in ("error", "invalid", "missing"))
-    ]
-    passed = (
-        not differences
-        and comparison_complete
-        and not has_critical_unsupported
-        and not critical_warnings
-    )
-    return {
-        "passed": passed,
-        "comparison_complete": comparison_complete,
-        "compared_categories": compared,
-        "missing_required_categories": missing_required,
-        "differences": differences,
-        "ignored_normalizations": _detected_semantic_normalizations(source, reexport),
-        "unsupported_categories": unsupported,
-        "parse_warnings": warnings,
-    }
 
 
 class DipTraceService:
@@ -1000,6 +257,14 @@ class DipTraceService:
             self._preview_semantic_operations,
             self._apply_stored_plan,
         )
+        self._evidence_service = EvidenceService(
+            self._service_context,
+            self._document_gateway,
+            self._trusted_provenance_registry,
+            self._atomic_write_bytes,
+            self._write_provenance_sidecar_callback,
+            self._evaluate_roundtrip_evidence_callback,
+        )
         self._scaffolding_service = ScaffoldingService(
             self._service_context,
             self.backups,
@@ -1009,9 +274,53 @@ class DipTraceService:
             self._load_seed_provenance,
             self._load_and_validate_evidence_manifest,
             self._load_and_authorize_trusted_registry_evidence,
-            self._write_provenance_sidecar,
+            self._write_provenance_sidecar_callback,
+        )
+        self._transaction_service = TransactionService(
+            self._service_context,
+            self._document_gateway,
+            self.transactions,
+            self.sessions,
+            self._preview_semantic_operations,
+            self._require_current_target_sha256,
+            self._atomic_write_bytes,
+            self.invalidate_document_trust_after_write,
+            self._load_and_validate_evidence_manifest,
+            self._load_and_authorize_trusted_registry_evidence,
         )
         self._workflow_prompt_names: tuple[str, ...] = ()
+
+    @staticmethod
+    def _atomic_write_bytes(path: Path, data: bytes) -> None:
+        atomic_write_bytes(path, data)
+
+    def _write_provenance_sidecar_callback(
+        self,
+        document_path: Path,
+        provenance: DocumentProvenance,
+    ) -> None:
+        self._write_provenance_sidecar(document_path, provenance)
+
+    def _evaluate_roundtrip_evidence_callback(
+        self,
+        path: str,
+        *,
+        source_path: str,
+        source_sha256: str,
+        saved_path: str,
+        saved_sha256: str | None,
+        reexport_path: str | None,
+        reexport_sha256: str | None,
+    ) -> RoundtripEvidenceEvaluation:
+        return self._evaluate_roundtrip_evidence(
+            path,
+            source_path=source_path,
+            source_sha256=source_sha256,
+            saved_path=saved_path,
+            saved_sha256=saved_sha256,
+            reexport_path=reexport_path,
+            reexport_sha256=reexport_sha256,
+        )
 
     @property
     def raw_previews(self) -> RawPreviewStore:
@@ -1035,14 +344,7 @@ class DipTraceService:
         Returns the validated DocumentProvenance if a valid sidecar exists,
         or None if no sidecar is present or it fails validation.
         """
-        sidecar = seed_path.with_suffix(seed_path.suffix + ".provenance.json")
-        if not sidecar.exists():
-            return None
-        try:
-            raw = json.loads(sidecar.read_text())
-            return DocumentProvenance.model_validate(raw)
-        except (json.JSONDecodeError, OSError, ValueError):
-            return None
+        return self._evidence_service._load_seed_provenance(seed_path)
 
     def _load_and_validate_evidence_manifest(
         self,
@@ -1065,166 +367,8 @@ class DipTraceService:
 
         Raises EditError on any failure (fail-closed).
         """
-        if not provenance.evidence_manifest_path:
-            raise EditError(
-                "Evidence manifest path is required for evidence-backed trust",
-                code="evidence_manifest_missing",
-            )
-        if not provenance.evidence_manifest_sha256:
-            raise EditError(
-                "Evidence manifest SHA is required for evidence-backed trust",
-                code="evidence_manifest_sha_missing",
-            )
-
-        # 1. Resolve and verify path is within allowed roots
-        try:
-            manifest_path = self.settings.resolve_allowed_path(
-                provenance.evidence_manifest_path, must_exist=True
-            )
-        except (EditError, PathAccessError, OSError) as exc:
-            raise EditError(
-                f"Evidence manifest not found or outside allowed roots: {exc}",
-                code="evidence_manifest_not_found",
-            ) from exc
-
-        # 2. SHA binding: file content must match sidecar's recorded SHA
-        try:
-            manifest_bytes = manifest_path.read_bytes()
-        except OSError as exc:
-            raise EditError(
-                f"Cannot read evidence manifest: {exc}",
-                code="evidence_manifest_read_error",
-            ) from exc
-
-        actual_manifest_sha = sha256_bytes(manifest_bytes)
-        if actual_manifest_sha != provenance.evidence_manifest_sha256:
-            raise EditError(
-                f"Evidence manifest SHA mismatch: expected "
-                f"{provenance.evidence_manifest_sha256}, got {actual_manifest_sha}",
-                code="evidence_manifest_sha_mismatch",
-            )
-
-        # 3. Parse as JSON
-        try:
-            manifest_data = json.loads(manifest_bytes)
-        except json.JSONDecodeError as exc:
-            raise EditError(
-                f"Evidence manifest is not valid JSON: {exc}",
-                code="evidence_manifest_invalid_json",
-            ) from exc
-
-        # 4. Validate schema — try user-supplied first, then trusted
-        record_data: dict[str, Any] = manifest_data
-        evidence_authority = EvidenceAuthority.user_supplied
-        try:
-            user_record = UserSuppliedRoundtripEvidence.model_validate(manifest_data)
-            record_data = user_record.model_dump()
-            evidence_authority = EvidenceAuthority.user_supplied
-        except ValueError:
-            # Not a valid user-supplied record; try trusted
-            try:
-                trusted_record = TrustedRoundtripEvidence.model_validate(manifest_data)
-                record_data = trusted_record.model_dump()
-                evidence_authority = trusted_record.authority
-            except ValueError as exc:
-                raise EditError(
-                    f"Evidence manifest schema validation failed: {exc}",
-                    code="evidence_manifest_schema_error",
-                ) from exc
-
-        # 5. Bind the manifest to this exact target document, not merely bytes
-        # with the same hash elsewhere in the workspace.
-        doc_sha_from_manifest = record_data["document_sha256"]
-        doc_path_from_manifest = record_data["document_path"]
-        try:
-            manifest_document_path = self.settings.resolve_allowed_path(
-                doc_path_from_manifest, must_exist=True
-            )
-        except (EditError, PathAccessError, OSError) as exc:
-            raise EditError(
-                f"Evidence document path is unavailable or outside allowed roots: {exc}",
-                code="evidence_document_path_invalid",
-            ) from exc
-        if not same_file_role(manifest_document_path, document_path):
-            raise EditError(
-                "Evidence manifest is bound to a different document path",
-                code="evidence_document_path_mismatch",
-            )
-
-        # 6. Document SHA binding
-        if doc_sha_from_manifest != provenance.current_document_sha256:
-            raise EditError(
-                f"Evidence manifest documents SHA {doc_sha_from_manifest} but sidecar "
-                f"claims {provenance.current_document_sha256}",
-                code="evidence_document_sha_mismatch",
-            )
-
-        # 7. Source type validation against the actual current document.
-        saved_info = record_data.get("saved", {})
-        source_type_from_manifest = ""
-        if isinstance(saved_info, dict):
-            source_type_from_manifest = saved_info.get("source_type", "")
-        actual_document = DipTraceDocument.load(document_path, self.settings.max_document_bytes)
-        if source_type_from_manifest != actual_document.source_type:
-            raise EditError(
-                f"Evidence source type {source_type_from_manifest!r} does not match "
-                f"document source type {actual_document.source_type!r}",
-                code="evidence_source_type_mismatch",
-            )
-
-        # 8. Validation level must match
-        level_from_manifest = record_data.get("validation_level", "")
-        level_matches = (
-            isinstance(level_from_manifest, str)
-            and level_from_manifest == provenance.validation_level.value
-        )
-        if not level_matches and isinstance(level_from_manifest, str):
-            raise EditError(
-                f"Evidence manifest declares validation_level={level_from_manifest} "
-                f"but sidecar claims {provenance.validation_level.value}",
-                code="evidence_level_mismatch",
-            )
-
-        # 9. Trust invariants: failed evidence cannot grant high trust
-        status = record_data.get("status", "recorded")
-        if status == "failed" and provenance.validation_level in _HIGH_TRUST_LEVELS:
-            raise EditError(
-                "Failed evidence record cannot grant high trust",
-                code="evidence_failed_no_trust",
-            )
-
-        # 10. Authority boundary: user-supplied evidence must not grant high trust
-        if (
-            evidence_authority == EvidenceAuthority.user_supplied
-            and provenance.validation_level in _USER_SUPPLIABLE_TRUST_LEVELS
-        ):
-            raise EditError(
-                f"user-supplied evidence cannot grant "
-                f"validation_level={provenance.validation_level.value}",
-                code="user_supplied_evidence_cannot_grant_high_trust",
-            )
-
-        # 11. Sidecar authority must be compatible with evidence authority
-        if (
-            provenance.authority == ProvenanceAuthority.user_supplied_evidence
-            and evidence_authority not in _TRUSTED_EVIDENCE_AUTHORITIES
-            and provenance.validation_level in _HIGH_TRUST_LEVELS
-        ):
-            raise EditError(
-                "user_supplied_evidence sidecar authority cannot hold "
-                "high-trust validation_level from user-supplied evidence",
-                code="user_supplied_evidence_cannot_grant_high_trust",
-            )
-
-        return ValidatedEvidence(
-            manifest_path=manifest_path,
-            manifest_sha256=actual_manifest_sha,
-            document_path=doc_path_from_manifest,
-            document_sha256=doc_sha_from_manifest,
-            source_type=source_type_from_manifest,
-            validation_level=provenance.validation_level,
-            authority=evidence_authority,
-            record=record_data,
+        return self._evidence_service._load_and_validate_evidence_manifest(
+            document_path, provenance
         )
 
     def _load_and_authorize_trusted_registry_evidence(
@@ -1233,35 +377,9 @@ class DipTraceService:
         provenance: DocumentProvenance,
     ) -> ValidatedEvidence:
         """Resolve high trust only through an exact embedded-registry binding."""
-
-        evidence = self._load_and_validate_evidence_manifest(document_path, provenance)
-        if evidence.authority != EvidenceAuthority.trusted_registry:
-            raise EditError(
-                "Trusted-registry sidecar references evidence from another authority",
-                code="trusted_registry_evidence_authority_mismatch",
-            )
-        entry_id = provenance.trusted_registry_entry_id
-        if entry_id is None:
-            # DocumentProvenance normally prevents this, but keep the trust
-            # boundary fail-closed if a caller bypasses model validation.
-            raise EditError(
-                "Trusted-registry sidecar has no registry entry id",
-                code="trusted_registry_entry_missing",
-            )
-        try:
-            self._trusted_provenance_registry.authorize(
-                entry_id=entry_id,
-                document_sha256=provenance.current_document_sha256,
-                evidence_manifest_sha256=evidence.manifest_sha256,
-                source_type=evidence.source_type,
-                validation_level=provenance.validation_level,
-            )
-        except RegistryAuthorizationError as exc:
-            raise EditError(
-                "Trusted provenance registry did not authorize this exact evidence binding",
-                code=exc.code,
-            ) from exc
-        return evidence
+        return self._evidence_service._load_and_authorize_trusted_registry_evidence(
+            document_path, provenance
+        )
 
     def _write_provenance_sidecar(
         self,
@@ -1287,122 +405,9 @@ class DipTraceService:
           - revalidated evidence manifest SHA binding
           - authority boundary enforcement
         """
-        # 1. Load and parse the sidecar
-        sidecar_path = document_path.with_suffix(document_path.suffix + ".provenance.json")
-        if not sidecar_path.exists():
-            return EffectiveTrust(
-                validation_level=FixtureValidationLevel.synthetic_parser_only,
-                authority="no_sidecar",
-                requires_diptrace_verification=True,
-            )
-
-        try:
-            sidecar_bytes = sidecar_path.read_bytes()
-        except OSError:
-            return _fail_closed_trust(
-                reason="sidecar_read_error",
-                warning_code="sidecar_read_error",
-            )
-
-        try:
-            sidecar_data = json.loads(sidecar_bytes)
-        except json.JSONDecodeError:
-            return _fail_closed_trust(
-                reason="sidecar_invalid_json",
-                warning_code="sidecar_invalid_json",
-            )
-
-        # 2. Validate sidecar schema
-        try:
-            provenance = DocumentProvenance.model_validate(sidecar_data)
-        except ValueError:
-            return _fail_closed_trust(
-                reason="sidecar_schema_invalid",
-                warning_code="sidecar_schema_invalid",
-            )
-
-        # 3. Verify sidecar document SHA matches current document
-        if provenance.current_document_sha256 != document_sha256:
-            return EffectiveTrust(
-                validation_level=FixtureValidationLevel.synthetic_parser_only,
-                authority="stale_sidecar",
-                requires_diptrace_verification=True,
-                warnings=[{"code": "sidecar_sha_mismatch"}],
-            )
-
-        # 4. Runtime authority: never grants high trust
-        if provenance.authority == ProvenanceAuthority.runtime:
-            return EffectiveTrust(
-                validation_level=provenance.validation_level,
-                authority=provenance.authority.value,
-                requires_diptrace_verification=requires_diptrace_verification(
-                    provenance.validation_level
-                ),
-            )
-
-        # 5. User-supplied evidence authority: cannot grant high trust
-        if provenance.authority == ProvenanceAuthority.user_supplied_evidence:
-            if provenance.validation_level in _HIGH_TRUST_LEVELS:
-                return _fail_closed_trust(
-                    reason="user_supplied_evidence_cannot_grant_high_trust",
-                    warning_code="user_supplied_evidence_cannot_grant_high_trust",
-                )
-            # Revalidate evidence manifest
-            try:
-                evidence = self._load_and_validate_evidence_manifest(document_path, provenance)
-                return EffectiveTrust(
-                    validation_level=provenance.validation_level,
-                    authority=provenance.authority.value,
-                    requires_diptrace_verification=requires_diptrace_verification(
-                        provenance.validation_level
-                    ),
-                    evidence_manifest_path=str(evidence.manifest_path),
-                    evidence_manifest_sha256=evidence.manifest_sha256,
-                )
-            except EditError as exc:
-                return _fail_closed_trust(
-                    reason=str(exc),
-                    warning_code=exc.payload.code,
-                )
-
-        # 6. Fixture-manifest is not an authenticated root of trust yet.
-        # Workspace-controlled JSON + matching SHA cannot self-mint high trust.
-        if provenance.authority == ProvenanceAuthority.fixture_manifest:
-            if provenance.validation_level in _HIGH_TRUST_LEVELS:
-                return _fail_closed_trust(
-                    reason="fixture_manifest_high_trust_authority_unavailable",
-                    warning_code="trusted_fixture_authority_unavailable",
-                )
-            return EffectiveTrust(
-                validation_level=provenance.validation_level,
-                authority=provenance.authority.value,
-                requires_diptrace_verification=requires_diptrace_verification(
-                    provenance.validation_level
-                ),
-            )
-
-        # 7. Repository-owned registry authority: every document/evidence/type/
-        # level field must match a reviewed embedded entry.
-        if provenance.authority == ProvenanceAuthority.trusted_registry:
-            try:
-                evidence = self._load_and_authorize_trusted_registry_evidence(
-                    document_path,
-                    provenance,
-                )
-                return EffectiveTrust(
-                    validation_level=provenance.validation_level,
-                    authority=provenance.authority.value,
-                    requires_diptrace_verification=requires_diptrace_verification(
-                        provenance.validation_level
-                    ),
-                    evidence_manifest_path=str(evidence.manifest_path),
-                    evidence_manifest_sha256=evidence.manifest_sha256,
-                )
-            except EditError as exc:
-                return _fail_closed_trust(
-                    reason=str(exc),
-                    warning_code=exc.payload.code,
-                )
+        return self._evidence_service.resolve_effective_document_trust(
+            document_path, document_sha256
+        )
 
     def invalidate_document_trust_after_write(
         self,
@@ -1417,12 +422,9 @@ class DipTraceService:
         DipTrace export.  This helper updates (or creates) the sidecar to
         reflect the synthetic state while preserving parent provenance.
         """
-        new_sidecar = self._invalidated_document_provenance(
-            document_path,
-            document_sha256,
-            operation_name=operation_name,
+        return self._evidence_service.invalidate_document_trust_after_write(
+            document_path, document_sha256, operation_name=operation_name
         )
-        self._write_provenance_sidecar(document_path, new_sidecar)
 
     def _invalidated_document_provenance(
         self,
@@ -1432,21 +434,8 @@ class DipTraceService:
         operation_name: str,
     ) -> DocumentProvenance:
         """Build the exact trust downgrade before a guarded sidecar replace."""
-
-        old_sidecar = self._load_seed_provenance(document_path)
-        parent_level: FixtureValidationLevel | None = None
-        seed_sha: str | None = None
-        if old_sidecar is not None:
-            # Preserve the deepest parent level from the chain
-            parent_level = old_sidecar.parent_validation_level or old_sidecar.validation_level
-            seed_sha = old_sidecar.seed_sha256
-        return DocumentProvenance(
-            provenance="mcp_modified" + (f"_from_{parent_level.value}" if parent_level else ""),
-            validation_level=FixtureValidationLevel.synthetic_operation_fixture,
-            current_document_sha256=document_sha256,
-            seed_sha256=seed_sha,
-            parent_validation_level=parent_level,
-            last_modified_by=operation_name,
+        return self._evidence_service._invalidated_document_provenance(
+            document_path, document_sha256, operation_name=operation_name
         )
 
     def resolve_target(self, path: str | None) -> DocumentTarget:
@@ -1521,145 +510,6 @@ class DipTraceService:
                 code="path_exists",
                 details={"path": str(target)},
             )
-
-    @staticmethod
-    def _read_optional_transaction_file(
-        path: Path,
-        *,
-        txid: str,
-        phase: str,
-    ) -> bytes | None:
-        try:
-            return path.read_bytes()
-        except FileNotFoundError:
-            return None
-        except OSError as exc:
-            raise TransactionConflictError(
-                f"Cannot read transaction-bound file during {phase}: {path}",
-                details={
-                    "phase": phase,
-                    "path": str(path),
-                    "current_sha256": None,
-                },
-                txid=txid,
-            ) from exc
-
-    @classmethod
-    def _require_optional_transaction_file_unchanged(
-        cls,
-        path: Path,
-        expected: bytes | None,
-        *,
-        txid: str,
-        phase: str,
-    ) -> None:
-        current = cls._read_optional_transaction_file(path, txid=txid, phase=phase)
-        if current != expected:
-            raise TransactionConflictError(
-                f"Transaction-bound file changed during {phase}: {path}",
-                details={
-                    "phase": phase,
-                    "path": str(path),
-                    "expected_sha256": (sha256_bytes(expected) if expected is not None else None),
-                    "current_sha256": (sha256_bytes(current) if current is not None else None),
-                },
-                txid=txid,
-            )
-
-    @classmethod
-    def _compensate_transaction_file(
-        cls,
-        path: Path,
-        *,
-        written: bytes,
-        previous: bytes | None,
-        txid: str,
-        phase: str,
-    ) -> None:
-        """Restore pre-call bytes only while this call still owns the current bytes."""
-
-        current = cls._read_optional_transaction_file(path, txid=txid, phase=phase)
-        if current == previous:
-            return
-        if current != written:
-            raise TransactionConflictError(
-                f"Refusing to overwrite unexpected bytes during {phase}: {path}",
-                details={
-                    "phase": phase,
-                    "path": str(path),
-                    "written_sha256": sha256_bytes(written),
-                    "previous_sha256": (sha256_bytes(previous) if previous is not None else None),
-                    "current_sha256": (sha256_bytes(current) if current is not None else None),
-                },
-                txid=txid,
-            )
-        try:
-            if previous is None:
-                path.unlink()
-            else:
-                atomic_write_bytes(path, previous)
-        except OSError as exc:
-            after_error = cls._read_optional_transaction_file(
-                path,
-                txid=txid,
-                phase=phase,
-            )
-            if after_error == previous:
-                return
-            raise TransactionConflictError(
-                f"Cannot restore transaction-bound file during {phase}: {path}",
-                details={
-                    "phase": phase,
-                    "path": str(path),
-                    "written_sha256": sha256_bytes(written),
-                    "previous_sha256": (sha256_bytes(previous) if previous is not None else None),
-                    "current_sha256": (
-                        sha256_bytes(after_error) if after_error is not None else None
-                    ),
-                },
-                txid=txid,
-            ) from exc
-        cls._require_optional_transaction_file_unchanged(
-            path,
-            previous,
-            txid=txid,
-            phase=phase,
-        )
-
-    def _load_transaction_backup_bytes(
-        self,
-        txid: str,
-        *,
-        expected_sha256: str,
-        phase: str,
-    ) -> bytes:
-        backup_path = self.transactions.require_backup(txid)
-        try:
-            backup_bytes = backup_path.read_bytes()
-        except OSError as exc:
-            raise TransactionConflictError(
-                "Transaction backup cannot be read during recovery",
-                details={
-                    "phase": phase,
-                    "path": str(backup_path),
-                    "expected_sha256": expected_sha256,
-                    "current_sha256": None,
-                },
-                txid=txid,
-            ) from exc
-        backup_sha256 = sha256_bytes(backup_bytes)
-        if backup_sha256 != expected_sha256:
-            raise TransactionConflictError(
-                "Transaction backup does not match its source SHA-256",
-                details={
-                    "phase": phase,
-                    "path": str(backup_path),
-                    "expected_sha256": expected_sha256,
-                    "current_sha256": backup_sha256,
-                },
-                txid=txid,
-            )
-        return backup_bytes
 
     def load_document_id(self, document_id: str) -> tuple[DipTraceDocument, DocumentTarget]:
         return self._document_gateway.load_document_id(document_id)
@@ -2290,185 +1140,16 @@ class DipTraceService:
         expected_sha256: str | None = None,
         notes: list[str] | None = None,
     ) -> dict[str, Any]:
-        self.policy.require_write(dry_run=True, operation="begin_transaction")
-        document, target = self.load(path)
-        snapshot = build_snapshot(document, live_session=target.is_live)
-        if expected_sha256 is not None and expected_sha256 != snapshot.info.sha256:
-            raise Sha256MismatchError(
-                f"Document changed: expected {expected_sha256}, current {snapshot.info.sha256}",
-                details={
-                    "expected_sha256": expected_sha256,
-                    "current_sha256": snapshot.info.sha256,
-                },
-            )
-        record = self.transactions.create(
-            snapshot.info,
-            target.path,
-            source_sha256=snapshot.info.sha256,
-            expected_sha256=expected_sha256 or snapshot.info.sha256,
-            notes=notes,
-        )
-        self.transactions.store_snapshot(record.txid, document.raw_bytes)
-        # Backup existing provenance sidecar for rollback restoration
-        sidecar_path = target.path.with_suffix(target.path.suffix + ".provenance.json")
-        provenance_backup: str | None = None
-        provenance_backup_sha: str | None = None
-        if sidecar_path.exists():
-            try:
-                prov_bytes = sidecar_path.read_bytes()
-                prov_backup = self.transactions.store_provenance_backup(
-                    record.txid,
-                    prov_bytes,
-                )
-                provenance_backup = str(prov_backup)
-                provenance_backup_sha = sha256_bytes(prov_bytes)
-            except OSError:
-                provenance_backup = None
-                provenance_backup_sha = None
-        updated = self.transactions.update(
-            record.txid,
-            status="staged",
-            snapshot_path=str(self.transactions.snapshot_path(record.txid)),
-            provenance_backup_path=provenance_backup,
-            provenance_backup_sha256=provenance_backup_sha,
-        )
-        return {
-            "ok": True,
-            "written": False,
-            "document": snapshot.info.model_dump(),
-            "transaction": transaction_response_summary(updated),
-            "warnings": [],
-            "limitations": [],
-            "resources": [],
-        }
+        return self._transaction_service.begin_transaction(path, expected_sha256, notes)
 
     def stage_operations(self, txid: str, operations: list[dict[str, Any]]) -> dict[str, Any]:
-        self.policy.require_write(dry_run=True, operation="stage_operations")
-        record = self.transactions.read(txid)
-        if record.status not in {"staged", "validated"}:
-            raise TransactionConflictError(
-                f"Transaction cannot accept operations in state {record.status}: {txid}",
-                txid=txid,
-            )
-        parsed = parse_semantic_operations(operations)
-        if not parsed:
-            raise EditError("At least one semantic operation is required")
-        staged = [*record.operations, *(operation.model_dump() for operation in parsed)]
-        _require_transaction_capacity(len(staged))
-        source = self._load_snapshot_record(record)
-        _apply_bounded_semantic_operations(
-            source,
-            parse_semantic_operations(staged),
-            live_session=self._session_id_from_working(Path(record.target_path)) is not None,
-        )
-        updated = self.transactions.update(
-            txid,
-            status="staged",
-            operations=staged,
-            compiled_patch_count=len(staged),
-            changed_ids=[],
-            validation_before={},
-            validation_after_preview={},
-            preview_resources=[],
-            preview_metadata={},
-        )
-        return {
-            "ok": True,
-            "written": False,
-            "transaction": transaction_response_summary(updated),
-            "result": {"staged_count": len(staged)},
-            "warnings": [],
-            "limitations": [],
-            "resources": [],
-        }
+        return self._transaction_service.stage_operations(txid, operations)
 
     def preview_transaction(self, txid: str) -> dict[str, Any]:
-        self.policy.require_write(dry_run=True, operation="preview_transaction")
-        record = self.transactions.read(txid)
-        if record.status not in {"staged", "validated"}:
-            raise TransactionConflictError(
-                f"Transaction cannot be previewed in state {record.status}: {txid}",
-                txid=txid,
-            )
-        if not record.operations:
-            raise TransactionConflictError("Transaction contains no operations", txid=txid)
-        source = self._load_snapshot_record(record)
-        operations = parse_semantic_operations(record.operations)
-        preview = self._preview_semantic_operations(source, operations)
-        preview_resources = tx_preview_resources(txid)
-        response_resources = [
-            *tx_summary_resources(txid)[:2],
-            *preview_resources,
-        ]
-        preview_metadata = {
-            "inline": False,
-            "artifacts": {
-                "svg": {
-                    "resource_uri": preview_resources[0],
-                    "mime_type": "image/svg+xml",
-                },
-                "json": {
-                    "resource_uri": preview_resources[1],
-                    "mime_type": "application/json",
-                },
-                "diff": {
-                    "resource_uri": preview_resources[2],
-                    "mime_type": "text/plain",
-                    **preview["diff_metadata"],
-                },
-            },
-        }
-        self.transactions.store_preview(
-            txid,
-            preview["svg"],
-            preview["json"],
-            preview["diff"],
-        )
-        updated = self.transactions.update(
-            txid,
-            status="validated",
-            changed_ids=preview["changed_ids"],
-            validation_before=preview["validation_before"],
-            validation_after_preview=preview["validation_after_preview"],
-            preview_resources=preview_resources,
-            preview_metadata=preview_metadata,
-            risk=default_risk("limited_write", "semantic operation preview generated"),
-            compiled_patch_count=preview["patch_count"],
-        )
-        warnings, warning_metadata = _bounded_messages(preview["warnings"])
-        limitations, limitation_metadata = _bounded_messages(preview["limitations"])
-        validation_before = _validation_response_summary(preview["validation_before"])
-        validation_after = _validation_response_summary(preview["validation_after_preview"])
-        angle_evidence_warnings = (
-            component_angle_evidence_warnings()
-            if any(operation.kind == "rotate_components" for operation in operations)
-            else []
-        )
-        return {
-            "ok": True,
-            "written": False,
-            "transaction": transaction_response_summary(updated),
-            "result": {
-                **_bounded_changed_ids(preview["changed_ids"]),
-                "validation_before": validation_before,
-                "validation_after_preview": validation_after,
-                "warnings_metadata": warning_metadata,
-                "limitations_metadata": limitation_metadata,
-                **(
-                    {"evidence_warnings": angle_evidence_warnings}
-                    if angle_evidence_warnings
-                    else {}
-                ),
-            },
-            "warnings": warnings,
-            "limitations": limitations,
-            "resources": response_resources,
-            "preview": preview_metadata,
-            **({"evidence_warnings": angle_evidence_warnings} if angle_evidence_warnings else {}),
-        }
+        return self._transaction_service.preview_transaction(txid)
 
     def validate_transaction(self, txid: str) -> dict[str, Any]:
-        return self.preview_transaction(txid)
+        return self._transaction_service.validate_transaction(txid)
 
     def commit_transaction(
         self,
@@ -2478,386 +1159,9 @@ class DipTraceService:
         _live_session_id: str | None = None,
         _live_guard: LiveWorkingGuard | None = None,
     ) -> dict[str, Any]:
-        self.policy.require_write(dry_run=False, operation="commit_transaction")
-        record = self.transactions.read(txid)
-        if record.status != "validated":
-            raise TransactionConflictError(
-                f"Transaction must be validated before commit: {txid}",
-                details={"current_status": record.status},
-                txid=txid,
-            )
-        if not record.operations:
-            raise TransactionConflictError("Transaction contains no operations", txid=txid)
-        if expected_sha256 is None:
-            raise ConfirmationRequiredError(
-                "expected_sha256 is required when committing a transaction",
-                txid=txid,
-            )
-        source = self._load_snapshot_record(record)
-        operations = parse_semantic_operations(record.operations)
-        preview = self._preview_semantic_operations(source, operations)
-        target_path = self.settings.resolve_allowed_path(record.target_path)
-        current = DipTraceDocument.load(target_path, self.settings.max_document_bytes)
-        current_sha256 = current.sha256
-        expected = record.expected_sha256 or record.source_sha256
-        if expected_sha256 != expected or current_sha256 != expected:
-            raise Sha256MismatchError(
-                f"Document changed: expected {expected}, current {current_sha256}",
-                details={
-                    "transaction_expected_sha256": expected,
-                    "provided_sha256": expected_sha256,
-                    "current_sha256": current_sha256,
-                },
-                txid=txid,
-            )
-        session_id = (
-            _live_session_id
-            if _live_session_id is not None
-            else self._session_id_from_working(target_path)
+        return self._transaction_service.commit_transaction(
+            txid, expected_sha256, _live_session_id=_live_session_id, _live_guard=_live_guard
         )
-        if session_id is not None and _live_guard is None:
-            with self.sessions.guard_working_mutation(
-                session_id,
-                expected_sha256=expected,
-            ) as live_guard:
-                return self.commit_transaction(
-                    txid,
-                    expected_sha256,
-                    _live_session_id=session_id,
-                    _live_guard=live_guard,
-                )
-        is_live = session_id is not None
-        applied = _apply_bounded_semantic_operations(
-            current,
-            operations,
-            live_session=is_live,
-        )
-        self._require_current_target_sha256(target_path, expected)
-        source_bytes = current.raw_bytes
-        backup = self.transactions.store_backup(txid, source_bytes)
-        self._require_current_target_sha256(target_path, expected)
-        try:
-            atomic_write_bytes(target_path, applied.raw_bytes)
-            reparsed = DipTraceDocument.load(target_path, self.settings.max_document_bytes)
-            committed_sha256 = reparsed.sha256
-            if committed_sha256 != sha256_bytes(applied.raw_bytes):
-                raise RoundtripValidationError(
-                    "Committed XML SHA does not match compiled transaction output",
-                    txid=txid,
-                )
-            self._require_current_target_sha256(target_path, committed_sha256)
-            if _live_guard is not None:
-                _live_guard.record_edit(
-                    working_sha256=committed_sha256,
-                    backup=backup,
-                )
-        except Exception as exc:
-            compensation_error: TransactionConflictError | None = None
-            try:
-                recovery_bytes = self._load_transaction_backup_bytes(
-                    txid,
-                    expected_sha256=expected,
-                    phase="commit_compensation",
-                )
-                self._compensate_transaction_file(
-                    target_path,
-                    written=applied.raw_bytes,
-                    previous=recovery_bytes,
-                    txid=txid,
-                    phase="commit_compensation",
-                )
-            except TransactionConflictError as recovery_exc:
-                compensation_error = recovery_exc
-            failure_payload = {
-                "code": getattr(exc, "code", "schema_write_error"),
-                "message": str(exc),
-                "phase": "commit_write",
-                "source_restored": compensation_error is None,
-            }
-            try:
-                failed_record = self.transactions.mark_failed(txid, failure_payload)
-            except Exception as state_exc:
-                try:
-                    latest = self.transactions.read(txid)
-                except DipTraceMcpError as read_exc:
-                    current_bytes = self._read_optional_transaction_file(
-                        target_path,
-                        txid=txid,
-                        phase="commit_failure_state_read",
-                    )
-                    raise TransactionConflictError(
-                        "Commit failed and transaction state is unreadable",
-                        details={
-                            "phase": "commit_failure_state_read",
-                            "source_restored": compensation_error is None,
-                            "current_sha256": (
-                                sha256_bytes(current_bytes) if current_bytes is not None else None
-                            ),
-                            "source_sha256": sha256_bytes(source_bytes),
-                            "attempted_sha256": sha256_bytes(applied.raw_bytes),
-                            "state_error": type(state_exc).__name__,
-                            "read_error": type(read_exc).__name__,
-                        },
-                        txid=txid,
-                    ) from state_exc
-                if latest.status != "failed":
-                    current_bytes = self._read_optional_transaction_file(
-                        target_path,
-                        txid=txid,
-                        phase="commit_failure_state",
-                    )
-                    raise TransactionConflictError(
-                        "Commit failed and its failure state could not be persisted",
-                        details={
-                            "phase": "commit_failure_state",
-                            "transaction_status": latest.status,
-                            "source_restored": compensation_error is None,
-                            "current_sha256": (
-                                sha256_bytes(current_bytes) if current_bytes is not None else None
-                            ),
-                            "source_sha256": sha256_bytes(source_bytes),
-                            "attempted_sha256": sha256_bytes(applied.raw_bytes),
-                            "state_error": type(state_exc).__name__,
-                        },
-                        txid=txid,
-                    ) from state_exc
-                failed_record = latest
-            if compensation_error is not None:
-                raise compensation_error from exc
-            if isinstance(exc, DipTraceMcpError):
-                raise
-            raise TransactionConflictError(
-                "Transaction commit write failed; authenticated source bytes were restored",
-                details={
-                    "phase": "commit_write",
-                    "transaction_status": failed_record.status,
-                    "source_restored": True,
-                    "current_sha256": sha256_bytes(source_bytes),
-                    "source_sha256": sha256_bytes(source_bytes),
-                    "attempted_sha256": sha256_bytes(applied.raw_bytes),
-                    "write_error": type(exc).__name__,
-                },
-                txid=txid,
-            ) from exc
-        try:
-            updated = self.transactions.mark_committed(
-                txid,
-                committed_sha256=committed_sha256,
-                changed_ids=applied.changed_ids,
-                compiled_patch_count=applied.patch_count,
-                preview_resources=tx_preview_resources(txid),
-                backup_path=backup,
-            )
-        except Exception as state_exc:
-            try:
-                latest = self.transactions.read(txid)
-            except DipTraceMcpError as read_exc:
-                current_bytes = self._read_optional_transaction_file(
-                    target_path,
-                    txid=txid,
-                    phase="commit_state_read",
-                )
-                raise TransactionConflictError(
-                    "Commit state write failed and transaction state is unreadable",
-                    details={
-                        "phase": "commit_state_read",
-                        "current_sha256": (
-                            sha256_bytes(current_bytes) if current_bytes is not None else None
-                        ),
-                        "source_sha256": sha256_bytes(source_bytes),
-                        "attempted_sha256": committed_sha256,
-                        "state_error": type(state_exc).__name__,
-                        "read_error": type(read_exc).__name__,
-                    },
-                    txid=txid,
-                ) from state_exc
-            if latest.status == "committed" and latest.committed_sha256 == committed_sha256:
-                updated = latest
-            else:
-                recovery_bytes = self._load_transaction_backup_bytes(
-                    txid,
-                    expected_sha256=expected,
-                    phase="commit_state_compensation",
-                )
-                self._compensate_transaction_file(
-                    target_path,
-                    written=applied.raw_bytes,
-                    previous=recovery_bytes,
-                    txid=txid,
-                    phase="commit_state_compensation",
-                )
-                raise TransactionConflictError(
-                    "Commit state was not persisted; authenticated source bytes were restored",
-                    details={
-                        "phase": "commit_state_write",
-                        "transaction_status": latest.status,
-                        "source_restored": True,
-                        "current_sha256": sha256_bytes(source_bytes),
-                        "source_sha256": sha256_bytes(source_bytes),
-                        "attempted_sha256": committed_sha256,
-                        "state_error": type(state_exc).__name__,
-                    },
-                    txid=txid,
-                ) from state_exc
-        if _live_guard is not None:
-            _live_guard.commit()
-        # Invalidate trust after MCP modification
-        self.invalidate_document_trust_after_write(
-            target_path, committed_sha256, operation_name="mcp_transaction_commit"
-        )
-        warnings, warning_metadata = _bounded_messages(applied.warnings)
-        limitations, limitation_metadata = _bounded_messages(preview["limitations"])
-        angle_evidence_warnings = (
-            component_angle_evidence_warnings()
-            if any(operation.kind == "rotate_components" for operation in operations)
-            else []
-        )
-        return {
-            "ok": True,
-            "written": True,
-            "transaction": transaction_response_summary(updated),
-            "result": {
-                **_bounded_changed_ids(applied.changed_ids),
-                "compiled_patch_count": applied.patch_count,
-                "warnings_metadata": warning_metadata,
-                "limitations_metadata": limitation_metadata,
-                **(
-                    {"evidence_warnings": angle_evidence_warnings}
-                    if angle_evidence_warnings
-                    else {}
-                ),
-            },
-            "warnings": warnings,
-            "limitations": limitations,
-            "resources": tx_preview_resources(txid),
-            **({"evidence_warnings": angle_evidence_warnings} if angle_evidence_warnings else {}),
-        }
-
-    @staticmethod
-    def _synthetic_rollback_provenance_bytes(
-        restored_sha256: str,
-        *,
-        provenance: str,
-    ) -> bytes:
-        sidecar = DocumentProvenance(
-            provenance=provenance,
-            validation_level=FixtureValidationLevel.synthetic_operation_fixture,
-            current_document_sha256=restored_sha256,
-            last_modified_by="mcp_rollback_transaction",
-        )
-        return sidecar.model_dump_json(indent=2).encode()
-
-    def _prepare_rollback_provenance_bytes(
-        self,
-        record: TransactionRecord,
-        target_path: Path,
-        restored_sha256: str,
-    ) -> bytes:
-        if not record.provenance_backup_sha256:
-            return self._synthetic_rollback_provenance_bytes(
-                restored_sha256,
-                provenance="mcp_rollback_no_backup",
-            )
-        try:
-            provenance_backup = self.transactions.require_provenance_backup(record.txid)
-        except TransactionConflictError:
-            return self._synthetic_rollback_provenance_bytes(
-                restored_sha256,
-                provenance="mcp_rollback_no_backup",
-            )
-        try:
-            provenance_bytes = provenance_backup.read_bytes()
-            if sha256_bytes(provenance_bytes) != record.provenance_backup_sha256:
-                raise ValueError("provenance backup SHA mismatch")
-            restored_sidecar = DocumentProvenance.model_validate_json(provenance_bytes)
-            if restored_sidecar.current_document_sha256 != restored_sha256:
-                raise ValueError("restored provenance document SHA mismatch")
-            if restored_sidecar.authority == ProvenanceAuthority.user_supplied_evidence:
-                self._load_and_validate_evidence_manifest(target_path, restored_sidecar)
-            if restored_sidecar.authority == ProvenanceAuthority.trusted_registry:
-                self._load_and_authorize_trusted_registry_evidence(
-                    target_path,
-                    restored_sidecar,
-                )
-            if (
-                restored_sidecar.authority == ProvenanceAuthority.fixture_manifest
-                and restored_sidecar.validation_level in _HIGH_TRUST_LEVELS
-            ):
-                raise ValueError("unauthenticated fixture high trust cannot be restored")
-            return provenance_bytes
-        except (OSError, json.JSONDecodeError, ValueError, EditError):
-            return self._synthetic_rollback_provenance_bytes(
-                restored_sha256,
-                provenance="mcp_rollback_synthetic",
-            )
-
-    @staticmethod
-    def _transaction_file_sha256(path: Path) -> str | None:
-        try:
-            return sha256_bytes(path.read_bytes())
-        except OSError:
-            return None
-
-    def _compensate_rollback_files(
-        self,
-        *,
-        txid: str,
-        target_path: Path,
-        restored_document_bytes: bytes,
-        committed_document_bytes: bytes,
-        sidecar_path: Path,
-        restored_sidecar_bytes: bytes,
-        committed_sidecar_bytes: bytes | None,
-        cause: Exception,
-        phase: str,
-    ) -> None:
-        failures: list[dict[str, Any]] = []
-        for path, written, previous, file_phase in (
-            (
-                sidecar_path,
-                restored_sidecar_bytes,
-                committed_sidecar_bytes,
-                "rollback_sidecar_compensation",
-            ),
-            (
-                target_path,
-                restored_document_bytes,
-                committed_document_bytes,
-                "rollback_design_compensation",
-            ),
-        ):
-            try:
-                self._compensate_transaction_file(
-                    path,
-                    written=written,
-                    previous=previous,
-                    txid=txid,
-                    phase=file_phase,
-                )
-            except TransactionConflictError as exc:
-                failures.append(exc.payload.as_dict())
-        details = {
-            "phase": phase,
-            "compensated": not failures,
-            "cause_type": type(cause).__name__,
-            "cause_code": getattr(cause, "code", None),
-            "current_sha256": self._transaction_file_sha256(target_path),
-            "current_sidecar_sha256": self._transaction_file_sha256(sidecar_path),
-            "committed_sha256": sha256_bytes(committed_document_bytes),
-            "restored_sha256": sha256_bytes(restored_document_bytes),
-            "compensation_failures": failures,
-        }
-        if failures:
-            raise TransactionConflictError(
-                "Rollback failed and unexpected external bytes blocked compensation",
-                details=details,
-                txid=txid,
-            ) from cause
-        raise TransactionConflictError(
-            "Rollback failed; the exact pre-call document and provenance were restored",
-            details=details,
-            txid=txid,
-        ) from cause
 
     def rollback_transaction(
         self,
@@ -2867,193 +1171,12 @@ class DipTraceService:
         _live_session_id: str | None = None,
         _live_guard: LiveWorkingGuard | None = None,
     ) -> dict[str, Any]:
-        self.policy.require_write(dry_run=False, operation="rollback_transaction")
-        record = self.transactions.read(txid)
-        if record.status == "rolled_back":
-            raise TransactionConflictError("Transaction is already rolled back", txid=txid)
-        restored_sha256: str | None = None
-        target_path: Path | None = None
-        committed_document_bytes: bytes | None = None
-        restored_document_bytes: bytes | None = None
-        sidecar_path: Path | None = None
-        committed_sidecar_bytes: bytes | None = None
-        restored_sidecar_bytes: bytes | None = None
-        if record.status == "committed":
-            if expected_sha256 is None:
-                raise ConfirmationRequiredError(
-                    "expected_sha256 is required to roll back a committed transaction",
-                    txid=txid,
-                )
-            target_path = self.settings.resolve_allowed_path(record.target_path)
-            current = DipTraceDocument.load(target_path, self.settings.max_document_bytes)
-            if expected_sha256 != record.committed_sha256 or current.sha256 != expected_sha256:
-                raise Sha256MismatchError(
-                    "The committed document changed after this transaction",
-                    details={
-                        "transaction_commit_sha256": record.committed_sha256,
-                        "provided_sha256": expected_sha256,
-                        "current_sha256": current.sha256,
-                    },
-                    txid=txid,
-                )
-            session_id = (
-                _live_session_id
-                if _live_session_id is not None
-                else self._session_id_from_working(target_path)
-            )
-            if session_id is not None and _live_guard is None:
-                with self.sessions.guard_working_mutation(
-                    session_id,
-                    expected_sha256=expected_sha256,
-                ) as live_guard:
-                    return self.rollback_transaction(
-                        txid,
-                        expected_sha256,
-                        _live_session_id=session_id,
-                        _live_guard=live_guard,
-                    )
-            restored_document_bytes = self._load_transaction_backup_bytes(
-                txid,
-                expected_sha256=record.source_sha256,
-                phase="rollback_prepare",
-            )
-            DipTraceDocument.from_bytes(target_path, restored_document_bytes)
-            restored_sha256 = sha256_bytes(restored_document_bytes)
-            committed_document_bytes = current.raw_bytes
-            sidecar_path = target_path.with_suffix(target_path.suffix + ".provenance.json")
-            committed_sidecar_bytes = self._read_optional_transaction_file(
-                sidecar_path,
-                txid=txid,
-                phase="rollback_prepare",
-            )
-            restored_sidecar_bytes = self._prepare_rollback_provenance_bytes(
-                record,
-                target_path,
-                restored_sha256,
-            )
-            try:
-                self._require_current_target_sha256(target_path, expected_sha256)
-                self._require_optional_transaction_file_unchanged(
-                    sidecar_path,
-                    committed_sidecar_bytes,
-                    txid=txid,
-                    phase="rollback_prewrite",
-                )
-                atomic_write_bytes(target_path, restored_document_bytes)
-                self._require_current_target_sha256(target_path, restored_sha256)
-                self._require_optional_transaction_file_unchanged(
-                    sidecar_path,
-                    committed_sidecar_bytes,
-                    txid=txid,
-                    phase="rollback_sidecar_prewrite",
-                )
-                atomic_write_bytes(sidecar_path, restored_sidecar_bytes)
-                self._require_optional_transaction_file_unchanged(
-                    sidecar_path,
-                    restored_sidecar_bytes,
-                    txid=txid,
-                    phase="rollback_sidecar_verify",
-                )
-                if _live_guard is not None:
-                    _live_guard.record_edit(
-                        working_sha256=restored_sha256,
-                    )
-            except Exception as exc:
-                self._compensate_rollback_files(
-                    txid=txid,
-                    target_path=target_path,
-                    restored_document_bytes=restored_document_bytes,
-                    committed_document_bytes=committed_document_bytes,
-                    sidecar_path=sidecar_path,
-                    restored_sidecar_bytes=restored_sidecar_bytes,
-                    committed_sidecar_bytes=committed_sidecar_bytes,
-                    cause=exc,
-                    phase="rollback_apply",
-                )
-        try:
-            updated = self.transactions.mark_rolled_back(
-                txid,
-                rolled_back_sha256=restored_sha256,
-                reason="explicit rollback",
-            )
-        except Exception as state_exc:
-            try:
-                latest = self.transactions.read(txid)
-            except DipTraceMcpError as read_exc:
-                raise TransactionConflictError(
-                    "Rollback state write failed and transaction state is unreadable",
-                    details={
-                        "phase": "rollback_state_read",
-                        "current_sha256": (
-                            self._transaction_file_sha256(target_path)
-                            if target_path is not None
-                            else None
-                        ),
-                        "current_sidecar_sha256": (
-                            self._transaction_file_sha256(sidecar_path)
-                            if sidecar_path is not None
-                            else None
-                        ),
-                        "state_error": type(state_exc).__name__,
-                        "read_error": type(read_exc).__name__,
-                    },
-                    txid=txid,
-                ) from state_exc
-            if latest.status == "rolled_back":
-                updated = latest
-            elif (
-                target_path is not None
-                and committed_document_bytes is not None
-                and restored_document_bytes is not None
-                and sidecar_path is not None
-                and restored_sidecar_bytes is not None
-            ):
-                self._compensate_rollback_files(
-                    txid=txid,
-                    target_path=target_path,
-                    restored_document_bytes=restored_document_bytes,
-                    committed_document_bytes=committed_document_bytes,
-                    sidecar_path=sidecar_path,
-                    restored_sidecar_bytes=restored_sidecar_bytes,
-                    committed_sidecar_bytes=committed_sidecar_bytes,
-                    cause=state_exc,
-                    phase="rollback_state_write",
-                )
-            else:
-                raise TransactionConflictError(
-                    "Rollback state was not persisted",
-                    details={
-                        "phase": "rollback_state_write",
-                        "transaction_status": latest.status,
-                        "current_sha256": None,
-                        "current_sidecar_sha256": None,
-                        "state_error": type(state_exc).__name__,
-                    },
-                    txid=txid,
-                ) from state_exc
-        if _live_guard is not None:
-            _live_guard.commit()
-        return {
-            "ok": True,
-            "written": restored_sha256 is not None,
-            "transaction": transaction_response_summary(updated),
-            "result": {
-                "rolled_back": True,
-                "document_restored": restored_sha256 is not None,
-                "restored_sha256": restored_sha256,
-            },
-            "warnings": [],
-            "limitations": [],
-            "resources": [],
-        }
+        return self._transaction_service.rollback_transaction(
+            txid, expected_sha256, _live_session_id=_live_session_id, _live_guard=_live_guard
+        )
 
     def list_transactions(self) -> dict[str, Any]:
-        return {
-            "ok": True,
-            "transactions": [
-                transaction_response_summary(item) for item in self.transactions.list()
-            ],
-        }
+        return self._transaction_service.list_transactions()
 
     def _evaluate_roundtrip_evidence(
         self,
@@ -3067,230 +1190,36 @@ class DipTraceService:
         reexport_sha256: str | None = None,
     ) -> RoundtripEvidenceEvaluation:
         """Validate evidence roles once for both read-only preview and recording."""
-
-        if (reexport_path is None) != (reexport_sha256 is None):
-            raise EditError(
-                "reexport_path and reexport_sha256 must be supplied together",
-                code="invalid_evidence_input",
-            )
-
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        source = self.settings.resolve_allowed_path(source_path, must_exist=True)
-        saved = self.settings.resolve_allowed_path(saved_path, must_exist=True)
-        reexport = (
-            self.settings.resolve_allowed_path(reexport_path, must_exist=True)
-            if reexport_path is not None
-            else None
-        )
-
-        if same_file_role(source, saved):
-            raise EditError(
-                "source_path and saved_path must be different files",
-                code="evidence_role_conflict",
-            )
-        if reexport is not None and same_file_role(source, reexport):
-            raise EditError(
-                "source_path and reexport_path must be different files",
-                code="evidence_role_conflict",
-            )
-        if reexport is not None and same_file_role(saved, reexport):
-            raise EditError(
-                "saved_path and reexport_path must be different files",
-                code="evidence_role_conflict",
-            )
-        if saved_sha256 is None:
-            raise EditError(
-                "saved_sha256 is required to bind the saved evidence role",
-                code="sha256_required",
-            )
-
-        source_doc = DipTraceDocument.load(source, self.settings.max_document_bytes)
-        saved_doc = DipTraceDocument.load(saved, self.settings.max_document_bytes)
-        reexport_doc = (
-            DipTraceDocument.load(reexport, self.settings.max_document_bytes)
-            if reexport is not None
-            else None
-        )
-        for role, evidence_document, expected_sha in (
-            ("source", source_doc, source_sha256),
-            ("saved", saved_doc, saved_sha256),
-            ("reexport", reexport_doc, reexport_sha256),
-        ):
-            if evidence_document is None or expected_sha is None:
-                continue
-            if evidence_document.sha256 != expected_sha:
-                raise Sha256MismatchError(
-                    f"{role} SHA-256 mismatch: expected {expected_sha}, "
-                    f"got {evidence_document.sha256}",
-                    details={
-                        "role": role,
-                        "expected_sha256": expected_sha,
-                        "current_sha256": evidence_document.sha256,
-                    },
-                )
-
-        expected_source_type = snapshot.info.source_type
-        for role, evidence_document in (
-            ("source", source_doc),
-            ("saved", saved_doc),
-            ("reexport", reexport_doc),
-        ):
-            if evidence_document is None:
-                continue
-            if evidence_document.source_type != expected_source_type:
-                raise EditError(
-                    f"{role} source type {evidence_document.source_type!r} does not match "
-                    f"document source type {expected_source_type!r}",
-                    code="source_type_mismatch",
-                    details={
-                        "role": role,
-                        "expected_source_type": expected_source_type,
-                        "actual_source_type": evidence_document.source_type,
-                    },
-                )
-
-        saved_snapshot = build_snapshot(saved_doc)
-        critical_warnings = [
-            warning
-            for warning in saved_snapshot.warnings
-            if any(token in warning.casefold() for token in ("error", "invalid", "missing"))
-        ]
-        if critical_warnings:
-            bounded_warnings, _ = _bounded_messages(critical_warnings)
-            raise EditError(
-                f"Saved document has critical parse warnings: {bounded_warnings}",
-                code="critical_parse_warnings",
-            )
-
-        semantic_comparison: dict[str, Any] | None = None
-        if reexport_doc is None:
-            if snapshot.info.sha256 != saved_doc.sha256:
-                raise EditError(
-                    f"Current document SHA {snapshot.info.sha256} does not match "
-                    f"saved SHA {saved_doc.sha256}; cannot validate open/save evidence",
-                    code="sha256_binding_mismatch",
-                )
-        else:
-            if snapshot.info.sha256 != reexport_doc.sha256:
-                raise EditError(
-                    f"Current document SHA {snapshot.info.sha256} does not match "
-                    f"reexport SHA {reexport_doc.sha256}; cannot validate roundtrip evidence",
-                    code="sha256_binding_mismatch",
-                )
-            semantic_comparison = _semantic_roundtrip_check(source_doc, reexport_doc)
-
-        return RoundtripEvidenceEvaluation(
-            document_path=target.path,
-            document_sha256=snapshot.info.sha256,
-            source=EvidenceFileRecord(
-                path=str(source),
-                sha256=source_doc.sha256,
-                source_type=cast(SourceType, source_doc.source_type),
-            ),
-            saved=EvidenceFileRecord(
-                path=str(saved),
-                sha256=saved_doc.sha256,
-                source_type=cast(SourceType, saved_doc.source_type),
-            ),
-            reexport=(
-                EvidenceFileRecord(
-                    path=str(reexport),
-                    sha256=reexport_doc.sha256,
-                    source_type=cast(SourceType, reexport_doc.source_type),
-                )
-                if reexport is not None and reexport_doc is not None
-                else None
-            ),
-            semantic_comparison=semantic_comparison,
+        return self._evidence_service._evaluate_roundtrip_evidence(
+            path,
+            source_path=source_path,
+            source_sha256=source_sha256,
+            saved_path=saved_path,
+            saved_sha256=saved_sha256,
+            reexport_path=reexport_path,
+            reexport_sha256=reexport_sha256,
         )
 
     @staticmethod
     def _semantic_evidence_record(
         comparison: dict[str, Any] | None,
     ) -> SemanticComparisonEvidence | None:
-        if comparison is None:
-            return None
-        unsupported_raw = comparison.get("unsupported_categories", []) or []
-        return SemanticComparisonEvidence(
-            passed=bool(comparison["passed"]),
-            comparison_complete=bool(comparison["comparison_complete"]),
-            compared_categories=list(comparison.get("compared_categories", [])),
-            missing_required_categories=list(comparison.get("missing_required_categories", [])),
-            differences=list(comparison.get("differences", [])),
-            ignored_normalizations=list(comparison.get("ignored_normalizations", [])),
-            unsupported_categories=[
-                UnsupportedCategory.model_validate(item)
-                for item in unsupported_raw
-                if isinstance(item, dict)
-            ],
-            parse_warnings=list(comparison.get("parse_warnings", [])),
-        )
+        return EvidenceService._semantic_evidence_record(comparison)
 
     def _require_evidence_evaluation_unchanged(
         self,
         evaluation: RoundtripEvidenceEvaluation,
     ) -> None:
         """Repeat allowed-root, bounded-parse, role, and SHA gates before writes."""
-
-        role_records = [
-            ("source", evaluation.source),
-            ("saved", evaluation.saved),
-        ]
-        if evaluation.reexport is not None:
-            role_records.append(("reexport", evaluation.reexport))
-        for index, (left_role, left_record) in enumerate(role_records):
-            for right_role, right_record in role_records[index + 1 :]:
-                if same_file_role(Path(left_record.path), Path(right_record.path)):
-                    raise EditError(
-                        f"{left_role} and {right_role} evidence roles became the same file",
-                        code="evidence_role_conflict",
-                    )
-
-        expected_files = [
-            ("document", evaluation.document_path, evaluation.document_sha256),
-            *[(role, Path(record.path), record.sha256) for role, record in role_records],
-        ]
-        for role, role_path, expected_sha256 in expected_files:
-            try:
-                resolved_path = self.settings.resolve_allowed_path(
-                    role_path,
-                    must_exist=True,
-                )
-                if resolved_path != role_path:
-                    raise EditError(
-                        f"{role} resolves to a different path before evidence recording",
-                        code="evidence_file_changed",
-                        details={"role": role},
-                    )
-                current_document = DipTraceDocument.load(
-                    resolved_path,
-                    self.settings.max_document_bytes,
-                )
-            except (DocumentError, PathAccessError, OSError) as exc:
-                raise EditError(
-                    f"Cannot safely revalidate {role} before recording evidence",
-                    code="evidence_file_changed",
-                    details={"role": role},
-                ) from exc
-            current_sha256 = current_document.sha256
-            if current_sha256 != expected_sha256:
-                raise Sha256MismatchError(
-                    f"{role} changed before evidence metadata could be recorded",
-                    details={
-                        "role": role,
-                        "expected_sha256": expected_sha256,
-                        "current_sha256": current_sha256,
-                    },
-                )
+        return self._evidence_service._require_evidence_evaluation_unchanged(evaluation)
 
     @staticmethod
     def _evidence_manifest_path(document_path: Path) -> Path:
-        return Path(str(document_path) + ".roundtrip-evidence.json")
+        return EvidenceService._evidence_manifest_path(document_path)
 
     @staticmethod
     def _evidence_sidecar_path(document_path: Path) -> Path:
-        return document_path.with_suffix(document_path.suffix + ".provenance.json")
+        return EvidenceService._evidence_sidecar_path(document_path)
 
     @classmethod
     def _require_evidence_output_paths_safe(
@@ -3298,25 +1227,7 @@ class DipTraceService:
         evaluation: RoundtripEvidenceEvaluation,
     ) -> None:
         """Refuse metadata outputs that alias a document or evidence input."""
-
-        outputs = (
-            ("evidence_manifest", cls._evidence_manifest_path(evaluation.document_path)),
-            ("provenance_sidecar", cls._evidence_sidecar_path(evaluation.document_path)),
-        )
-        protected = [
-            ("document", evaluation.document_path),
-            ("source", Path(evaluation.source.path)),
-            ("saved", Path(evaluation.saved.path)),
-        ]
-        if evaluation.reexport is not None:
-            protected.append(("reexport", Path(evaluation.reexport.path)))
-        for output_role, output_path in outputs:
-            for protected_role, protected_path in protected:
-                if same_file_role(output_path, protected_path):
-                    raise EditError(
-                        f"{output_role} output aliases the {protected_role} file",
-                        code="evidence_output_conflict",
-                    )
+        return EvidenceService._require_evidence_output_paths_safe(evaluation)
 
     def _roundtrip_evidence_response(
         self,
@@ -3326,58 +1237,12 @@ class DipTraceService:
         manifest_path: Path | None = None,
         manifest_sha256: str | None = None,
     ) -> dict[str, Any]:
-        comparison, comparison_bounds = _bounded_evidence_comparison(evaluation.semantic_comparison)
-        failed = evaluation.failed
-        evidence_status = "failed" if failed else ("recorded" if written else "recordable")
-        role_sha256: dict[str, str] = {
-            "source": evaluation.source.sha256,
-            "saved": evaluation.saved.sha256,
-        }
-        if evaluation.reexport is not None:
-            role_sha256["reexport"] = evaluation.reexport.sha256
-        result: dict[str, Any] = {
-            "ok": not failed,
-            "written": written,
-            "document_written": False,
-            "evidence_status": evidence_status,
-            "authority": EvidenceAuthority.user_supplied.value,
-            "grants_high_trust": False,
-            "validation_level": FixtureValidationLevel.synthetic_operation_fixture.value,
-            "requires_diptrace_verification": True,
-            "source_type": evaluation.source.source_type,
-            "document_sha256": evaluation.document_sha256,
-            "role_sha256": role_sha256,
-            "semantic_comparison": comparison,
-            "semantic_comparison_bounds": comparison_bounds,
-            "message": (
-                "Semantic comparison failed; this observation can only be recorded "
-                "as failed user-supplied evidence."
-                if failed
-                else (
-                    "Evidence recorded with authority=user_supplied; this does not "
-                    "grant authoritative DipTrace trust."
-                    if written
-                    else (
-                        "Evidence inputs are valid and recordable as user-supplied; "
-                        "validation made no filesystem changes."
-                    )
-                )
-            ),
-        }
-        if written:
-            result["evidence_manifest_path"] = str(manifest_path)
-            result["evidence_manifest_sha256"] = manifest_sha256
-            result["written_files"] = ["evidence_manifest", "provenance_sidecar"]
-        else:
-            result["would_write"] = {
-                "evidence_manifest_path": str(
-                    self._evidence_manifest_path(evaluation.document_path)
-                ),
-                "provenance_sidecar_path": str(
-                    self._evidence_sidecar_path(evaluation.document_path)
-                ),
-            }
-        return _finalize_evidence_response(result)
+        return self._evidence_service._roundtrip_evidence_response(
+            evaluation,
+            written=written,
+            manifest_path=manifest_path,
+            manifest_sha256=manifest_sha256,
+        )
 
     def validate_roundtrip_evidence(
         self,
@@ -3391,8 +1256,7 @@ class DipTraceService:
         reexport_sha256: str | None = None,
     ) -> dict[str, Any]:
         """Validate SHA-bound user evidence without writing any file."""
-
-        evaluation = self._evaluate_roundtrip_evidence(
+        return self._evidence_service.validate_roundtrip_evidence(
             path,
             source_path=source_path,
             source_sha256=source_sha256,
@@ -3401,7 +1265,6 @@ class DipTraceService:
             reexport_path=reexport_path,
             reexport_sha256=reexport_sha256,
         )
-        return self._roundtrip_evidence_response(evaluation, written=False)
 
     def record_roundtrip_evidence(
         self,
@@ -3415,9 +1278,7 @@ class DipTraceService:
         reexport_sha256: str | None = None,
     ) -> dict[str, Any]:
         """Write user-supplied evidence metadata without granting high trust."""
-
-        self.policy.require_write(dry_run=False, operation="record_roundtrip_evidence")
-        evaluation = self._evaluate_roundtrip_evidence(
+        return self._evidence_service.record_roundtrip_evidence(
             path,
             source_path=source_path,
             source_sha256=source_sha256,
@@ -3425,69 +1286,6 @@ class DipTraceService:
             saved_sha256=saved_sha256,
             reexport_path=reexport_path,
             reexport_sha256=reexport_sha256,
-        )
-
-        evidence_level = FixtureValidationLevel.synthetic_operation_fixture
-
-        evidence_manifest = UserSuppliedRoundtripEvidence(
-            document_path=str(evaluation.document_path),
-            document_sha256=evaluation.document_sha256,
-            source=evaluation.source,
-            saved=evaluation.saved,
-            reexport=evaluation.reexport,
-            semantic_comparison=self._semantic_evidence_record(evaluation.semantic_comparison),
-            validation_level=evidence_level,
-            status="failed" if evaluation.failed else "recorded",
-            created_at=utc_now(),
-        )
-        manifest_path = self._evidence_manifest_path(evaluation.document_path)
-        manifest_bytes = json.dumps(
-            evidence_manifest.model_dump(mode="json"),
-            indent=2,
-            sort_keys=True,
-        ).encode()
-        self._require_evidence_evaluation_unchanged(evaluation)
-        self._require_evidence_output_paths_safe(evaluation)
-        atomic_write_bytes(manifest_path, manifest_bytes)
-        reloaded_manifest = manifest_path.read_bytes()
-        manifest_sha = sha256_bytes(reloaded_manifest)
-        UserSuppliedRoundtripEvidence.model_validate(json.loads(reloaded_manifest))
-
-        self._require_evidence_evaluation_unchanged(evaluation)
-        self._require_evidence_output_paths_safe(evaluation)
-        sidecar = DocumentProvenance(
-            provenance=(
-                "user_supplied_evidence_failed"
-                if evaluation.failed
-                else "user_supplied_evidence_recorded"
-            ),
-            validation_level=evidence_level,
-            current_document_sha256=evaluation.document_sha256,
-            seed_sha256=evaluation.source.sha256,
-            parent_validation_level=(None if evaluation.failed else evidence_level),
-            authority=ProvenanceAuthority.user_supplied_evidence,
-            evidence_manifest_path=str(manifest_path),
-            evidence_manifest_sha256=manifest_sha,
-            last_modified_by="mcp_record_roundtrip_evidence",
-        )
-        self._write_provenance_sidecar(evaluation.document_path, sidecar)
-
-        reloaded_sidecar = self._load_seed_provenance(evaluation.document_path)
-        if (
-            reloaded_sidecar is None
-            or reloaded_sidecar.evidence_manifest_path != str(manifest_path)
-            or reloaded_sidecar.evidence_manifest_sha256 != manifest_sha
-        ):
-            raise EditError(
-                "Evidence provenance sidecar verification failed after write",
-                code="sidecar_write_error",
-            )
-
-        return self._roundtrip_evidence_response(
-            evaluation,
-            written=True,
-            manifest_path=manifest_path,
-            manifest_sha256=manifest_sha,
         )
 
     def move_components(
@@ -5275,21 +3073,10 @@ class DipTraceService:
         }
 
     def _load_snapshot_record(self, record: TransactionRecord) -> DipTraceDocument:
-        snapshot_path = self.transactions.require_snapshot(record.txid)
-        snapshot = DipTraceDocument.load(snapshot_path, self.settings.max_document_bytes)
-        if snapshot.sha256 != record.source_sha256:
-            raise TransactionConflictError(
-                "Transaction snapshot does not match its source SHA-256",
-                details={
-                    "expected_sha256": record.source_sha256,
-                    "snapshot_sha256": snapshot.sha256,
-                },
-                txid=record.txid,
-            )
-        return snapshot
+        return self._transaction_service._load_snapshot_record(record)
 
     def _session_id_from_working(self, path: Path) -> str | None:
-        return self.sessions.session_id_for_working_path(path)
+        return self._transaction_service._session_id_from_working(path)
 
     def _read_source_header(self, path: Path) -> dict[str, str] | None:
         return self._discovery_service._read_source_header(path)

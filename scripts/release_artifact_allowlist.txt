@@ -221,6 +221,7 @@ src/diptrace_mcp/services/bom.py
 src/diptrace_mcp/services/context.py
 src/diptrace_mcp/services/discovery.py
 src/diptrace_mcp/services/documents.py
+src/diptrace_mcp/services/evidence.py
 src/diptrace_mcp/services/exports.py
 src/diptrace_mcp/services/external_jobs.py
 src/diptrace_mcp/services/jobs.py
@@ -229,6 +230,7 @@ src/diptrace_mcp/services/review.py
 src/diptrace_mcp/services/routing.py
 src/diptrace_mcp/services/scaffolding.py
 src/diptrace_mcp/services/semantic_operations.py
+src/diptrace_mcp/services/transactions.py
 src/diptrace_mcp/sessions.py
 src/diptrace_mcp/silkscreen.py
 src/diptrace_mcp/spatial.py
