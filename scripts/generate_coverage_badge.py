@@ -21,26 +21,30 @@ def read_coverage_gate(workflow_path: Path) -> str:
 def render_badge(threshold: str) -> str:
     label = "coverage"
     value = f"≥{threshold}%"
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="137" height="20" role="img" aria-label="{label}: {value}">
-  <title>{label}: {value}</title>
-  <linearGradient id="s" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="r"><rect width="137" height="20" rx="3"/></clipPath>
-  <g clip-path="url(#r)">
-    <rect width="82" height="20" fill="#555"/>
-    <rect x="82" width="55" height="20" fill="#4c1"/>
-    <rect width="137" height="20" fill="url(#s)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="42" y="15" fill="#010101" fill-opacity=".3">coverage</text>
-    <text x="42" y="14">coverage</text>
-    <text x="108.5" y="15" fill="#010101" fill-opacity=".3">{value}</text>
-    <text x="108.5" y="14">{value}</text>
-  </g>
-</svg>
-"""
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="137" height="20" '
+        f'role="img" aria-label="{label}: {value}">\n'
+        f"  <title>{label}: {value}</title>\n"
+        '  <linearGradient id="s" x2="0" y2="100%">\n'
+        '    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>\n'
+        '    <stop offset="1" stop-opacity=".1"/>\n'
+        "  </linearGradient>\n"
+        '  <clipPath id="r"><rect width="137" height="20" rx="3"/></clipPath>\n'
+        '  <g clip-path="url(#r)">\n'
+        '    <rect width="82" height="20" fill="#555"/>\n'
+        '    <rect x="82" width="55" height="20" fill="#4c1"/>\n'
+        '    <rect width="137" height="20" fill="url(#s)"/>\n'
+        "  </g>\n"
+        '  <g fill="#fff" text-anchor="middle" '
+        'font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">\n'
+        '    <text x="42" y="15" fill="#010101" '
+        'fill-opacity=".3">coverage</text>\n'
+        '    <text x="42" y="14">coverage</text>\n'
+        f'    <text x="108.5" y="15" fill="#010101" fill-opacity=".3">{value}</text>\n'
+        f'    <text x="108.5" y="14">{value}</text>\n'
+        "  </g>\n"
+        "</svg>\n"
+    )
 
 
 def main() -> int:
