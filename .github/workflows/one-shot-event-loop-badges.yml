@@ -53,7 +53,7 @@ jobs:
           python -m pytest -q \
             tests/test_event_loop_responsiveness.py \
             tests/test_error_boundary.py \
-            tests/test_error_contract.py
+            tests/test_mcp_error_contracts.py
       - name: Verify badges and documentation
         run: |
           python scripts/generate_coverage_badge.py --check
