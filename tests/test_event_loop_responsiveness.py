@@ -26,15 +26,15 @@ def _settings(tmp_path: Path) -> Settings:
     )
 
 
-def test_all_public_tools_use_the_sync_worker_thread_contract() -> None:
+def test_all_public_tools_use_the_project_thread_offload_contract() -> None:
     audit = audit_event_loop_boundary()
 
     assert audit["status"] == "pass"
-    assert audit["tool_count"] == audit["sync_tool_count"]
-    assert audit["async_tool_count"] == 0
-    assert audit["async_tools"] == []
+    assert audit["tool_count"] == audit["offloaded_tool_count"]
+    assert audit["unprotected_sync_tools"] == []
+    assert audit["unreviewed_async_tools"] == []
     assert audit["missing_heavy_tools"] == []
-    assert audit["async_heavy_tools"] == []
+    assert audit["heavy_tools_without_offload"] == []
     assert set(audit["heavy_tools"]) == HEAVY_TOOL_NAMES
 
 
