@@ -8,9 +8,16 @@ import hashlib
 import json
 import shutil
 import stat
+import sys
 import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
+from typing import cast
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:  # pragma: no cover - exercised by the Python 3.10 CI job
+    import tomli as tomllib
 
 REPO_ROOT = Path(__file__).absolute().parents[1]
 TEMPLATE = REPO_ROOT / "packaging" / "mcpb" / "manifest.template.json"
@@ -24,11 +31,6 @@ class McpbBuildError(ValueError):
 
 
 def project_version() -> str:
-    try:
-        import tomllib
-    except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
-        import tomli as tomllib
-
     data = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     version = data["project"]["version"]
     if not isinstance(version, str) or not version.strip():
@@ -59,7 +61,10 @@ def _assert_source_tree(server_dir: Path) -> Path:
 
 
 def _manifest(version: str) -> dict[str, object]:
-    data = json.loads(TEMPLATE.read_text(encoding="utf-8"))
+    raw = json.loads(TEMPLATE.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise McpbBuildError("manifest template root must be an object")
+    data = cast(dict[str, object], raw)
     if data.get("version") != "__VERSION__":
         raise McpbBuildError("manifest template version placeholder is missing")
     data["version"] = version
