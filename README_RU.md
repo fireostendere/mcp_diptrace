@@ -21,34 +21,35 @@ DipTrace MCP — локальный Model Context Protocol сервер для �
 публичный релиз не создаются, пока не закрыты оставшиеся проверки на реальной
 Windows и в DipTrace.
 
-Текущий код пригоден для инженерной работы с человеком в контуре:
-
-- чтение PCB, schematic, Component Library и Pattern Library;
-- structured queries, connectivity, BOM, review и ограниченный инженерный
-  анализ;
-- guarded semantic edits с preview, expected SHA-256, backup, commit и rollback;
-- schematic authoring и синхронизация schematic → PCB;
-- bounded placement, локальная и multi-net routing, differential-pair routing и
-  предварительный SI-анализ;
-- live-обмен PCB/Schematic через Windows bridge;
-- сборка Windows installer, portable bundle и конфигуратора Codex/Claude.
+Текущий код пригоден для инженерной работы с человеком в контуре: чтения PCB,
+schematic и libraries; structured review; guarded semantic writes; schematic
+authoring и synchronization; bounded placement/routing; live PCB/Schematic
+exchange; Windows installer и portable candidate builds.
 
 Проект не заменяет интерактивный EDA-движок DipTrace. Native mutation
 Component/Pattern Library и native manufacturing output намеренно недоступны.
 Для конкретной установки, документа, policy и внешних adapter фактическим
 источником истины является `get_capabilities`.
 
-## Статус релиза
+## Статус публичного релиза
 
-Проект распространяется под Apache-2.0 и находится на стадии alpha/development.
+Проект использует OSI-approved open-source лицензию `LICENSE` Apache-2.0.
+Правила участия и релиза находятся в `CONTRIBUTING.md`, `GOVERNANCE.md`,
+`docs/LICENSE_DECISION.md`, `docs/PUBLIC_RELEASE_CHECKLIST.md`,
+`docs/RELEASE_PROCESS.md`, `CHANGELOG.md` и `CITATION.cff`. Сообщения о
+security отправляются через приватный канал; проверенный Code of Conduct канал
+для enforcement пока не опубликован.
 
-- Последний опубликованный релиз: `v0.1.2`.
-- Версия текущего source tree/package: `0.2.0`.
-- Состояние 0.2.0: reviewed candidate, **не тегирован и не опубликован**.
-- Installer и portable assets 0.2.0 успешно собираются в GitHub Actions, но пока
-  не являются публичными release downloads.
-- Candidate executables не подписаны; зелёный CI и совпавший SHA-256 не являются
-  code signature.
+- Последний опубликованный development release — `v0.1.2`; его source
+  distribution, wheel, Windows bridge executable, hashes и provenance неизменны.
+- Текущая версия source/package — `0.2.0`; это reviewed candidate без tag и
+  публикации.
+- Windows installer, bridge, standalone executable, configurator и portable
+  bundle 0.2.0 проходят CI, но ещё не являются публичными downloads.
+- Python archives собираются по точному allowlist и проверяются по wheel entry
+  points, packaged skills, bounds и каждому `RECORD` hash/size.
+- Candidate Windows binaries unsigned; CI и SHA-256 не являются code signature,
+  production-ready или universal-compatibility claim не заявляется.
 
 Запись кандидата и оставшиеся gate находятся в
 [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) и
@@ -176,6 +177,22 @@ Capability report намеренно не заявляет полное trust-in
 `plan_apply`, `ses_import`, `schematic_to_pcb_sync` и `live_session_apply`.
 Q1 Component Angle GUI/re-export evidence также остаётся `NOT_RUN`, поэтому
 rotation results содержат structured warning.
+
+## Обработка данных
+
+- `DIPTRACE_MCP_WORKSPACE` задаёт обычный workspace; пути дополнительно
+  ограничиваются `DIPTRACE_MCP_ALLOWED_ROOTS` и literal caller-path checks.
+- `DIPTRACE_MCP_STATE_DIR` хранит локальные records, а live session —
+  `original.xml` и `working.xml`; финализация выполняется через `apply` или
+  `cancel`.
+- Freerouting, ngspice и openEMS запускаются только через typed local process
+  boundaries и isolated job directories; online sourcing по умолчанию отключён.
+- MCP `stdio` использует локальные process pipes и не открывает network listener.
+- `streamable-http` предназначен только для trusted loopback, например
+  `127.0.0.1:8765`; OAuth и multi-user isolation не реализованы.
+- User projects, private evidence, proprietary libraries и screenshots не
+  загружаются и не коммитятся автоматически; внешние данные и публикацию
+  контролирует оператор.
 
 ## Установка
 
