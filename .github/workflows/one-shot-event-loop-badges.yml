@@ -34,7 +34,6 @@ jobs:
         run: |
           python -m ruff format \
             src/diptrace_mcp/error_boundary.py \
-            src/diptrace_mcp/server.py \
             scripts/audit_event_loop.py \
             scripts/generate_coverage_badge.py \
             tests/test_badges.py \
@@ -42,7 +41,6 @@ jobs:
             tests/test_event_loop_responsiveness.py
           python -m ruff check --fix \
             src/diptrace_mcp/error_boundary.py \
-            src/diptrace_mcp/server.py \
             scripts/audit_event_loop.py \
             scripts/generate_coverage_badge.py \
             tests/test_badges.py \
