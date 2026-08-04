@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- begin the `DipTraceService` Facade refactor with typed shared context and a
+  single document gateway;
+- extract BOM/component metadata, normalized document/query read models,
+  registered review/findings, and pure signal-integrity analysis into explicit
+  in-process services while preserving the 159-tool MCP surface;
+- document singleton store ownership, phase-one parity coverage, and the later
+  extraction roadmap; transactions, evidence trust, writes, routing apply,
+  external jobs, and live sessions remain intentionally in the Facade;
 - disclose pending live component-angle evidence and expose structured evidence warnings;
 - resolve routing and trace-to-trace review clearances from board defaults plus affected NetClasses;
 - add a centralized service-to-MCP error boundary with stable public error codes and safe details;

@@ -91,6 +91,50 @@ the services.
   in the Facade for later phases because their safety boundaries cross several
   stores or depend on SHA/lease/atomic-write ordering.
 
+## Phase-one implementation status
+
+The first extraction keeps exactly three domain service instances on each
+Facade: `DocumentService`, `BomService`, and `ReviewService`. The Facade methods
+below are explicit wrappers with their original signatures; the direct service
+methods are internal implementation seams, not new MCP contracts.
+
+### `DocumentService`
+
+`board_model`, `schematic_model`, `query_objects`, `get_object`,
+`get_connectivity_graph`, `document_resource`, `summarize`, `components`,
+`component`, `nets`, `rules`, and `read_xml`.
+
+### `BomService`
+
+`library_model`, `query_library_items`, `get_library_component`,
+`get_library_pattern`, `validate_library_component`,
+`validate_library_pattern`, `validate_pin_pad_mapping`, `get_bom`,
+`review_bom`, `compare_bom_to_design`, `find_missing_component_fields`,
+`group_bom`, `detect_duplicate_bom_items`, `validate_mpn_consistency`, and
+`validate_value_pattern_consistency`, plus the two internal library-item
+helpers.
+
+### `ReviewService`
+
+`run_review`, `get_findings`, `get_finding`, `review_resource`,
+`findings_resource`, and the pure read-only signal-integrity/analysis methods:
+`get_stackup`, `measure_net_lengths`, `analyze_length_group`,
+`list_differential_pairs`, `get_differential_pair`,
+`analyze_differential_pair`, `analyze_differential_pairs`,
+`validate_differential_pair`, `calculate_impedance`,
+`suggest_trace_geometry_for_impedance`, `analyze_stackup_for_impedance`,
+`validate_impedance_constraints`, `analyze_controlled_impedance_nets`,
+`list_copper_pours`, `analyze_plane_continuity`, and `analyze_return_path`.
+
+`DocumentGateway` also owns the former `resolve_target`, `load`, and
+`load_document_id` implementation and the existing `_document_targets` map is
+an alias to its one dictionary. The pure bounded-response helpers are shared
+from `services.context`; no second cache or store was introduced.
+
+At this stage `service.py` is 6,951 lines and 274,846 bytes. The largest new
+module is `services/review.py` at 572 lines. `DipTraceService` still exposes
+197 methods, including explicit Facade wrappers and private safety helpers.
+
 ## Complete method inventory
 
 The columns use the following compact dependency notation: `S` Settings, `P`
@@ -234,22 +278,22 @@ tool where one exists; otherwise it names the internal caller or `—`.
 | `set_via_style` | 5369–5382 | public | `set_via_style` | M | TS, SS, GW | routing/write helpers | PCB | via style write | routing/SHA/policy | expected SHA | yes | no | guarded write | RoutingService | 3 | critical |
 | `list_unrouted_connections` | 5384–5442 | public | `list_unrouted_connections` | R | GW, MC, RF | routing helpers | PCB | none | document/routing errors | source SHA | yes | no | MC synchronized | RoutingAnalysisService | 2 | medium |
 | `get_route_details` | 5444–5513 | public | `get_route_details` | R | GW, MC, RF | routing helpers | PCB | none | document/routing errors | source SHA | yes | no | MC synchronized | RoutingAnalysisService | 2 | medium |
-| `get_stackup` | 5515–5530 | public | `get_stackup` | R | GW, MC | `_read_success` | PCB | none | document errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | low |
-| `measure_net_lengths` | 5532–5563 | public | `measure_net_lengths` | R | GW, MC, RF | `_read_success` | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `analyze_length_group` | 5565–5593 | public | `analyze_length_group` | R | GW, MC, RF | `_read_success` | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `list_differential_pairs` | 5595–5616 | public | `list_differential_pairs` | R | GW, MC, RF | `_read_success` | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `get_differential_pair` | 5618–5622 | public | `get_differential_pair` | R | GW, MC, RF | pair resolver | PCB | none | document/object errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `analyze_differential_pair` | 5624–5635 | public | `analyze_differential_pair` | R | GW, MC, RF | pair resolver | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `analyze_differential_pairs` | 5637–5664 | public | `analyze_differential_pairs` | R | GW, MC, RF | pair resolver | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `validate_differential_pair` | 5666–5681 | public | `validate_differential_pair` | R | GW, MC, RF | pair resolver | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `calculate_impedance` | 5683–5722 | public | `calculate_impedance` | R | S, RF | impedance helpers | PCB | none | validation/capability errors | — | no | no | read-only | SignalIntegrityService | 2 | low |
-| `suggest_trace_geometry_for_impedance` | 5724–5755 | public | `suggest_trace_geometry_for_impedance` | R | S, RF | impedance helpers | PCB | none | validation/capability errors | — | no | no | read-only | SignalIntegrityService | 2 | low |
-| `analyze_stackup_for_impedance` | 5757–5768 | public | `analyze_stackup_for_impedance` | R | GW, MC, RF | `_read_success` | PCB | none | document/impedance errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | low |
-| `validate_impedance_constraints` | 5770–5892 | public | `validate_impedance_constraints` | R | GW, MC, RF | impedance helpers | PCB | none | document/impedance errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `analyze_controlled_impedance_nets` | 5894–5900 | public | `analyze_controlled_impedance_nets` | R | GW, MC, RF | impedance helpers | PCB | none | document/impedance errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `list_copper_pours` | 5902–5926 | public | `list_copper_pours` | R | GW, MC | query helpers | PCB | none | document errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `analyze_plane_continuity` | 5928–5936 | public | `analyze_plane_continuity` | R | GW, MC, RF | return-path helpers | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
-| `analyze_return_path` | 5938–5960 | public | `analyze_return_path` | R | GW, MC, RF | return-path helpers | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | SignalIntegrityService | 2 | medium |
+| `get_stackup` | 5515–5530 | public | `get_stackup` | R | GW, MC | `_read_success` | PCB | none | document errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | low |
+| `measure_net_lengths` | 5532–5563 | public | `measure_net_lengths` | R | GW, MC, RF | `_read_success` | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `analyze_length_group` | 5565–5593 | public | `analyze_length_group` | R | GW, MC, RF | `_read_success` | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `list_differential_pairs` | 5595–5616 | public | `list_differential_pairs` | R | GW, MC, RF | `_read_success` | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `get_differential_pair` | 5618–5622 | public | `get_differential_pair` | R | GW, MC, RF | pair resolver | PCB | none | document/object errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `analyze_differential_pair` | 5624–5635 | public | `analyze_differential_pair` | R | GW, MC, RF | pair resolver | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `analyze_differential_pairs` | 5637–5664 | public | `analyze_differential_pairs` | R | GW, MC, RF | pair resolver | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `validate_differential_pair` | 5666–5681 | public | `validate_differential_pair` | R | GW, MC, RF | pair resolver | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `calculate_impedance` | 5683–5722 | public | `calculate_impedance` | R | S, RF | impedance helpers | PCB | none | validation/capability errors | — | no | no | read-only | ReviewService | 1 | low |
+| `suggest_trace_geometry_for_impedance` | 5724–5755 | public | `suggest_trace_geometry_for_impedance` | R | S, RF | impedance helpers | PCB | none | validation/capability errors | — | no | no | read-only | ReviewService | 1 | low |
+| `analyze_stackup_for_impedance` | 5757–5768 | public | `analyze_stackup_for_impedance` | R | GW, MC, RF | `_read_success` | PCB | none | document/impedance errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | low |
+| `validate_impedance_constraints` | 5770–5892 | public | `validate_impedance_constraints` | R | GW, MC, RF | impedance helpers | PCB | none | document/impedance errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `analyze_controlled_impedance_nets` | 5894–5900 | public | `analyze_controlled_impedance_nets` | R | GW, MC, RF | impedance helpers | PCB | none | document/impedance errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `list_copper_pours` | 5902–5926 | public | `list_copper_pours` | R | GW, MC | query helpers | PCB | none | document errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `analyze_plane_continuity` | 5928–5936 | public | `analyze_plane_continuity` | R | GW, MC, RF | return-path helpers | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
+| `analyze_return_path` | 5938–5960 | public | `analyze_return_path` | R | GW, MC, RF | return-path helpers | PCB | none | document/geometry errors | source SHA | yes | no | MC synchronized | ReviewService | 1 | medium |
 | `route_connection` | 5962–6030 | public | `route_connection` | M | GW, MC, TS, SS | routing/write helpers | PCB | route write/transaction | routing/SHA/policy | expected SHA | yes | no | guarded write | RoutingService | 3 | critical |
 | `route_net` | 6032–6115 | public | `route_net` | M | GW, MC, TS, SS | routing/write helpers | PCB | route write/transaction | routing/SHA/policy | expected SHA | yes | no | guarded write | RoutingService | 3 | critical |
 | `route_diff_pair` | 6117–6178 | public | `route_diff_pair` | M | GW, MC, TS, SS | routing/write helpers | PCB | paired route write | routing/SHA/policy | expected SHA | yes | no | guarded write | RoutingService | 3 | critical |
@@ -315,15 +359,16 @@ tool where one exists; otherwise it names the internal caller or `—`.
    extraction/review/consistency operations. Export artifact methods remain in
    the Facade.
 4. Extract `ReviewService`: `run_review`, finding reads, and finding resource
-   rendering. Its existing `FindingStore` report persistence remains intact.
+   rendering, plus the pure signal-integrity/impedance/return-path reads. Its
+   existing `FindingStore` report persistence remains intact.
 
 These methods are synchronous domain code. The existing server-owned wrapper
 continues to apply `anyio.to_thread.run_sync` to all 159 registered tools.
 
 ### Later phases
 
-* Phase two: pure signal-integrity/impedance and read-only placement/routing
-  analysis, after characterization/parity coverage is expanded.
+* Phase two: read-only placement/routing analysis, after characterization/parity
+  coverage is expanded.
 * Phase three: discovery, exports, external adapters/jobs, and plan stores,
   keeping artifact and process ownership explicit.
 * Phase four: semantic writes and testpoint/component operation wrappers only
@@ -338,5 +383,4 @@ continues to apply `anyio.to_thread.run_sync` to all 159 registered tools.
 | --- | --- | --- | --- | --- |
 | Documents | `board_model`, `schematic_model`, `query_objects`, `get_object`, `get_connectivity_graph`, `document_resource`, `summarize`, `components`, `component`, `nets`, `rules`, `read_xml` | `tests/test_service.py`, `tests/test_inspector.py`, `tests/test_bounded_payloads.py`, `tests/test_connectivity.py`, fixture XML under `tests/fixtures` | `tests/test_service_facade_contract.py` compares complete payloads for representative PCB, schematic, and paged model calls | model-cache entry identity and state-record counts unchanged |
 | BOM/library | `library_model`, library query/get/validate methods, `get_bom`, `review_bom`, `compare_bom_to_design`, `find_missing_component_fields`, `group_bom`, duplicate/consistency methods | `tests/test_advanced_review.py`, `tests/test_library_adapters.py`, `tests/test_bom.py` | `tests/test_service_facade_contract.py` compares complete payloads and typed exceptions | transaction/session/finding record counts unchanged for read-only calls |
-| Review | `run_review`, `get_findings`, `get_finding`, `review_resource`, `findings_resource` | `tests/test_review.py`, `tests/test_advanced_review.py` | `tests/test_service_facade_contract.py` compares report/finding/resource payloads; report persistence is asserted explicitly | review report creation remains the existing documented side effect |
-
+| Review/analysis | `run_review`, `get_findings`, `get_finding`, `review_resource`, `findings_resource`, and phase-one signal-integrity/impedance/return-path methods | `tests/test_review.py`, `tests/test_advanced_review.py`, `tests/test_signal_integrity.py`, `tests/test_impedance_invariants.py` | `tests/test_service_facade_contract.py` compares report/finding/resource and representative stackup payloads; report persistence is asserted explicitly | review report creation remains the existing documented side effect; analysis calls remain read-only |

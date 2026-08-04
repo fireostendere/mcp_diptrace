@@ -18,7 +18,12 @@ src/diptrace_mcp/
   preview.py           deterministic SVG/JSON previews
   record_store.py      safe persistence seam shared by state-backed stores
   server.py            FastMCP registration and CLI
-  service.py           use cases and write workflow
+  service.py           public Facade, dependency assembly, and safety workflows
+  services/
+    context.py          typed shared context and single document gateway
+    documents.py        normalized document/query/read models
+    bom.py              BOM and component/library metadata reads
+    review.py           reviews and read-only analysis
   sessions.py          shared live-session state
   transactions.py      transaction store and artifacts
   external_adapters.py typed Freerouting process boundary
@@ -179,6 +184,14 @@ review of the FastMCP API, MCP Inspector, transports, and client configuration.
    public descriptor diff rather than accepting it mechanically.
 6. Update the tool table in `docs/USAGE.md`.
 7. Update `get_capabilities`, limitations, and the relevant skill contract.
+
+For service refactors, read `docs/SERVICE_DECOMPOSITION.md` first. Pass narrow,
+typed dependencies or callbacks; never pass the complete Facade as a parent and
+never create a duplicate store/cache/session manager. Keep domain methods
+synchronous so the existing server-owned AnyIO thread-offload boundary remains
+the only MCP offload layer. Do not extract transactions, evidence trust,
+semantic writes, routing application, external process lifecycle, or live
+sessions without a new characterization/parity review.
 
 ## Format Rules
 

@@ -9,13 +9,41 @@ and prompts. It contains no file-format logic; calls are delegated to `DipTraceS
 
 ### Service Layer
 
-`src/diptrace_mcp/service.py` is responsible for:
+`src/diptrace_mcp/service.py` remains the stable public `DipTraceService` Facade.
+It is still responsible for top-level dependency assembly and for the sensitive
+write, transaction, evidence, external-job, placement, routing, and live-session
+workflows. Its low-risk read paths delegate explicitly to ordinary in-process
+services under `src/diptrace_mcp/services/`:
+
+* `DocumentService` owns normalized document models, object/query and inspector
+  reads, connectivity, document resources, and bounded XML fragments.
+* `BomService` owns BOM extraction/review/consistency and component/library
+  metadata reads. Export artifact creation remains in the Facade until the later
+  exports phase because it writes the shared export store.
+* `ReviewService` owns registered review reports/findings plus pure read-only
+  signal-integrity, impedance, differential-pair, copper-pour, and return-path
+  analysis. Review execution retains its existing report persistence in the
+  shared `FindingStore`.
+
+`ServiceContext` contains exact shared dependency types, and `DocumentGateway`
+is the single path/session-aware loader and document-target registry. Services
+receive these existing instances; they do not create stores, model caches,
+sessions, transactions, or a second document loader. Facade methods remain
+explicit and type checked. There is no dynamic forwarding, mixin hierarchy,
+service locator, RPC boundary, or extra process.
+
+The remaining Facade responsibilities include:
 
 - literal caller-path resolution and allowed-root enforcement;
-- selecting an offline file or the active `working.xml`;
-- loading and validating XML;
 - orchestrating preview, write, and backup operations;
-- forwarding `apply` or `cancel` to the bridge process.
+- trust/evidence authorization and provenance invalidation;
+- transaction begin/stage/preview/validate/commit/rollback;
+- semantic XML writes, document creation, routing application, and plan apply;
+- external process lifecycle, exports, discovery, and live-session apply/cancel.
+
+This is phase one only; the monolith is intentionally not described as fully
+decomposed. The complete method-level map and later extraction roadmap are in
+[`SERVICE_DECOMPOSITION.md`](SERVICE_DECOMPOSITION.md).
 
 Caller-supplied paths do not expand environment variables or `~`. Expansion is limited
 to server-owned path configuration loaded from the environment. Caller-supplied design
