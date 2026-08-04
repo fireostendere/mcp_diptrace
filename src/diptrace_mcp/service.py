@@ -27,7 +27,6 @@ from .domain import (
     EvidenceFileRecord,
     FieldSolverRequest,
     FixtureValidationLevel,
-    JobStatus,
     ObjectRecord,
     PlanStatus,
     ProvenanceAuthority,
@@ -42,7 +41,6 @@ from .domain import (
     requires_diptrace_verification,
 )
 from .errors import (
-    CapabilityUnavailableError,
     ConfirmationRequiredError,
     ConnectivityRegressionError,
     DipTraceMcpError,
@@ -58,9 +56,6 @@ from .errors import (
 from .evidence_status import component_angle_evidence_warnings
 from .exports import (
     ExportStore,
-    create_bom_export,
-    create_release_manifest,
-    export_resources,
 )
 from .external_adapters import ExternalJobManager
 from .findings import FindingStore
@@ -132,7 +127,10 @@ from .services.context import (
 from .services.context import (
     json_size as _json_size,
 )
+from .services.discovery import DiscoveryService
 from .services.documents import DocumentService
+from .services.exports import ExportService
+from .services.jobs import JobService
 from .services.review import ReviewService
 from .services.semantic_operations import SemanticOperationsService
 from .sessions import LiveWorkingGuard, SessionAction, SessionStore
@@ -984,6 +982,13 @@ class DipTraceService:
         )
         self._document_gateway = DocumentGateway(settings, self.sessions)
         self._document_targets = self._document_gateway.targets
+        self._discovery_service = DiscoveryService(settings)
+        self._export_service = ExportService(
+            self._service_context,
+            self._document_gateway,
+            self.exports,
+        )
+        self._job_service = JobService(settings, self.jobs, self.external_jobs)
         self._document_service = DocumentService(
             self._service_context,
             self._document_gateway,
@@ -1803,12 +1808,12 @@ class DipTraceService:
     def scan_component_libraries(
         self, root: str | None = None, recursive: bool = True
     ) -> dict[str, Any]:
-        return self._scan_libraries("DipTrace-ComponentLibrary", root, recursive)
+        return self._discovery_service._scan_libraries("DipTrace-ComponentLibrary", root, recursive)
 
     def scan_pattern_libraries(
         self, root: str | None = None, recursive: bool = True
     ) -> dict[str, Any]:
-        return self._scan_libraries("DipTrace-PatternLibrary", root, recursive)
+        return self._discovery_service._scan_libraries("DipTrace-PatternLibrary", root, recursive)
 
     def query_library_items(
         self,
@@ -1874,15 +1879,7 @@ class DipTraceService:
         *,
         include_dnp: bool = True,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        record = create_bom_export(self.exports, snapshot, include_dnp=include_dnp)
-        return self._read_success(
-            snapshot.info,
-            {"export": record.model_dump(mode="json")},
-            resources=export_resources(record),
-            limitations=record.limitations,
-        )
+        return self._export_service.export_bom(path, include_dnp=include_dnp)
 
     def export_fabrication_outputs(
         self,
@@ -1891,16 +1888,8 @@ class DipTraceService:
         include_dnp: bool = True,
         request_native_outputs: bool = False,
     ) -> dict[str, Any]:
-        if request_native_outputs:
-            raise CapabilityUnavailableError(
-                "Authoritative Gerber/NC drill export is unavailable from confirmed XML semantics. "
-                "Call with request_native_outputs=false to create a review manifest bundle.",
-                details={"not_generated": ["gerber", "nc_drill", "odb++", "ipc-2581"]},
-            )
-        return self._export_release_manifest(
-            path,
-            export_type="fabrication_manifest",
-            include_dnp=include_dnp,
+        return self._export_service.export_fabrication_outputs(
+            path, include_dnp=include_dnp, request_native_outputs=request_native_outputs
         )
 
     def export_assembly_outputs(
@@ -1910,16 +1899,8 @@ class DipTraceService:
         include_dnp: bool = False,
         request_native_outputs: bool = False,
     ) -> dict[str, Any]:
-        if request_native_outputs:
-            raise CapabilityUnavailableError(
-                "Authoritative vendor-specific assembly output is unavailable. "
-                "Call with request_native_outputs=false for generic placement and BOM artifacts.",
-                details={"not_generated": ["vendor_cpl", "assembly_drawing"]},
-            )
-        return self._export_release_manifest(
-            path,
-            export_type="assembly_manifest",
-            include_dnp=include_dnp,
+        return self._export_service.export_assembly_outputs(
+            path, include_dnp=include_dnp, request_native_outputs=request_native_outputs
         )
 
     def _export_release_manifest(
@@ -1929,19 +1910,8 @@ class DipTraceService:
         export_type: Literal["fabrication_manifest", "assembly_manifest"],
         include_dnp: bool,
     ) -> dict[str, Any]:
-        document, target = self.load(path)
-        snapshot = self.models.get(document, live_session=target.is_live)
-        record = create_release_manifest(
-            self.exports,
-            snapshot,
-            export_type=export_type,
-            include_dnp=include_dnp,
-        )
-        return self._read_success(
-            snapshot.info,
-            {"export": record.model_dump(mode="json")},
-            resources=export_resources(record),
-            limitations=record.limitations,
+        return self._export_service._export_release_manifest(
+            path, export_type=export_type, include_dnp=include_dnp
         )
 
     def review_bom(self, path: str | None = None) -> dict[str, Any]:
@@ -5700,106 +5670,25 @@ class DipTraceService:
         }
 
     def get_job_status(self, jobid: str) -> dict[str, Any]:
-        record = self.jobs.read(jobid)
-        return {
-            "ok": True,
-            "document": None,
-            "result": {"job": record.model_dump(mode="json")},
-            "warnings": record.warnings,
-            "limitations": [],
-            "resources": job_resources(jobid),
-            "transaction": None,
-            "job": record.model_dump(mode="json"),
-        }
+        return self._job_service.get_job_status(jobid)
 
     def get_job_result(self, jobid: str) -> dict[str, Any]:
-        record = self.jobs.read(jobid)
-        return {
-            "ok": True,
-            "document": None,
-            "result": {
-                "status": record.status,
-                "result": record.result,
-                "partial_result": record.partial_result,
-                "error": record.error,
-                "artifacts": record.artifacts,
-            },
-            "warnings": record.warnings,
-            "limitations": [],
-            "resources": job_resources(jobid),
-            "transaction": None,
-            "job": record.model_dump(mode="json"),
-        }
+        return self._job_service.get_job_result(jobid)
 
     def cancel_job(self, jobid: str) -> dict[str, Any]:
-        record = self.external_jobs.cancel(jobid)
-        return self.get_job_status(record.jobid)
+        return self._job_service.cancel_job(jobid)
 
     def list_jobs(self, status: str | None = None) -> dict[str, Any]:
-        allowed = {None, "queued", "running", "completed", "failed", "cancelled"}
-        if status not in allowed:
-            raise DocumentError(f"Unknown job status: {status}")
-        records = self.jobs.list(status=cast(JobStatus | None, status))
-        return {
-            "ok": True,
-            "document": None,
-            "result": {
-                "matched_count": len(records),
-                "jobs": [record.model_dump(mode="json") for record in records],
-            },
-            "warnings": [],
-            "limitations": [],
-            "resources": [],
-            "transaction": None,
-            "job": None,
-        }
+        return self._job_service.list_jobs(status)
 
     def list_exports(self) -> dict[str, Any]:
-        records = self.exports.list()
-        return {
-            "ok": True,
-            "document": None,
-            "result": {
-                "matched_count": len(records),
-                "exports": [record.model_dump(mode="json") for record in records],
-            },
-            "warnings": [],
-            "limitations": [],
-            "resources": [],
-            "transaction": None,
-            "job": None,
-        }
+        return self._export_service.list_exports()
 
     def export_resource(self, export_id: str, artifact: str) -> str:
-        return self.exports.artifact(export_id, artifact).decode("utf-8", errors="strict")
+        return self._export_service.export_resource(export_id, artifact)
 
     def job_resource(self, jobid: str, artifact: str) -> str:
-        record = self.jobs.read(jobid)
-        if artifact == "status":
-            return json.dumps(record.model_dump(mode="json"), ensure_ascii=False, indent=2)
-        if artifact == "result":
-            return json.dumps(
-                {"status": record.status, "result": record.result, "error": record.error},
-                ensure_ascii=False,
-                indent=2,
-            )
-        name = {
-            "log": "log.txt",
-            "input.dsn": "input.dsn",
-            "output.ses": "output.ses",
-            "field_solver_input.json": "field_solver_input.json",
-            "field_solver_result.json": "field_solver_result.json",
-            "manifest.json": "manifest.json",
-        }.get(artifact)
-        if name is None:
-            raise CapabilityUnavailableError(f"Unknown job resource: {artifact}")
-        artifact_path = self.jobs.artifact_path(jobid, name)
-        if not artifact_path.exists():
-            return ""
-        data = artifact_path.read_bytes()
-        if artifact == "log" and len(data) > self.settings.max_external_log_bytes:
-            data = data[-self.settings.max_external_log_bytes :]
-        return data.decode("utf-8", errors="replace")
+        return self._job_service.job_resource(jobid, artifact)
 
     @staticmethod
     def _unrouted_pairs(
@@ -6225,47 +6114,7 @@ class DipTraceService:
         }
 
     def scan_documents(self, root: str | None = None, recursive: bool = True) -> dict[str, Any]:
-        scan_root = self.settings.resolve_allowed_path(root or str(self.settings.workspace))
-        if not scan_root.is_dir():
-            raise DocumentError(f"Scan root is not a directory: {scan_root}")
-        iterator = scan_root.rglob("*") if recursive else scan_root.glob("*")
-        results: list[dict[str, Any]] = []
-        examined = 0
-        truncated = False
-        for candidate in iterator:
-            if not candidate.is_file() or candidate.suffix.lower() not in _CANDIDATE_SUFFIXES:
-                continue
-            try:
-                candidate = self.settings.resolve_allowed_path(candidate)
-            except PathAccessError:
-                continue
-            examined += 1
-            if examined > self.settings.max_scan_files:
-                truncated = True
-                break
-            header = self._read_source_header(candidate)
-            if header is None:
-                continue
-            try:
-                relative = candidate.relative_to(self.settings.workspace)
-                relative_path = str(relative)
-            except ValueError:
-                relative_path = None
-            results.append(
-                {
-                    "path": str(candidate),
-                    "relative_path": relative_path,
-                    "size_bytes": candidate.stat().st_size,
-                    **header,
-                }
-            )
-        return {
-            "root": str(scan_root),
-            "recursive": recursive,
-            "examined_candidates": min(examined, self.settings.max_scan_files),
-            "truncated": truncated,
-            "documents": results,
-        }
+        return self._discovery_service.scan_documents(root, recursive)
 
     def _scan_libraries(
         self,
@@ -6273,23 +6122,7 @@ class DipTraceService:
         root: str | None,
         recursive: bool,
     ) -> dict[str, Any]:
-        scanned = self.scan_documents(root, recursive)
-        items = [item for item in scanned["documents"] if item.get("type") == source_type]
-        return {
-            "ok": True,
-            "document": None,
-            "result": {
-                "source_type": source_type,
-                "matched_count": len(items),
-                "items": items,
-                "truncated": scanned["truncated"],
-            },
-            "warnings": [],
-            "limitations": [],
-            "resources": [],
-            "transaction": None,
-            "job": None,
-        }
+        return self._discovery_service._scan_libraries(source_type, root, recursive)
 
     def _get_library_item(
         self,
@@ -6528,27 +6361,7 @@ class DipTraceService:
         return self.sessions.session_id_for_working_path(path)
 
     def _read_source_header(self, path: Path) -> dict[str, str] | None:
-        try:
-            with path.open("rb") as stream:
-                prefix = stream.read(16 * 1024)
-        except OSError:
-            return None
-        match = _SOURCE_TAG.search(prefix)
-        if not match:
-            return None
-        attributes = {
-            key.decode("ascii", errors="ignore"): value.decode("utf-8", errors="replace")
-            for key, value in _SOURCE_ATTRIBUTE.findall(match.group(1))
-        }
-        source_type = attributes.get("Type", "")
-        if not source_type.startswith("DipTrace-"):
-            return None
-        return {
-            "type": source_type,
-            "source_type": source_type,
-            "version": attributes.get("Version", ""),
-            "units": attributes.get("Units", ""),
-        }
+        return self._discovery_service._read_source_header(path)
 
     @staticmethod
     def _read_success(
