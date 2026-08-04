@@ -1,0 +1,76 @@
+name: MCPB and registry preparation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mcpb.yml"
+      - "packaging/mcpb/**"
+      - "packaging/registry/**"
+      - "scripts/build_mcpb.py"
+      - "scripts/generate_registry_server_json.py"
+      - "tests/test_mcpb_distribution.py"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata-contract:
+    name: Validate MCPB and registry metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install test environment
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused distribution tests
+        run: python -m pytest -q tests/test_mcpb_distribution.py
+      - name: Run static checks for new tooling
+        run: |
+          python -m ruff check --no-cache \
+            scripts/build_mcpb.py \
+            scripts/generate_registry_server_json.py \
+            tests/test_mcpb_distribution.py
+          python -m mypy --no-incremental \
+            scripts/build_mcpb.py \
+            scripts/generate_registry_server_json.py
+
+  windows-bundle:
+    name: Build Windows MCPB candidate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build standalone server
+        shell: pwsh
+        run: .\scripts\build_windows_server.ps1 -PythonCommand python -OutputDir dist\windows-server -Clean
+      - name: Build MCPB candidate
+        shell: pwsh
+        run: python scripts/build_mcpb.py --server-dir dist\windows-server\diptrace_mcp_server --output-dir dist\mcpb
+      - name: Inspect candidate
+        shell: pwsh
+        run: |
+          $bundle = Get-ChildItem .\dist\mcpb\DipTrace-MCP-*-windows.mcpb | Select-Object -First 1
+          if (-not $bundle) { throw "MCPB candidate missing" }
+          python -m zipfile -t $bundle.FullName
+          $checksum = Get-Content ($bundle.FullName + '.sha256') -Raw
+          $actual = (Get-FileHash -LiteralPath $bundle.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if (-not $checksum.StartsWith($actual)) { throw "MCPB checksum mismatch" }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: diptrace-mcp-mcpb-candidate-${{ github.sha }}
+          path: |
+            dist/mcpb/*.mcpb
+            dist/mcpb/*.sha256
+          if-no-files-found: error

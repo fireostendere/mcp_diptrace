@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.fireostendere/diptrace-mcp",
+  "title": "DipTrace MCP",
+  "description": "Local MCP server for reading, reviewing and performing guarded edits on DipTrace PCB and schematic projects.",
+  "repository": {
+    "url": "https://github.com/fireostendere/mcp_diptrace",
+    "source": "github"
+  },
+  "version": "__VERSION__",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "__MCPB_URL__",
+      "fileSha256": "__MCPB_SHA256__",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

@@ -1,146 +1,148 @@
 # DipTrace MCP
 
+<!-- mcp-name: io.github.fireostendere/diptrace-mcp -->
+
 [English](README.md) | **Русский**
 
 [![CI](https://github.com/fireostendere/mcp_diptrace/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fireostendere/mcp_diptrace/actions/workflows/ci.yml)
 [![Coverage gate](docs/badges/coverage.svg)](.github/workflows/ci.yml)
 
 DipTrace MCP — локальный Model Context Protocol сервер для чтения, анализа,
-инженерного ревью и контролируемого изменения XML-проектов DipTrace. Проект
-состоит из двух связанных компонентов:
+инженерного ревью и контролируемого изменения PCB и schematic проектов
+DipTrace. Проект состоит из двух компонентов:
 
 - `diptrace-mcp` — MCP-сервер для Codex, Claude Desktop и других MCP-клиентов;
-- `diptrace_mcp_bridge.exe` — Windows-плагин, который обменивается XML с
-  проектом, открытым в PCB Layout или Schematic Capture.
+- `diptrace_mcp_bridge.exe` — Windows bridge-плагин для проектов, открытых в
+  DipTrace.
 
 ## Текущее состояние
 
-Исходный код и build metadata уже имеют версию **0.2.0**. Последний
-опубликованный GitHub-релиз пока остаётся **v0.1.2**. Версия 0.2.0 —
-проверенный unsigned release candidate уровня alpha/development-stage; тег и
-публичный релиз не создаются, пока не закрыты оставшиеся проверки на реальной
-Windows и в DipTrace.
+Последний опубликованный релиз —
+[`v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0).
+Это явно обозначенный unsigned alpha/development GitHub prerelease с тегом на
+коммите `31766cb6e667dc24f3e2921decfd65c03eebd271`.
 
-Текущий код пригоден для инженерной работы с человеком в контуре: чтения PCB,
-schematic и libraries; structured review; guarded semantic writes; schematic
-authoring и synchronization; bounded placement/routing; live PCB/Schematic
-exchange; Windows installer и portable candidate builds.
+Публичные assets включают:
 
-Проект не заменяет интерактивный EDA-движок DipTrace. Native mutation
-Component/Pattern Library и native manufacturing output намеренно недоступны.
-Для конкретной установки, документа, policy и внешних adapter фактическим
-источником истины является `get_capabilities`.
+- `DipTrace-MCP-Setup-0.2.0.exe`;
+- `DipTrace-MCP-Portable-0.2.0.zip`;
+- Python wheel и source distribution;
+- `SHA256SUMS.txt`, SBOM, dependency, notice, provenance и release records.
+
+Windows executables unsigned. CI и SHA-256 подтверждают проверенное поведение и
+идентичность файлов, но не являются trusted publisher signature, доказательством
+universal compatibility или production readiness.
 
 ## Статус публичного релиза
 
-Проект использует OSI-approved open-source лицензию `LICENSE` Apache-2.0.
-Правила участия и релиза находятся в `CONTRIBUTING.md`, `GOVERNANCE.md`,
+Проект использует OSI-approved open-source `LICENSE` Apache-2.0. Правила участия
+и релиза находятся в `CONTRIBUTING.md`, `GOVERNANCE.md`,
 `docs/LICENSE_DECISION.md`, `docs/PUBLIC_RELEASE_CHECKLIST.md`,
-`docs/RELEASE_PROCESS.md`, `CHANGELOG.md` и `CITATION.cff`. Сообщения о
-security отправляются через приватный канал; проверенный Code of Conduct канал
-для enforcement пока не опубликован.
+`docs/RELEASE_PROCESS.md`, `CHANGELOG.md` и `CITATION.cff`. Сообщения о security
+отправляются через приватный канал; проверенный Code of Conduct канал для
+enforcement пока не опубликован.
 
-- Последний опубликованный development release — `v0.1.2`; его source distribution,
-  wheel, Windows bridge executable, hashes и provenance неизменны.
-- Текущая версия source/package — `0.2.0`; это reviewed candidate без tag и
-  публикации.
+- Последний опубликованный development release — `v0.2.0`; его source distribution,
+  wheel, hashes и provenance immutable.
 - Windows installer, bridge, standalone executable, configurator и portable
-  bundle 0.2.0 проходят CI, но ещё не являются публичными downloads.
-- Python archives собираются по точному allowlist и проверяются по wheel entry
-  points, packaged skills, bounds и каждому `RECORD` hash/size.
-- Candidate Windows binaries unsigned; CI и SHA-256 не являются code signature,
-  production-ready или universal-compatibility claim не заявляется.
+  bundle опубликованы как unsigned development assets.
+- Python archives собираются по точному allowlist и проверяются по entry points,
+  packaged skills, bounds и каждому `RECORD` hash и size.
+- CI и SHA-256 не создают code-signing или production-readiness claim.
+- Будущие MCPB, официальный Registry, Smithery или PyPI должны использовать
+  новую immutable версию и не заменять существующие bytes `v0.2.0`.
 
-Запись кандидата и оставшиеся gate находятся в
-[`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) и
-[`docs/RELEASE_0_2_0_CHECKLIST.md`](docs/RELEASE_0_2_0_CHECKLIST.md).
-Инструкции для уже опубликованного v0.1.2 находятся в
-[`docs/INSTALL_FROM_RELEASE.md`](docs/INSTALL_FROM_RELEASE.md).
+## Возможности
 
-## Публичный MCP-контракт
+Публичный MCP-контракт содержит 159 зарегистрированных tools, 157 публичных
+методов `DipTraceService` и 148 явных Facade → domain-service делегаций.
+Фактическим источником истины для конкретной установки и документа остаётся
+`get_capabilities`.
 
-Текущая публичная поверхность содержит:
+Основные группы возможностей:
 
-- 159 зарегистрированных MCP tools;
-- 157 публичных методов `DipTraceService`;
-- 148 явных Facade → domain-service делегаций;
-- один server-owned AnyIO worker-thread boundary для всех зарегистрированных
-  tools.
+- чтение и модели PCB, schematic, Component Library и Pattern Library;
+- structured DRC/ERC, connectivity, BOM, assembly, DFM/DFA/DFT, comparison и
+  signal-integrity assistance;
+- guarded workflows для компонентов, schematic, NetClass, текста, трасс, via,
+  panelisation, placement, routing и synchronization;
+- preview, expected SHA-256, policy, backup, atomic replace, rollback и
+  live-session apply/cancel;
+- optional process adapters для Freerouting, ngspice и openEMS;
+- локальный stdio и trusted-loopback Streamable HTTP.
 
-Полный wire-level `tools/list` закреплён в
-[`reference/mcp-tools-list.snapshot.json`](reference/mcp-tools-list.snapshot.json):
-159 tools, 142 746 canonical UTF-8 bytes, SHA-256
-`073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db`.
+DipTrace MCP не заменяет интерактивный EDA-движок DipTrace. Проект не заявляет
+native Component/Pattern Library mutation, native Gerber/NC Drill generation,
+fabrication sign-off, Novarm/DipTrace endorsement или universal compatibility
+со всеми версиями DipTrace 5.x.
 
-Наличие tool в registry не означает доступность для любого документа и не
-является доказательством реального DipTrace round-trip. Подробности находятся в
-[`docs/MCP_TOOLS.md`](docs/MCP_TOOLS.md).
+## Установка
 
-## Основные возможности
+### Windows installer
 
-### Чтение и модели
+1. Скачайте `DipTrace-MCP-Setup-0.2.0.exe` и `SHA256SUMS.txt` из
+   [релиза `v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0).
+2. Проверьте SHA-256.
+3. Запустите installer и выберите DipTrace location, workspace, state directory
+   и при необходимости настройку Codex/Claude.
+4. Перезапустите DipTrace и MCP-клиент.
+5. Вызовите `get_capabilities`.
 
-- normalised models для PCB, schematic, Component Library и Pattern Library;
-- стабильные object identifiers, selectors, spatial queries и connectivity;
-- design rules, stackup, net classes, via styles, traces, pours, lengths и
-  differential pairs;
-- BOM extraction, consistency checks и bounded export records;
-- byte-preserving XML-доступ для поддерживаемых кодировок с отказом на hostile
-  DTD/entity input.
+Windows может показать SmartScreen warning, поскольку binaries unsigned.
 
-### Review и анализ
+### Portable Windows bundle
 
-- bounded DRC/ERC, connectivity, BOM, assembly, DFM/DFA/DFT, thermal-metadata и
-  design-comparison workflows;
-- persistent findings и явные skipped/partial categories;
-- NetClass-aware routing и trace-to-trace clearance resolution;
-- предварительные расчёты Hammerstad-Jensen microstrip и IPC-2141 centred
-  stripline;
-- optional typed process boundaries для Freerouting, ngspice и openEMS.
+Скачайте и проверьте `DipTrace-MCP-Portable-0.2.0.zip`, распакуйте в постоянную
+локальную директорию, прочитайте `README_FIRST.txt` и используйте включённые
+helper tools.
 
-Эти проверки помогают инженеру, но не являются fabrication, assembly или
-regulatory sign-off.
+### Установка из исходного кода
 
-### Контролируемые изменения
+Требуется Python 3.10 или новее:
 
-- move, rotate, side, lock, value, property, pattern, alignment, distribution и
-  grouping для компонентов и schematic parts;
-- board-text, NetClass, test-point, trace, via и panelisation edits;
-- schematic sheets, parts, wires, labels, connectivity и no-connect state;
-- additive и guarded exact schematic-to-PCB synchronization;
-- synthetic PCB/schematic scaffolding и seed-based creation;
-- transaction preview, validation, expected SHA-256, commit, backup, rollback и
-  консервативные write-impact limits;
-- live `apply`/`cancel` через bridge с повторной проверкой exchange path,
-  working SHA и original-file SHA.
+```bash
+git clone https://github.com/fireostendere/mcp_diptrace.git
+cd mcp_diptrace
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+diptrace-mcp --help
+```
 
-Где предусмотрено, значение по умолчанию — `dry_run=true`. Raw XML editing
-остаётся expert escape hatch.
+Python wheel/source installation не устанавливает Windows bridge-плагин
+DipTrace автоматически.
 
-### Placement и routing
+Полный путь описан в
+[инструкции установки из release assets](docs/INSTALL_FROM_RELEASE.md).
 
-- deterministic silkscreen и bounded local placement plans;
-- trace/via primitives и bounded multi-layer 45-degree A* routing;
-- congestion-ordered multi-net routing с bounded batch-local rip-up/retry;
-- atomic centreline-based differential-pair routing;
-- DSN export, guarded Freerouting jobs и SES inspection/import.
+## Подготовка MCPB, Registry и Smithery
 
-Router не является push-and-shove, free-angle или global EDA autorouter.
+Версия 0.2.0 не содержит MCPB и не опубликована в PyPI, официальном MCP Registry
+или Smithery. Репозиторий теперь подготавливает:
+
+- deterministic Windows MCPB builder;
+- canonical registry name `io.github.fireostendere/diptrace-mcp`;
+- официальный `server.json` template и generator;
+- инструкции будущей публикации в Smithery и официальный Registry.
+
+Эти изменения не создают новый релиз. Публичный MCPB должен выйти под новой
+immutable версией; существующие assets `v0.2.0` заменять нельзя. См.
+[подготовку MCP distribution](docs/MCP_DISTRIBUTION.md).
 
 ## Архитектура
 
 ```text
 MCP client (Codex / Claude / другой)
                  |
-                 | stdio или loopback Streamable HTTP
+                 | stdio или trusted loopback HTTP
                  v
-       FastMCP server.py
+             FastMCP
                  |
                  v
-  публичный Facade DipTraceService
+      публичный Facade DipTraceService
                  |
-                 +--> typed in-process domain services
-                 +--> shared stores, cache, policy и document gateway
+                 +--> typed domain services
+                 +--> shared stores, policy, cache, document gateway
                  |
                  v
        XML files / shared state
@@ -152,36 +154,28 @@ MCP client (Codex / Claude / другой)
               DipTrace
 ```
 
-`DipTraceService` остаётся стабильным публичным Facade и владельцем top-level
-dependencies. Реализации доменов находятся в `src/diptrace_mcp/services/`;
-они получают узкие typed dependencies, не держат весь Facade и не создают
-дублирующие stores. См. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) и
-[`docs/SERVICE_DECOMPOSITION.md`](docs/SERVICE_DECOMPOSITION.md).
-
 ## Модель безопасности
 
 Основные write invariants:
 
-1. caller paths остаются внутри configured allowed roots;
-2. входной XML ограничивается по размеру, reparsed и проверяется до mutation;
+1. пути остаются внутри configured allowed roots;
+2. XML ограничивается и парсится до mutation;
 3. preview и commit привязаны к точным SHA-256;
-4. существующий target получает backup до replacement;
-5. запись выполняется через temporary file и `os.replace`;
+4. существующие targets получают backup;
+5. запись использует temporary files и atomic replacement;
 6. применяются policy и консервативные write-impact limits;
-7. live apply повторно проверяет working SHA, exchange path и original exchange
-   SHA;
-8. explicit cancel не меняет exchange XML;
+7. live apply повторно проверяет working, exchange и original-file identity;
+8. cancel не изменяет host exchange file;
 9. пользовательские sidecars не могут самостоятельно выдать высокий trust.
 
-Capability report намеренно не заявляет полное trust-invalidation coverage для
-`plan_apply`, `ses_import`, `schematic_to_pcb_sync` и `live_session_apply`.
-Q1 Component Angle GUI/re-export evidence также остаётся `NOT_RUN`, поэтому
-rotation results содержат structured warning.
+Q1 Component Angle GUI/re-export validation остаётся `NOT_RUN`. Несколько
+проверок на реальной Windows, в DipTrace и MCP-клиентах остаются явно
+задокументированными ограничениями.
 
 ## Обработка данных
 
 - `DIPTRACE_MCP_WORKSPACE` задаёт обычный workspace; пути дополнительно
-  ограничиваются `DIPTRACE_MCP_ALLOWED_ROOTS` и literal caller-path checks.
+  ограничиваются `DIPTRACE_MCP_ALLOWED_ROOTS` и literal path checks.
 - `DIPTRACE_MCP_STATE_DIR` хранит локальные records, а live session —
   `original.xml` и `working.xml`; финализация выполняется через `apply` или
   `cancel`.
@@ -194,98 +188,24 @@ rotation results содержат structured warning.
   загружаются и не коммитятся автоматически; внешние данные и публикацию
   контролирует оператор.
 
-## Установка
-
-### Текущий source tree
-
-Требуется Python 3.10 или новее.
-
-```bash
-git clone https://github.com/fireostendere/mcp_diptrace.git
-cd mcp_diptrace
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install -e .
-diptrace-mcp --help
-```
-
-Windows PowerShell:
-
-```powershell
-git clone https://github.com/fireostendere/mcp_diptrace.git
-cd mcp_diptrace
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\diptrace-mcp.exe --help
-```
-
-Установите `.[geometry]`, когда нужны exact Shapely/GEOS geometry paths. Source
-installation не устанавливает executable plug-in DipTrace автоматически;
-advanced-путь описан в [`plugin/`](plugin/) и
-[`docs/USAGE.md`](docs/USAGE.md).
-
-### Опубликованные release assets
-
-Для последнего immutable public release используйте
-[`v0.1.2`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.2).
-Installer и portable bundle 0.2.0 пока являются только candidate build outputs.
-Имена файлов из candidate-документации нельзя считать существующими downloads
-до публикации `v0.2.0`.
-
-## Проверка
-
-CI matrix включает:
-
-- Linux Python 3.10, 3.12 и 3.13;
-- macOS и Windows Python 3.12;
-- Shapely/GEOS и отдельный no-Shapely fallback;
-- Ruff, strict Mypy, DCO, public tool snapshot, service-Facade contract,
-  service-decomposition safety, event-loop responsiveness, release artifacts и
-  provenance/compliance checks;
-- native Windows bridge, standalone server, configurator, installer и portable
-  bundle builds/smoke tests.
-
-Exact head release-candidate PR #49 прошёл CI run `30940972328` и Windows
-installer run `30940972331`. Ранее controlled live acceptance проверил отдельные
-пути DipTrace 5.3 schematic и DipTrace 5.2.0.4 PCB/Schematic. Это не доказывает
-универсальную совместимость со всеми версиями DipTrace 5.x.
-
-## Оставшиеся release blockers для v0.2.0
-
-- clean Windows 11 install, repair и uninstall acceptance;
-- реальный текущий DipTrace 5 в PCB, Schematic, Component и Pattern modules;
-- реальные Codex и Claude Desktop configuration/restart checks;
-- elevated plug-in install с сохранением original user profile;
-- custom-state preservation acceptance;
-- final frozen artifacts, per-file checksums, public-download verification и
-  необходимый внешний legal review.
-
 ## Документация
 
 - [Использование](docs/USAGE.md)
 - [MCP tools и resources](docs/MCP_TOOLS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
-- [Разработка](docs/DEVELOPMENT.md)
+- [Подготовка MCPB, официального Registry и Smithery](docs/MCP_DISTRIBUTION.md)
+- [Установка в Windows](docs/INSTALL_FROM_RELEASE.md)
 - [Тестирование](docs/TESTING.md)
-- [Roadmap и фактическое состояние](docs/ROADMAP.md)
-- [Покрытие review](docs/REVIEW_ENGINE.md)
+- [Roadmap](docs/ROADMAP.md)
 - [Security и policy](docs/SECURITY_AND_POLICY.md)
 - [Transactions](docs/TRANSACTIONS.md)
-- [Windows installer](docs/WINDOWS_INSTALLER.md)
 - [Release process](docs/RELEASE_PROCESS.md)
-- [Открытые вопросы совместимости](docs/OPEN_QUESTIONS.md)
+- [Release record v0.2.0](docs/releases/v0.2.0.md)
 
-## Участие и security
+## Участие, security и лицензия
 
 Contributions принимаются по DCO 1.1 и provenance/privacy rules из
-[`CONTRIBUTING.md`](CONTRIBUTING.md). Merge authority остаётся у владельца
-репозитория. Подозрения на уязвимость отправляйте только через приватный канал
-из [`SECURITY.md`](SECURITY.md), а не в публичные issues.
+[CONTRIBUTING.md](CONTRIBUTING.md). Сообщения об уязвимостях отправляйте через
+приватный канал из [SECURITY.md](SECURITY.md), а не в публичные issues.
 
-Проект не заявляет Novarm/DipTrace endorsement, production deployments,
-independent review, signed binaries, universal compatibility или complete
-manufacturing sign-off.
-
-## Лицензия
-
-Apache License 2.0. См. [`LICENSE`](LICENSE).
+Apache License 2.0. См. [LICENSE](LICENSE).
