@@ -64,19 +64,55 @@ def test_facade_assembles_each_service_once_and_shares_store_instances(
 ) -> None:
     service = _service(tmp_path)
 
-    assert service._document_service is service._document_service
-    assert service._bom_service is service._bom_service
-    assert service._review_service is service._review_service
-    for domain_service in (
+    domain_services = (
         service._document_service,
         service._bom_service,
         service._review_service,
-    ):
+        service._export_service,
+        service._external_jobs_service,
+        service._routing_service,
+        service._placement_service,
+        service._scaffolding_service,
+        service._evidence_service,
+        service._xml_write_service,
+        service._live_session_service,
+        service._synchronization_service,
+        service._semantic_engine_service,
+        service._semantic_operations_service,
+        service._transaction_service,
+    )
+    assert len({id(item) for item in domain_services}) == len(domain_services)
+
+    for domain_service in domain_services:
         assert domain_service.context.model_cache is service.models
         assert domain_service.context.session_store is service.sessions
         assert domain_service.context.transaction_store is service.transactions
-        assert domain_service.context.finding_store is service.findings
-        assert domain_service.gateway is service._document_gateway
+    assert service._review_service.context.finding_store is service.findings
+
+    gateway_services = (
+        service._document_service,
+        service._bom_service,
+        service._review_service,
+        service._export_service,
+        service._external_jobs_service,
+        service._routing_service,
+        service._placement_service,
+        service._evidence_service,
+        service._xml_write_service,
+        service._synchronization_service,
+        service._semantic_engine_service,
+        service._semantic_operations_service,
+        service._transaction_service,
+    )
+    assert all(item.gateway is service._document_gateway for item in gateway_services)
+
+    assert service._transaction_service.transaction_store is service.transactions
+    assert service._transaction_service.session_store is service.sessions
+    assert service._xml_write_service.session_store is service.sessions
+    assert service._live_session_service.session_store is service.sessions
+    assert service._external_jobs_service.plan_store is service.plans
+    assert service._placement_service.plan_store is service.plans
+    assert service._routing_service.plan_store is service.plans
 
     assert service._document_targets is service._document_gateway.targets
 
