@@ -1,56 +1,30 @@
 # Install from GitHub Release Assets
 
-## Windows one-click path
+## Publication status
 
-The target primary Windows asset is `DipTrace-MCP-Setup-<version>.exe`. This is
-the ordinary user flow once a release publishes it:
+The latest published GitHub release is `v0.1.2`.
 
-1. Download the installer and verify its SHA-256 against `SHA256SUMS.txt`.
-2. Run it and choose the DipTrace project workspace.
-3. Choose Codex, Claude Desktop, both, or no client configuration.
-4. Click Install, then restart the MCP client.
-5. Verify `get_capabilities`.
+The current source/package version is `0.2.0`, but `v0.2.0` is not tagged or
+published while the remaining real Windows/DipTrace/client acceptance gates are
+open. The 0.2.0 installer and portable bundle are successful CI build outputs,
+not public release downloads yet.
 
-The installer is Windows-only, currently unsigned, and development-stage. It
-does not download code, Python, or dependencies during installation. The
-server is installed as an onedir self-contained application under
-`%LOCALAPPDATA%\Programs\DipTraceMCP`; writable state and install logs are
-kept under `%LOCALAPPDATA%\DipTraceMCP` (or the chosen state directory).
-DipTrace plug-in files under protected `Program Files` paths are the only
-operation that may trigger a narrowly scoped elevation prompt. The workspace,
-state backups, logs, and client backups are preserved by default on uninstall.
+Do not infer that a candidate filename exists on the Releases page until an
+actual `v0.2.0` release is published.
 
-The target fallback asset is `DipTrace-MCP-Portable-<version>.zip`. Extract it, run
-`tools\diptrace_mcp_configure.exe` or the packaged helper, choose a workspace,
-and run the server smoke check. It does not require Python.
+## Published v0.1.2 assets
 
-The bundle's current geometry status is determined by the Windows CI exact
-geometry probe. Do not infer full geometry, universal DipTrace compatibility,
-Q1 rotation validation, or Novarm permission from a successful install.
+Use the immutable
+[GitHub Release v0.1.2](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.2)
+and download assets from that same release.
 
-This is the no-clone installation path for the development-stage `v0.1.2`
-release. Use the [GitHub Release v0.1.2](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.1.2)
-page and download the assets for the same version:
+The v0.1.2 release includes the Python package, bridge/plugin assets,
+`SHA256SUMS.txt`, and its dated review/acceptance records. It does not include
+the later 0.2.0 one-click installer and portable bundle.
 
-- `diptrace_mcp-0.1.2-py3-none-any.whl`;
-- `diptrace_mcp-0.1.2.tar.gz`;
-- `diptrace_mcp_bridge.exe`;
-- `diptrace_mcp_windows_plugin-0.1.2.zip`;
-- `SHA256SUMS.txt`; and
-- `LIVE_ACCEPTANCE_2026-07-31.md` and `CODE_REVIEW_2026-07-31.md`.
+The project is not published to PyPI. The v0.1.2 Windows binary is unsigned.
 
-The Python package is not published to PyPI. The Windows binary is unsigned.
-Use the GitHub release URL as the source and verify the checksums before use.
-
-No new release or tag was created by the installer work. Therefore the two
-`DipTrace-MCP-*` names above describe the future asset set and are not claims
-that the existing `v0.1.2` page already contains them.
-
-The wheel/source procedure below is the Advanced / Developer installation
-path. It remains useful for Linux, macOS, WSL, maintainers, and users who need
-editable Python code.
-
-## 1. Verify SHA-256
+## Verify SHA-256
 
 Linux/WSL:
 
@@ -66,11 +40,11 @@ Get-FileHash .\diptrace_mcp_bridge.exe -Algorithm SHA256
 Get-FileHash .\diptrace_mcp_windows_plugin-0.1.2.zip -Algorithm SHA256
 ```
 
-Each reported value must exactly match the corresponding line in
+Each value must match the corresponding line in the release's
 `SHA256SUMS.txt`. A matching hash proves correspondence with the published
-asset; it does not prove that an unsigned binary is safe or signed.
+bytes; it does not prove trusted signing or safety.
 
-## 2. Install the wheel in a clean environment
+## Install the v0.1.2 wheel
 
 PowerShell:
 
@@ -81,7 +55,7 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\diptrace-mcp.exe --help
 ```
 
-WSL/Linux:
+Linux/WSL:
 
 ```bash
 python3.12 -m venv .venv
@@ -90,31 +64,29 @@ python -m pip install ./diptrace_mcp-0.1.2-py3-none-any.whl
 diptrace-mcp --help
 ```
 
-The release wheel contains the MCP server and packaged skills. It does not
-contain the Windows plug-in installer or settings.
+The wheel contains the MCP server and packaged skills. It does not contain a
+complete Windows plug-in installation.
 
-## 3. Install the Windows plug-in package
+## Install the v0.1.2 Windows plug-in package
 
 1. Unpack `diptrace_mcp_windows_plugin-0.1.2.zip`.
 2. Close every DipTrace module.
-3. Open PowerShell as Administrator when installing below a protected DipTrace
-   directory.
+3. Open PowerShell as Administrator only when installing below a protected
+   DipTrace directory.
 4. Run:
 
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\install_plugin.ps1
    ```
 
-5. Check all four settings profiles: PCB, Schematic, Component, and Pattern.
+5. Check the PCB, Schematic, Component, and Pattern settings profiles.
 6. Restart DipTrace and open `Tools → Plugins → DipTrace MCP Bridge`.
 
-The package must contain `diptrace_mcp_bridge.exe`, the installer, four
-`settings/*.settings.xml` profiles, `LICENSE`, `LIVE_EXCHANGE_PATHS.md`, and
-this release-install guidance (or its short packaged equivalent).
+The plug-in package and server must come from the same published release.
 
-## 4. Configure an MCP client
+## Configure an MCP client for v0.1.2
 
-Codex on Windows:
+### Codex on Windows
 
 ```powershell
 codex mcp add diptrace `
@@ -122,7 +94,7 @@ codex mcp add diptrace `
   -- "C:\Users\you\path\to\.venv\Scripts\diptrace-mcp.exe"
 ```
 
-Codex in WSL:
+### Codex in WSL
 
 ```bash
 codex mcp add diptrace \
@@ -131,31 +103,74 @@ codex mcp add diptrace \
   -- /path/to/.venv/bin/diptrace-mcp
 ```
 
-The Windows bridge owns the Windows-native exchange path. The WSL server may
-derive a `/mnt/<drive>/...` path only in memory. Every live session must report
-`exchange_path_platform="windows"`.
+The Windows bridge owns the Windows-native exchange path. A WSL server may
+derive `/mnt/<drive>/...` only in memory and must not persist the translated path
+back into Windows-origin session metadata.
 
-## 5. Start a fresh session after an update
+After updating either the server or bridge, finish or abandon the old session
+through supported operations and start a fresh DipTrace plug-in session.
 
-After replacing the wheel or plug-in:
+## Planned v0.2.0 ordinary Windows path
 
-1. close the old bridge session;
-2. delete or abandon stale session state only through the supported MCP/client
-   operation;
-3. do not edit `metadata.json` manually;
-4. start a new DipTrace plug-in session; and
-5. verify `exchange_path_platform="windows"` before reading or requesting an
-   edit.
+After `v0.2.0` is actually published, the intended primary asset is:
 
-The WSL path is computed in memory only and must not be persisted back into
-session metadata. A fresh session avoids mixing state created by different
-bridge versions.
+```text
+DipTrace-MCP-Setup-0.2.0.exe
+```
 
-## 6. Unsigned status and limitations
+The intended fallback is:
 
-The Windows bridge is unsigned. A SmartScreen warning is not evidence of either
-maliciousness or safety. Verify the SHA-256 values and the source GitHub Release
-URL. This is an alpha/development-stage integration, not a production-ready
-replacement for DipTrace. Runtime availability and supported operations remain
-document- and installation-specific; use `get_capabilities` as the source of
-truth.
+```text
+DipTrace-MCP-Portable-0.2.0.zip
+```
+
+The one-click installer is designed to:
+
+- install a self-contained server under
+  `%LOCALAPPDATA%\Programs\DipTraceMCP`;
+- keep writable state under `%LOCALAPPDATA%\DipTraceMCP` or a selected state
+  directory;
+- configure Codex, Claude Desktop, both, or neither;
+- preserve JSON/TOML formatting and create client-configuration backups;
+- install plug-in files into validated DipTrace locations;
+- request elevation only for protected Program Files paths;
+- preserve workspaces, backups, logs, and user state by default on uninstall;
+- avoid downloading Python or runtime code during end-user installation.
+
+The portable bundle is intended to contain the same standalone server, bridge,
+four settings profiles, configurator, and helper scripts without requiring
+Python.
+
+These are design and CI-build facts, not claims that the 0.2.0 files are already
+available publicly.
+
+## Intended v0.2.0 verification flow
+
+Once a real `v0.2.0` release exists:
+
+1. download the installer or portable ZIP from that exact release;
+2. download `SHA256SUMS.txt` from the same release;
+3. verify the selected asset hash;
+4. run the installer or extract the portable bundle;
+5. restart the configured MCP client;
+6. call `get_capabilities`;
+7. verify the expected workspace, state directory, client configuration, and
+   DipTrace plug-in profiles;
+8. keep in mind that the executables are unsigned unless the release record
+   explicitly proves otherwise.
+
+## Current candidate limitations
+
+A successful Windows build or install does not establish:
+
+- universal DipTrace 5.x compatibility;
+- real semantics for every registered write tool;
+- Component Angle GUI/re-export validation;
+- native Component/Pattern Library mutation;
+- native Gerber/NC Drill/manufacturing output;
+- trusted signing;
+- Novarm/DipTrace endorsement or permission;
+- production readiness.
+
+Runtime `get_capabilities` remains authoritative for the installed version and
+active document.
