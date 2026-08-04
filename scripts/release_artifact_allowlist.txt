@@ -7,6 +7,7 @@
 .github/workflows/ci.yml
 .github/workflows/deep-compliance-audit.yml
 .github/workflows/mcpb.yml
+.github/workflows/pypi.yml
 .github/workflows/windows-installer.yml
 .github/workflows/windows-signing.yml
 .gitignore
@@ -47,6 +48,7 @@ docs/PROBE_PACK.md
 docs/PUBLIC_RELEASE_CHECKLIST.md
 docs/REFERENCE_MATERIALS_AUDIT.md
 docs/RELEASE_0_2_0_CHECKLIST.md
+docs/RELEASE_0_2_1_CHECKLIST.md
 docs/RELEASE_PROCESS.md
 docs/REVIEW_ENGINE.md
 docs/ROADMAP.md
@@ -86,6 +88,7 @@ docs/releases/v0.1.0.md
 docs/releases/v0.1.1.md
 docs/releases/v0.1.2.md
 docs/releases/v0.2.0.md
+docs/releases/v0.2.1.md
 examples/claude_desktop_config.json
 examples/codex-config.toml
 installer/DipTraceMCP.iss
