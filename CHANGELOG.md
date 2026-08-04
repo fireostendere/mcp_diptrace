@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- complete the first service-facade decomposition pass with typed shared context,
+  a single document gateway, and explicit in-process domain services;
+- extract document/read models, BOM/component metadata, review/findings and
+  signal-integrity analysis, discovery, exports, jobs, external adapters,
+  routing, placement, semantic operations, synchronization, XML writes,
+  scaffolding, transactions, evidence/trust, and live sessions while preserving
+  the 159-tool MCP surface;
+- preserve singleton store ownership, explicit Facade signatures, stable error
+  contracts, SHA/policy/atomic-write boundaries, live-session leases, and the
+  server-owned thread-offload boundary;
+- document the remaining Facade assembly/callback responsibilities and the
+  follow-on plan-application/capability candidates;
 - disclose pending live component-angle evidence and expose structured evidence warnings;
 - resolve routing and trace-to-trace review clearances from board defaults plus affected NetClasses;
 - add a centralized service-to-MCP error boundary with stable public error codes and safe details;

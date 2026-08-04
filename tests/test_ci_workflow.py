@@ -80,6 +80,8 @@ def test_static_analysis_runs_compliance_gates() -> None:
     assert "python scripts/check_public_privacy.py" in commands
     assert "python scripts/check_provenance_inventory.py" in commands
     assert "python scripts/generate_compliance_inventory.py --check" in commands
+    assert "python scripts/check_service_facade_contract.py --check" in commands
+    assert "python scripts/validate_service_decomposition.py --check" in commands
 
 
 def test_dco_job_uses_the_actual_pr_head_and_is_not_a_post_merge_gate() -> None:
