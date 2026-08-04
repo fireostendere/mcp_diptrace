@@ -2,11 +2,15 @@
 
 ## Current release status
 
-Version 0.1.2 is the current development-stage release line, with unsigned
-artifacts and provenance in [releases/v0.1.2.md](releases/v0.1.2.md). The
-previous `v0.1.1` release is explicitly withdrawn in
+Version 0.1.2 remains the latest published development-stage release, with
+unsigned artifacts and provenance in
+[releases/v0.1.2.md](releases/v0.1.2.md). Version 0.2.0 is the current release
+candidate on `release/v0.2.0`; its candidate record is
+[releases/v0.2.0.md](releases/v0.2.0.md). It is not tagged or published while
+the blocking items in [RELEASE_0_2_0_CHECKLIST.md](RELEASE_0_2_0_CHECKLIST.md)
+remain open. The previous `v0.1.1` release is explicitly withdrawn in
 [releases/v0.1.1.md](releases/v0.1.1.md). CI has no package-index publication
-job, and the Windows CI artifact is unsigned.
+job, and the Windows candidate artifacts are unsigned.
 
 A release presented as independently reviewed, signed, or production-ready is prohibited while the corresponding blocking items in [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) remain open. A development-stage unsigned release may proceed only through an explicit solo-maintainer exception recorded with its limitations, artifact hashes, test evidence, and rollback decision. The GitHub repository owner is the only currently documented administrative authority.
 
