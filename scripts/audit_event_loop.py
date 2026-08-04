@@ -43,14 +43,12 @@ def audit_event_loop_boundary() -> dict[str, Any]:
     unprotected_sync_tools = sorted(
         name
         for name, tool in tools.items()
-        if not inspect.iscoroutinefunction(tool.fn)
-        and not getattr(tool.fn, _OFFLOAD_MARKER, False)
+        if not inspect.iscoroutinefunction(tool.fn) and not getattr(tool.fn, _OFFLOAD_MARKER, False)
     )
     unreviewed_async_tools = sorted(
         name
         for name, tool in tools.items()
-        if inspect.iscoroutinefunction(tool.fn)
-        and not getattr(tool.fn, _OFFLOAD_MARKER, False)
+        if inspect.iscoroutinefunction(tool.fn) and not getattr(tool.fn, _OFFLOAD_MARKER, False)
     )
     missing_heavy_tools = sorted(HEAVY_TOOL_NAMES.difference(tools))
     heavy_tools_without_offload = sorted(

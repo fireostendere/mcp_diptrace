@@ -13,6 +13,9 @@ mypy --no-incremental src/diptrace_mcp plugin
 pytest -q --cov=src/diptrace_mcp --cov-report=term \
   --cov-report=json:coverage.json --cov-fail-under=85
 python scripts/check_coverage.py coverage.json
+python scripts/generate_coverage_badge.py --check
+python scripts/audit_event_loop.py --json
+pytest -q tests/test_event_loop_responsiveness.py
 python scripts/ingest_fixtures.py --dry-run --synthetic --json
 python scripts/measure_mcp_surface.py --baseline-bytes 121335 --max-growth-percent 15
 python scripts/generate_mcp_tools_snapshot.py --check
@@ -30,10 +33,16 @@ details, and registry coverage for all 159 registered tools:
 pytest -q tests/test_mcp_error_contracts.py
 ```
 
-The declared development constraint remains `pytest>=8.4,<9`. Pytest 9 is
-checked only in a separate clean environment against the same project and MCP
-SDK versions; a successful probe does not by itself change the supported CI
-matrix or dependency constraint.
+The maintained development constraint is `pytest>=9.0.3,<10`, and the same
+constraint is installed by the supported CI matrix.
+
+FastMCP v1 invokes synchronous tools directly from its async execution path.
+DipTrace MCP therefore replaces each registered synchronous callable with a
+project-owned async wrapper that uses `anyio.to_thread.run_sync`. The registry
+audit requires that boundary on every public tool, while connected protocol
+probes prove that synthetic blocking-I/O and CPU-heavy calls do not prevent an
+event-loop heartbeat. See [ASYNC_EXECUTION.md](ASYNC_EXECUTION.md) for
+cancellation, GIL, process-worker, and mutation limits.
 
 ## Deep compliance and clean-room audit
 

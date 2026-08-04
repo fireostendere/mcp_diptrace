@@ -8,9 +8,10 @@ import logging
 import math
 import re
 from collections.abc import Awaitable, Callable
-from functools import wraps
+from functools import partial, wraps
 from typing import Any, TypeVar, cast
 
+import anyio
 from mcp import types
 from pydantic import ValidationError
 
@@ -19,9 +20,7 @@ from .errors import DipTraceMcpError
 logger = logging.getLogger(__name__)
 
 _F = TypeVar("_F", bound=Callable[..., Any])
-_PATH_RE = re.compile(
-    r"(?:[A-Za-z]:[\\/][^\s,;]+|/(?:[^\s,;]+/)+[^\s,;]*|\\\\[^\s,;]+)"
-)
+_PATH_RE = re.compile(r"(?:[A-Za-z]:[\\/][^\s,;]+|/(?:[^\s,;]+/)+[^\s,;]*|\\\\[^\s,;]+)")
 _XML_RE = re.compile(r"<[^>]{1,512}>")
 _SECRET_KEY_PARTS = (
     "password",
@@ -146,11 +145,7 @@ def exception_to_error_result(exc: BaseException) -> dict[str, Any]:
             details.setdefault("object_ids", [str(item)[:256] for item in payload.object_ids[:100]])
         if payload.suggested_action:
             details.setdefault("suggested_action", _safe_text(payload.suggested_action))
-        retryable = (
-            False
-            if code in _NON_RETRYABLE_PUBLIC_CODES
-            else bool(payload.recoverable)
-        )
+        retryable = False if code in _NON_RETRYABLE_PUBLIC_CODES else bool(payload.recoverable)
         return {
             "ok": False,
             "error": {
@@ -243,6 +238,7 @@ def wrap_tool_callable(
     tool_name: str,
     *,
     mcp_result: bool = False,
+    offload_sync: bool = False,
 ) -> _F:
     """Wrap sync or async registered functions while preserving their signature."""
 
@@ -260,6 +256,27 @@ def wrap_tool_callable(
 
         wrapped = cast(_F, async_wrapper)
         cast(Any, wrapped).__diptrace_mcp_error_boundary__ = True
+        return wrapped
+
+    if offload_sync:
+
+        @wraps(function)
+        async def thread_wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                call = partial(function, *args, **kwargs)
+                return await anyio.to_thread.run_sync(
+                    call,
+                    abandon_on_cancel=False,
+                )
+            except Exception as exc:
+                if not isinstance(exc, (DipTraceMcpError, ValidationError)):
+                    logger.exception("Unexpected failure in MCP tool %s", tool_name)
+                result = exception_to_error_result(exc)
+                return error_result_to_mcp_result(result) if mcp_result else result
+
+        wrapped = cast(_F, thread_wrapper)
+        cast(Any, wrapped).__diptrace_mcp_error_boundary__ = True
+        cast(Any, wrapped).__diptrace_mcp_thread_offload__ = True
         return wrapped
 
     @wraps(function)

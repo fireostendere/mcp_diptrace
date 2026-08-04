@@ -2,6 +2,9 @@
 
 **English** | [Русский](README_RU.md)
 
+[![CI](https://github.com/fireostendere/mcp_diptrace/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fireostendere/mcp_diptrace/actions/workflows/ci.yml)
+[![Coverage gate](docs/badges/coverage.svg)](.github/workflows/ci.yml)
+
 DipTrace MCP is a local Model Context Protocol server for reading, analyzing, reviewing, and safely editing DipTrace designs through the official XML formats. The repository contains two cooperating components:
 
 - `diptrace-mcp`, the MCP server used by Codex, Claude Desktop, and other MCP clients;
@@ -25,7 +28,7 @@ contains project-authored observations only; it is not a normative DipTrace
 specification and does not claim Novarm permission or universal DipTrace 5.3
 compatibility.
 
-See [the roadmap](docs/ROADMAP.md) for the current priority order and exit criteria. Runtime truth for a specific document always comes from `get_capabilities`.
+See [the roadmap](docs/ROADMAP.md) for the current priority order and exit criteria. Runtime truth for a specific document always comes from `get_capabilities`. The project-owned worker-thread boundary around FastMCP v1 and connected responsiveness probes are documented in [Async Execution and Event-Loop Safety](docs/ASYNC_EXECUTION.md).
 
 ## Public Release Status
 

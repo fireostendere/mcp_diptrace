@@ -6,6 +6,7 @@
 .github/pull_request_template.md
 .github/workflows/ci.yml
 .github/workflows/deep-compliance-audit.yml
+.github/workflows/one-shot-event-loop-badges.yml
 .github/workflows/windows-installer.yml
 .github/workflows/windows-signing.yml
 .gitignore
@@ -24,6 +25,7 @@ benchmarks/synthetic_board.py
 docs/ACCEPTANCE_SEED_AUDIT.md
 docs/API_ERRORS.md
 docs/ARCHITECTURE.md
+docs/ASYNC_EXECUTION.md
 docs/CODE_REVIEW_2026-07-31.md
 docs/DEVELOPMENT.md
 docs/DOMAIN_MODEL.md
@@ -58,6 +60,7 @@ docs/USAGE.md
 docs/WINDOWS_INSTALLER.md
 docs/WINDOWS_WSL_LOCK_INTEROP.md
 docs/XML_COMPATIBILITY.md
+docs/badges/coverage.svg
 docs/compliance/BASELINE_AUDIT.md
 docs/compliance/BRANCH_PROTECTION_STATUS.md
 docs/compliance/DIPTRACE_MATERIALS_STATUS.md
@@ -108,6 +111,7 @@ reference/diptrace-xml/SKILL.md
 reference/diptrace-xml/spec_inventory.json
 reference/mcp-tools-list.snapshot.json
 scripts/audit_acceptance_seeds.py
+scripts/audit_event_loop.py
 scripts/audit_reference_materials.py
 scripts/audit_release_artifacts.py
 scripts/audit_windows_bundle.py
@@ -123,6 +127,7 @@ scripts/compare_artifact_sbom.py
 scripts/extract_spec_inventory.py
 scripts/frozen_server_smoke.py
 scripts/generate_compliance_inventory.py
+scripts/generate_coverage_badge.py
 scripts/generate_fixture_hash_manifest.py
 scripts/generate_mcp_tools_snapshot.py
 scripts/generate_pcb_skills.py
@@ -252,6 +257,7 @@ tests/test_acceptance_seed_audit.py
 tests/test_advanced_review.py
 tests/test_adversarial_xml_corpus.py
 tests/test_audit_reference_materials.py
+tests/test_badges.py
 tests/test_bounded_payloads.py
 tests/test_bridge.py
 tests/test_capability_parity.py
@@ -268,6 +274,7 @@ tests/test_diptrace53_fixture_manifest.py
 tests/test_diptrace53_fixture_pack.py
 tests/test_documentation_links.py
 tests/test_error_boundary.py
+tests/test_event_loop_responsiveness.py
 tests/test_evidence_mcp.py
 tests/test_exports.py
 tests/test_external_process.py

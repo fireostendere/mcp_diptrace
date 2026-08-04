@@ -88,12 +88,14 @@ def test_registered_tool_uses_the_public_boundary(tmp_path: Path) -> None:
     server = create_server(settings)
     tool = server._tool_manager._tools["get_document_info"]
 
-    result = tool.fn(str(tmp_path / "missing.xml"))
+    result = asyncio.run(tool.fn(str(tmp_path / "missing.xml")))
 
     assert result.isError is True
     assert result.structuredContent is not None
     assert result.structuredContent["ok"] is False
     assert result.structuredContent["error"]["code"] == "OBJECT_NOT_FOUND"
+    assert getattr(tool.fn, "__diptrace_mcp_thread_offload__", False) is True
+    assert tool.is_async is True
     serialized = json.dumps(result.structuredContent)
     assert "Traceback" not in serialized
     assert str(tmp_path) not in serialized

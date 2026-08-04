@@ -372,7 +372,14 @@ def _finalize_tool_descriptions(mcp: FastMCP) -> None:
         ):
             description = f"{description} {_DRY_RUN_DESCRIPTION}".strip()
         tool.description = description
-        tool.fn = wrap_tool_callable(tool.fn, tool.name, mcp_result=True)
+        tool.fn = wrap_tool_callable(
+            tool.fn,
+            tool.name,
+            mcp_result=True,
+            offload_sync=True,
+        )
+        if getattr(tool.fn, "__diptrace_mcp_thread_offload__", False):
+            object.__setattr__(tool, "is_async", True)
 
         original_validate = tool.fn_metadata.call_fn_with_arg_validation
 
