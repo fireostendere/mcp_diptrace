@@ -33,6 +33,25 @@ Windows executables unsigned. CI и SHA-256 подтверждают прове�
 идентичность файлов, но не являются trusted publisher signature, доказательством
 universal compatibility или production readiness.
 
+## Статус публичного релиза
+
+Проект использует OSI-approved open-source `LICENSE` Apache-2.0. Правила участия
+и релиза находятся в `CONTRIBUTING.md`, `GOVERNANCE.md`,
+`docs/LICENSE_DECISION.md`, `docs/PUBLIC_RELEASE_CHECKLIST.md`,
+`docs/RELEASE_PROCESS.md`, `CHANGELOG.md` и `CITATION.cff`. Сообщения о security
+отправляются через приватный канал; проверенный Code of Conduct канал для
+enforcement пока не опубликован.
+
+- Последний опубликованный development release — `v0.2.0`; его source
+  distribution, wheel, hashes и provenance immutable.
+- Windows installer, bridge, standalone executable, configurator и portable
+  bundle опубликованы как unsigned development assets.
+- Python archives собираются по точному allowlist и проверяются по entry points,
+  packaged skills, bounds и каждому `RECORD` hash и size.
+- CI и SHA-256 не создают code-signing или production-readiness claim.
+- Будущие MCPB, официальный Registry, Smithery или PyPI должны использовать
+  новую immutable версию и не заменять существующие bytes `v0.2.0`.
+
 ## Возможности
 
 Публичный MCP-контракт содержит 159 зарегистрированных tools, 157 публичных
@@ -152,6 +171,22 @@ MCP client (Codex / Claude / другой)
 Q1 Component Angle GUI/re-export validation остаётся `NOT_RUN`. Несколько
 проверок на реальной Windows, в DipTrace и MCP-клиентах остаются явно
 задокументированными ограничениями.
+
+## Обработка данных
+
+- `DIPTRACE_MCP_WORKSPACE` задаёт обычный workspace; пути дополнительно
+  ограничиваются `DIPTRACE_MCP_ALLOWED_ROOTS` и literal path checks.
+- `DIPTRACE_MCP_STATE_DIR` хранит локальные records, а live session —
+  `original.xml` и `working.xml`; финализация выполняется через `apply` или
+  `cancel`.
+- Freerouting, ngspice и openEMS запускаются только через typed local process
+  boundaries и isolated job directories; online sourcing по умолчанию отключён.
+- MCP `stdio` использует локальные process pipes и не открывает network listener.
+- `streamable-http` предназначен только для trusted loopback, например
+  `127.0.0.1:8765`; OAuth и multi-user isolation не реализованы.
+- User projects, private evidence, proprietary libraries и screenshots не
+  загружаются и не коммитятся автоматически; внешние данные и публикацию
+  контролирует оператор.
 
 ## Документация
 
