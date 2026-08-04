@@ -2,9 +2,9 @@ cff-version: 1.2.0
 message: Cite the repository URL and commit used in your work.
 title: DipTrace MCP
 type: software
-version: 0.2.0
+version: 0.2.1
 license: Apache-2.0
-date-released: 2026-08-04
+date-released: 2026-08-05
 abstract: >-
   A local Model Context Protocol server and live XML bridge for reading,
   reviewing, and performing guarded edits on DipTrace designs.
