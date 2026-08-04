@@ -40,6 +40,7 @@ Routing и offline trace-to-trace review учитывают board defaults и Ne
 - [чек-лист публичного релиза](docs/PUBLIC_RELEASE_CHECKLIST.md) и
   [release process](docs/RELEASE_PROCESS.md), включая
   [установку из опубликованных release assets](docs/INSTALL_FROM_RELEASE.md);
+  [аудит и архитектура Windows installer](docs/WINDOWS_INSTALLER.md);
 - [changelog](CHANGELOG.md) и [citation metadata](CITATION.cff).
 
 Issues и pull requests принимаются по правилам DCO 1.1 и provenance из
@@ -68,6 +69,11 @@ skills и wheel `RECORD`. Wheel содержит MCP-сервер и packaged sk
 полной live-интеграции на Windows также нужны отдельно поставляемые bridge
 settings, installer и executable. Путь установки без clone описан в
 [INSTALL_FROM_RELEASE.md](docs/INSTALL_FROM_RELEASE.md).
+
+Эта ветка добавляет будущий Windows asset path, но не создаёт и не изменяет
+GitHub release. Пока dedicated Windows workflow не пройдёт для exact head и
+maintainer не опубликует assets, имена installer из quick start обозначают
+build outputs, а не уже доступные download-файлы.
 
 ## Что уже работает
 
@@ -151,7 +157,47 @@ Offline XML analysis также работает в Linux, macOS и WSL.
 
 ## Быстрый старт на Windows
 
-### 1. Установить MCP-сервер
+Для обычной установки Windows скачайте `DipTrace-MCP-Setup-<version>.exe` из
+release assets. Installer работает только в Windows и сейчас является
+неподписанным development-stage артефактом.
+
+1. Скачайте `DipTrace-MCP-Setup-<version>.exe` и проверьте SHA-256 по
+   `SHA256SUMS.txt`.
+2. Запустите installer.
+3. Выберите workspace проектов DipTrace и MCP-клиент (Codex, Claude Desktop,
+   оба или пропустить).
+4. Нажмите Install и дождитесь встроенной проверки `--help`.
+5. Перезапустите выбранный MCP-клиент и проверьте `get_capabilities`.
+
+Installer размещает self-contained server в
+`%LOCALAPPDATA%\Programs\DipTraceMCP`, writable state — в
+`%LOCALAPPDATA%\DipTraceMCP`, и никогда не удаляет выбранный workspace. Для
+Codex и Claude Desktop используются сохранение неизвестных полей, backup,
+atomic write и idempotent update. Если Codex не установлен, готовая команда
+сохраняется в `codex_setup.txt`, а установка server не считается failed.
+
+Дополнительный fallback `DipTrace-MCP-Portable-<version>.zip` содержит тот же
+no-Python server bundle, существующий bridge, четыре settings-профиля и
+configurator.
+
+Installer обнаруживает проверенные DipTrace roots в `Program Files` и
+`Program Files (x86)` для `DipTrace5`/`DipTrace`, а также подходящие uninstall
+registry entries. Нужен известный module executable или plugin module
+directory; это не обещает поддержку любого layout DipTrace. Если установка не
+найдена, используйте Browse либо Server only.
+
+Shapely/GEOS входит в Windows bundle только после успешного exact geometry
+smoke в Windows CI. Эта ветка не заявляет full geometry или полное live
+DipTrace round-trip доказательство; Q1 rotation evidence всё ещё pending,
+разрешение или endorsement Novarm не заявлены.
+
+### Advanced / Developer installation
+
+Путь через source/wheel остаётся доступным для maintainers и пользователей
+Linux, macOS и WSL. Он требует Python, virtual environment и обычных шагов
+сборки/ручной установки плагина.
+
+#### 1. Установить MCP-сервер
 
 ```powershell
 git clone https://github.com/fireostendere/mcp_diptrace.git
@@ -173,7 +219,7 @@ spatial-clearance путей установите optional GEOS backend:
 .\.venv\Scripts\diptrace-mcp.exe --help
 ```
 
-### 2. Собрать и установить DipTrace-плагин
+#### 2. Собрать и установить DipTrace-плагин
 
 Соберите неподписанный executable локально из исходного кода:
 
@@ -195,7 +241,7 @@ Installer сначала проверяет `C:\Program Files\DipTrace5`, зат
 
 `-Mode Both` устанавливает только PCB/Schematic. `-Mode Libraries` — только Component/Pattern Editor bridges. Library sessions экспортируют активную библиотеку целиком, но используют `ImpMode=None`; завершайте их через `cancel`, потому что native library mutation пока evidence-gated.
 
-### 3. Подключить Codex
+#### 3. Подключить Codex
 
 ```powershell
 codex mcp add diptrace `
@@ -207,7 +253,7 @@ codex mcp list
 
 Либо перенесите настройки из [`examples/codex-config.toml`](examples/codex-config.toml) в `~/.codex/config.toml` и замените пути.
 
-### 4. Открыть live-сессию
+#### 4. Открыть live-сессию
 
 1. Откройте и сохраните design или library в DipTrace.
 2. Выберите `Tools > Plugins > DipTrace MCP Bridge`.

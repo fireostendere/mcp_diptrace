@@ -103,3 +103,26 @@ def test_all_workflow_actions_are_pinned_to_full_commit_shas() -> None:
         actions = uses_pattern.findall(content)
         assert actions, workflow_path
         assert all(sha_pattern.fullmatch(action) for action in actions), workflow_path
+
+
+def test_windows_installer_workflow_covers_build_smoke_and_audit_jobs() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github/workflows/windows-installer.yml").read_text(encoding="utf-8")
+    )
+    jobs = workflow["jobs"]
+    assert set(jobs) == {
+        "build-server",
+        "build-bridge",
+        "build-installer",
+        "installer-smoke",
+        "artifact-audit",
+    }
+    installer_commands = _job_commands(jobs["build-installer"])
+    smoke_commands = _job_commands(jobs["installer-smoke"])
+    audit_commands = _job_commands(jobs["artifact-audit"])
+    assert "build_windows_installer.ps1" in installer_commands
+    assert "INNO_SETUP_SHA256" in installer_commands
+    assert "frozen_server_smoke.py" in smoke_commands
+    assert "/REMOVE_STATE" in smoke_commands
+    assert "audit_windows_bundle.py" in audit_commands
+    assert "Get-AuthenticodeSignature" in audit_commands

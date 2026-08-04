@@ -45,7 +45,7 @@ async def run_memory(workspace: Path, document: str) -> None:
         server = create_server(settings)
         async with create_connected_server_and_client_session(
             server,
-            read_timeout_seconds=timedelta(seconds=15),
+            read_timeout_seconds=timedelta(seconds=45),
         ) as session:
             await exercise(session, document)
 
@@ -64,7 +64,7 @@ async def run_stdio(workspace: Path, document: str) -> None:
         async with stdio_client(server) as (read_stream, write_stream), ClientSession(
             read_stream,
             write_stream,
-            read_timeout_seconds=timedelta(seconds=15),
+            read_timeout_seconds=timedelta(seconds=45),
         ) as session:
             await session.initialize()
             await exercise(session, document)

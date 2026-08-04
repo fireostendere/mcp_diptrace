@@ -42,6 +42,7 @@ The repository publishes its participation and release policy:
 - [public-release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) and
   [release process](docs/RELEASE_PROCESS.md), including
   [installation from published release assets](docs/INSTALL_FROM_RELEASE.md);
+  [Windows installer audit and design](docs/WINDOWS_INSTALLER.md);
 - [changelog](CHANGELOG.md) and [citation metadata](CITATION.cff).
 
 Issues and pull requests are welcome under the DCO 1.1 and provenance rules in
@@ -71,6 +72,11 @@ complete Windows live integration also needs the separately delivered bridge
 settings, installer, and executable. See
 [INSTALL_FROM_RELEASE.md](docs/INSTALL_FROM_RELEASE.md) for the no-clone
 installation path.
+
+This branch adds a future Windows asset path; it does not create or modify a
+GitHub release. Until the dedicated Windows workflow has passed for the exact
+head and a maintainer publishes the assets, the installer names in the quick
+start are build outputs rather than a claim that they are already downloadable.
 
 ## Current Capabilities
 
@@ -155,7 +161,48 @@ Offline XML analysis also works on Linux, macOS, and WSL.
 
 ## Windows Quick Start
 
-### 1. Install the MCP server
+For the ordinary Windows path, download `DipTrace-MCP-Setup-<version>.exe` from the
+release assets. The installer is Windows-only and currently an unsigned,
+development-stage artifact.
+
+1. Download `DipTrace-MCP-Setup-<version>.exe` and verify its SHA-256 against
+   `SHA256SUMS.txt`.
+2. Run the installer.
+3. Choose the DipTrace project workspace and the MCP client (Codex, Claude
+   Desktop, both, or skip).
+4. Click Install and wait for the built-in `--help` verification.
+5. Restart the selected MCP client and verify `get_capabilities`.
+
+The installer places the self-contained server under
+`%LOCALAPPDATA%\Programs\DipTraceMCP`, keeps writable state under
+`%LOCALAPPDATA%\DipTraceMCP`, and never removes the selected workspace. It
+supports Codex and Claude Desktop configuration with JSON/TOML preservation,
+backups, atomic writes, and idempotent updates. If Codex is not installed, it
+writes a ready command to `codex_setup.txt` instead of failing the server
+installation.
+
+The optional `DipTrace-MCP-Portable-<version>.zip` contains the same no-Python
+server bundle, the existing bridge, four settings profiles, and the
+configurator. It is a fallback for users who do not want an installer.
+
+The installer detects validated DipTrace roots under `Program Files` and
+`Program Files (x86)` for `DipTrace5`/`DipTrace`, plus matching uninstall
+registry entries. Detection requires a known module executable or plugin
+module directory; it does not claim support for every DipTrace layout. If no
+installation is found, choose Browse or install Server only.
+
+The current Windows bundle includes Shapely/GEOS only when the exact frozen
+geometry smoke passes in Windows CI. This branch does not claim full geometry
+or live DipTrace round-trip evidence; Q1 rotation evidence remains pending,
+and no Novarm permission or endorsement is claimed.
+
+### Advanced / Developer installation
+
+The source/wheel path remains available for maintainers and Linux, macOS, and
+WSL users. It requires Python, a virtual environment, and the normal build or
+manual plug-in steps.
+
+#### 1. Install the MCP server
 
 ```powershell
 git clone https://github.com/fireostendere/mcp_diptrace.git
@@ -177,7 +224,7 @@ Verify the entry point:
 .\.venv\Scripts\diptrace-mcp.exe --help
 ```
 
-### 2. Build and install the DipTrace plug-in
+#### 2. Build and install the DipTrace plug-in
 
 Build the unsigned executable locally from this repository:
 
@@ -199,7 +246,7 @@ The installer checks `C:\Program Files\DipTrace5` first and then the legacy `C:\
 
 `-Mode Both` installs only PCB/Schematic support. `-Mode Libraries` installs only Component/Pattern Editor bridges. Library sessions export the complete active library for inspection but use `ImpMode=None`; finish them with `cancel` because native library mutation remains evidence-gated.
 
-### 3. Connect Codex
+#### 3. Connect Codex
 
 ```powershell
 codex mcp add diptrace `
@@ -211,7 +258,7 @@ codex mcp list
 
 Alternatively, merge [`examples/codex-config.toml`](examples/codex-config.toml) into `~/.codex/config.toml` and replace the example paths.
 
-### 4. Start a live session
+#### 4. Start a live session
 
 1. Open and save a design or library in DipTrace.
 2. Select `Tools > Plugins > DipTrace MCP Bridge`.

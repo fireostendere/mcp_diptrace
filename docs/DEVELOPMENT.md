@@ -42,6 +42,22 @@ tests/
   test_skill_packages.py  skill capability, link, wheel, hash, and forward-path checks
 ```
 
+Windows packaging sources are deliberately separate from the Python wheel:
+
+```text
+packaging/diptrace_mcp_server.spec       explicit PyInstaller onedir server
+packaging/diptrace_mcp_configure.spec    frozen client configurator
+installer/DipTraceMCP.iss                Inno Setup wizard and uninstaller
+scripts/build_windows_installer.ps1      staged installer/portable build
+.github/workflows/windows-installer.yml  Windows build, smoke, and audit jobs
+```
+
+The normal user does not need this toolchain. The Windows bundle uses pinned
+runtime constraints and a pinned Inno Setup 6.4.2 prerequisite; it does not
+download anything during end-user installation. `--onefile` is intentionally
+not used for the server because predictable stdio startup, diagnostics, and
+native geometry loading are more important than a smaller outer file.
+
 ## Environment
 
 ```bash
@@ -69,6 +85,23 @@ python scripts/mcp_smoke.py
 mypy --no-incremental src/diptrace_mcp plugin
 python benchmarks/benchmark_core.py --repeat 5 --patch-count 1000
 ```
+
+Windows packaging checks (on a Windows runner with the pinned Inno Setup
+compiler) are:
+
+```powershell
+.\scripts\build_windows_server.ps1 -PythonCommand python -Clean
+.\plugin\build_bridge.ps1 -PythonCommand python -Clean
+.\scripts\build_windows_installer.ps1 -Version 0.1.2 -IsccPath "$env:ISCC_PATH"
+python scripts\audit_windows_bundle.py --root <extracted-portable> --sha256 <SHA256SUMS.txt>
+python scripts\frozen_server_smoke.py --server <server.exe> --workspace <workspace>
+```
+
+The CI workflow also tests silent install/uninstall, repair/idempotency,
+Unicode and spaced paths, client-config backup/atomic update, workspace
+preservation, optional state removal, and fail-closed unsigned verification.
+Local WSL cannot compile or execute the Windows EXEs; those results must come
+from the exact Windows workflow run.
 
 `plugin/bridge_entry.py` is the current hand-maintained Python inventory under
 `plugin/`. The directory-level Ruff and Mypy commands intentionally include any

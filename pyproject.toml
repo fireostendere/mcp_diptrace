@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "diptrace-mcp"
-version = "0.1.2"
+version = "0.2.0"
 description = "Model Context Protocol server and live XML bridge for DipTrace"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
   "mcp>=1.28.1,<2",
   "pydantic>=2.11,<3",
+  "tomli>=2.0,<3; python_version < '3.11'",
   "typing-extensions>=4.12,<5",
 ]
 
@@ -43,18 +44,20 @@ dev = [
   "hypothesis>=6.135,<7",
   "jsonschema>=4.24,<5",
   "mypy>=1.16,<2",
-  "pytest>=8.4,<9",
+  "pytest>=9.0.3,<10",
   "pytest-cov>=6.2,<7",
   "PyYAML>=6.0,<7",
   "ruff>=0.12,<1",
+  "tomli>=2.0,<3",
 ]
 bridge = [
-  "pyinstaller>=6.14,<7",
+  "pyinstaller==6.14.2",
 ]
 
 [project.scripts]
 diptrace-mcp = "diptrace_mcp.server:main"
 diptrace-mcp-bridge = "diptrace_mcp.bridge:main"
+diptrace-mcp-configure = "diptrace_mcp.windows_configurator:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/diptrace_mcp"]

@@ -17,6 +17,14 @@
 - refresh the dated external GitHub ruleset evidence without changing the
   ruleset;
 - document the remaining live-evidence, provenance, and partial-clearance limitations.
+- add a Windows onedir server bundle, safe Codex/Claude configurator, Inno Setup
+  installer, portable fallback, install manifest, and fail-closed upgrade/uninstall
+  behavior;
+- add Windows CI smoke/audit coverage for no-Python installation, settings
+  profiles, Unicode paths, client-config backups, checksums, and unsigned status;
+- harden 0.2.0 release preparation with state ownership markers, compensating
+  plug-in rollback, working portable paths, final-asset checksums, and complete
+  executable-signature gates.
 
 This file records user-visible project changes. Version `0.1.0` was the first
 tagged release; the withdrawn `0.1.1` release and the corrected `0.1.2`

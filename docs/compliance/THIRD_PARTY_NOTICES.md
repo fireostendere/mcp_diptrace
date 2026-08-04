@@ -5,7 +5,7 @@ This file is a reproducible engineering inventory of direct dependencies declare
 for redistribution. Verify each dependency's current license text, notices, transitive
 dependencies, and any bundled native library before publishing an artifact.
 
-Inventory binding: commit `a73ac649d156148b33c89f4c31009727eb0e8264`, inspected date `2026-08-03`.
+Inventory binding: commit `08ff658a5e35a72b70747d5d506f8f03ec8f8cc3`, inspected date `2026-08-04`.
 
 The Python wheel declares dependencies but does not vendor them. The Windows bridge is a
 PyInstaller bundle and requires a separate per-build contents and notice review.
@@ -18,12 +18,13 @@ PyInstaller bundle and requires a separate per-build contents and notice review.
 | `mcp` | runtime | mcp>=1.28.1,<2 | `MIT` | human review required |
 | `mypy` | development | mypy>=1.16,<2 | `MIT` | human review required |
 | `pydantic` | runtime | pydantic>=2.11,<3 | `MIT` | human review required |
-| `pyinstaller` | bridge | pyinstaller>=6.14,<7 | `GPL-2.0-or-later WITH Bootloader-exception` | human review required |
-| `pytest` | development | pytest>=8.4,<9 | `MIT` | human review required |
+| `pyinstaller` | bridge | pyinstaller==6.14.2 | `GPL-2.0-or-later WITH Bootloader-exception` | human review required |
+| `pytest` | development | pytest>=9.0.3,<10 | `MIT` | human review required |
 | `pytest-cov` | development | pytest-cov>=6.2,<7 | `MIT` | human review required |
 | `PyYAML` | development | PyYAML>=6.0,<7 | `MIT` | human review required |
 | `ruff` | development | ruff>=0.12,<1 | `MIT` | human review required |
 | `shapely` | geometry | shapely>=2.0,<3 | `BSD-3-Clause` | human review required |
+| `tomli` | development, runtime | tomli>=2.0,<3; tomli>=2.0,<3; python_version < '3.11' | `MIT` | human review required |
 | `typing-extensions` | runtime | typing-extensions>=4.12,<5 | `PSF-2.0` | human review required |
 
 ## Open review items

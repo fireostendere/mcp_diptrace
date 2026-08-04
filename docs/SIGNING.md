@@ -2,7 +2,7 @@
 
 ## Status
 
-The Windows bridge and plugin ZIP are currently unsigned. This document
+The Windows bridge, standalone server, portable ZIP, and installer are currently unsigned. This document
 describes the technical boundary for future SignPath integration; it does not
 claim a SignPath account, organization, project, policy, certificate, signed
 artifact, or vendor approval.
@@ -24,6 +24,11 @@ Keep these stages distinct:
 6. package the verified executable with the installer, four settings profiles,
    license, and exchange-path/install guidance; and
 7. calculate checksums and publish only after the release approval gates pass.
+
+The ordinary development workflow builds unsigned artifacts without requiring
+SignPath credentials. The installer and server carry explicit unsigned status
+in their build metadata; a SHA-256 match proves file identity, not trust. The
+portable ZIP also carries `SHA256SUMS.txt` and `artifact-inventory.json`.
 
 The repository provides `plugin/verify_signature.ps1` and
 `plugin/package_plugin.ps1` for stages 5–7. With no signing requirement,
@@ -77,6 +82,11 @@ $env:EXPECTED_SIGNER_SUBJECT = "<configured protected value>"
 The placeholder subject above is not a certificate identity. A release record
 must bind the signed file hash to the exact source commit, CI run, signing
 request, signer subject, timestamp, package hash, and checksum manifest.
+
+Inno Setup is a maintainer/CI prerequisite, never an end-user download. The
+repository records version `6.4.2`, its official download URL, and the expected
+SHA-256 in [`packaging/inno_setup_prerequisite.json`](../packaging/inno_setup_prerequisite.json);
+CI must verify the hash before invoking `ISCC.exe`.
 
 ## Human review gates
 

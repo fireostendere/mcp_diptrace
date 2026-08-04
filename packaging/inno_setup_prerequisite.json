@@ -1,0 +1,9 @@
+{
+  "name": "Inno Setup",
+  "version": "6.4.2",
+  "compiler": "ISCC.exe",
+  "download_url": "https://github.com/jrsoftware/issrc/releases/download/is-6_4_2/innosetup-6.4.2.exe",
+  "sha256": "238e2cf82c212a3879a050e02d787283c54bcb72d5cb6070830942de56627d5b",
+  "downloaded_during_end_user_install": false,
+  "provenance_note": "Maintainer/CI prerequisite only; GitHub release asset; verify the published hash and Authenticode status before use."
+}

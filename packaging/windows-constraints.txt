@@ -1,0 +1,10 @@
+# Reproducible Windows packaging inputs.  Update this file only with a reviewed
+# dependency/provenance change and rerun the artifact inventory.
+mcp==1.28.1
+anyio==4.14.2
+sniffio==1.3.1
+pydantic==2.13.4
+tomli==2.2.1
+typing-extensions==4.16.0
+shapely==2.1.2
+pyinstaller==6.14.2

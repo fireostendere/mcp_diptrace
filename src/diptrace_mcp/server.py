@@ -4,12 +4,19 @@ import argparse
 import json
 import logging
 import os
+import sys
+import threading
+from contextlib import asynccontextmanager
+from queue import Empty, Queue
 from typing import Annotated, Any, Literal, cast
 
+import anyio
 from mcp import types
 from mcp.server.fastmcp import FastMCP
+from mcp.shared.message import SessionMessage
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from . import __version__
 from .config import Settings
 from .domain import BoardModelSection, QuerySelector
 from .error_boundary import (
@@ -3136,8 +3143,80 @@ def create_server(
     return mcp
 
 
+@asynccontextmanager
+async def _robust_stdio_server() -> Any:
+    """Provide MCP stdio streams without anyio's stdin file wrapper.
+
+    Some Windows/WSL combinations do not wake an ``anyio.wrap_file`` worker
+    reliably for an inherited pipe. A dedicated reader thread keeps the
+    protocol transport line-oriented while the MCP lifecycle remains owned by
+    the pinned SDK server.
+    """
+
+    incoming: Queue[SessionMessage | Exception | None] = Queue()
+    read_writer, read_stream = anyio.create_memory_object_stream(0)
+    write_stream, write_reader = anyio.create_memory_object_stream(0)
+
+    def read_stdin() -> None:
+        binary_stdin = getattr(sys.stdin, "buffer", sys.stdin)
+        for raw_line in binary_stdin:
+            line = (
+                raw_line.decode("utf-8", errors="replace")
+                if isinstance(raw_line, bytes)
+                else raw_line
+            )
+            try:
+                message = types.JSONRPCMessage.model_validate_json(line)
+            except Exception as exc:  # protocol error is returned through MCP handling
+                incoming.put(exc)
+            else:
+                incoming.put(SessionMessage(message))
+        incoming.put(None)
+
+    async def forward_input() -> None:
+        try:
+            while True:
+                try:
+                    message = incoming.get_nowait()
+                except Empty:
+                    await anyio.sleep(0.01)
+                    continue
+                if message is None:
+                    return
+                await read_writer.send(message)
+        finally:
+            await read_writer.aclose()
+
+    async def forward_output() -> None:
+        async with write_reader:
+            async for message in write_reader:
+                payload = message.message.model_dump_json(by_alias=True, exclude_none=True)
+                sys.stdout.write(payload + "\n")
+                sys.stdout.flush()
+
+    threading.Thread(target=read_stdin, name="diptrace-mcp-stdin", daemon=True).start()
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(forward_input)
+        task_group.start_soon(forward_output)
+        yield read_stream, write_stream
+
+
+async def _run_stdio(server: FastMCP) -> None:
+    async with _robust_stdio_server() as (read_stream, write_stream):
+        await server._mcp_server.run(
+            read_stream,
+            write_stream,
+            server._mcp_server.create_initialization_options(),
+        )
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="MCP server for DipTrace XML and live projects")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=__version__,
+    )
     parser.add_argument(
         "--transport",
         choices=("stdio", "streamable-http"),
@@ -3151,7 +3230,13 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
     server = create_server(host=args.host, port=args.port)
-    server.run(transport=args.transport)
+    use_frozen_stdio = bool(getattr(sys, "frozen", False)) or os.environ.get(
+        "DIPTRACE_MCP_FROZEN_STDIO", ""
+    ).strip().casefold() in {"1", "true", "yes"}
+    if args.transport == "stdio" and use_frozen_stdio:
+        anyio.run(_run_stdio, server)
+    else:
+        server.run(transport=args.transport)
 
 
 if __name__ == "__main__":

@@ -95,9 +95,29 @@ not contain the PowerShell build/installer scripts or DipTrace plug-in settings
 needed for complete Windows live-bridge deployment; publish and verify those
 as separate release assets.
 
+The Windows development asset set additionally contains
+`DipTrace-MCP-Setup-<version>.exe` and
+`DipTrace-MCP-Portable-<version>.zip`. The installer is the primary user asset;
+the ZIP is a no-Python fallback. Both are built from the staged onedir server,
+the existing bridge pipeline, the four settings profiles, and the standalone
+configurator. The installer does not fetch runtime code. Its writable state is
+outside the installed application, and its uninstaller preserves workspaces,
+backups, logs, client-config backups, and state by default.
+
+The current bundle build includes Shapely/GEOS only when the exact Windows
+geometry smoke passes. A successful installer build does not establish live
+DipTrace semantics, Q1 rotation validation, universal DipTrace-version
+support, or permission/endorsement from Novarm.
+
 The Windows bridge is currently unsigned. A public binary must either be
 signed by an approved identity or carry an explicit, reviewed unsigned-binary
 disclosure. CI success is not a code signature.
+
+The same rule applies to the server executable and installer. The unsigned
+development path calculates SHA-256 values and records
+`unsigned-until-verified`; `SIGNING_REQUIRED=true` must fail closed and verify
+Authenticode after signing. No test certificate, self-made certificate, or
+SignPath request may be represented as a trusted signature.
 
 ## 4. Stage and verify
 
@@ -107,6 +127,13 @@ Install the staged wheel and bridge rather than the source tree. Run CLI, public
 The release record must contain the frozen commit, artifact hashes, test
 results, approvers, supported environments, known limitations, security
 channel, artifact retention policy, and rollback decision.
+
+For Windows, also retain the exact workflow run, Python version, pinned
+PyInstaller/constraint file, Inno Setup compiler version and package SHA-256,
+portable inventory/checksum report, installer size, server cold-start and MCP
+initialize timings, Authenticode status, SBOM, and sanitized provenance
+inventory. Unknown timings or missing native Windows results remain blockers
+for stronger claims.
 
 ## 5. Publish
 

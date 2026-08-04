@@ -64,6 +64,7 @@ def test_installer_copies_and_hash_verifies_files_on_windows(tmp_path: Path) -> 
     diptrace_dir = tmp_path / "DipTrace5"
     bridge.write_bytes(b"synthetic bridge executable for installer verification")
     diptrace_dir.mkdir()
+    (diptrace_dir / "Pcb.exe").write_bytes(b"synthetic DipTrace executable")
     powershell = shutil.which("powershell.exe") or shutil.which("powershell")
     assert powershell is not None
 

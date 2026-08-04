@@ -109,6 +109,28 @@ in [ACCEPTANCE_SEED_AUDIT.md](ACCEPTANCE_SEED_AUDIT.md).
 
 ## Artifact Smoke Test
 
+## Windows installer and portable smoke
+
+The dedicated [Windows installer workflow](../.github/workflows/windows-installer.yml)
+has five jobs: `build-server`, `build-bridge`, `build-installer`,
+`installer-smoke`, and `artifact-audit`. It is the only authoritative place
+for native EXE, Inno Setup, PowerShell, Authenticode-status, and Windows-path
+claims from this branch.
+
+It verifies the onedir server CLI and MCP stdio initialize/tools-list,
+`get_capabilities`, a read-only XML tool, packaged skills, optional Shapely/GEOS
+exact geometry, the existing bridge build, silent server-only and full installs,
+Unicode/spaced paths, repair/idempotency, default workspace/state preservation,
+optional owned-state removal, portable ZIP hashes, forbidden-file audit, and
+required-signing failure for unsigned development artifacts. It uses synthetic
+DipTrace layout evidence and does not claim a live DipTrace application
+round-trip.
+
+The WSL checkout cannot run this native matrix. Any local result must therefore
+be labelled static/source-only until the exact GitHub Actions run is recorded.
+
+## Python and source artifact smoke
+
 The release wheel must install and serve without the development extras. Build
 both artifacts, audit them, install the wheel into a clean virtual
 environment, and complete a real MCP stdio handshake:

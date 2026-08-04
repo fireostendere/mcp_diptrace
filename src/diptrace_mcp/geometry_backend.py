@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 import math
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from typing import Any
 
 from .domain import GeometryShape
@@ -22,12 +24,14 @@ def backend_report() -> dict[str, object]:
                 "Rotated ellipse, obround and polygon offsets use conservative bbox fallback."
             ],
         }
-    import shapely  # type: ignore[import-untyped]
-
+    try:
+        shapely_version = package_version("shapely")
+    except PackageNotFoundError:
+        shapely_version = "unknown"
     return {
         "engine": "shapely_geos",
         "shapely_available": True,
-        "version": shapely.__version__,
+        "version": shapely_version,
         "exact_shapes": ["line", "circle", "ellipse", "rectangle", "obround", "polygon"],
         "deterministic_ordering": "stable_id_sort_after_spatial_query",
     }
@@ -192,7 +196,7 @@ def point_to_shape_distance(point: Point, shape: GeometryShape) -> float:
 def _to_shapely(shape: GeometryShape) -> Any | None:
     if not shapely_available():
         return None
-    from shapely import affinity
+    from shapely import affinity  # type: ignore[import-untyped]
     from shapely.geometry import (
         LineString,
         Polygon,

@@ -288,6 +288,30 @@
       "type": "library"
     },
     {
+      "bom-ref": "pkg:pypi/tomli",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "tomli",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "development,runtime"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/tomli",
+      "scope": "required",
+      "type": "library"
+    },
+    {
       "bom-ref": "pkg:pypi/typing-extensions",
       "licenses": [
         {
@@ -317,14 +341,15 @@
       "dependsOn": [
         "pkg:pypi/mcp",
         "pkg:pypi/pydantic",
+        "pkg:pypi/tomli",
         "pkg:pypi/typing-extensions"
       ],
-      "ref": "pkg:pypi/diptrace-mcp@0.1.2"
+      "ref": "pkg:pypi/diptrace-mcp@0.2.0"
     }
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pkg:pypi/diptrace-mcp@0.1.2",
+      "bom-ref": "pkg:pypi/diptrace-mcp@0.2.0",
       "licenses": [
         {
           "license": {
@@ -333,25 +358,25 @@
         }
       ],
       "name": "diptrace-mcp",
-      "purl": "pkg:pypi/diptrace-mcp@0.1.2",
+      "purl": "pkg:pypi/diptrace-mcp@0.2.0",
       "type": "application",
-      "version": "0.1.2"
+      "version": "0.2.0"
     },
     "properties": [
       {
         "name": "diptrace-mcp:inspected-commit",
-        "value": "a73ac649d156148b33c89f4c31009727eb0e8264"
+        "value": "08ff658a5e35a72b70747d5d506f8f03ec8f8cc3"
       },
       {
         "name": "diptrace-mcp:inspection-date",
-        "value": "2026-08-03"
+        "value": "2026-08-04"
       },
       {
         "name": "diptrace-mcp:resolution",
         "value": "declarative-direct-dependency-inventory"
       }
     ],
-    "timestamp": "2026-08-03T00:00:00Z",
+    "timestamp": "2026-08-04T00:00:00Z",
     "tools": [
       {
         "name": "generate_compliance_inventory.py",
@@ -359,7 +384,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:91f410a9-a4a9-51bb-962c-c5147ac04134",
+  "serialNumber": "urn:uuid:ee2259fe-27d1-5c7f-844d-578f040b9106",
   "specVersion": "1.5",
   "version": 1
 }

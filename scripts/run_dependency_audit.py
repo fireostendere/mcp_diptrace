@@ -142,6 +142,7 @@ def run(output: Path) -> tuple[dict[str, Any], int]:
                 "--output",
                 str(report_path),
             ]
+            report_path.unlink(missing_ok=True)
             completed = subprocess.run(
                 command, cwd=ROOT, capture_output=True, text=True, check=False
             )
@@ -151,6 +152,7 @@ def run(output: Path) -> tuple[dict[str, Any], int]:
             (raw / f"pip-audit-{group}.stderr.txt").write_text(
                 completed.stderr, encoding="utf-8"
             )
+            report_available = report_path.is_file()
             parsed = _parse_report(report_path, _requirement_names(requirements), group)
             result = {
                 "status": completed.returncode,
@@ -160,7 +162,7 @@ def run(output: Path) -> tuple[dict[str, Any], int]:
             }
             summary["groups"][group] = result
             summary["finding_count"] += len(parsed["findings"])
-            if completed.returncode not in (0, 1):
+            if completed.returncode not in (0, 1) or not report_available:
                 failures += 1
 
     if summary["finding_count"]:
