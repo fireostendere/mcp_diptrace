@@ -2,8 +2,26 @@
 
 ## Unreleased
 
-No unreleased user-visible changes are recorded after the `v0.2.0`
-finalisation candidate.
+### Added
+
+- Deterministic Windows MCPB packaging with a versioned manifest, reproducible
+  archive layout, and sibling SHA-256 file.
+- Official MCP Registry metadata template and concrete `server.json` generator
+  for a future immutable MCPB release.
+- Focused MCPB and Registry metadata tests and distribution documentation for
+  the official Registry, Smithery, and awesome-mcp-servers.
+
+### Changed
+
+- Synchronized English/Russian README, release records, and installation
+  instructions with the published `v0.2.0` prerelease.
+- Added the canonical ownership marker
+  `io.github.fireostendere/diptrace-mcp`.
+- Removed the completed one-shot automatic v0.2.0 publication trigger and
+  restored the signing workflow to manual preparation only.
+
+No new tag, GitHub Release, PyPI package, official Registry entry, Smithery
+entry, or replacement v0.2.0 asset is included in these unreleased changes.
 
 ## 0.2.0 - 2026-08-04
 
