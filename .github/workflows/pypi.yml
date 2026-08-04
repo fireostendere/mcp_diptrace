@@ -1,0 +1,127 @@
+name: PyPI release
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/pypi.yml"
+      - "pyproject.toml"
+      - "README.md"
+      - "LICENSE"
+      - "src/diptrace_mcp/**"
+      - "scripts/audit_release_artifacts.py"
+      - "scripts/hatch_build.py"
+      - "scripts/release_artifact_allowlist.txt"
+      - "tests/test_ci_workflow.py"
+      - "tests/test_release_artifacts.py"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the exact annotated v0.2.1 tag to PyPI
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_VERSION: "0.2.1"
+  RELEASE_TAG: "v0.2.1"
+
+jobs:
+  build:
+    name: Build and validate PyPI distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install release validation environment
+        run: python -m pip install -e ".[dev]" "twine>=6,<8"
+      - name: Verify release identity and publication ref
+        shell: bash
+        env:
+          PUBLISH_REQUESTED: ${{ inputs.publish }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import pathlib
+          import tomllib
+
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          actual = data["project"]["version"]
+          expected = "0.2.1"
+          if actual != expected:
+              raise SystemExit(f"project version {actual!r} does not match {expected!r}")
+          PY
+
+          if [[ "${PUBLISH_REQUESTED}" == "true" ]]; then
+            if [[ "${GITHUB_REF}" != "refs/tags/${RELEASE_TAG}" ]]; then
+              echo "Publication requires dispatching this workflow from ${RELEASE_TAG}." >&2
+              exit 1
+            fi
+            git fetch --tags --force
+            if [[ "$(git cat-file -t "${RELEASE_TAG}")" != "tag" ]]; then
+              echo "${RELEASE_TAG} must be an annotated tag." >&2
+              exit 1
+            fi
+            if [[ "$(git rev-list -n 1 "${RELEASE_TAG}")" != "${GITHUB_SHA}" ]]; then
+              echo "Workflow SHA does not match the annotated tag target." >&2
+              exit 1
+            fi
+          fi
+      - name: Build and audit distributions
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          python -m hatchling build -d dist
+          python scripts/audit_release_artifacts.py --dist-dir dist --check-allowlist
+          python -m twine check --strict dist/*
+          test -f "dist/diptrace_mcp-${RELEASE_VERSION}-py3-none-any.whl"
+          test -f "dist/diptrace_mcp-${RELEASE_VERSION}.tar.gz"
+          test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 2
+      - name: Smoke wheel and source distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv wheel-venv
+          wheel-venv/bin/python -m pip install "dist/diptrace_mcp-${RELEASE_VERSION}-py3-none-any.whl"
+          wheel-venv/bin/diptrace-mcp --help
+          wheel-venv/bin/python -c "import diptrace_mcp; assert diptrace_mcp.__version__ == '${RELEASE_VERSION}'"
+
+          python -m venv sdist-venv
+          sdist-venv/bin/python -m pip install "dist/diptrace_mcp-${RELEASE_VERSION}.tar.gz"
+          sdist-venv/bin/diptrace-mcp --help
+          sdist-venv/bin/python -c "import diptrace_mcp; assert diptrace_mcp.__version__ == '${RELEASE_VERSION}'"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pypi-distributions
+          path: |
+            dist/diptrace_mcp-0.2.1-py3-none-any.whl
+            dist/diptrace_mcp-0.2.1.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish v0.2.1 to PyPI
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/diptrace-mcp
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: pypi-distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          packages-dir: dist
