@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from .. import inspector
@@ -23,6 +25,8 @@ from .context import (
 
 BOARD_MODEL_RESPONSE_BYTE_LIMIT = 256 * 1024
 BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT = 32 * 1024
+
+ResolveDocumentTrust = Callable[[Path, str], Any]
 
 
 def _bounded_board_item(
@@ -54,9 +58,7 @@ def _bounded_board_item(
             scalar = rendered.get(key)
             if isinstance(scalar, str):
                 summary[key], _ = bounded_text(scalar, 512)
-            elif key in rendered and (
-                scalar is None or isinstance(scalar, (bool, int, float))
-            ):
+            elif key in rendered and (scalar is None or isinstance(scalar, (bool, int, float))):
                 summary[key] = scalar
     elif isinstance(rendered, str):
         summary["value_prefix"], _ = bounded_text(rendered, 1_000)
@@ -88,9 +90,31 @@ def _bounded_board_item(
 class DocumentService:
     """Implementation for the Facade's read-only document methods."""
 
-    def __init__(self, context: ServiceContext, gateway: DocumentGateway):
+    def __init__(
+        self,
+        context: ServiceContext,
+        gateway: DocumentGateway,
+        resolve_document_trust: ResolveDocumentTrust,
+    ):
         self.context = context
         self.gateway = gateway
+        self.resolve_document_trust = resolve_document_trust
+
+    def document_info(self, path: str | None = None) -> dict[str, Any]:
+        document, target = self.gateway.load(path)
+        info = self.context.model_cache.get(document, live_session=target.is_live).info
+        result = info.model_dump()
+        effective = self.resolve_document_trust(target.path, info.sha256)
+        result["validation_level"] = effective.validation_level.value
+        result["requires_diptrace_verification"] = effective.requires_diptrace_verification
+        result["trust_authority"] = effective.authority
+        if effective.evidence_manifest_path:
+            result["evidence_manifest_path"] = effective.evidence_manifest_path
+        if effective.evidence_manifest_sha256:
+            result["evidence_manifest_sha256"] = effective.evidence_manifest_sha256
+        if effective.warnings:
+            result["trust_warnings"] = effective.warnings
+        return read_success(info, result)
 
     def board_model(
         self,
@@ -389,4 +413,3 @@ class DocumentService:
             "truncated": truncated,
             "xml": rendered,
         }
-

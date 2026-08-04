@@ -7,11 +7,9 @@ from pathlib import Path
 from typing import Any, Literal
 
 from . import __version__
-from .adapters import build_snapshot
 from .backups import BackupStore
 from .capabilities import capability_report as build_capability_report
 from .config import Settings
-from .design_compare import compare_schematic_to_pcb as compare_design_snapshots
 from .domain import (
     BoardModelSection,
     DocumentInfo,
@@ -23,12 +21,9 @@ from .domain import (
 )
 from .errors import (
     ConfirmationRequiredError,
-    ConnectivityRegressionError,
     DocumentError,
-    DrcRegressionError,
     EditError,
     Sha256MismatchError,
-    TransactionConflictError,
 )
 from .exports import (
     ExportStore,
@@ -41,9 +36,7 @@ from .multirouter import (
     RoutingOrder,
 )
 from .operations import (
-    DeleteTraceOperation,
     SemanticOperation,
-    SyncSchematicToPcbOperation,
     parse_semantic_operations,
 )
 from .plans import PlanStore
@@ -51,14 +44,11 @@ from .policy import Policy
 from .preview import (
     PREVIEW_COPPER_POINT_LIMIT,
     PREVIEW_COPPER_RECORD_LIMIT,
-    render_preview_json,
-    render_preview_svg,
 )
 from .previews import RawPreviewStore
 from .provenance_registry import (
     TrustedProvenanceRegistry,
 )
-from .review import run_checks
 from .scaffolding import (
     DEFAULT_FORMAT_VERSION,
 )
@@ -69,12 +59,6 @@ from .services.context import (
     ServiceContext,
     read_success,
     validate_page,
-)
-from .services.context import (
-    bounded_text as _bounded_text,
-)
-from .services.context import (
-    json_size as _json_size,
 )
 from .services.discovery import DiscoveryService
 from .services.documents import DocumentService
@@ -88,26 +72,29 @@ from .services.evidence import (
 from .services.exports import ExportService
 from .services.external_jobs import ExternalJobsService
 from .services.jobs import JobService
+from .services.live_sessions import LiveSessionService
 from .services.placement import PlacementService
 from .services.review import ReviewService
 from .services.routing import RoutingService
 from .services.scaffolding import ScaffoldingService
+from .services.semantic_engine import SemanticEngineService
 from .services.semantic_operations import SemanticOperationsService
+from .services.synchronization import SynchronizationService
 from .services.transactions import (
     TransactionService,
-    _apply_bounded_semantic_operations,
-    _require_transaction_capacity,
-    transaction_response_summary,
+)
+from .services.xml_writes import (
+    RAW_EDIT_RESPONSE_BYTE_LIMIT,
+    RAW_EDIT_XPATH_CHARACTER_LIMIT,
+    XmlWriteService,
 )
 from .sessions import LiveWorkingGuard, SessionAction, SessionStore
 from .specctra import (
     dsn_export_limitations,
 )
-from .synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan
 from .transactions import (
     TransactionStore,
 )
-from .write_limits import require_write_impact, write_impact
 from .xml_document import (
     DEFAULT_DIFF_CHARACTER_LIMIT,
     DEFAULT_DIFF_LINE_LIMIT,
@@ -115,9 +102,6 @@ from .xml_document import (
     XmlEdit,
     atomic_write_bytes,
     sha256_bytes,
-    unified_xml_diff_preview,
-    utc_now,
-    write_with_backup,
 )
 
 _CANDIDATE_SUFFIXES = {".xml", ".dip", ".dch", ".eli", ".lib"}
@@ -125,50 +109,6 @@ _SOURCE_TAG = re.compile(rb"<(?:Source|Library)\b([^>]*)>", re.IGNORECASE)
 _SOURCE_ATTRIBUTE = re.compile(rb"([A-Za-z][A-Za-z0-9_-]*)\s*=\s*['\"]([^'\"]*)['\"]")
 BOARD_MODEL_RESPONSE_BYTE_LIMIT = 256 * 1024
 BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT = 32 * 1024
-RAW_EDIT_RESPONSE_BYTE_LIMIT = 128 * 1024
-RAW_EDIT_XPATH_CHARACTER_LIMIT = 128
-
-
-def _finalize_raw_edit_response(result: dict[str, Any]) -> dict[str, Any]:
-    result["response_byte_limit"] = RAW_EDIT_RESPONSE_BYTE_LIMIT
-    result["serialized_response_bytes"] = 0
-    for _ in range(8):
-        serialized_size = _json_size(result)
-        if result["serialized_response_bytes"] == serialized_size:
-            break
-        result["serialized_response_bytes"] = serialized_size
-    if (
-        result["serialized_response_bytes"] != _json_size(result)
-        or _json_size(result) > RAW_EDIT_RESPONSE_BYTE_LIMIT
-    ):
-        raise EditError("apply_xml_edits response metadata exceeds its payload cap")
-    return result
-
-
-def _bounded_raw_edit_previews(
-    previews: list[dict[str, object]],
-) -> list[dict[str, Any]]:
-    bounded: list[dict[str, Any]] = []
-    for preview in previews:
-        xpath = str(preview["xpath"])
-        xpath_preview, xpath_truncated = _bounded_text(
-            xpath,
-            RAW_EDIT_XPATH_CHARACTER_LIMIT,
-        )
-        bounded.append(
-            {
-                "index": preview["index"],
-                "operation": preview["operation"],
-                "xpath": xpath_preview,
-                "xpath_character_count": len(xpath),
-                "xpath_truncated": xpath_truncated,
-                "matches": preview["matches"],
-                "expected_matches": preview["expected_matches"],
-                "before_count": preview["before_count"],
-                "after_count": preview["after_count"],
-            }
-        )
-    return bounded
 
 
 class DipTraceService:
@@ -220,11 +160,21 @@ class DipTraceService:
         self._document_service = DocumentService(
             self._service_context,
             self._document_gateway,
+            self.resolve_effective_document_trust,
         )
         self._bom_service = BomService(self._service_context, self._document_gateway)
         self._review_service = ReviewService(
             self._service_context,
             self._document_gateway,
+        )
+        self._semantic_engine_service = SemanticEngineService(
+            self._service_context,
+            self._document_gateway,
+            self.transactions,
+            self.preview_transaction,
+            self.commit_transaction,
+            self._load_snapshot_record,
+            self._session_id_from_working,
         )
         self._semantic_operations_service = SemanticOperationsService(
             self._service_context,
@@ -264,6 +214,27 @@ class DipTraceService:
             self._atomic_write_bytes,
             self._write_provenance_sidecar_callback,
             self._evaluate_roundtrip_evidence_callback,
+        )
+        self._xml_write_service = XmlWriteService(
+            self._service_context,
+            self._document_gateway,
+            self.backups,
+            self.sessions,
+            self._raw_preview_store_provider,
+            self._require_current_target_sha256,
+            self._atomic_write_bytes,
+            self._invalidated_document_provenance_callback,
+            self._write_provenance_sidecar_callback,
+            self._invalidate_document_trust_after_write_callback,
+        )
+        self._live_session_service = LiveSessionService(
+            self._service_context,
+            self.sessions,
+        )
+        self._synchronization_service = SynchronizationService(
+            self._service_context,
+            self._document_gateway,
+            self._run_semantic_write,
         )
         self._scaffolding_service = ScaffoldingService(
             self._service_context,
@@ -320,6 +291,35 @@ class DipTraceService:
             saved_sha256=saved_sha256,
             reexport_path=reexport_path,
             reexport_sha256=reexport_sha256,
+        )
+
+    def _raw_preview_store_provider(self) -> RawPreviewStore:
+        return self.raw_previews
+
+    def _invalidated_document_provenance_callback(
+        self,
+        document_path: Path,
+        document_sha256: str,
+        *,
+        operation_name: str,
+    ) -> DocumentProvenance:
+        return self._invalidated_document_provenance(
+            document_path,
+            document_sha256,
+            operation_name=operation_name,
+        )
+
+    def _invalidate_document_trust_after_write_callback(
+        self,
+        document_path: Path,
+        document_sha256: str,
+        *,
+        operation_name: str = "mcp_write",
+    ) -> None:
+        self.invalidate_document_trust_after_write(
+            document_path,
+            document_sha256,
+            operation_name=operation_name,
         )
 
     @property
@@ -630,21 +630,7 @@ class DipTraceService:
         return report
 
     def document_info(self, path: str | None = None) -> dict[str, Any]:
-        document, target = self.load(path)
-        info = self.models.get(document, live_session=target.is_live).info
-        result = info.model_dump()
-        # Revalidate trust through the central resolver (§8)
-        effective = self.resolve_effective_document_trust(target.path, info.sha256)
-        result["validation_level"] = effective.validation_level.value
-        result["requires_diptrace_verification"] = effective.requires_diptrace_verification
-        result["trust_authority"] = effective.authority
-        if effective.evidence_manifest_path:
-            result["evidence_manifest_path"] = effective.evidence_manifest_path
-        if effective.evidence_manifest_sha256:
-            result["evidence_manifest_sha256"] = effective.evidence_manifest_sha256
-        if effective.warnings:
-            result["trust_warnings"] = effective.warnings
-        return self._read_success(info, result)
+        return self._document_service.document_info(path)
 
     def board_model(
         self,
@@ -808,19 +794,7 @@ class DipTraceService:
         return self._bom_service.validate_value_pattern_consistency(path)
 
     def compare_schematic_to_pcb(self, schematic_path: str, pcb_path: str) -> dict[str, Any]:
-        schematic_document, schematic_target = self.load(schematic_path)
-        pcb_document, pcb_target = self.load(pcb_path)
-        schematic = self.models.get(schematic_document, live_session=schematic_target.is_live)
-        pcb = self.models.get(pcb_document, live_session=pcb_target.is_live)
-        result = compare_design_snapshots(schematic, pcb)
-        return self._read_success(
-            schematic.info,
-            {
-                **result,
-                "pcb_document": pcb.info.model_dump(mode="json"),
-            },
-            limitations=result["limitations"],
-        )
+        return self._synchronization_service.compare_schematic_to_pcb(schematic_path, pcb_path)
 
     def sync_schematic_to_pcb(
         self,
@@ -839,40 +813,21 @@ class DipTraceService:
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        schematic_document, _ = self.load(schematic_path)
-        pcb_document, _ = self.load(pcb_path)
-        pattern_documents = [self.load(path)[0] for path in pattern_library_paths or []]
-        plan = build_sync_plan(
-            schematic_document,
-            pcb_document,
-            mappings=[
-                ComponentSyncMapping.model_validate(item) for item in component_mappings or []
-            ],
-            placement=SyncPlacement.model_validate(placement or {}),
-            pattern_documents=pattern_documents,
+        return self._synchronization_service.sync_schematic_to_pcb(
+            schematic_path,
+            pcb_path,
+            component_mappings=component_mappings,
+            placement=placement,
+            pattern_library_paths=pattern_library_paths,
             update_existing_properties=update_existing_properties,
             create_ratlines=create_ratlines,
             allow_reconnect=allow_reconnect,
             reconciliation_mode=reconciliation_mode,
             allow_locked_reconciliation=allow_locked_reconciliation,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
         )
-        response = self._run_semantic_write(
-            plan.operation,
-            pcb_path,
-            dry_run,
-            expected_sha256,
-            txid,
-        )
-        response["warnings"] = [*plan.warnings, *response.get("warnings", [])]
-        response["limitations"] = [
-            *plan.limitations,
-            *response.get("limitations", []),
-        ]
-        response.setdefault("result", {})["schematic_source"] = {
-            "path": str(schematic_document.path),
-            "sha256": schematic_document.sha256,
-        }
-        return response
 
     def query_objects(
         self,
@@ -894,14 +849,10 @@ class DipTraceService:
         return self._document_service.document_resource(document_id, resource)
 
     def transaction_summary_resource(self, txid: str) -> str:
-        return json.dumps(
-            transaction_response_summary(self.transactions.read(txid)),
-            ensure_ascii=False,
-            indent=2,
-        )
+        return self._transaction_service.transaction_summary_resource(txid)
 
     def raw_preview_diff_resource(self, preview_id: str) -> str:
-        return self.raw_previews.read_diff(preview_id)
+        return self._xml_write_service.raw_preview_diff_resource(preview_id)
 
     def summarize(self, path: str | None = None) -> dict[str, Any]:
         return self._document_service.summarize(path)
@@ -947,140 +898,7 @@ class DipTraceService:
         dry_run: bool = True,
         expected_sha256: str | None = None,
     ) -> dict[str, Any]:
-        self.policy.require_write(dry_run=dry_run, operation="apply_xml_edits")
-        if len(edits) > 50:
-            raise EditError("A single call can contain at most 50 edits")
-        if not dry_run and not expected_sha256:
-            raise EditError("expected_sha256 from a dry-run is required when dry_run=false")
-        document, target = self.load(path)
-        before = document.raw_bytes
-        before_document = DipTraceDocument.from_bytes(document.path, before)
-        before_sha256 = sha256_bytes(before)
-        if expected_sha256 and before_sha256 != expected_sha256:
-            raise Sha256MismatchError(
-                f"Document changed: expected {expected_sha256}, current {before_sha256}",
-                details={"expected_sha256": expected_sha256, "current_sha256": before_sha256},
-            )
-        after, previews = document.apply_edits(edits)
-        impact = write_impact(before_document, document)
-        require_write_impact(impact, operation="apply_xml_edits")
-        after_sha256 = sha256_bytes(after)
-        changed = before != after
-        if not dry_run and changed:
-            assert expected_sha256 is not None
-            self._require_current_target_sha256(target.path, expected_sha256)
-        diff, diff_metadata = unified_xml_diff_preview(before, after)
-        preview_id, diff_resource = self.raw_previews.store(diff, diff_metadata)
-        bounded_previews = _bounded_raw_edit_previews(previews)
-        result: dict[str, Any] = {
-            "path": str(target.path),
-            "live_session": target.is_live,
-            "session_id": target.live_session_id,
-            "dry_run": dry_run,
-            "changed": changed,
-            "before_sha256": before_sha256,
-            "after_sha256": after_sha256,
-            "operations": bounded_previews,
-            "operations_metadata": {
-                "edit_count": len(bounded_previews),
-                "total_match_count": sum(int(preview["matches"]) for preview in bounded_previews),
-                "snippets_inline": False,
-                "xpath_character_limit": RAW_EDIT_XPATH_CHARACTER_LIMIT,
-            },
-            "changed_ids": list(impact.changed_ids),
-            "write_object_count": impact.object_count,
-            "diff": {
-                "inline": False,
-                "preview_id": preview_id,
-                "resource_uri": diff_resource,
-                "mime_type": "text/plain",
-                **diff_metadata,
-            },
-            "resources": [diff_resource],
-        }
-        if dry_run or not changed:
-            result["written"] = False
-            return _finalize_raw_edit_response(result)
-
-        # Refuse before touching the design if even worst-case bounded write
-        # metadata could exceed the public response contract. JSON escaping can
-        # expand one character to six bytes, hence the control-character probe.
-        preflight = dict(result)
-        preflight.update(
-            {
-                "written": True,
-                "backup": "\x00" * 4_096,
-                "backup_character_count": 4_096,
-                "backup_truncated": True,
-                "written_at": utc_now(),
-            }
-        )
-        _finalize_raw_edit_response(preflight)
-
-        assert expected_sha256 is not None
-        if target.live_session_id:
-
-            def finalize_live_raw_edit(_mutation: object) -> None:
-                DipTraceDocument.load(target.path, self.settings.max_document_bytes)
-                sidecar_path = target.path.with_suffix(target.path.suffix + ".provenance.json")
-                try:
-                    previous_sidecar = sidecar_path.read_bytes()
-                except FileNotFoundError:
-                    previous_sidecar = None
-                prepared = self._invalidated_document_provenance(
-                    target.path,
-                    after_sha256,
-                    operation_name="mcp_apply_xml_edits",
-                )
-                attempted_sidecar = prepared.model_dump_json(indent=2).encode()
-                try:
-                    self._write_provenance_sidecar(target.path, prepared)
-                except Exception:
-                    try:
-                        current_sidecar = sidecar_path.read_bytes()
-                    except FileNotFoundError:
-                        current_sidecar = None
-                    if current_sidecar == attempted_sidecar:
-                        if previous_sidecar is None:
-                            sidecar_path.unlink(missing_ok=True)
-                        else:
-                            atomic_write_bytes(sidecar_path, previous_sidecar)
-                    raise
-
-            mutation = self.sessions.mutate_working(
-                target.live_session_id,
-                expected_sha256=expected_sha256,
-                replacement=after,
-                after_write=finalize_live_raw_edit,
-            )
-            backup = mutation.backup
-        else:
-            self._require_current_target_sha256(target.path, expected_sha256)
-            backup = write_with_backup(
-                target.path,
-                after,
-                self.backups,
-                expected_sha256=expected_sha256,
-            )
-            DipTraceDocument.load(target.path, self.settings.max_document_bytes)
-            # Invalidate trust after MCP modification
-            self.invalidate_document_trust_after_write(
-                target.path,
-                after_sha256,
-                operation_name="mcp_apply_xml_edits",
-            )
-        backup_text = str(backup)
-        backup_preview, backup_truncated = _bounded_text(backup_text, 4_096)
-        result.update(
-            {
-                "written": True,
-                "backup": backup_preview,
-                "backup_character_count": len(backup_text),
-                "backup_truncated": backup_truncated,
-                "written_at": utc_now(),
-            }
-        )
-        return _finalize_raw_edit_response(result)
+        return self._xml_write_service.apply_edits(edits, path, dry_run, expected_sha256)
 
     def create_document(
         self,
@@ -2819,28 +2637,11 @@ class DipTraceService:
         action: SessionAction,
         expected_sha256: str | None = None,
     ) -> dict[str, Any]:
-        if action == "apply":
-            self.policy.require_write(dry_run=False, operation="finish_live_session")
-        request = self.sessions.request_finish(action, expected_sha256)
-        return self.sessions.wait_for_finish_outcome(request)
+        return self._live_session_service.finish_live_session(action, expected_sha256)
 
     def abandon_live_session(self, reason: str) -> dict[str, Any]:
         """Terminate stale local session state without applying working XML."""
-
-        metadata = self.sessions.abandon_active(reason)
-        return {
-            "session_id": metadata["session_id"],
-            "outcome": "abandoned",
-            "local_bridge_status": "abandoned",
-            "written": False,
-            "reason": metadata["abandon_reason"],
-            "diptrace_host_acknowledged": False,
-            "acknowledgement_scope": "local_session_state_only",
-            "message": (
-                "The local session was abandoned without applying working XML or "
-                "replacing the exchange file."
-            ),
-        }
+        return self._live_session_service.abandon_live_session(reason)
 
     def scan_documents(self, root: str | None = None, recursive: bool = True) -> dict[str, Any]:
         return self._discovery_service.scan_documents(root, recursive)
@@ -2879,7 +2680,9 @@ class DipTraceService:
         expected_sha256: str | None,
         txid: str | None,
     ) -> dict[str, Any]:
-        return self._run_semantic_operations([operation], path, dry_run, expected_sha256, txid)
+        return self._semantic_engine_service._run_semantic_write(
+            operation, path, dry_run, expected_sha256, txid
+        )
 
     def _run_semantic_operations(
         self,
@@ -2889,103 +2692,8 @@ class DipTraceService:
         expected_sha256: str | None,
         txid: str | None,
     ) -> dict[str, Any]:
-        if not operations:
-            raise EditError("At least one semantic operation is required")
-        self.policy.require_write(
-            dry_run=dry_run,
-            operation=operations[0].kind if len(operations) == 1 else "semantic_operations",
-        )
-        if not dry_run and expected_sha256 is None:
-            raise ConfirmationRequiredError(
-                "expected_sha256 is required for semantic writes",
-                txid=txid,
-            )
-        incoming_operations = [operation.model_dump() for operation in operations]
-        _require_transaction_capacity(len(incoming_operations))
-        if txid is None:
-            document, target = self.load(path)
-            snapshot = build_snapshot(document, live_session=target.is_live)
-            if expected_sha256 is not None and expected_sha256 != snapshot.info.sha256:
-                raise Sha256MismatchError(
-                    "Document changed before the semantic operation was planned",
-                    details={
-                        "expected_sha256": expected_sha256,
-                        "current_sha256": snapshot.info.sha256,
-                    },
-                )
-            _apply_bounded_semantic_operations(
-                document,
-                list(operations),
-                live_session=target.is_live,
-            )
-            tx_record = self.transactions.create(
-                snapshot.info,
-                target.path,
-                source_sha256=snapshot.info.sha256,
-                expected_sha256=expected_sha256 or snapshot.info.sha256,
-                notes=[operation.kind for operation in operations],
-            )
-            txid = tx_record.txid
-            self.transactions.store_snapshot(txid, document.raw_bytes)
-            self.transactions.update(
-                txid,
-                status="staged",
-                operations=incoming_operations,
-                compiled_patch_count=len(operations),
-                snapshot_path=str(self.transactions.snapshot_path(txid)),
-            )
-        else:
-            existing = self.transactions.read(txid)
-            if existing.status not in {"staged", "validated"}:
-                raise TransactionConflictError(
-                    f"Transaction cannot be edited in state {existing.status}: {txid}",
-                    txid=txid,
-                )
-            if path is not None:
-                supplied_target = self.resolve_target(path)
-                if supplied_target.path != Path(existing.target_path):
-                    raise TransactionConflictError(
-                        "The supplied path does not match the transaction target",
-                        details={
-                            "transaction_path": existing.target_path,
-                            "supplied_path": str(supplied_target.path),
-                        },
-                        txid=txid,
-                    )
-            combined_operations = (
-                [*existing.operations, *incoming_operations]
-                if existing.operations != incoming_operations
-                else list(existing.operations)
-            )
-            _require_transaction_capacity(len(combined_operations))
-            source = self._load_snapshot_record(existing)
-            _apply_bounded_semantic_operations(
-                source,
-                parse_semantic_operations(combined_operations),
-                live_session=(
-                    self._session_id_from_working(Path(existing.target_path)) is not None
-                ),
-            )
-            if existing.operations != incoming_operations:
-                self.transactions.update(
-                    txid,
-                    status="staged",
-                    operations=combined_operations,
-                    compiled_patch_count=len(combined_operations),
-                    snapshot_path=existing.snapshot_path
-                    or str(self.transactions.snapshot_path(txid)),
-                    changed_ids=[],
-                    validation_before={},
-                    validation_after_preview={},
-                    preview_resources=[],
-                    preview_metadata={},
-                )
-        preview = self.preview_transaction(txid)
-        if dry_run:
-            return preview
-        return self.commit_transaction(
-            txid,
-            expected_sha256=expected_sha256,
+        return self._semantic_engine_service._run_semantic_operations(
+            operations, path, dry_run, expected_sha256, txid
         )
 
     def _preview_semantic_operations(
@@ -2993,84 +2701,7 @@ class DipTraceService:
         document: DipTraceDocument,
         operations: list[SemanticOperation],
     ) -> dict[str, Any]:
-        before = build_snapshot(document)
-        result = _apply_bounded_semantic_operations(document, operations)
-        after = build_snapshot(result.document)
-        before_findings, _, _, _ = run_checks(before)
-        after_findings, _, _, _ = run_checks(after)
-        before_errors: dict[str, int] = {}
-        after_errors: dict[str, int] = {}
-        for finding in before_findings:
-            if finding.severity == "error":
-                before_errors[finding.category] = before_errors.get(finding.category, 0) + 1
-        for finding in after_findings:
-            if finding.severity == "error":
-                after_errors[finding.category] = after_errors.get(finding.category, 0) + 1
-        allow_connectivity_regression = any(
-            (
-                isinstance(operation, DeleteTraceOperation)
-                and operation.allow_connectivity_regression
-            )
-            or isinstance(operation, SyncSchematicToPcbOperation)
-            for operation in operations
-        )
-        if (
-            after_errors.get("connectivity", 0) > before_errors.get("connectivity", 0)
-            and not allow_connectivity_regression
-        ):
-            raise ConnectivityRegressionError(
-                "Semantic preview introduces new connectivity errors",
-                details={"before": before_errors, "after": after_errors},
-                object_ids=result.changed_ids,
-            )
-        non_connectivity_categories = (set(before_errors) | set(after_errors)) - {"connectivity"}
-        regressions = {
-            category: {
-                "before": before_errors.get(category, 0),
-                "after": after_errors.get(category, 0),
-            }
-            for category in sorted(non_connectivity_categories)
-            if after_errors.get(category, 0) > before_errors.get(category, 0)
-        }
-        if regressions:
-            raise DrcRegressionError(
-                "Semantic preview introduces new deterministic review errors",
-                details={"regressions": regressions},
-                object_ids=result.changed_ids,
-            )
-        svg = render_preview_svg(before, after, result.changed_ids)
-        preview_json = render_preview_json(before, after, result.changed_ids)
-        preview_json["review_validation"] = {
-            "errors_before": before_errors,
-            "errors_after": after_errors,
-            "allow_connectivity_regression": allow_connectivity_regression,
-        }
-        diff, diff_metadata = unified_xml_diff_preview(
-            before.document.raw_bytes,
-            result.raw_bytes,
-        )
-        return {
-            "svg": svg,
-            "json": preview_json,
-            "diff": diff,
-            "diff_metadata": diff_metadata,
-            "patch_count": result.patch_count,
-            "changed_ids": result.changed_ids,
-            "validation_before": {
-                **before.info.model_dump(),
-                "review_errors": before_errors,
-            },
-            "validation_after_preview": {
-                **after.info.model_dump(),
-                "review_errors": after_errors,
-            },
-            "warnings": result.warnings,
-            "limitations": (
-                ["geometry for components without footprint dimensions is estimated"]
-                if before.info.kind == "pcb"
-                else []
-            ),
-        }
+        return self._semantic_engine_service._preview_semantic_operations(document, operations)
 
     def _load_snapshot_record(self, record: TransactionRecord) -> DipTraceDocument:
         return self._transaction_service._load_snapshot_record(record)

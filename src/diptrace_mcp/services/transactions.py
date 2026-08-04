@@ -1137,6 +1137,13 @@ class TransactionService:
             ],
         }
 
+    def transaction_summary_resource(self, txid: str) -> str:
+        return json.dumps(
+            transaction_response_summary(self.transaction_store.read(txid)),
+            ensure_ascii=False,
+            indent=2,
+        )
+
     def _load_snapshot_record(self, record: TransactionRecord) -> DipTraceDocument:
         snapshot_path = self.transaction_store.require_snapshot(record.txid)
         snapshot = DipTraceDocument.load(snapshot_path, self.context.settings.max_document_bytes)
