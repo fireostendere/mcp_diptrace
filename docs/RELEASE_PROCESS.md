@@ -7,17 +7,19 @@ Its annotated tag points to
 `31766cb6e667dc24f3e2921decfd65c03eebd271`; the immutable record is
 [`releases/v0.2.0.md`](releases/v0.2.0.md).
 
-The project is not published to PyPI, the official MCP Registry, or Smithery.
-Version 0.2.0 contains no MCPB asset. MCPB and `server.json` tooling is
-preparation for a future version only; existing tags and release files must
-never be replaced.
+Version `0.2.1` is the active release candidate on branch
+`release/v0.2.1-pypi`. It prepares PyPI Trusted Publishing, a Windows MCPB,
+official MCP Registry metadata, and Smithery distribution. It is not tagged or
+published until the final release sequence is completed.
 
-Windows executables remain unsigned. CI and SHA-256 establish tested behaviour
-and byte identity, not trusted publisher signing, universal compatibility,
-independent review, or production readiness.
+Windows executables remain unsigned. CI, SHA-256, PyPI Trusted Publishing, and
+package attestations can establish tested behaviour, byte identity, and
+publication provenance. They do not establish Authenticode trust, universal
+compatibility, independent review, or production readiness.
 
-The one-shot automatic v0.2.0 publication path has been removed. Future releases
-require a new reviewed finalisation PR and an explicit publication action.
+Future releases require a reviewed finalisation pull request, an explicit tag,
+public asset verification, and explicit publication actions. Existing tags and
+published bytes are immutable.
 
 ## 1. Approve scope and authority
 
@@ -32,7 +34,7 @@ Before changing release metadata or creating a tag:
 5. complete the real Windows/DipTrace/client acceptance required by that claim;
 6. freeze one exact candidate commit;
 7. move approved user-visible changes from `Unreleased` to a dated version;
-8. update citation, installation, and release documentation to the same
+8. update citation, installation, package, and release documentation to the same
    immutable identity.
 
 Do not claim Novarm/DipTrace endorsement, affiliation, approval, or permission
@@ -66,6 +68,7 @@ python -m hatchling build -d release-dist
 python scripts/audit_release_artifacts.py \
   --dist-dir release-dist \
   --check-allowlist
+python -m twine check --strict release-dist/*
 ```
 
 All required GitHub Actions jobs must pass on the same pull-request head. A
@@ -110,11 +113,12 @@ must stay `NOT_RUN` unless captured and reviewed.
 Build only from the frozen commit. Inspect:
 
 - source archive, sdist, and wheel contents;
-- wheel entry points, packaged skills, schemas, and `RECORD` hashes/sizes;
+- wheel entry points, packaged skills, schemas, metadata, and `RECORD`
+  hashes/sizes;
 - bridge, standalone server, configurator, installer, and portable inventory;
-- MCPB manifest/archive contents when MCPB is part of the new version;
+- MCPB manifest/archive contents when MCPB is part of the version;
 - runtime dependencies, notices, SBOM, and provenance;
-- source-distribution rebuild parity;
+- source-distribution installation parity;
 - SHA-256 coverage for every final asset;
 - Authenticode status for every executable.
 
@@ -134,13 +138,18 @@ Self-signed, test, or merely configured certificates must not be represented as
 trusted signing. Otherwise publish only with an explicit unsigned-development
 statement.
 
+PyPI Trusted Publishing and package attestations are not substitutes for
+Authenticode signing. They identify the publishing workflow and artifact digest,
+not the trustworthiness or behaviour of Windows executables.
+
 ## 6. Stage and verify
 
 Stage the exact final files in a non-public release-manager-controlled channel.
 From clean environments:
 
 - verify `SHA256SUMS.txt`;
-- install the wheel and run CLI/MCP stdio smoke;
+- install the wheel and source distribution and run CLI/MCP stdio smoke;
+- run `twine check --strict` on both Python distributions;
 - install and uninstall the Windows installer;
 - extract and smoke the portable bundle;
 - inspect and smoke the MCPB when included;
@@ -153,47 +162,98 @@ and results, workflow run IDs, final asset inventory and hashes, signing status,
 supported environments, known limitations, security/support paths, and rollback
 or withdrawal decision.
 
-## 7. Publish
+## 7. Configure PyPI Trusted Publishing
+
+For the first `diptrace-mcp` publication, create a pending PyPI publisher with
+these exact values:
+
+```text
+Project name:       diptrace-mcp
+GitHub owner:       fireostendere
+Repository:         mcp_diptrace
+Workflow filename:  pypi.yml
+Environment:        pypi
+```
+
+Create the GitHub environment `pypi` and apply the strongest available reviewer
+and tag restrictions. The workflow's build job must not receive OIDC permission.
+The publish job must retain only `contents: read` and `id-token: write` and must
+contain only artifact retrieval plus the pinned PyPA publish action.
+
+Do not configure or store a long-lived PyPI API token. A pending publisher does
+not reserve the project name until the first successful upload; verify name
+availability immediately before publication.
+
+## 8. Publish GitHub assets
 
 Only after the approved gates pass:
 
-1. merge the final release-finalisation PR;
+1. merge the final release-finalisation pull request;
 2. verify the merge commit matches the approved tree;
 3. create a new annotated tag from that exact commit;
-4. publish immutable assets and checksums;
-5. mark the release as development/prerelease when appropriate;
+4. build immutable assets and checksums from the tag;
+5. publish the files as an explicitly unsigned development/prerelease;
 6. publish notes distinguishing implemented, runtime-available, and real
    DipTrace-verified capabilities;
 7. avoid unsupported production, signing, compatibility, or endorsement claims.
 
-No automatic package-index or registry publication is configured. Publishing to
-PyPI, the official MCP Registry, Smithery, or another directory is a separate
-explicit action after public asset verification.
+Do not replace existing release files or move an existing tag.
 
-## 8. Public-download verification
+## 9. Verify public GitHub downloads
 
-After publication, download public files again rather than reusing local build
-output. Repeat checksum, wheel installation, CLI/MCP stdio, Windows installer,
-portable, and any MCPB verification. Record the immutable release URL, tag SHA,
-publication date, asset sizes/hashes, and public-download results.
+Download public files again rather than reusing local build output. Repeat
+checksum, wheel/sdist installation, CLI/MCP stdio, Windows installer, portable,
+and MCPB verification. Record the immutable release URL, tag SHA, publication
+date, asset sizes/hashes, and public-download results.
 
-For a future MCPB release, generate concrete `server.json` only from the public
-MCPB URL and its verified SHA-256. Revalidate the current Registry and Smithery
-schemas and CLIs at publication time.
+## 10. Publish to PyPI
 
-## 9. Post-release and rollback
+PyPI publication is a separate explicit action after the public GitHub assets
+have been verified.
+
+For `v0.2.1`, manually dispatch `.github/workflows/pypi.yml` from the exact
+annotated tag and set `publish=true`. The workflow must reject branches, `main`,
+lightweight tags, wrong tags, and mismatched tag targets.
+
+The build job creates and validates the wheel and sdist, then uploads only those
+two files as a workflow artifact. The minimal publish job downloads that
+artifact and uses GitHub OIDC through the protected `pypi` environment.
+
+After publication:
+
+```bash
+python -m pip install --no-cache-dir diptrace-mcp==0.2.1
+diptrace-mcp --help
+```
+
+Verify the public PyPI files, hashes, project links, README rendering, Trusted
+Publisher identity, and attestations. Record the exact workflow run and public
+file identities. Never enable `skip-existing` for the production upload.
+
+## 11. Publish MCP Registry and Smithery metadata
+
+For a release containing MCPB, generate concrete `server.json` only from the
+public MCPB URL and its redownloaded SHA-256. Revalidate the current official
+Registry and Smithery schemas and CLIs at publication time.
+
+Publish the Registry and Smithery versions only after the exact MCPB is public
+and verified. Record their immutable identifiers and installation/introspection
+results.
+
+## 12. Post-release and rollback
 
 Monitor published security and support paths. Never replace bytes under an
-existing tag or version.
+existing GitHub tag, PyPI version, Registry version, or Smithery release.
 
 If a material problem is discovered:
 
 - preserve the tag and original asset bytes;
-- mark the release withdrawn when appropriate;
+- mark the release withdrawn or yank the PyPI version only when appropriate;
 - record affected versions/hashes and required user action;
 - publish a corrected version rather than moving the old tag;
 - document whether confidentiality, unsafe mutation, installation, or evidence
   claims were affected.
 
 Before publication, abandon a candidate by closing or reverting its
-release-finalisation PR. Do not rewrite `main` history or move existing tags.
+release-finalisation pull request. Do not rewrite `main` history or move existing
+tags.
