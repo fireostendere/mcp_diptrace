@@ -75,7 +75,11 @@ def _write_zip(stage: Path, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.exists():
         output.unlink()
-    files = sorted(path for path in stage.rglob("*") if path.is_file())
+
+    files = sorted(
+        (path for path in stage.rglob("*") if path.is_file()),
+        key=lambda path: _safe_relative(stage, path).as_posix(),
+    )
     with zipfile.ZipFile(
         output,
         "w",
