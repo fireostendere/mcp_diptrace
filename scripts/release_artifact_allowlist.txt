@@ -227,6 +227,7 @@ src/diptrace_mcp/services/jobs.py
 src/diptrace_mcp/services/placement.py
 src/diptrace_mcp/services/review.py
 src/diptrace_mcp/services/routing.py
+src/diptrace_mcp/services/scaffolding.py
 src/diptrace_mcp/services/semantic_operations.py
 src/diptrace_mcp/sessions.py
 src/diptrace_mcp/silkscreen.py
