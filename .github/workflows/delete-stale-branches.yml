@@ -1,0 +1,82 @@
+name: Delete stale branches
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/delete-stale-branches.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor == 'fireostendere'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged and temporary branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          delete_branch() {
+            local branch="$1"
+            local encoded
+            local get_url
+            local delete_url
+            local status
+
+            encoded="$(python - "$branch" <<'PY'
+          import sys
+          from urllib.parse import quote
+          print(quote(sys.argv[1], safe=''))
+          PY
+          )"
+            get_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/git/ref/heads/${encoded}"
+            delete_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/git/refs/heads/${encoded}"
+
+            status="$(curl -sS -o /tmp/branch.json -w '%{http_code}' \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "${get_url}")"
+
+            if [[ "${status}" == "404" ]]; then
+              echo "Already absent: ${branch}"
+              return 0
+            fi
+            if [[ "${status}" != "200" ]]; then
+              cat /tmp/branch.json
+              echo "Unable to inspect ${branch}: HTTP ${status}" >&2
+              return 1
+            fi
+
+            status="$(curl -sS -o /tmp/delete.json -w '%{http_code}' -X DELETE \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "${delete_url}")"
+            if [[ "${status}" != "204" ]]; then
+              cat /tmp/delete.json
+              echo "Unable to delete ${branch}: HTTP ${status}" >&2
+              return 1
+            fi
+            echo "Deleted: ${branch}"
+          }
+
+          for branch in \
+            release/post-v0.2.0 \
+            release/finalize-v0.2.0 \
+            docs/sync-current-state-0.2.0 \
+            release/v0.2.0 \
+            refactor/service-facade-phase-1; do
+            delete_branch "${branch}"
+          done
+
+          # Delete the temporary cleanup branch last so this workflow never
+          # enters main and leaves no persistent cleanup machinery behind.
+          delete_branch "${GITHUB_HEAD_REF}"
