@@ -17,21 +17,25 @@ DipTrace. Проект состоит из двух компонентов:
 
 ## Текущее состояние
 
-Последний опубликованный релиз —
-[`v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0).
-Это явно обозначенный unsigned alpha/development GitHub prerelease с тегом на
-коммите `31766cb6e667dc24f3e2921decfd65c03eebd271`.
+Версия `0.2.1` — текущая distribution line. Она подготовлена как явно
+обозначенный unsigned alpha/development релиз со следующими каналами:
 
-Публичные assets включают:
+- Python package `diptrace-mcp==0.2.1` для PyPI;
+- `DipTrace-MCP-Setup-0.2.1.exe`;
+- `DipTrace-MCP-Portable-0.2.1.zip`;
+- `DipTrace-MCP-0.2.1-windows.mcpb`;
+- wheel, source distribution, checksums, SBOM, dependency, notice, provenance и
+  release records.
 
-- `DipTrace-MCP-Setup-0.2.0.exe`;
-- `DipTrace-MCP-Portable-0.2.0.zip`;
-- Python wheel и source distribution;
-- `SHA256SUMS.txt`, SBOM, dependency, notice, provenance и release records.
+Предыдущий релиз
+[`v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0)
+остаётся immutable. Существующие tags и files никогда не заменяются.
 
-Windows executables unsigned. CI и SHA-256 подтверждают проверенное поведение и
-идентичность файлов, но не являются trusted publisher signature, доказательством
-universal compatibility или production readiness.
+Windows executables unsigned. CI, SHA-256, PyPI Trusted Publishing и package
+attestations подтверждают проверенное поведение, идентичность файлов и
+происхождение публикации. Они не являются trusted Authenticode signature,
+доказательством universal compatibility, independent review или production
+readiness.
 
 ## Статус публичного релиза
 
@@ -42,15 +46,16 @@ universal compatibility или production readiness.
 отправляются через приватный канал; проверенный Code of Conduct канал для
 enforcement пока не опубликован.
 
-- Последний опубликованный development release — `v0.2.0`; его source distribution,
-  wheel, hashes и provenance immutable.
-- Windows installer, bridge, standalone executable, configurator и portable
-  bundle опубликованы как unsigned development assets.
 - Python archives собираются по точному allowlist и проверяются по entry points,
-  packaged skills, bounds и каждому `RECORD` hash и size.
-- CI и SHA-256 не создают code-signing или production-readiness claim.
-- Будущие MCPB, официальный Registry, Smithery или PyPI должны использовать
-  новую immutable версию и не заменять существующие bytes `v0.2.0`.
+  packaged skills, bounds, metadata и каждому `RECORD` hash и size.
+- PyPI publication использует GitHub OpenID Connect и protected environment
+  `pypi`; long-lived PyPI API token не хранится.
+- PyPI publish job получает только уже проверенные wheel и source distribution
+  из отдельного build job.
+- Windows installer, bridge, standalone executable, configurator, portable
+  bundle и MCPB остаются unsigned development assets.
+- CI, checksums, Trusted Publishing и attestations не создают code-signing или
+  production-readiness claim.
 
 ## Возможности
 
@@ -78,10 +83,22 @@ fabrication sign-off, Novarm/DipTrace endorsement или universal compatibility
 
 ## Установка
 
+### PyPI
+
+Требуется Python 3.10 или новее:
+
+```bash
+python -m pip install diptrace-mcp==0.2.1
+diptrace-mcp --help
+```
+
+PyPI package устанавливает Python MCP-сервер и packaged skills. Windows
+DipTrace bridge-плагин автоматически не устанавливается.
+
 ### Windows installer
 
-1. Скачайте `DipTrace-MCP-Setup-0.2.0.exe` и `SHA256SUMS.txt` из
-   [релиза `v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0).
+1. Скачайте `DipTrace-MCP-Setup-0.2.1.exe` и `SHA256SUMS.txt` из одного и того же
+   GitHub Release `v0.2.1`.
 2. Проверьте SHA-256.
 3. Запустите installer и выберите DipTrace location, workspace, state directory
    и при необходимости настройку Codex/Claude.
@@ -92,13 +109,11 @@ Windows может показать SmartScreen warning, поскольку bina
 
 ### Portable Windows bundle
 
-Скачайте и проверьте `DipTrace-MCP-Portable-0.2.0.zip`, распакуйте в постоянную
+Скачайте и проверьте `DipTrace-MCP-Portable-0.2.1.zip`, распакуйте в постоянную
 локальную директорию, прочитайте `README_FIRST.txt` и используйте включённые
 helper tools.
 
 ### Установка из исходного кода
-
-Требуется Python 3.10 или новее:
 
 ```bash
 git clone https://github.com/fireostendere/mcp_diptrace.git
@@ -109,25 +124,26 @@ python -m pip install -e .
 diptrace-mcp --help
 ```
 
-Python wheel/source installation не устанавливает Windows bridge-плагин
-DipTrace автоматически.
-
 Полный путь описан в
 [инструкции установки из release assets](docs/INSTALL_FROM_RELEASE.md).
 
-## Подготовка MCPB, Registry и Smithery
+## MCPB, Registry и Smithery
 
-Версия 0.2.0 не содержит MCPB и не опубликована в PyPI, официальном MCP Registry
-или Smithery. Репозиторий теперь подготавливает:
+Версия `0.2.1` добавляет immutable distribution route, подготовленный после
+`v0.2.0`:
 
-- deterministic Windows MCPB builder;
-- canonical registry name `io.github.fireostendere/diptrace-mcp`;
-- официальный `server.json` template и generator;
-- инструкции будущей публикации в Smithery и официальный Registry.
+- deterministic Windows MCPB packaging;
+- canonical Registry identity `io.github.fireostendere/diptrace-mcp`;
+- официальный `server.json`, генерируемый из public MCPB URL и проверенного
+  SHA-256;
+- Smithery publication из того же public MCPB;
+- PyPI Trusted Publishing для Python-сервера.
 
-Эти изменения не создают новый релиз. Публичный MCPB должен выйти под новой
-immutable версией; существующие assets `v0.2.0` заменять нельзя. См.
-[подготовку MCP distribution](docs/MCP_DISTRIBUTION.md).
+MCPB содержит self-contained Windows stdio server. Он не устанавливает DipTrace
+bridge-плагин скрытно. Для live exchange нужны matching bridge и settings из
+того же GitHub release.
+
+См. [MCP distribution и package publication](docs/MCP_DISTRIBUTION.md).
 
 ## Архитектура
 
@@ -193,14 +209,15 @@ Q1 Component Angle GUI/re-export validation остаётся `NOT_RUN`. Неск
 - [Использование](docs/USAGE.md)
 - [MCP tools и resources](docs/MCP_TOOLS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
-- [Подготовка MCPB, официального Registry и Smithery](docs/MCP_DISTRIBUTION.md)
-- [Установка в Windows](docs/INSTALL_FROM_RELEASE.md)
+- [MCP distribution и package publication](docs/MCP_DISTRIBUTION.md)
+- [Установка в Windows и Python](docs/INSTALL_FROM_RELEASE.md)
 - [Тестирование](docs/TESTING.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Security и policy](docs/SECURITY_AND_POLICY.md)
 - [Transactions](docs/TRANSACTIONS.md)
 - [Release process](docs/RELEASE_PROCESS.md)
-- [Release record v0.2.0](docs/releases/v0.2.0.md)
+- [Checklist релиза v0.2.1](docs/RELEASE_0_2_1_CHECKLIST.md)
+- [Release record v0.2.1](docs/releases/v0.2.1.md)
 
 ## Участие, security и лицензия
 
