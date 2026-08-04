@@ -6,7 +6,6 @@
 .github/pull_request_template.md
 .github/workflows/ci.yml
 .github/workflows/deep-compliance-audit.yml
-.github/workflows/one-shot-event-loop-badges.yml
 .github/workflows/windows-installer.yml
 .github/workflows/windows-signing.yml
 .gitignore
