@@ -1,6 +1,18 @@
-name: Windows signing preparation
+name: Windows signing preparation and v0.2.0 publication
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/windows-signing.yml"
+      - ".release-v0.2.0.trigger"
+      - "pyproject.toml"
+      - "scripts/build_windows_installer.ps1"
+      - "docs/releases/v0.2.0.md"
+  push:
+    branches:
+      - main
+    paths:
+      - ".release-v0.2.0.trigger"
   workflow_dispatch:
     inputs:
       signing_required:
@@ -16,9 +28,16 @@ on:
 permissions:
   contents: read
 
+env:
+  RELEASE_VERSION: "0.2.0"
+  RELEASE_TAG: "v0.2.0"
+  INNO_SETUP_URL: https://github.com/jrsoftware/issrc/releases/download/is-6_4_2/innosetup-6.4.2.exe
+  INNO_SETUP_SHA256: 238e2cf82c212a3879a050e02d787283c54bcb72d5cb6070830942de56627d5b
+
 jobs:
   build-test-package:
     name: Build, test, and package bridge
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
     steps:
       - name: Require a protected ref for signing
@@ -72,7 +91,7 @@ jobs:
 
   protected-signing-handoff:
     name: Protected SignPath handoff
-    if: ${{ inputs.signing_required == true && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.signing_required == true && github.ref == 'refs/heads/main' }}
     needs: build-test-package
     runs-on: windows-latest
     environment: windows-signing
@@ -94,3 +113,286 @@ jobs:
             throw "HUMAN ACTION REQUIRED: configure the protected SignPath integration before requesting signing"
           }
           throw "HUMAN ACTION REQUIRED: replace this reviewed handoff with the approved pinned SignPath action"
+
+  release-source:
+    name: Build and audit v0.2.0 Python artifacts
+    if: ${{ github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Verify release identity
+        shell: bash
+        run: |
+          python - <<'PY'
+          import pathlib, tomllib
+          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))
+          actual = data['project']['version']
+          expected = '0.2.0'
+          if actual != expected:
+              raise SystemExit(f'project version {actual!r} does not match {expected!r}')
+          PY
+      - name: Build and audit wheel and source distribution
+        shell: bash
+        run: |
+          python -m pip install -e ".[dev]"
+          rm -rf release-dist
+          python -m hatchling build -d release-dist
+          python scripts/audit_release_artifacts.py --dist-dir release-dist --check-allowlist
+          test -f release-dist/diptrace_mcp-0.2.0-py3-none-any.whl
+          test -f release-dist/diptrace_mcp-0.2.0.tar.gz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v0.2.0-python-artifacts
+          path: release-dist
+          if-no-files-found: error
+
+  release-server:
+    name: Build v0.2.0 standalone Windows server
+    if: ${{ github.event_name != 'workflow_dispatch' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build server
+        shell: pwsh
+        run: .\scripts\build_windows_server.ps1 -PythonCommand python -OutputDir dist\windows-server -Clean
+      - name: Verify server version
+        shell: pwsh
+        run: |
+          & .\dist\windows-server\diptrace_mcp_server\diptrace_mcp_server.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "server --version failed" }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v0.2.0-server-onedir
+          path: dist/windows-server/diptrace_mcp_server
+          if-no-files-found: error
+
+  release-bridge:
+    name: Build v0.2.0 Windows bridge
+    if: ${{ github.event_name != 'workflow_dispatch' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build bridge
+        shell: pwsh
+        run: .\plugin\build_bridge.ps1 -PythonCommand python -Clean
+      - name: Verify unsigned bridge
+        shell: pwsh
+        run: |
+          & .\plugin\dist\diptrace_mcp_bridge.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "bridge --help failed" }
+          .\plugin\verify_signature.ps1 -Path .\plugin\dist\diptrace_mcp_bridge.exe
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v0.2.0-bridge-exe
+          path: plugin/dist/diptrace_mcp_bridge.exe
+          if-no-files-found: error
+
+  release-windows-assets:
+    name: Build and smoke v0.2.0 installer and portable assets
+    if: ${{ github.event_name != 'workflow_dispatch' }}
+    needs: [release-server, release-bridge]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: v0.2.0-server-onedir
+          path: dist/windows-server/diptrace_mcp_server
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: v0.2.0-bridge-exe
+          path: plugin/dist
+      - name: Build configurator
+        shell: pwsh
+        run: .\scripts\build_windows_configurator.ps1 -PythonCommand python -OutputDir dist\windows-configurator -Clean
+      - name: Install pinned Inno Setup compiler
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:RUNNER_TEMP 'innosetup-6.4.2.exe'
+          Invoke-WebRequest -Uri $env:INNO_SETUP_URL -OutFile $package
+          $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $env:INNO_SETUP_SHA256) { throw "Inno Setup prerequisite hash mismatch" }
+          $process = Start-Process -FilePath $package -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Inno Setup prerequisite installation failed" }
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $iscc)) { throw "Pinned ISCC.exe was not installed" }
+          "ISCC_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build exact v0.2.0 assets
+        shell: pwsh
+        run: |
+          .\scripts\build_windows_installer.ps1 `
+            -Version 0.2.0 `
+            -PythonCommand python `
+            -BridgePath .\plugin\dist\diptrace_mcp_bridge.exe `
+            -IsccPath "$env:ISCC_PATH" `
+            -OutputDir dist\windows-artifacts `
+            -SkipBuild
+          if (-not (Test-Path .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-0.2.0.exe)) { throw "installer missing" }
+          if (-not (Test-Path .\dist\windows-artifacts\portable\DipTrace-MCP-Portable-0.2.0.zip)) { throw "portable archive missing" }
+      - name: Portable and installer smoke
+        shell: pwsh
+        run: |
+          $portable = '.\dist\windows-artifacts\portable\DipTrace-MCP-Portable-0.2.0.zip'
+          $portableRoot = Join-Path $env:RUNNER_TEMP 'release-portable'
+          Expand-Archive -LiteralPath $portable -DestinationPath $portableRoot -Force
+          python scripts/audit_windows_bundle.py --root $portableRoot --sha256 (Join-Path $portableRoot 'SHA256SUMS.txt') --json
+          & (Join-Path $portableRoot 'app\diptrace_mcp_server.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw "portable server --version failed" }
+
+          $setup = '.\dist\windows-artifacts\installer\DipTrace-MCP-Setup-0.2.0.exe'
+          $install = Join-Path $env:RUNNER_TEMP 'release-install'
+          $workspace = Join-Path $env:RUNNER_TEMP 'release-workspace'
+          $state = Join-Path $env:RUNNER_TEMP 'release-state'
+          New-Item -ItemType Directory -Force -Path $workspace | Out-Null
+          $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TYPE=server','/SERVERONLY','/CLIENT=none',"/DIR=`"$install`"","/WORKSPACE=`"$workspace`"","/STATEDIR=`"$state`"")
+          $process = Start-Process -FilePath $setup -ArgumentList $arguments -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "release installer smoke failed" }
+          & (Join-Path $install 'app\diptrace_mcp_server.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw "installed server --version failed" }
+          $uninstall = Start-Process -FilePath (Join-Path $install 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "release uninstall smoke failed" }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v0.2.0-windows-release-assets
+          path: |
+            dist/windows-artifacts/installer/DipTrace-MCP-Setup-0.2.0.exe
+            dist/windows-artifacts/portable/DipTrace-MCP-Portable-0.2.0.zip
+          if-no-files-found: error
+
+  release-publish:
+    name: Tag, publish, and verify v0.2.0 prerelease
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: [release-source, release-windows-assets]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: v0.2.0-python-artifacts
+          path: downloaded/python
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: v0.2.0-windows-release-assets
+          path: downloaded/windows
+      - name: Assemble immutable release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          for name in \
+            diptrace_mcp-0.2.0-py3-none-any.whl \
+            diptrace_mcp-0.2.0.tar.gz \
+            DipTrace-MCP-Setup-0.2.0.exe \
+            DipTrace-MCP-Portable-0.2.0.zip; do
+            mapfile -t matches < <(find downloaded -type f -name "$name")
+            test "${#matches[@]}" -eq 1
+            cp "${matches[0]}" "release-assets/$name"
+          done
+          cp docs/compliance/sbom.cdx.json release-assets/diptrace-mcp-0.2.0-sbom.cdx.json
+          cp docs/compliance/dependency-inventory.json release-assets/diptrace-mcp-0.2.0-dependency-inventory.json
+          cp docs/compliance/THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
+          cp docs/compliance/PROVENANCE_INVENTORY.csv release-assets/PROVENANCE_INVENTORY.csv
+          cp docs/compliance/WINDOWS_BUNDLE_INVENTORY.md release-assets/WINDOWS_BUNDLE_INVENTORY.md
+          cp docs/releases/v0.2.0.md release-assets/RELEASE_RECORD-v0.2.0.md
+          cp LICENSE release-assets/LICENSE
+          (
+            cd release-assets
+            find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -printf '%f\n' | LC_ALL=C sort | while read -r name; do
+              sha256sum "$name"
+            done > SHA256SUMS.txt
+          )
+          test "$(wc -l < release-assets/SHA256SUMS.txt)" -eq 11
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > release-notes.md <<'EOF'
+          # DipTrace MCP 0.2.0
+
+          Unsigned alpha/development prerelease of the DipTrace Model Context Protocol server and Windows live XML bridge.
+
+          ## Highlights
+
+          - Windows one-click installer, standalone server, portable bundle, and Codex/Claude configurator.
+          - Service-Facade decomposition with the public contract preserved at 159 MCP tools.
+          - Guarded transactions, SHA-bound previews and commits, backups, rollback, live apply/cancel, and explicit policy limits.
+          - Expanded review, routing, placement, synchronization, evidence, provenance, and release auditing.
+          - Exact release assets include wheel, source distribution, installer, portable bundle, checksums, SBOM, dependency inventory, notices, and provenance records.
+
+          ## Important limitations
+
+          - Windows executables are unsigned. SHA-256 checks establish byte identity, not publisher trust.
+          - This is not production-ready manufacturing sign-off software and is not endorsed by Novarm/DipTrace.
+          - Runtime `get_capabilities` is authoritative for each installation and document.
+          - Universal DipTrace 5.x compatibility is not claimed.
+          - Q1 Component Angle GUI/re-export evidence remains `NOT_RUN`.
+          - Some real Windows 11, current DipTrace 5, Codex, Claude Desktop, elevated-install, and custom-state acceptance items remain uncompleted and are disclosed in the bundled release record.
+          EOF
+      - name: Create annotated tag and GitHub prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fireostendere"
+          git config user.email "87851878+fireostendere@users.noreply.github.com"
+          git fetch --tags --force
+          if git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null; then
+            target="$(git rev-list -n 1 "$RELEASE_TAG")"
+            test "$target" = "$GITHUB_SHA"
+          else
+            git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "DipTrace MCP $RELEASE_TAG"
+            git push origin "refs/tags/$RELEASE_TAG"
+          fi
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to replace published bytes."
+          else
+            gh release create "$RELEASE_TAG" release-assets/* \
+              --verify-tag \
+              --prerelease \
+              --title "DipTrace MCP $RELEASE_TAG" \
+              --notes-file release-notes.md
+          fi
+      - name: Verify public downloads and wheel installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf public-release verify-venv
+          mkdir public-release
+          gh release download "$RELEASE_TAG" --dir public-release
+          (cd public-release && sha256sum -c SHA256SUMS.txt)
+          python -m venv verify-venv
+          verify-venv/bin/python -m pip install public-release/diptrace_mcp-0.2.0-py3-none-any.whl
+          verify-venv/bin/diptrace-mcp --help
+          gh release view "$RELEASE_TAG" --json tagName,isPrerelease,url,targetCommitish
