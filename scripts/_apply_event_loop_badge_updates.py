@@ -111,11 +111,11 @@ if len(entries) != len(set(entries)):
     raise RuntimeError("release allowlist contains duplicate paths")
 allowlist_path.write_text("\n".join(sorted(entries)) + "\n", encoding="utf-8")
 
-# The one-shot workflow must pass the release-surface audit while its three
-# temporary implementation files are still tracked. Immediately before the
-# final commit, the workflow removes those files. This local hook then removes
-# their matching allowlist entries, verifies the final tracked tree, and stages
-# the corrected allowlist. The hook lives only in the ephemeral Actions clone.
+# The one-shot workflow must pass the release-surface audit while its temporary
+# implementation files are tracked. The Actions token cannot update workflow
+# files, so the workflow itself remains tracked until connector cleanup. The
+# ephemeral pre-commit hook removes only the two temporary Python scripts from
+# the allowlist after they are deleted, then verifies and stages the result.
 hook_path = Path(".git/hooks/pre-commit")
 hook_path.write_text(
     """#!/usr/bin/env bash
@@ -125,7 +125,6 @@ from pathlib import Path
 
 path = Path("scripts/release_artifact_allowlist.txt")
 temporary = {
-    ".github/workflows/one-shot-event-loop-badges.yml",
     "scripts/_apply_event_loop_badge_updates.py",
     "scripts/_apply_event_loop_offload.py",
 }
