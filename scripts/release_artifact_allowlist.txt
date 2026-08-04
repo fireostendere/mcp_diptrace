@@ -332,6 +332,7 @@ tests/test_semantic_dispatch.py
 tests/test_server.py
 tests/test_server_bundle.py
 tests/test_service.py
+tests/test_service_facade_contract.py
 tests/test_session_concurrency.py
 tests/test_sessions.py
 tests/test_signal_integrity.py
