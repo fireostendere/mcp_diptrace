@@ -43,6 +43,21 @@ def _safe_relative(root: Path, path: Path) -> PurePosixPath:
     return PurePosixPath(relative.as_posix())
 
 
+def _assert_source_tree(server_dir: Path) -> Path:
+    if server_dir.is_symlink():
+        raise McpbBuildError("server directory must not be a symlink")
+    resolved = server_dir.resolve()
+    executable = resolved / "diptrace_mcp_server.exe"
+    if not resolved.is_dir() or not executable.is_file():
+        raise McpbBuildError(
+            "server directory must contain diptrace_mcp_server.exe: " f"{resolved}"
+        )
+    for path in resolved.rglob("*"):
+        if path.is_symlink():
+            raise McpbBuildError(f"server tree contains a symlink: {path}")
+    return resolved
+
+
 def _manifest(version: str) -> dict[str, object]:
     data = json.loads(TEMPLATE.read_text(encoding="utf-8"))
     if data.get("version") != "__VERSION__":
@@ -57,7 +72,10 @@ def _write_zip(stage: Path, output: Path) -> None:
         output.unlink()
     files = sorted(path for path in stage.rglob("*") if path.is_file())
     with zipfile.ZipFile(
-        output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
+        output,
+        "w",
+        compression=zipfile.ZIP_DEFLATED,
+        compresslevel=9,
     ) as archive:
         for path in files:
             relative = _safe_relative(stage, path)
@@ -69,14 +87,7 @@ def _write_zip(stage: Path, output: Path) -> None:
 
 
 def build_bundle(server_dir: Path, output_dir: Path, version: str) -> tuple[Path, str]:
-    server_dir = server_dir.resolve()
-    executable = server_dir / "diptrace_mcp_server.exe"
-    if not server_dir.is_dir() or not executable.is_file():
-        raise McpbBuildError(
-            "server directory must contain diptrace_mcp_server.exe: " f"{server_dir}"
-        )
-    if server_dir.is_symlink():
-        raise McpbBuildError("server directory must not be a symlink")
+    server_dir = _assert_source_tree(server_dir)
 
     with tempfile.TemporaryDirectory(prefix="diptrace-mcpb-") as raw_stage:
         stage = Path(raw_stage)
@@ -103,7 +114,11 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         default=REPO_ROOT / "dist" / "windows-server" / "diptrace_mcp_server",
     )
-    parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "dist" / "mcpb")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=REPO_ROOT / "dist" / "mcpb",
+    )
     parser.add_argument("--version", default=None)
     return parser
 
