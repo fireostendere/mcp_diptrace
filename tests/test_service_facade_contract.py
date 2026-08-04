@@ -15,6 +15,8 @@ from diptrace_mcp.error_boundary import (
 from diptrace_mcp.errors import ObjectNotFoundError
 from diptrace_mcp.server import create_server
 from diptrace_mcp.service import DipTraceService
+from scripts.check_service_facade_contract import main as check_facade_contract
+from scripts.validate_service_decomposition import main as validate_decomposition
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = Path(__file__).parents[1] / "reference" / "mcp-tools-list.snapshot.json"
@@ -41,6 +43,11 @@ def _state_entries(service: DipTraceService) -> set[str]:
         str(path.relative_to(service.settings.state_dir))
         for path in service.settings.state_dir.rglob("*")
     }
+
+
+def test_complete_facade_manifest_and_delegation_inventory() -> None:
+    assert check_facade_contract(["--check"]) == 0
+    assert validate_decomposition(["--check"]) == 0
 
 
 def test_facade_exposes_extracted_methods_with_stable_signatures() -> None:
