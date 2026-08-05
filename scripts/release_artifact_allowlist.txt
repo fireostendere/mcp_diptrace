@@ -103,6 +103,11 @@ packaging/mcpb/README_FIRST.md
 packaging/mcpb/manifest.template.json
 packaging/registry/server.template.json
 packaging/remove_owned_state.ps1
+packaging/smithery/.mcpbignore
+packaging/smithery/manifest.json
+packaging/smithery/pyproject.toml
+packaging/smithery/src/server.py
+packaging/smithery/uv.lock
 packaging/windows-constraints.txt
 packaging/write_installation_manifest.ps1
 plugin/bridge_entry.py
