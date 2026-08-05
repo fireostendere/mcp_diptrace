@@ -1,0 +1,8 @@
+[project]
+name = "diptrace-mcp-smithery"
+version = "0.2.1"
+description = "Slim UV launcher for DipTrace MCP"
+requires-python = ">=3.10"
+dependencies = [
+    "diptrace-mcp==0.2.1",
+]
