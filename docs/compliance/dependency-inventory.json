@@ -275,7 +275,7 @@
   "project": {
     "license": "Apache-2.0",
     "name": "diptrace-mcp",
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "resolution": {
     "kind": "declarative-direct-dependency-inventory",

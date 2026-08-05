@@ -128,3 +128,39 @@ def test_windows_installer_workflow_covers_build_smoke_and_audit_jobs() -> None:
     assert "/REMOVE_STATE" in smoke_commands
     assert "audit_windows_bundle.py" in audit_commands
     assert "Get-AuthenticodeSignature" in audit_commands
+
+
+def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
+    workflow_path = ROOT / ".github/workflows/pypi.yml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+    jobs = workflow["jobs"]
+
+    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["env"] == {"RELEASE_VERSION": "0.2.1", "RELEASE_TAG": "v0.2.1"}
+
+    build = jobs["build"]
+    build_commands = _job_commands(build)
+    assert "python -m hatchling build -d dist" in build_commands
+    assert "audit_release_artifacts.py --dist-dir dist --check-allowlist" in build_commands
+    assert "python -m twine check --strict dist/*" in build_commands
+    assert "refs/tags/${RELEASE_TAG}" in build_commands
+    assert "git cat-file -t" in build_commands
+    assert "diptrace_mcp.__version__" in build_commands
+
+    publish = jobs["publish"]
+    assert publish["if"] == (
+        "${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}"
+    )
+    assert publish["needs"] == "build"
+    assert publish["environment"] == {
+        "name": "pypi",
+        "url": "https://pypi.org/p/diptrace-mcp",
+    }
+    assert publish["permissions"] == {"contents": "read", "id-token": "write"}
+    assert len(publish["steps"]) == 2
+    assert publish["steps"][1]["uses"] == (
+        "pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b"
+    )
+    assert "password:" not in workflow_text
+    assert "username:" not in workflow_text
