@@ -1,0 +1,62 @@
+{
+  "manifest_version": "0.4",
+  "name": "diptrace-mcp",
+  "display_name": "DipTrace MCP",
+  "version": "0.2.1",
+  "description": "Local MCP server for analysing, reviewing and performing guarded edits on DipTrace projects.",
+  "author": {
+    "name": "DipTrace MCP contributors",
+    "url": "https://github.com/fireostendere/mcp_diptrace"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fireostendere/mcp_diptrace.git"
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "src/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "src/server.py"
+      ],
+      "env": {
+        "DIPTRACE_MCP_WORKSPACE": "${user_config.workspace}",
+        "DIPTRACE_MCP_ALLOWED_ROOTS": "${user_config.workspace}",
+        "DIPTRACE_MCP_STATE_DIR": "${user_config.state_directory}"
+      }
+    }
+  },
+  "tools_generated": true,
+  "keywords": [
+    "diptrace",
+    "pcb",
+    "schematic",
+    "eda",
+    "mcp"
+  ],
+  "license": "Apache-2.0",
+  "compatibility": {
+    "platforms": ["win32"],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  },
+  "user_config": {
+    "workspace": {
+      "type": "directory",
+      "title": "DipTrace workspace",
+      "description": "Directory containing DipTrace projects.",
+      "required": true
+    },
+    "state_directory": {
+      "type": "directory",
+      "title": "DipTrace MCP state directory",
+      "description": "Directory for sessions, backups and local state.",
+      "required": true
+    }
+  }
+}
