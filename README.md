@@ -49,8 +49,7 @@ is not yet published.
   points, packaged skills, bounds, metadata, and every `RECORD` hash and size.
 - PyPI publication uses GitHub OpenID Connect and a protected `pypi`
   environment; no long-lived PyPI API token is stored.
-- The PyPI publish job receives only the already validated wheel and source
-  distribution from the separate build job.
+- The PyPI publish job receives only the already validated wheel and source distribution from the separate build job.
 - Windows installer, bridge, standalone executable, configurator, portable
   bundle, and MCPB remain unsigned development assets.
 - CI, checksums, Trusted Publishing, and attestations do not create a
