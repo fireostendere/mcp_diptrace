@@ -93,6 +93,10 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Normalize generated Python imports
         run: python -m ruff check --fix --no-cache src/diptrace_mcp scripts tests/test_skill_packages.py
+      - name: Regenerate consolidated skill source hashes
+        run: |
+          python scripts/generate_pcb_skills.py
+          python scripts/generate_pcb_skills.py --check
       - name: Validate architecture and generated copies
         run: |
           python scripts/check_architecture.py
