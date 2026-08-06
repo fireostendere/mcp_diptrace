@@ -1,21 +1,22 @@
 name: Architecture refactor bootstrap
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/architecture-debt-cleanup
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
-          ref: agent/architecture-debt-cleanup
+          ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
@@ -37,6 +38,13 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Normalize generated Python imports
         run: python -m ruff check --fix --no-cache src/diptrace_mcp scripts
+      - name: Refresh the public artifact allowlist
+        shell: bash
+        run: |
+          git add -A
+          python scripts/audit_release_artifacts.py --write-allowlist
+          git add scripts/release_artifact_allowlist.txt
+          python scripts/audit_release_artifacts.py --check-allowlist
       - name: Validate architecture and generated copies
         run: |
           python scripts/check_architecture.py
@@ -69,4 +77,4 @@ jobs:
             exit 0
           fi
           git commit -s -m "Refactor architecture debt boundaries"
-          git push origin HEAD:agent/architecture-debt-cleanup
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
