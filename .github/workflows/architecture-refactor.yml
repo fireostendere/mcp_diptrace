@@ -38,17 +38,17 @@ jobs:
           PY
           python scripts/apply_architecture_cleanup.py
           rm -f scripts/apply_architecture_cleanup.payload.*
-      - name: Install development dependencies
-        run: python -m pip install -e ".[dev]"
-      - name: Normalize generated Python imports
-        run: python -m ruff check --fix --no-cache src/diptrace_mcp scripts
-      - name: Refresh the public artifact allowlist
+      - name: Refresh the public artifact allowlist before editable install
         shell: bash
         run: |
           git add -A
           python scripts/audit_release_artifacts.py --write-allowlist
           git add scripts/release_artifact_allowlist.txt
           python scripts/audit_release_artifacts.py --check-allowlist
+      - name: Install development dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Normalize generated Python imports
+        run: python -m ruff check --fix --no-cache src/diptrace_mcp scripts
       - name: Validate architecture and generated copies
         run: |
           python scripts/check_architecture.py
