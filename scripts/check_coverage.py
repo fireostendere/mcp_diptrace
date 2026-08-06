@@ -15,6 +15,12 @@ FILE_FLOORS = {
     "src/diptrace_mcp/xml_document.py": 87.0,
     "src/diptrace_mcp/semantic_compiler.py": 88.0,
     "src/diptrace_mcp/routing_compiler.py": 85.0,
+    "src/diptrace_mcp/server_runtime.py": 65.0,
+    "src/diptrace_mcp/adapters.py": 70.0,
+    "src/diptrace_mcp/sessions.py": 75.0,
+    "src/diptrace_mcp/services/evidence.py": 75.0,
+    "src/diptrace_mcp/services/transactions.py": 75.0,
+    "src/diptrace_mcp/services/semantic_operations.py": 75.0,
 }
 
 
