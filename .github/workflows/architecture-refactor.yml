@@ -29,11 +29,15 @@ jobs:
           import zlib
           from pathlib import Path
 
-          payload = Path("scripts/apply_architecture_cleanup.payload").read_text(encoding="utf-8")
+          parts = sorted(Path("scripts").glob("apply_architecture_cleanup.payload.*"))
+          if len(parts) != 5:
+              raise SystemExit(f"expected 5 payload parts, found {len(parts)}")
+          payload = "".join(part.read_text(encoding="utf-8") for part in parts)
           source = zlib.decompress(base64.b64decode(payload)).decode("utf-8")
           Path("scripts/apply_architecture_cleanup.py").write_text(source, encoding="utf-8")
           PY
           python scripts/apply_architecture_cleanup.py
+          rm -f scripts/apply_architecture_cleanup.payload.*
       - name: Install development dependencies
         run: python -m pip install -e ".[dev]"
       - name: Normalize generated Python imports
