@@ -38,7 +38,7 @@ jobs:
           PY
           python scripts/apply_architecture_cleanup.py
           rm -f scripts/apply_architecture_cleanup.payload.*
-      - name: Preserve decorated adapter models and split-aware static tool discovery
+      - name: Preserve compatibility boundaries after module splitting
         shell: bash
         run: |
           python - <<'PY'
@@ -65,6 +65,30 @@ jobs:
                   path.write_text(text, encoding="utf-8")
           if not found_snapshot:
               raise SystemExit("DocumentSnapshot was not found after adapter split")
+
+          adapters = Path("src/diptrace_mcp/adapters.py")
+          text = adapters.read_text(encoding="utf-8")
+          for name in ("document_id_for", "stable_id"):
+              text = text.replace(f"    {name},\n", "")
+          explicit_exports = (
+              "from .adapter_common import document_id_for as document_id_for\n"
+              "from .adapter_common import stable_id as stable_id\n"
+          )
+          future = "from __future__ import annotations\n"
+          if explicit_exports not in text:
+              if future not in text:
+                  raise SystemExit("adapters.py lost its future import")
+              text = text.replace(future, future + "\n" + explicit_exports, 1)
+          adapters.write_text(text, encoding="utf-8")
+
+          server = Path("src/diptrace_mcp/server.py")
+          text = server.read_text(encoding="utf-8")
+          text = text.replace(
+              "from .server_runtime import create_server, main",
+              "from .server_runtime import create_server as create_server, main as main",
+              1,
+          )
+          server.write_text(text, encoding="utf-8")
 
           targets = [
               Path("scripts/generate_pcb_skills.py"),
