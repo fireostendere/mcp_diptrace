@@ -10,7 +10,6 @@ not accepted by its schema.
 from __future__ import annotations
 
 import hashlib
-import json
 import math
 import os
 from pathlib import Path
@@ -49,12 +48,18 @@ class PatternRequirement(_StrictModel):
 
     @model_validator(mode="after")
     def _dimension_bounds(self) -> PatternRequirement:
-        if self.width_mm is not None and self.max_width_mm is not None:
-            if self.width_mm > self.max_width_mm:
-                raise ValueError("width_mm cannot exceed max_width_mm")
-        if self.height_mm is not None and self.max_height_mm is not None:
-            if self.height_mm > self.max_height_mm:
-                raise ValueError("height_mm cannot exceed max_height_mm")
+        if (
+            self.width_mm is not None
+            and self.max_width_mm is not None
+            and self.width_mm > self.max_width_mm
+        ):
+            raise ValueError("width_mm cannot exceed max_width_mm")
+        if (
+            self.height_mm is not None
+            and self.max_height_mm is not None
+            and self.height_mm > self.max_height_mm
+        ):
+            raise ValueError("height_mm cannot exceed max_height_mm")
         return self
 
 
@@ -209,7 +214,10 @@ def _relative_error(actual: float | None, expected: float | None) -> float | Non
     return abs(actual - expected) / max(abs(expected), 1e-9)
 
 
-def _score(requirement: PatternRequirement, features: PatternFeatures) -> tuple[float, dict[str, float]]:
+def _score(
+    requirement: PatternRequirement,
+    features: PatternFeatures,
+) -> tuple[float, dict[str, float]]:
     weighted: list[tuple[str, float, float]] = []
     for name, actual, expected, weight in (
         ("width", features.width_mm, requirement.width_mm, 1.0),
