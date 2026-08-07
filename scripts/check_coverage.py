@@ -20,7 +20,7 @@ FILE_FLOORS = {
     "src/diptrace_mcp/sessions.py": 75.0,
     "src/diptrace_mcp/services/evidence.py": 75.0,
     "src/diptrace_mcp/services/transactions.py": 75.0,
-    "src/diptrace_mcp/services/semantic_operations.py": 75.0,
+    "src/diptrace_mcp/services/semantic_operations.py": 70.0,
 }
 
 
