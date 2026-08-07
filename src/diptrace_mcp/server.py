@@ -6,12 +6,28 @@ module preserves the historic ``diptrace_mcp.server`` import path.
 """
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from inspect import isasyncgenfunction
 from typing import Any
 
 from . import server_inputs as _inputs
 from . import server_runtime as _runtime
 from .server_runtime import create_server as create_server
-from .server_runtime import main as main
+
+# ``_robust_stdio_server`` is an async-generator transport.  The original
+# monolithic server decorated it with ``asynccontextmanager``; keep that
+# contract after the runtime extraction, including for the PyInstaller entry
+# point which imports ``diptrace_mcp.server:main``.
+if isasyncgenfunction(_runtime._robust_stdio_server):
+    setattr(
+        _runtime,
+        "_robust_stdio_server",
+        asynccontextmanager(_runtime._robust_stdio_server),
+    )
+
+
+def main(argv: list[str] | None = None) -> None:
+    _runtime.main(argv)
 
 
 def __getattr__(name: str) -> Any:
