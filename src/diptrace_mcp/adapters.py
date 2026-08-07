@@ -1,13 +1,36 @@
 from __future__ import annotations
 
-import hashlib
 import math
-import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from fnmatch import fnmatchcase
 from typing import Any, Literal
 
+from .adapter_common import (
+    _MARKING_TAGS,
+    _additional_fields,
+    _bbox_dict,
+    _bbox_from_center,
+    _bool_attr,
+    _element_short,
+    _first_float_attr_mm,
+    _float_attr,
+    _float_attr_mm,
+    _float_text,
+    _marking_stable_id,
+    _pad_stable_id,
+    _pin_stable_id,
+    _point_dict,
+    _text,
+    _xml_identity,
+)
+from .adapter_common import document_id_for as document_id_for
+from .adapter_common import stable_id as stable_id
+from .adapter_queries import (
+    _matches_selector,
+)
+from .adapter_records import (
+    _board_copper_pour_records,
+)
 from .domain import (
     BoardModel,
     DifferentialPairLayerRules,
@@ -28,184 +51,12 @@ from .domain import (
     ViaStyleModel,
 )
 from .errors import DocumentError
-from .geometry import BBox, Point, Transform, distance, to_mm, trace_path_length
+from .geometry import BBox, Point, Transform, distance, trace_path_length
 from .geometry_backend import shape_bbox, transform_shape
 from .numeric_inputs import (
-    require_finite_number,
-    translate_validation_errors,
     xml_number_mm,
 )
 from .xml_document import DipTraceDocument, XmlEdit
-
-_XML_ID = re.compile(r"[^A-Za-z0-9._-]+")
-_MARKING_TAGS = (
-    ("RefDesMarking", "RefDes"),
-    ("NameMarking", "Name"),
-    ("ValueMarking", "Value"),
-    ("PatternMarking", "PatternStyle"),
-    ("ManufacturerMarking", "Manufacturer"),
-    ("DatasheetMarking", "Datasheet"),
-)
-
-
-def _slug(value: str) -> str:
-    return _XML_ID.sub("-", value.strip()).strip("-") or "object"
-
-
-def stable_id(kind: str, *parts: str) -> str:
-    payload = "::".join(part for part in parts if part)
-    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
-    return f"{_slug(kind)}_{digest}"
-
-
-def document_id_for(document: DipTraceDocument) -> str:
-    return stable_id("doc", document.source_type, str(document.path.resolve()))
-
-
-def _xml_identity(xml_id: str, *fallback: str) -> tuple[str, ...]:
-    if xml_id:
-        return (f"xml:{xml_id}",)
-    return tuple(f"fallback:{value}" for value in fallback if value)
-
-
-def _marking_stable_id(
-    document: DipTraceDocument,
-    parent_id: str,
-    marking_tag: str,
-    surface: str,
-) -> str:
-    return stable_id(
-        "component-text",
-        document.source_type,
-        parent_id,
-        marking_tag,
-        surface,
-    )
-
-
-def _pad_stable_id(document: DipTraceDocument, parent_id: str, pad_id: str) -> str:
-    return stable_id(
-        "pad",
-        document.source_type,
-        parent_id,
-        *_xml_identity(pad_id, pad_id),
-    )
-
-
-def _pin_stable_id(document: DipTraceDocument, parent_id: str, pin_index: str) -> str:
-    return stable_id("pin", document.source_type, parent_id, pin_index)
-
-
-def _bool_attr(element: ET.Element, name: str, default: str = "N") -> bool:
-    return element.get(name, default).upper() == "Y"
-
-
-def _float_attr(
-    document: DipTraceDocument,
-    element: ET.Element,
-    name: str,
-) -> float | None:
-    value = element.get(name)
-    if value is None or value == "":
-        return None
-    try:
-        parsed = float(value)
-    except ValueError:
-        return None
-    return require_finite_number(
-        parsed,
-        context=f"attribute {name}={value!r} on <{element.tag}>",
-        offset=document.element_byte_offset(element),
-        details={"element": str(element.tag), "attribute": name},
-    )
-
-
-def _float_text(
-    document: DipTraceDocument,
-    element: ET.Element,
-    field_name: str,
-    value: str | None,
-    default: float,
-) -> float:
-    try:
-        parsed = float(value) if value is not None else default
-    except ValueError:
-        return default
-    return require_finite_number(
-        parsed,
-        context=f"numeric field {field_name} on <{element.tag}>",
-        offset=document.element_byte_offset(element),
-        details={"element": str(element.tag), "field": field_name},
-    )
-
-
-def _float_attr_mm(document: DipTraceDocument, element: ET.Element, name: str) -> float | None:
-    value = _float_attr(document, element, name)
-    if value is None:
-        return None
-    return require_finite_number(
-        to_mm(value, document.units),
-        context=f"converted attribute {name} on <{element.tag}>",
-        offset=document.element_byte_offset(element),
-        details={"element": str(element.tag), "attribute": name},
-    )
-
-
-def _first_float_attr_mm(
-    document: DipTraceDocument,
-    element: ET.Element,
-    names: tuple[str, ...],
-) -> float | None:
-    for name in names:
-        if element.get(name) is not None:
-            return _float_attr_mm(document, element, name)
-    return None
-
-
-def _text(element: ET.Element, child: str, default: str = "") -> str:
-    value = element.findtext(child)
-    return value.strip() if value is not None else default
-
-
-def _additional_fields(element: ET.Element) -> dict[str, str]:
-    fields: dict[str, str] = {}
-    for field in element.findall("./AddFields/AddField"):
-        name = _text(field, "Name")
-        if name:
-            fields[name] = _text(field, "Text")
-    return fields
-
-
-def _point_dict(point: Point | None) -> dict[str, float] | None:
-    if point is None:
-        return None
-    return {"x": point.x, "y": point.y}
-
-
-def _bbox_dict(box: BBox | None) -> dict[str, float] | None:
-    if box is None:
-        return None
-    return {
-        "min_x": box.min_x,
-        "min_y": box.min_y,
-        "max_x": box.max_x,
-        "max_y": box.max_y,
-    }
-
-
-def _bbox_from_center(x: float | None, y: float | None, width: float, height: float) -> BBox | None:
-    if x is None or y is None:
-        return None
-    half_width = width / 2.0
-    half_height = height / 2.0
-    return BBox(x - half_width, y - half_height, x + half_width, y + half_height)
-
-
-def _element_short(element: ET.Element, limit: int = 400) -> str:
-    rendered = ET.tostring(element, encoding="unicode")
-    if len(rendered) <= limit:
-        return rendered
-    return f"{rendered[:limit]}..."
 
 
 def _component_records(
@@ -700,8 +551,6 @@ def _component_records(
         return records, by_xml_id, by_refdes
 
     return records, by_xml_id, by_refdes
-
-
 def _net_records(
     document: DipTraceDocument,
     owner_map: dict[str, str],
@@ -882,8 +731,6 @@ def _net_records(
             )
         )
     return records
-
-
 def _static_via_records(
     document: DipTraceDocument,
     normalized_via_styles: list[ViaStyleModel],
@@ -976,8 +823,6 @@ def _static_via_records(
         if net is not None:
             net.relationships.setdefault("vias", []).append(via_stable)
     return records
-
-
 def _enrich_endpoint_connectivity(records: list[ObjectRecord]) -> None:
     records_by_id = {record.stable_id: record for record in records}
     for net in records:
@@ -990,8 +835,6 @@ def _enrich_endpoint_connectivity(records: list[ObjectRecord]) -> None:
             endpoint.net_id = net.xml_id
             endpoint.net_name = net.name
             endpoint.relationships.setdefault("net", []).append(net.stable_id)
-
-
 def _trace_layer(trace: ET.Element) -> str | None:
     points = trace.findall("./Points/Point")
     for point in points[1:] or points:
@@ -999,8 +842,6 @@ def _trace_layer(trace: ET.Element) -> str | None:
         if layer is not None:
             return layer
     return trace.get("Layer")
-
-
 def _trace_point_is_physical_via(points: list[ET.Element], index: int) -> bool:
     """Return true only for a styled trace point that changes the active layer.
 
@@ -1022,12 +863,8 @@ def _trace_point_is_physical_via(points: list[ET.Element], index: int) -> bool:
         and outgoing_layer is not None
         and incoming_layer != outgoing_layer
     )
-
-
 def point_bbox(point: Point, radius: float) -> BBox:
     return BBox(point.x - radius, point.y - radius, point.x + radius, point.y + radius)
-
-
 def _board_outline(document: DipTraceDocument) -> dict[str, Any] | None:
     if document.kind != "pcb":
         return None
@@ -1046,8 +883,6 @@ def _board_outline(document: DipTraceDocument) -> dict[str, Any] | None:
         "bbox": box.as_dict(),
         "point_count": len(points),
     }
-
-
 def _board_layers(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "pcb":
         return []
@@ -1059,8 +894,6 @@ def _board_layers(document: DipTraceDocument) -> list[dict[str, Any]]:
         }
         for layer in document.container.findall("./CopperLayers/Lay")
     ]
-
-
 def _board_net_classes(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "pcb":
         return []
@@ -1068,8 +901,6 @@ def _board_net_classes(document: DipTraceDocument) -> list[dict[str, Any]]:
         {"id": item.get("Id", ""), "name": _text(item, "Name"), "attributes": dict(item.attrib)}
         for item in document.container.findall("./NetClasses/NetClass")
     ]
-
-
 def _board_via_styles(document: DipTraceDocument) -> list[ViaStyleModel]:
     if document.kind != "pcb":
         return []
@@ -1102,8 +933,6 @@ def _board_via_styles(document: DipTraceDocument) -> list[ViaStyleModel]:
             )
         )
     return styles
-
-
 def _board_ratlines(document: DipTraceDocument, owner_map: dict[str, str]) -> list[dict[str, Any]]:
     if document.kind != "pcb":
         return []
@@ -1131,8 +960,6 @@ def _board_ratlines(document: DipTraceDocument, owner_map: dict[str, str]) -> li
             )
         records.append({"attributes": attributes, "endpoints": endpoints})
     return records
-
-
 def _net_class_pair_rules(
     document: DipTraceDocument, net_class: ET.Element | None
 ) -> DifferentialPairRules:
@@ -1164,8 +991,6 @@ def _net_class_pair_rules(
         length_delta_mm=_float_attr_mm(document, net_class, "LengthDelta"),
         layer_rules=layer_rules,
     )
-
-
 def _differential_center_point(document: DipTraceDocument, item: ET.Element) -> dict[str, Any]:
     point: dict[str, Any] = {
         "position": {
@@ -1196,8 +1021,6 @@ def _differential_center_point(document: DipTraceDocument, item: ET.Element) -> 
             for child in item.findall(path)
         ]
     return point
-
-
 def _board_differential_pairs(
     document: DipTraceDocument, owner_map: dict[str, str]
 ) -> list[DifferentialPairModel]:
@@ -1294,8 +1117,6 @@ def _board_differential_pairs(
             )
         )
     return result
-
-
 def _board_stackup(document: DipTraceDocument) -> StackupModel:
     if document.kind != "pcb":
         return StackupModel()
@@ -1385,82 +1206,6 @@ def _board_stackup(document: DipTraceDocument) -> StackupModel:
         missing_fields=sorted(set(missing)),
         warnings=warnings,
     )
-
-
-def _board_copper_pour_records(document: DipTraceDocument) -> list[ObjectRecord]:
-    if document.kind != "pcb":
-        return []
-    net_lookup: dict[str, tuple[str, str]] = {}
-    for net in document.container.findall("./Nets/Net"):
-        xml_id = net.get("Id", "")
-        name = _text(net, "Name")
-        net_lookup[xml_id] = (
-            stable_id("net", document.source_type, *_xml_identity(xml_id, name)),
-            name,
-        )
-    records: list[ObjectRecord] = []
-    for index, pour in enumerate(document.container.findall("./CopperPours/CopperPour")):
-        xml_id = pour.get("Id", "")
-        net_xml_id = pour.get("NetId", "")
-        connected_net = net_lookup.get(net_xml_id)
-        points = [
-            Point(
-                _float_attr_mm(document, point, "X") or 0.0,
-                _float_attr_mm(document, point, "Y") or 0.0,
-            )
-            for point in pour.findall("./Points/Point")
-        ]
-        records.append(
-            ObjectRecord(
-                stable_id=stable_id(
-                    "copper-pour",
-                    document.source_type,
-                    *_xml_identity(xml_id, str(index)),
-                ),
-                kind="copper_pour",
-                label=(
-                    f"{connected_net[1] if connected_net else 'unassigned'}:pour-{xml_id or index}"
-                ),
-                xml_id=xml_id or None,
-                net_id=net_xml_id if connected_net is not None else None,
-                net_name=connected_net[1] if connected_net is not None else None,
-                layer=pour.get("Lay"),
-                locked=_bool_attr(pour, "Locked"),
-                selected=_bool_attr(pour, "Selected"),
-                bbox=BBox.from_points(points).as_dict() if points else None,
-                geometry=(
-                    GeometryShape(
-                        kind="polygon",
-                        points=[point.as_dict() for point in points],
-                        approximation=(
-                            "Exported CopperPour boundary; not authoritative refilled copper"
-                        ),
-                    )
-                    if len(points) >= 3
-                    else None
-                ),
-                geometry_source="xml-copper-pour-boundary",
-                confidence=0.8 if points else 0.3,
-                attributes={
-                    **dict(pour.attrib),
-                    "points": [point.as_dict() for point in points],
-                    "poured": _bool_attr(pour, "Poured"),
-                    "regions_done": _bool_attr(pour, "RegionsDone"),
-                    "clearance_mm": _float_attr_mm(document, pour, "Clearance"),
-                    "use_net_clearance": _bool_attr(pour, "UseNetClearance"),
-                    "board_clearance_mm": _float_attr_mm(document, pour, "BoardClearance"),
-                    "minimum_area_mm2": (
-                        to_mm(1.0, document.units) ** 2
-                        * (_float_attr(document, pour, "MinimumArea") or 0.0)
-                    ),
-                },
-                relationships={"net": [connected_net[0]] if connected_net is not None else []},
-                warnings=["Boundary geometry is not the final refilled copper region."],
-            )
-        )
-    return records
-
-
 def _board_shape_records(document: DipTraceDocument) -> list[ObjectRecord]:
     if document.kind != "pcb":
         return []
@@ -1536,16 +1281,12 @@ def _board_shape_records(document: DipTraceDocument) -> list[ObjectRecord]:
                 )
             )
     return records
-
-
 def _side_from_layer(layer: str) -> str | None:
     if layer.startswith("Top"):
         return "Top"
     if layer.startswith("Bottom"):
         return "Bottom"
     return None
-
-
 def _schematic_sheets(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "schematic":
         return []
@@ -1557,8 +1298,6 @@ def _schematic_sheets(document: DipTraceDocument) -> list[dict[str, Any]]:
         }
         for sheet in document.container.findall("./SheetSettings/Sheets/Sheet")
     ]
-
-
 def _schematic_erc(document: DipTraceDocument) -> dict[str, Any]:
     if document.kind != "schematic":
         return {}
@@ -1570,8 +1309,6 @@ def _schematic_erc(document: DipTraceDocument) -> dict[str, Any]:
         "vcctemplate": _text(erc, "VCCTemplate"),
         "gndtemplate": _text(erc, "GNDTemplate"),
     }
-
-
 def _schematic_buses(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "schematic":
         return []
@@ -1584,8 +1321,6 @@ def _schematic_buses(document: DipTraceDocument) -> list[dict[str, Any]]:
         }
         for item in document.container.findall("./Buses/Bus")
     ]
-
-
 def _schematic_differential_pairs(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "schematic":
         return []
@@ -1593,8 +1328,6 @@ def _schematic_differential_pairs(document: DipTraceDocument) -> list[dict[str, 
         {"attributes": dict(item.attrib), "name": _text(item, "Name")}
         for item in document.container.findall("./DifferentialPairs/DifferentialPair")
     ]
-
-
 @dataclass(slots=True)
 class DocumentSnapshot:
     document: DipTraceDocument
@@ -1639,103 +1372,6 @@ class DocumentSnapshot:
             for item in self.objects.values()
             if item.kind in kinds and _matches_selector(item, selector)
         ]
-
-
-def _matches_selector(item: ObjectRecord, selector: QuerySelector) -> bool:
-    if selector.ids and item.stable_id not in selector.ids:
-        return False
-    if selector.kinds and item.kind not in selector.kinds:
-        return False
-    if selector.refdes:
-        refdes = item.refdes or ""
-        if not any(refdes.casefold() == candidate.casefold() for candidate in selector.refdes):
-            return False
-    if selector.refdes_glob and not fnmatchcase(
-        (item.refdes or "").casefold(), selector.refdes_glob.casefold()
-    ):
-        return False
-    if selector.refdes_regex and not re.search(selector.refdes_regex, item.refdes or ""):
-        return False
-    if selector.names:
-        name = item.name or ""
-        if not any(name.casefold() == candidate.casefold() for candidate in selector.names):
-            return False
-    if selector.name_regex and not re.search(selector.name_regex, item.name or ""):
-        return False
-    if selector.values:
-        value = item.value or ""
-        if not any(value.casefold() == candidate.casefold() for candidate in selector.values):
-            return False
-    if selector.fields:
-        item_fields = item.attributes.get("additional_fields", {})
-        if not isinstance(item_fields, dict):
-            return False
-        if any(
-            str(item_fields.get(key, "")) != expected for key, expected in selector.fields.items()
-        ):
-            return False
-    if selector.nets:
-        names = {item.net_name or "", item.net_id or ""}
-        if not any(candidate in names for candidate in selector.nets) and not any(
-            candidate.casefold() == net.casefold()
-            for candidate in selector.nets
-            for net in names
-            if net
-        ):
-            return False
-    if selector.layers and (item.layer or "") not in selector.layers:
-        return False
-    if selector.sides and (item.side or "") not in selector.sides:
-        return False
-    if selector.selected is not None and item.selected != selector.selected:
-        return False
-    if selector.locked is not None and item.locked != selector.locked:
-        return False
-    if selector.text:
-        needle = selector.text.casefold()
-        haystack = " ".join(
-            [
-                item.label or "",
-                item.name or "",
-                item.value or "",
-                item.refdes or "",
-                item.net_name or "",
-                " ".join(f"{key}={value}" for key, value in item.attributes.items()),
-            ]
-        ).casefold()
-        if needle not in haystack:
-            return False
-    if selector.bbox:
-        if item.bbox is None:
-            return False
-        bbox = BBox(
-            selector.bbox["min_x"],
-            selector.bbox["min_y"],
-            selector.bbox["max_x"],
-            selector.bbox["max_y"],
-        )
-        item_bbox = BBox(
-            item.bbox["min_x"],
-            item.bbox["min_y"],
-            item.bbox["max_x"],
-            item.bbox["max_y"],
-        )
-        if not bbox.intersects(item_bbox):
-            return False
-    if selector.near is not None:
-        if item.position is None:
-            return False
-        target = Point(selector.near["x"], selector.near["y"])
-        item_point = Point(item.position["x"], item.position["y"])
-        if (
-            selector.max_distance is not None
-            and distance(item_point, target) > selector.max_distance
-        ):
-            return False
-    return True
-
-
-@translate_validation_errors
 def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) -> DocumentSnapshot:
     document_id = document_id_for(document)
     warnings: list[str] = []
@@ -1991,8 +1627,6 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
         schematic=schematic,
         warnings=warnings,
     )
-
-
 def _compatibility_for(document: DipTraceDocument) -> dict[str, Any]:
     format_context = {
         "format_version": document.version or None,
@@ -2118,8 +1752,6 @@ def _compatibility_for(document: DipTraceDocument) -> dict[str, Any]:
         "limitations": ["non-XML native formats are not parsed"],
         "roundtrip": "limited",
     }
-
-
 def _element_data(element: ET.Element | None, depth: int = 3) -> Any:
     if element is None:
         return None
@@ -2132,8 +1764,6 @@ def _element_data(element: ET.Element | None, depth: int = 3) -> Any:
         if len(children) > 200:
             result["children_truncated"] = len(children) - 200
     return result
-
-
 def _routing_defaults_data(document: DipTraceDocument) -> Any:
     routing = document.container.find("./Settings/Routing")
     if routing is None:
@@ -2145,19 +1775,13 @@ def _routing_defaults_data(document: DipTraceDocument) -> Any:
         if routing.get(attribute) not in {None, ""}:
             xml_number_mm(document, routing, attribute)
     return _element_data(routing)
-
-
 def get_document_info(document: DipTraceDocument, *, live_session: bool = False) -> DocumentInfo:
     return build_snapshot(document, live_session=live_session).info
-
-
 def get_board_model(document: DipTraceDocument, *, live_session: bool = False) -> BoardModel:
     snapshot = build_snapshot(document, live_session=live_session)
     if snapshot.board is None:
         raise DocumentError("PCB model is only available for PCB documents")
     return snapshot.board
-
-
 def get_schematic_model(
     document: DipTraceDocument, *, live_session: bool = False
 ) -> SchematicModel:
@@ -2165,8 +1789,6 @@ def get_schematic_model(
     if snapshot.schematic is None:
         raise DocumentError("Schematic model is only available for schematic documents")
     return snapshot.schematic
-
-
 def query_objects(
     document: DipTraceDocument,
     request: QueryRequest,
@@ -2174,8 +1796,6 @@ def query_objects(
     live_session: bool = False,
 ) -> QueryResult:
     return build_snapshot(document, live_session=live_session).query(request)
-
-
 def get_object(
     document: DipTraceDocument,
     stable_id_value: str,
@@ -2189,8 +1809,6 @@ def get_object(
     payload["source_xml"] = _element_short(element) if element is not None else None
     payload["document"] = snapshot.info.model_dump()
     return payload
-
-
 def summarize(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
     snapshot = build_snapshot(document, live_session=live_session)
     result = snapshot.info.model_dump()
@@ -2258,8 +1876,6 @@ def summarize(document: DipTraceDocument, *, live_session: bool = False) -> dict
             child.tag for child in document.root if isinstance(child.tag, str)
         ]
     return result
-
-
 def components(
     document: DipTraceDocument,
     query: str | None = None,
@@ -2386,8 +2002,6 @@ def components(
         "limit": limit,
         "items": payload,
     }
-
-
 def component(
     document: DipTraceDocument, refdes: str, *, live_session: bool = False
 ) -> dict[str, Any]:
@@ -2415,8 +2029,6 @@ def component(
         "component": target,
         "connected_nets": connected_nets,
     }
-
-
 def nets(
     document: DipTraceDocument,
     query: str | None = None,
@@ -2492,8 +2104,6 @@ def nets(
         "limit": limit,
         "items": payload,
     }
-
-
 def design_rules(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
     snapshot = build_snapshot(document, live_session=live_session)
     if snapshot.board is not None:
@@ -2520,8 +2130,6 @@ def design_rules(document: DipTraceDocument, *, live_session: bool = False) -> d
             ],
         }
     raise DocumentError("Design rules support PCB and Schematic XML only")
-
-
 def apply_low_level_edits(
     document: DipTraceDocument,
     edits: list[XmlEdit],

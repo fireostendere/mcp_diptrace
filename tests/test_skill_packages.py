@@ -22,7 +22,10 @@ from diptrace_mcp.service import DipTraceService
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS_ROOT = ROOT / "skills"
-SERVER_PATH = ROOT / "src" / "diptrace_mcp" / "server.py"
+SERVER_PATHS = (
+    ROOT / "src" / "diptrace_mcp" / "server.py",
+    ROOT / "src" / "diptrace_mcp" / "server_runtime.py",
+)
 SURVIVORS = {
     "pcb-project-intake",
     "library-quality-audit",
@@ -86,7 +89,14 @@ def catalog() -> list[dict[str, Any]]:
 
 
 def registered_tools() -> set[str]:
-    tree = ast.parse(SERVER_PATH.read_text(encoding="utf-8"))
+    tree = ast.Module(
+        body=[
+            node
+            for path in SERVER_PATHS
+            for node in ast.parse(path.read_text(encoding="utf-8")).body
+        ],
+        type_ignores=[],
+    )
     names: set[str] = set()
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

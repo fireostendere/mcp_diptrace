@@ -4,6 +4,7 @@
 .github/ISSUE_TEMPLATE/config.yml
 .github/ISSUE_TEMPLATE/feature.yml
 .github/pull_request_template.md
+.github/workflows/architecture-refactor.yml
 .github/workflows/ci.yml
 .github/workflows/deep-compliance-audit.yml
 .github/workflows/mcpb.yml
@@ -26,6 +27,10 @@ benchmarks/synthetic_board.py
 docs/ACCEPTANCE_SEED_AUDIT.md
 docs/API_ERRORS.md
 docs/ARCHITECTURE.md
+docs/ARCHITECTURE_CLEANUP_NOTES.md
+docs/ARCHITECTURE_CLEANUP_PLAN.md
+docs/ARCHITECTURE_CLEANUP_SCOPE.md
+docs/ARCHITECTURE_CLEANUP_STATUS.md
 docs/ASYNC_EXECUTION.md
 docs/CODE_REVIEW_2026-07-31.md
 docs/DEVELOPMENT.md
@@ -57,6 +62,7 @@ docs/SECURITY_AND_POLICY.md
 docs/SERVICE_DECOMPOSITION.md
 docs/SIGNING.md
 docs/SKILL_CONTRACTS.md
+docs/TECH_DEBT.md
 docs/TESTING.md
 docs/TRANSACTIONS.md
 docs/TRUSTED_PROVENANCE_REGISTRY.md
@@ -136,10 +142,12 @@ scripts/build_windows_configurator.ps1
 scripts/build_windows_installer.ps1
 scripts/build_windows_server.ps1
 scripts/capture_diptrace_evidence.py
+scripts/check_architecture.py
 scripts/check_coverage.py
 scripts/check_dco.py
 scripts/check_provenance_inventory.py
 scripts/check_public_privacy.py
+scripts/check_release_metadata.py
 scripts/check_service_facade_contract.py
 scripts/compare_artifact_sbom.py
 scripts/extract_spec_inventory.py
@@ -166,6 +174,7 @@ scripts/smoke_bridge_headless.py
 scripts/spec_inventory_integrity.py
 scripts/summarize_pyinstaller_inventory.py
 scripts/summarize_scancode.py
+scripts/sync_skill_scripts.py
 scripts/validate_service_decomposition.py
 scripts/verify_geometry_backend.py
 skills/README.md
@@ -187,6 +196,9 @@ skills/signal-integrity-review/SKILL.md
 skills/testpoint-planner/SKILL.md
 src/diptrace_mcp/__init__.py
 src/diptrace_mcp/__main__.py
+src/diptrace_mcp/adapter_common.py
+src/diptrace_mcp/adapter_queries.py
+src/diptrace_mcp/adapter_records.py
 src/diptrace_mcp/adapters.py
 src/diptrace_mcp/advanced_review.py
 src/diptrace_mcp/backups.py
@@ -235,9 +247,12 @@ src/diptrace_mcp/routing_compiler.py
 src/diptrace_mcp/scaffolding.py
 src/diptrace_mcp/semantic_compiler.py
 src/diptrace_mcp/server.py
+src/diptrace_mcp/server_inputs.py
+src/diptrace_mcp/server_runtime.py
 src/diptrace_mcp/service.py
 src/diptrace_mcp/services/__init__.py
 src/diptrace_mcp/services/bom.py
+src/diptrace_mcp/services/container.py
 src/diptrace_mcp/services/context.py
 src/diptrace_mcp/services/discovery.py
 src/diptrace_mcp/services/documents.py
