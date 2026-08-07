@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from inspect import isasyncgenfunction
-from typing import Any
+from typing import Any, cast
 
 from . import server_inputs as _inputs
 from . import server_runtime as _runtime
@@ -19,9 +19,8 @@ from .server_runtime import create_server as create_server
 # contract after the runtime extraction, including for the PyInstaller entry
 # point which imports ``diptrace_mcp.server:main``.
 if isasyncgenfunction(_runtime._robust_stdio_server):
-    setattr(
-        _runtime,
-        "_robust_stdio_server",
+    _runtime._robust_stdio_server = cast(
+        Any,
         asynccontextmanager(_runtime._robust_stdio_server),
     )
 
