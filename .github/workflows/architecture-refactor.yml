@@ -1,156 +1,28 @@
-name: Architecture refactor bootstrap
+name: Architecture audit
 
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+  audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
           cache: pip
-      - name: Materialize and apply the deterministic refactor
-        shell: bash
-        run: |
-          python - <<'PY'
-          import base64
-          import zlib
-          from pathlib import Path
-
-          parts = sorted(Path("scripts").glob("apply_architecture_cleanup.payload.*"))
-          if len(parts) != 5:
-              raise SystemExit(f"expected 5 payload parts, found {len(parts)}")
-          payload = "".join(part.read_text(encoding="utf-8") for part in parts)
-          source = zlib.decompress(base64.b64decode(payload)).decode("utf-8")
-          Path("scripts/apply_architecture_cleanup.py").write_text(source, encoding="utf-8")
-          PY
-          python scripts/apply_architecture_cleanup.py
-          rm -f scripts/apply_architecture_cleanup.payload.*
-      - name: Preserve compatibility boundaries after module splitting
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          adapter_paths = [
-              Path("src/diptrace_mcp/adapter_common.py"),
-              Path("src/diptrace_mcp/adapter_records.py"),
-              Path("src/diptrace_mcp/adapter_queries.py"),
-              Path("src/diptrace_mcp/adapters.py"),
-          ]
-          found_snapshot = False
-          for path in adapter_paths:
-              if not path.exists():
-                  continue
-              text = path.read_text(encoding="utf-8")
-              marker = "class DocumentSnapshot:"
-              if marker not in text:
-                  continue
-              found_snapshot = True
-              before = text.split(marker, 1)[0].rstrip()
-              if not before.endswith("@dataclass(slots=True)"):
-                  text = text.replace(marker, "@dataclass(slots=True)\n" + marker, 1)
-                  path.write_text(text, encoding="utf-8")
-          if not found_snapshot:
-              raise SystemExit("DocumentSnapshot was not found after adapter split")
-
-          adapters = Path("src/diptrace_mcp/adapters.py")
-          text = adapters.read_text(encoding="utf-8")
-          for name in ("document_id_for", "stable_id"):
-              text = text.replace(f"    {name},\n", "")
-          explicit_exports = (
-              "from .adapter_common import document_id_for as document_id_for\n"
-              "from .adapter_common import stable_id as stable_id\n"
-          )
-          future = "from __future__ import annotations\n"
-          if explicit_exports not in text:
-              if future not in text:
-                  raise SystemExit("adapters.py lost its future import")
-              text = text.replace(future, future + "\n" + explicit_exports, 1)
-          adapters.write_text(text, encoding="utf-8")
-
-          server = Path("src/diptrace_mcp/server.py")
-          text = server.read_text(encoding="utf-8")
-          text = text.replace(
-              "from .server_runtime import create_server, main",
-              "from .server_runtime import create_server as create_server, main as main",
-              1,
-          )
-          server.write_text(text, encoding="utf-8")
-
-          targets = [
-              Path("scripts/generate_pcb_skills.py"),
-              Path("tests/test_skill_packages.py"),
-          ]
-          old_constant = 'SERVER_PATH = ROOT / "src" / "diptrace_mcp" / "server.py"'
-          new_constant = '''SERVER_PATHS = (\n    ROOT / "src" / "diptrace_mcp" / "server.py",\n    ROOT / "src" / "diptrace_mcp" / "server_runtime.py",\n)'''
-          old_parse = 'tree = ast.parse(SERVER_PATH.read_text(encoding="utf-8"))'
-          new_parse = '''tree = ast.Module(\n        body=[\n            node\n            for path in SERVER_PATHS\n            for node in ast.parse(path.read_text(encoding="utf-8")).body\n        ],\n        type_ignores=[],\n    )'''
-          for path in targets:
-              text = path.read_text(encoding="utf-8")
-              if old_constant not in text or old_parse not in text:
-                  raise SystemExit(f"static tool discovery layout changed in {path}")
-              text = text.replace(old_constant, new_constant, 1)
-              text = text.replace(old_parse, new_parse, 1)
-              path.write_text(text, encoding="utf-8")
-          PY
-      - name: Refresh the public artifact allowlist before editable install
-        shell: bash
-        run: |
-          git add -A
-          python scripts/audit_release_artifacts.py --write-allowlist
-          git add scripts/release_artifact_allowlist.txt
-          python scripts/audit_release_artifacts.py --check-allowlist
-      - name: Install development dependencies
-        run: python -m pip install -e ".[dev]"
-      - name: Normalize generated Python imports
-        run: python -m ruff check --fix --no-cache src/diptrace_mcp scripts tests/test_skill_packages.py
-      - name: Regenerate consolidated skill source hashes
-        run: |
-          python scripts/generate_pcb_skills.py
-          python scripts/generate_pcb_skills.py --check
-      - name: Validate architecture and generated copies
-        run: |
-          python scripts/check_architecture.py
-          python scripts/sync_skill_scripts.py --check
-          python scripts/check_release_metadata.py
-          python scripts/check_service_facade_contract.py --check
-          python scripts/validate_service_decomposition.py --check
-          python scripts/generate_mcp_tools_snapshot.py --check
-      - name: Run focused regression suite
-        run: >-
-          python -m pytest -q
-          tests/test_server.py
-          tests/test_service.py
-          tests/test_service_facade_contract.py
-          tests/test_mcp_tools_snapshot.py
-          tests/test_check_coverage.py
-          tests/test_skill_packages.py
-          tests/test_event_loop_responsiveness.py
-      - name: Run strict typing on the refactored package
-        run: python -m mypy --no-incremental src/diptrace_mcp
-      - name: Commit the refactor result
-        shell: bash
-        run: |
-          git diff --check
-          git config user.name "fireostendere"
-          git config user.email "87851878+fireostendere@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No refactor changes to commit"
-            exit 0
-          fi
-          git commit -s -m "Refactor architecture debt boundaries"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m ruff check --no-cache src/diptrace_mcp scripts tests/test_skill_packages.py
+      - run: python -m mypy --no-incremental src/diptrace_mcp
+      - run: python scripts/check_architecture.py
+      - run: python scripts/check_release_metadata.py
+      - run: python scripts/sync_skill_scripts.py --check
+      - run: python scripts/check_service_facade_contract.py --check
+      - run: python scripts/validate_service_decomposition.py --check
+      - run: python scripts/generate_mcp_tools_snapshot.py --check

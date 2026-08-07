@@ -11,12 +11,12 @@ This document separates three distinct states:
 Implementation does not imply universal DipTrace compatibility. Runtime
 `get_capabilities` remains authoritative.
 
-## Current checkpoint — 2026-08-04
+## Current checkpoint — 2026-08-07
 
-The current source/package version is `0.2.0`. Version `v0.1.2` remains the
-latest published development release. The 0.2.0 code and release documentation
-are merged to `main`, but `v0.2.0` is not tagged or published while the remaining
-human acceptance gates are open.
+The current source/package version is `0.2.1`. Version `v0.2.1` is the latest
+published development prerelease. The GitHub prerelease assets are published and
+the exact tag-bound PyPI Trusted Publishing workflow completed successfully.
+Remaining human acceptance work is tracked separately from package publication.
 
 The project has moved beyond a parser prototype. The strongest areas are:
 
@@ -53,11 +53,11 @@ Future architecture work is no longer a prerequisite for the 0.2.0 candidate.
 | Native manufacturing output | outside current core scope | no verified DipTrace output API |
 | Pattern recommendation | planned | local dataset, deterministic retrieval, held-out metrics |
 
-## 0.2.0 release gate
+## 0.2.1 release and acceptance status
 
 Automated preparation is complete for the current candidate:
 
-- project and Windows assets use version `0.2.0`;
+- project and Windows assets use version `0.2.1`;
 - exact PR #49 head CI run `30940972328` passed;
 - exact PR #49 Windows installer run `30940972331` passed;
 - installer, portable bundle, standalone server, bridge, and configurator build;
@@ -115,7 +115,7 @@ The following baselines must not be weakened:
   boundaries;
 - package-owned authority registry separated from user-controlled evidence.
 
-## Priority A — Finish 0.2.0 acceptance
+## Priority A — Finish 0.2.1 acceptance evidence
 
 This is the immediate priority.
 
@@ -135,7 +135,7 @@ installation evidence, and reconciled README/changelog/citation/release record.
 
 ## Priority B — Close compatibility and trust evidence
 
-After the 0.2.0 release decision:
+After the 0.2.1 publication:
 
 1. close trust invalidation for all currently listed write paths;
 2. collect a small redistributable current DipTrace fixture pack covering PCB,

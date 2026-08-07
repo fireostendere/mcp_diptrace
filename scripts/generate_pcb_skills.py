@@ -19,7 +19,10 @@ CATALOG_PATH = SKILLS_ROOT / "catalog.json"
 CAPABILITY_MAP_PATH = SKILLS_ROOT / "capability-map.json"
 SHARED_SCHEMA_PATH = SKILLS_ROOT / "shared" / "result.schema.json"
 MANIFEST_PATH = SKILLS_ROOT / "SOURCES.sha256"
-SERVER_PATH = ROOT / "src" / "diptrace_mcp" / "server.py"
+SERVER_PATHS = (
+    ROOT / "src" / "diptrace_mcp" / "server.py",
+    ROOT / "src" / "diptrace_mcp" / "server_runtime.py",
+)
 PYPROJECT_PATH = ROOT / "pyproject.toml"
 
 MIN_SURVIVORS = 5
@@ -54,7 +57,14 @@ def load_json(path: Path) -> Any:
 def registered_tools() -> set[str]:
     """Return the real FastMCP tool names without importing server runtime state."""
 
-    tree = ast.parse(SERVER_PATH.read_text(encoding="utf-8"))
+    tree = ast.Module(
+        body=[
+            node
+            for path in SERVER_PATHS
+            for node in ast.parse(path.read_text(encoding="utf-8")).body
+        ],
+        type_ignores=[],
+    )
     names: set[str] = set()
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

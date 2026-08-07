@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 from . import __version__
-from .backups import BackupStore
 from .capabilities import capability_report as build_capability_report
 from .config import Settings
 from .domain import (
@@ -25,13 +24,6 @@ from .errors import (
     EditError,
     Sha256MismatchError,
 )
-from .exports import (
-    ExportStore,
-)
-from .external_adapters import ExternalJobManager
-from .findings import FindingStore
-from .jobs import JobStore
-from .model_cache import ModelCache
 from .multirouter import (
     RoutingOrder,
 )
@@ -39,8 +31,6 @@ from .operations import (
     SemanticOperation,
     parse_semantic_operations,
 )
-from .plans import PlanStore
-from .policy import Policy
 from .preview import (
     PREVIEW_COPPER_POINT_LIMIT,
     PREVIEW_COPPER_RECORD_LIMIT,
@@ -53,10 +43,9 @@ from .scaffolding import (
     DEFAULT_FORMAT_VERSION,
 )
 from .services.bom import BomService
+from .services.container import build_service_container
 from .services.context import (
-    DocumentGateway,
     DocumentTarget,
-    ServiceContext,
     read_success,
     validate_page,
 )
@@ -88,12 +77,9 @@ from .services.xml_writes import (
     RAW_EDIT_XPATH_CHARACTER_LIMIT,
     XmlWriteService,
 )
-from .sessions import LiveWorkingGuard, SessionAction, SessionStore
+from .sessions import LiveWorkingGuard, SessionAction
 from .specctra import (
     dsn_export_limitations,
-)
-from .transactions import (
-    TransactionStore,
 )
 from .write_limits import WriteImpact, require_write_impact
 from .xml_document import (
@@ -114,42 +100,23 @@ BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT = 32 * 1024
 
 class DipTraceService:
     def __init__(self, settings: Settings):
+        container = build_service_container(settings)
         self.settings = settings
-        self.policy = Policy(settings.active_policy)
-        retention = settings.retention_policy
-        self.sessions = SessionStore(
-            settings.state_dir,
-            settings.max_document_bytes,
-            allowed_roots=settings.allowed_roots,
-            retention=retention,
-            active_ttl_seconds=settings.live_session_ttl_seconds,
-        )
-        self.transactions = TransactionStore(settings.state_dir, retention=retention)
-        self._raw_preview_retention = retention
+        self.policy = container.policy
+        self.sessions = container.sessions
+        self.transactions = container.transactions
+        self._raw_preview_retention = settings.retention_policy
         self._raw_previews: RawPreviewStore | None = None
-        self.plans = PlanStore(settings.state_dir, retention=retention)
-        self.findings = FindingStore(settings.state_dir, retention=retention)
-        self.jobs = JobStore(settings.state_dir, retention=retention)
-        self.exports = ExportStore(
-            settings.state_dir,
-            settings.max_document_bytes,
-            retention=retention,
-        )
-        self.backups = BackupStore(settings.state_dir, retention=retention)
-        self.external_jobs = ExternalJobManager(settings, self.jobs)
-        self.models = ModelCache(max_bytes=settings.model_cache_max_bytes)
-        # This package-owned file is the only production root for registry
-        # authority. Workspace and state-directory data cannot replace it.
-        self._trusted_provenance_registry = TrustedProvenanceRegistry.load_embedded()
-        self._service_context = ServiceContext(
-            settings=settings,
-            policy=self.policy,
-            model_cache=self.models,
-            transaction_store=self.transactions,
-            session_store=self.sessions,
-            finding_store=self.findings,
-        )
-        self._document_gateway = DocumentGateway(settings, self.sessions)
+        self.plans = container.plans
+        self.findings = container.findings
+        self.jobs = container.jobs
+        self.exports = container.exports
+        self.backups = container.backups
+        self.external_jobs = container.external_jobs
+        self.models = container.models
+        self._trusted_provenance_registry = container.trusted_provenance_registry
+        self._service_context = container.service_context
+        self._document_gateway = container.document_gateway
         self._document_targets = self._document_gateway.targets
         self._discovery_service = DiscoveryService(settings)
         self._export_service = ExportService(
