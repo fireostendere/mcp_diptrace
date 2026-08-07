@@ -1,234 +1,163 @@
 # Roadmap and Actual Status
 
-This document separates three distinct states:
+This document separates three states:
 
-1. **implemented** — production code, typed contracts, and repository tests exist;
-2. **runtime available** — the active document, policy, geometry backend, and
-   configured adapters allow the feature;
-3. **DipTrace verified** — a controlled real DipTrace open/save/re-export or
-   live apply/cancel experiment exists for the exact path.
+1. **implemented** — production code and repository tests exist;
+2. **runtime available** — the active document, policy and configured adapters allow the feature;
+3. **DipTrace verified** — a controlled real DipTrace open/save/re-export or live host experiment exists for the exact path.
 
-Implementation does not imply universal DipTrace compatibility. Runtime
-`get_capabilities` remains authoritative.
+Implementation never implies universal DipTrace compatibility. Runtime `get_capabilities` remains authoritative.
 
-## Current checkpoint — 2026-08-07
+## Current checkpoint — 2026-08-08
 
-The current source/package version is `0.2.1`. Version `v0.2.1` is the latest
-published development prerelease. The GitHub prerelease assets are published and
-the exact tag-bound PyPI Trusted Publishing workflow completed successfully.
-Remaining human acceptance work is tracked separately from package publication.
+The current package version is `0.2.1`. Annotated tag `v0.2.1`, the GitHub development prerelease and `diptrace-mcp==0.2.1` on PyPI are already published. The post-release architecture cleanup is merged on `main`.
 
-The project has moved beyond a parser prototype. The strongest areas are:
+All repository work that can be completed without a real external GUI/host has now been implemented on the current development line:
 
-- PCB/schematic/library reading and structured queries;
-- guarded semantic writes and transactions;
-- engineering review with explicit skipped/partial categories;
-- schematic authoring and schematic-to-PCB synchronisation;
-- bounded placement, local/multi-net routing, differential-pair workflows, and
-  preliminary SI analysis;
-- Windows bridge, standalone server, installer, portable bundle, and client
-  configurator build pipelines;
-- stable MCP, Facade, error, safety, and packaging contracts.
+- PCB, schematic and library parsing/querying;
+- guarded semantic transactions, rollback, SHA/policy/backup/atomic-write boundaries;
+- schematic authoring and schematic-to-PCB reconciliation;
+- bounded placement/routing, DSN/SES, differential-pair and preliminary SI workflows;
+- Windows bridge/installer/portable/configurator build pipelines;
+- explicit trust-path regression coverage for stored-plan apply, SES import, schematic-to-PCB sync and live-session apply;
+- deterministic synthetic PCB, schematic, Component Library, Pattern Library and DSN/SES fixture-pack generation with explicit non-claims;
+- raw-preserving Component/Pattern Library mutation core with explicit collision/replacement policy, unknown-XML preservation, component/part/pin/field/pattern writes and pin-to-pad validation;
+- deterministic human-guided pattern-recommendation baseline with hard compatibility filters, geometry ranking, append-only derived feedback records and held-out top-1/top-3/rejection metrics;
+- additional deterministic DFM/DFA/DFT release-readiness checks while preserving explicit manufacturing/sign-off limitations;
+- a manual-acceptance evidence harness whose matrix contains only tasks that require a real external system, GUI observation, clean-machine state or human/legal judgement.
 
-The first service-Facade decomposition pass is complete. The previous monolith
-was split into explicit typed domain services while preserving the 159-tool MCP
-surface, 157 public Facade signatures, state ownership, and safety boundaries.
-Future architecture work is no longer a prerequisite for the 0.2.0 candidate.
+The public MCP surface remains unchanged while unverified native library writers stay below the public tool boundary. They must not be registered as production MCP write tools until real DipTrace library round-trip evidence exists.
 
-## Practical classification
+## What remains
 
-| Area | Status | Main remaining gap |
-| --- | --- | --- |
-| PCB/schematic read/query | mature beta | broader redistributable current-version fixtures |
-| Component/Pattern Library read/validate | mature beta | more current mask/paste/courtyard examples |
-| Guarded semantic edits | mature beta | close all trust-invalidation evidence gaps |
-| Transactions and rollback | mature beta | more real writer round trips |
-| Schematic authoring | beta | live authored-wire and hierarchy evidence |
-| Schematic → PCB sync | beta | broader real round trips and trust-path closure |
-| Placement | bounded beta | no full global placer/legalizer |
-| Local/multi-net routing | bounded beta | no push-and-shove/free-angle/global router |
-| Differential-pair/SI | beta | optional external-solver validation |
-| Windows installer/portable | candidate-ready in CI | clean-machine and real-client acceptance |
-| Native Component/Pattern mutation | blocked | controlled writer semantics and round-trip fixtures |
-| Native manufacturing output | outside current core scope | no verified DipTrace output API |
-| Pattern recommendation | planned | local dataset, deterministic retrieval, held-out metrics |
+There is no remaining repository-only development blocker in the current roadmap. The remaining gates require human observation or external systems.
 
-## 0.2.1 release and acceptance status
+### Blocking manual acceptance
 
-Automated preparation is complete for the current candidate:
+1. **Clean Windows 11 install / repair / uninstall** using the exact release bytes.
+2. **Current real DipTrace PCB round-trip**: open, inspect, save and re-export representative MCP-modified PCB XML.
+3. **Current real DipTrace Schematic round-trip** including authored wires.
+4. **Current real Component Library writer round-trip** including parts, pins, fields, pattern attachment and explicit pin-to-pad mapping.
+5. **Current real Pattern Library writer round-trip** including pads and graphics.
+6. **Generated ratline and authored-wire GUI verification** followed by save/re-export comparison.
+7. **Mask, paste, courtyard and `Common` semantics** using one-setting-at-a-time real DipTrace exports.
+8. **Q1 Component Angle GUI/re-export validation**, which remains `NOT_RUN` until performed in DipTrace.
+9. **Real Codex configuration/restart/get_capabilities** using the release server.
+10. **Real Claude Desktop configuration/restart/get_capabilities** using the release server.
+11. **Elevated plug-in installation with original user-profile preservation**.
+12. **Pre-existing custom-state preservation** across install/repair/uninstall.
 
-- project and Windows assets use version `0.2.1`;
-- exact PR #49 head CI run `30940972328` passed;
-- exact PR #49 Windows installer run `30940972331` passed;
-- installer, portable bundle, standalone server, bridge, and configurator build;
-- Linux/macOS/Windows tests, Ruff, strict Mypy, DCO, artifact audit, service
-  contract audit, decomposition safety audit, and event-loop audit pass;
-- public MCP surface remains 159 tools;
-- candidate records and rollback rules are committed.
+Generate the exact evidence worksheet with:
 
-Remaining human blockers:
+```bash
+python scripts/prepare_manual_acceptance.py acceptance \
+  --version 0.2.1 \
+  --commit <exact-40-character-commit>
+```
 
-1. clean Windows 11 install, repair, and uninstall;
-2. current real DipTrace 5 checks across PCB, Schematic, Component, and Pattern;
-3. real Codex and Claude Desktop configuration/restart checks;
-4. elevated plug-in installation while preserving the original user profile;
-5. custom-state preservation acceptance;
-6. final frozen asset hashes and public-download verification;
-7. any required external legal review.
+After recording observations and evidence files, validate it with:
 
-The candidate remains unsigned and development-stage. Q1 Component Angle
-GUI/re-export validation remains `NOT_RUN`.
+```bash
+python scripts/prepare_manual_acceptance.py acceptance --check
+```
 
-## Current evidence boundary
+The validator refuses to call the blocking acceptance complete while a required manual gate is pending or a claimed PASS lacks referenced evidence.
 
-Controlled host evidence exists for selected paths:
+### Claim-specific or optional manual work
 
-- DipTrace 5.3.0.2 schematic save/re-export comparison;
-- DipTrace 5.2.0.4 Windows ↔ WSL PCB and Schematic apply/cancel/wrong-SHA;
-- GUI/save/re-export confirmation for the tested applied cases;
-- no host mutation for tested cancel and wrong-SHA cases.
+These are not core repository blockers:
 
-This evidence does not cover every tool, writer, XML object, source variant, or
-DipTrace 5.x build.
+- public redownload/install smoke after a future release whose bytes change;
+- external legal/Novarm review if a planned claim or distribution activity requires it;
+- real openEMS execution if optional external-solver validation is to be claimed.
 
-The capability report also intentionally does not claim complete
-trust-invalidation coverage for:
+## Compatibility and trust status
 
-- `plan_apply`;
+Repository regression coverage now exercises the previously untested write families:
+
+- generic stored-plan apply;
 - `ses_import`;
 - `schematic_to_pcb_sync`;
-- `live_session_apply`.
+- `live_session_apply` fail-closed trust behavior.
+
+Stored plans, SES import and schematic-to-PCB synchronization all converge on the guarded semantic transaction commit, which invalidates prior document trust after a successful write. Live apply is SHA-bound to the exact working bytes; replacement of the exchange document cannot retain stale SHA-bound provenance.
+
+This closes the **repository-test gap**, not the **DipTrace-host evidence gap**. Real host acceptance remains manual and is listed above.
+
+The synthetic fixture pack closes CI/parser/writer infrastructure gaps but deliberately carries `synthetic_parser_only` provenance and explicit non-claims for `diptrace_exported`, open/save verification and round-trip verification.
+
+## Native library mutation status
+
+Implementation is complete below the public MCP registration boundary:
+
+- create/update patterns;
+- create/update components and parts;
+- create/update pins, fields and basic graphics;
+- attach existing patterns to components;
+- explicit pin-to-pad mapping validation;
+- explicit `error` / `keep` / `update` collision behavior;
+- explicit known-collection replacement flags;
+- raw-preserving mutation through `RawTreeSnapshot`, preserving unrelated unknown XML;
+- deterministic/idempotence regression tests.
+
+The only remaining gate is real Component Editor / Pattern Editor open-save-re-export evidence. Public native library write tools remain intentionally unregistered until that evidence exists.
+
+## Pattern recommendation status
+
+The non-ML baseline is implemented:
+
+1. deterministic package feature extraction;
+2. hard compatibility filters;
+3. geometry-distance ranking;
+4. deterministic tie-breaking;
+5. held-out top-1/top-3 and forbidden-pattern rejection metrics;
+6. append-only human accept/reject/correction records containing derived identifiers/hashes rather than project XML or datasheets.
+
+Optional future ML/fine-tuning is product exploration, not a blocker. It must not replace the deterministic baseline or privacy boundary.
+
+## Review / DFM / DFA / DFT status
+
+The registered review system remains deliberately bounded. A deterministic release-readiness supplement additionally checks facts that can be derived from exported XML, including duplicate reference designators, explicit footprint assignment, component values/procurement identity, embedded pattern availability, 3D-model references and explicit testpoint coverage.
+
+Physical thermal performance, probe accessibility, fabrication process limits, assembly sign-off and native manufacturing outputs cannot be proven by repository code alone and therefore remain explicit manual/external boundaries rather than fake automated checks.
 
 ## Current public contracts
 
-The following baselines must not be weakened:
+The following published baselines are intentionally preserved by this development work:
 
-- 159 MCP tools;
-- current complete wire snapshot:
-  - 142,746 canonical UTF-8 bytes;
-  - SHA-256 `073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db`;
+- 159 registered MCP tools;
 - 157 public `DipTraceService` methods;
 - 148 explicit Facade-to-domain-service delegations;
 - stable structured public error envelope;
-- project-owned worker-thread boundary for all registered tools;
-- exact SHA, policy, backup, atomic-write, session-lease, and trust-authority
-  boundaries;
-- package-owned authority registry separated from user-controlled evidence.
+- project-owned worker-thread boundary for registered tools;
+- exact SHA, policy, backup, atomic-write, session-lease and trust-authority boundaries;
+- package-owned trust authority separated from user-controlled evidence.
 
-## Priority A — Finish 0.2.1 acceptance evidence
-
-This is the immediate priority.
-
-Deliverables:
-
-- execute the remaining Windows/DipTrace/client acceptance matrix;
-- record dated evidence and exact versions;
-- freeze the final release commit;
-- regenerate compliance outputs and final assets;
-- verify every per-file SHA-256;
-- create annotated `v0.2.0` only after the gates pass;
-- publish as an explicitly unsigned development/prerelease;
-- download public assets and repeat checksum/install/stdio/uninstall smoke tests.
-
-Exit condition: immutable tag, exact asset inventory, final checksums, public
-installation evidence, and reconciled README/changelog/citation/release record.
-
-## Priority B — Close compatibility and trust evidence
-
-After the 0.2.1 publication:
-
-1. close trust invalidation for all currently listed write paths;
-2. collect a small redistributable current DipTrace fixture pack covering PCB,
-   schematic, Component Library, Pattern Library, controlled writer pairs, and a
-   real DSN/SES pair;
-3. add real DipTrace acceptance for authored wires and generated ratlines;
-4. verify mask, paste, courtyard, and `Common` semantics with one-setting-at-a-
-   time exports;
-5. make the resulting cases executable in CI without DipTrace installed.
-
-Exit condition: every documentation claim can distinguish parser-tested,
-operation-tested, DipTrace-exported, and real round-trip-verified behavior.
-
-## Priority C — Native library writers
-
-Only after Priority B supplies controlled evidence:
-
-- create/update patterns;
-- create/update components, parts, pins, graphics, and fields;
-- attach patterns to components;
-- maintain explicit pin-to-pad mapping;
-- preserve unknown/unsupported library XML;
-- require explicit collision and replacement behavior;
-- prove idempotence and real DipTrace open/save/re-export equivalence.
-
-No placeholder tools should be registered before these gates are met.
-
-## Priority D — Human-guided pattern recommendation
-
-The first useful recommendation system should rank existing patterns, not train
-a model immediately.
-
-Planned sequence:
-
-1. append-only local feedback records;
-2. deterministic package feature extraction;
-3. hard compatibility filters;
-4. geometry-distance ranking;
-5. held-out top-1/top-3 and invalid-pattern rejection metrics;
-6. explicit human accept/reject/correction capture;
-7. optional fine-tuning only after the retrieval baseline and privacy controls
-   are stable.
-
-User projects, datasheets, screenshots, and library XML must never be committed
-automatically.
-
-## Priority E — Optional external validation
-
-- capture a real openEMS integration run;
-- add more Freerouting DSN/SES fixtures;
-- preserve the typed external-process boundary and runtime availability model;
-- keep optional solver evidence separate from core parser/write trust.
+New unverified library mutation and recommendation code does not silently expand the MCP surface.
 
 ## Phase summary
 
 | Phase | Status | Result |
 | --- | --- | --- |
-| 0 | complete | baseline package, capability, SDK, and policy contracts |
-| 1 | complete | PCB/schematic/library models and structured queries |
-| 2 | complete | normalised geometry, spatial index, previews, GEOS/fallback paths |
-| 3 | complete | semantic compiler, transactions, SHA, backup, rollback |
-| 4 | complete | component/part/text/rule/test-point writes and library validation |
-| 5 | partial | bounded DRC/ERC/review with explicit missing/approximate categories |
-| 6 | complete | silkscreen planning and apply |
-| 7 | complete | bounded placement planning, scoring, legalisation, apply |
-| 8 | complete | trace/via primitives and bounded multi-layer routing |
-| 9 | complete | DSN/Freerouting/SES workflow |
-| 10 | complete | differential pairs, length/skew, preliminary impedance |
-| 11 | partial | return-path, BOM, DFM/DFA/DFT, thermal and assembly heuristics |
-| 12 | partial | release manifests and optional openEMS; native library/output writers absent |
-| 13 | complete | skills, prompts, CI, benchmarks, truthful capability discovery |
-| 14 | complete | synthetic PCB/schematic scaffolding |
-| 15 | complete | schematic authoring |
-| 16 | complete | panelisation parameters |
-| 17 | complete | typed ngspice batch adapter |
-| 18 | complete | congestion-aware multi-net routing |
-| 19 | complete | additive and guarded exact schematic-to-PCB reconciliation |
-| 20 | implementation complete | trust authority, comparison, native Windows CI, cancellation; evidence gaps remain |
-| 21 | complete | service-Facade decomposition with explicit domain services and parity checks |
-| 22 | candidate complete | Windows installer/portable/configurator release-candidate pipeline |
-| 23 | planned | human-guided pattern recommendation |
+| 0–4 | complete | package/contracts, parsing/models, geometry, transactions and existing semantic writes |
+| 5 | bounded complete | deterministic DRC/ERC/review categories with explicit skipped/approximate boundaries |
+| 6–10 | complete | silkscreen, placement, routing, DSN/SES, differential-pair/length/preliminary impedance |
+| 11 | bounded complete | return-path, BOM, DFM/DFA/DFT, thermal and assembly heuristics plus release-readiness supplement |
+| 12 | implementation complete | release manifests/adapters; real external solver and native manufacturing sign-off remain external |
+| 13–19 | complete | skills/CI, scaffolding, schematic authoring, panelisation, ngspice, multi-net routing and sync |
+| 20 | repository complete | trust authority/comparison/cancellation plus regression coverage; real host evidence is manual |
+| 21 | complete | service-Facade decomposition and parity guardrails |
+| 22 | candidate complete | Windows installer/portable/configurator pipeline; clean-machine acceptance is manual |
+| 23 | baseline complete | deterministic pattern recommendation and privacy-bounded feedback/evaluation |
+| 24 | implementation complete, host-gated | raw-preserving native Component/Pattern mutation core; public write registration waits for real DipTrace evidence |
 
 ## Permanent limitations and non-claims
 
-- Synthetic scaffolds are MCP-generated XML based on maintained observations;
-  changing `format_version` is not conversion or compatibility evidence.
-- The local router is bounded and not equivalent to a full EDA router.
-- Copper-pour, return-path, impedance, thermal, DFM/DFA/DFT, and manufacturing
-  reviews retain explicit approximation and skip boundaries.
-- Generic fabrication/assembly manifests are not native Gerber, NC Drill,
-  ODB++, IPC-2581, or assembler sign-off packages.
-- The ngspice adapter runs user-provided netlists; it does not generate a full
-  simulation netlist from a DipTrace design.
-- Native library mutation and native manufacturing generation remain unavailable.
-- The project does not claim Novarm/DipTrace endorsement, universal
-  compatibility, signed binaries, independent review, or production readiness.
+- Synthetic scaffolds and generated fixture packs are MCP-generated XML, not DipTrace exports.
+- Changing `format_version` is not conversion or compatibility evidence.
+- The local router is bounded and is not a full push-and-shove/free-angle/global EDA router.
+- Copper-pour, return-path, impedance, thermal, DFM/DFA/DFT and manufacturing reviews retain explicit approximation/skip boundaries.
+- Generic fabrication/assembly manifests are not native Gerber, NC Drill, ODB++, IPC-2581 or assembler sign-off packages.
+- The ngspice adapter runs user-provided netlists; it does not generate a complete simulation netlist from a DipTrace design.
+- Native manufacturing generation remains unavailable because no verified DipTrace output API is claimed.
+- The project does not claim Novarm/DipTrace endorsement, universal compatibility, signed binaries, independent review or production readiness.
