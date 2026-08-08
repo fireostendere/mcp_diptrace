@@ -520,12 +520,12 @@ def _merge_fields(part: ET.Element, fields: dict[str, str], *, replace_fields: b
             if item.tag == "AddField" and _child_text(item, "Name") not in fields:
                 container.remove(item)
     for name, value in fields.items():
-        item = existing.get(name)
-        if item is None:
-            item = ET.SubElement(container, "AddField", {"Type": "Text"})
-        item.attrib.setdefault("Type", "Text")
-        _set_child_text(item, "Name", name)
-        _set_child_text(item, "Text", value)
+        field = existing.get(name)
+        if field is None:
+            field = ET.SubElement(container, "AddField", {"Type": "Text"})
+        field.attrib.setdefault("Type", "Text")
+        _set_child_text(field, "Name", name)
+        _set_child_text(field, "Text", value)
 
 
 def _apply_part_spec(
