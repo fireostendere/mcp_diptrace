@@ -32,6 +32,7 @@ docs/ARCHITECTURE_CLEANUP_PLAN.md
 docs/ARCHITECTURE_CLEANUP_SCOPE.md
 docs/ARCHITECTURE_CLEANUP_STATUS.md
 docs/ASYNC_EXECUTION.md
+docs/AUTOMATABLE_ROADMAP_CLOSURE.md
 docs/CODE_REVIEW_2026-07-31.md
 docs/DEVELOPMENT.md
 docs/DOMAIN_MODEL.md
@@ -158,12 +159,14 @@ scripts/generate_fixture_hash_manifest.py
 scripts/generate_mcp_tools_snapshot.py
 scripts/generate_pcb_skills.py
 scripts/generate_registry_server_json.py
+scripts/generate_synthetic_fixture_pack.py
 scripts/gitleaks.toml
 scripts/hatch_build.py
 scripts/ingest_fixtures.py
 scripts/make_probe_pack.py
 scripts/mcp_smoke.py
 scripts/measure_mcp_surface.py
+scripts/prepare_manual_acceptance.py
 scripts/probe_windows_wsl_lock_interop.py
 scripts/release_artifact_allowlist.txt
 scripts/report_format_coverage.py
@@ -227,10 +230,13 @@ src/diptrace_mcp/inspector.py
 src/diptrace_mcp/jobs.py
 src/diptrace_mcp/lengths.py
 src/diptrace_mcp/library_adapters.py
+src/diptrace_mcp/library_mutation.py
+src/diptrace_mcp/manual_acceptance.py
 src/diptrace_mcp/model_cache.py
 src/diptrace_mcp/multirouter.py
 src/diptrace_mcp/numeric_inputs.py
 src/diptrace_mcp/operations.py
+src/diptrace_mcp/pattern_recommendation.py
 src/diptrace_mcp/placement.py
 src/diptrace_mcp/plans.py
 src/diptrace_mcp/policy.py
@@ -239,6 +245,7 @@ src/diptrace_mcp/previews.py
 src/diptrace_mcp/provenance_registry.py
 src/diptrace_mcp/record_ids.py
 src/diptrace_mcp/record_store.py
+src/diptrace_mcp/release_readiness.py
 src/diptrace_mcp/retention.py
 src/diptrace_mcp/return_path.py
 src/diptrace_mcp/review.py
@@ -275,6 +282,7 @@ src/diptrace_mcp/silkscreen.py
 src/diptrace_mcp/spatial.py
 src/diptrace_mcp/specctra.py
 src/diptrace_mcp/synchronization.py
+src/diptrace_mcp/synthetic_fixture_pack.py
 src/diptrace_mcp/transactions.py
 src/diptrace_mcp/via_styles.py
 src/diptrace_mcp/windows_configurator.py
@@ -343,8 +351,10 @@ tests/test_ingest_fixtures.py
 tests/test_inspector.py
 tests/test_large_synthetic_board.py
 tests/test_libraries.py
+tests/test_library_mutation.py
 tests/test_live_apply_binding.py
 tests/test_live_session_lifecycle.py
+tests/test_manual_acceptance.py
 tests/test_mcp_error_contracts.py
 tests/test_mcp_tool_chain.py
 tests/test_mcp_tools_snapshot.py
@@ -356,6 +366,7 @@ tests/test_ngspice.py
 tests/test_nonfinite_inputs.py
 tests/test_openems.py
 tests/test_operation_schema.py
+tests/test_pattern_recommendation.py
 tests/test_pattern_validation.py
 tests/test_phase4.py
 tests/test_placement.py
@@ -370,6 +381,7 @@ tests/test_provenance_registry.py
 tests/test_public_compliance.py
 tests/test_record_store_base.py
 tests/test_release_artifacts.py
+tests/test_release_readiness.py
 tests/test_retention.py
 tests/test_review.py
 tests/test_router.py
@@ -394,6 +406,7 @@ tests/test_spec_inventory.py
 tests/test_spec_inventory_integrity.py
 tests/test_specctra.py
 tests/test_store_identifiers.py
+tests/test_synthetic_fixture_pack.py
 tests/test_transaction_recovery.py
 tests/test_trust_model.py
 tests/test_windows_bundle_audit.py
@@ -401,5 +414,6 @@ tests/test_windows_configurator.py
 tests/test_windows_installer_sources.py
 tests/test_windows_wsl_lock_interop_probe.py
 tests/test_write_object_limit.py
+tests/test_write_path_trust_closure.py
 tests/test_xml_document.py
 tests/test_xml_encoding_preservation.py
