@@ -1,133 +1,64 @@
 # DipTrace MCP 0.2.1 Release Checklist
 
-This checklist prepares version `0.2.1` for an immutable GitHub prerelease,
-PyPI Trusted Publishing, a Windows MCPB asset, the official MCP Registry, and
-Smithery. It does not authorize publication by itself.
+This is now a historical release checklist. Version `0.2.1` has already been tagged and published; remaining real-system acceptance is tracked separately and must not be confused with package publication.
 
-## Candidate status
+## Publication status
 
 - Version: `0.2.1`.
-- Candidate branch: `release/v0.2.1-pypi`.
-- Base commit: `6e5ac7fe66fde0dd61dca52ea6cbefe1ea058f47`.
-- Tag: `v0.2.1`, not created.
-- GitHub Release: not created.
-- PyPI project: not created or published.
-- MCPB asset: CI candidate only until the final release.
-- Official MCP Registry and Smithery: not published.
+- Annotated tag: `v0.2.1` — **created and immutable**.
+- GitHub development prerelease — **published**.
+- PyPI package `diptrace-mcp==0.2.1` — **published through Trusted Publishing**.
+- Windows installer / portable bundle / MCPB — **published GitHub release assets**.
 - Windows signing status: unsigned.
 - Release class: alpha/development prerelease.
+- Q1 Component Angle real GUI/re-export evidence: `NOT_RUN`.
 
-Existing `v0.2.0` tags and assets are immutable and must not be replaced.
+See `docs/releases/v0.2.1.md` for the immutable tag target, workflow runs, filenames, sizes and SHA-256 values.
 
-## Scope
+## Completed automated publication gates
 
-Version `0.2.1` packages the post-`v0.2.0` distribution work:
+The release record documents successful candidate CI, Windows build, MCPB/Registry preparation, PyPI distribution validation, verified GitHub prerelease creation and exact-tag PyPI Trusted Publishing.
 
-- deterministic Windows MCPB generation and SHA-256 output;
-- official MCP Registry metadata template and concrete `server.json` generator;
-- canonical registry identity `io.github.fireostendere/diptrace-mcp`;
-- synchronized release and installation documentation;
-- PyPI package version `0.2.1`;
-- a guarded PyPI Trusted Publishing workflow;
-- wheel and source-distribution validation from the exact release candidate.
+The repository continues to enforce:
 
-No stronger production, signing, compatibility, endorsement, or manufacturing
-claim is introduced.
+- Ruff and strict Mypy;
+- DCO;
+- Linux/macOS/Windows test jobs;
+- geometry/fallback jobs;
+- MCP snapshot and Facade/decomposition contracts;
+- architecture, provenance, compliance and release-artifact checks;
+- clean Python distribution installation smoke;
+- deterministic Windows release-asset generation.
 
-## Automated gates
+These automated gates are complete for the already-published `v0.2.1`. Do not rerun them as if publication were still pending unless validating a new commit/version.
 
-- [ ] `pyproject.toml`, package fallback version, changelog, citation metadata,
-      MCPB manifest, and release documentation agree on `0.2.1`.
-- [ ] Ruff and strict Mypy pass.
-- [ ] DCO passes for the exact pull-request head.
-- [ ] Linux Python 3.10/3.12/3.13, macOS, and Windows tests pass.
-- [ ] Geometry and explicit no-Shapely fallback jobs pass.
-- [ ] Public MCP snapshot, Facade contract, decomposition, event-loop,
-      provenance, compliance, and release-artifact gates pass.
-- [ ] Wheel and source distribution build from the exact allowlist.
-- [ ] `twine check --strict` passes for both Python distributions.
-- [ ] Clean virtual environments install and smoke both the wheel and sdist.
-- [ ] Windows standalone server, bridge, installer, portable bundle, and MCPB
-      candidate build successfully.
-- [ ] MCPB checksum and manifest inspection pass.
-- [ ] The final candidate head has no unreviewed changes after the green runs.
+## Remaining manual acceptance
 
-## PyPI Trusted Publisher setup
+The following are intentionally **not** marked complete by CI or publication:
 
-Create a pending publisher on PyPI before the first upload. Use these exact
-values:
+- clean Windows 11 install, repair and uninstall;
+- current real DipTrace PCB open/save/re-export;
+- current real DipTrace Schematic open/save/re-export including authored wires;
+- current real Component Library writer open/save/re-export;
+- current real Pattern Library writer open/save/re-export;
+- generated-ratline GUI/save/re-export evidence;
+- mask/paste/courtyard/`Common` one-setting-at-a-time exports;
+- Q1 Component Angle GUI/re-export;
+- real Codex restart/configuration/`get_capabilities`;
+- real Claude Desktop restart/configuration/`get_capabilities`;
+- elevated Program Files plug-in install while retaining the original user profile;
+- pre-existing custom-state preservation.
 
-- PyPI project name: `diptrace-mcp`;
-- GitHub owner: `fireostendere`;
-- GitHub repository: `mcp_diptrace`;
-- workflow filename: `pypi.yml`;
-- GitHub environment: `pypi`.
+Claim-specific optional work includes a future public-redownload smoke when release bytes change, external legal/Novarm review if required for a planned claim/activity, and a real openEMS run if external-solver validation is to be claimed.
 
-Create the GitHub environment `pypi` and restrict it to the release manager.
-Where repository settings allow it, require approval and restrict deployment to
-the protected `v0.2.1` tag.
+Generate and validate the evidence worksheet with `scripts/prepare_manual_acceptance.py`; `docs/ROADMAP.md` is the authoritative current roadmap.
 
-The workflow uses OpenID Connect. Do not create or store a long-lived PyPI API
-token. The publish job must retain only `contents: read` and `id-token: write`.
-It must contain only artifact download and the pinned PyPA publishing action.
+## Fail-closed release rules retained for future versions
 
-A pending publisher does not reserve the package name until the first successful
-publication. Re-check that `diptrace-mcp` remains available immediately before
-publication.
+- Never publish from an unreviewed branch or movable identity when the release process requires an annotated tag.
+- Never move or replace an existing published tag/file.
+- Never use `skip-existing` to hide a production publication mismatch.
+- Never publish a wheel/sdist different from the artifact that passed validation.
+- Never claim signing, production readiness, universal DipTrace compatibility, real-client acceptance or real DipTrace acceptance without the corresponding evidence.
 
-## Manual acceptance still open
-
-The following remain limitations and must not be marked complete without dated
-real-system evidence:
-
-- clean Windows 11 install, repair, and uninstall acceptance;
-- current real DipTrace 5 across PCB, Schematic, Component, and Pattern modules;
-- preservation of pre-existing custom state;
-- real Codex and Claude Desktop configuration, restart, and
-  `get_capabilities`;
-- elevated Program Files plug-in installation with user-profile client config;
-- external legal review or Novarm/DipTrace permission where required;
-- Q1 Component Angle GUI/re-export evidence, which remains `NOT_RUN`.
-
-These items prohibit stronger claims but do not prevent an explicitly unsigned
-alpha/development prerelease under the documented solo-maintainer exception.
-
-## Publication sequence
-
-1. Complete review and exact-head CI on the release pull request.
-2. Merge only after the candidate is frozen and approved.
-3. Create annotated tag `v0.2.1` at the exact approved merge commit.
-4. Build the final GitHub assets from that tag, including wheel, sdist, Windows
-   installer, portable bundle, MCPB, checksums, SBOM, notices, provenance, and
-   release record.
-5. Publish an explicitly unsigned GitHub prerelease and redownload every public
-   asset for checksum and smoke verification.
-6. Confirm the PyPI pending publisher and protected `pypi` environment use the
-   exact owner, repository, workflow filename, environment, and project name.
-7. Manually dispatch `.github/workflows/pypi.yml` from tag `v0.2.1` with
-   `publish=true`.
-8. Verify the PyPI release files, Trusted Publisher identity, attestations,
-   project links, README rendering, and version metadata.
-9. In a clean environment run:
-
-   ```bash
-   python -m pip install --no-cache-dir diptrace-mcp==0.2.1
-   diptrace-mcp --help
-   ```
-
-10. Generate concrete `server.json` from the publicly downloaded MCPB URL and
-    verified SHA-256, then submit the exact version to the official MCP Registry
-    and Smithery.
-11. Record immutable URLs, workflow runs, hashes, PyPI file identities,
-    attestations, registry metadata, and public-download results in a
-    post-release documentation pull request.
-
-## Fail-closed rules
-
-- Do not publish from `main`, a branch, or a lightweight tag.
-- Do not move or replace an existing tag or published file.
-- Do not enable `skip-existing` for the production PyPI upload.
-- Do not publish a wheel or sdist different from the artifact validated by the
-  build job.
-- Do not claim PyPI, Registry, Smithery, signing, or real DipTrace acceptance
-  until the corresponding public evidence exists.
+The old pre-publication TODO state is intentionally not preserved as current truth; Git history contains the original checklist if historical reconstruction is needed.
