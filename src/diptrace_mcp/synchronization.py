@@ -454,13 +454,18 @@ def build_sync_plan(
         limitations=[
             "Multi-part components require explicit part-id/pin to pad-number mappings.",
             (
-                "Exact reconciliation covers components, net endpoint sets, traces on changed "
-                "nets, and ratlines; unrelated board geometry remains outside its scope."
+                "Exact reconciliation covers components, net endpoint sets, and traces on "
+                "changed nets; derived ratline cache is invalidated when connectivity changes. "
+                "Unrelated board geometry remains outside its scope."
                 if reconciliation_mode == "exact"
                 else "Synchronization is additive; extra PCB components, nets and traces "
                 "are preserved."
             ),
             "New components use deterministic grid placement and should be legalized "
             "before routing.",
+            (
+                "Ratline geometry is derived by DipTrace from pad NetId membership; "
+                "create_ratlines=false hides the derived guides on synchronized nets."
+            ),
         ],
     )

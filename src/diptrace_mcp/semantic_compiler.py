@@ -1384,18 +1384,54 @@ def _apply_sync_schematic_to_pcb(
     patch_count = 0
     before: list[dict[str, Any]] = []
     after: list[dict[str, Any]] = []
+    connectivity_mutated = False
 
-    pattern_library = document.root.find("./Library[@Type='DipTrace-PatternLibrary']")
-    if pattern_library is None:
-        pattern_library = ET.Element(
+    # PCB Layout stores its footprint cache inside the embedded component library.
+    # Older project-authored fixtures used a sibling PatternLibrary; normalize that
+    # legacy shape before copying any synchronized patterns.
+    component_library = document.root.find(
+        "./Library[@Type='DipTrace-ComponentLibrary']"
+    )
+    if component_library is None:
+        component_library = ET.Element(
             "Library",
-            {
-                "Type": "DipTrace-PatternLibrary",
-                "Version": document.version,
-                "Units": document.units,
-            },
+            {"Type": "DipTrace-ComponentLibrary", "Units": document.units},
         )
-        document.root.insert(0, pattern_library)
+        document.root.insert(0, component_library)
+        patch_count += 1
+    if component_library.get("Version") is not None:
+        component_library.attrib.pop("Version", None)
+        patch_count += 1
+    if component_library.get("Units") is None:
+        component_library.set("Units", document.units)
+        patch_count += 1
+
+    pattern_library = component_library.find(
+        "./Library[@Type='DipTrace-PatternLibrary']"
+    )
+    if pattern_library is None:
+        legacy_pattern_library = document.root.find(
+            "./Library[@Type='DipTrace-PatternLibrary']"
+        )
+        if legacy_pattern_library is not None:
+            pattern_library = ET.fromstring(
+                ET.tostring(legacy_pattern_library, encoding="unicode")
+            )
+            document.root.remove(legacy_pattern_library)
+            component_library.insert(0, pattern_library)
+            patch_count += 1
+        else:
+            pattern_library = ET.SubElement(
+                component_library,
+                "Library",
+                {"Type": "DipTrace-PatternLibrary", "Units": document.units},
+            )
+            patch_count += 1
+    if pattern_library.get("Version") is not None:
+        pattern_library.attrib.pop("Version", None)
+        patch_count += 1
+    if pattern_library.get("Units") is None:
+        pattern_library.set("Units", document.units)
         patch_count += 1
     patterns = pattern_library.find("./Patterns")
     if patterns is None:
@@ -1413,6 +1449,23 @@ def _apply_sync_schematic_to_pcb(
     existing_pad_styles = {
         (item.get("Name") or "").casefold() for item in pad_styles.findall("./PadStyle")
     }
+    for pattern_index, pattern in enumerate(patterns.findall("./Pattern")):
+        expected_id = str(pattern_index)
+        if pattern.get("Id") != expected_id:
+            pattern.set("Id", expected_id)
+            patch_count += 1
+        for attribute, default in (
+            ("LockTypeChange", "N"),
+            ("Float1", "0"),
+            ("Float2", "0"),
+            ("Float3", "0"),
+            ("Int1", "0"),
+            ("Int2", "0"),
+        ):
+            if pattern.get(attribute) is None:
+                pattern.set(attribute, default)
+                patch_count += 1
+    next_pattern_id = len(patterns.findall("./Pattern"))
     for raw in operation.pad_style_xml:
         element = parse_xml_definition(raw)
         if element.tag != "PadStyle" or not element.get("Name"):
@@ -1429,6 +1482,17 @@ def _apply_sync_schematic_to_pcb(
             raise EditError("Schematic sync contains an invalid Pattern definition")
         key = style.casefold()
         if key not in existing_pattern_styles:
+            element.set("Id", str(next_pattern_id))
+            next_pattern_id += 1
+            for attribute, default in (
+                ("LockTypeChange", "N"),
+                ("Float1", "0"),
+                ("Float2", "0"),
+                ("Float3", "0"),
+                ("Int1", "0"),
+                ("Int2", "0"),
+            ):
+                element.attrib.setdefault(attribute, default)
             patterns.append(element)
             existing_pattern_styles.add(key)
             patch_count += 1
@@ -1471,6 +1535,9 @@ def _apply_sync_schematic_to_pcb(
                     "X": f"{from_mm(spec.x, document.units):.9g}",
                     "Y": f"{from_mm(spec.y, document.units):.9g}",
                     "Side": spec.side,
+                    "MarkingFontSize": "10",
+                    "MarkingFontSizeFloat": "10",
+                    "GridAlign": "Pad",
                     "Locked": "N",
                     "Selected": "N",
                 },
@@ -1479,6 +1546,26 @@ def _apply_sync_schematic_to_pcb(
             ET.SubElement(target_component, "RefDes").text = spec.refdes
             ET.SubElement(target_component, "Name").text = spec.name
             ET.SubElement(target_component, "Value").text = spec.value
+            for tag, align in (
+                ("RefDesMarking", "Top"),
+                ("NameMarking", "Left"),
+                ("ValueMarking", "Bottom"),
+            ):
+                marking = ET.SubElement(target_component, tag)
+                for surface in ("Silk", "Assy"):
+                    ET.SubElement(
+                        marking,
+                        surface,
+                        {
+                            "Show": "Show",
+                            "Align": align,
+                            "Horz": "Center",
+                            "Vert": "Center",
+                            "X": "0",
+                            "Y": "0",
+                            "Angle": "0",
+                        },
+                    )
             _, field_patches = _set_additional_fields(target_component, spec.fields)
             component_pads = ET.SubElement(target_component, "Pads")
             for pad_index, number in enumerate(spec.pad_numbers):
@@ -1506,6 +1593,7 @@ def _apply_sync_schematic_to_pcb(
                 }
             )
             patch_count += 1 + field_patches
+            connectivity_mutated = True
         else:
             stable = _element_stable_id(
                 snapshot,
@@ -1589,6 +1677,7 @@ def _apply_sync_schematic_to_pcb(
             components.remove(extra_component)
             del existing_components[key]
             patch_count += 1
+            connectivity_mutated = True
 
     nets_container = document.container.find("./Nets")
     if nets_container is None:
@@ -1645,6 +1734,7 @@ def _apply_sync_schematic_to_pcb(
             nets_container.remove(extra_net)
             del existing_nets[key]
             patch_count += 1
+            connectivity_mutated = True
 
         for key, target_net in existing_nets.items():
             desired_endpoints = desired_endpoints_by_net.get(key)
@@ -1696,32 +1786,20 @@ def _apply_sync_schematic_to_pcb(
                 }
             )
 
-        desired_ratline_pairs = {
-            frozenset({first, second})
-            for endpoints in desired_endpoints_by_net.values()
-            for first, second in zip(endpoints, endpoints[1:], strict=False)
-            if first != second
-        }
-        ratlines = document.container.find("./Ratlines")
-        if ratlines is not None:
-            for ratline in list(ratlines.findall("./Ratline")):
-                pair = frozenset(
-                    {
-                        (ratline.get("Comp1", ""), ratline.get("Pad1", "")),
-                        (ratline.get("Comp2", ""), ratline.get("Pad2", "")),
-                    }
-                )
-                if not operation.create_ratlines or pair not in desired_ratline_pairs:
-                    ratlines.remove(ratline)
-                    patch_count += 1
+        connectivity_mutated = True
 
     next_net_id = int(_next_numeric_id(nets_container.findall("./Net")))
+    hidden_ids = [
+        int(value)
+        for item in nets_container.findall("./Net")
+        if (value := item.get("HiddenId", "")).isdigit()
+    ]
+    next_hidden_net_id = max(hidden_ids, default=-1) + 1
     endpoint_nets: dict[tuple[str, str], ET.Element] = {}
     for existing_net in nets_container.findall("./Net"):
         for item in existing_net.findall("./Pads/Item"):
             endpoint_nets[(item.get("Comp", ""), item.get("Pad", ""))] = existing_net
 
-    requested_ratlines: list[tuple[str, list[tuple[str, str]]]] = []
     for net_spec in operation.nets:
         sync_net = existing_nets.get(net_spec.name.casefold())
         net_was_created = sync_net is None
@@ -1731,8 +1809,14 @@ def _apply_sync_schematic_to_pcb(
             sync_net = ET.SubElement(
                 nets_container,
                 "Net",
-                {"Id": net_id, "NetClass": "0", "Locked": "N"},
+                {
+                    "Id": net_id,
+                    "HiddenId": str(next_hidden_net_id),
+                    "NetClass": "0",
+                    "Locked": "N",
+                },
             )
+            next_hidden_net_id += 1
             ET.SubElement(sync_net, "Name").text = net_spec.name
             ET.SubElement(sync_net, "Pads")
             ET.SubElement(sync_net, "Traces")
@@ -1747,16 +1831,20 @@ def _apply_sync_schematic_to_pcb(
             "net", document.source_type, f"xml:{sync_net.get('Id', '')}"
         )
         net_changed = net_was_created
+        if sync_net.get("HiddenId") is None:
+            sync_net.set("HiddenId", str(next_hidden_net_id))
+            next_hidden_net_id += 1
+            patch_count += 1
+            net_changed = True
+        if not operation.create_ratlines and sync_net.get("HideRatlines") != "Y":
+            sync_net.set("HideRatlines", "Y")
+            patch_count += 1
+            net_changed = True
         pads_container = sync_net.find("./Pads")
         if pads_container is None:
             pads_container = ET.SubElement(sync_net, "Pads")
             patch_count += 1
             net_changed = True
-        preexisting_endpoints = [
-            (item.get("Comp", ""), item.get("Pad", ""))
-            for item in pads_container.findall("./Item")
-        ]
-        added_endpoints: list[tuple[str, str]] = []
         for endpoint in net_spec.endpoints:
             endpoint_key, component_pad = _sync_endpoint(
                 component_by_refdes,
@@ -1782,6 +1870,7 @@ def _apply_sync_schematic_to_pcb(
                             old_pads.remove(item)
                             patch_count += 1
                             net_changed = True
+                            connectivity_mutated = True
                 endpoint_nets.pop(endpoint_key, None)
             if endpoint_key not in endpoint_nets:
                 ET.SubElement(
@@ -1792,27 +1881,17 @@ def _apply_sync_schematic_to_pcb(
                 endpoint_nets[endpoint_key] = sync_net
                 patch_count += 1
                 net_changed = True
-                added_endpoints.append(endpoint_key)
+                connectivity_mutated = True
             net_id = sync_net.get("Id", "")
             if component_pad.get("NetId") != net_id:
                 component_pad.set("NetId", net_id)
                 patch_count += 1
                 net_changed = True
+                connectivity_mutated = True
             if component_pad.get("InternalConnection") is None:
                 component_pad.set("InternalConnection", "-1")
                 patch_count += 1
                 net_changed = True
-        if operation.reconciliation_mode == "exact":
-            requested_ratlines.append(
-                (net_spec.name, desired_endpoints_by_net[net_spec.name.casefold()])
-            )
-        elif added_endpoints:
-            ratline_endpoints = (
-                added_endpoints
-                if not preexisting_endpoints
-                else [preexisting_endpoints[0], *added_endpoints]
-            )
-            requested_ratlines.append((net_spec.name, ratline_endpoints))
         if net_changed and net_stable not in changed_ids:
             changed_ids.append(net_stable)
             if not net_was_created:
@@ -1839,86 +1918,19 @@ def _apply_sync_schematic_to_pcb(
             if pad.get("NetId") != expected_net_id:
                 pad.set("NetId", expected_net_id)
                 patch_count += 1
+                connectivity_mutated = True
             if pad.get("InternalConnection") is None:
                 pad.set("InternalConnection", "-1")
                 patch_count += 1
 
-    if operation.create_ratlines:
+    # Ratlines are a derived DipTrace cache. Pad@NetId is authoritative; keeping
+    # hand-authored ratlines after a connectivity edit can make DipTrace reject the
+    # cache and show a reinitialization warning. Drop it and let DipTrace rebuild.
+    if connectivity_mutated:
         ratlines = document.container.find("./Ratlines")
-        if ratlines is None:
-            ratlines = ET.SubElement(document.container, "Ratlines")
+        if ratlines is not None:
+            document.container.remove(ratlines)
             patch_count += 1
-        existing_pairs = {
-            frozenset(
-                {
-                    (item.get("Comp1", ""), item.get("Pad1", "")),
-                    (item.get("Comp2", ""), item.get("Pad2", "")),
-                }
-            )
-            for item in ratlines.findall("./Ratline")
-        }
-        next_ratline_id = int(_next_numeric_id(ratlines.findall("./Ratline")))
-        positioned_snapshot = build_snapshot(document)
-        pad_positions: dict[tuple[str, str], Point] = {}
-        for component_record in positioned_snapshot.objects.values():
-            if (
-                component_record.kind not in {"component", "testpoint"}
-                or not component_record.xml_id
-            ):
-                continue
-            for pad_stable in component_record.relationships.get("pads", []):
-                pad_record: ObjectRecord | None = positioned_snapshot.objects.get(pad_stable)
-                if pad_record is None or not pad_record.xml_id:
-                    continue
-                position = pad_record.position or component_record.position
-                if position is not None:
-                    pad_positions[(component_record.xml_id, pad_record.xml_id)] = Point(**position)
-        for _net_name, endpoints in requested_ratlines:
-            for first, second in zip(endpoints, endpoints[1:], strict=False):
-                pair = frozenset({first, second})
-                if first == second or pair in existing_pairs:
-                    continue
-                first_component = component_by_refdes[
-                    next(
-                        spec.refdes.casefold()
-                        for spec in operation.components
-                        if component_by_refdes[spec.refdes.casefold()].get("Id") == first[0]
-                    )
-                ]
-                second_component = component_by_refdes[
-                    next(
-                        spec.refdes.casefold()
-                        for spec in operation.components
-                        if component_by_refdes[spec.refdes.casefold()].get("Id") == second[0]
-                    )
-                ]
-                first_position = pad_positions.get(first) or Point(
-                    to_mm(float(first_component.get("X", "0")), document.units),
-                    to_mm(float(first_component.get("Y", "0")), document.units),
-                )
-                second_position = pad_positions.get(second) or Point(
-                    to_mm(float(second_component.get("X", "0")), document.units),
-                    to_mm(float(second_component.get("Y", "0")), document.units),
-                )
-                ET.SubElement(
-                    ratlines,
-                    "Ratline",
-                    {
-                        "Id": str(next_ratline_id),
-                        "Hidden": "N",
-                        "X1": f"{from_mm(first_position.x, document.units):.9g}",
-                        "Y1": f"{from_mm(first_position.y, document.units):.9g}",
-                        "X2": f"{from_mm(second_position.x, document.units):.9g}",
-                        "Y2": f"{from_mm(second_position.y, document.units):.9g}",
-                        "Comp1": first[0],
-                        "Pad1": first[1],
-                        "Comp2": second[0],
-                        "Pad2": second[1],
-                    },
-                )
-                next_ratline_id += 1
-                existing_pairs.add(pair)
-                patch_count += 1
 
     final_snapshot = build_snapshot(document)
     targets = [

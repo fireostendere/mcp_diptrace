@@ -69,18 +69,35 @@ def test_sync_populates_empty_pcb_and_copies_patterns() -> None:
     components = root.findall("./Board/Components/Component")
     assert [item.findtext("./RefDes") for item in components] == ["R1", "U1"]
     assert [item.get("PatternStyle") for item in components] == ["PatType0", "PatType1"]
-    assert [
-        item.get("PatternStyle")
-        for item in root.findall(
-            "./Library[@Type='DipTrace-PatternLibrary']/Patterns/Pattern"
-        )
-    ] == ["PatType0", "PatType1"]
+    embedded_patterns = root.findall(
+        "./Library[@Type='DipTrace-ComponentLibrary']/"
+        "Library[@Type='DipTrace-PatternLibrary']/Patterns/Pattern"
+    )
+    assert [item.get("PatternStyle") for item in embedded_patterns] == [
+        "PatType0",
+        "PatType1",
+    ]
+    assert [item.get("Id") for item in embedded_patterns] == ["0", "1"]
+    assert all(item.get("LockTypeChange") == "N" for item in embedded_patterns)
+    assert all(item.get("Float1") == "0" for item in embedded_patterns)
+    assert all(item.get("Float2") == "0" for item in embedded_patterns)
+    assert all(item.get("Float3") == "0" for item in embedded_patterns)
+    assert all(item.get("Int1") == "0" for item in embedded_patterns)
+    assert all(item.get("Int2") == "0" for item in embedded_patterns)
     assert {
         item.get("Name")
         for item in root.findall(
-            "./Library[@Type='DipTrace-PatternLibrary']/PadStyles/PadStyle"
+            "./Library[@Type='DipTrace-ComponentLibrary']/"
+            "Library[@Type='DipTrace-PatternLibrary']/PadStyles/PadStyle"
         )
     } == {"SMD_0603", "THT_1MM"}
+    outer_library = root.find("./Library[@Type='DipTrace-ComponentLibrary']")
+    assert outer_library is not None
+    assert outer_library.get("Version") is None
+    pattern_library = outer_library.find("./Library[@Type='DipTrace-PatternLibrary']")
+    assert pattern_library is not None
+    assert pattern_library.get("Version") is None
+    assert root.find("./Library[@Type='DipTrace-PatternLibrary']") is None
     nets = {
         net.findtext("./Name"): {
             (item.get("Comp"), item.get("Pad"))
@@ -105,7 +122,21 @@ def test_sync_populates_empty_pcb_and_copies_patterns() -> None:
         ("1", "0"): ("0", "-1"),
         ("1", "1"): ("1", "-1"),
     }
-    assert len(root.findall("./Board/Ratlines/Ratline")) == 2
+    assert root.find("./Board/Ratlines") is None
+    assert [net.get("HiddenId") for net in root.findall("./Board/Nets/Net")] == [
+        "0",
+        "1",
+    ]
+    for component in components:
+        assert component.get("MarkingFontSize") == "10"
+        assert component.get("MarkingFontSizeFloat") == "10"
+        assert component.get("GridAlign") == "Pad"
+        refdes_silk = component.find("./RefDesMarking/Silk")
+        name_silk = component.find("./NameMarking/Silk")
+        value_silk = component.find("./ValueMarking/Silk")
+        assert refdes_silk is not None and refdes_silk.get("Align") == "Top"
+        assert name_silk is not None and name_silk.get("Align") == "Left"
+        assert value_silk is not None and value_silk.get("Align") == "Bottom"
 
 
 def test_sync_operation_is_idempotent() -> None:
@@ -127,6 +158,25 @@ def test_sync_operation_is_idempotent() -> None:
     second = apply_semantic_operations(first.document, [second_plan.operation])
     assert second.patch_count == 0
     assert second.raw_bytes == first.raw_bytes
+
+
+def test_sync_without_ratlines_hides_derived_guides() -> None:
+    schematic = _load("schematic.xml")
+    pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    plan = build_sync_plan(
+        schematic,
+        pcb,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+        create_ratlines=False,
+    )
+
+    result = apply_semantic_operations(pcb, [plan.operation])
+    root = ET.fromstring(result.raw_bytes)
+    assert root.find("./Board/Ratlines") is None
+    assert {
+        net.get("HideRatlines") for net in root.findall("./Board/Nets/Net")
+    } == {"Y"}
 
 
 def _synced_pcb_with_extras(*, locked_extra: bool = False) -> DipTraceDocument:
@@ -178,14 +228,17 @@ def _synced_pcb_with_extras(*, locked_extra: bool = False) -> DipTraceDocument:
     extra_net = ET.SubElement(
         nets,
         "Net",
-        {"Id": "2", "NetClass": "0", "Locked": "N"},
+        {"Id": "2", "HiddenId": "2", "NetClass": "0", "Locked": "N"},
     )
     ET.SubElement(extra_net, "Name").text = "EXTRA"
     ET.SubElement(extra_net, "Pads")
     ET.SubElement(extra_net, "Traces")
 
+    board = root.find("./Board")
+    assert board is not None
     ratlines = root.find("./Board/Ratlines")
-    assert ratlines is not None
+    if ratlines is None:
+        ratlines = ET.SubElement(board, "Ratlines")
     ET.SubElement(
         ratlines,
         "Ratline",
@@ -228,7 +281,7 @@ def test_exact_sync_removes_unmatched_objects_and_changed_net_traces() -> None:
         item.findtext("./Name") for item in root.findall("./Board/Nets/Net")
     } == {"VCC", "SIGNAL"}
     assert root.findall("./Board/Nets/Net/Traces/Trace") == []
-    assert len(root.findall("./Board/Ratlines/Ratline")) == 2
+    assert root.find("./Board/Ratlines") is None
 
     second_plan = build_sync_plan(
         schematic,
