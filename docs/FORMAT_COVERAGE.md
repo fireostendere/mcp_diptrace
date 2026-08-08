@@ -11,8 +11,8 @@
 | Documented parent/child relationships | 143 across 61 parents |
 | Normalized (reader produces typed field) | 72 |
 | Written only (writer can create/modify) | 18 |
-| Mentioned only (literal, not an XML call) | 6 |
-| Passthrough (unknown XML, kept byte-for-byte) | 11 |
+| Mentioned only (literal, not an XML call) | 7 |
+| Passthrough (unknown XML, kept byte-for-byte) | 10 |
 | **Coverage** | **84.1%** |
 
 ## Inventory Provenance
@@ -131,6 +131,7 @@ the current reader/writer call sites; it is not a normative DipTrace format spec
 - `NegPoints`
 - `PosPoint`
 - `PosPoints`
+- `RefDesMarking`
 - `Silk`
 
 ## Passthrough Elements
@@ -145,7 +146,6 @@ the current reader/writer call sites; it is not a normative DipTrace format spec
 - `Manufacturer`
 - `Note`
 - `PadNumber`
-- `RefDesMarking`
 
 ## What Passthrough Means
 
@@ -161,7 +161,6 @@ does not make undocumented children safe.
 - `semantic_compiler.py::_apply_remove_testpoints` may remove `<Item>` from `<Pads>`; known passthrough children: none.
 - `semantic_compiler.py::_apply_remove_testpoints` may remove `<Pattern>` from `<Patterns>`; known passthrough children: none.
 - `semantic_compiler.py::_apply_sync_schematic_to_pcb` may remove `<Item>` from `<Pads>`; known passthrough children: none.
-- `semantic_compiler.py::_apply_sync_schematic_to_pcb` may remove `<Ratline>` from `<Ratlines>`; known passthrough children: none.
 - `semantic_compiler.py::_apply_ungroup_components` may remove `<Group>` from `<Groups>`; known passthrough children: none.
 
 Any operation listed above can discard matching passthrough children rather than
