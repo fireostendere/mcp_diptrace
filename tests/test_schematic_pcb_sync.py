@@ -139,6 +139,33 @@ def test_sync_populates_empty_pcb_and_copies_patterns() -> None:
         assert value_silk is not None and value_silk.get("Align") == "Bottom"
 
 
+def test_sync_bootstraps_missing_embedded_libraries() -> None:
+    schematic = _load("schematic.xml")
+    root = ET.fromstring(build_pcb_document())
+    for library in list(root.findall("./Library")):
+        root.remove(library)
+    pcb = DipTraceDocument.from_bytes(
+        Path("board.dip"), ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    )
+    plan = build_sync_plan(
+        schematic,
+        pcb,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+    )
+
+    result = apply_semantic_operations(pcb, [plan.operation])
+    result_root = ET.fromstring(result.raw_bytes)
+    component_library = result_root.find("./Library[@Type='DipTrace-ComponentLibrary']")
+    assert component_library is not None
+    pattern_library = component_library.find("./Library[@Type='DipTrace-PatternLibrary']")
+    assert pattern_library is not None
+    assert pattern_library.find("./PadStyles") is not None
+    assert [
+        item.get("PatternStyle") for item in pattern_library.findall("./Patterns/Pattern")
+    ] == ["PatType0", "PatType1"]
+
+
 def test_sync_operation_is_idempotent() -> None:
     schematic = _load("schematic.xml")
     pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
