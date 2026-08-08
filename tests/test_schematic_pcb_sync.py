@@ -10,7 +10,12 @@ from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import EditError, LockedObjectError
 from diptrace_mcp.operations import SyncSchematicToPcbOperation
 from diptrace_mcp.scaffolding import build_pcb_document
-from diptrace_mcp.semantic_compiler import apply_semantic_operations
+from diptrace_mcp.semantic_compiler import (
+    _append_sync_component_markings,
+    _normalize_sync_pattern_for_pcb_cache,
+    _sync_pattern_pad_ids,
+    apply_semantic_operations,
+)
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.synchronization import ComponentSyncMapping, build_sync_plan
 from diptrace_mcp.xml_document import DipTraceDocument
@@ -505,3 +510,59 @@ def test_sync_service_produces_guarded_transaction_preview(tmp_path: Path) -> No
     txid = response["transaction"]["txid"]
     assert "<Component" in service.transactions.diff_path(txid).read_text(encoding="utf-8")
     assert pcb_path.read_bytes() == build_pcb_document()
+
+
+
+def test_sync_pattern_cache_normalization_edge_cases() -> None:
+    missing_number = ET.fromstring(
+        '<Pattern><Pads><Pad Id="0" /></Pads></Pattern>'
+    )
+    with pytest.raises(EditError, match="pattern pad has no Number"):
+        _normalize_sync_pattern_for_pcb_cache(missing_number, units="mm")
+
+    duplicate_number = ET.fromstring(
+        '<Pattern><Pads>'
+        '<Pad Id="0"><Number>1</Number></Pad>'
+        '<Pad Id="1"><Number>1</Number></Pad>'
+        '</Pads></Pattern>'
+    )
+    with pytest.raises(EditError, match="duplicate pad number"):
+        _normalize_sync_pattern_for_pcb_cache(duplicate_number, units="mm")
+
+    legacy = ET.fromstring(
+        '<Pattern Height="not-a-number">'
+        '<Pads><Pad Id="0"><Number>1</Number></Pad></Pads>'
+        '<Shapes><Shape PadId="0" /></Shapes>'
+        '<Model3D><Filename><Path>fixture.step</Path><Var /></Filename></Model3D>'
+        '</Pattern>'
+    )
+    _normalize_sync_pattern_for_pcb_cache(legacy, units="mm")
+    shape = legacy.find("./Shapes/Shape")
+    assert shape is not None and shape.get("PadId") == "1"
+    for tag in ("Rotate", "Offset", "Zoom"):
+        transform = legacy.find(f"./Model3D/{tag}")
+        assert transform is not None
+        assert set(transform.attrib) == {"X", "Y", "Z"}
+
+    component = ET.Element("Component")
+    _append_sync_component_markings(component, legacy, units="mm")
+    refdes = component.find("./RefDesMarking/Silk")
+    assert refdes is not None
+    assert float(refdes.get("Y", "0")) < 0
+
+    incomplete = ET.fromstring(
+        '<Pattern><Pads>'
+        '<Pad Id="1" />'
+        '<Pad Id="2"><Number>2</Number></Pad>'
+        '</Pads></Pattern>'
+    )
+    assert _sync_pattern_pad_ids(incomplete) == {"2": "2"}
+
+    duplicate_map = ET.fromstring(
+        '<Pattern><Pads>'
+        '<Pad Id="1"><Number>1</Number></Pad>'
+        '<Pad Id="2"><Number>1</Number></Pad>'
+        '</Pads></Pattern>'
+    )
+    with pytest.raises(EditError, match="duplicate pad number"):
+        _sync_pattern_pad_ids(duplicate_map)
