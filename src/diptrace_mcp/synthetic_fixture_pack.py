@@ -7,11 +7,20 @@ claim ``diptrace_exported`` or real round-trip evidence.
 
 from __future__ import annotations
 
+# XML fixture literals intentionally remain one line per logical XML fragment so
+# byte-for-byte fixture output stays obvious and deterministic.
+# ruff: noqa: E501
+
 import json
 from pathlib import Path
 from typing import Any
 
-from .scaffolding import PcbScaffold, SchematicScaffold, build_pcb_document, build_schematic_document
+from .scaffolding import (
+    PcbScaffold,
+    SchematicScaffold,
+    build_pcb_document,
+    build_schematic_document,
+)
 from .specctra import parse_ses
 from .xml_document import DipTraceDocument, sha256_bytes
 
