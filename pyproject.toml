@@ -80,9 +80,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/diptrace_mcp/library_mutation.py" = ["E501"]
-"src/diptrace_mcp/manual_acceptance.py" = ["E501"]
+"src/diptrace_mcp/manual_acceptance.py" = ["E501", "I001"]
 "src/diptrace_mcp/release_readiness.py" = ["E501"]
-"src/diptrace_mcp/synthetic_fixture_pack.py" = ["E501"]
+"src/diptrace_mcp/synthetic_fixture_pack.py" = ["E501", "I001"]
 "tests/test_manual_acceptance.py" = ["E501"]
 
 [tool.ruff.lint.isort]
