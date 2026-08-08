@@ -10,7 +10,7 @@ Implementation never implies universal DipTrace compatibility. Runtime `get_capa
 
 ## Current checkpoint — 2026-08-08
 
-The current package version is `0.2.1`. Annotated tag `v0.2.1`, the GitHub development prerelease and `diptrace-mcp==0.2.1` on PyPI are already published. The post-release architecture cleanup is merged on `main`.
+The current source/package version is `0.2.1`. Annotated tag `v0.2.1`, the GitHub development prerelease and `diptrace-mcp==0.2.1` on PyPI are already published. The post-release architecture cleanup is merged on `main`.
 
 All repository work that can be completed without a real external GUI/host has now been implemented on the current development line:
 
