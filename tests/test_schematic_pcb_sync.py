@@ -106,8 +106,8 @@ def test_sync_populates_empty_pcb_and_copies_patterns() -> None:
         for net in root.findall("./Board/Nets/Net")
     }
     assert nets == {
-        "VCC": {("0", "0"), ("1", "0")},
-        "SIGNAL": {("0", "1"), ("1", "1")},
+        "VCC": {("0", "1"), ("1", "1")},
+        "SIGNAL": {("0", "2"), ("1", "2")},
     }
     assert {
         (component.get("Id"), pad.get("Id")): (
@@ -117,10 +117,10 @@ def test_sync_populates_empty_pcb_and_copies_patterns() -> None:
         for component in components
         for pad in component.findall("./Pads/Pad")
     } == {
-        ("0", "0"): ("0", "-1"),
-        ("0", "1"): ("1", "-1"),
-        ("1", "0"): ("0", "-1"),
-        ("1", "1"): ("1", "-1"),
+        ("0", "1"): ("0", "-1"),
+        ("0", "2"): ("1", "-1"),
+        ("1", "1"): ("0", "-1"),
+        ("1", "2"): ("1", "-1"),
     }
     assert root.find("./Board/Ratlines") is None
     assert [net.get("HiddenId") for net in root.findall("./Board/Nets/Net")] == [
@@ -134,9 +134,89 @@ def test_sync_populates_empty_pcb_and_copies_patterns() -> None:
         refdes_silk = component.find("./RefDesMarking/Silk")
         name_silk = component.find("./NameMarking/Silk")
         value_silk = component.find("./ValueMarking/Silk")
-        assert refdes_silk is not None and refdes_silk.get("Align") == "Top"
-        assert name_silk is not None and name_silk.get("Align") == "Left"
-        assert value_silk is not None and value_silk.get("Align") == "Bottom"
+        assert refdes_silk is not None and refdes_silk.get("Align") == "Position"
+        assert name_silk is not None and name_silk.get("Align") == "Position"
+        assert value_silk is not None and value_silk.get("Align") == "Position"
+
+
+def test_sync_emits_native_pad_ids_ratline_mode_and_marking_positions() -> None:
+    schematic = _load("schematic.xml")
+    pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    plan = build_sync_plan(
+        schematic,
+        pcb,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+    )
+    result = apply_semantic_operations(pcb, [plan.operation])
+    root = ET.fromstring(result.raw_bytes)
+    patterns = {
+        pattern.get("PatternStyle"): pattern
+        for pattern in root.findall(
+            "./Library[@Type='DipTrace-ComponentLibrary']/"
+            "Library[@Type='DipTrace-PatternLibrary']/Patterns/Pattern"
+        )
+    }
+    assert [pad.get("Id") for pad in patterns["PatType0"].findall("./Pads/Pad")] == [
+        "1",
+        "2",
+    ]
+    assert [pad.get("Id") for pad in patterns["PatType1"].findall("./Pads/Pad")] == [
+        "1",
+        "2",
+    ]
+    components = root.findall("./Board/Components/Component")
+    assert [
+        [pad.get("Id") for pad in component.findall("./Pads/Pad")]
+        for component in components
+    ] == [["1", "2"], ["1", "2"]]
+    assert all(
+        pad.get("Number") is None
+        for component in components
+        for pad in component.findall("./Pads/Pad")
+    )
+    assert {net.get("RouteMode") for net in root.findall("./Board/Nets/Net")} == {
+        "Ratlines"
+    }
+    for component in components:
+        refdes = component.find("./RefDesMarking/Silk")
+        name = component.find("./NameMarking/Silk")
+        value = component.find("./ValueMarking/Silk")
+        assert refdes is not None and refdes.get("Align") == "Position"
+        assert name is not None and name.get("Align") == "Position"
+        assert value is not None and value.get("Align") == "Position"
+        assert float(refdes.get("Y", "0")) < 0
+        assert float(name.get("Y", "0")) > 0
+        assert float(value.get("Y", "0")) > float(name.get("Y", "0"))
+        for tag in ("PatternMarking", "ManufacturerMarking", "DatasheetMarking"):
+            extra = component.find(f"./{tag}/Silk")
+            assert extra is not None and extra.get("Show") == "Hide"
+
+
+def test_sync_normalizes_legacy_model3d_filename_for_current_diptrace() -> None:
+    schematic = _load("schematic.xml")
+    pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    plan = build_sync_plan(
+        schematic,
+        pcb,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+    )
+    result = apply_semantic_operations(pcb, [plan.operation])
+    root = ET.fromstring(result.raw_bytes)
+    pattern = root.find(
+        "./Library[@Type='DipTrace-ComponentLibrary']/"
+        "Library[@Type='DipTrace-PatternLibrary']/Patterns/"
+        "Pattern[@PatternStyle='PatType1']"
+    )
+    assert pattern is not None
+    model = pattern.find("./Model3D")
+    assert model is not None
+    assert model.get("Type") == "File"
+    assert model.get("Units") == result.document.units
+    assert model.findtext("./Filename/Path") == "hdr_1x02.step"
+    assert model.find("./Filename/Var") is not None
+
 
 
 def test_sync_bootstraps_missing_embedded_libraries() -> None:

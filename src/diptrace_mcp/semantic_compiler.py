@@ -1373,6 +1373,134 @@ def _sync_endpoint(
     return (component.get("Id", ""), pad.get("Id", "")), pad
 
 
+def _normalize_sync_pattern_for_pcb_cache(
+    pattern: ET.Element,
+    *,
+    units: str,
+) -> None:
+    """Normalize a copied footprint to the current PCB design-cache shape."""
+    pad_id_map: dict[str, str] = {}
+    seen_numbers: set[str] = set()
+    for pad_index, pad in enumerate(pattern.findall("./Pads/Pad"), start=1):
+        old_id = pad.get("Id", "")
+        new_id = str(pad_index)
+        if old_id:
+            pad_id_map[old_id] = new_id
+        pad.set("Id", new_id)
+        number = (pad.findtext("./Number") or "").strip()
+        if not number:
+            raise EditError("Schematic sync pattern pad has no Number")
+        key = number.casefold()
+        if key in seen_numbers:
+            raise EditError(
+                f"Schematic sync pattern has duplicate pad number: {number}"
+            )
+        seen_numbers.add(key)
+    for shape in pattern.findall("./Shapes/Shape"):
+        old_pad_id = shape.get("PadId")
+        if old_pad_id is not None and old_pad_id in pad_id_map:
+            shape.set("PadId", pad_id_map[old_pad_id])
+
+    model = pattern.find("./Model3D")
+    if model is None:
+        return
+    for attribute, default in (
+        ("Mirror", "N"),
+        ("NoSearch", "N"),
+        ("Units", units),
+        ("IPC_XOff", "0"),
+        ("IPC_YOff", "0"),
+        ("AutoHeight", "0"),
+        ("AutoColor", "0"),
+        ("Type", "File"),
+        ("KeepPins", "N"),
+    ):
+        model.attrib.setdefault(attribute, default)
+    filename = model.find("./Filename")
+    if filename is not None:
+        legacy_filename = (filename.text or "").strip()
+        filename_path = filename.find("./Path")
+        filename_var = filename.find("./Var")
+        if filename_path is None and legacy_filename:
+            filename.text = None
+            filename_path = ET.SubElement(filename, "Path")
+            filename_path.text = legacy_filename
+        if filename_var is None:
+            ET.SubElement(filename, "Var")
+    for tag, default in (("Rotate", "0"), ("Offset", "0"), ("Zoom", "1")):
+        transform = model.find(f"./{tag}")
+        if transform is None:
+            transform = ET.SubElement(model, tag)
+        for axis in ("X", "Y", "Z"):
+            transform.attrib.setdefault(axis, default)
+
+
+def _sync_pattern_pad_ids(pattern: ET.Element) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for pad in pattern.findall("./Pads/Pad"):
+        number = (pad.findtext("./Number") or "").strip()
+        pad_id = (pad.get("Id") or "").strip()
+        if not number or not pad_id:
+            continue
+        key = number.casefold()
+        if key in result:
+            raise EditError(f"Embedded pattern has duplicate pad number: {number}")
+        result[key] = pad_id
+    return result
+
+
+def _append_sync_component_markings(
+    component: ET.Element,
+    pattern: ET.Element,
+    *,
+    units: str,
+) -> None:
+    try:
+        pattern_height = abs(float(pattern.get("Height", "0")))
+    except ValueError:
+        pattern_height = 0.0
+    gap = from_mm(0.7, units)
+    line_step = from_mm(1.5, units)
+    base_offset = max(pattern_height / 2.0 + gap, line_step)
+    positions = {
+        "RefDesMarking": -base_offset,
+        "NameMarking": base_offset,
+        "ValueMarking": base_offset + line_step,
+    }
+    for tag, y in positions.items():
+        marking = ET.SubElement(component, tag)
+        for surface in ("Silk", "Assy"):
+            ET.SubElement(
+                marking,
+                surface,
+                {
+                    "Show": "Show",
+                    "Align": "Position",
+                    "Horz": "Center",
+                    "Vert": "Center",
+                    "X": "0",
+                    "Y": f"{y:.9g}",
+                    "Angle": "0",
+                },
+            )
+    for tag in ("PatternMarking", "ManufacturerMarking", "DatasheetMarking"):
+        marking = ET.SubElement(component, tag)
+        for surface in ("Silk", "Assy"):
+            ET.SubElement(
+                marking,
+                surface,
+                {
+                    "Show": "Hide",
+                    "Align": "Position",
+                    "Horz": "Center",
+                    "Vert": "Center",
+                    "X": "0",
+                    "Y": "0",
+                    "Angle": "0",
+                },
+            )
+
+
 def _apply_sync_schematic_to_pcb(
     index: int,
     document: DipTraceDocument,
@@ -1493,9 +1621,19 @@ def _apply_sync_schematic_to_pcb(
                 ("Int2", "0"),
             ):
                 element.attrib.setdefault(attribute, default)
+            _normalize_sync_pattern_for_pcb_cache(element, units=document.units)
             patterns.append(element)
             existing_pattern_styles.add(key)
             patch_count += 1
+
+    pattern_by_style = {
+        (item.get("PatternStyle") or item.get("Style") or "").casefold(): item
+        for item in patterns.findall("./Pattern")
+        if item.get("PatternStyle") or item.get("Style")
+    }
+    pattern_pad_ids_by_style = {
+        key: _sync_pattern_pad_ids(item) for key, item in pattern_by_style.items()
+    }
 
     components = document.container.find("./Components")
     if components is None:
@@ -1546,35 +1684,31 @@ def _apply_sync_schematic_to_pcb(
             ET.SubElement(target_component, "RefDes").text = spec.refdes
             ET.SubElement(target_component, "Name").text = spec.name
             ET.SubElement(target_component, "Value").text = spec.value
-            for tag, align in (
-                ("RefDesMarking", "Top"),
-                ("NameMarking", "Left"),
-                ("ValueMarking", "Bottom"),
-            ):
-                marking = ET.SubElement(target_component, tag)
-                for surface in ("Silk", "Assy"):
-                    ET.SubElement(
-                        marking,
-                        surface,
-                        {
-                            "Show": "Show",
-                            "Align": align,
-                            "Horz": "Center",
-                            "Vert": "Center",
-                            "X": "0",
-                            "Y": "0",
-                            "Angle": "0",
-                        },
-                    )
+            component_pattern = pattern_by_style.get(spec.pattern_style.casefold())
+            if component_pattern is None:
+                raise EditError(
+                    "Embedded pattern was not found for synchronized component: "
+                    f"{spec.pattern_style}"
+                )
+            _append_sync_component_markings(
+                target_component,
+                component_pattern,
+                units=document.units,
+            )
             _, field_patches = _set_additional_fields(target_component, spec.fields)
             component_pads = ET.SubElement(target_component, "Pads")
-            for pad_index, number in enumerate(spec.pad_numbers):
+            pattern_pad_ids = pattern_pad_ids_by_style.get(spec.pattern_style.casefold(), {})
+            for number in spec.pad_numbers:
+                pad_id = pattern_pad_ids.get(number.casefold())
+                if pad_id is None:
+                    raise EditError(
+                        f"Embedded pattern {spec.pattern_style!r} lacks mapped pad {number!r}"
+                    )
                 ET.SubElement(
                     component_pads,
                     "Pad",
                     {
-                        "Id": str(pad_index),
-                        "Number": number,
+                        "Id": pad_id,
                         "NetId": "-1",
                         "InternalConnection": "-1",
                     },
@@ -1817,6 +1951,10 @@ def _apply_sync_schematic_to_pcb(
                 },
             )
             next_hidden_net_id += 1
+            if operation.create_ratlines:
+                sync_net.set("RouteMode", "Ratlines")
+            else:
+                sync_net.set("HideRatlines", "Y")
             ET.SubElement(sync_net, "Name").text = net_spec.name
             ET.SubElement(sync_net, "Pads")
             ET.SubElement(sync_net, "Traces")
@@ -1836,7 +1974,16 @@ def _apply_sync_schematic_to_pcb(
             next_hidden_net_id += 1
             patch_count += 1
             net_changed = True
-        if not operation.create_ratlines and sync_net.get("HideRatlines") != "Y":
+        if operation.create_ratlines:
+            if sync_net.get("RouteMode") != "Ratlines":
+                sync_net.set("RouteMode", "Ratlines")
+                patch_count += 1
+                net_changed = True
+            if sync_net.get("HideRatlines") is not None:
+                sync_net.attrib.pop("HideRatlines", None)
+                patch_count += 1
+                net_changed = True
+        elif sync_net.get("HideRatlines") != "Y":
             sync_net.set("HideRatlines", "Y")
             patch_count += 1
             net_changed = True
