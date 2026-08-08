@@ -166,6 +166,47 @@ def test_sync_bootstraps_missing_embedded_libraries() -> None:
     ] == ["PatType0", "PatType1"]
 
 
+def test_sync_restores_missing_embedded_library_units() -> None:
+    schematic = _load("schematic.xml")
+    pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    initial_plan = build_sync_plan(
+        schematic,
+        pcb,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+    )
+    initial = apply_semantic_operations(pcb, [initial_plan.operation])
+    root = ET.fromstring(initial.raw_bytes)
+    component_library = root.find("./Library[@Type='DipTrace-ComponentLibrary']")
+    assert component_library is not None
+    pattern_library = component_library.find("./Library[@Type='DipTrace-PatternLibrary']")
+    assert pattern_library is not None
+    component_library.attrib.pop("Units", None)
+    pattern_library.attrib.pop("Units", None)
+    missing_units = DipTraceDocument.from_bytes(
+        Path("board.dip"), ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    )
+    repair_plan = build_sync_plan(
+        schematic,
+        missing_units,
+        mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+    )
+
+    repaired = apply_semantic_operations(missing_units, [repair_plan.operation])
+    repaired_root = ET.fromstring(repaired.raw_bytes)
+    repaired_component_library = repaired_root.find(
+        "./Library[@Type='DipTrace-ComponentLibrary']"
+    )
+    assert repaired_component_library is not None
+    repaired_pattern_library = repaired_component_library.find(
+        "./Library[@Type='DipTrace-PatternLibrary']"
+    )
+    assert repaired_pattern_library is not None
+    assert repaired_component_library.get("Units") == missing_units.units
+    assert repaired_pattern_library.get("Units") == missing_units.units
+
+
 def test_sync_operation_is_idempotent() -> None:
     schematic = _load("schematic.xml")
     pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
