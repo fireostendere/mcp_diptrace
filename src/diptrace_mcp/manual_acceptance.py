@@ -7,8 +7,11 @@ judgement.  Automatable repository checks must not be added to this matrix.
 
 from __future__ import annotations
 
+# This module is predominantly declarative acceptance prose. Keeping each criterion
+# as one literal makes generated evidence stable and easier to diff.
+# ruff: noqa: E501
+
 import hashlib
-import json
 from pathlib import Path
 from typing import Literal
 
