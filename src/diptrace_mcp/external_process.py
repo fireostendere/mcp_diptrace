@@ -196,6 +196,17 @@ class ExternalProcessRunner:
                     on_progress(elapsed)
                 cancel.wait(self.poll_interval_seconds)
 
+            # The process can exit between the loop condition and the next
+            # deadline check. Preserve timeout/cancellation precedence instead
+            # of misclassifying that boundary race as an external-tool failure.
+            elapsed = time.monotonic() - started
+            if cancel.is_set():
+                self._stop_remaining_descendants(process)
+                raise JobCancelledError(cancellation_message, jobid=jobid)
+            if elapsed > timeout_seconds:
+                self._stop_remaining_descendants(process)
+                raise JobTimeoutError(timeout_message, jobid=jobid)
+
             return_code = process.wait()
             self._stop_remaining_descendants(process)
             if cancel.is_set():
