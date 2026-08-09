@@ -20,11 +20,9 @@ The current canonical snapshot is:
 - SHA-256: `073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db`.
 
 The snapshot is generated through the public in-memory MCP transport rather
-than FastMCP internals. CI rejects unregenerated contract drift.
-
-The service layer separately freezes all 157 public `DipTraceService`
-signatures and 148 explicit Facade-to-domain-service delegations in
-`reference/service-facade-contract.json`.
+than FastMCP internals. CI rejects unregenerated contract drift. Internal
+service ownership and forwarding topology are implementation details rather
+than a second versioned API contract.
 
 ## Input schemas, units, and errors
 
@@ -180,9 +178,5 @@ The server supports:
 Streamable HTTP is intended for trusted local loopback use. OAuth, remote
 multi-user isolation, and a hosted service boundary are not implemented.
 
-## Version and publication status
-
-The source/package version is `0.2.0`. The latest published GitHub release is
-`v0.1.2`. The 0.2.0 installer and portable assets build in CI but are not public
-release downloads until `v0.2.0` is tagged and published after the remaining
-human acceptance gates.
+Mutable source/release versions are intentionally not duplicated here; use the
+package metadata and release records for current publication state.
