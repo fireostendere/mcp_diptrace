@@ -63,7 +63,10 @@ def test_courtyard_acceptance_values_are_mcp_visible_and_siblings_preserved() ->
     # Parsing is read-only: sibling and unknown source bytes remain untouched.
     assert baseline.raw_bytes == baseline_bytes
     assert changed.raw_bytes == changed_bytes
-    assert b'<FutureExtension Vendor="fixture"><Data Preserve="Y" /></FutureExtension>' in changed.raw_bytes
+    future_extension = (
+        b'<FutureExtension Vendor="fixture"><Data Preserve="Y" /></FutureExtension>'
+    )
+    assert future_extension in changed.raw_bytes
 
 
 def test_project_setting_omission_is_not_replaced_with_inferred_defaults() -> None:
