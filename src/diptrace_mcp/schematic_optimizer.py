@@ -28,6 +28,14 @@ LocalStyle = Literal["support_right", "support_below", "support_balanced"]
 OrderStrategy = Literal["role_then_id", "connector_flow", "connectivity_degree"]
 
 
+def _default_local_styles() -> list[LocalStyle]:
+    return ["support_right", "support_below", "support_balanced"]
+
+
+def _default_order_strategies() -> list[OrderStrategy]:
+    return ["role_then_id", "connector_flow", "connectivity_degree"]
+
+
 class SchematicOptimizerWeights(StrictModel):
     layout_score: float = Field(default=1.0, ge=0.0)
     estimated_interconnect: float = Field(default=0.5, ge=0.0)
@@ -46,20 +54,12 @@ class SchematicOptimizerConfig(StrictModel):
         default_factory=lambda: [0.75, 1.0, 1.25], min_length=1, max_length=8
     )
     local_styles: list[LocalStyle] = Field(
-        default_factory=lambda: [
-            "support_right",
-            "support_below",
-            "support_balanced",
-        ],
+        default_factory=_default_local_styles,
         min_length=1,
         max_length=3,
     )
     order_strategies: list[OrderStrategy] = Field(
-        default_factory=lambda: [
-            "role_then_id",
-            "connector_flow",
-            "connectivity_degree",
-        ],
+        default_factory=_default_order_strategies,
         min_length=1,
         max_length=3,
     )
