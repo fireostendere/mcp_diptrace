@@ -20,6 +20,8 @@ That commit includes the post-PR #65/#66 Ponytail pass (PR #68). Later documenta
 
 The durable recovery record is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md), updated on 2026-08-10. Resume from that checkpoint instead of repeating already accepted gates.
 
+A new product-development track also starts at this checkpoint: **intelligent schematic and PCB design quality**. Formal acceptance remains paused at its existing resume point while the project first proves that it can produce schematics that are not only electrically correct, but compact, readable, intentionally structured and comparable in presentation quality to strong professional reference designs. The schematic track comes first because its geometry is primarily a readability/layout problem; the PCB track follows after the same generate/score/improve architecture is established.
+
 ## Completed real-host / real-client acceptance
 
 The following blocking manual gates are complete:
@@ -81,26 +83,75 @@ The next formal gate remains:
 
 It is **PENDING** and has not been run.
 
-The formal campaign is intentionally paused before that gate. Before spending more time on client/installer lifecycle checks, the project will validate the core product behavior more aggressively: can the current MCP author a normal, readable, useful schematic in real DipTrace?
+The formal campaign is intentionally paused before that gate. Before spending more time on client/installer lifecycle checks, the project will validate and improve the core product behavior: can the current MCP author a normal, readable, useful schematic in real DipTrace, and can it evolve from bounded authoring into an intentional schematic-layout engine?
 
 This pause does not cancel or waive the remaining formal gates.
 
-## Immediate priority — real-world schematic authoring/readability
+## New development track — intelligent schematic and PCB design
+
+### Product goal
+
+The project should progress from "can safely create/edit EDA objects" to "can make defensible engineering-layout decisions". The target is not blind imitation of one vendor style or rigid enforcement of every possible electronics drafting convention. The target is a schematic/PCB that an experienced engineer can open and understand quickly, with sensible grouping, orientation, flow, density and routing decisions.
+
+Reference schematics and layout examples from component datasheets should be treated as **high-value design motifs**, not absolute coordinate templates. The engine should preserve the intent of a reference design — which parts belong together, relative order, orientation, local signal flow, important adjacency and recognizable topology — while adapting that motif to the rest of the actual project.
+
+The long-term architecture is deliberately staged:
+
+```text
+reference / datasheet intent
+          +
+project connectivity and constraints
+          |
+          v
+candidate placement
+          |
+          v
+candidate interconnect routing
+          |
+          v
+quality scoring
+          |
+          +----> placement feedback / local repair
+          |
+          v
+transaction preview -> guarded apply -> review
+```
+
+The same generate -> score -> improve loop should be reusable for PCB work later, where physical/electrical constraints become much stronger.
+
+### Design principles
+
+- Prefer human readability and recognizable functional structure over merely minimizing total geometric wire length.
+- Keep functional blocks compact, but penalize needless schematic-area expansion so the result does not become an oversized empty canvas.
+- Prefer conventional visual flow where it helps understanding: inputs toward outputs, signal flow predominantly left-to-right, supply hierarchy and returns placed consistently, without treating these conventions as hard laws when they make the actual circuit worse.
+- Preserve useful local reference-design structure from datasheets instead of scattering a component's support network across the sheet.
+- Allow placement and wire routing to influence each other. Wiring is not a final cosmetic pass if a small component move can remove pathological crossings, detours or unreadable topology.
+- Prefer deterministic, explainable scoring first. ML remains optional future work and must not be required for the first useful implementation.
+- Do not optimize for "looks standardized" at the expense of engineering clarity. A clean, obvious circuit is more important than ceremonial compliance with drafting conventions that add no value.
+- Every automatic edit remains inside the existing preview/SHA/transaction/review safety model.
+
+## Schematic track — start here
+
+### Phase 26 — real-world readability baseline and benchmark fixtures
+
+**Status: active checkpoint / first task.**
 
 PR #66 added deterministic bounded readability routing for newly authored schematic wires. Its automated goals include component avoidance, text/label avoidance, crossing and overlap avoidance, Manhattan routing, self-intersection avoidance and fewer unnecessary bends. The subsequent Ponytail pass may have modified adjacent behavior.
 
 The historical `diptrace_ratline_and_wire_roundtrip` PASS remains valid for its original scope. It proves wire connectivity and native round-trip behavior, but it does **not** prove that higher-level current schematic authoring consistently produces a schematic a human would consider clean and usable.
 
-The next validation campaign should therefore build small real circuits from a clean starting point and inspect the actual authored result in DipTrace. Suggested cases:
+Build small real circuits from clean starting points and preserve them as regression/quality cases where licensing and provenance allow. Suggested cases:
 
 - resistor divider;
 - LED + resistor;
 - divider + capacitor / simple RC network;
+- LDO or small DC/DC support network;
+- MCU power/decoupling fragment;
 - a deliberately collision-prone layout;
 - RefDes/Value/net-label-near-wire cases;
-- at least one small multi-net schematic.
+- at least one small multi-block, multi-net schematic.
 
-Validate:
+Validate and begin measuring:
 
 - correct components, pins, values and net connectivity;
 - sensible component placement and orientation;
@@ -110,14 +161,149 @@ Validate:
 - no wire covering RefDes, Value or net labels;
 - obvious junction intent;
 - no extreme detours or needless bends;
+- occupied sheet area / bounding-box compactness;
+- functional-group compactness;
+- rough left-to-right signal-flow consistency;
 - native open/save/reopen/re-export preservation;
 - whether the schematic is useful without routine manual cleanup.
 
-A reproducible quality problem found here should become a focused regression case and, if necessary, a separate repair. This stronger product-quality validation must not rewrite historical PASS evidence.
+A reproducible quality problem found here becomes a focused regression case and input to the next phases. Historical PASS evidence is not rewritten.
+
+### Phase 27 — schematic intent and reference-motif model
+
+**Goal:** represent why parts belong together before trying to place them.
+
+Add an internal schematic design-intent layer that can describe:
+
+- functional blocks and sub-blocks;
+- main component versus support components;
+- pin/net roles when they can be resolved safely;
+- repeated channels;
+- signal direction hints;
+- power-tree relationships;
+- local adjacency preferences;
+- preferred symbol orientation / pin-facing relationships;
+- hard versus soft layout constraints;
+- provenance and confidence for every inferred/reference-derived constraint.
+
+Add a reference-motif representation for datasheet/reference circuits. A motif should record relative topology and presentation intent rather than absolute page coordinates. Example concepts include "input capacitor beside VIN/GND", "feedback divider grouped at FB", "crystal network beside oscillator pins" and "connector -> protection -> interface/MCU".
+
+Initial implementation should support project/operator-supplied structured motifs and deterministic built-in heuristics. Automated datasheet ingestion/search can be added later; the layout engine must not depend on online retrieval to work.
+
+### Phase 28 — schematic placement engine v2
+
+**Goal:** place whole functional structures, not isolated symbols.
+
+Build a hierarchical placer:
+
+1. place/pack functional blocks;
+2. place the principal component inside each block;
+3. place its reference/support motif relative to it;
+4. orient symbols to expose connected pins toward the intended local flow;
+5. pack remaining components while respecting text and wiring corridors;
+6. globally compact the result without collapsing readability.
+
+Candidate scoring should include explicit terms for:
+
+- symbol/body overlap;
+- text/label clearance zones;
+- functional-group cohesion;
+- deviation from a trusted reference motif;
+- pin-facing / orientation quality;
+- estimated future wire length;
+- estimated future crossings;
+- alignment and grid regularity;
+- backward or confusing signal flow;
+- whitespace balance / visual density;
+- total occupied schematic area;
+- unnecessary movement from an already-good existing layout.
+
+The engine should generate multiple bounded candidates where useful rather than pretending one greedy placement is globally optimal.
+
+### Phase 29 — human-readable schematic interconnect router
+
+**Goal:** route wires, labels and buses as a readability problem rather than a shortest-path problem.
+
+Extend the current bounded Manhattan wire routing into a sheet-aware interconnect planner that can:
+
+- minimize wire-symbol and wire-text collisions;
+- strongly penalize unnecessary crossings and overlaps;
+- minimize bends where that improves readability;
+- avoid ambiguous junction presentation;
+- keep related parallel signals visually coherent;
+- prefer short local wires inside a functional block;
+- decide when a named net label is clearer than a long cross-sheet wire;
+- support buses/grouped signals where the underlying DipTrace representation is verified;
+- preserve obvious input-to-output visual flow;
+- expose quality metrics for every routed connection.
+
+Crucially, routing may return a structured placement-feedback request rather than accepting a pathological route. Example: "moving U3 right by one grid region removes four crossings and 80 mm of detour". The router must not mutate placement implicitly; it proposes bounded repairs that the joint optimizer can score.
+
+### Phase 30 — joint schematic layout optimizer
+
+**Goal:** optimize placement and wiring together.
+
+Introduce a bounded co-optimization loop:
+
+1. classify blocks and intent;
+2. generate several placement candidates;
+3. route or estimate interconnect for each candidate;
+4. score the complete schematic;
+5. apply local placement feedback for pathological routes;
+6. re-route affected nets only;
+7. stop on convergence, budget exhaustion or no meaningful score improvement;
+8. present the best candidate through the existing guarded plan/preview transaction path.
+
+The score must remain decomposed and explainable. A lower score is meaningful only when its component metrics are disclosed; there should be no opaque "AI quality" number in the deterministic baseline.
+
+### Phase 31 — schematic quality gate and product-level acceptance
+
+**Goal:** prove that the engine produces consistently useful schematics, not just valid XML.
+
+Create a benchmark/acceptance suite containing synthetic, project-owned and legally usable real reference cases. For each case retain the initial state, generated candidate(s), final state and machine-readable metrics.
+
+Quality gates should cover at minimum:
+
+- electrical/connectivity non-regression;
+- no new ERC/review regression within supported checks;
+- collision/crossing/bend metrics;
+- compactness without crowding;
+- stable deterministic output for a fixed seed/config;
+- reference-motif preservation where applicable;
+- real DipTrace open/save/re-export;
+- human review of a representative subset.
+
+This phase closes only when the project can take a deliberately ugly but electrically correct schematic and reliably produce a materially cleaner version without routine manual cleanup.
+
+## PCB track — after the schematic architecture is proven
+
+The PCB track reuses the schematic intent/optimizer architecture, but adds physical electrical constraints. It should not start by attempting a full replacement for a mature EDA autorouter.
+
+### Phase 32 — PCB design-intent and net-policy model
+
+Classify functional blocks and nets by engineering importance and derive explicit routing/placement policies: critical length, via penalty, layer preference, return-path sensitivity, current/power role, noise sensitivity, differential relationship and other available constraints. Datasheet/reference-layout motifs should describe important local placement and loop structure without blindly copying board coordinates.
+
+### Phase 33 — global PCB placement optimizer
+
+Extend the existing local/legalizing placer into hierarchical/global placement with functional groups, support-component adjacency, orientation, decoupling, thermal spacing, connector flow and estimated routeability. Placement scoring must include the cost of the routes it is likely to create, not only ratsnest anchor length.
+
+### Phase 34 — routing policy and placement-routing feedback
+
+Use the current local router and optional Freerouting as candidate generators. Add engineering-aware route ordering and scoring so a via, detour or layer transition carries a different cost for USB/RF/clock/power than for low-speed GPIO/LED signals. Allow routing congestion and critical-route failure to feed back into placement.
+
+### Phase 35 — power, ground and via strategy
+
+Add explicit planning for ground stitching, reference-transition vias, thermal vias, via fences where justified, power-via arrays, plane/pour continuity and return-current considerations. Keep current copper-pour/refill limitations explicit until authoritative geometry is available.
+
+### Phase 36 — joint PCB optimizer and benchmark
+
+Combine placement, routing candidates, power/ground strategy, DRC/review, SI/return-path heuristics and manufacturing constraints into the same bounded generate -> score -> improve loop established by the schematic work. External routers remain untrusted candidate generators; the MCP's own structural review and transaction gates remain authoritative for what it can actually prove.
+
+Benchmark against deliberately poor layouts, hand-improved layouts and legally usable reference boards. Do not claim "optimal PCB" or fabrication sign-off; report measurable improvements and remaining unsupported categories.
 
 ## Remaining blocking formal acceptance
 
-When the schematic authoring/readability validation is intentionally finished or paused, resume formal acceptance in this order:
+When the schematic authoring/readability validation and the chosen development checkpoint are intentionally finished or paused, resume formal acceptance in this order:
 
 | Order | Gate | Status |
 | --- | --- | --- |
@@ -152,7 +338,7 @@ These are not core blockers unless the corresponding claim is planned:
 
 ## Repository implementation status
 
-There is no known repository-only implementation blocker that should be completed merely to advance the formal matrix. Current implementation includes:
+The previous repository-only roadmap is implementation-complete, but the new schematic/PCB intelligence track intentionally creates new product-development work. Current implementation already provides the foundation:
 
 - PCB, schematic and library parsing/querying;
 - guarded semantic transactions, rollback, SHA/policy/backup/atomic-write boundaries;
@@ -166,7 +352,7 @@ There is no known repository-only implementation blocker that should be complete
 - bounded DFM/DFA/DFT release-readiness checks;
 - manual-acceptance evidence tooling.
 
-If real schematic authoring exposes a product defect, that defect becomes the next focused repository task even though the generic repository roadmap was previously implementation-complete.
+The new work should reuse these layers rather than duplicating them. In particular, high-level optimizers should produce typed plans/operations that still pass through the existing guarded transaction and review paths.
 
 ## Native library mutation status
 
@@ -178,7 +364,7 @@ This does not silently expand the public MCP contract. Public registration of na
 
 The historical `diptrace_ratline_and_wire_roundtrip` gate is PASS. PCB ratline serialization/collision defects were repaired through PRs #63/#64, and schematic authored-wire connectivity survived native save/reopen/re-export.
 
-PR #66 later added stronger readability routing for newly authored schematic wires. Because that behavior is broader than the historical gate, it now has a separate real-world readability validation priority rather than forcing a rerun of the historical gate.
+PR #66 later added stronger readability routing for newly authored schematic wires. Because that behavior is broader than the historical gate, it now forms the baseline for Phase 26 rather than forcing a rerun of the historical gate.
 
 ## Current public contracts
 
@@ -191,7 +377,7 @@ The maintained public baseline remains:
 - project-owned worker-thread boundary for registered tools;
 - exact SHA, policy, backup, atomic-write, session-lease and trust-authority boundaries.
 
-The acceptance campaign does not implicitly add or remove public tools.
+The acceptance campaign and the new optimizer roadmap do not implicitly add or remove public tools. New optimizer capability should prefer internal domain modules/services and a small deliberate public surface rather than one MCP tool per heuristic.
 
 ## Phase summary
 
@@ -209,15 +395,26 @@ The acceptance campaign does not implicitly add or remove public tools.
 | 23 | baseline complete | deterministic pattern recommendation and privacy-bounded feedback/evaluation |
 | 24 | host-verified internal core | Component/Pattern mutation core has real editor evidence; public registration is deferred |
 | 25 | manual acceptance paused at 8/12 | Through Codex restart PASS; formal resume point is Claude Desktop |
-| 26 | validation priority | Real-world schematic authoring/readability on the accepted post-Ponytail production candidate |
+| 26 | **active checkpoint** | Establish real-world schematic readability baseline and benchmark cases |
+| 27 | planned — schematic | Design intent, functional blocks and datasheet/reference motifs |
+| 28 | planned — schematic | Hierarchical component placement, orientation, compactness and routeability scoring |
+| 29 | planned — schematic | Human-readable wire/label/bus routing with placement feedback |
+| 30 | planned — schematic | Joint placement/interconnect optimizer with bounded iterative repair |
+| 31 | planned — schematic | Quality benchmark, real-DipTrace acceptance and product-level readability gate |
+| 32 | planned — PCB | PCB design-intent and engineering-aware net policy model |
+| 33 | planned — PCB | Global/hierarchical PCB placement optimizer |
+| 34 | planned — PCB | Engineering-aware routing policy and placement-routing feedback |
+| 35 | planned — PCB | Power/ground, stitching and via strategy |
+| 36 | planned — PCB | Joint PCB optimizer, review loop and measurable benchmark |
 
 ## Permanent limitations and non-claims
 
 - Synthetic scaffolds and generated fixture packs are MCP-generated XML, not DipTrace exports.
 - Changing `format_version` is not conversion or compatibility evidence.
+- Reference datasheet/reference-board motifs are guidance and provenance-bearing constraints, not proof that the generated design is manufacturer-approved.
 - The local router is bounded and is not a full push-and-shove/free-angle/global EDA router.
 - Copper-pour, return-path, impedance, thermal, DFM/DFA/DFT and manufacturing reviews retain approximation/skip boundaries.
 - Generic fabrication/assembly manifests are not native Gerber, NC Drill, ODB++, IPC-2581 or assembler sign-off packages.
 - The ngspice adapter runs user-provided netlists; it does not generate a complete simulation netlist from a DipTrace design.
 - Native manufacturing generation remains unavailable because no verified DipTrace output API is claimed.
-- The project does not claim Novarm/DipTrace endorsement, universal compatibility, signed binaries, independent review or production readiness.
+- The project does not claim Novarm/DipTrace endorsement, universal compatibility, signed binaries, independent review, production readiness or globally optimal schematic/PCB layout.
