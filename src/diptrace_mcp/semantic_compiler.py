@@ -1812,15 +1812,11 @@ def _apply_sync_schematic_to_pcb(
     next_update_id = max(update_ids, default=99) + 1
     component_by_refdes: dict[str, ET.Element] = {}
 
-    # Keep simple multi-net two-pin relationships human-readable. When two
-    # synchronized two-pin parts are placed on the same row/column and share
-    # two or more distinct nets, leaving both at the same orientation can make
-    # their ratlines collinear and visually indistinguishable. Rotate the later
-    # newly-created part by 90 degrees relative to the earlier one. Existing PCB
-    # component orientation is never changed by this heuristic.
-    component_order = {
-        item.refdes.casefold(): index for index, item in enumerate(operation.components)
-    }
+    # Keep simple multi-net two-pin relationships human-readable without
+    # sacrificing basic layout quality. The old heuristic blindly rotated the later
+    # part by 90 degrees, which can drive a ratline through an unrelated pad. For
+    # the same bounded two-pin/two-net case, enumerate orthogonal orientations for
+    # writer-created parts and choose deterministically from transformed pad geometry.
     component_spec_by_refdes = {
         item.refdes.casefold(): item for item in operation.components
     }
@@ -1829,23 +1825,107 @@ def _apply_sync_schematic_to_pcb(
         for key, item in component_spec_by_refdes.items()
         if len(item.pad_numbers) == 2
     }
-    direct_pair_net_counts: dict[tuple[str, str], int] = {}
+    pair_shared_nets: dict[tuple[str, str], list[tuple[str, str]]] = {}
     for net in operation.nets:
-        refs = sorted(
-            {
-                endpoint.refdes.casefold()
-                for endpoint in net.endpoints
-                if endpoint.refdes.casefold() in two_pin_refdes
-            }
-        )
+        endpoints_by_refdes = {
+            endpoint.refdes.casefold(): endpoint.pad_number
+            for endpoint in net.endpoints
+            if endpoint.refdes.casefold() in two_pin_refdes
+        }
+        refs = sorted(endpoints_by_refdes)
         if len(refs) != 2:
             continue
         pair = (refs[0], refs[1])
-        direct_pair_net_counts[pair] = direct_pair_net_counts.get(pair, 0) + 1
+        pair_shared_nets.setdefault(pair, []).append(
+            (endpoints_by_refdes[pair[0]], endpoints_by_refdes[pair[1]])
+        )
 
-    readability_partner_by_refdes: dict[str, str] = {}
-    for pair, shared_net_count in sorted(direct_pair_net_counts.items()):
-        if shared_net_count < 2:
+    pad_style_by_name = {
+        (item.get("Name") or "").casefold(): item
+        for item in pad_styles.findall("./PadStyle")
+        if item.get("Name")
+    }
+
+    def pad_geometry(refdes: str) -> dict[str, tuple[float, float, float]]:
+        spec = component_spec_by_refdes[refdes]
+        pattern = pattern_by_style.get(spec.pattern_style.casefold())
+        if pattern is None:
+            return {}
+        default_pad = pattern.find("./DefPad")
+        default_style = default_pad.get("Style", "") if default_pad is not None else ""
+        result: dict[str, tuple[float, float, float]] = {}
+        for pad in pattern.findall("./Pads/Pad"):
+            number = (pad.findtext("./Number") or "").strip().casefold()
+            if not number:
+                continue
+            try:
+                local_x = float(pad.get("X", "0") or "0")
+                local_y = float(pad.get("Y", "0") or "0")
+            except ValueError:
+                continue
+            style = pad_style_by_name.get((pad.get("Style") or default_style).casefold())
+            radius = 0.0
+            if style is not None:
+                stack = style.find("./MainStack")
+                if stack is not None:
+                    try:
+                        radius = max(
+                            abs(float(stack.get("Width", "0") or "0")),
+                            abs(float(stack.get("Height", "0") or "0")),
+                        ) / 2.0
+                    except ValueError:
+                        radius = 0.0
+            result[number] = (local_x, local_y, radius)
+        return result
+
+    def point_segment_distance(
+        point: tuple[float, float],
+        segment_start: tuple[float, float],
+        segment_end: tuple[float, float],
+    ) -> float:
+        dx = segment_end[0] - segment_start[0]
+        dy = segment_end[1] - segment_start[1]
+        length_sq = dx * dx + dy * dy
+        if length_sq <= 1e-24:
+            return math.hypot(point[0] - segment_start[0], point[1] - segment_start[1])
+        projection = (
+            (point[0] - segment_start[0]) * dx
+            + (point[1] - segment_start[1]) * dy
+        ) / length_sq
+        projection = min(1.0, max(0.0, projection))
+        nearest = (
+            segment_start[0] + projection * dx,
+            segment_start[1] + projection * dy,
+        )
+        return math.hypot(point[0] - nearest[0], point[1] - nearest[1])
+
+    def segments_cross(
+        first: tuple[tuple[float, float], tuple[float, float]],
+        second: tuple[tuple[float, float], tuple[float, float]],
+    ) -> bool:
+        a, b = first
+        c, d = second
+
+        def orientation(
+            p: tuple[float, float],
+            q: tuple[float, float],
+            r: tuple[float, float],
+        ) -> float:
+            return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+        o1 = orientation(a, b, c)
+        o2 = orientation(a, b, d)
+        o3 = orientation(c, d, a)
+        o4 = orientation(c, d, b)
+        eps = 1e-12
+        return ((o1 > eps and o2 < -eps) or (o1 < -eps and o2 > eps)) and (
+            (o3 > eps and o4 < -eps) or (o3 < -eps and o4 > eps)
+        )
+
+    readability_angle_by_refdes: dict[str, float] = {}
+    quarter_turns = (0.0, math.pi / 2.0, math.pi, 3.0 * math.pi / 2.0)
+    for pair, shared_nets in sorted(pair_shared_nets.items()):
+        if len(shared_nets) < 2:
             continue
         first_spec = component_spec_by_refdes[pair[0]]
         second_spec = component_spec_by_refdes[pair[1]]
@@ -1853,8 +1933,121 @@ def _apply_sync_schematic_to_pcb(
         same_column = math.isclose(first_spec.x, second_spec.x, abs_tol=1e-9)
         if not (same_row or same_column):
             continue
-        earlier, later = sorted(pair, key=lambda key: component_order[key])
-        readability_partner_by_refdes.setdefault(later, earlier)
+
+        centers: dict[str, tuple[float, float]] = {}
+        candidates: dict[str, tuple[float, ...]] = {}
+        geometry = {refdes: pad_geometry(refdes) for refdes in pair}
+        if any(not geometry[refdes] for refdes in pair):
+            continue
+        for refdes in pair:
+            spec = component_spec_by_refdes[refdes]
+            existing = existing_components.get(refdes)
+            if existing is not None:
+                try:
+                    centers[refdes] = (
+                        float(existing.get("X", "0") or "0"),
+                        float(existing.get("Y", "0") or "0"),
+                    )
+                    existing_angle = float(existing.get("Angle", "0") or "0")
+                except ValueError:
+                    centers[refdes] = (
+                        from_mm(spec.x, document.units),
+                        from_mm(spec.y, document.units),
+                    )
+                    existing_angle = 0.0
+                candidates[refdes] = (existing_angle,)
+            else:
+                centers[refdes] = (
+                    from_mm(spec.x, document.units),
+                    from_mm(spec.y, document.units),
+                )
+                preset = readability_angle_by_refdes.get(refdes)
+                candidates[refdes] = (preset,) if preset is not None else quarter_turns
+
+        best: tuple[tuple[float, ...], tuple[float, float]] | None = None
+        for first_angle in candidates[pair[0]]:
+            for second_angle in candidates[pair[1]]:
+                angles = {pair[0]: first_angle, pair[1]: second_angle}
+                transformed: dict[tuple[str, str], tuple[float, float, float]] = {}
+                for refdes in pair:
+                    cos_angle = math.cos(angles[refdes])
+                    sin_angle = math.sin(angles[refdes])
+                    center_x, center_y = centers[refdes]
+                    for number, (local_x, local_y, radius) in geometry[refdes].items():
+                        transformed[(refdes, number)] = (
+                            center_x + local_x * cos_angle - local_y * sin_angle,
+                            center_y + local_x * sin_angle + local_y * cos_angle,
+                            radius,
+                        )
+
+                segments: list[
+                    tuple[
+                        tuple[float, float],
+                        tuple[float, float],
+                        tuple[str, str],
+                        tuple[str, str],
+                    ]
+                ] = []
+                collision_count = 0
+                min_clearance = float("inf")
+                total_length = 0.0
+                valid = True
+                for first_pad, second_pad in shared_nets:
+                    first_key = (pair[0], first_pad.casefold())
+                    second_key = (pair[1], second_pad.casefold())
+                    first_point = transformed.get(first_key)
+                    second_point = transformed.get(second_key)
+                    if first_point is None or second_point is None:
+                        valid = False
+                        break
+                    segment_start = (first_point[0], first_point[1])
+                    segment_end = (second_point[0], second_point[1])
+                    segments.append((segment_start, segment_end, first_key, second_key))
+                    total_length += math.hypot(
+                        segment_end[0] - segment_start[0],
+                        segment_end[1] - segment_start[1],
+                    )
+                    for pad_key, pad_data in transformed.items():
+                        if pad_key in {first_key, second_key}:
+                            continue
+                        clearance = point_segment_distance(
+                            (pad_data[0], pad_data[1]), segment_start, segment_end
+                        ) - pad_data[2]
+                        min_clearance = min(min_clearance, clearance)
+                        if clearance < -1e-9:
+                            collision_count += 1
+                if not valid:
+                    continue
+
+                crossing_count = 0
+                for segment_index, segment in enumerate(segments):
+                    for other in segments[segment_index + 1 :]:
+                        if segments_cross((segment[0], segment[1]), (other[0], other[1])):
+                            crossing_count += 1
+                if math.isinf(min_clearance):
+                    min_clearance = 1e9
+
+                rotation_cost = sum(
+                    min(angle % (2.0 * math.pi), (-angle) % (2.0 * math.pi))
+                    for refdes, angle in angles.items()
+                    if refdes not in existing_components
+                )
+                score = (
+                    float(collision_count),
+                    float(crossing_count),
+                    -min_clearance,
+                    total_length,
+                    rotation_cost,
+                    first_angle,
+                    second_angle,
+                )
+                if best is None or score < best[0]:
+                    best = (score, (first_angle, second_angle))
+
+        if best is not None:
+            for refdes, angle in zip(pair, best[1], strict=True):
+                if refdes not in existing_components:
+                    readability_angle_by_refdes.setdefault(refdes, angle)
 
     for spec in operation.components:
         key = spec.refdes.casefold()
@@ -1862,16 +2055,7 @@ def _apply_sync_schematic_to_pcb(
         if target_component is None:
             component_id = str(next_component_id)
             next_component_id += 1
-            readability_angle_rad: float | None = None
-            readability_partner = readability_partner_by_refdes.get(key)
-            if readability_partner is not None:
-                partner_component = component_by_refdes.get(readability_partner)
-                if partner_component is not None:
-                    try:
-                        partner_angle_rad = float(partner_component.get("Angle", "0") or "0")
-                    except ValueError:
-                        partner_angle_rad = 0.0
-                    readability_angle_rad = (partner_angle_rad + math.pi / 2.0) % (2.0 * math.pi)
+            readability_angle_rad = readability_angle_by_refdes.get(key)
 
             target_component = ET.SubElement(
                 components,
