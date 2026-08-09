@@ -1,6 +1,6 @@
 # DipTrace MCP 0.2.1 Release Checklist
 
-This is now a historical release checklist. Version `0.2.1` has already been tagged and published; remaining real-system acceptance is tracked separately and must not be confused with package publication.
+This is a historical release checklist. Version `0.2.1` has already been tagged and published; later development-line acceptance improves confidence in current code but does **not** retroactively change the published 0.2.1 bytes.
 
 ## Publication status
 
@@ -11,13 +11,12 @@ This is now a historical release checklist. Version `0.2.1` has already been tag
 - Windows installer / portable bundle / MCPB — **published GitHub release assets**.
 - Windows signing status: unsigned.
 - Release class: alpha/development prerelease.
-- Q1 Component Angle real GUI/re-export evidence: `NOT_RUN`.
 
-See `docs/releases/v0.2.1.md` for the immutable tag target, workflow runs, filenames, sizes and SHA-256 values.
+See `docs/releases/v0.2.1.md` for the immutable release record, workflow runs, filenames, sizes and SHA-256 values.
 
 ## Completed automated publication gates
 
-The release record documents successful candidate CI, Windows build, MCPB/Registry preparation, PyPI distribution validation, verified GitHub prerelease creation and exact-tag PyPI Trusted Publishing.
+The published release completed its automated CI/build/distribution checks. Do not rerun those as if publication were still pending unless validating a new commit/version.
 
 The repository continues to enforce:
 
@@ -30,50 +29,65 @@ The repository continues to enforce:
 - clean Python distribution installation smoke;
 - deterministic Windows release-asset generation.
 
-These automated gates are complete for the already-published `v0.2.1`. Do not rerun them as if publication were still pending unless validating a new commit/version.
+## Post-publication manual acceptance progress — updated 2026-08-10
 
-## Post-publication manual acceptance progress — 2026-08-09
+The current accepted production-code candidate for the development-line manual campaign is:
 
-The manual acceptance campaign continued on development commits after the immutable `v0.2.1` tag. These results improve confidence in the current development line; they do **not** retroactively change the bytes contained in the published 0.2.1 release.
+`main@0bb09b4b3af40a5a3d1a875fab885430a2d251ba`
 
-The durable campaign recovery point is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md). `docs/ROADMAP.md` remains the authoritative current roadmap.
+The durable campaign recovery point is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md), updated on 2026-08-10. `docs/ROADMAP.md` remains the authoritative current roadmap.
 
-Completed real-host gates:
+Completed blocking real-host / real-client gates:
 
 - [x] Current real DipTrace PCB open/save/re-export.
 - [x] Current real DipTrace Schematic open/save/re-export including authored wires.
-- [x] Real Component Library writer open/save/re-export using a real Component Editor seed; native `.eli` reopen, semantic preservation and second-pass idempotence accepted.
-- [x] Real Pattern Library writer open/save/re-export using a real Pattern Editor seed; native `.lib` reopen, semantic preservation and second-pass idempotence accepted.
-- [x] Generated PCB ratline GUI/save/re-export acceptance after the PR #63/#64 repairs.
+- [x] Real Component Library writer open/save/re-export; native `.eli` reopen, semantic preservation and second-pass idempotence accepted.
+- [x] Real Pattern Library writer open/save/re-export; native `.lib` reopen, semantic preservation and second-pass idempotence accepted.
+- [x] Generated PCB ratline GUI/save/re-export acceptance.
 - [x] Authored schematic-wire GUI/save/re-export acceptance.
 - [x] MASK one-setting-at-a-time semantics.
 - [x] PASTE one-setting-at-a-time semantics.
+- [x] COURTYARD targeted retest after PR #65.
+- [x] `Common` versus explicit override semantics.
+- [x] Q1 Component Angle GUI/re-export acceptance.
+- [x] Real Codex Desktop restart/configuration/`get_capabilities` acceptance.
 
-Current blocking point:
+The composite `diptrace_mask_paste_courtyard_common_semantics` gate is PASS. The historical COURTYARD FAIL remains immutable evidence.
 
-- [ ] COURTYARD targeted retest after PR #65. The historical attempt on `main@4ddea7937661afedf9c195af558680c4705bb368` proved that DipTrace preserved `Source/Board/Settings/LineWidth/Courtyard`, while MCP read surfaces failed to expose the changed value. PR #65 is the focused parser repair. Preserve the historical FAIL and create a fresh retest attempt after merge.
-- [ ] `Common` semantics. This was intentionally not run after the COURTYARD failure and must not be inferred as complete.
+Q1 manual acceptance established real DipTrace angle semantics on the development candidate: radians for 90/180/270 degrees, 360-to-0 GUI normalization, and expected bottom-side mirror canonicalization. The private/manual PASS does not by itself alter any separately source-controlled public evidence warning or redistribute private source artifacts.
 
-Remaining later manual/external gates:
+Codex restart acceptance used Codex Desktop `26.803.5235.0`; both restarts exposed 159 tools and returned identical `get_capabilities` evidence. Production code remained unchanged.
 
-- [ ] Q1 Component Angle GUI/re-export.
-- [ ] Real Codex restart/configuration/`get_capabilities`.
+Overall blocking manual progress is now **8 of 12 gates complete**.
+
+## Intentional pause before remaining lifecycle gates
+
+The formal next gate is still:
+
+- [ ] `claude_desktop_real_client_restart`.
+
+It has not been run.
+
+The project is intentionally pausing the formal client/Windows lifecycle sequence here to validate core product quality first: current post-Ponytail schematic authoring/readability in real DipTrace.
+
+This separate validation should build small real circuits and inspect electrical correctness, component placement, wire routing, text/label collisions, junction clarity and native save/reopen/re-export behavior. It must not be treated as a substitute for the remaining formal gates.
+
+Remaining blocking formal gates after the pause:
+
 - [ ] Real Claude Desktop restart/configuration/`get_capabilities`.
 - [ ] Clean Windows 11 install, repair and uninstall using the applicable release bytes.
 - [ ] Elevated Program Files plug-in install while retaining the original user profile.
 - [ ] Pre-existing custom-state preservation across install/repair/uninstall.
 
-MASK and PASTE must not be repeated merely because COURTYARD required a parser fix. Likewise, the already accepted PCB, schematic, library-writer and ratline/wire gates are not restart points unless a later code change plausibly affects those exact paths.
+Claim-specific optional work remains a future public-redownload smoke when release bytes change, external legal/Novarm review when required for a planned claim/activity, and a real openEMS run only if external-solver validation is claimed.
 
-Claim-specific optional work includes a future public-redownload smoke when release bytes change, external legal/Novarm review if required for a planned claim/activity, and a real openEMS run if external-solver validation is to be claimed.
-
-Generate and validate evidence worksheets with `scripts/prepare_manual_acceptance.py`. Historical FAIL attempts are evidence and should remain immutable; repairs get fresh retest attempts.
+Do not repeat historical PASS gates merely because a stronger schematic-quality validation is now being added. A new reproducible schematic authoring problem should become its own focused regression/repair case.
 
 ## Native library writer boundary
 
-The real Component Editor and Pattern Editor host-evidence prerequisite that previously blocked confidence in the internal raw-preserving library mutation core is now satisfied on the development line.
+Real Component Editor and Pattern Editor host evidence exists for the internal raw-preserving library mutation core.
 
-This does **not** mean that 0.2.1 suddenly contains public native-library write tools, and it does not silently change the current public MCP contract. Public registration remains a separate future API/product decision requiring explicit review and documentation.
+This does **not** mean that 0.2.1 contains public native-library write tools and does not silently change the public MCP contract. Public registration remains a separate future API/product decision.
 
 ## Fail-closed release rules retained for future versions
 
@@ -81,6 +95,6 @@ This does **not** mean that 0.2.1 suddenly contains public native-library write 
 - Never move or replace an existing published tag/file.
 - Never use `skip-existing` to hide a production publication mismatch.
 - Never publish a wheel/sdist different from the artifact that passed validation.
-- Never claim signing, production readiness, universal DipTrace compatibility, real-client acceptance or real DipTrace acceptance without the corresponding evidence.
+- Never claim signing, production readiness, universal DipTrace compatibility, real-client acceptance or real DipTrace acceptance without corresponding evidence.
 
-The old pre-publication TODO state is intentionally not preserved as current truth; Git history contains the original checklist if historical reconstruction is needed.
+Git history contains the original pre-publication checklist state if historical reconstruction is needed.
