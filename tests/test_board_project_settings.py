@@ -4,8 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from diptrace_mcp.board_settings import get_board_project_settings
-from diptrace_mcp.inspector import design_rules, get_board_model, summarize
+from diptrace_mcp.inspector import (
+    design_rules,
+    get_board_model,
+    get_board_project_settings,
+    summarize,
+)
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
