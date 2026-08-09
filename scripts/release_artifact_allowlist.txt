@@ -273,6 +273,7 @@ src/diptrace_mcp/services/placement.py
 src/diptrace_mcp/services/review.py
 src/diptrace_mcp/services/routing.py
 src/diptrace_mcp/services/scaffolding.py
+src/diptrace_mcp/services/schematic_wire_quality.py
 src/diptrace_mcp/services/semantic_engine.py
 src/diptrace_mcp/services/semantic_operations.py
 src/diptrace_mcp/services/synchronization.py
@@ -391,6 +392,7 @@ tests/test_routing_primitives.py
 tests/test_scaffolding.py
 tests/test_schematic_authoring.py
 tests/test_schematic_pcb_sync.py
+tests/test_schematic_wire_quality.py
 tests/test_semantic_dispatch.py
 tests/test_server.py
 tests/test_server_bundle.py
