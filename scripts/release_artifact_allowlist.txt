@@ -56,6 +56,7 @@ docs/REVIEW_ENGINE.md
 docs/ROADMAP.md
 docs/ROUTING_ENGINE.md
 docs/SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md
+docs/SCHEMATIC_LAYOUT_ENGINE.md
 docs/SECURITY_AND_POLICY.md
 docs/SERVICE_DECOMPOSITION.md
 docs/SIGNING.md
@@ -245,6 +246,7 @@ src/diptrace_mcp/review.py
 src/diptrace_mcp/routing.py
 src/diptrace_mcp/routing_compiler.py
 src/diptrace_mcp/scaffolding.py
+src/diptrace_mcp/schematic_layout.py
 src/diptrace_mcp/semantic_compiler.py
 src/diptrace_mcp/server.py
 src/diptrace_mcp/server_inputs.py
@@ -383,6 +385,7 @@ tests/test_routing_4layer.py
 tests/test_routing_primitives.py
 tests/test_scaffolding.py
 tests/test_schematic_authoring.py
+tests/test_schematic_layout.py
 tests/test_schematic_pcb_sync.py
 tests/test_schematic_wire_quality.py
 tests/test_semantic_dispatch.py
