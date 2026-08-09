@@ -12,13 +12,21 @@ from .adapters import get_schematic_model as _get_schematic_model
 from .adapters import nets as _nets
 from .adapters import query_objects as _query_objects
 from .adapters import summarize as _summarize
+from .board_settings import get_board_project_settings
 from .capabilities import get_capabilities as build_capabilities
 from .domain import QueryRequest
 from .xml_document import DipTraceDocument
 
 
+def _project_settings_payload(document: DipTraceDocument) -> dict[str, Any]:
+    return get_board_project_settings(document).model_dump(mode="json")
+
+
 def summarize(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
-    return _summarize(document, live_session=live_session)
+    result = _summarize(document, live_session=live_session)
+    if document.kind == "pcb":
+        result["project_settings"] = _project_settings_payload(document)
+    return result
 
 
 def components(
@@ -61,7 +69,10 @@ def nets(
 
 
 def design_rules(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
-    return _design_rules(document, live_session=live_session)
+    result = _design_rules(document, live_session=live_session)
+    if document.kind == "pcb":
+        result["project_settings"] = _project_settings_payload(document)
+    return result
 
 
 def get_document_info(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
@@ -69,7 +80,9 @@ def get_document_info(document: DipTraceDocument, *, live_session: bool = False)
 
 
 def get_board_model(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
-    return _get_board_model(document, live_session=live_session).model_dump()
+    result = _get_board_model(document, live_session=live_session).model_dump()
+    result.setdefault("rules", {})["project_settings"] = _project_settings_payload(document)
+    return result
 
 
 def get_schematic_model(
