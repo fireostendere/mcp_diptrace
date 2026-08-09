@@ -32,26 +32,48 @@ The repository continues to enforce:
 
 These automated gates are complete for the already-published `v0.2.1`. Do not rerun them as if publication were still pending unless validating a new commit/version.
 
-## Remaining manual acceptance
+## Post-publication manual acceptance progress — 2026-08-09
 
-The following are intentionally **not** marked complete by CI or publication:
+The manual acceptance campaign continued on development commits after the immutable `v0.2.1` tag. These results improve confidence in the current development line; they do **not** retroactively change the bytes contained in the published 0.2.1 release.
 
-- clean Windows 11 install, repair and uninstall;
-- current real DipTrace PCB open/save/re-export;
-- current real DipTrace Schematic open/save/re-export including authored wires;
-- current real Component Library writer open/save/re-export;
-- current real Pattern Library writer open/save/re-export;
-- generated-ratline GUI/save/re-export evidence;
-- mask/paste/courtyard/`Common` one-setting-at-a-time exports;
-- Q1 Component Angle GUI/re-export;
-- real Codex restart/configuration/`get_capabilities`;
-- real Claude Desktop restart/configuration/`get_capabilities`;
-- elevated Program Files plug-in install while retaining the original user profile;
-- pre-existing custom-state preservation.
+The durable campaign recovery point is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md). `docs/ROADMAP.md` remains the authoritative current roadmap.
+
+Completed real-host gates:
+
+- [x] Current real DipTrace PCB open/save/re-export.
+- [x] Current real DipTrace Schematic open/save/re-export including authored wires.
+- [x] Real Component Library writer open/save/re-export using a real Component Editor seed; native `.eli` reopen, semantic preservation and second-pass idempotence accepted.
+- [x] Real Pattern Library writer open/save/re-export using a real Pattern Editor seed; native `.lib` reopen, semantic preservation and second-pass idempotence accepted.
+- [x] Generated PCB ratline GUI/save/re-export acceptance after the PR #63/#64 repairs.
+- [x] Authored schematic-wire GUI/save/re-export acceptance.
+- [x] MASK one-setting-at-a-time semantics.
+- [x] PASTE one-setting-at-a-time semantics.
+
+Current blocking point:
+
+- [ ] COURTYARD targeted retest after PR #65. The historical attempt on `main@4ddea7937661afedf9c195af558680c4705bb368` proved that DipTrace preserved `Source/Board/Settings/LineWidth/Courtyard`, while MCP read surfaces failed to expose the changed value. PR #65 is the focused parser repair. Preserve the historical FAIL and create a fresh retest attempt after merge.
+- [ ] `Common` semantics. This was intentionally not run after the COURTYARD failure and must not be inferred as complete.
+
+Remaining later manual/external gates:
+
+- [ ] Q1 Component Angle GUI/re-export.
+- [ ] Real Codex restart/configuration/`get_capabilities`.
+- [ ] Real Claude Desktop restart/configuration/`get_capabilities`.
+- [ ] Clean Windows 11 install, repair and uninstall using the applicable release bytes.
+- [ ] Elevated Program Files plug-in install while retaining the original user profile.
+- [ ] Pre-existing custom-state preservation across install/repair/uninstall.
+
+MASK and PASTE must not be repeated merely because COURTYARD required a parser fix. Likewise, the already accepted PCB, schematic, library-writer and ratline/wire gates are not restart points unless a later code change plausibly affects those exact paths.
 
 Claim-specific optional work includes a future public-redownload smoke when release bytes change, external legal/Novarm review if required for a planned claim/activity, and a real openEMS run if external-solver validation is to be claimed.
 
-Generate and validate the evidence worksheet with `scripts/prepare_manual_acceptance.py`; `docs/ROADMAP.md` is the authoritative current roadmap.
+Generate and validate evidence worksheets with `scripts/prepare_manual_acceptance.py`. Historical FAIL attempts are evidence and should remain immutable; repairs get fresh retest attempts.
+
+## Native library writer boundary
+
+The real Component Editor and Pattern Editor host-evidence prerequisite that previously blocked confidence in the internal raw-preserving library mutation core is now satisfied on the development line.
+
+This does **not** mean that 0.2.1 suddenly contains public native-library write tools, and it does not silently change the current public MCP contract. Public registration remains a separate future API/product decision requiring explicit review and documentation.
 
 ## Fail-closed release rules retained for future versions
 
