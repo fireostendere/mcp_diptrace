@@ -8,11 +8,27 @@ This document separates three states:
 
 Implementation never implies universal DipTrace compatibility. Runtime `get_capabilities` remains authoritative.
 
-## Current checkpoint — 2026-08-08
+## Current checkpoint — 2026-08-09
 
-The current source/package version is `0.2.1`. Annotated tag `v0.2.1`, the GitHub development prerelease and `diptrace-mcp==0.2.1` on PyPI are already published. The post-release architecture cleanup is merged on `main`.
+The current source/package version is `0.2.1`. Annotated tag `v0.2.1`, the GitHub development prerelease and `diptrace-mcp==0.2.1` on PyPI are already published. The post-release architecture cleanup and the repository-only roadmap closure are merged on `main`.
 
-All repository work that can be completed without a real external GUI/host has now been implemented on the current development line:
+The manual acceptance campaign has now moved substantially beyond the 2026-08-08 checkpoint. The durable recovery record is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md). If a later gate fails or a Work session is interrupted, resume from that checkpoint rather than restarting already accepted gates.
+
+Completed real-host acceptance now includes:
+
+- current PCB open/save/re-export round-trip;
+- current schematic open/save/re-export round-trip;
+- real Component Library writer `.eli` save/reopen/re-export with semantic preservation and writer idempotence;
+- real Pattern Library writer `.lib` save/reopen/re-export with semantic preservation and writer idempotence;
+- the full ratline/authored-wire gate: PCB generated ratlines and schematic authored wires;
+- MASK semantics;
+- PASTE semantics.
+
+The first unfinished semantic gate is now **COURTYARD**. Real DipTrace 5.3.0.3 preserved the one-setting-at-a-time Courtyard change correctly, but `main@4ddea7937661afedf9c195af558680c4705bb368` did not expose `Source/Board/Settings/LineWidth/Courtyard` through the MCP semantic read surfaces. PR #65 adds the targeted typed project-setting read path without adding MCP tools or changing public service signatures. The code-only PR head `936fdf3d5c8378f5f42214813620eab95f3755ca` completed green CI, Windows-installer and PyPI workflow checks before the documentation checkpoint commits.
+
+After PR #65 merges, rerun **COURTYARD only** from a fresh evidence attempt. MASK and PASTE remain PASS and must not be repeated without a specific regression reason. If COURTYARD passes, continue with **COMMON**.
+
+All repository work that can be completed without a real external GUI/host remains implemented on the current development line:
 
 - PCB, schematic and library parsing/querying;
 - guarded semantic transactions, rollback, SHA/policy/backup/atomic-write boundaries;
@@ -26,26 +42,26 @@ All repository work that can be completed without a real external GUI/host has n
 - additional deterministic DFM/DFA/DFT release-readiness checks while preserving explicit manufacturing/sign-off limitations;
 - a manual-acceptance evidence harness whose matrix contains only tasks that require a real external system, GUI observation, clean-machine state or human/legal judgement.
 
-The public MCP surface remains unchanged while unverified native library writers stay below the public tool boundary. They must not be registered as production MCP write tools until real DipTrace library round-trip evidence exists.
+The public MCP surface remains unchanged. Real Component Editor and Pattern Editor round-trip evidence now exists for the internal library mutation core, so the previous host-evidence prerequisite has been satisfied. Public registration of native library write tools is nevertheless a separate product/API decision and is not performed implicitly by this acceptance campaign.
 
 ## What remains
 
-There is no remaining repository-only development blocker in the current roadmap. The remaining gates require human observation or external systems.
+There is no remaining repository-only development blocker in the current roadmap. The remaining gates require human observation or external systems, except for focused repairs triggered by a genuine manual-acceptance failure.
 
-### Blocking manual acceptance
+### Blocking manual acceptance — current order
 
-1. **Clean Windows 11 install / repair / uninstall** using the exact release bytes.
-2. **Current real DipTrace PCB round-trip**: open, inspect, save and re-export representative MCP-modified PCB XML.
-3. **Current real DipTrace Schematic round-trip** including authored wires.
-4. **Current real Component Library writer round-trip** including parts, pins, fields, pattern attachment and explicit pin-to-pad mapping.
-5. **Current real Pattern Library writer round-trip** including pads and graphics.
-6. **Generated ratline and authored-wire GUI verification** followed by save/re-export comparison.
-7. **Mask, paste, courtyard and `Common` semantics** using one-setting-at-a-time real DipTrace exports.
-8. **Q1 Component Angle GUI/re-export validation**, which remains `NOT_RUN` until performed in DipTrace.
-9. **Real Codex configuration/restart/get_capabilities** using the release server.
-10. **Real Claude Desktop configuration/restart/get_capabilities** using the release server.
-11. **Elevated plug-in installation with original user-profile preservation**.
-12. **Pre-existing custom-state preservation** across install/repair/uninstall.
+| Order | Gate | Status | Resume rule |
+| --- | --- | --- | --- |
+| 1 | `diptrace_mask_paste_courtyard_common_semantics / COURTYARD` | **RETEST REQUIRED after PR #65** | Preserve the historical FAIL; create a fresh targeted attempt after merge. |
+| 2 | `diptrace_mask_paste_courtyard_common_semantics / COMMON` | **NOT RUN** | Start only after COURTYARD passes. |
+| 3 | Q1 Component Angle GUI/re-export | **NOT RUN** | Run after the mask/paste/courtyard/Common semantic sequence completes. |
+| 4 | Real Codex configuration/restart/`get_capabilities` | **PENDING** | Use the applicable server build and record restart plus capability evidence. |
+| 5 | Real Claude Desktop configuration/restart/`get_capabilities` | **PENDING** | Same evidence standard as Codex. |
+| 6 | Clean Windows install / repair / uninstall | **PENDING** | Use the applicable release bytes; this is a real-machine gate. |
+| 7 | Elevated plug-in installation with original profile preservation | **PENDING** | Preserve the original user profile. |
+| 8 | Pre-existing custom-state preservation | **PENDING** | Verify install/repair/uninstall does not destroy existing state. |
+
+The following gates are already complete and are not restart points: current PCB round-trip, current schematic round-trip, Component Library writer, Pattern Library writer, generated PCB ratlines, authored schematic wires, MASK and PASTE.
 
 Generate the exact evidence worksheet with:
 
@@ -73,7 +89,7 @@ These are not core repository blockers:
 
 ## Compatibility and trust status
 
-Repository regression coverage now exercises the previously untested write families:
+Repository regression coverage exercises the previously untested write families:
 
 - generic stored-plan apply;
 - `ses_import`;
@@ -82,9 +98,7 @@ Repository regression coverage now exercises the previously untested write famil
 
 Stored plans, SES import and schematic-to-PCB synchronization all converge on the guarded semantic transaction commit, which invalidates prior document trust after a successful write. Live apply is SHA-bound to the exact working bytes; replacement of the exchange document cannot retain stale SHA-bound provenance.
 
-This closes the **repository-test gap**, not the **DipTrace-host evidence gap**. Real host acceptance remains manual and is listed above.
-
-The synthetic fixture pack closes CI/parser/writer infrastructure gaps but deliberately carries `synthetic_parser_only` provenance and explicit non-claims for `diptrace_exported`, open/save verification and round-trip verification.
+The synthetic fixture pack closes CI/parser/writer infrastructure gaps but deliberately carries `synthetic_parser_only` provenance and explicit non-claims for `diptrace_exported`, open/save verification and round-trip verification. Real host acceptance evidence is tracked separately from synthetic fixtures and is summarized in the manual checkpoint document.
 
 ## Native library mutation status
 
@@ -100,7 +114,20 @@ Implementation is complete below the public MCP registration boundary:
 - raw-preserving mutation through `RawTreeSnapshot`, preserving unrelated unknown XML;
 - deterministic/idempotence regression tests.
 
-The only remaining gate is real Component Editor / Pattern Editor open-save-re-export evidence. Public native library write tools remain intentionally unregistered until that evidence exists.
+Real editor acceptance is also complete:
+
+- Component Library writer: **PASS** with native `.eli` save/reopen/re-export and second-pass idempotence;
+- Pattern Library writer: **PASS** with native `.lib` save/reopen/re-export and second-pass idempotence.
+
+The previous “host evidence missing” blocker is therefore closed. The public 159-tool contract still intentionally does not gain native library write tools in this campaign. Any future public registration requires an explicit API/product decision, documentation and contract review rather than being inferred from the acceptance PASS.
+
+## Ratline and authored-wire status
+
+The combined `diptrace_ratline_and_wire_roundtrip` gate is **PASS** on `main@4ddea7937661afedf9c195af558680c4705bb368`.
+
+PCB Part A originally exposed two real-host issues: missing native-visible ratline serialization and then an avoidable ratline-to-unrelated-pad collision. PR #63 added coherent native ratline serialization; PR #64 added deterministic geometry-aware orientation selection. The final real DipTrace 5.3 retest passed.
+
+Schematic Part B also passed: authored `WIRE_TEST` connectivity and wire endpoint/topology semantics survived native `.dch` save/reopen and final XML re-export. These failures and repairs are historical evidence, not pending work.
 
 ## Pattern recommendation status
 
@@ -133,7 +160,7 @@ The following published baselines are intentionally preserved by this developmen
 - exact SHA, policy, backup, atomic-write, session-lease and trust-authority boundaries;
 - package-owned trust authority separated from user-controlled evidence.
 
-New unverified library mutation and recommendation code does not silently expand the MCP surface.
+PR #65 changes existing PCB read results only; it does not add tools or service methods. Native library host verification likewise does not silently expand the public MCP surface.
 
 ## Phase summary
 
@@ -145,11 +172,12 @@ New unverified library mutation and recommendation code does not silently expand
 | 11 | bounded complete | return-path, BOM, DFM/DFA/DFT, thermal and assembly heuristics plus release-readiness supplement |
 | 12 | implementation complete | release manifests/adapters; real external solver and native manufacturing sign-off remain external |
 | 13–19 | complete | skills/CI, scaffolding, schematic authoring, panelisation, ngspice, multi-net routing and sync |
-| 20 | repository complete | trust authority/comparison/cancellation plus regression coverage; real host evidence is manual |
+| 20 | repository complete | trust authority/comparison/cancellation plus regression coverage; remaining external acceptance is tracked explicitly |
 | 21 | complete | service-Facade decomposition and parity guardrails |
 | 22 | candidate complete | Windows installer/portable/configurator pipeline; clean-machine acceptance is manual |
 | 23 | baseline complete | deterministic pattern recommendation and privacy-bounded feedback/evaluation |
-| 24 | implementation complete, host-gated | raw-preserving native Component/Pattern mutation core; public write registration waits for real DipTrace evidence |
+| 24 | host-verified internal core | raw-preserving Component/Pattern mutation core has real Component/Pattern Editor round-trip evidence; public write registration is a separate deferred API decision |
+| 25 | manual acceptance in progress | PCB, schematic, both library writers, ratline/wire, MASK and PASTE are complete; COURTYARD targeted retest is next, then COMMON and remaining client/Windows gates |
 
 ## Permanent limitations and non-claims
 
