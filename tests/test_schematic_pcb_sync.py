@@ -208,21 +208,38 @@ def test_sync_emits_native_pad_ids_ratline_mode_and_marking_positions() -> None:
     components_by_refdes = {
         component.findtext("./RefDes"): component for component in components
     }
-    assert components_by_refdes["R1"].get("Angle") is None
+    assert math.isclose(
+        float(components_by_refdes["R1"].get("Angle", "0")),
+        math.pi / 2.0,
+        rel_tol=0.0,
+        abs_tol=1e-9,
+    )
     assert math.isclose(
         float(components_by_refdes["U1"].get("Angle", "0")),
         math.pi / 2.0,
         rel_tol=0.0,
         abs_tol=1e-9,
     )
-    vectors = [
-        (
-            float(item.get("X2", "0")) - float(item.get("X1", "0")),
-            float(item.get("Y2", "0")) - float(item.get("Y1", "0")),
-        )
-        for item in ratlines
-    ]
-    assert abs(vectors[0][0] * vectors[1][1] - vectors[0][1] * vectors[1][0]) > 1e-6
+    vcc = next(item for item in ratlines if item.get("Pad1") == "1")
+    signal = next(item for item in ratlines if item.get("Pad1") == "2")
+    pad2_center = (float(signal.get("X1", "0")), float(signal.get("Y1", "0")))
+    start_point = (float(vcc.get("X1", "0")), float(vcc.get("Y1", "0")))
+    end_point = (float(vcc.get("X2", "0")), float(vcc.get("Y2", "0")))
+    dx = end_point[0] - start_point[0]
+    dy = end_point[1] - start_point[1]
+    projection = (
+        (pad2_center[0] - start_point[0]) * dx
+        + (pad2_center[1] - start_point[1]) * dy
+    ) / (dx * dx + dy * dy)
+    projection = min(1.0, max(0.0, projection))
+    nearest = (
+        start_point[0] + projection * dx,
+        start_point[1] + projection * dy,
+    )
+    assert math.hypot(
+        pad2_center[0] - nearest[0], pad2_center[1] - nearest[1]
+    ) > 0.475
+
     for component in components:
         refdes = component.find("./RefDesMarking/Silk")
         name = component.find("./NameMarking/Silk")
