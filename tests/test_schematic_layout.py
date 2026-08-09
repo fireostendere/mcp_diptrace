@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from diptrace_mcp.adapters import build_snapshot, stable_id
+from diptrace_mcp.adapters import DocumentSnapshot, build_snapshot, stable_id
 from diptrace_mcp.domain import ObjectRecord
 from diptrace_mcp.errors import CapabilityUnavailableError
 from diptrace_mcp.operations import AddWireOperation
@@ -28,8 +28,12 @@ def _load() -> DipTraceDocument:
     return DipTraceDocument.load(FIXTURES / "schematic.xml", MAX_BYTES)
 
 
-def _part(snapshot: object, refdes: str, part_name: str | None = None) -> ObjectRecord:
-    schematic = getattr(snapshot, "schematic")
+def _part(
+    snapshot: DocumentSnapshot,
+    refdes: str,
+    part_name: str | None = None,
+) -> ObjectRecord:
+    schematic = snapshot.schematic
     assert schematic is not None
     matches = [
         item
