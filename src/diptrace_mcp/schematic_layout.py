@@ -227,7 +227,16 @@ def _part_role(part: ObjectRecord) -> SchematicPartIntent:
     if prefix in {"U", "IC"}:
         if any(
             token in text
-            for token in ("LDO", "BUCK", "BOOST", "REGULATOR", "PMIC", "CONVERTER", "DCDC", "DC/DC")
+            for token in (
+                "LDO",
+                "BUCK",
+                "BOOST",
+                "REGULATOR",
+                "PMIC",
+                "CONVERTER",
+                "DCDC",
+                "DC/DC",
+            )
         ):
             return SchematicPartIntent(
                 part_id=part.stable_id,
@@ -251,7 +260,9 @@ def _part_role(part: ObjectRecord) -> SchematicPartIntent:
             confidence=0.7,
             reasons=["active-device RefDes"],
         )
-    if prefix in {"Y", "X"} or any(token in text for token in ("XTAL", "CRYSTAL", "OSCILLATOR")):
+    if prefix in {"Y", "X"} or any(
+        token in text for token in ("XTAL", "CRYSTAL", "OSCILLATOR")
+    ):
         return SchematicPartIntent(
             part_id=part.stable_id,
             refdes=part.refdes,
@@ -308,7 +319,10 @@ def _net_role(net: ObjectRecord, part_ids: list[str]) -> SchematicNetIntent:
         role: NetRole = "ground"
         confidence = 0.98
         reason = "ground-name pattern"
-    elif re.match(r"^(\+?-?[0-9]+V[0-9]*|VCC|VDD|VIN|VOUT|VBAT|VSYS|VREF)([_-].*)?$", folded):
+    elif re.match(
+        r"^(\+?-?[0-9]+V[0-9]*|VCC|VDD|VIN|VOUT|VBAT|VSYS|VREF)([_-].*)?$",
+        folded,
+    ):
         role = "power"
         confidence = 0.92
         reason = "power-rail name pattern"
@@ -445,8 +459,8 @@ def infer_schematic_design_intent(
                 anchor_nets.update(part_nets.get(anchor_id, set()))
             score = 0
             for net_id in own_nets & anchor_nets:
-                role = net_role_by_id.get(net_id, "unknown")
-                score += 1 if role in {"ground", "power"} else 10
+                net_role = net_role_by_id.get(net_id, "unknown")
+                score += 1 if net_role in {"ground", "power"} else 10
             if score > 0:
                 scores.append((score, key))
         if not scores:
@@ -836,12 +850,14 @@ def analyze_schematic_layout(
     parts_by_id = {part.stable_id: part for part in parts}
     block_spans: list[float] = []
     for block in intent.blocks:
-        positions = [
-            point
-            for part_id in block.member_part_ids
-            if (part := parts_by_id.get(part_id)) is not None
-            and (point := _position_for(part, placements)) is not None
-        ]
+        positions: list[Point] = []
+        for part_id in block.member_part_ids:
+            member_part = parts_by_id.get(part_id)
+            if member_part is None:
+                continue
+            point = _position_for(member_part, placements)
+            if point is not None:
+                positions.append(point)
         if len(positions) < 2:
             block_spans.append(0.0)
             continue
@@ -1019,7 +1035,7 @@ def plan_schematic_placement(
         locked_members = [
             part_id
             for part_id in block.member_part_ids
-            if (part := parts_by_id.get(part_id)) is not None and part.locked
+            if (member_part := parts_by_id.get(part_id)) is not None and member_part.locked
         ]
         if locked_members:
             warnings.append(
