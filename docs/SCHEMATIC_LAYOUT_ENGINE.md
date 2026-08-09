@@ -14,7 +14,9 @@ The current implementation lives in:
 - `src/diptrace_mcp/schematic_layout.py` for design intent, reference motifs,
   deterministic readability metrics, and the first hierarchical placement planner;
 - `src/diptrace_mcp/schematic_optimizer.py` for bounded multi-candidate placement search,
-  estimated future-interconnect cost, candidate ranking, and safe operation planning.
+  estimated future-interconnect cost, candidate ranking, and safe operation planning;
+- `src/diptrace_mcp/schematic_wire_planner.py` for non-mutating route-candidate metrics and
+  explicit placement feedback on pathological schematic interconnect.
 
 ## Design intent
 
@@ -148,11 +150,46 @@ The repository already has a bounded deterministic authored-wire quality layer i
 `services/schematic_wire_quality.py`. It can reroute newly authored wires around component
 and text obstacles and strongly penalizes crossings and overlaps.
 
-The layout modules do not duplicate that router. The next routing phase should expose and
-extend it into a sheet-level candidate planner whose metrics can feed back into placement.
+The layout modules do not duplicate that router. The router remains the candidate generator;
+the planner layer measures and judges the resulting route.
 
-Both placement planners currently refuse an already-wired schematic by default. Moving
-symbols while leaving wire geometry behind would make the drawing worse. Existing-wire
+## Non-mutating wire planner and placement feedback
+
+`schematic_wire_planner.py` is the first Phase 29 coupling layer. It does not apply a wire
+and does not move a symbol. Instead it:
+
+1. measures the caller-supplied `AddWireOperation`;
+2. asks the existing bounded wire cleaner for its deterministic cleaned candidate;
+3. measures that candidate with the same obstacle/crossing model;
+4. selects the lexicographically non-worse route;
+5. checks explicit readability thresholds;
+6. returns `placement_feedback` when the selected route remains pathological.
+
+The exposed wire metrics include:
+
+- component/text obstacle hits;
+- collinear overlaps with existing wires;
+- crossings with existing wires;
+- self-intersections;
+- diagonal segments;
+- bend count;
+- routed length;
+- direct endpoint distance;
+- detour ratio.
+
+Feedback is intentionally advisory. Current repair intents include opening a routing
+corridor, moving endpoint blocks closer, or repacking endpoint blocks. Pin endpoints are
+resolved back to normalized stable part IDs, including multipart RefDes groups where
+applicable, so the later joint optimizer has an explicit target set. The planner does not
+yet invent final move coordinates because trustworthy exact schematic pin geometry is not
+available.
+
+This is the key boundary needed for co-optimization: a router is now allowed to say
+"this route is still bad; placement must change" instead of silently accepting a long or
+collision-prone wire.
+
+Both placement planners still refuse an already-wired schematic by default. Moving symbols
+while leaving existing wire geometry behind would make the drawing worse. Existing-wire
 support belongs in the joint placement/routing optimizer, where affected wires can be
 rerouted atomically.
 
@@ -163,11 +200,10 @@ orientation can be scored reliably enough to justify rotating user-visible symbo
 
 The intended order is:
 
-1. expose the current authored-wire cleaner as a non-mutating route-candidate/metrics API;
-2. let placement candidates be scored with real bounded route candidates, not only the
+1. score placement candidates with real bounded wire candidates instead of only the
    Manhattan estimate;
-3. allow routing to return bounded placement-feedback proposals when a small move removes
-   pathological crossings or detours;
+2. promote single-connection planning into bounded sheet-level net ordering;
+3. turn advisory placement feedback into bounded candidate moves and re-score them;
 4. re-route only affected nets after a placement repair;
 5. add reference-motif-driven placement candidate generation;
 6. normalize or otherwise obtain trustworthy symbol/pin geometry where DipTrace evidence

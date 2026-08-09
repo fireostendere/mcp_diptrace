@@ -248,6 +248,7 @@ src/diptrace_mcp/routing_compiler.py
 src/diptrace_mcp/scaffolding.py
 src/diptrace_mcp/schematic_layout.py
 src/diptrace_mcp/schematic_optimizer.py
+src/diptrace_mcp/schematic_wire_planner.py
 src/diptrace_mcp/semantic_compiler.py
 src/diptrace_mcp/server.py
 src/diptrace_mcp/server_inputs.py
@@ -389,6 +390,7 @@ tests/test_schematic_authoring.py
 tests/test_schematic_layout.py
 tests/test_schematic_optimizer.py
 tests/test_schematic_pcb_sync.py
+tests/test_schematic_wire_planner.py
 tests/test_schematic_wire_quality.py
 tests/test_semantic_dispatch.py
 tests/test_server.py
