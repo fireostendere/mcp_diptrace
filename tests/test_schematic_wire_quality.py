@@ -8,6 +8,8 @@ from diptrace_mcp.config import Settings
 from diptrace_mcp.service import DipTraceService
 
 FIXTURES = Path(__file__).parent / "fixtures"
+PointTuple = tuple[float, float]
+SegmentTuple = tuple[PointTuple, PointTuple]
 
 
 def _service(tmp_path: Path) -> DipTraceService:
@@ -31,7 +33,7 @@ def _sha(service: DipTraceService, path: str = "main.dch") -> str:
     return str(service.document_info(path)["result"]["sha256"])
 
 
-def _wire_points(target: Path, net_name: str, index: int = -1) -> list[tuple[float, float]]:
+def _wire_points(target: Path, net_name: str, index: int = -1) -> list[PointTuple]:
     root = ET.fromstring(target.read_bytes())
     net = root.find(f"./Schematic/Nets/Net[Name='{net_name}']")
     assert net is not None
@@ -41,21 +43,18 @@ def _wire_points(target: Path, net_name: str, index: int = -1) -> list[tuple[flo
     return [(float(point.get("X", "0")), float(point.get("Y", "0"))) for point in points]
 
 
-def _orthogonal(points: list[tuple[float, float]]) -> bool:
+def _orthogonal(points: list[PointTuple]) -> bool:
     return all(
         first[0] == second[0] or first[1] == second[1]
         for first, second in zip(points, points[1:], strict=False)
     )
 
 
-def _segments(points: list[tuple[float, float]]) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+def _segments(points: list[PointTuple]) -> list[SegmentTuple]:
     return list(zip(points, points[1:], strict=False))
 
 
-def _proper_crossing(
-    first: tuple[tuple[float, float], tuple[float, float]],
-    second: tuple[tuple[float, float], tuple[float, float]],
-) -> bool:
+def _proper_crossing(first: SegmentTuple, second: SegmentTuple) -> bool:
     (a, b), (c, d) = first, second
     first_horizontal = a[1] == b[1]
     second_horizontal = c[1] == d[1]
