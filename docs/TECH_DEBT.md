@@ -16,33 +16,73 @@ The post-0.2.1 maintainability cleanup is complete. The following are continuing
 
 ## Repository implementation debt
 
-No current roadmap item is blocked on repository-only implementation.
+There is no known generic repository-only roadmap blocker that should be implemented merely to advance the remaining formal acceptance matrix.
 
-The previously open code-side items now have implementation/tests:
+The previously open code-side items have implementation/tests, including trust-path coverage, deterministic fixture generation, raw-preserving library mutation, pattern recommendation, DFM/DFA/DFT checks and manual-acceptance tooling.
 
-- explicit trust-path regression coverage for stored-plan apply, SES import, schematic-to-PCB sync and live apply fail-closed behavior;
-- deterministic synthetic PCB/Schematic/Component Library/Pattern Library/DSN/SES fixture generation and validation;
-- raw-preserving native Component/Pattern mutation primitives with explicit collision/replacement policy and pin-to-pad validation;
-- deterministic pattern recommendation with hard filters, geometry ranking, append-only derived feedback and held-out metrics;
-- additional deterministic DFM/DFA/DFT release-readiness checks;
-- manual-only acceptance pack generation and evidence validation.
+However, real product validation can still expose focused implementation defects. A reproducible schematic authoring/readability failure found in the next validation campaign becomes a concrete implementation task even though the generic roadmap is otherwise repository-complete.
 
-Native library mutation intentionally remains below the public MCP write-tool boundary until real DipTrace Component/Pattern Editor round-trip evidence exists. That is an evidence gate, not missing writer-core implementation.
+## Completed manual evidence
 
-## Manual evidence debt
+The current development-line campaign has accepted the following blocking gates:
 
-The remaining debt cannot be closed by repository code alone:
+- current real DipTrace PCB open/save/re-export;
+- current real DipTrace Schematic open/save/re-export;
+- Component Library writer round-trip;
+- Pattern Library writer round-trip;
+- authored schematic wires and generated PCB ratlines;
+- complete mask/paste/courtyard/`Common` semantics;
+- Q1 Component Angle GUI/re-export;
+- real Codex Desktop configuration/restart/`get_capabilities`.
 
-- clean Windows 11 install/repair/uninstall observation;
-- current real DipTrace PCB and Schematic open/save/re-export acceptance;
-- current real Component Library and Pattern Library writer round trips;
-- authored-wire and generated-ratline GUI/save/re-export evidence;
-- mask/paste/courtyard/`Common` controlled exports;
-- Q1 Component Angle GUI/re-export evidence;
-- real Codex and Claude Desktop configuration/restart acceptance;
-- elevated plug-in install and user-profile preservation;
-- custom-state preservation across install/repair/uninstall.
+The accepted production-code identity through those gates is
+`0bb09b4b3af40a5a3d1a875fab885430a2d251ba`.
 
-Claim-specific optional evidence remains external legal/Novarm review if required, a real openEMS integration run if solver validation is claimed, and public-redownload smoke when a future release changes published bytes.
+## Remaining formal manual evidence debt
 
-Use `scripts/prepare_manual_acceptance.py` to generate the canonical manual-only checklist and to reject unsupported PASS claims without referenced evidence.
+Four blocking formal gates remain:
+
+- `claude_desktop_real_client_restart`;
+- `windows_clean_install_repair_uninstall`;
+- `elevated_plugin_install_profile_preservation`;
+- `custom_state_preservation`.
+
+The formal campaign is intentionally paused before Claude Desktop while core schematic authoring quality is validated more deeply.
+
+Claim-specific optional evidence remains external legal/Novarm review when required, a real openEMS integration run only when solver validation is claimed, and public-redownload smoke when a future release changes published bytes.
+
+## Immediate product-validation debt — schematic authoring/readability
+
+PR #66 added deterministic bounded wire-quality routing for newly authored schematic wires. Automated tests cover component-region avoidance, schematic text avoidance, crossing avoidance, collinear overlap avoidance, Manhattan paths and bounded deterministic search.
+
+That automated coverage and the historical authored-wire round-trip PASS do not prove that the current post-Ponytail system can author a complete schematic that is clean and understandable to a human.
+
+Before resuming the remaining client/Windows lifecycle gates, validate representative small real schematics in DipTrace. At minimum include:
+
+- resistor divider;
+- LED + resistor;
+- simple RC/divider + capacitor;
+- collision-prone placement;
+- RefDes/Value/net-label-near-wire cases;
+- a small multi-net circuit authored from a clean starting point.
+
+Review both semantics and presentation:
+
+- correct component/pin/net connectivity;
+- sensible placement/orientation;
+- readable wire geometry;
+- no unrelated symbol crossings;
+- no unnecessary wire-wire crossings or collinear overlaps;
+- no wires covering RefDes, Value or net labels;
+- clear junction intent;
+- no unreasonable detours/bends;
+- native DipTrace save/reopen/re-export preservation;
+- whether routine manual cleanup is unnecessary for a normal result.
+
+This is a stronger product-quality validation, not a rewrite of the historical `diptrace_ratline_and_wire_roundtrip` gate. Any failure should get its own focused reproducer and regression test.
+
+## Evidence discipline
+
+Use `scripts/prepare_manual_acceptance.py` for the canonical manual-only matrix. Historical FAIL attempts remain immutable; repairs get fresh retest attempts.
+
+Documentation-only commits after the accepted production candidate do not create production-code drift. If relevant production code changes, explicitly identify the new candidate and rerun only the evidence plausibly affected by that change.
