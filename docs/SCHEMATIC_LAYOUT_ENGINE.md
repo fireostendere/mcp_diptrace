@@ -2,20 +2,19 @@
 
 ## Status
 
-This document describes the first deterministic foundation for the intelligent schematic
+This document describes the deterministic foundation for the intelligent schematic
 layout track in `docs/ROADMAP.md`.
 
 The implementation is internal and does not add public MCP tools or change the published
 tools/list contract. It builds on the existing schematic parser, semantic operations,
 transaction safety model, and authored-wire quality layer.
 
-The first implementation lives in `src/diptrace_mcp/schematic_layout.py` and provides:
+The current implementation lives in:
 
-- conservative schematic design-intent inference;
-- functional-block grouping;
-- structured reference motifs;
-- deterministic readability metrics and a decomposed layout score;
-- a first-pass hierarchical placer for unwired schematics.
+- `src/diptrace_mcp/schematic_layout.py` for design intent, reference motifs,
+  deterministic readability metrics, and the first hierarchical placement planner;
+- `src/diptrace_mcp/schematic_optimizer.py` for bounded multi-candidate placement search,
+  estimated future-interconnect cost, candidate ranking, and safe operation planning.
 
 ## Design intent
 
@@ -88,9 +87,9 @@ This limitation is reported instead of being hidden behind guessed geometry.
 
 ## First placement planner
 
-`plan_schematic_placement` is the Phase 28 foundation, not the final optimizer.
+`plan_schematic_placement` is the simple deterministic Phase 28 foundation.
 
-The current planner:
+The planner:
 
 1. infers functional blocks;
 2. orders block classes deterministically;
@@ -104,13 +103,44 @@ The current planner:
 The generated operations therefore still use the existing semantic compiler,
 preview/SHA/transaction/review safety path. The layout engine does not write XML directly.
 
-The planner refuses an already-wired schematic by default. Moving symbols while leaving
-wire geometry behind would make the drawing worse. Existing-wire support belongs in the
-joint placement/routing optimizer, where affected wires can be rerouted atomically.
+## Bounded multi-candidate optimizer
 
-Rotation is also preserved in the first version. Exact schematic pin geometry is required
-before automatic orientation can be scored reliably enough to justify moving user-visible
-symbols.
+`schematic_optimizer.py` extends the first planner into a bounded search layer instead of
+pretending that one greedy packing is globally optimal.
+
+For an unwired schematic it generates multiple deterministic candidates across bounded
+combinations of:
+
+- functional-block ordering strategy;
+- local support-component presentation (`support_right`, `support_below`, or balanced);
+- target row width / sheet compactness.
+
+Candidate generation is capped by `max_candidates` and deduplicates geometrically identical
+layouts. Each candidate is scored with disclosed terms rather than a hidden quality value.
+The current optimizer score includes:
+
+- the existing layout/readability score;
+- estimated future interconnect length;
+- estimated future crossing count;
+- connector-flow violations where a connector is placed visually downstream of the block
+  it feeds;
+- movement from the existing layout.
+
+Future interconnect is deliberately an estimate, not fake detailed routing. For each net the
+optimizer builds a deterministic minimum-spanning connection estimate between placed parts
+and compares the two Manhattan L-shape orientations while accumulating estimated crossings.
+Ground is excluded from this estimate and power may be down-weighted/configured separately.
+This makes placement route-aware before the full sheet router is coupled to it.
+
+The selected candidate is the minimum ranked candidate under the disclosed score and stable
+tie-breakers. `plan_optimized_schematic_placement` then emits ordinary
+`MoveComponentsOperation` objects for changed, unlocked parts. It does not bypass semantic
+operations or the transaction boundary.
+
+The optimizer is deterministic for a fixed snapshot and configuration. Regression tests
+cover deterministic candidate IDs/order, bounded candidate count, grid adherence, locked
+part preservation, replay of selected operations, and refusal of an already-wired
+schematic until joint rerouting is available.
 
 ## Existing wire-quality layer
 
@@ -118,22 +148,30 @@ The repository already has a bounded deterministic authored-wire quality layer i
 `services/schematic_wire_quality.py`. It can reroute newly authored wires around component
 and text obstacles and strongly penalizes crossings and overlaps.
 
-The new layout module does not duplicate that router. The next routing phase should expose
-and extend it into a sheet-level candidate planner whose metrics can feed back into
-placement.
+The layout modules do not duplicate that router. The next routing phase should expose and
+extend it into a sheet-level candidate planner whose metrics can feed back into placement.
+
+Both placement planners currently refuse an already-wired schematic by default. Moving
+symbols while leaving wire geometry behind would make the drawing worse. Existing-wire
+support belongs in the joint placement/routing optimizer, where affected wires can be
+rerouted atomically.
+
+Rotation is also preserved. Exact schematic pin geometry is required before automatic
+orientation can be scored reliably enough to justify rotating user-visible symbols.
 
 ## Next implementation steps
 
 The intended order is:
 
-1. establish quality fixtures and keep the new metric contract stable enough for regression
-   tests;
-2. normalize or otherwise obtain trustworthy symbol/pin geometry where DipTrace evidence
-   permits it;
-3. generate several placement candidates rather than one deterministic packing candidate;
-4. use reference motifs during candidate generation, not only scoring;
-5. promote the existing authored-wire cleaner into a sheet-level interconnect planner;
-6. allow routing to return bounded placement-feedback proposals;
+1. expose the current authored-wire cleaner as a non-mutating route-candidate/metrics API;
+2. let placement candidates be scored with real bounded route candidates, not only the
+   Manhattan estimate;
+3. allow routing to return bounded placement-feedback proposals when a small move removes
+   pathological crossings or detours;
+4. re-route only affected nets after a placement repair;
+5. add reference-motif-driven placement candidate generation;
+6. normalize or otherwise obtain trustworthy symbol/pin geometry where DipTrace evidence
+   permits orientation scoring;
 7. run placement, routing and scoring in a bounded generate -> score -> improve loop;
 8. preserve the existing guarded transaction/review path for the selected candidate;
 9. expose only a small deliberate public MCP surface after the internal architecture is
