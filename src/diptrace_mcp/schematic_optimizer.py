@@ -17,9 +17,7 @@ from .schematic_layout import (
     BlockRole,
     BoundReferenceMotif,
     SchematicDesignIntent,
-    SchematicFunctionalBlock,
     SchematicLayoutAnalysis,
-    SchematicLayoutWeights,
     SchematicPlacementConfig,
     analyze_schematic_layout,
     infer_schematic_design_intent,
@@ -119,7 +117,10 @@ class _EstimatedSegment:
     end: Point
 
 
-def _require_unwired_schematic(snapshot: DocumentSnapshot, config: SchematicOptimizerConfig) -> None:
+def _require_unwired_schematic(
+    snapshot: DocumentSnapshot,
+    config: SchematicOptimizerConfig,
+) -> None:
     if snapshot.schematic is None:
         raise CapabilityUnavailableError("Schematic optimization requires a schematic document")
     if len(snapshot.schematic.parts) > config.placement.max_parts:
@@ -715,14 +716,20 @@ def plan_optimized_schematic_placement(
         operations=operations,
         changed_part_ids=changed,
         assumptions=[
-            "The optimizer compares bounded deterministic placement candidates; it does not claim a global optimum.",
-            "Future interconnect cost is estimated with part-anchor Manhattan trees because exact schematic pin geometry is not normalized.",
-            "Connector-left-to-right flow is a soft readability convention, not an electrical rule.",
+            "The optimizer compares bounded deterministic placement candidates; "
+            "it does not claim a global optimum.",
+            "Future interconnect cost is estimated with part-anchor Manhattan trees because "
+            "exact schematic pin geometry is not normalized.",
+            "Connector-left-to-right flow is a soft readability convention, "
+            "not an electrical rule.",
         ],
         warnings=list(selected.layout.warnings),
         limitations=[
-            "The optimizer currently targets unwired schematics; existing-wire co-optimization is Phase 30 work.",
-            "Estimated crossings are based on deterministic Manhattan L-routes, not final DipTrace wire geometry.",
-            "Automatic symbol rotation remains disabled until trustworthy pin-facing geometry is available.",
+            "The optimizer currently targets unwired schematics; existing-wire "
+            "co-optimization is Phase 30 work.",
+            "Estimated crossings are based on deterministic Manhattan L-routes, "
+            "not final DipTrace wire geometry.",
+            "Automatic symbol rotation remains disabled until trustworthy pin-facing "
+            "geometry is available.",
         ],
     )
