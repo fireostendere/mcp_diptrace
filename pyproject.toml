@@ -95,3 +95,7 @@ strict = true
 packages = ["diptrace_mcp"]
 exclude = ["^plugin/dist/"]
 warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = "diptrace_mcp.server_runtime"
+warn_return_any = false

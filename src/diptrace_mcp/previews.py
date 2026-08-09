@@ -13,11 +13,10 @@ from .record_ids import (
     InvalidRecordId,
     InvalidRecordPath,
     iter_valid_record_files,
-    prepare_safe_store_root,
     require_confined_record_artifact,
     require_record_id,
-    require_safe_store_root,
 )
+from .record_store import RecordStore
 from .retention import (
     Clock,
     RetentionCandidate,
@@ -31,7 +30,7 @@ from .xml_document import atomic_write_bytes, utc_now
 
 
 @dataclass(slots=True)
-class RawPreviewStore:
+class RawPreviewStore(RecordStore):
     """Persist bounded raw-edit preview artifacts outside the tool response."""
 
     state_dir: Path
@@ -43,12 +42,12 @@ class RawPreviewStore:
 
     def __post_init__(self) -> None:
         self.previews_dir = self.state_dir / "raw_previews"
-        prepare_safe_store_root(self.state_dir, self.previews_dir)
+        self._initialize_record_store(
+            state_dir=self.state_dir,
+            store_root=self.previews_dir,
+        )
         self._lock = threading.RLock()
-        self.last_retention_report = self._prune_retention()
-
-    def _require_safe_root(self) -> None:
-        require_safe_store_root(self.state_dir, self.previews_dir)
+        self.last_retention_report = self._initial_retention_report()
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
@@ -100,18 +99,21 @@ class RawPreviewStore:
             self._require_safe_root()
             directory = self.preview_dir(preview_id)
             directory.mkdir(parents=False, exist_ok=False)
-            atomic_write_bytes(directory / "diff.txt", diff.encode("utf-8"))
+            diff_path = self._require_safe_output_path(directory / "diff.txt")
+            atomic_write_bytes(diff_path, diff.encode("utf-8"))
             payload = {
                 "preview_id": preview_id,
                 "created_at": utc_now(),
                 "resource_uri": resource_uri,
                 "diff_metadata": metadata,
             }
-            atomic_write_bytes(
+            self._write_store_json(
                 directory / "metadata.json",
-                (
-                    json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-                ).encode("utf-8"),
+                payload,
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+                trailing_newline=True,
             )
         return preview_id, resource_uri
 
