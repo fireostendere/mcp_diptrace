@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -127,7 +128,21 @@ def test_sync_populates_empty_pcb_and_copies_patterns() -> None:
         ("1", "1"): ("0", "-1"),
         ("1", "2"): ("1", "-1"),
     }
-    assert root.find("./Board/Ratlines") is None
+    ratlines = root.findall("./Board/Ratlines/Ratline")
+    assert len(ratlines) == 2
+    assert {
+        (item.get("Comp1"), item.get("Pad1"), item.get("Comp2"), item.get("Pad2"))
+        for item in ratlines
+    } == {
+        ("0", "1", "1", "1"),
+        ("0", "2", "1", "2"),
+    }
+    assert all(item.get("Hidden") == "N" for item in ratlines)
+    assert all(
+        item.get(axis) is not None
+        for item in ratlines
+        for axis in ("X1", "Y1", "X2", "Y2")
+    )
     assert [net.get("HiddenId") for net in root.findall("./Board/Nets/Net")] == [
         "0",
         "1",
@@ -183,6 +198,31 @@ def test_sync_emits_native_pad_ids_ratline_mode_and_marking_positions() -> None:
     assert {net.get("RouteMode") for net in root.findall("./Board/Nets/Net")} == {
         "Ratlines"
     }
+    board = root.find("./Board")
+    assert board is not None
+    child_tags = [child.tag for child in board]
+    assert child_tags.index("Ratlines") < child_tags.index("Nets")
+    ratlines = root.findall("./Board/Ratlines/Ratline")
+    assert len(ratlines) == 2
+    assert [item.get("Id") for item in ratlines] == ["0", "1"]
+    components_by_refdes = {
+        component.findtext("./RefDes"): component for component in components
+    }
+    assert components_by_refdes["R1"].get("Angle") is None
+    assert math.isclose(
+        float(components_by_refdes["U1"].get("Angle", "0")),
+        math.pi / 2.0,
+        rel_tol=0.0,
+        abs_tol=1e-9,
+    )
+    vectors = [
+        (
+            float(item.get("X2", "0")) - float(item.get("X1", "0")),
+            float(item.get("Y2", "0")) - float(item.get("Y1", "0")),
+        )
+        for item in ratlines
+    ]
+    assert abs(vectors[0][0] * vectors[1][1] - vectors[0][1] * vectors[1][0]) > 1e-6
     for component in components:
         refdes = component.find("./RefDesMarking/Silk")
         name = component.find("./NameMarking/Silk")
@@ -434,7 +474,7 @@ def test_exact_sync_removes_unmatched_objects_and_changed_net_traces() -> None:
         item.findtext("./Name") for item in root.findall("./Board/Nets/Net")
     } == {"VCC", "SIGNAL"}
     assert root.findall("./Board/Nets/Net/Traces/Trace") == []
-    assert root.find("./Board/Ratlines") is None
+    assert len(root.findall("./Board/Ratlines/Ratline")) == 2
 
     second_plan = build_sync_plan(
         schematic,

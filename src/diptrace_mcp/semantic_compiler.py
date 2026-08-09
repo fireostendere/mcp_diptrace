@@ -1501,6 +1501,161 @@ def _append_sync_component_markings(
             )
 
 
+
+def _sync_ratline_cache(
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    *,
+    create_ratlines: bool,
+) -> int:
+    """Serialize the native ratline cache needed by DipTrace whole-file XML open."""
+    container = document.container
+    existing = container.find("./Ratlines")
+    existing_rows = (
+        [dict(item.attrib) for item in existing.findall("./Ratline")]
+        if existing is not None
+        else []
+    )
+    desired: list[dict[str, str]] = []
+
+    if create_ratlines:
+        component_xml_by_stable = {
+            record.stable_id: record.xml_id
+            for record in snapshot.objects.values()
+            if record.kind in {"component", "testpoint"} and record.xml_id
+        }
+        endpoint_positions: dict[tuple[str, str], tuple[float, float]] = {}
+        for record in snapshot.objects.values():
+            if (
+                record.kind != "pad"
+                or record.position is None
+                or record.parent_id is None
+                or record.xml_id is None
+            ):
+                continue
+            parent_component_id: str | None = component_xml_by_stable.get(record.parent_id)
+            if parent_component_id is None:
+                continue
+            endpoint_positions[(parent_component_id, record.xml_id)] = (
+                from_mm(float(record.position["x"]), document.units),
+                from_mm(float(record.position["y"]), document.units),
+            )
+
+        nets = list(container.findall("./Nets/Net"))
+        endpoint_net: dict[tuple[str, str], str] = {}
+        traced_net_ids: set[str] = set()
+        for net in nets:
+            net_id = net.get("Id", "")
+            if net.findall("./Traces/Trace"):
+                traced_net_ids.add(net_id)
+            for item in net.findall("./Pads/Item"):
+                endpoint_net[(item.get("Comp", ""), item.get("Pad", ""))] = net_id
+
+        def append_ratline(
+            endpoint1: tuple[str, str],
+            endpoint2: tuple[str, str],
+            *,
+            hidden: str = "N",
+        ) -> None:
+            point1 = endpoint_positions.get(endpoint1)
+            point2 = endpoint_positions.get(endpoint2)
+            if point1 is None or point2 is None:
+                return
+            desired.append(
+                {
+                    "Id": str(len(desired)),
+                    "Hidden": hidden,
+                    "X1": f"{point1[0]:.9g}",
+                    "Y1": f"{point1[1]:.9g}",
+                    "X2": f"{point2[0]:.9g}",
+                    "Y2": f"{point2[1]:.9g}",
+                    "Comp1": endpoint1[0],
+                    "Pad1": endpoint1[1],
+                    "Comp2": endpoint2[0],
+                    "Pad2": endpoint2[1],
+                }
+            )
+
+        # Preserve valid cache edges for nets that already contain traces. For an
+        # unrouted net, rebuild a deterministic minimum spanning tree from current
+        # pad positions so stale connectivity cannot survive a sync edit.
+        for row in existing_rows:
+            endpoint1 = (row.get("Comp1", ""), row.get("Pad1", ""))
+            endpoint2 = (row.get("Comp2", ""), row.get("Pad2", ""))
+            cached_net_id: str | None = endpoint_net.get(endpoint1)
+            if (
+                cached_net_id
+                and cached_net_id == endpoint_net.get(endpoint2)
+                and cached_net_id in traced_net_ids
+            ):
+                append_ratline(endpoint1, endpoint2, hidden=row.get("Hidden", "N"))
+
+        for net in nets:
+            if net.get("HideRatlines") == "Y" or net.findall("./Traces/Trace"):
+                continue
+            endpoints = [
+                (item.get("Comp", ""), item.get("Pad", ""))
+                for item in net.findall("./Pads/Item")
+            ]
+            endpoints = [item for item in endpoints if item in endpoint_positions]
+            if len(endpoints) < 2:
+                continue
+
+            connected = {0}
+            remaining = set(range(1, len(endpoints)))
+            while remaining:
+                candidates: list[
+                    tuple[
+                        float,
+                        tuple[str, str],
+                        tuple[str, str],
+                        int,
+                        int,
+                    ]
+                ] = []
+                for left in connected:
+                    x1, y1 = endpoint_positions[endpoints[left]]
+                    for right in remaining:
+                        x2, y2 = endpoint_positions[endpoints[right]]
+                        distance_sq = (x2 - x1) ** 2 + (y2 - y1) ** 2
+                        candidates.append(
+                            (
+                                distance_sq,
+                                endpoints[left],
+                                endpoints[right],
+                                left,
+                                right,
+                            )
+                        )
+                _distance, _left_key, _right_key, left, right = min(candidates)
+                append_ratline(endpoints[left], endpoints[right])
+                connected.add(right)
+                remaining.remove(right)
+
+    nets_container = container.find("./Nets")
+    order_is_native = True
+    if existing is not None and nets_container is not None:
+        children = list(container)
+        order_is_native = children.index(existing) < children.index(nets_container)
+    if desired and existing is not None and existing_rows == desired and order_is_native:
+        return 0
+
+    patches = 0
+    if existing is not None:
+        container.remove(existing)
+        patches += 1
+    if desired:
+        ratlines = ET.Element("Ratlines")
+        for attributes in desired:
+            ET.SubElement(ratlines, "Ratline", attributes)
+        if nets_container is None:
+            container.append(ratlines)
+        else:
+            container.insert(list(container).index(nets_container), ratlines)
+        patches += 1
+    return patches
+
+
 def _apply_sync_schematic_to_pcb(
     index: int,
     document: DipTraceDocument,
@@ -1657,12 +1812,67 @@ def _apply_sync_schematic_to_pcb(
     next_update_id = max(update_ids, default=99) + 1
     component_by_refdes: dict[str, ET.Element] = {}
 
+    # Keep simple multi-net two-pin relationships human-readable. When two
+    # synchronized two-pin parts are placed on the same row/column and share
+    # two or more distinct nets, leaving both at the same orientation can make
+    # their ratlines collinear and visually indistinguishable. Rotate the later
+    # newly-created part by 90 degrees relative to the earlier one. Existing PCB
+    # component orientation is never changed by this heuristic.
+    component_order = {
+        item.refdes.casefold(): index for index, item in enumerate(operation.components)
+    }
+    component_spec_by_refdes = {
+        item.refdes.casefold(): item for item in operation.components
+    }
+    two_pin_refdes = {
+        key
+        for key, item in component_spec_by_refdes.items()
+        if len(item.pad_numbers) == 2
+    }
+    direct_pair_net_counts: dict[tuple[str, str], int] = {}
+    for net in operation.nets:
+        refs = sorted(
+            {
+                endpoint.refdes.casefold()
+                for endpoint in net.endpoints
+                if endpoint.refdes.casefold() in two_pin_refdes
+            }
+        )
+        if len(refs) != 2:
+            continue
+        pair = (refs[0], refs[1])
+        direct_pair_net_counts[pair] = direct_pair_net_counts.get(pair, 0) + 1
+
+    readability_partner_by_refdes: dict[str, str] = {}
+    for pair, shared_net_count in sorted(direct_pair_net_counts.items()):
+        if shared_net_count < 2:
+            continue
+        first_spec = component_spec_by_refdes[pair[0]]
+        second_spec = component_spec_by_refdes[pair[1]]
+        same_row = math.isclose(first_spec.y, second_spec.y, abs_tol=1e-9)
+        same_column = math.isclose(first_spec.x, second_spec.x, abs_tol=1e-9)
+        if not (same_row or same_column):
+            continue
+        earlier, later = sorted(pair, key=lambda key: component_order[key])
+        readability_partner_by_refdes.setdefault(later, earlier)
+
     for spec in operation.components:
         key = spec.refdes.casefold()
         target_component = existing_components.get(key)
         if target_component is None:
             component_id = str(next_component_id)
             next_component_id += 1
+            readability_angle_rad: float | None = None
+            readability_partner = readability_partner_by_refdes.get(key)
+            if readability_partner is not None:
+                partner_component = component_by_refdes.get(readability_partner)
+                if partner_component is not None:
+                    try:
+                        partner_angle_rad = float(partner_component.get("Angle", "0") or "0")
+                    except ValueError:
+                        partner_angle_rad = 0.0
+                    readability_angle_rad = (partner_angle_rad + math.pi / 2.0) % (2.0 * math.pi)
+
             target_component = ET.SubElement(
                 components,
                 "Component",
@@ -1680,6 +1890,10 @@ def _apply_sync_schematic_to_pcb(
                     "Selected": "N",
                 },
             )
+            if readability_angle_rad is not None and not math.isclose(
+                readability_angle_rad, 0.0, abs_tol=1e-12
+            ):
+                target_component.set("Angle", f"{readability_angle_rad:.12g}")
             next_update_id += 1
             ET.SubElement(target_component, "RefDes").text = spec.refdes
             ET.SubElement(target_component, "Name").text = spec.name
@@ -2070,16 +2284,20 @@ def _apply_sync_schematic_to_pcb(
                 pad.set("InternalConnection", "-1")
                 patch_count += 1
 
-    # Ratlines are a derived DipTrace cache. Pad@NetId is authoritative; keeping
-    # hand-authored ratlines after a connectivity edit can make DipTrace reject the
-    # cache and show a reinitialization warning. Drop it and let DipTrace rebuild.
-    if connectivity_mutated:
-        ratlines = document.container.find("./Ratlines")
-        if ratlines is not None:
-            document.container.remove(ratlines)
-            patch_count += 1
-
+    # Real DipTrace 5.3 native File -> Open does not regenerate a missing
+    # whole-file Ratlines cache from otherwise-correct Pad@NetId membership. Build
+    # the cache from the final semantic state while keeping Pad@NetId authoritative.
     final_snapshot = build_snapshot(document)
+    if (
+        connectivity_mutated
+        or operation.create_ratlines
+        or document.container.find("./Ratlines") is not None
+    ):
+        patch_count += _sync_ratline_cache(
+            document,
+            final_snapshot,
+            create_ratlines=operation.create_ratlines,
+        )
     targets = [
         final_snapshot.objects[stable]
         for stable in dict.fromkeys(changed_ids)
