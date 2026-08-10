@@ -11,6 +11,7 @@ from .pcb_design_intent import (
     PCBDesignIntent,
     PCBIntentOverrides,
     PCBNetIntent,
+    ReturnStrategy,
     build_pcb_design_intent,
 )
 from .pcb_physical import PCBPhysicalAnalysis, analyze_pcb_physics
@@ -48,19 +49,22 @@ class PCBNetRoutingPolicy(StrictModel):
     reasons: list[str] = Field(default_factory=list)
 
 
+CopperStrategy = Literal[
+    "trace",
+    "local_copper_minimized",
+    "local_plane_or_pour_candidate",
+    "continuous_plane_preferred",
+    "chassis_or_shield",
+    "kelvin_candidate",
+    "explicit_star",
+    "unknown",
+]
+
+
 class PCBCopperStrategy(StrictModel):
     net_id: str
     name: str | None = None
-    strategy: Literal[
-        "trace",
-        "local_copper_minimized",
-        "local_plane_or_pour_candidate",
-        "continuous_plane_preferred",
-        "chassis_or_shield",
-        "kelvin_candidate",
-        "explicit_star",
-        "unknown",
-    ]
+    strategy: CopperStrategy
     current_a: float | None = None
     requires_refill_evidence: bool = False
     reasons: list[str] = Field(default_factory=list)
@@ -162,7 +166,9 @@ def _priority(net: PCBNetIntent) -> int:
     return min(1000, net.criticality * 5 + role_bonus + constraint_bonus)
 
 
-def _reference_policies(physical: PCBPhysicalAnalysis) -> list[PCBLayerReferencePolicy]:
+def _reference_policies(
+    physical: PCBPhysicalAnalysis,
+) -> list[PCBLayerReferencePolicy]:
     return [
         PCBLayerReferencePolicy(
             signal_layer=item.signal_layer,
@@ -188,12 +194,19 @@ def _policy_for_net(
         if not preferred or item.signal_layer in preferred
     ]
     reasons = [
-        "Priority is deterministic from Generation A criticality, roles and explicit constraints.",
-        "Physical routing limits are copied from explicit/exported facts; missing width/clearance is not invented.",
+        (
+            "Priority is deterministic from Generation A criticality, roles and "
+            "explicit constraints."
+        ),
+        (
+            "Physical routing limits are copied from explicit/exported facts; "
+            "missing width/clearance is not invented."
+        ),
     ]
     if net.reference_plane_required:
         reasons.append(
-            "Reference candidates come from Generation B exported-stackup analysis and remain preliminary."
+            "Reference candidates come from Generation B exported-stackup "
+            "analysis and remain preliminary."
         )
     return PCBNetRoutingPolicy(
         net_id=net.net_id,
@@ -220,7 +233,10 @@ def _policy_for_net(
     )
 
 
-def _topology_strategy(intent: PCBDesignIntent, net_id: str) -> str | None:
+def _topology_strategy(
+    intent: PCBDesignIntent,
+    net_id: str,
+) -> ReturnStrategy | None:
     match = next(
         (item for item in intent.power_ground if item.net_id == net_id),
         None,
@@ -229,7 +245,10 @@ def _topology_strategy(intent: PCBDesignIntent, net_id: str) -> str | None:
 
 
 def _rail_current(physical: PCBPhysicalAnalysis, net_id: str) -> float | None:
-    match = next((item for item in physical.pdn_rails if item.net_id == net_id), None)
+    match = next(
+        (item for item in physical.pdn_rails if item.net_id == net_id),
+        None,
+    )
     return match.current_a if match is not None else None
 
 
@@ -240,14 +259,8 @@ def _copper_strategy(
 ) -> PCBCopperStrategy:
     topology = _topology_strategy(intent, net.net_id)
     current = _rail_current(physical, net.net_id)
-    if topology in {
-        "local_copper_minimized",
-        "local_plane_or_pour_candidate",
-        "continuous_plane_preferred",
-        "chassis_or_shield",
-        "kelvin_candidate",
-        "explicit_star",
-    }:
+    strategy: CopperStrategy
+    if topology is not None:
         strategy = topology
     elif {"power", "high_current_power"}.intersection(net.roles):
         strategy = "local_plane_or_pour_candidate"
@@ -262,11 +275,13 @@ def _copper_strategy(
     reasons = ["Strategy preserves Generation A return/power topology intent."]
     if current is None and {"power", "high_current_power"}.intersection(net.roles):
         reasons.append(
-            "Rail current is unknown; strategy is a topology candidate, not a current-capacity conclusion."
+            "Rail current is unknown; strategy is a topology candidate, not a "
+            "current-capacity conclusion."
         )
     if requires_refill:
         reasons.append(
-            "Any poured/plane result requires authoritative DipTrace refill and geometry evidence before acceptance."
+            "Any poured/plane result requires authoritative DipTrace refill and "
+            "geometry evidence before acceptance."
         )
     return PCBCopperStrategy(
         net_id=net.net_id,
@@ -309,15 +324,33 @@ def compile_pcb_routing_policy(
             key=lambda item: item.net_id,
         ),
         assumptions=[
-            "Generation C policy is compiled from A/B evidence and does not itself mutate traces, vias or pours.",
-            "Unknown trace width, spacing, impedance or timing facts remain unknown unless supplied/exported.",
-            "Existing routing compiler and semantic transaction path remain authoritative for actual edits.",
+            (
+                "Generation C policy is compiled from A/B evidence and does not "
+                "itself mutate traces, vias or pours."
+            ),
+            (
+                "Unknown trace width, spacing, impedance or timing facts remain "
+                "unknown unless supplied/exported."
+            ),
+            (
+                "Existing routing compiler and semantic transaction path remain "
+                "authoritative for actual edits."
+            ),
         ],
         warnings=sorted(set([*intent.warnings, *physical.warnings])),
         limitations=[
-            "Route ordering is engineering priority, not proof of global routing optimality.",
-            "Reference candidates are preliminary until board-specific copper/refill and solver evidence exists.",
-            "Copper strategy is intent; native pour refill/island/thermal behavior is not synthesized here.",
+            (
+                "Route ordering is engineering priority, not proof of global "
+                "routing optimality."
+            ),
+            (
+                "Reference candidates are preliminary until board-specific "
+                "copper/refill and solver evidence exists."
+            ),
+            (
+                "Copper strategy is intent; native pour refill/island/thermal "
+                "behavior is not synthesized here."
+            ),
         ],
     )
 
@@ -367,7 +400,8 @@ def evaluate_route_observation(
             limit=policy.max_length_mm,
             failed=(
                 observation.length_mm > policy.max_length_mm
-                if observation.length_mm is not None and policy.max_length_mm is not None
+                if observation.length_mm is not None
+                and policy.max_length_mm is not None
                 else None
             ),
             pass_reason="Observed route length is within the explicit maximum.",
@@ -390,7 +424,9 @@ def evaluate_route_observation(
             unknown_reason="Via count or explicit via budget is unavailable.",
         )
     )
-    forbidden_used = sorted(set(observation.used_layers).intersection(policy.forbidden_layers))
+    forbidden_used = sorted(
+        set(observation.used_layers).intersection(policy.forbidden_layers)
+    )
     checks.append(
         PCBSICheck(
             key="forbidden_layers",
@@ -417,16 +453,27 @@ def evaluate_route_observation(
             actual=observation.maintained_reference,
             limit=policy.reference_plane_required,
             failed=reference_failed,
-            pass_reason="Observed reference continuity satisfies the policy requirement.",
+            pass_reason=(
+                "Observed reference continuity satisfies the policy requirement."
+            ),
             fail_reason="Observed route breaks the required continuous reference.",
-            unknown_reason="Reference continuity was not observed for a reference-sensitive net.",
+            unknown_reason=(
+                "Reference continuity was not observed for a reference-sensitive net."
+            ),
         )
     )
     impedance_failed: bool | None = None
     tolerance = policy.impedance_tolerance_percent
     target = policy.target_impedance_ohm
-    if observation.impedance_ohm is not None and target is not None and tolerance is not None:
-        impedance_failed = abs(observation.impedance_ohm - target) > target * tolerance / 100.0
+    if (
+        observation.impedance_ohm is not None
+        and target is not None
+        and tolerance is not None
+    ):
+        impedance_failed = (
+            abs(observation.impedance_ohm - target)
+            > target * tolerance / 100.0
+        )
     checks.append(
         _check(
             "impedance",
@@ -445,7 +492,8 @@ def evaluate_route_observation(
             limit=policy.max_skew_mm,
             failed=(
                 observation.skew_mm > policy.max_skew_mm
-                if observation.skew_mm is not None and policy.max_skew_mm is not None
+                if observation.skew_mm is not None
+                and policy.max_skew_mm is not None
                 else None
             ),
             pass_reason="Observed skew is within the explicit maximum.",
@@ -468,7 +516,9 @@ def evaluate_route_observation(
             failed=stub_failed,
             pass_reason="No disallowed stub was observed.",
             fail_reason="A stub was observed on a stub-sensitive net.",
-            unknown_reason="Stub exposure was not observed for a stub-sensitive net.",
+            unknown_reason=(
+                "Stub exposure was not observed for a stub-sensitive net."
+            ),
         )
     )
     parallel_status: CheckStatus = (
@@ -481,7 +531,8 @@ def evaluate_route_observation(
             actual=observation.parallel_exposure_mm,
             limit=None,
             reason=(
-                "Parallel exposure was measured; no universal numeric crosstalk limit is invented."
+                "Parallel exposure was measured; no universal numeric crosstalk "
+                "limit is invented."
                 if observation.parallel_exposure_mm is not None
                 else "Parallel route exposure was not observed."
             ),
@@ -489,7 +540,8 @@ def evaluate_route_observation(
     )
     hard_failures = sum(item.status == "fail" for item in checks)
     strong = any(
-        item.key in {"reference_continuity", "via_budget"} and item.status == "fail"
+        item.key in {"reference_continuity", "via_budget"}
+        and item.status == "fail"
         for item in checks
     )
     consider = hard_failures > 0
@@ -497,13 +549,11 @@ def evaluate_route_observation(
         net_id=policy.net_id,
         component_ids=sorted(set(component_ids or [])),
         severity="strong" if strong else ("consider" if consider else "none"),
-        reasons=[
-            item.reason
-            for item in checks
-            if item.status == "fail"
-        ],
+        reasons=[item.reason for item in checks if item.status == "fail"],
         action=(
-            "bounded_endpoint_move_candidate" if consider and component_ids else "none"
+            "bounded_endpoint_move_candidate"
+            if consider and component_ids
+            else "none"
         ),
     )
     observations_used = [
@@ -527,7 +577,13 @@ def evaluate_route_observation(
         placement_feedback=feedback,
         observations_used=observations_used,
         limitations=[
-            "The evaluator checks supplied observations; it does not infer hidden trace geometry.",
-            "Crosstalk/parallel exposure has no invented universal pass/fail threshold.",
+            (
+                "The evaluator checks supplied observations; it does not infer "
+                "hidden trace geometry."
+            ),
+            (
+                "Crosstalk/parallel exposure has no invented universal pass/fail "
+                "threshold."
+            ),
         ],
     )
