@@ -32,7 +32,7 @@ physical context / stackup / PDN / return Generation B
 routing policy / SI / copper decisions    Generation C
         |
         v
-joint score and bounded repair             Generation D
+joint score and bounded repair            Generation D
         |
         v
 guarded semantic plan -> preview -> SHA-bound apply -> review
@@ -50,7 +50,7 @@ Generation A deliberately preserves unknown physics. Ordinary ground defaults to
 
 ## Generation B — PCB understands fields and current paths
 
-**Status: implemented internally on `pcb_physical.py`; PR #83 is the merge gate.**
+**Status: implemented, regression-tested and merged to `main` in PR #83.**
 
 `analyze_pcb_physics()` consumes Generation A intent plus existing normalized stackup, geometry, via and return-path evidence. It is non-mutating and provides:
 
@@ -65,7 +65,7 @@ Analytic impedance candidates stay `preliminary_only`; current density, voltage 
 
 ## Generation C — PCB routes intentionally
 
-**Status: implemented internally on `pcb_routing_policy.py`; PR #84 is the merge gate.**
+**Status: implemented, regression-tested and merged to `main` in PR #84.**
 
 Generation C translates A/B engineering evidence into deterministic routing policy while leaving actual trace/via/pour mutation in the existing routing compiler and guarded semantic transaction path.
 
@@ -114,11 +114,35 @@ Failed route observations can return bounded endpoint-placement feedback. Refere
 
 ## Generation D — whole-board optimization
 
-**Status: implementation in progress on a stacked branch.**
+**Status: implemented internally on `pcb_joint_optimizer.py`; PR #86 is the final merge gate.**
 
-Generation D combines placement, routing, SI, PI, return-path, EMI-risk, thermal and manufacturing metrics into one bounded multi-objective selector. Hard violations are lexicographically dominant and can never be traded for a better soft score. The complete score stays decomposed; there is no opaque "AI board quality" value.
+Generation D selects among bounded whole-board candidates without bypassing the existing guarded write path.
 
-Generation D also defines engineering-trap benchmark families followed by controlled real-DipTrace open/refill/DRC/save/reopen/re-export acceptance where native geometry matters.
+### Hard-rule dominance
+
+`PCBHardViolations` keeps safety, mechanical, connectivity, DRC, reference-path and manufacturing violations as separate integer dimensions. Candidate ranking is lexicographic across those dimensions before any soft metric is considered. A candidate that introduces a hard violation cannot win because it has shorter routing, fewer vias or a prettier placement score.
+
+### Decomposed soft score
+
+`PCBSoftScore` keeps placement, routing, via count, signal integrity, power integrity, return path, EMI risk, thermal risk and manufacturing cost separate. Their finite sum is only a deterministic tie-break between candidates with identical hard-violation vectors.
+
+The optimizer rejects non-finite soft metrics, duplicate candidate IDs, empty candidate sets and candidate counts above the configured bound. External routers, external solvers and operator candidates can participate only as candidate/evidence sources; they do not gain authority to apply edits.
+
+### Benchmark catalog
+
+`pcb_benchmark_catalog()` defines engineering-trap families for:
+
+- MCU + decoupling + crystal;
+- regulator/power;
+- ADC mixed signal;
+- precision current sense;
+- high-speed differential;
+- Ethernet/CAN/interface;
+- RF/antenna;
+- higher-current power distribution;
+- multilayer controlled-impedance routing.
+
+These catalog entries are explicitly `synthetic_regression_only`. Each retains `requires_real_diptrace_acceptance=True`; a synthetic PASS cannot be promoted into a claim about native copper refill, planes, via structures or DipTrace round-trip behavior.
 
 ## Testing and acceptance
 
@@ -127,6 +151,8 @@ Generation A automated coverage includes component/net role inference, functiona
 Generation B adds stackup provenance, unknown-current/source preservation, explicit current/converter facts, reference-sensitive return paths, timing-gated noise analysis, bounded via-role classification and invalid-radius rejection.
 
 Generation C adds deterministic route ordering, constraint propagation, preliminary reference policy, unknown-width preservation, observed SI failure/unknown behavior, bounded placement feedback, copper/refill evidence boundaries and wrong-net rejection.
+
+Generation D adds hard-rule dominance, deterministic ranking/tie-breaking, plan-reference preservation, bounded candidate counts, non-finite score rejection and benchmark acceptance-boundary tests.
 
 A real-DipTrace acceptance fixture remains required before claims about poured copper, plane behavior, via structures or native round-trip semantics are promoted beyond the existing evidence boundary.
 
@@ -143,4 +169,4 @@ The PCB design engine does **not** currently claim:
 - fabrication or assembly sign-off;
 - globally optimal placement/routing.
 
-Generations A-C provide deterministic intent, placement, physical-context and routing-policy foundations for the bounded whole-board optimizer.
+Generations A-D provide deterministic intent, placement, physical-context, routing-policy and bounded whole-board candidate-selection foundations. Applying any resulting semantic plan remains subject to the normal preview, SHA, policy, transaction and review boundaries.
