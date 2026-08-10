@@ -12,7 +12,9 @@ It consists of:
 - `diptrace-mcp`, the MCP server used by Codex, Claude Desktop, and other MCP
   clients;
 - `diptrace_mcp_bridge.exe`, the Windows plug-in bridge for projects currently
-  open in DipTrace.
+  open in DipTrace;
+- an internal EDA-intelligence layer for deterministic schematic/PCB intent,
+  candidate generation, scoring and guarded improvement.
 
 ## Current status
 
@@ -47,7 +49,8 @@ is not yet published.
   points, packaged skills, bounds, metadata, and every `RECORD` hash and size.
 - PyPI publication uses GitHub OpenID Connect and a protected `pypi`
   environment; no long-lived PyPI API token is stored.
-- The PyPI publish job receives only the already validated wheel and source distribution from the separate build job.
+- The PyPI publish job receives only the already validated wheel and source distribution
+  from the separate build job.
 - Windows installer, bridge, standalone executable, configurator, portable
   bundle, and MCPB remain unsigned development assets.
 - CI, checksums, Trusted Publishing, and attestations do not create a
@@ -72,10 +75,18 @@ Main capability groups:
 - optional Freerouting, ngspice, and openEMS process adapters;
 - local stdio and trusted-loopback Streamable HTTP transports.
 
+Internal EDA development deliberately does not expand that public tool surface
+one heuristic at a time. PCB Generation A adds an internal engineering-intent
+model and intent-aware placement v2: component/function grouping, multi-role net
+classification, electrical criticality, conservative ground/power strategy and
+placement scoring above the existing geometry legalizer. Missing current, edge
+rate, impedance and other physical facts remain explicit unknowns.
+
 DipTrace MCP is not a replacement for DipTrace's interactive EDA engine. It
 does not claim native Component/Pattern Library mutation, native Gerber/NC Drill
-generation, fabrication sign-off, Novarm/DipTrace endorsement, or universal
-DipTrace 5.x compatibility.
+generation, fabrication sign-off, Novarm/DipTrace endorsement, universal
+DipTrace 5.x compatibility, field-solver accuracy, PI/EMC sign-off, or globally
+optimal PCB placement.
 
 ## Installation
 
@@ -149,10 +160,16 @@ MCP client (Codex / Claude / other)
              FastMCP
                  |
                  v
-     DipTraceService public Facade
+        application/service layer
                  |
                  +--> typed domain services
+                 +--> internal EDA intelligence
+                 |       +--> schematic layout/optimizer
+                 |       +--> PCB intent/placement/optimizer
                  +--> shared stores, policy, cache, document gateway
+                 |
+                 v
+        typed semantic operations
                  |
                  v
        XML files / shared state
@@ -163,6 +180,10 @@ MCP client (Codex / Claude / other)
                  |
               DipTrace
 ```
+
+Intelligent layout modules emit normal semantic operations and stay behind the
+existing preview/SHA/transaction/review safety path. The public MCP contract is
+not a second EDA engine.
 
 ## Safety model
 
@@ -176,9 +197,14 @@ The main write invariants are:
 6. policy and conservative write-impact limits are enforced;
 7. live apply rechecks the working, exchange, and original-file identities;
 8. cancel leaves the host exchange file unchanged;
-9. user-controlled sidecars cannot mint high trust.
+9. user-controlled sidecars cannot mint high trust;
+10. internal EDA heuristics cannot silently invent physical facts or bypass the
+    guarded semantic-operation path.
 
-Q1 Component Angle GUI/re-export validation remains `NOT_RUN`, and several real
+The private/manual Q1 Component Angle GUI/re-export campaign is PASS on DipTrace
+PCB Layout 5.3.0.3. Package-owned public evidence/trust promotion remains a
+separate reviewed contract, so conservative public warnings are not removed
+merely because the private campaign passed. Several other real
 Windows/DipTrace/client acceptance items remain disclosed limitations.
 
 ## Data Handling
@@ -203,6 +229,9 @@ Windows/DipTrace/client acceptance items remain disclosed limitations.
 - [Usage](docs/USAGE.md)
 - [MCP tools and resources](docs/MCP_TOOLS.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [PCB design engine and A-D roadmap](docs/PCB_DESIGN_ENGINE.md)
+- [Placement engine](docs/PLACEMENT_ENGINE.md)
+- [Domain model](docs/DOMAIN_MODEL.md)
 - [MCP distribution and package publication](docs/MCP_DISTRIBUTION.md)
 - [Windows and Python installation](docs/INSTALL_FROM_RELEASE.md)
 - [Testing](docs/TESTING.md)

@@ -9,6 +9,10 @@ The post-0.2.1 maintainability cleanup is complete. The following are continuing
 - keep `diptrace_mcp.server` as a compatibility facade while implementation remains split into input/boundary and runtime modules;
 - keep adapter parsing helpers and record/query builders in explicit modules rather than rebuilding `adapters.py` as a monolith;
 - keep `DipTraceService` focused on orchestration; stateful store construction belongs to `services.container`;
+- keep intelligent schematic/PCB decision logic behind the MCP/application boundary rather than adding one public tool per heuristic;
+- keep normalized XML facts separate from inferred engineering intent and operator-supplied constraints;
+- require intelligent EDA modules to emit typed semantic operations and reuse the existing preview/SHA/transaction/review path instead of writing XML directly;
+- keep unknown physical/electrical facts unknown rather than filling missing current, edge-rate, impedance, stackup or thermal data with invented defaults;
 - coverage floors for high-risk modules are ratchets and must not be lowered merely to make CI pass;
 - packaged skill scripts remain generated copies of canonical scripts and must pass the synchronization gate;
 - release/version-bearing metadata must agree with `release.json`;
@@ -16,11 +20,13 @@ The post-0.2.1 maintainability cleanup is complete. The following are continuing
 
 ## Repository implementation debt
 
-There is no known generic repository-only roadmap blocker that should be implemented merely to advance the remaining formal acceptance matrix.
+There is no known generic repository-only blocker that should be implemented merely to advance the remaining formal acceptance matrix.
 
 The previously open code-side items have implementation/tests, including trust-path coverage, deterministic fixture generation, raw-preserving library mutation, pattern recommendation, DFM/DFA/DFT checks and manual-acceptance tooling.
 
-However, real product validation can still expose focused implementation defects. A reproducible schematic authoring/readability failure found in the next validation campaign becomes a concrete implementation task even though the generic roadmap is otherwise repository-complete.
+The intelligent design roadmap intentionally creates new product work rather than generic cleanup. PCB Generation A now provides the internal design-intent/net-intelligence layer and intent-aware placement v2. Its documented limitations — pad-level current loops, stackup/reference structure, PDN, crosstalk/field behavior, via roles, copper planning, thermal modeling and joint placement/routing optimization — are scoped Generation B-D work, not hidden defects in Generation A.
+
+Real product validation can still expose focused implementation defects. A reproducible schematic or PCB design-quality failure becomes a concrete implementation task even when the corresponding architectural phase is otherwise repository-complete.
 
 ## Completed manual evidence
 
@@ -48,7 +54,7 @@ Three project-required lifecycle gates remain:
 - `elevated_plugin_install_profile_preservation`;
 - `custom_state_preservation`.
 
-The formal lifecycle campaign is intentionally paused before those Windows/profile gates while core schematic authoring quality is validated more deeply.
+The formal lifecycle campaign is intentionally paused before those Windows/profile gates while core schematic/PCB design quality is developed and validated more deeply.
 
 Claim-specific optional evidence remains external legal/Novarm review when required, a real openEMS integration run only when solver validation is claimed, and public-redownload smoke when a future release changes published bytes.
 
@@ -58,7 +64,7 @@ PR #66 added deterministic bounded wire-quality routing for newly authored schem
 
 That automated coverage and the historical authored-wire round-trip PASS do not prove that the current system can author a complete schematic that is clean and understandable to a human.
 
-Before resuming the remaining Windows/profile lifecycle gates, validate representative small real schematics in DipTrace. At minimum include:
+Before promoting schematic readability claims, validate representative small real schematics in DipTrace. At minimum include:
 
 - resistor divider;
 - LED + resistor;
@@ -67,20 +73,24 @@ Before resuming the remaining Windows/profile lifecycle gates, validate represen
 - RefDes/Value/net-label-near-wire cases;
 - a small multi-net circuit authored from a clean starting point.
 
-Review both semantics and presentation:
-
-- correct component/pin/net connectivity;
-- sensible placement/orientation;
-- readable wire geometry;
-- no unrelated symbol crossings;
-- no unnecessary wire-wire crossings or collinear overlaps;
-- no wires covering RefDes, Value or net labels;
-- clear junction intent;
-- no unreasonable detours/bends;
-- native DipTrace save/reopen/re-export preservation;
-- whether routine manual cleanup is unnecessary for a normal result.
+Review both semantics and presentation: connectivity, placement/orientation, wire geometry, crossings/overlaps, text collisions, junction intent, detours/bends, native save/reopen/re-export and whether routine cleanup is unnecessary.
 
 This is a stronger product-quality validation, not a rewrite of the historical `diptrace_ratline_and_wire_roundtrip` gate. Any failure should get its own focused reproducer and regression test.
+
+## PCB Generation A evidence boundary
+
+Generation A repository tests can prove deterministic intent classification, explicit-unknown handling, conservative power/ground policy, decomposed placement scoring and placement hard-geometry non-regression. They do **not** create real-DipTrace or electrical-performance evidence.
+
+Before later generations promote claims about actual copper/current behavior, controlled evidence must cover the affected native representations. In particular:
+
+- ground/power strategy is intent only; it does not prove a plane, pour or star topology is electrically optimal;
+- copper-pour boundaries are not authoritative refill/island/thermal-relief geometry;
+- noise separation is a placement-risk proxy, not crosstalk or EMC simulation;
+- thermal roles are metadata/placement intent, not heat-flow analysis;
+- analytic impedance helpers remain bounded estimates rather than fabrication-controlled impedance certification;
+- Generation A does not require new real-DipTrace evidence because it introduces no new public mutation primitive and emits the already-guarded semantic move operation.
+
+Generation B-D acceptance must add targeted real-DipTrace fixtures before authoritative plane/pour/via or product-level PCB claims are promoted.
 
 ## Evidence discipline
 

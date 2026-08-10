@@ -20,7 +20,7 @@ That commit includes the post-PR #65/#66 Ponytail pass (PR #68). Later developme
 
 The durable recovery record is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md), updated on 2026-08-10. Resume from that checkpoint instead of repeating already accepted gates.
 
-A new product-development track also starts at this checkpoint: **intelligent schematic and PCB design quality**. Formal lifecycle acceptance is paused while the project first proves that it can produce schematics that are not only electrically correct, but compact, readable, intentionally structured and comparable in presentation quality to strong professional reference designs. The schematic track comes first because its geometry is primarily a readability/layout problem; the PCB track follows after the same generate/score/improve architecture is established.
+A new product-development track also starts at this checkpoint: **intelligent schematic and PCB design quality**. Formal lifecycle acceptance is paused while the project proves that it can make defensible EDA decisions rather than only safe XML edits. The schematic and PCB engines share the same internal generate -> score -> improve architecture. Schematic readability remains its own acceptance track; PCB Generation A now establishes the electrical-intent and placement foundation in parallel without expanding the public MCP surface.
 
 ## Completed real-host / real-client acceptance
 
@@ -87,15 +87,15 @@ The next project-required lifecycle gate, when formal acceptance resumes, is:
 
 The Claude Desktop gate is skipped by explicit project waiver, not by inference and not as PASS.
 
-Before spending more time on installer/profile lifecycle checks, the project will validate and improve the core product behavior: can the current MCP author a normal, readable, useful schematic in real DipTrace, and can it evolve from bounded authoring into an intentional schematic-layout engine?
+Before spending more time on installer/profile lifecycle checks, the project is validating and improving the core product behavior: can the system create useful schematics and make explainable PCB design decisions while retaining the existing safety/trust boundaries?
 
 ## New development track — intelligent schematic and PCB design
 
 ### Product goal
 
-The project should progress from "can safely create/edit EDA objects" to "can make defensible engineering-layout decisions". The target is not blind imitation of one vendor style or rigid enforcement of every possible electronics drafting convention. The target is a schematic/PCB that an experienced engineer can open and understand quickly, with sensible grouping, orientation, flow, density and routing decisions.
+The project should progress from "can safely create/edit EDA objects" to "can make defensible engineering-layout decisions". The target is not blind imitation of one vendor style or rigid enforcement of every possible electronics drafting convention. The target is a schematic/PCB that an experienced engineer can open and understand quickly, with sensible grouping, orientation, flow, density, electrical constraints and routing decisions.
 
-Reference schematics and layout examples from component datasheets should be treated as **high-value design motifs**, not absolute coordinate templates. The engine should preserve the intent of a reference design — which parts belong together, relative order, orientation, local signal flow, important adjacency and recognizable topology — while adapting that motif to the rest of the actual project.
+Reference schematics and layout examples from component datasheets should be treated as **high-value design motifs**, not absolute coordinate templates. The engine should preserve the intent of a reference design — which parts belong together, relative order, orientation, local signal/current flow, important adjacency and recognizable topology — while adapting that motif to the rest of the actual project.
 
 The long-term architecture is deliberately staged:
 
@@ -119,24 +119,24 @@ quality scoring
 transaction preview -> guarded apply -> review
 ```
 
-The same generate -> score -> improve loop should be reusable for PCB work later, where physical/electrical constraints become much stronger.
+For PCB work, the same loop gains physical/electrical sub-scores for stackup/reference structure, PDN/current paths, controlled impedance, vias, crosstalk, EMI risk, thermal behavior and manufacturing constraints.
 
-### Design principles
+### Shared design principles
 
-- Prefer human readability and recognizable functional structure over merely minimizing total geometric wire length.
-- Keep functional blocks compact, but penalize needless schematic-area expansion so the result does not become an oversized empty canvas.
-- Prefer conventional visual flow where it helps understanding: inputs toward outputs, signal flow predominantly left-to-right, supply hierarchy and returns placed consistently, without treating these conventions as hard laws when they make the actual circuit worse.
-- Preserve useful local reference-design structure from datasheets instead of scattering a component's support network across the sheet.
-- Allow placement and wire routing to influence each other. Wiring is not a final cosmetic pass if a small component move can remove pathological crossings, detours or unreadable topology.
-- Prefer deterministic, explainable scoring first. ML remains optional future work and must not be required for the first useful implementation.
-- Do not optimize for "looks standardized" at the expense of engineering clarity. A clean, obvious circuit is more important than ceremonial compliance with drafting conventions that add no value.
+- Prefer deterministic, explainable scoring first. ML remains optional future work.
+- Keep observed document facts separate from inferred engineering intent and operator-supplied facts.
+- Missing current, edge rate, impedance, stackup or datasheet facts remain explicit unknowns rather than guessed constants.
+- Allow placement and routing to influence each other; routing may propose bounded placement repair instead of accepting a pathological result.
+- Hard DRC/mechanical/safety violations cannot be compensated by a better cosmetic or wire-length score.
+- Preserve useful reference-design structure from datasheets without copying absolute coordinates blindly.
 - Every automatic edit remains inside the existing preview/SHA/transaction/review safety model.
+- Internal optimizer development does not automatically create new MCP tools; the current public tool surface stays stable unless a separate API decision is made.
 
-## Schematic track — start here
+## Schematic track
 
 ### Phase 26 — real-world readability baseline and benchmark fixtures
 
-**Status: active checkpoint / first task.**
+**Status: active checkpoint.**
 
 PR #66 added deterministic bounded readability routing for newly authored schematic wires. Its automated goals include component avoidance, text/label avoidance, crossing and overlap avoidance, Manhattan routing, self-intersection avoidance and fewer unnecessary bends. The subsequent Ponytail pass and later development may have modified adjacent behavior.
 
@@ -207,20 +207,7 @@ Build a hierarchical placer:
 5. pack remaining components while respecting text and wiring corridors;
 6. globally compact the result without collapsing readability.
 
-Candidate scoring should include explicit terms for:
-
-- symbol/body overlap;
-- text/label clearance zones;
-- functional-group cohesion;
-- deviation from a trusted reference motif;
-- pin-facing / orientation quality;
-- estimated future wire length;
-- estimated future crossings;
-- alignment and grid regularity;
-- backward or confusing signal flow;
-- whitespace balance / visual density;
-- total occupied schematic area;
-- unnecessary movement from an already-good existing layout.
+Candidate scoring should include explicit terms for symbol/body overlap, text/label clearance, functional-group cohesion, motif deviation, pin-facing/orientation quality, future wire length/crossings, grid regularity, signal-flow direction, visual density, total occupied area and unnecessary movement.
 
 The engine should generate multiple bounded candidates where useful rather than pretending one greedy placement is globally optimal.
 
@@ -228,86 +215,171 @@ The engine should generate multiple bounded candidates where useful rather than 
 
 **Goal:** route wires, labels and buses as a readability problem rather than a shortest-path problem.
 
-Extend the current bounded Manhattan wire routing into a sheet-aware interconnect planner that can:
+Extend bounded Manhattan routing to minimize symbol/text collisions, crossings, overlaps and unnecessary bends; keep parallel related signals coherent; prefer short local wires; decide when labels/buses are clearer; preserve obvious signal flow; and disclose per-route quality metrics.
 
-- minimize wire-symbol and wire-text collisions;
-- strongly penalize unnecessary crossings and overlaps;
-- minimize bends where that improves readability;
-- avoid ambiguous junction presentation;
-- keep related parallel signals visually coherent;
-- prefer short local wires inside a functional block;
-- decide when a named net label is clearer than a long cross-sheet wire;
-- support buses/grouped signals where the underlying DipTrace representation is verified;
-- preserve obvious input-to-output visual flow;
-- expose quality metrics for every routed connection.
-
-Crucially, routing may return a structured placement-feedback request rather than accepting a pathological route. Example: "moving U3 right by one grid region removes four crossings and 80 mm of detour". The router must not mutate placement implicitly; it proposes bounded repairs that the joint optimizer can score.
+Routing may return a structured placement-feedback request rather than accepting a pathological route. The router must not mutate placement implicitly; it proposes bounded repairs that the joint optimizer can score.
 
 ### Phase 30 — joint schematic layout optimizer
 
 **Goal:** optimize placement and wiring together.
 
-Introduce a bounded co-optimization loop:
-
-1. classify blocks and intent;
-2. generate several placement candidates;
-3. route or estimate interconnect for each candidate;
-4. score the complete schematic;
-5. apply local placement feedback for pathological routes;
-6. re-route affected nets only;
-7. stop on convergence, budget exhaustion or no meaningful score improvement;
-8. present the best candidate through the existing guarded plan/preview transaction path.
-
-The score must remain decomposed and explainable. A lower score is meaningful only when its component metrics are disclosed; there should be no opaque "AI quality" number in the deterministic baseline.
+Introduce a bounded co-optimization loop: classify intent, generate placement candidates, route/estimate each, score the complete schematic, apply bounded placement feedback, reroute affected nets only, stop on convergence/budget exhaustion, then present the best candidate through the existing guarded plan/preview path.
 
 ### Phase 31 — schematic quality gate and product-level acceptance
 
-**Goal:** prove that the engine produces consistently useful schematics, not just valid XML.
+**Goal:** prove consistent usefulness, not only valid XML.
 
-Create a benchmark/acceptance suite containing synthetic, project-owned and legally usable real reference cases. For each case retain the initial state, generated candidate(s), final state and machine-readable metrics.
+Create benchmark/acceptance cases retaining initial state, candidate(s), final state and machine-readable metrics. Gate connectivity/ERC non-regression, collision/crossing/bend metrics, compactness, determinism, reference-motif preservation, real DipTrace open/save/re-export and human review of a representative subset.
 
-Quality gates should cover at minimum:
+This phase closes only when a deliberately ugly but electrically correct schematic is reliably made materially cleaner without routine manual cleanup.
 
-- electrical/connectivity non-regression;
-- no new ERC/review regression within supported checks;
-- collision/crossing/bend metrics;
-- compactness without crowding;
-- stable deterministic output for a fixed seed/config;
-- reference-motif preservation where applicable;
-- real DipTrace open/save/re-export;
-- human review of a representative subset.
+## PCB track — electrical-intent to whole-board optimization
 
-This phase closes only when the project can take a deliberately ugly but electrically correct schematic and reliably produce a materially cleaner version without routine manual cleanup.
+The detailed design document is [`PCB_DESIGN_ENGINE.md`](PCB_DESIGN_ENGINE.md). The PCB track deliberately sits above existing parsers, placement legalizer, router, impedance/return-path helpers and guarded transaction path rather than replacing them.
 
-## PCB track — after the schematic architecture is proven
+### Generation A — PCB understands electronics
 
-The PCB track reuses the schematic intent/optimizer architecture, but adds physical electrical constraints. It should not start by attempting a full replacement for a mature EDA autorouter.
+#### Phase 32 — PCB design intent, net intelligence and electrical criticality
 
-### Phase 32 — PCB design-intent and net-policy model
+**Status: implemented internally; acceptance requires green repository CI.**
 
-Classify functional blocks and nets by engineering importance and derive explicit routing/placement policies: critical length, via penalty, layer preference, return-path sensitivity, current/power role, noise sensitivity, differential relationship and other available constraints. Datasheet/reference-layout motifs should describe important local placement and loop structure without blindly copying board coordinates.
+Build a typed engineering graph above raw connectivity:
 
-### Phase 33 — global PCB placement optimizer
+- component roles such as controller, power converter, connector, interface, sensor, timing, protection and support;
+- deterministic functional blocks with principal anchors and support members;
+- multi-role net classification: ground/shield, power/high-current, switch node, clock, differential, reset/control/digital, analog/precision/reference/feedback/current-sense and RF;
+- explicit criticality, noise-emission/noise-sensitivity and via-penalty intent;
+- optional physical constraints for edge rate, frequency, current, impedance/tolerance, length/skew, via count, layers, spacing, reference and stubs;
+- explicit confidence/reasons and operator overrides for facts XML cannot prove.
 
-Extend the existing local/legalizing placer into hierarchical/global placement with functional groups, support-component adjacency, orientation, decoupling, thermal spacing, connector flow and estimated routeability. Placement scoring must include the cost of the routes it is likely to create, not only ratsnest anchor length.
+Missing physical values remain unknown. Exported differential-pair data may raise confidence/constraints; naming heuristics may classify intent but may not invent electrical numbers.
 
-### Phase 34 — routing policy and placement-routing feedback
+Power/ground topology policy begins here but remains intent, not copper implementation:
 
-Use the current local router and optional Freerouting as candidate generators. Add engineering-aware route ordering and scoring so a via, detour or layer transition carries a different cost for USB/RF/clock/power than for low-speed GPIO/LED signals. Allow routing congestion and critical-route failure to feed back into placement.
+- ordinary ground -> continuous reference plane preferred;
+- chassis/shield -> distinct return domain;
+- switching node -> local copper minimized;
+- sense nets -> Kelvin candidate;
+- power rail -> local plane/pour candidate;
+- star grounding is never inferred automatically and requires explicit project/operator intent.
 
-### Phase 35 — power, ground and via strategy
+This prevents the unsafe shortcut "analog + digital => split ground" from becoming an automatic rule.
 
-Add explicit planning for ground stitching, reference-transition vias, thermal vias, via fences where justified, power-via arrays, plane/pour continuity and return-current considerations. Keep current copper-pour/refill limitations explicit until authoritative geometry is available.
+#### Phase 33 — intent-aware PCB placement v2
 
-### Phase 36 — joint PCB optimizer and benchmark
+**Status: implemented internally; acceptance requires green repository CI.**
 
-Combine placement, routing candidates, power/ground strategy, DRC/review, SI/return-path heuristics and manufacturing constraints into the same bounded generate -> score -> improve loop established by the schematic work. External routers remain untrusted candidate generators; the MCP's own structural review and transaction gates remain authoritative for what it can actually prove.
+Keep the existing `placement.py` as the low-level geometry/legalization authority and add a higher board-level placer that:
 
-Benchmark against deliberately poor layouts, hand-improved layouts and legally usable reference boards. Do not claim "optimal PCB" or fabrication sign-off; report measurable improvements and remaining unsupported categories.
+1. fixes locked and mechanically anchored components;
+2. handles principal functional anchors before support parts;
+3. pulls support components toward resolved anchors;
+4. derives desired regions from critical connectivity;
+5. generates bounded deterministic board candidates;
+6. rejects candidates that increase overlap/outline/keepout penalties;
+7. scores geometry, block cohesion, support adjacency, critical connection distance and intent-level aggressor/victim proximity separately;
+8. emits normal semantic move operations rather than writing XML directly.
+
+Generation A intentionally preserves side/rotation and uses proximity/noise proxies. Pad-level current loops, reference planes, crosstalk fields and thermal spreading belong to Generation B.
+
+### Generation B — PCB understands fields and current paths
+
+#### Phase 34 — stackup, PDN, return-path and via intelligence
+
+**Status: planned.**
+
+Add physical decision layers before serious routing:
+
+- stackup/reference-layer relationships and manufacturable controlled-impedance geometry;
+- distinct trust levels for analytic impedance estimates, manufacturer geometry and external field-solver evidence;
+- PDN graph per rail: source, loads, steady/transient current when known, bulk/local decoupling, distribution and voltage-drop/current bottlenecks;
+- decoupling and switching-regulator hot-loop geometry using pad/current paths rather than only component distance;
+- return-path analysis across continuous reference copper, plane gaps/splits and layer transitions;
+- power/ground stitching, signal-return vias and current-carrying via requirements;
+- via roles: signal, power, ground stitching, return transition, differential transition, thermal and justified via fence.
+
+The existing via span/geometry validator, impedance estimator and return-path analyzer remain lower-level inputs. Unknown authoritative pour/refill geometry stays explicit until verified.
+
+#### Phase 35 — noise compatibility, impedance and electrical placement refinement
+
+**Status: planned.**
+
+Replace distance-only noise proxies with bounded aggressor/victim analysis using known edge/frequency, parallel exposure, layer/reference structure and separation. Refine placement scoring with:
+
+- decoupling loop area;
+- switching hot-loop/switch-node area;
+- analog/RF/clock separation;
+- impedance-compatible routing corridors;
+- reference-plane availability;
+- expected via transitions;
+- connector/interface flow;
+- thermal clustering/spreading heuristics;
+- high-current path geometry.
+
+The engine still reports risk indicators, not EMC/PI sign-off.
+
+### Generation C — PCB routes intentionally
+
+#### Phase 36 — routing policy compiler and route ordering
+
+**Status: planned.**
+
+Compile net intent into concrete router policy rather than making the router guess: priority, width/clearance, preferred/forbidden layers, via budget/penalty, target impedance, pair/skew constraints, continuous-reference requirement, spacing, shielding and stub policy.
+
+Route topology-critical nets before ordinary control/indicator nets. Ordering derives from criticality and explicit constraints rather than XML order or a hard-coded protocol list.
+
+#### Phase 37 — SI-aware routing, copper strategy and placement feedback
+
+**Status: planned.**
+
+Extend candidate routing/review to include:
+
+- impedance continuity and differential symmetry/skew;
+- stub and excessive-via penalties;
+- parallel coupling/crosstalk exposure;
+- reference-plane continuity and return-via proximity across layer changes;
+- current-aware power routing;
+- trace vs local copper vs plane/pour planning;
+- ground stitching and local shielding where justified;
+- authoritative refill/island/cutout/thermal-relief handling only after DipTrace geometry/evidence is sufficient.
+
+Routing may produce bounded placement repairs: move/rotate a part, open a corridor, remove several vias or restore a valid reference path. The joint optimizer decides whether the repair wins globally.
+
+### Generation D — optimize the whole board
+
+#### Phase 38 — joint multi-objective PCB optimizer
+
+**Status: planned.**
+
+Combine placement, routing, SI, PI, return-path, EMI-risk, thermal and manufacturing/assembly/test constraints into one bounded generate -> score -> improve loop.
+
+The complete score remains decomposed. Hard DRC/mechanical/safety violations are lexicographically dominant and cannot be traded away for lower wire length, prettier geometry or fewer vias.
+
+External routers/solvers remain candidate/evidence generators; they do not bypass MCP trust, transaction or review boundaries.
+
+#### Phase 39 — PCB benchmark and real-DipTrace product acceptance
+
+**Status: planned.**
+
+Create small engineering-trap benchmark families rather than one giant demo board:
+
+- MCU + decoupling + crystal;
+- LDO and buck/boost regulator;
+- ADC/sensor and mixed analog/digital;
+- current shunt / precision sense;
+- USB/high-speed differential;
+- Ethernet/CAN/other interface blocks;
+- RF module + antenna/matching;
+- higher-current power distribution;
+- multilayer controlled-impedance examples.
+
+For each retain deliberately poor, acceptable/reference and generated candidates where provenance permits. Measure hard-rule non-regression plus electrical/routeability/SI/PI/EMI-risk/thermal/manufacturing score components.
+
+Real-DipTrace acceptance for affected primitives must use generate -> open -> refill where required -> DRC/review -> save -> reopen -> re-export -> compare. Claims about poured copper, plane behavior, via structures or native semantics may not be promoted from synthetic parser round-trips alone.
 
 ## Remaining formal lifecycle acceptance
 
-When schematic authoring/readability validation and the chosen development checkpoint are intentionally finished or paused, resume project-required formal acceptance in this order:
+When the chosen product-development checkpoint is intentionally finished or paused, resume project-required formal acceptance in this order:
 
 | Order | Gate | Status |
 | --- | --- | --- |
@@ -342,7 +414,7 @@ These are not core blockers unless the corresponding claim is planned:
 
 ## Repository implementation status
 
-The previous repository-only roadmap is implementation-complete, but the new schematic/PCB intelligence track intentionally creates new product-development work. Current implementation already provides the foundation:
+The previous repository-only roadmap is implementation-complete, but the schematic/PCB intelligence track intentionally creates new product-development work. Current implementation already provides the foundation:
 
 - PCB, schematic and library parsing/querying;
 - guarded semantic transactions, rollback, SHA/policy/backup/atomic-write boundaries;
@@ -354,9 +426,11 @@ The previous repository-only roadmap is implementation-complete, but the new sch
 - raw-preserving Component/Pattern Library mutation core;
 - deterministic pattern-recommendation baseline;
 - bounded DFM/DFA/DFT release-readiness checks;
-- manual-acceptance evidence tooling.
+- manual-acceptance evidence tooling;
+- internal PCB Generation A design-intent/net-intelligence model;
+- internal intent-aware PCB placement v2 layered over the existing legalizer.
 
-The new work should reuse these layers rather than duplicating them. In particular, high-level optimizers should produce typed plans/operations that still pass through the existing guarded transaction and review paths.
+The new work should reuse these layers rather than duplicating them. High-level optimizers produce typed plans/operations that still pass through the existing guarded transaction and review paths.
 
 ## Native library mutation status
 
@@ -381,7 +455,7 @@ The maintained public baseline remains:
 - project-owned worker-thread boundary for registered tools;
 - exact SHA, policy, backup, atomic-write, session-lease and trust-authority boundaries.
 
-The acceptance campaign and the new optimizer roadmap do not implicitly add or remove public tools. New optimizer capability should prefer internal domain modules/services and a small deliberate public surface rather than one MCP tool per heuristic.
+The optimizer roadmap does not implicitly add or remove public tools. New optimizer capability should prefer internal EDA modules/services and a small deliberate public surface rather than one MCP tool per heuristic.
 
 ## Phase summary
 
@@ -398,18 +472,21 @@ The acceptance campaign and the new optimizer roadmap do not implicitly add or r
 | 22 | candidate complete | Windows installer/portable/configurator pipeline; clean-machine acceptance remains manual |
 | 23 | baseline complete | deterministic pattern recommendation and privacy-bounded feedback/evaluation |
 | 24 | host-verified internal core | Component/Pattern mutation core has real editor evidence; public registration is deferred |
-| 25 | manual acceptance paused | 8 canonical PASS gates; Claude explicitly WAIVED for current project campaign; project resume point is Windows lifecycle |
-| 26 | **active checkpoint** | Establish real-world schematic readability baseline and benchmark cases |
-| 27 | planned — schematic | Design intent, functional blocks and datasheet/reference motifs |
-| 28 | planned — schematic | Hierarchical component placement, orientation, compactness and routeability scoring |
-| 29 | planned — schematic | Human-readable wire/label/bus routing with placement feedback |
-| 30 | planned — schematic | Joint placement/interconnect optimizer with bounded iterative repair |
-| 31 | planned — schematic | Quality benchmark, real-DipTrace acceptance and product-level readability gate |
-| 32 | planned — PCB | PCB design-intent and engineering-aware net policy model |
-| 33 | planned — PCB | Global/hierarchical PCB placement optimizer |
-| 34 | planned — PCB | Engineering-aware routing policy and placement-routing feedback |
-| 35 | planned — PCB | Power/ground, stitching and via strategy |
-| 36 | planned — PCB | Joint PCB optimizer, review loop and measurable benchmark |
+| 25 | manual acceptance paused | 8 canonical PASS gates; Claude WAIVED for current campaign; resume point is Windows lifecycle |
+| 26 | active checkpoint — schematic | real-world readability baseline and benchmark cases |
+| 27 | planned — schematic | design intent, functional blocks and reference motifs |
+| 28 | planned — schematic | hierarchical placement/orientation/compactness/routeability |
+| 29 | planned — schematic | human-readable interconnect routing with placement feedback |
+| 30 | planned — schematic | joint placement/interconnect optimizer |
+| 31 | planned — schematic | quality benchmark and real-DipTrace readability acceptance |
+| 32 | **implemented — PCB Generation A** | PCB design intent, net intelligence, criticality and conservative power/ground policy; CI gate required before acceptance |
+| 33 | **implemented — PCB Generation A** | intent-aware PCB placement v2 over existing legality/scoring; CI gate required before acceptance |
+| 34 | planned — PCB Generation B | stackup, PDN, return-path and via intelligence |
+| 35 | planned — PCB Generation B | noise compatibility, impedance/reference and placement refinement |
+| 36 | planned — PCB Generation C | routing-policy compiler and engineering-aware route ordering |
+| 37 | planned — PCB Generation C | SI-aware routing, copper/plane/pour strategy and placement feedback |
+| 38 | planned — PCB Generation D | joint multi-objective whole-board optimizer |
+| 39 | planned — PCB Generation D | engineering benchmark suite and real-DipTrace product acceptance |
 
 ## Permanent limitations and non-claims
 
@@ -417,6 +494,7 @@ The acceptance campaign and the new optimizer roadmap do not implicitly add or r
 - Changing `format_version` is not conversion or compatibility evidence.
 - Reference datasheet/reference-board motifs are guidance and provenance-bearing constraints, not proof that the generated design is manufacturer-approved.
 - The local router is bounded and is not a full push-and-shove/free-angle/global EDA router.
+- PCB Generation A intent/noise/thermal/current-return values are deterministic policy/proxies, not field, PI, thermal or EMC simulation results.
 - Copper-pour, return-path, impedance, thermal, DFM/DFA/DFT and manufacturing reviews retain approximation/skip boundaries.
 - Generic fabrication/assembly manifests are not native Gerber, NC Drill, ODB++, IPC-2581 or assembler sign-off packages.
 - The ngspice adapter runs user-provided netlists; it does not generate a complete simulation netlist from a DipTrace design.
