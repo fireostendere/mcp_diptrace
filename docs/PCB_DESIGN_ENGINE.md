@@ -6,7 +6,7 @@ The PCB design engine turns normalized board connectivity plus explicit engineer
 
 The goal is not to claim globally optimal PCB layout or replace a mature field solver/autorouter. The goal is to make defensible engineering decisions, expose the assumptions behind them, and improve a board through a bounded generate -> score -> improve loop.
 
-No Generation A capability expands the public MCP `tools/list` contract. The current 159-tool surface stays frozen while the internal EDA architecture is proven.
+PCB-generation capabilities remain internal while the architecture is proven. The current 159-tool public MCP `tools/list` contract stays frozen; generations do not add one MCP tool per heuristic.
 
 ## Architecture
 
@@ -16,20 +16,23 @@ schematic / PCB connectivity
 operator / project constraints
         |
         v
-PCB design intent
+PCB design intent                         Generation A
         |
         +--> component roles / functional blocks
         +--> net roles / electrical criticality
         +--> power / ground strategy intent
         |
         v
-intent-aware placement
+intent-aware placement                    Generation A
         |
         v
-routing policy / stackup / SI / PI / EMI   (later generations)
+physical context / stackup / PDN / return Generation B
         |
         v
-joint score and bounded repair
+routing policy / SI / copper decisions    Generation C
+        |
+        v
+joint score and bounded repair             Generation D
         |
         v
 guarded semantic plan -> preview -> SHA-bound apply -> review
@@ -39,7 +42,7 @@ Physical facts are never invented to make the model look complete. Unknown edge 
 
 ## Generation A — PCB understands electronics
 
-**Status: implemented internally; automated regression/CI required before the generation is accepted.**
+**Status: implemented, regression-tested and merged to `main` in PR #81.**
 
 Generation A establishes the engineering-intent layer that must exist before a global placer can make useful decisions.
 
@@ -94,7 +97,7 @@ The deterministic defaults are deliberately conservative:
 - power rail -> `local_plane_or_pour_candidate`;
 - star grounding -> **never inferred automatically**; it requires explicit project/operator intent.
 
-This prevents the common but unsafe rule "analog + digital means split the ground plane" from entering the engine as a default. Generation B will add physical return-path/PDN reasoning before topology intent becomes copper implementation.
+This prevents the common but unsafe rule "analog + digital means split the ground plane" from entering the engine as a default.
 
 ### Placement v2
 
@@ -110,70 +113,77 @@ Generation A placement:
 6. scores candidates using a decomposed objective;
 7. emits ordinary `MoveComponentsOperation` objects rather than writing XML directly.
 
-The v2 score exposes separate terms for:
+The v2 score exposes separate terms for existing geometry/ratsnest legality, functional-block cohesion, support-to-anchor adjacency, critical-net connection distance and intent-level aggressor/victim proximity.
 
-- existing geometry/ratsnest legality score;
-- functional-block cohesion;
-- support-to-anchor adjacency;
-- critical-net connection distance;
-- intent-level aggressor/victim proximity.
-
-The noise term is only a deterministic placement proxy. Frequency overlap, coupling geometry, field behavior and actual EMC risk belong to Generation B/C and are not claimed here.
+The Generation A noise term remains only a placement proxy. Generation B adds timing-gated physical-context triage without claiming EMC sign-off.
 
 ## Generation B — PCB understands fields and current paths
 
-**Status: planned.**
+**Status: implemented internally on `pcb_physical.py`; CI/PR acceptance is the gate before merge.**
 
-Generation B deepens the intent model with physical/electrical analysis.
+Generation B consumes the Generation A intent plus existing normalized stackup, geometry, via and return-path evidence. It is non-mutating and emits analysis only.
 
 ### Stackup and reference structure
 
-- choose/validate signal and reference layer relationships;
-- expose whether a route can maintain a continuous reference;
-- combine manufacturer/project stackup facts with the existing impedance estimator;
-- keep analytic estimate, manufacturer geometry and external field-solver evidence at distinct trust levels.
+`analyze_pcb_physics()` reuses the existing stackup/impedance analysis and exposes typed microstrip/stripline reference candidates with:
+
+- signal layer and adjacent reference layer(s);
+- exported dielectric/copper geometry when available;
+- reference-plane confidence from the normalized stackup;
+- explicit `exported_stackup` evidence provenance;
+- `preliminary_only=True` for analytic candidates.
+
+Analytic geometry is deliberately not promoted to manufacturer-verified or external field-solver evidence.
 
 ### Power integrity / PDN
 
-For each rail model:
+For each identified power rail Generation B records:
 
-- source and loads;
-- expected steady/transient current when known;
-- bulk and local decoupling intent;
-- trace/pour/plane distribution choices;
-- voltage-drop/current-density bottlenecks;
-- power/ground via requirements;
-- regulator hot-loop topology.
+- power-converter source candidates only when topology/intent supports them;
+- remaining connected load candidates;
+- capacitor members as conservative decoupling candidates;
+- explicit rail current when supplied;
+- inherited trace/local-copper/pour strategy intent;
+- whether meaningful power-via capacity validation is required.
 
-Decoupling becomes a pad/current-loop problem rather than only a component-distance proxy.
+Current density and voltage drop remain `unknown` until both current and sufficient copper geometry/material/current-path evidence exist. Numeric via current capacity is not guessed.
+
+Switching-node nets connected to a power converter produce regulator hot-loop **candidates**. They do not become proven current loops until pad-level source/load/return direction is available.
 
 ### Return-path strategy
 
-Extend the current heuristic return-path analyzer into explicit route/reference reasoning:
+Generation B integrates the existing `analyze_return_path()` engine for nets that require a continuous reference or have precision/sense semantics. The existing analyzer remains authoritative for its bounded observations:
 
-- continuous reference below signal segments;
-- plane gaps/splits and return detours;
-- layer transitions and nearby return vias;
-- Kelvin/sense return separation;
-- current-domain boundaries without automatically splitting ground.
+- adjacent-reference resolution from physical stack order;
+- missing reference copper;
+- possible split crossings;
+- layer transitions without normalized return-via evidence;
+- disclosed skipped checks where the export is insufficient.
+
+Ground remains continuous by default; mixed analog/digital naming does not create an automatic split.
 
 ### Noise compatibility
 
-Replace distance-only placement risk with bounded aggressor/victim analysis using known edge/frequency, geometry and reference structure. Unknown physics remains disclosed rather than guessed.
+Distance-only placement risk is no longer sufficient for physical triage. Generation B creates aggressor/victim pairs only when the aggressor has explicit edge-rate or frequency evidence. The bounded score combines:
+
+- known timing evidence;
+- Generation A emission/sensitivity/criticality;
+- actual component-centroid separation from normalized geometry.
+
+It does **not** assert trace parallelism, spectral overlap, field coupling or EMC compliance. Those require route observations or stronger solvers/evidence.
 
 ### Via intelligence
 
-Distinguish engineering roles:
+Normalized vias receive semantic roles only when evidence supports them:
 
 - signal via;
 - power via;
 - ground-stitching via;
-- return-transition via;
-- differential transition pair;
-- thermal via;
-- via fence where justified.
+- reference-sensitive return-transition candidate;
+- differential transition member;
+- thermal via only from explicit normalized thermal metadata.
 
-The existing via geometry/span validator remains the low-level authority.
+A via fence is not inferred merely from proximity. The existing via geometry/span validator remains the low-level authority, and semantic roles never imply numeric current capacity.
 
 ## Generation C — PCB routes intentionally
 
@@ -189,14 +199,7 @@ Route topology-critical nets first rather than XML order. Typical ordering is sw
 
 ### SI-aware routing and crosstalk
 
-Add post-candidate checks for:
-
-- impedance continuity;
-- differential symmetry/skew;
-- stubs;
-- parallel-coupling exposure;
-- plane/reference discontinuity;
-- layer-transition return path.
+Add post-candidate checks for impedance continuity, differential symmetry/skew, stubs, parallel-coupling exposure, plane/reference discontinuity and layer-transition return path.
 
 ### Copper / plane / pour planner
 
@@ -220,24 +223,23 @@ Generation D also adds benchmark families for MCU/decoupling, regulators, ADC/mi
 
 ## Testing and acceptance
 
-Generation A automated coverage includes:
+Generation A automated coverage includes component/net role inference, functional grouping, explicit electrical overrides, unknown-value preservation, ground topology safety, differential-pair evidence, decomposed placement scoring, intent-aware placement and hard-geometry/budget refusal.
 
-- component/net role inference;
-- support-to-functional-anchor grouping;
-- explicit electrical overrides and unknown-value preservation;
-- continuous-ground default and non-automatic star grounding;
-- switch/sense/shield topology distinctions;
-- exported differential-pair evidence;
-- decomposed placement scoring;
-- intent-aware support placement;
-- hard-geometry non-regression;
-- deterministic component-budget refusal.
+Generation B automated coverage adds:
 
-Future generations must add small engineering trap fixtures rather than relying on one large demo board. A real-DipTrace acceptance fixture is required before claims about poured copper, plane behavior, via structures or native round-trip semantics are promoted beyond the existing evidence boundary.
+- exported stackup/reference candidates without solver-trust promotion;
+- unknown-current/source preservation in PDN analysis;
+- explicit operator current/converter facts;
+- reference-sensitive return-path targeting;
+- timing-gated noise analysis;
+- bounded via semantic-role classification;
+- rejection of invalid return-via search radius.
+
+Each later generation must add small engineering trap fixtures rather than relying on one large demo board. A real-DipTrace acceptance fixture is required before claims about poured copper, plane behavior, via structures or native round-trip semantics are promoted beyond the existing evidence boundary.
 
 ## Non-claims
 
-Generation A does **not** claim:
+The PCB design engine does **not** currently claim:
 
 - field-solver accuracy;
 - PDN/PI sign-off;
@@ -246,6 +248,6 @@ Generation A does **not** claim:
 - authoritative copper refill geometry;
 - thermodynamic/CFD analysis;
 - fabrication or assembly sign-off;
-- globally optimal placement.
+- globally optimal placement/routing.
 
-It provides the deterministic engineering-intent and placement foundation on which those deeper analyses can be built.
+Generations A and B provide the deterministic intent, placement and physical-context foundation on which routing policy and whole-board optimization can be built.
