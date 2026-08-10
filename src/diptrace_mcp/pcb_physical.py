@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from collections import defaultdict
 from typing import Any, Literal
 
 from pydantic import Field
@@ -106,10 +105,14 @@ class PCBPhysicalAnalysis(StrictModel):
 
 def _require_board(snapshot: DocumentSnapshot) -> None:
     if snapshot.board is None:
-        raise CapabilityUnavailableError("PCB physical analysis requires a PCB document")
+        raise CapabilityUnavailableError(
+            "PCB physical analysis requires a PCB document"
+        )
 
 
-def _reference_candidates(snapshot: DocumentSnapshot) -> tuple[list[PCBReferenceCandidate], list[str]]:
+def _reference_candidates(
+    snapshot: DocumentSnapshot,
+) -> tuple[list[PCBReferenceCandidate], list[str]]:
     assert snapshot.board is not None
     analysis = analyze_stackup(snapshot.board.stackup)
     candidates: list[PCBReferenceCandidate] = []
@@ -122,19 +125,27 @@ def _reference_candidates(snapshot: DocumentSnapshot) -> tuple[list[PCBReference
                 dielectric_constant=item.get("dielectric_constant"),
                 copper_thickness_mm=item.get("copper_thickness_mm"),
                 dielectric_height_mm=item.get("dielectric_height_mm"),
-                reference_plane_confidence=item.get("reference_plane_confidence", "low"),
+                reference_plane_confidence=item.get(
+                    "reference_plane_confidence", "low"
+                ),
             )
         )
     for item in analysis["stripline_candidates"]:
         candidates.append(
             PCBReferenceCandidate(
                 signal_layer=str(item["signal_layer"]),
-                reference_layers=[str(value) for value in item["reference_layers"]],
+                reference_layers=[
+                    str(value) for value in item["reference_layers"]
+                ],
                 structure="symmetric_stripline",
                 dielectric_constant=item.get("dielectric_constant"),
                 copper_thickness_mm=item.get("copper_thickness_mm"),
-                plane_to_plane_separation_mm=item.get("plane_to_plane_separation_mm"),
-                reference_plane_confidence=item.get("reference_plane_confidence", "low"),
+                plane_to_plane_separation_mm=item.get(
+                    "plane_to_plane_separation_mm"
+                ),
+                reference_plane_confidence=item.get(
+                    "reference_plane_confidence", "low"
+                ),
             )
         )
     return candidates, [str(item) for item in analysis["limitations"]]
@@ -146,39 +157,58 @@ def _component_records(snapshot: DocumentSnapshot) -> dict[str, ObjectRecord]:
 
 
 def _power_strategy(intent: PCBDesignIntent, net_id: str) -> str:
-    match = next((item for item in intent.power_ground if item.net_id == net_id), None)
+    match = next(
+        (item for item in intent.power_ground if item.net_id == net_id),
+        None,
+    )
     return match.strategy if match is not None else "unknown"
 
 
-def _pdn_rails(snapshot: DocumentSnapshot, intent: PCBDesignIntent) -> list[PCBPDNRailAssessment]:
+def _pdn_rails(
+    snapshot: DocumentSnapshot,
+    intent: PCBDesignIntent,
+) -> list[PCBPDNRailAssessment]:
     components = {item.component_id: item for item in intent.components}
     records = _component_records(snapshot)
     rails: list[PCBPDNRailAssessment] = []
     for net in intent.nets:
         if not {"power", "high_current_power"}.intersection(net.roles):
             continue
-        connected = [components[item] for item in net.component_ids if item in components]
+        connected = [
+            components[item]
+            for item in net.component_ids
+            if item in components
+        ]
         sources = sorted(
-            item.component_id for item in connected if item.role == "power_converter"
+            item.component_id
+            for item in connected
+            if item.role == "power_converter"
         )
-        loads = sorted(item.component_id for item in connected if item.component_id not in sources)
+        loads = sorted(
+            item.component_id
+            for item in connected
+            if item.component_id not in sources
+        )
         decoupling = sorted(
             item.component_id
             for item in connected
-            if (records.get(item.component_id) is not None)
-            and (records[item.component_id].refdes or "").upper().startswith("C")
+            if records.get(item.component_id) is not None
+            and (records[item.component_id].refdes or "")
+            .upper()
+            .startswith("C")
         )
         current_known = net.constraints.current_a is not None
         warnings: list[str] = []
         if not current_known:
             warnings.append(
-                "Rail current is unknown; current density, voltage drop and numeric via capacity are not inferred."
+                "Rail current is unknown; current density, voltage drop and "
+                "numeric via capacity are not inferred."
             )
         if not sources:
             warnings.append(
-                "No power-converter source is proven by exported connectivity/intent; source direction remains unresolved."
+                "No power-converter source is proven by exported connectivity/"
+                "intent; source direction remains unresolved."
             )
-        strategy = _power_strategy(intent, net.net_id)
         rails.append(
             PCBPDNRailAssessment(
                 net_id=net.net_id,
@@ -187,15 +217,14 @@ def _pdn_rails(snapshot: DocumentSnapshot, intent: PCBDesignIntent) -> list[PCBP
                 source_component_ids=sources,
                 load_component_ids=loads,
                 decoupling_component_ids=decoupling,
-                distribution_strategy=strategy,
+                distribution_strategy=_power_strategy(intent, net.net_id),
                 power_via_capacity_required=bool(
                     current_known and (net.constraints.current_a or 0.0) >= 0.5
                 ),
-                current_density_known=False,
-                voltage_drop_known=False,
                 reasons=[
                     "Distribution strategy is inherited from Generation A intent.",
-                    "Decoupling candidates are only capacitor RefDes members of the rail; pad-level loop proof is not invented.",
+                    "Decoupling candidates are capacitor RefDes rail members; "
+                    "pad-level loop proof is not invented.",
                 ],
                 warnings=warnings,
             )
@@ -210,28 +239,37 @@ def _hot_loops(intent: PCBDesignIntent) -> list[PCBHotLoopCandidate]:
     for net in intent.nets:
         if "switching_node" not in net.roles:
             continue
-        connected = [components[item] for item in net.component_ids if item in components]
+        connected = [
+            components[item]
+            for item in net.component_ids
+            if item in components
+        ]
         converters = sorted(
-            item.component_id for item in connected if item.role == "power_converter"
+            item.component_id
+            for item in connected
+            if item.role == "power_converter"
         )
         supports = sorted(
-            item.component_id for item in connected if item.role in support_roles
+            item.component_id
+            for item in connected
+            if item.role in support_roles
         )
-        if not converters:
-            continue
-        result.append(
-            PCBHotLoopCandidate(
-                switching_net_id=net.net_id,
-                switching_net_name=net.name,
-                converter_component_ids=converters,
-                support_component_ids=supports,
-                confidence=0.65 if supports else 0.45,
-                reasons=[
-                    "Candidate is topology-only: switching-node membership plus a power-converter endpoint.",
-                    "Actual current loop requires pad-level source/load and return-path evidence.",
-                ],
+        if converters:
+            result.append(
+                PCBHotLoopCandidate(
+                    switching_net_id=net.net_id,
+                    switching_net_name=net.name,
+                    converter_component_ids=converters,
+                    support_component_ids=supports,
+                    confidence=0.65 if supports else 0.45,
+                    reasons=[
+                        "Topology-only candidate: switching-node membership plus "
+                        "a power-converter endpoint.",
+                        "Actual current loop requires pad-level source/load and "
+                        "return-path evidence.",
+                    ],
+                )
             )
-        )
     return result
 
 
@@ -257,11 +295,16 @@ def _timing_evidence(net: PCBNetIntent) -> list[str]:
     if net.constraints.edge_rate_ns is not None:
         evidence.append(f"edge_rate_ns={net.constraints.edge_rate_ns:g}")
     if net.constraints.signal_frequency_hz is not None:
-        evidence.append(f"signal_frequency_hz={net.constraints.signal_frequency_hz:g}")
+        evidence.append(
+            f"signal_frequency_hz={net.constraints.signal_frequency_hz:g}"
+        )
     return evidence
 
 
-def _noise_pairs(snapshot: DocumentSnapshot, intent: PCBDesignIntent) -> list[PCBNoisePairAssessment]:
+def _noise_pairs(
+    snapshot: DocumentSnapshot,
+    intent: PCBDesignIntent,
+) -> list[PCBNoisePairAssessment]:
     records = _component_records(snapshot)
     centers = {
         net.net_id: center
@@ -271,20 +314,34 @@ def _noise_pairs(snapshot: DocumentSnapshot, intent: PCBDesignIntent) -> list[PC
     result: list[PCBNoisePairAssessment] = []
     for aggressor in intent.nets:
         timing = _timing_evidence(aggressor)
-        if not timing or aggressor.noise_emission < 50 or aggressor.net_id not in centers:
+        if (
+            not timing
+            or aggressor.noise_emission < 50
+            or aggressor.net_id not in centers
+        ):
             continue
         for victim in intent.nets:
             if victim.net_id == aggressor.net_id:
                 continue
             if victim.noise_sensitivity < 50 or victim.net_id not in centers:
                 continue
-            separation = max(distance(centers[aggressor.net_id], centers[victim.net_id]), 0.1)
+            separation = max(
+                distance(
+                    centers[aggressor.net_id],
+                    centers[victim.net_id],
+                ),
+                0.1,
+            )
             risk = (
                 aggressor.noise_emission
                 * victim.noise_sensitivity
                 * (1.0 + aggressor.criticality / 100.0)
                 / 10_000.0
                 / separation
+            )
+            victim_has_timing = (
+                victim.constraints.edge_rate_ns is not None
+                or victim.constraints.signal_frequency_hz is not None
             )
             result.append(
                 PCBNoisePairAssessment(
@@ -296,17 +353,28 @@ def _noise_pairs(snapshot: DocumentSnapshot, intent: PCBDesignIntent) -> list[PC
                     risk_score=risk,
                     timing_evidence=timing,
                     reasons=[
-                        "Risk combines explicit timing evidence, intent emission/sensitivity and component-centroid separation.",
-                        "Trace parallelism, field coupling and spectral overlap are not asserted by this score.",
+                        "Risk combines explicit timing evidence, intent emission/"
+                        "sensitivity and component-centroid separation.",
+                        "Trace parallelism, field coupling and spectral overlap "
+                        "are not asserted by this score.",
                     ],
-                    confidence="medium" if victim.constraints.edge_rate_ns is not None or victim.constraints.signal_frequency_hz is not None else "low",
+                    confidence="medium" if victim_has_timing else "low",
                 )
             )
-    result.sort(key=lambda item: (-item.risk_score, item.aggressor_net_id, item.victim_net_id))
+    result.sort(
+        key=lambda item: (
+            -item.risk_score,
+            item.aggressor_net_id,
+            item.victim_net_id,
+        )
+    )
     return result
 
 
-def _via_roles(snapshot: DocumentSnapshot, intent: PCBDesignIntent) -> list[PCBViaRoleAssessment]:
+def _via_roles(
+    snapshot: DocumentSnapshot,
+    intent: PCBDesignIntent,
+) -> list[PCBViaRoleAssessment]:
     assert snapshot.board is not None
     net_records = {item.stable_id: item for item in snapshot.board.nets}
     net_intents = {item.net_id: item for item in intent.nets}
@@ -333,22 +401,38 @@ def _via_roles(snapshot: DocumentSnapshot, intent: PCBDesignIntent) -> list[PCBV
                 reasons.append("Via belongs to a non-power signal net.")
             if "differential" in net.roles:
                 roles.append("differential_transition_member")
-                reasons.append("Via belongs to an exported/inferred differential net.")
-            if net.reference_plane_required and via.attributes.get("representation") == "trace_layer_transition":
+                reasons.append(
+                    "Via belongs to an exported/inferred differential net."
+                )
+            is_transition = (
+                via.attributes.get("representation")
+                == "trace_layer_transition"
+            )
+            if net.reference_plane_required and is_transition:
                 roles.append("return_transition_candidate")
-                reasons.append("Reference-sensitive signal changes layers at this normalized transition.")
+                reasons.append(
+                    "Reference-sensitive signal changes layers at this "
+                    "normalized transition."
+                )
         if bool(via.attributes.get("thermal")):
             roles.append("thermal_via")
             reasons.append("Thermal role is explicit in normalized via attributes.")
+        representation = via.attributes.get("representation")
         result.append(
             PCBViaRoleAssessment(
                 via_id=via.stable_id,
                 net_id=net_id,
                 net_name=net.name if net is not None else via.net_name,
                 roles=list(dict.fromkeys(roles)),
-                representation=str(via.attributes.get("representation")) if via.attributes.get("representation") is not None else None,
+                representation=(
+                    str(representation) if representation is not None else None
+                ),
                 confidence=0.9 if net is not None else 0.25,
-                reasons=reasons or ["No unique electrical role can be proven from normalized via/net evidence."],
+                reasons=reasons
+                or [
+                    "No unique electrical role can be proven from normalized "
+                    "via/net evidence."
+                ],
             )
         )
     return result
@@ -359,11 +443,17 @@ def _return_path(
     intent: PCBDesignIntent,
     stitching_radius_mm: float,
 ) -> dict[str, Any]:
+    precision_roles = {
+        "precision_analog",
+        "reference",
+        "feedback",
+        "current_sense",
+    }
     targets = [
         item.net_id
         for item in intent.nets
         if item.reference_plane_required
-        or {"precision_analog", "reference", "feedback", "current_sense"}.intersection(item.roles)
+        or precision_roles.intersection(item.roles)
     ]
     if not targets:
         return {
@@ -397,32 +487,34 @@ def analyze_pcb_physics(
     intent = intent or build_pcb_design_intent(snapshot, overrides)
     references, stackup_limitations = _reference_candidates(snapshot)
     pdn = _pdn_rails(snapshot, intent)
-    return_path = _return_path(snapshot, intent, stitching_radius_mm)
     warnings = list(intent.warnings)
-    warnings.extend(
-        warning
-        for rail in pdn
-        for warning in rail.warnings
-    )
+    warnings.extend(warning for rail in pdn for warning in rail.warnings)
     return PCBPhysicalAnalysis(
         intent=intent,
         reference_candidates=references,
         stackup_limitations=stackup_limitations,
         pdn_rails=pdn,
         hot_loop_candidates=_hot_loops(intent),
-        return_path=return_path,
+        return_path=_return_path(snapshot, intent, stitching_radius_mm),
         noise_pairs=_noise_pairs(snapshot, intent),
         via_roles=_via_roles(snapshot, intent),
         assumptions=[
-            "Generation B consumes exported stackup, normalized connectivity/geometry and explicit operator facts only.",
-            "Analytic impedance candidates remain preliminary and are not promoted to manufacturer or field-solver evidence.",
-            "Ground remains continuous by default; current-domain analysis never invents a split or star ground.",
+            "Generation B consumes exported stackup, normalized connectivity/"
+            "geometry and explicit operator facts only.",
+            "Analytic impedance candidates remain preliminary and are not "
+            "promoted to manufacturer or field-solver evidence.",
+            "Ground remains continuous by default; current-domain analysis "
+            "never invents a split or star ground.",
         ],
         warnings=sorted(set(warnings)),
         limitations=[
-            "Current density and voltage drop stay unknown until copper geometry, material and current paths are sufficient.",
-            "Decoupling and regulator hot-loop identification are topology candidates until pad-level current direction is proven.",
-            "Aggressor/victim scoring is bounded geometry/timing triage, not an EMC or full-wave result.",
-            "Via roles do not imply current capacity; existing via geometry/span validation remains authoritative.",
+            "Current density and voltage drop stay unknown until copper geometry, "
+            "material and current paths are sufficient.",
+            "Decoupling and regulator hot-loop identification are topology "
+            "candidates until pad-level current direction is proven.",
+            "Aggressor/victim scoring is bounded geometry/timing triage, not an "
+            "EMC or full-wave result.",
+            "Via roles do not imply current capacity; existing via geometry/span "
+            "validation remains authoritative.",
         ],
     )
