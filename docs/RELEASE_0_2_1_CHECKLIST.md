@@ -31,7 +31,7 @@ The repository continues to enforce:
 
 ## Post-publication manual acceptance progress — updated 2026-08-10
 
-The current accepted production-code candidate for the development-line manual campaign is:
+The accepted production-code candidate for the completed development-line manual gates is:
 
 `main@0bb09b4b3af40a5a3d1a875fab885430a2d251ba`
 
@@ -58,26 +58,27 @@ Q1 manual acceptance established real DipTrace angle semantics on the developmen
 
 Codex restart acceptance used Codex Desktop `26.803.5235.0`; both restarts exposed 159 tools and returned identical `get_capabilities` evidence. Production code remained unchanged.
 
-Overall blocking manual progress is now **8 of 12 gates complete**.
+The canonical matrix therefore has **8 of 12 gates PASS**.
 
-## Intentional pause before remaining lifecycle gates
+## Claude Desktop waiver and intentional pause
 
-The formal next gate is still:
+`claude_desktop_real_client_restart` has been deliberately **WAIVED for the current project campaign**.
 
-- [ ] `claude_desktop_real_client_restart`.
+It was not run and must not be represented as PASS. The project accepts the residual client-specific interoperability risk because the real Codex gate already demonstrated stdio MCP startup, tool exposure, actual process restart and stable `get_capabilities` behavior. No direct Claude Desktop evidence is claimed.
 
-It has not been run.
+The repository's canonical manual-acceptance validator still treats Claude Desktop as a required gate and does not encode this project-level waiver. It may therefore continue to report the canonical matrix as incomplete. Do not weaken the validator or fabricate a PASS solely to remove that warning.
 
-The project is intentionally pausing the formal client/Windows lifecycle sequence here to validate core product quality first: current post-Ponytail schematic authoring/readability in real DipTrace.
+The project is intentionally pausing the remaining Windows/profile lifecycle sequence to validate core product quality first: schematic authoring/readability in real DipTrace.
 
-This separate validation should build small real circuits and inspect electrical correctness, component placement, wire routing, text/label collisions, junction clarity and native save/reopen/re-export behavior. It must not be treated as a substitute for the remaining formal gates.
+This separate validation should build small real circuits and inspect electrical correctness, component placement, wire routing, text/label collisions, junction clarity and native save/reopen/re-export behavior.
 
-Remaining blocking formal gates after the pause:
+Remaining project-required formal gates after the pause:
 
-- [ ] Real Claude Desktop restart/configuration/`get_capabilities`.
 - [ ] Clean Windows 11 install, repair and uninstall using the applicable release bytes.
 - [ ] Elevated Program Files plug-in install while retaining the original user profile.
 - [ ] Pre-existing custom-state preservation across install/repair/uninstall.
+
+If direct Claude Desktop validation becomes important later, run it as a fresh real-client gate and replace the waiver with real evidence at that time; do not retroactively label the current waiver PASS.
 
 Claim-specific optional work remains a future public-redownload smoke when release bytes change, external legal/Novarm review when required for a planned claim/activity, and a real openEMS run only if external-solver validation is claimed.
 
@@ -95,6 +96,6 @@ This does **not** mean that 0.2.1 contains public native-library write tools and
 - Never move or replace an existing published tag/file.
 - Never use `skip-existing` to hide a production publication mismatch.
 - Never publish a wheel/sdist different from the artifact that passed validation.
-- Never claim signing, production readiness, universal DipTrace compatibility, real-client acceptance or real DipTrace acceptance without corresponding evidence.
+- Never claim signing, production readiness, universal DipTrace compatibility, direct Claude Desktop validation, real-client acceptance or real DipTrace acceptance without corresponding evidence.
 
 Git history contains the original pre-publication checklist state if historical reconstruction is needed.
