@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import pytest
 from pydantic import BaseModel
@@ -16,7 +16,6 @@ from diptrace_mcp.numeric_inputs import (
     xml_number,
 )
 from diptrace_mcp.xml_document import DipTraceDocument
-
 
 _DEFAULT_DOCUMENT = (
     b'<Source Type="DipTrace-PCB" Version="5.3" Units="mm"><Board/></Source>'
