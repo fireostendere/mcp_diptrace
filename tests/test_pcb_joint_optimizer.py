@@ -125,10 +125,8 @@ def test_generation_d_bounds_candidate_count_and_requires_unique_ids() -> None:
 
 
 def test_generation_d_rejects_nonfinite_soft_scores() -> None:
-    candidate = _candidate(
-        "nonfinite",
-        soft=PCBSoftScore(routing=math.inf),
-    )
+    soft = PCBSoftScore.model_construct(routing=math.inf)
+    candidate = _candidate("nonfinite", soft=soft)
 
     with pytest.raises(ValueError, match="must be finite"):
         select_pcb_candidate([candidate])
