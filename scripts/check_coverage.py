@@ -21,6 +21,7 @@ FILE_FLOORS = {
     "src/diptrace_mcp/services/evidence.py": 75.0,
     "src/diptrace_mcp/services/transactions.py": 75.0,
     "src/diptrace_mcp/services/semantic_operations.py": 70.0,
+    "src/diptrace_mcp/schematic_placement_repair.py": 95.0,
 }
 
 

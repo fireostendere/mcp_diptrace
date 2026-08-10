@@ -20,7 +20,9 @@ The current implementation lives in:
 - `src/diptrace_mcp/schematic_pin_geometry.py` for conservative embedded Design Cache pin
   resolution and pin-facing geometric evidence;
 - `src/diptrace_mcp/schematic_joint_optimizer.py` for non-mutating pin-aware routing of
-  hypothetical placement candidates and joint route/placement ranking.
+  hypothetical placement candidates and joint route/placement ranking;
+- `src/diptrace_mcp/schematic_placement_repair.py` for bounded non-mutating placement
+  repair driven by explicit route feedback and re-scored by the joint optimizer.
 
 ## Design intent
 
@@ -182,12 +184,12 @@ The exposed wire metrics include:
 - direct endpoint distance;
 - detour ratio.
 
-Feedback is intentionally advisory. Current repair intents include opening a routing
-corridor, moving endpoint blocks closer, or repacking endpoint blocks. Pin endpoints are
-resolved back to normalized stable part IDs, including multipart RefDes groups where
-applicable, so the later joint optimizer has an explicit target set.
+Feedback is intentionally advisory at the wire-planner boundary. Current repair intents
+include opening a routing corridor, moving endpoint blocks closer, or repacking endpoint
+blocks. Pin endpoints are resolved back to normalized stable part IDs, including multipart
+RefDes groups where applicable, so the placement-repair layer has an explicit target set.
 
-This is the key boundary needed for co-optimization: a router is now allowed to say
+This is the key boundary needed for co-optimization: a router is allowed to say
 "this route is still bad; placement must change" instead of silently accepting a long or
 collision-prone wire.
 
@@ -284,27 +286,68 @@ snapshot. Source XML, source normalized objects and candidate placement data are
 Same-net MST edges are still locally planned rather than globally junction-optimized, and
 text obstacles are not yet moved with placement candidates; both limitations are reported.
 
+## Bounded placement repair from route feedback
+
+`schematic_placement_repair.py` closes the first placement-routing feedback loop without
+crossing the write boundary. It starts from one placement candidate, runs the pin-aware joint
+route scorer, extracts only edges whose wire planner explicitly requests placement repair,
+and generates a bounded set of hypothetical placement changes.
+
+Current repair candidates include:
+
+- moving either endpoint group toward the other;
+- moving both endpoint groups toward each other;
+- aligning endpoint pin anchors to a common row or column;
+- opening a routing corridor perpendicular to the dominant endpoint direction;
+- splitting a corridor move across both endpoint groups.
+
+When feedback crosses two functional blocks, each affected block moves as a rigid group. If
+both endpoints are already inside one functional block, repair is local to the endpoint parts
+so internal packing can improve instead of translating the entire block. Locked or unresolved
+groups fail closed. Feedback whose two pins belong to the same part is not translated because
+a rigid translation cannot change relative pin geometry.
+
+All deltas are snapped to the placement grid and bounded by `max_translation_mm` using the
+actual Euclidean translation magnitude. Candidate geometry is deduplicated before expensive
+re-scoring. `max_candidates` is a strict evaluation budget: every unique geometry consumes
+one budget slot before overlap filtering or route scoring, so rejected candidates cannot make
+the search silently exceed its configured bound.
+
+Each unique candidate is fully re-scored with the first-stage layout/interconnect/movement
+metrics. By default, any candidate that introduces additional component overlap is rejected.
+Retained candidates are then re-scored through the same pin-aware joint route scorer used for
+the base placement. A repair is selected only when its lexicographic joint rank is strictly
+better than the base rank; otherwise the result explicitly reports that no bounded repair
+improved the design.
+
+This entire layer is non-mutating. It does not alter XML, apply component moves, replace
+wires, rotate symbols, or expose a new public MCP tool. Regression coverage includes strict
+candidate-budget enforcement even when every candidate is overlap-rejected, deterministic
+replay, Euclidean translation limits, locked/unresolved fail-closed behavior, no-feedback
+behavior, both corridor axes, one-sided mobility, proposal application guards, score
+recomputation, and source-document immutability. CI protects this module with a dedicated
+coverage floor in addition to the repository-wide floor.
+
 Both placement planners still refuse an already-wired schematic by default. Moving symbols
 while leaving existing wire geometry behind would make the drawing worse. Existing-wire
-support belongs in the later selective-reroute transaction layer, where affected wires can
-be replaced atomically with the placement change.
+support belongs in the selective-reroute transaction layer, where affected wires can be
+replaced atomically with the placement change.
 
 ## Next implementation steps
 
-The intended order is:
+The intended order is now:
 
-1. promote per-candidate scoring into bounded sheet-level net ordering and congestion-aware
-   route scheduling;
-2. turn advisory placement feedback into bounded candidate moves and re-score them through
-   the joint route scorer;
-3. re-route only affected nets after a placement repair and compose the selected placement +
+1. re-route only affected nets after a selected placement repair and compose the placement +
    wire edits into one guarded transaction plan;
-4. add reference-motif-driven placement candidate generation;
-5. validate schematic rotation semantics in the real host before enabling automatic
+2. promote route scheduling into bounded sheet-level net ordering and stronger congestion
+   awareness where the current joint scorer needs it;
+3. add reference-motif-driven placement candidate generation;
+4. validate schematic rotation semantics in the real host before enabling automatic
    pin-facing rotation decisions by default;
-6. run placement, routing and scoring in a bounded generate -> score -> improve loop;
-7. preserve the existing guarded transaction/review path for the selected candidate;
-8. expose only a small deliberate public MCP surface after the internal architecture is
+5. run placement, routing and scoring in a bounded generate -> score -> improve loop with
+   explicit stopping criteria and objective history;
+6. preserve the existing guarded transaction/review path for the selected candidate;
+7. expose only a small deliberate public MCP surface after the internal architecture is
    proven.
 
 The quality target is practical: a deliberately ugly but electrically correct schematic

@@ -250,6 +250,7 @@ src/diptrace_mcp/schematic_joint_optimizer.py
 src/diptrace_mcp/schematic_layout.py
 src/diptrace_mcp/schematic_optimizer.py
 src/diptrace_mcp/schematic_pin_geometry.py
+src/diptrace_mcp/schematic_placement_repair.py
 src/diptrace_mcp/schematic_wire_planner.py
 src/diptrace_mcp/semantic_compiler.py
 src/diptrace_mcp/server.py
@@ -394,6 +395,7 @@ tests/test_schematic_layout.py
 tests/test_schematic_optimizer.py
 tests/test_schematic_pcb_sync.py
 tests/test_schematic_pin_geometry.py
+tests/test_schematic_placement_repair.py
 tests/test_schematic_wire_planner.py
 tests/test_schematic_wire_quality.py
 tests/test_semantic_dispatch.py
