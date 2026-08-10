@@ -16,7 +16,11 @@ This temporary development record avoids rewriting the immutable `0.2.1` release
 - internal PCB Generation B physical-context analysis that reuses exported stackup, return-path and normalized via evidence without promoting analytic results to field-solver trust;
 - conservative PDN rail/source/load/decoupling and regulator hot-loop candidates with explicit unknown-current/current-density/voltage-drop boundaries;
 - timing-gated aggressor/victim physical triage and semantic signal/power/ground/return-transition/differential/thermal via roles;
-- PCB Generation B regression coverage for stackup provenance, PDN unknown preservation, explicit current facts, reference-sensitive return paths, timing-gated noise analysis and bounded via-role classification.
+- PCB Generation B regression coverage for stackup provenance, PDN unknown preservation, explicit current facts, reference-sensitive return paths, timing-gated noise analysis and bounded via-role classification;
+- internal PCB Generation C routing-policy compiler with deterministic engineering route order, explicit layer/via/length/skew/impedance/reference/stub/shield constraints and unknown-width preservation;
+- observed-route SI checks for length, via budget, forbidden layers, reference continuity, impedance, skew and stubs, with no invented universal crosstalk threshold;
+- conservative trace/local-copper/plane/pour strategy and bounded endpoint-placement feedback while native routing/pour edits remain on the existing guarded semantic path;
+- PCB Generation C regression coverage for constraint propagation, route ordering, SI failure/unknown behavior, copper evidence boundaries and wrong-net rejection.
 
 ## Documentation
 
@@ -24,8 +28,9 @@ This temporary development record avoids rewriting the immutable `0.2.1` release
 - expanded the intelligent PCB roadmap through Generations A-D: intent/placement, stackup/PDN/return paths/vias, engineering-aware routing/SI/copper strategy, and joint whole-board optimization/acceptance;
 - documented the internal EDA architecture, PCB design-intent domain models and the split between low-level placement legalization and intent-aware placement v2;
 - documented Generation B stackup/reference, PDN, return-path, timing-gated noise and via-intelligence evidence boundaries;
+- documented Generation C routing-policy, observed-route SI, copper/refill and placement-feedback boundaries;
 - clarified that the private/manual Q1 Component Angle campaign is PASS while package-owned public evidence/trust promotion remains a separate reviewed contract.
 
-The Generation A/B work intentionally leaves the 159-tool public MCP surface unchanged. It is internal EDA capability until a separate, deliberate public API decision is made.
+The Generation A-C work intentionally leaves the 159-tool public MCP surface unchanged. It is internal EDA capability until a separate, deliberate public API decision is made.
 
 This file should be folded into the normal `CHANGELOG.md` when the next version is selected.
