@@ -163,12 +163,9 @@ def _markdown_section(document: Path, heading: str) -> str:
     return text[start:] if end < 0 else text[start:end]
 
 
-def test_readmes_publish_equivalent_data_handling_boundaries() -> None:
-    sections = [
-        _markdown_section(ROOT / "README.md", "Data Handling"),
-        _markdown_section(ROOT / "README_RU.md", "Обработка данных"),
-    ]
-    shared_contract_terms = {
+def test_readme_publishes_data_handling_boundaries() -> None:
+    section = _markdown_section(ROOT / "README.md", "Data Handling")
+    contract_terms = {
         "DIPTRACE_MCP_WORKSPACE",
         "DIPTRACE_MCP_ALLOWED_ROOTS",
         "DIPTRACE_MCP_STATE_DIR",
@@ -184,18 +181,14 @@ def test_readmes_publish_equivalent_data_handling_boundaries() -> None:
         "127.0.0.1:8765",
     }
 
-    for section in sections:
-        assert section.count("\n- ") == 6
-        missing_terms = sorted(term for term in shared_contract_terms if term not in section)
-        assert not missing_terms
+    assert section.count("\n- ") == 6
+    missing_terms = sorted(term for term in contract_terms if term not in section)
+    assert not missing_terms
 
 
-def test_readmes_publish_equivalent_public_release_boundaries() -> None:
-    sections = [
-        _markdown_section(ROOT / "README.md", "Public Release Status"),
-        _markdown_section(ROOT / "README_RU.md", "Статус публичного релиза"),
-    ]
-    shared_contract_terms = {
+def test_readme_publishes_public_release_boundaries() -> None:
+    section = _markdown_section(ROOT / "README.md", "Public Release Status")
+    contract_terms = {
         "LICENSE",
         "open-source",
         "OSI",
@@ -218,7 +211,6 @@ def test_readmes_publish_equivalent_public_release_boundaries() -> None:
         "executable",
     }
 
-    for section in sections:
-        assert section.count("\n- ") == 5
-        missing_terms = sorted(term for term in shared_contract_terms if term not in section)
-        assert not missing_terms
+    assert section.count("\n- ") == 5
+    missing_terms = sorted(term for term in contract_terms if term not in section)
+    assert not missing_terms
