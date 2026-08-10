@@ -8,13 +8,19 @@ from pydantic import BaseModel
 
 import diptrace_mcp.config as config
 from diptrace_mcp.config import Settings
-from diptrace_mcp.errors import ConfigurationError, DocumentError, PathAccessError
+from diptrace_mcp.errors import (
+    ConfigurationError,
+    DocumentError,
+    PathAccessError,
+    PolicyDeniedError,
+)
 from diptrace_mcp.numeric_inputs import (
     require_finite_number,
     translate_validation_errors,
     xml_integer,
     xml_number,
 )
+from diptrace_mcp.policy import Policy
 from diptrace_mcp.xml_document import DipTraceDocument
 
 _DEFAULT_DOCUMENT = (
@@ -30,7 +36,9 @@ def test_numeric_helpers_translate_invalid_and_nonfinite_values() -> None:
     document = _document()
     invalid_float = ET.Element("Item", Value="not-a-number")
     invalid_int = ET.Element("Item", Count="1.5")
+    missing_int = ET.Element("Item")
 
+    assert xml_integer(document, missing_int, "Count", default=7) == 7
     with pytest.raises(DocumentError, match="Invalid numeric attribute"):
         xml_number(document, invalid_float, "Value")
     with pytest.raises(DocumentError, match="Invalid integer attribute"):
@@ -89,3 +97,8 @@ def test_configuration_helpers_reject_bad_environment_and_outside_paths(
     assert not config._is_within(outside, root)
     with pytest.raises(PathAccessError, match="outside allowed roots"):
         settings.resolve_allowed_path(outside)
+
+
+def test_read_only_policy_denies_external_execution() -> None:
+    with pytest.raises(PolicyDeniedError, match="denies external execution"):
+        Policy("read_only").require_external_execution(operation="coverage")
