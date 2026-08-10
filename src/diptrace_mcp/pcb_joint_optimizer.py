@@ -228,14 +228,32 @@ def select_pcb_candidate(
         candidate_count=len(ranked),
         selection_key=[*key[:-1], key[-1]],
         assumptions=[
-            "Hard safety/mechanical/connectivity/DRC/reference/manufacturing violations are lexicographically dominant over every soft metric.",
-            "Soft score remains decomposed; the total is only a deterministic tie-break among candidates with identical hard-violation vectors.",
-            "External routers and solvers are candidate/evidence sources only and cannot bypass the normal preview, SHA, policy, transaction or review path.",
+            (
+                "Hard safety/mechanical/connectivity/DRC/reference/manufacturing "
+                "violations are lexicographically dominant over every soft metric."
+            ),
+            (
+                "Soft score remains decomposed; the total is only a deterministic "
+                "tie-break among candidates with identical hard-violation vectors."
+            ),
+            (
+                "External routers and solvers are candidate/evidence sources only and "
+                "cannot bypass the normal preview, SHA, policy, transaction or review path."
+            ),
         ],
         limitations=[
-            "Selection compares supplied candidate metrics; it does not manufacture missing SI/PI/thermal/EMC evidence.",
-            "The optimizer returns a candidate and plan references only; applying semantic operations remains an application-layer responsibility.",
-            "A synthetic benchmark PASS is not real DipTrace copper-refill, plane, via-structure or native round-trip acceptance.",
+            (
+                "Selection compares supplied candidate metrics; it does not manufacture "
+                "missing SI/PI/thermal/EMC evidence."
+            ),
+            (
+                "The optimizer returns a candidate and plan references only; applying "
+                "semantic operations remains an application-layer responsibility."
+            ),
+            (
+                "A synthetic benchmark PASS is not real DipTrace copper-refill, plane, "
+                "via-structure or native round-trip acceptance."
+            ),
         ],
     )
 
