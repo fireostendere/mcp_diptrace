@@ -16,7 +16,9 @@ The current implementation lives in:
 - `src/diptrace_mcp/schematic_optimizer.py` for bounded multi-candidate placement search,
   estimated future-interconnect cost, candidate ranking, and safe operation planning;
 - `src/diptrace_mcp/schematic_wire_planner.py` for non-mutating route-candidate metrics and
-  explicit placement feedback on pathological schematic interconnect.
+  explicit placement feedback on pathological schematic interconnect;
+- `src/diptrace_mcp/schematic_pin_geometry.py` for conservative Component Library pin
+  resolution and pin-facing geometric evidence.
 
 ## Design intent
 
@@ -84,8 +86,8 @@ reported weights and terms. It is not an engineering certification or an ML-gene
 quality judgement.
 
 The first score intentionally does not claim exact symbol/pin graphics. Current schematic
-part bounds are conservative proxies, and exact pin coordinates are not normalized yet.
-This limitation is reported instead of being hidden behind guessed geometry.
+part bounds are conservative proxies. Pin geometry can now be resolved when a compatible
+Component Library model is available, but unresolved or ambiguous parts remain explicit.
 
 ## First placement planner
 
@@ -180,38 +182,75 @@ The exposed wire metrics include:
 Feedback is intentionally advisory. Current repair intents include opening a routing
 corridor, moving endpoint blocks closer, or repacking endpoint blocks. Pin endpoints are
 resolved back to normalized stable part IDs, including multipart RefDes groups where
-applicable, so the later joint optimizer has an explicit target set. The planner does not
-yet invent final move coordinates because trustworthy exact schematic pin geometry is not
-available.
+applicable, so the later joint optimizer has an explicit target set.
 
 This is the key boundary needed for co-optimization: a router is now allowed to say
 "this route is still bad; placement must change" instead of silently accepting a long or
 collision-prone wire.
+
+## Component Library pin geometry resolver
+
+Schematic instance XML identifies each part and its Pin indices, but current fixtures do not
+store absolute X/Y on each schematic Pin. Component Library XML does carry relative pin X/Y,
+orientation, electrical type, pin type, multipart ownership and ordered pin identity. The
+resolver joins those two typed models without reparsing XML.
+
+`resolve_schematic_pin_geometry` accepts a normalized schematic snapshot and a typed
+`LibraryModel`. A library component may be selected through:
+
+- an explicit caller binding from schematic `ComponentStyle` to library component stable ID;
+- a `CompTypeN` index hint, but only when the indexed component also passes structural
+  identity checks;
+- an exact unique component-name match that passes the same structural checks.
+
+Structural validation includes multipart index, pin count, component name where applicable,
+and RefDes prefix when both models provide one. Ambiguous or inconsistent matches remain
+unresolved. A `CompTypeN` token is therefore an index hint, not proof of identity.
+
+Within an accepted component part, normalized schematic Pin order is mapped to the existing
+ordered `LibraryPin` list. Each resolved result carries:
+
+- local pin position;
+- local pin orientation;
+- electrical and pin type;
+- matched library component/pin IDs;
+- match basis and confidence;
+- absolute position/orientation when the transform is trustworthy enough to apply.
+
+For unrotated parts, absolute position is the schematic part origin plus the library-relative
+pin position. Non-zero schematic part rotation is fail-closed by default: the project still
+keeps the live-host angle convention as an evidence boundary, so the resolver reports local
+geometry but withholds authoritative absolute geometry. An explicit opt-in mode exists for
+experiments and tests, but using it does not promote the angle convention to accepted host
+evidence.
+
+This resolver is read-only. It does not rotate symbols, move parts, write XML, search online
+libraries, or claim that a matched library revision is identical to the original project
+revision.
 
 Both placement planners still refuse an already-wired schematic by default. Moving symbols
 while leaving existing wire geometry behind would make the drawing worse. Existing-wire
 support belongs in the joint placement/routing optimizer, where affected wires can be
 rerouted atomically.
 
-Rotation is also preserved. Exact schematic pin geometry is required before automatic
-orientation can be scored reliably enough to justify rotating user-visible symbols.
-
 ## Next implementation steps
 
 The intended order is:
 
-1. score placement candidates with real bounded wire candidates instead of only the
-   Manhattan estimate;
-2. promote single-connection planning into bounded sheet-level net ordering;
-3. turn advisory placement feedback into bounded candidate moves and re-score them;
-4. re-route only affected nets after a placement repair;
-5. add reference-motif-driven placement candidate generation;
-6. normalize or otherwise obtain trustworthy symbol/pin geometry where DipTrace evidence
-   permits orientation scoring;
-7. run placement, routing and scoring in a bounded generate -> score -> improve loop;
-8. preserve the existing guarded transaction/review path for the selected candidate;
-9. expose only a small deliberate public MCP surface after the internal architecture is
-   proven.
+1. feed resolved absolute pin endpoints into bounded route-candidate scoring when geometry
+   is available, with part-anchor estimation retained only as an explicit fallback;
+2. score placement candidates with real bounded wire candidates instead of only the
+   Manhattan anchor estimate;
+3. promote single-connection planning into bounded sheet-level net ordering;
+4. turn advisory placement feedback into bounded candidate moves and re-score them;
+5. re-route only affected nets after a placement repair;
+6. add reference-motif-driven placement candidate generation;
+7. validate schematic rotation semantics in the real host before enabling automatic
+   pin-facing rotation decisions by default;
+8. run placement, routing and scoring in a bounded generate -> score -> improve loop;
+9. preserve the existing guarded transaction/review path for the selected candidate;
+10. expose only a small deliberate public MCP surface after the internal architecture is
+    proven.
 
 The quality target is practical: a deliberately ugly but electrically correct schematic
 should become materially easier for an engineer to read without routine manual cleanup.
