@@ -130,6 +130,38 @@ def test_all_six_primary_records_use_the_common_atomic_json_writer(
     assert seen == set(STORE_TYPES)
 
 
+def test_common_atomic_json_writer_retries_transient_permission_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+    sleeps: list[float] = []
+
+    def flaky_atomic_write(path: Path, data: bytes) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise PermissionError("transient Windows file lock")
+        path.write_bytes(data)
+
+    monkeypatch.setattr("diptrace_mcp.record_store.atomic_write_bytes", flaky_atomic_write)
+    monkeypatch.setattr("diptrace_mcp.record_store.time.sleep", sleeps.append)
+    target = tmp_path / "record.json"
+
+    RecordStore()._atomic_write_store_json(
+        target,
+        {"ready": True},
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=False,
+        trailing_newline=True,
+    )
+
+    assert attempts == 3
+    assert sleeps == [0.005, 0.01]
+    assert target.read_text(encoding="utf-8") == '{\n  "ready": true\n}\n'
+
+
 def test_common_json_writer_refuses_a_redirected_record_directory(
     tmp_path: Path,
 ) -> None:
