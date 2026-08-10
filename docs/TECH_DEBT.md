@@ -40,14 +40,15 @@ The accepted production-code identity through those gates is
 
 ## Remaining formal manual evidence debt
 
-Four blocking formal gates remain:
+The project has explicitly waived `claude_desktop_real_client_restart` for the current campaign. This is not PASS evidence: Claude Desktop was not independently configured/restarted, and no Claude-specific runtime evidence exists. The waiver is a project-level risk acceptance based on successful real Codex stdio MCP restart evidence and does not change the conservative canonical manual-acceptance validator.
 
-- `claude_desktop_real_client_restart`;
+Three project-required lifecycle gates remain:
+
 - `windows_clean_install_repair_uninstall`;
 - `elevated_plugin_install_profile_preservation`;
 - `custom_state_preservation`.
 
-The formal campaign is intentionally paused before Claude Desktop while core schematic authoring quality is validated more deeply.
+The formal lifecycle campaign is intentionally paused before those Windows/profile gates while core schematic authoring quality is validated more deeply.
 
 Claim-specific optional evidence remains external legal/Novarm review when required, a real openEMS integration run only when solver validation is claimed, and public-redownload smoke when a future release changes published bytes.
 
@@ -55,9 +56,9 @@ Claim-specific optional evidence remains external legal/Novarm review when requi
 
 PR #66 added deterministic bounded wire-quality routing for newly authored schematic wires. Automated tests cover component-region avoidance, schematic text avoidance, crossing avoidance, collinear overlap avoidance, Manhattan paths and bounded deterministic search.
 
-That automated coverage and the historical authored-wire round-trip PASS do not prove that the current post-Ponytail system can author a complete schematic that is clean and understandable to a human.
+That automated coverage and the historical authored-wire round-trip PASS do not prove that the current system can author a complete schematic that is clean and understandable to a human.
 
-Before resuming the remaining client/Windows lifecycle gates, validate representative small real schematics in DipTrace. At minimum include:
+Before resuming the remaining Windows/profile lifecycle gates, validate representative small real schematics in DipTrace. At minimum include:
 
 - resistor divider;
 - LED + resistor;
@@ -85,4 +86,6 @@ This is a stronger product-quality validation, not a rewrite of the historical `
 
 Use `scripts/prepare_manual_acceptance.py` for the canonical manual-only matrix. Historical FAIL attempts remain immutable; repairs get fresh retest attempts.
 
-Documentation-only commits after the accepted production candidate do not create production-code drift. If relevant production code changes, explicitly identify the new candidate and rerun only the evidence plausibly affected by that change.
+A project-level waiver must not be rewritten as PASS merely to satisfy the canonical matrix. The validator may continue to report incomplete while Claude remains unrun; that is an explicit known difference between the canonical matrix and the current project campaign.
+
+Documentation-only commits after an accepted production candidate do not create production-code drift. If relevant production code changes, explicitly identify the new candidate and rerun only the evidence plausibly affected by that change.
