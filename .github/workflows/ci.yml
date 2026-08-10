@@ -263,7 +263,7 @@ jobs:
         shell: bash
         run: |
           coverage combine coverage-data
-          coverage report --fail-under=85
+          coverage report --fail-under=90
           coverage json -o coverage-combined.json
           python scripts/check_coverage.py coverage-combined.json
       - name: Upload combined coverage report

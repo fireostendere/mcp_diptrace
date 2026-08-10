@@ -4,7 +4,7 @@ import argparse
 import re
 from pathlib import Path
 
-_COVERAGE_GATE_RE = re.compile(r"--cov-fail-under=(\d+(?:\.\d+)?)")
+_COVERAGE_GATE_RE = re.compile(r"coverage report --fail-under=(\d+(?:\.\d+)?)")
 
 
 def read_coverage_gate(workflow_path: Path) -> str:

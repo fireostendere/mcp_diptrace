@@ -30,6 +30,9 @@ def test_linux_geometry_job_runs_exact_backend_and_coverage_gates() -> None:
     assert "--cov-fail-under=85" in commands
     assert "check_coverage.py coverage.json" in commands
 
+    combined = _job_commands(workflow["jobs"]["combined-coverage"])
+    assert "coverage report --fail-under=90" in combined
+
 
 def test_linux_fallback_job_proves_shapely_absent_and_runs_fallback_tests() -> None:
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))

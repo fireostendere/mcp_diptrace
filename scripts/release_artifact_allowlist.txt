@@ -322,6 +322,7 @@ tests/test_audit_reference_materials.py
 tests/test_badges.py
 tests/test_bounded_payloads.py
 tests/test_bridge.py
+tests/test_bridge_edge_coverage.py
 tests/test_capability_parity.py
 tests/test_capture_diptrace_evidence.py
 tests/test_check_coverage.py
@@ -334,6 +335,7 @@ tests/test_creation_sha_gate.py
 tests/test_cross_platform_exchange_paths.py
 tests/test_diptrace53_fixture_manifest.py
 tests/test_diptrace53_fixture_pack.py
+tests/test_document_service_edge_coverage.py
 tests/test_documentation_links.py
 tests/test_error_boundary.py
 tests/test_event_loop_responsiveness.py
@@ -386,10 +388,13 @@ tests/test_release_artifacts.py
 tests/test_release_readiness.py
 tests/test_repository_language.py
 tests/test_retention.py
+tests/test_retention_edge_coverage.py
 tests/test_review.py
+tests/test_review_service_edge_coverage.py
 tests/test_router.py
 tests/test_routing_4layer.py
 tests/test_routing_primitives.py
+tests/test_routing_service_edge_coverage.py
 tests/test_scaffolding.py
 tests/test_schematic_authoring.py
 tests/test_schematic_joint_optimizer.py
@@ -406,7 +411,9 @@ tests/test_semantic_operations_service_coverage.py
 tests/test_server.py
 tests/test_server_bundle.py
 tests/test_server_resources_coverage.py
+tests/test_server_runtime_edge_coverage.py
 tests/test_service.py
+tests/test_service_infrastructure_edge_coverage.py
 tests/test_session_concurrency.py
 tests/test_sessions.py
 tests/test_signal_integrity.py
@@ -423,6 +430,7 @@ tests/test_transaction_recovery.py
 tests/test_trust_model.py
 tests/test_windows_bundle_audit.py
 tests/test_windows_configurator.py
+tests/test_windows_configurator_edge_coverage.py
 tests/test_windows_installer_sources.py
 tests/test_windows_wsl_lock_interop_probe.py
 tests/test_write_object_limit.py
