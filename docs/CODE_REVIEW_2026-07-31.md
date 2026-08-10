@@ -76,12 +76,3 @@ Focused tests now explicitly cover:
 
 No release blocker was identified for the tested 0.1.1 candidate scope. Release notes
 must remain scoped to the implemented contracts and the exact acceptance matrix.
-
-## Краткое резюме на русском
-
-Критических, высоких или средних release-blocking дефектов в проверенном baseline не
-обнаружено. Подтверждены корректность native Windows exchange path, in-memory WSL
-translation, fail-closed wrong-SHA/path mismatch, безопасное завершение Windows process
-tree и соответствующие regression tests. Обновлена документация, но ограничения по
-redistributable fixtures, native library writers, external solvers, trust invalidation
-и неполному охвату всех 159 tools остаются явными.

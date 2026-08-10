@@ -42,12 +42,3 @@ MCP tool, every DipTrace version, every XML structure, native library mutation, 
 optional external solver. The project files and complete local artifact directory are
 not redistributed, so this record remains operator-supplied acceptance evidence and
 does not create a package-owned high-trust registry entry.
-
-## Резюме на русском
-
-Проверены PCB apply/cancel/wrong-SHA и Schematic apply/cancel/wrong-SHA на DipTrace
-5.2.0.4 с MCP-сервером в WSL. Native Windows path сохранялся в metadata, WSL path
-вычислялся только в памяти, фантомный `C:\mnt\c\...` не создавался. Применённые
-изменения подтверждены в GUI и, для PCB, независимым save/re-export; отменённые и
-отклонённые изменения не попали в документ. Итог: `ACCEPTANCE: PASS`,
-`RELEASE BLOCKER: NO` для этой матрицы.

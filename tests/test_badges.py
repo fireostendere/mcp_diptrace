@@ -17,11 +17,8 @@ def test_coverage_badge_matches_the_enforced_ci_gate() -> None:
     assert badge.read_text(encoding="utf-8") == render_badge(threshold)
 
 
-def test_readmes_publish_ci_and_coverage_badges() -> None:
-    expected_ci = "actions/workflows/ci.yml/badge.svg?branch=main"
-    expected_coverage = "docs/badges/coverage.svg"
+def test_readme_publishes_ci_and_coverage_badges() -> None:
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
 
-    for filename in ("README.md", "README_RU.md"):
-        text = (ROOT / filename).read_text(encoding="utf-8")
-        assert expected_ci in text
-        assert expected_coverage in text
+    assert "actions/workflows/ci.yml/badge.svg?branch=main" in text
+    assert "docs/badges/coverage.svg" in text

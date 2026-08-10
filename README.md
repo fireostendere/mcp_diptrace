@@ -2,8 +2,6 @@
 
 <!-- mcp-name: io.github.fireostendere/diptrace-mcp -->
 
-**English** | [Русский](README_RU.md)
-
 [![CI](https://github.com/fireostendere/mcp_diptrace/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fireostendere/mcp_diptrace/actions/workflows/ci.yml)
 [![Coverage gate](docs/badges/coverage.svg)](.github/workflows/ci.yml)
 

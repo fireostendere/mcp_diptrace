@@ -17,7 +17,6 @@ CONTRIBUTING.md
 GOVERNANCE.md
 LICENSE
 README.md
-README_RU.md
 SECURITY.md
 benchmarks/__init__.py
 benchmarks/benchmark_core.py
@@ -355,6 +354,7 @@ tests/test_libraries.py
 tests/test_library_mutation.py
 tests/test_live_apply_binding.py
 tests/test_live_session_lifecycle.py
+tests/test_low_level_edge_coverage.py
 tests/test_manual_acceptance.py
 tests/test_mcp_error_contracts.py
 tests/test_mcp_tool_chain.py
@@ -380,9 +380,11 @@ tests/test_probe_pack.py
 tests/test_prompt_acceptance.py
 tests/test_provenance_registry.py
 tests/test_public_compliance.py
+tests/test_record_ids_edge_coverage.py
 tests/test_record_store_base.py
 tests/test_release_artifacts.py
 tests/test_release_readiness.py
+tests/test_repository_language.py
 tests/test_retention.py
 tests/test_review.py
 tests/test_router.py
@@ -392,6 +394,7 @@ tests/test_scaffolding.py
 tests/test_schematic_authoring.py
 tests/test_schematic_joint_optimizer.py
 tests/test_schematic_layout.py
+tests/test_schematic_layout_edge_coverage.py
 tests/test_schematic_optimizer.py
 tests/test_schematic_pcb_sync.py
 tests/test_schematic_pin_geometry.py
@@ -399,8 +402,10 @@ tests/test_schematic_placement_repair.py
 tests/test_schematic_wire_planner.py
 tests/test_schematic_wire_quality.py
 tests/test_semantic_dispatch.py
+tests/test_semantic_operations_service_coverage.py
 tests/test_server.py
 tests/test_server_bundle.py
+tests/test_server_resources_coverage.py
 tests/test_service.py
 tests/test_session_concurrency.py
 tests/test_sessions.py
