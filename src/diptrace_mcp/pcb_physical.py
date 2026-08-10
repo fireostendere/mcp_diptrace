@@ -277,11 +277,12 @@ def _net_center(
     net: PCBNetIntent,
     records: dict[str, ObjectRecord],
 ) -> Point | None:
-    points = [
-        Point(**records[item].position)
-        for item in net.component_ids
-        if item in records and records[item].position is not None
-    ]
+    points: list[Point] = []
+    for component_id in net.component_ids:
+        record = records.get(component_id)
+        if record is None or record.position is None:
+            continue
+        points.append(Point(**record.position))
     if not points:
         return None
     return Point(
