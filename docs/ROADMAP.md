@@ -12,15 +12,15 @@ Implementation never implies universal DipTrace compatibility. Runtime `get_capa
 
 The current source/package version is `0.2.1`. Annotated tag `v0.2.1`, the GitHub development prerelease and `diptrace-mcp==0.2.1` on PyPI are already published.
 
-The accepted production-code candidate for the latest manual campaign is:
+The production-code candidate accepted through the latest completed manual gates is:
 
 `main@0bb09b4b3af40a5a3d1a875fab885430a2d251ba`
 
-That commit includes the post-PR #65/#66 Ponytail pass (PR #68). Later documentation-only commits do not invalidate this production-code identity.
+That commit includes the post-PR #65/#66 Ponytail pass (PR #68). Later development may move `main`; completed evidence remains bound to the candidate on which it was captured unless a later gate explicitly adopts a new production identity.
 
 The durable recovery record is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md), updated on 2026-08-10. Resume from that checkpoint instead of repeating already accepted gates.
 
-A new product-development track also starts at this checkpoint: **intelligent schematic and PCB design quality**. Formal acceptance remains paused at its existing resume point while the project first proves that it can produce schematics that are not only electrically correct, but compact, readable, intentionally structured and comparable in presentation quality to strong professional reference designs. The schematic track comes first because its geometry is primarily a readability/layout problem; the PCB track follows after the same generate/score/improve architecture is established.
+A new product-development track also starts at this checkpoint: **intelligent schematic and PCB design quality**. Formal lifecycle acceptance is paused while the project first proves that it can produce schematics that are not only electrically correct, but compact, readable, intentionally structured and comparable in presentation quality to strong professional reference designs. The schematic track comes first because its geometry is primarily a readability/layout problem; the PCB track follows after the same generate/score/improve architecture is established.
 
 ## Completed real-host / real-client acceptance
 
@@ -35,7 +35,11 @@ The following blocking manual gates are complete:
 - Q1 Component Angle GUI/re-export;
 - real Codex Desktop configuration/restart/`get_capabilities`.
 
-This is **8 of 12 blocking manual gates complete**.
+The canonical matrix therefore has **8 of 12 blocking manual gates PASS**.
+
+`claude_desktop_real_client_restart` is **WAIVED for the current project campaign**. It was not run and is not PASS. The project accepts the residual client-specific interoperability risk because the real Codex gate already demonstrated stdio MCP startup, actual process restart, tool exposure and stable `get_capabilities` behavior. No direct Claude Desktop validation is claimed.
+
+The canonical repository manual-acceptance validator still treats Claude Desktop as required and does not encode this project-level waiver. It may continue to report the canonical matrix as incomplete; do not weaken the validator or fabricate a PASS merely to remove that warning.
 
 ### Mask / paste / courtyard / Common
 
@@ -66,7 +70,7 @@ The private/manual campaign PASS is distinct from any future source-controlled p
 
 ### Codex real-client restart
 
-`codex_real_client_restart = PASS` on the same production candidate.
+`codex_real_client_restart = PASS` on the same accepted production candidate.
 
 - Codex Desktop: `26.803.5235.0`;
 - DipTrace MCP: `0.2.1`;
@@ -75,17 +79,15 @@ The private/manual campaign PASS is distinct from any future source-controlled p
 - new process IDs confirmed actual Codex/MCP restart;
 - production code remained unchanged.
 
-## Intentional pause in formal acceptance
+## Intentional pause in formal lifecycle acceptance
 
-The next formal gate remains:
+The next project-required lifecycle gate, when formal acceptance resumes, is:
 
-`claude_desktop_real_client_restart`
+`windows_clean_install_repair_uninstall`
 
-It is **PENDING** and has not been run.
+The Claude Desktop gate is skipped by explicit project waiver, not by inference and not as PASS.
 
-The formal campaign is intentionally paused before that gate. Before spending more time on client/installer lifecycle checks, the project will validate and improve the core product behavior: can the current MCP author a normal, readable, useful schematic in real DipTrace, and can it evolve from bounded authoring into an intentional schematic-layout engine?
-
-This pause does not cancel or waive the remaining formal gates.
+Before spending more time on installer/profile lifecycle checks, the project will validate and improve the core product behavior: can the current MCP author a normal, readable, useful schematic in real DipTrace, and can it evolve from bounded authoring into an intentional schematic-layout engine?
 
 ## New development track — intelligent schematic and PCB design
 
@@ -136,9 +138,11 @@ The same generate -> score -> improve loop should be reusable for PCB work later
 
 **Status: active checkpoint / first task.**
 
-PR #66 added deterministic bounded readability routing for newly authored schematic wires. Its automated goals include component avoidance, text/label avoidance, crossing and overlap avoidance, Manhattan routing, self-intersection avoidance and fewer unnecessary bends. The subsequent Ponytail pass may have modified adjacent behavior.
+PR #66 added deterministic bounded readability routing for newly authored schematic wires. Its automated goals include component avoidance, text/label avoidance, crossing and overlap avoidance, Manhattan routing, self-intersection avoidance and fewer unnecessary bends. The subsequent Ponytail pass and later development may have modified adjacent behavior.
 
 The historical `diptrace_ratline_and_wire_roundtrip` PASS remains valid for its original scope. It proves wire connectivity and native round-trip behavior, but it does **not** prove that higher-level current schematic authoring consistently produces a schematic a human would consider clean and usable.
+
+Before the first Phase 26 real-world experiment, record the actual local production candidate. Do not assume that the historical `0bb09b4...` identity is still the code being tested if later production changes are present.
 
 Build small real circuits from clean starting points and preserve them as regression/quality cases where licensing and provenance allow. Suggested cases:
 
@@ -301,18 +305,18 @@ Combine placement, routing candidates, power/ground strategy, DRC/review, SI/ret
 
 Benchmark against deliberately poor layouts, hand-improved layouts and legally usable reference boards. Do not claim "optimal PCB" or fabrication sign-off; report measurable improvements and remaining unsupported categories.
 
-## Remaining blocking formal acceptance
+## Remaining formal lifecycle acceptance
 
-When the schematic authoring/readability validation and the chosen development checkpoint are intentionally finished or paused, resume formal acceptance in this order:
+When schematic authoring/readability validation and the chosen development checkpoint are intentionally finished or paused, resume project-required formal acceptance in this order:
 
 | Order | Gate | Status |
 | --- | --- | --- |
-| 1 | `claude_desktop_real_client_restart` | **PENDING** |
-| 2 | `windows_clean_install_repair_uninstall` | **PENDING** |
-| 3 | `elevated_plugin_install_profile_preservation` | **PENDING** |
-| 4 | `custom_state_preservation` | **PENDING** |
+| — | `claude_desktop_real_client_restart` | **WAIVED — not PASS; no direct Claude evidence** |
+| 1 | `windows_clean_install_repair_uninstall` | **PENDING** |
+| 2 | `elevated_plugin_install_profile_preservation` | **PENDING** |
+| 3 | `custom_state_preservation` | **PENDING** |
 
-Generate the exact evidence worksheet with:
+Generate the canonical evidence worksheet with:
 
 ```bash
 python scripts/prepare_manual_acceptance.py acceptance \
@@ -326,7 +330,7 @@ After recording observations and evidence files, validate it with:
 python scripts/prepare_manual_acceptance.py acceptance --check
 ```
 
-The validator must not call the blocking acceptance complete while a required gate remains pending.
+The canonical validator does not currently encode the Claude waiver and therefore must not call the full canonical matrix complete while that required gate remains pending internally. The project-level waiver is documented separately rather than disguised as PASS.
 
 ## Claim-specific or optional manual work
 
@@ -394,7 +398,7 @@ The acceptance campaign and the new optimizer roadmap do not implicitly add or r
 | 22 | candidate complete | Windows installer/portable/configurator pipeline; clean-machine acceptance remains manual |
 | 23 | baseline complete | deterministic pattern recommendation and privacy-bounded feedback/evaluation |
 | 24 | host-verified internal core | Component/Pattern mutation core has real editor evidence; public registration is deferred |
-| 25 | manual acceptance paused at 8/12 | Through Codex restart PASS; formal resume point is Claude Desktop |
+| 25 | manual acceptance paused | 8 canonical PASS gates; Claude explicitly WAIVED for current project campaign; project resume point is Windows lifecycle |
 | 26 | **active checkpoint** | Establish real-world schematic readability baseline and benchmark cases |
 | 27 | planned — schematic | Design intent, functional blocks and datasheet/reference motifs |
 | 28 | planned — schematic | Hierarchical component placement, orientation, compactness and routeability scoring |
@@ -417,4 +421,4 @@ The acceptance campaign and the new optimizer roadmap do not implicitly add or r
 - Generic fabrication/assembly manifests are not native Gerber, NC Drill, ODB++, IPC-2581 or assembler sign-off packages.
 - The ngspice adapter runs user-provided netlists; it does not generate a complete simulation netlist from a DipTrace design.
 - Native manufacturing generation remains unavailable because no verified DipTrace output API is claimed.
-- The project does not claim Novarm/DipTrace endorsement, universal compatibility, signed binaries, independent review, production readiness or globally optimal schematic/PCB layout.
+- The project does not claim Novarm/DipTrace endorsement, universal compatibility, signed binaries, independent review, production readiness, direct Claude Desktop validation or globally optimal schematic/PCB layout.

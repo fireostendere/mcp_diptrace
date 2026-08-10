@@ -18,13 +18,13 @@ This is the merge of PR #68 (`Ponytail: aggressive repository cleanup`). The acc
 confirmed no relevant production-code drift through the COMMON, Q1 Component Angle, and Codex
 restart gates.
 
-Documentation-only commits made after this checkpoint do **not** invalidate that accepted
-production-code identity. When resuming acceptance, distinguish documentation drift from changes to
-`src/`, packaging/runtime code, plug-in code, or other files that can affect the tested behavior.
+Later repository development does not retroactively move those evidence identities. When resuming
+acceptance or starting a new product-quality validation, explicitly record the actual production
+candidate being tested rather than transferring PASS results to newer code by inference.
 
 ## Formal acceptance progress
 
-Eight of the twelve blocking manual gates are now complete.
+Eight of the twelve canonical blocking manual gates are PASS.
 
 | Gate | Result | Accepted identity / evidence note |
 | --- | --- | --- |
@@ -36,13 +36,18 @@ Eight of the twelve blocking manual gates are now complete.
 | `diptrace_mask_paste_courtyard_common_semantics` | **PASS** | MASK, PASTE, COURTYARD and COMMON all accepted. |
 | `diptrace_q1_component_angle` | **PASS** | Real DipTrace PCB Layout 5.3.0.3 angle/side semantics accepted on `0bb09b4...`. |
 | `codex_real_client_restart` | **PASS** | Real Codex Desktop restart/configuration/`get_capabilities` accepted on `0bb09b4...`. |
+| `claude_desktop_real_client_restart` | **WAIVED for current project campaign** | Not run and not PASS. The project accepts the residual interoperability risk after successful real Codex stdio MCP restart evidence and will not spend current validation time duplicating this client-specific check. |
 
-The remaining blocking formal gates are:
+The remaining project-required formal lifecycle gates are:
 
-1. `claude_desktop_real_client_restart` — **PENDING**.
-2. `windows_clean_install_repair_uninstall` — **PENDING**.
-3. `elevated_plugin_install_profile_preservation` — **PENDING**.
-4. `custom_state_preservation` — **PENDING**.
+1. `windows_clean_install_repair_uninstall` — **PENDING**.
+2. `elevated_plugin_install_profile_preservation` — **PENDING**.
+3. `custom_state_preservation` — **PENDING**.
+
+The canonical repository manual-acceptance validator still defines Claude Desktop as a required gate
+and does not currently encode project-level waivers. Therefore it may continue to report the full
+canonical matrix as incomplete. Do not convert the waiver to PASS and do not claim direct Claude
+Desktop validation unless that real-client gate is actually run later.
 
 Claim-specific optional work remains separate: public-redownload smoke for future changed release
 bytes, external legal/Novarm review when required for a planned claim/activity, and a real openEMS
@@ -123,21 +128,36 @@ Codex evidence ZIP SHA256:
 
 `931001886200eb928fd3a376f76bd14856b2f5dcffd9d023208285623887fbe8`
 
-## Intentional pause before the remaining formal gates
+## Claude Desktop waiver
 
-The formal acceptance campaign is intentionally **PAUSED** here. The formal resume point remains:
+`claude_desktop_real_client_restart` was deliberately **WAIVED for the current project campaign** on
+2026-08-10.
 
-`claude_desktop_real_client_restart`
+Rationale: the real Codex client demonstrated the current server's stdio MCP startup, tool exposure,
+restart lifecycle and stable `get_capabilities` behavior. The project chooses not to spend current
+manual-validation time duplicating that lifecycle check in Claude Desktop before core schematic
+quality is proven.
 
-Do not infer that Claude Desktop or any Windows lifecycle gate passed. They remain pending.
+This is a risk acceptance, not evidence. Specifically:
 
-Before resuming those infrastructure/lifecycle gates, the project will prioritize a separate
-real-world schematic authoring/readability validation. The reason is product confidence: the next
-question is not merely whether the server installs and restarts, but whether it can produce a
-normal, readable, useful schematic in real DipTrace.
+- Claude Desktop was not configured/restarted for this gate;
+- no Claude-specific process/configuration evidence exists;
+- the gate must not be recorded as PASS;
+- claims of direct Claude Desktop validation remain unsupported unless the gate is run later.
 
-This validation is not a replacement for the formal matrix and must not silently mark any pending
-formal gate PASS.
+## Intentional pause before the remaining formal lifecycle gates
+
+The formal lifecycle campaign is intentionally **PAUSED** while the project validates core schematic
+authoring/readability. When lifecycle acceptance resumes, the next project-required gate is:
+
+`windows_clean_install_repair_uninstall`
+
+The Claude Desktop gate is skipped by explicit project waiver, not by inference.
+
+Before resuming the Windows/profile gates, the project will prioritize real-world schematic
+authoring/readability validation. The reason is product confidence: the next question is not merely
+whether the server installs and restarts, but whether it can produce a normal, readable, useful
+schematic in real DipTrace.
 
 ## Immediate validation priority — real schematic authoring/readability
 
@@ -146,8 +166,8 @@ subsequent Ponytail pass may have changed adjacent code. The historical
 `diptrace_ratline_and_wire_roundtrip` PASS proves its exact historical scope, but it does not prove
 that current higher-level schematic authoring produces good human-readable designs.
 
-The next project validation should exercise current post-Ponytail code on small real circuits, for
-example:
+The next project validation should exercise the explicitly selected current code candidate on small
+real circuits, for example:
 
 - resistor divider;
 - LED + resistor;
@@ -178,14 +198,13 @@ product-quality validation finds a new issue.
 When resuming work from this checkpoint:
 
 - do not restart completed gates;
-- treat `0bb09b4...` as the accepted production-code identity for the completed gates;
-- ignore later documentation-only commits when evaluating production candidate continuity;
-- if relevant production code changes, record the new candidate explicitly and rerun only the gates
-  plausibly affected by that code change;
+- treat `0bb09b4...` as the accepted production-code identity for the completed PASS gates;
+- treat Claude Desktop as WAIVED, not PASS;
+- if a later project decision requires direct Claude evidence, run it as a fresh gate rather than rewriting the waiver;
+- if relevant production code changes, record the new candidate explicitly and rerun only the evidence plausibly affected by that code change;
 - keep historical FAIL attempts immutable;
 - distinguish operator/path/seed mistakes from product defects;
-- Work may prepare files, hashes, XML comparisons and evidence automatically; ask the operator only
-  for meaningful real-GUI checkpoints;
+- Work may prepare files, hashes, XML comparisons and evidence automatically; ask the operator only for meaningful real-GUI checkpoints;
 - stop on a genuine blocking product FAIL and repair it separately;
 - do not silently expand the public MCP contract while performing acceptance or validation repairs.
 

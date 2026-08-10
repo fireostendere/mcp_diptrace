@@ -6,9 +6,11 @@ The formal manual acceptance campaign is intentionally paused after
 `codex_real_client_restart = PASS` on production candidate
 `0bb09b4b3af40a5a3d1a875fab885430a2d251ba`.
 
-The formal resume point remains `claude_desktop_real_client_restart`, but before continuing with client and Windows lifecycle gates the project is validating the core product behavior more deeply: can DipTrace MCP author a normal, electrically correct, human-readable schematic in real DipTrace without routine manual cleanup?
+The project has explicitly waived `claude_desktop_real_client_restart` for the current campaign. That gate was not run and is not PASS; no direct Claude Desktop validation is claimed. The current priority is deeper product validation: can DipTrace MCP author a normal, electrically correct, human-readable schematic in real DipTrace without routine manual cleanup?
 
-This is not a replacement for the formal manual matrix and must not mark Claude/Windows gates PASS.
+When formal lifecycle acceptance resumes, the next project-required gate is `windows_clean_install_repair_uninstall`.
+
+The canonical repository manual-acceptance validator still treats Claude Desktop as required and does not encode this project-level waiver. Do not rewrite the waiver as PASS merely to satisfy the canonical matrix.
 
 ## Relevant implementation history
 
@@ -24,7 +26,9 @@ PR #66 added deterministic bounded readability routing for newly authored schema
 - minimize unnecessary bends and path length within bounded search limits;
 - preserve intentional wire-to-wire endpoint connections.
 
-The subsequent Ponytail pass was merged in PR #68. The accepted production candidate for this validation is therefore the post-Ponytail code at `0bb09b4...`, unless a later production-code change is explicitly adopted as a new candidate.
+The subsequent Ponytail pass was merged in PR #68. The historical accepted production candidate for the completed manual gates is therefore the post-Ponytail code at `0bb09b4...`.
+
+For this new schematic-quality validation, do not assume that historical identity is still the current code candidate. Before the first experiment, record the actual local production checkout being tested and treat it as a new validation identity if relevant production code has changed since `0bb09b4...`.
 
 The historical `diptrace_ratline_and_wire_roundtrip` gate remains PASS for its original scope. This validation is stronger and product-oriented: it evaluates complete authored schematic quality rather than only wire serialization/connectivity round-trip.
 
@@ -145,10 +149,12 @@ Check:
 
 ## Stop / resume point
 
-This validation may generate focused repair work. Complete or pause it deliberately before returning to the formal matrix.
+This validation may generate focused repair work. Complete or pause it deliberately before returning to the formal lifecycle matrix.
 
-Formal acceptance resumes at:
+Project-required formal acceptance resumes at:
 
-`claude_desktop_real_client_restart`
+`windows_clean_install_repair_uninstall`
+
+`claude_desktop_real_client_restart` remains WAIVED for the current project campaign, not PASS. If direct Claude Desktop evidence becomes important later, run it as a fresh gate.
 
 Do not repeat already accepted PCB, schematic round-trip, library writer, ratline/wire, mask/paste/courtyard/Common, Q1, or Codex restart gates unless a later production-code change plausibly affects their exact tested path.
