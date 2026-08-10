@@ -20,7 +20,7 @@ That commit includes the post-PR #65/#66 Ponytail pass (PR #68). Later developme
 
 The durable recovery record is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md), updated on 2026-08-10. Resume from that checkpoint instead of repeating already accepted gates.
 
-A new product-development track also starts at this checkpoint: **intelligent schematic and PCB design quality**. Formal lifecycle acceptance is paused while the project proves that it can make defensible EDA decisions rather than only safe XML edits. The schematic and PCB engines share the same internal generate -> score -> improve architecture. Schematic readability remains its own acceptance track. PCB Generations A-C are merged, while Generation D is implemented on PR #86 pending its final green merge gate; none of these generations expand the public MCP surface.
+A new product-development track also starts at this checkpoint: **intelligent schematic and PCB design quality**. Formal lifecycle acceptance is paused while the project proves that it can make defensible EDA decisions rather than only safe XML edits. The schematic and PCB engines share the same internal generate -> score -> improve architecture. Schematic readability remains its own acceptance track. PCB Generations A-D are implemented, regression-tested and merged; none of these generations expand the public MCP surface. Generation D merged in PR #86 after CI #763, PyPI validation #239 and Windows installer #398 all passed.
 
 ## Completed real-host / real-client acceptance
 
@@ -316,7 +316,7 @@ Generation C evaluates supplied route observations for length, via budget, forbi
 
 #### Phase 38 — joint multi-objective PCB optimizer
 
-**Status: implemented internally on PR #86; final green CI/merge is the acceptance gate.**
+**Status: implemented, regression-tested and merged in PR #86.**
 
 `pcb_joint_optimizer.py` provides bounded candidate selection with separate safety, mechanical, connectivity, DRC, reference-path and manufacturing hard dimensions. Those hard dimensions are lexicographically dominant over decomposed placement, routing, vias, SI, PI, return-path, EMI-risk, thermal-risk and manufacturing soft metrics.
 
@@ -324,7 +324,7 @@ External routers/solvers remain candidate/evidence generators; they do not bypas
 
 #### Phase 39 — PCB benchmark and real-DipTrace product acceptance
 
-**Status: benchmark catalog implemented on PR #86; real-DipTrace product acceptance remains pending.**
+**Status: benchmark catalog implemented and merged in PR #86; real-DipTrace product acceptance remains pending.**
 
 The Generation D catalog includes small engineering-trap families rather than one giant demo board:
 
@@ -450,8 +450,8 @@ The optimizer roadmap does not implicitly add or remove public tools. New optimi
 | 35 | bounded complete — PCB Generation B | timing-gated noise compatibility and physical-context refinement |
 | 36 | complete — PCB Generation C | routing-policy compiler and engineering-aware route ordering |
 | 37 | bounded complete — PCB Generation C | observed SI checks, copper strategy and placement feedback |
-| 38 | implemented — PCB Generation D | bounded joint multi-objective candidate selection; PR #86 merge gate pending |
-| 39 | partial — PCB Generation D | engineering benchmark catalog implemented; real-DipTrace product acceptance pending |
+| 38 | complete — PCB Generation D | bounded joint multi-objective candidate selection merged in PR #86 |
+| 39 | partial — PCB Generation D | engineering benchmark catalog merged; real-DipTrace product acceptance pending |
 
 ## Permanent limitations and non-claims
 
