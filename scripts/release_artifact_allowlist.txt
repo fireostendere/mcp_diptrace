@@ -234,6 +234,7 @@ src/diptrace_mcp/pattern_recommendation.py
 src/diptrace_mcp/pcb_design_intent.py
 src/diptrace_mcp/pcb_physical.py
 src/diptrace_mcp/pcb_placement.py
+src/diptrace_mcp/pcb_routing_policy.py
 src/diptrace_mcp/placement.py
 src/diptrace_mcp/plans.py
 src/diptrace_mcp/policy.py
@@ -377,6 +378,7 @@ tests/test_pattern_recommendation.py
 tests/test_pattern_validation.py
 tests/test_pcb_design_engine.py
 tests/test_pcb_physical.py
+tests/test_pcb_routing_policy.py
 tests/test_phase4.py
 tests/test_placement.py
 tests/test_plugin_settings.py
