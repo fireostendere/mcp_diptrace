@@ -1,9 +1,10 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from diptrace_mcp.adapter_queries import _matches_selector
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.capabilities import get_capabilities
-from diptrace_mcp.domain import QueryRequest, QuerySelector
+from diptrace_mcp.domain import ObjectRecord, QueryRequest, QuerySelector
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -208,3 +209,78 @@ def test_nested_52_pattern_cache_and_legacy_testpoint_are_normalized() -> None:
     assert polygon_pad.geometry is not None
     assert polygon_pad.geometry.kind == "polygon"
     assert len(polygon_pad.geometry.points) == 4
+
+
+def test_query_selector_matches_all_supported_predicates_and_rejects_each_mismatch() -> None:
+    item = ObjectRecord(
+        stable_id="component_0123456789abcdef",
+        kind="component",
+        refdes="R1",
+        name="Resistor",
+        value="10k",
+        label="main resistor",
+        net_name="VCC",
+        net_id="net-vcc",
+        layer="Top",
+        side="Top",
+        selected=True,
+        locked=False,
+        position={"x": 10.0, "y": 20.0},
+        bbox={"min_x": 9.0, "min_y": 19.0, "max_x": 11.0, "max_y": 21.0},
+        attributes={"additional_fields": {"MPN": "ABC"}, "note": "precision"},
+    )
+    matching = QuerySelector(
+        ids=[item.stable_id],
+        kinds=["component"],
+        refdes=["r1"],
+        refdes_glob="r*",
+        refdes_regex=r"^R\d+$",
+        names=["resistor"],
+        name_regex="sist",
+        values=["10K"],
+        fields={"MPN": "ABC"},
+        nets=["vcc"],
+        layers=["Top"],
+        sides=["Top"],
+        selected=True,
+        locked=False,
+        text="precision",
+        bbox={"min_x": 8.0, "min_y": 18.0, "max_x": 12.0, "max_y": 22.0},
+        near={"x": 10.0, "y": 20.0},
+        max_distance=0.1,
+    )
+    assert _matches_selector(item, matching) is True
+
+    mismatches = [
+        QuerySelector(ids=["component_ffffffffffffffff"]),
+        QuerySelector(kinds=["via"]),
+        QuerySelector(refdes=["R2"]),
+        QuerySelector(refdes_glob="C*"),
+        QuerySelector(refdes_regex=r"^C"),
+        QuerySelector(names=["Capacitor"]),
+        QuerySelector(name_regex="capacitor"),
+        QuerySelector(values=["1uF"]),
+        QuerySelector(fields={"MPN": "XYZ"}),
+        QuerySelector(nets=["GND"]),
+        QuerySelector(layers=["Bottom"]),
+        QuerySelector(sides=["Bottom"]),
+        QuerySelector(selected=False),
+        QuerySelector(locked=True),
+        QuerySelector(text="absent"),
+        QuerySelector(bbox={"min_x": 30.0, "min_y": 30.0, "max_x": 40.0, "max_y": 40.0}),
+        QuerySelector(near={"x": 100.0, "y": 100.0}, max_distance=1.0),
+    ]
+    assert all(not _matches_selector(item, selector) for selector in mismatches)
+
+    no_geometry = item.model_copy(update={"position": None, "bbox": None})
+    assert not _matches_selector(
+        no_geometry,
+        QuerySelector(bbox={"min_x": 0.0, "min_y": 0.0, "max_x": 1.0, "max_y": 1.0}),
+    )
+    assert not _matches_selector(
+        no_geometry,
+        QuerySelector(near={"x": 0.0, "y": 0.0}, max_distance=1.0),
+    )
+
+    malformed_fields = item.model_copy(update={"attributes": {"additional_fields": "bad"}})
+    assert not _matches_selector(malformed_fields, QuerySelector(fields={"MPN": "ABC"}))

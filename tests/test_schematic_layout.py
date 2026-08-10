@@ -4,9 +4,11 @@ from pathlib import Path
 
 import pytest
 
+import diptrace_mcp.schematic_layout as layout
 from diptrace_mcp.adapters import DocumentSnapshot, build_snapshot, stable_id
 from diptrace_mcp.domain import ObjectRecord
 from diptrace_mcp.errors import CapabilityUnavailableError
+from diptrace_mcp.geometry import Point
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.schematic_layout import (
     BoundReferenceMotif,
@@ -192,3 +194,135 @@ def test_layout_analysis_counts_crossing_between_different_nets() -> None:
 
     assert analysis.metrics.wire_crossing_count == 1
     assert analysis.metrics.diagonal_segment_count == 2
+
+
+def _synthetic_part(refdes: str, *, name: str = "", value: str = "") -> ObjectRecord:
+    return ObjectRecord(
+        stable_id=stable_id("part", "role", refdes, name, value),
+        kind="part",
+        refdes=refdes,
+        name=name or None,
+        value=value or None,
+    )
+
+
+def _synthetic_net(name: str) -> ObjectRecord:
+    return ObjectRecord(
+        stable_id=stable_id("net", "role", name or "unnamed"),
+        kind="net",
+        name=name or None,
+    )
+
+
+def test_role_inference_covers_supported_part_and_net_classes() -> None:
+    part_cases = {
+        "J1": ("connector", ""),
+        "U1": ("power_control", "BUCK REGULATOR"),
+        "IC2": ("active", "MCU"),
+        "Q1": ("active", "MOSFET"),
+        "Y1": ("timing", "CRYSTAL"),
+        "D1": ("protection", "TVS"),
+        "SW1": ("control", "BUTTON"),
+        "R1": ("support", ""),
+        "Z1": ("other", "mystery"),
+    }
+    for refdes, (expected, name) in part_cases.items():
+        assert layout._part_role(_synthetic_part(refdes, name=name)).role == expected
+
+    net_cases = {
+        "": "unknown",
+        "GND": "ground",
+        "+3V3": "power",
+        "SYS_CLK": "clock",
+        "NRST": "reset",
+        "USB_D+": "interface",
+        "DATA": "signal",
+    }
+    for name, expected in net_cases.items():
+        assert layout._net_role(_synthetic_net(name), []).role == expected
+
+    assert layout._block_role({"connector", "active"}) == "connector"
+    assert layout._block_role({"power_control"}) == "power"
+    assert layout._block_role({"active"}) == "functional"
+    assert layout._block_role(set()) == "generic"
+
+
+def test_reference_motif_constraint_validation_rejects_invalid_shapes() -> None:
+    with pytest.raises(ValueError, match="endpoints must be different"):
+        ReferenceMotifConstraint(
+            first_key="same",
+            second_key="same",
+            relation="left_of",
+        )
+    with pytest.raises(ValueError, match="requires max_distance_mm"):
+        ReferenceMotifConstraint(
+            first_key="a",
+            second_key="b",
+            relation="near",
+        )
+
+
+def test_motif_relation_error_covers_every_supported_relation() -> None:
+    first = Point(10.0, 20.0)
+    second = Point(20.0, 30.0)
+    cases = [
+        ("near", {"max_distance_mm": 5.0}, pytest.approx(9.1421356237)),
+        ("left_of", {"tolerance_mm": 0.0}, 0.0),
+        ("right_of", {"tolerance_mm": 0.0}, 10.0),
+        ("above", {"tolerance_mm": 0.0}, 0.0),
+        ("below", {"tolerance_mm": 0.0}, 10.0),
+        ("same_row", {"tolerance_mm": 2.0}, 8.0),
+        ("same_column", {"tolerance_mm": 2.0}, 8.0),
+    ]
+    for relation, extra, expected in cases:
+        constraint = ReferenceMotifConstraint(
+            first_key="a",
+            second_key="b",
+            relation=relation,
+            **extra,
+        )
+        assert layout._motif_relation_error(first, second, constraint) == expected
+
+
+def test_wire_metric_helpers_cover_overlap_bends_shared_endpoints_and_same_net() -> None:
+    wires = [
+        ObjectRecord(
+            stable_id=stable_id("wire", "metrics", "a"),
+            kind="wire",
+            net_name="A",
+            attributes={"points": [{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}]},
+        ),
+        ObjectRecord(
+            stable_id=stable_id("wire", "metrics", "b"),
+            kind="wire",
+            net_name="B",
+            attributes={"points": [{"x": 5, "y": 0}, {"x": 15, "y": 0}]},
+        ),
+        ObjectRecord(
+            stable_id=stable_id("wire", "metrics", "c"),
+            kind="wire",
+            net_name="A",
+            attributes={"points": [{"x": 0, "y": 10}, {"x": 10, "y": 0}]},
+        ),
+        ObjectRecord(
+            stable_id=stable_id("wire", "metrics", "d"),
+            kind="wire",
+            net_name="D",
+            attributes={"points": [{"x": 10, "y": 10}, {"x": 20, "y": 20}]},
+        ),
+    ]
+    overlap, crossings, diagonals, bends, total, points = layout._wire_metrics(wires)
+    assert overlap >= 1
+    assert crossings == 2
+    assert diagonals == 2
+    assert bends == 1
+    assert total > 0
+    assert points
+
+    assert layout._wire_points(
+        ObjectRecord(
+            stable_id=stable_id("wire", "metrics", "invalid"),
+            kind="wire",
+            attributes={"points": "not-a-list"},
+        )
+    ) == []
