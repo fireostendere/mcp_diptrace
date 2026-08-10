@@ -17,8 +17,10 @@ The current implementation lives in:
   estimated future-interconnect cost, candidate ranking, and safe operation planning;
 - `src/diptrace_mcp/schematic_wire_planner.py` for non-mutating route-candidate metrics and
   explicit placement feedback on pathological schematic interconnect;
-- `src/diptrace_mcp/schematic_pin_geometry.py` for conservative Component Library pin
-  resolution and pin-facing geometric evidence.
+- `src/diptrace_mcp/schematic_pin_geometry.py` for conservative embedded Design Cache pin
+  resolution and pin-facing geometric evidence;
+- `src/diptrace_mcp/schematic_joint_optimizer.py` for non-mutating pin-aware routing of
+  hypothetical placement candidates and joint route/placement ranking.
 
 ## Design intent
 
@@ -86,8 +88,8 @@ reported weights and terms. It is not an engineering certification or an ML-gene
 quality judgement.
 
 The first score intentionally does not claim exact symbol/pin graphics. Current schematic
-part bounds are conservative proxies. Pin geometry can now be resolved when a compatible
-Component Library model is available, but unresolved or ambiguous parts remain explicit.
+part bounds are conservative proxies. Pin geometry can now be resolved from a compatible
+embedded Design Cache, but unresolved or ambiguous parts remain explicit.
 
 ## First placement planner
 
@@ -130,11 +132,12 @@ The current optimizer score includes:
   it feeds;
 - movement from the existing layout.
 
-Future interconnect is deliberately an estimate, not fake detailed routing. For each net the
-optimizer builds a deterministic minimum-spanning connection estimate between placed parts
-and compares the two Manhattan L-shape orientations while accumulating estimated crossings.
-Ground is excluded from this estimate and power may be down-weighted/configured separately.
-This makes placement route-aware before the full sheet router is coupled to it.
+Future interconnect in this first-stage score remains an estimate. For each net the optimizer
+builds a deterministic minimum-spanning connection estimate between placed parts and compares
+the two Manhattan L-shape orientations while accumulating estimated crossings. Ground is
+excluded from this estimate and power may be down-weighted/configured separately. The joint
+route scorer described below can now re-rank those candidates with bounded real wire
+candidates before any placement is applied.
 
 The selected candidate is the minimum ranked candidate under the disclosed score and stable
 tie-breakers. `plan_optimized_schematic_placement` then emits ordinary
@@ -153,7 +156,7 @@ The repository already has a bounded deterministic authored-wire quality layer i
 and text obstacles and strongly penalizes crossings and overlaps.
 
 The layout modules do not duplicate that router. The router remains the candidate generator;
-the planner layer measures and judges the resulting route.
+the planner and joint optimizer layers measure and judge the resulting routes.
 
 ## Non-mutating wire planner and placement feedback
 
@@ -190,13 +193,18 @@ collision-prone wire.
 
 ## Component Library pin geometry resolver
 
-Schematic instance XML identifies each part and its Pin indices, but current fixtures do not
-store absolute X/Y on each schematic Pin. Component Library XML does carry relative pin X/Y,
-orientation, electrical type, pin type, multipart ownership and ordered pin identity. The
-resolver joins those two typed models without reparsing XML.
+Schematic instance XML identifies each part and its Pin indices, while symbol pin geometry
+lives in the project's embedded Design Cache Component Library. Component Library XML carries
+relative pin X/Y, orientation, electrical type, pin type, multipart ownership and ordered pin
+identity. The resolver joins those two typed models without adding a second XML parser.
 
-`resolve_schematic_pin_geometry` accepts a normalized schematic snapshot and a typed
-`LibraryModel`. A library component may be selected through:
+`resolve_document_schematic_pin_geometry` prefers the schematic's own embedded Design Cache.
+A standalone Component Library can be supplied as a fallback only through explicit opt-in;
+it is not silently mixed into a project because it may represent a different library
+revision.
+
+The lower-level `resolve_schematic_pin_geometry` accepts a normalized schematic snapshot and
+a typed `LibraryModel`. A library component may be selected through:
 
 - an explicit caller binding from schematic `ComponentStyle` to library component stable ID;
 - a `CompTypeN` index hint, but only when the indexed component also passes structural
@@ -226,31 +234,78 @@ evidence.
 
 This resolver is read-only. It does not rotate symbols, move parts, write XML, search online
 libraries, or claim that a matched library revision is identical to the original project
-revision.
+library revision.
+
+## Pin-aware joint placement/routing score
+
+`schematic_joint_optimizer.py` couples bounded placement candidates to the existing wire
+planner without applying either placement or routing.
+
+For each hypothetical placement candidate it:
+
+1. deep-copies the normalized schematic snapshot;
+2. translates part positions and their conservative bounding boxes to the candidate layout;
+3. translates resolved pin offsets with each moved part;
+4. marks unresolved pin geometry explicitly and uses the candidate part anchor only as a
+   fallback;
+5. groups connectivity per net and sheet;
+6. applies the shared design-intent net-role policy before creating wire candidates: ground
+   nets are excluded by default, power nets are included by default, and both choices are
+   explicit configuration;
+7. decomposes each included sheet-local net into a deterministic endpoint minimum-spanning
+   tree;
+8. invokes `plan_schematic_wire_candidate` for each bounded edge;
+9. exposes completed prior nets only inside the cloned snapshot so later nets see crossing
+   pressure;
+10. aggregates real route defects and route length;
+11. re-ranks placement candidates with hard route defects ahead of the first-stage placement
+    heuristic.
+
+The aggregate metrics disclose rejected routes, obstacle hits, overlaps, crossings,
+self-intersections, diagonals, bends, length, detour excess, exact pin endpoints, fallback
+anchor endpoints, and the count of sheet-local net groups intentionally skipped by routing
+policy. The edge budget is bounded and incomplete evaluation is reported instead of silently
+pretending that all included connectivity was scored.
+
+Ground is excluded from wire-MST scoring because global ground connectivity is commonly
+represented with power symbols or labels rather than page-spanning authored wires. Setting
+`include_ground_nets=True` opts back into explicit ground-wire scoring. Power remains included
+by default but can likewise be excluded with `include_power_nets=False`. These switches alter
+only scoring policy; they do not author power symbols or labels and they do not change the
+logical connectivity model.
+
+The joint rank is intentionally lexicographic. Rejected/colliding/overlapping/crossing routes
+are worse before the original placement score is considered; bends and route length are
+later tie-breakers. This lets a placement with a slightly worse first-stage Manhattan
+estimate win when the actual bounded router shows materially cleaner interconnect.
+
+The virtual routes receive ordinary canonical stable IDs and exist only in the cloned
+snapshot. Source XML, source normalized objects and candidate placement data are not mutated.
+Same-net MST edges are still locally planned rather than globally junction-optimized, and
+text obstacles are not yet moved with placement candidates; both limitations are reported.
 
 Both placement planners still refuse an already-wired schematic by default. Moving symbols
 while leaving existing wire geometry behind would make the drawing worse. Existing-wire
-support belongs in the joint placement/routing optimizer, where affected wires can be
-rerouted atomically.
+support belongs in the later selective-reroute transaction layer, where affected wires can
+be replaced atomically with the placement change.
 
 ## Next implementation steps
 
 The intended order is:
 
-1. feed resolved absolute pin endpoints into bounded route-candidate scoring when geometry
-   is available, with part-anchor estimation retained only as an explicit fallback;
-2. score placement candidates with real bounded wire candidates instead of only the
-   Manhattan anchor estimate;
-3. promote single-connection planning into bounded sheet-level net ordering;
-4. turn advisory placement feedback into bounded candidate moves and re-score them;
-5. re-route only affected nets after a placement repair;
-6. add reference-motif-driven placement candidate generation;
-7. validate schematic rotation semantics in the real host before enabling automatic
+1. promote per-candidate scoring into bounded sheet-level net ordering and congestion-aware
+   route scheduling;
+2. turn advisory placement feedback into bounded candidate moves and re-score them through
+   the joint route scorer;
+3. re-route only affected nets after a placement repair and compose the selected placement +
+   wire edits into one guarded transaction plan;
+4. add reference-motif-driven placement candidate generation;
+5. validate schematic rotation semantics in the real host before enabling automatic
    pin-facing rotation decisions by default;
-8. run placement, routing and scoring in a bounded generate -> score -> improve loop;
-9. preserve the existing guarded transaction/review path for the selected candidate;
-10. expose only a small deliberate public MCP surface after the internal architecture is
-    proven.
+6. run placement, routing and scoring in a bounded generate -> score -> improve loop;
+7. preserve the existing guarded transaction/review path for the selected candidate;
+8. expose only a small deliberate public MCP surface after the internal architecture is
+   proven.
 
 The quality target is practical: a deliberately ugly but electrically correct schematic
 should become materially easier for an engineer to read without routine manual cleanup.
