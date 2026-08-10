@@ -250,6 +250,16 @@ Keep these statements separate:
 
 The private/manual Q1 Component Angle campaign is PASS on the later accepted production checkpoint, while the immutable `v0.2.1` release record correctly retains `NOT_RUN` because it predates that campaign.
 
+## Runtime defaults
+
+The bridge timeout default is part of the public operator contract and is also reported by `get_capabilities`.
+
+| Environment variable | Default (seconds) |
+| --- | ---: |
+| `DIPTRACE_MCP_SESSION_TIMEOUT` | `1800` |
+
+An explicit positive `--timeout` or `DIPTRACE_MCP_SESSION_TIMEOUT` overrides the default for the bridge session.
+
 ## Troubleshooting
 
 If a tool unexpectedly refuses to act:
