@@ -114,7 +114,7 @@ Failed route observations can return bounded endpoint-placement feedback. Refere
 
 ## Generation D — whole-board optimization
 
-**Status: implemented internally on `pcb_joint_optimizer.py`; PR #86 is the final merge gate.**
+**Status: implemented, regression-tested and merged to `main` in PR #86.**
 
 Generation D selects among bounded whole-board candidates without bypassing the existing guarded write path.
 
