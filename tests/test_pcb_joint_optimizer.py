@@ -134,7 +134,7 @@ def test_generation_d_rejects_nonfinite_soft_scores() -> None:
         select_pcb_candidate([candidate])
 
 
-def test_generation_d_benchmark_catalog_covers_engineering_traps_without_claiming_native_acceptance() -> None:
+def test_generation_d_benchmark_catalog_has_engineering_traps() -> None:
     catalog = pcb_benchmark_catalog()
     ids = {item.family_id for item in catalog}
 
