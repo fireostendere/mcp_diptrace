@@ -1,182 +1,135 @@
-# MCP Tools and Resources
+# MCP Tools
 
-The complete runtime tool list must be requested through MCP `tools/list`.
-Actual availability for a particular document, source type, policy profile,
-geometry backend, and external-adapter configuration is reported by
-`get_capabilities`.
+## Public contract
 
-A registered tool is not the same as a universally available operation and is
-not a claim of real DipTrace round-trip verification.
+DipTrace MCP currently exposes **159 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
 
-## Frozen public contract
+`reference/mcp-tools-list.snapshot.json`
 
-The current source tree exposes 159 registered tools. The complete non-null
-wire-level `Tool` models are frozen in
-[`reference/mcp-tools-list.snapshot.json`](../reference/mcp-tools-list.snapshot.json).
-The current canonical snapshot is:
+CI regenerates that snapshot through the public in-memory MCP transport and fails if the public contract changes unexpectedly. Runtime `get_capabilities` remains authoritative for whether a particular tool/path is usable for the active installation, document, policy and adapters.
 
-- tool count: `159`;
-- canonical descriptor size: `142746` UTF-8 bytes;
-- SHA-256: `073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db`.
+The service contract currently contains:
 
-The snapshot is generated through the public in-memory MCP transport rather
-than FastMCP internals. CI rejects unregenerated contract drift. Internal
-service ownership and forwarding topology are implementation details rather
-than a second versioned API contract.
+- 157 public `DipTraceService` methods;
+- 148 explicit Facade-to-domain-service delegations.
 
-## Input schemas, units, and errors
+Internal EDA modules added after `v0.2.1` intentionally do **not** create one public MCP tool per heuristic.
 
-All public geometry distances are normalised to millimetres regardless of the
-source document's `Units` literal.
+## Capability groups
 
-Complex object parameters use named schema-backed models. Shared schemas are
-available through `diptrace://schemas/tool-inputs`; compact inline parameters
-carry their corresponding `x-diptrace-schema` URI.
+The exact names and schemas are in the generated snapshot. Conceptually the public tools cover:
 
-MCP failures use a bounded structured envelope with:
+- document discovery/open/read/query;
+- PCB, schematic, Component Library and Pattern Library inspection;
+- connectivity, BOM, component/library metadata;
+- DRC/ERC/review/comparison;
+- placement, silkscreen and bounded routing workflows;
+- trace, via, text, component and NetClass semantic edits;
+- schematic authoring and synchronization;
+- transactions, preview/commit, backup/recovery;
+- live-session apply/cancel controls;
+- evidence/provenance/trust handling;
+- bounded external jobs/adapters;
+- release/readiness and other project-owned analysis helpers.
 
-- stable public error code;
-- safe bounded details;
-- retryability status.
+Use MCP introspection rather than copying a manually maintained 159-item list into application code or documentation.
 
-Internal exception messages and causes are not returned to clients.
+## Tool availability
 
-Opaque IDs are provenance-bound. Object IDs come from query/model tools;
-transaction, plan, report, export, and job IDs come from their respective
-create/run tools. Callers must not invent them.
+A registered tool may still refuse or report a bounded capability because of:
 
-## Write contract
+- wrong document kind;
+- unsupported format/feature in the active document;
+- missing optional dependency or external adapter;
+- platform restriction;
+- policy restriction;
+- missing real/authoritative physical input;
+- stale expected SHA;
+- live-session state;
+- evidence/trust boundary.
 
-Where exposed, `dry_run=true` is the default and must not modify design bytes.
-A real write requires `dry_run=false` and the exact `expected_sha256` returned
-by the relevant inspection or preview.
+Call `get_capabilities` and handle the stable public error envelope rather than inferring availability only from `tools/list`.
 
-Creation of a new target needs no target SHA. Replacing an existing target
-requires:
+## Public error boundary
 
-- `overwrite=true`;
-- the current target `expected_sha256`;
-- backup capture;
-- reparse and write-impact validation;
-- atomic replacement.
+Registered tools use the centralized error boundary documented in [API_ERRORS.md](API_ERRORS.md). Safe structured errors are returned without leaking arbitrary internal exception detail or silently converting a refusal into success.
 
-For seed copies, `expected_seed_sha256` protects the seed input independently
-from the target's `expected_sha256`.
+## Write tools
 
-`finish_live_session(action="apply")` requires the current working-document
-SHA. The server checks it before publishing the finish marker and the bridge
-checks it again before replacing the external exchange file. `cancel` requires
-no hash and must not replace the exchange XML.
+Write-capable tools remain behind the guarded operation path:
 
-Every semantic transaction, raw XML edit, scaffold/seed write, overwrite, and
-live apply passes a conservative impact gate over normalised objects plus exact
-XML elements. These views may overlap; refusal is preferred to undercounting.
+1. safe path / allowed-root validation;
+2. bounded XML parse/model load;
+3. semantic operation validation;
+4. exact preview/expected SHA binding;
+5. policy/write-impact checks;
+6. backup/temporary write/atomic replacement;
+7. transaction/recovery metadata;
+8. live-session identity checks when applicable.
 
-## Read and query
+The public tool surface is not permission to bypass those boundaries.
 
-The read surface includes:
+## Internal schematic intelligence
 
-- status, capabilities, document information, and discovery;
-- normalised PCB, schematic, Component Library, and Pattern Library models;
-- selectors, stable IDs, object reads, and spatial queries;
-- connectivity, components, nets, rules, stackup, via styles, and XML fragments;
-- BOM, copper pours, unrouted connections, route details, and text objects;
-- net lengths, differential pairs, and preliminary impedance analysis;
-- component/pattern library lookup and validation.
+The following current capabilities are internal modules/services and are not represented as new public tools solely because they exist:
 
-Unknown XML remains available through bounded fragment reads and is preserved
-outside targeted write regions.
+- schematic design intent / functional blocks / reference motifs;
+- bounded multi-candidate placement optimization;
+- non-mutating wire quality planning/feedback;
+- conservative pin-geometry resolution;
+- pin-aware joint route/placement scoring;
+- bounded placement repair.
 
-## Review and analysis
+Selected results ultimately use ordinary semantic operations/transaction paths. See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
-The analysis surface includes:
+## Internal PCB Generations A-D
 
-- bounded board/schematic/connectivity/DRC/ERC review;
-- BOM, assembly, DFM/DFA/DFT, thermal-metadata, and design comparison;
-- persistent findings with explicit skipped and partial categories;
-- placement scoring and congestion analysis;
-- NetClass-aware routing and trace-clearance resolution;
-- return-path, differential-pair, length/skew, and preliminary SI helpers;
-- typed optional Freerouting, ngspice, and openEMS jobs.
+The PCB design-engine layers are also internal:
 
-These tools do not provide fabrication, assembly, regulatory, or universal
-engineering sign-off. The authoritative coverage matrix is
-[`REVIEW_ENGINE.md`](REVIEW_ENGINE.md).
+- Generation A intent/net intelligence and placement v2;
+- Generation B physical/PDN/return-path/noise/via context;
+- Generation C routing policy / observed-route engineering checks / feedback;
+- Generation D bounded whole-board candidate selection.
 
-## Semantic writes
+They preserve the existing 159-tool public contract. See [PCB_DESIGN_ENGINE.md](PCB_DESIGN_ENGINE.md).
 
-Implemented high-level writes include:
+## Component/Pattern Library mutation
 
-- synthetic PCB/schematic creation and seed-based document creation;
-- component/part move, rotate, side, lock, value, properties, pattern,
-  alignment, distribution, and grouping;
-- board-text position, rotation, visibility, and style;
-- schematic sheets, parts, pin connectivity, wires, labels, and no-connect;
-- additive and guarded exact schematic-to-PCB synchronisation;
-- NetClass assignment/rules, trace widths, via styles, and length constraints;
-- panelisation parameters;
-- standalone test points;
-- trace/via primitives, local routes, multi-net routes, and differential-pair
-  routes;
-- stored placement, silkscreen, route, and external-router plans;
-- expert raw XML edits.
+A raw-preserving internal Component/Pattern Library mutation core exists and has controlled real-editor evidence. Public registration of native-library write operations is still a separate API/product decision; do not infer a public tool merely from the internal implementation.
 
-High-level writes use preview/transaction, expected SHA, reparse, bounded
-checks, backup, commit, and rollback. Raw XML editing remains an expert escape
-hatch.
+## Cinematic mode is not an MCP-surface expansion
 
-## Transactions and resources
+Cinematic replay/profile/recording utilities are Python modules and presentation helpers. They do not add MCP tools and do not change the `tools/list` snapshot.
 
-Transactions expose plan, preview, validation, commit, rollback, and recovery
-records. Persistent resources include transactions, plans, findings, jobs,
-exports, live sessions, capabilities, schemas, and bounded previews.
+They are invoked with module CLIs such as:
 
-Resource identifiers and state transitions are validated before use. Persistent
-stores apply bounded retention but preserve active or unverifiable state.
+```bash
+python -m diptrace_mcp.diptrace_profile_cli --help
+python -m diptrace_mcp.cinematic_cli --help
+python -m diptrace_mcp.cinematic_host --help
+```
 
-## Placement and routing limits
+Visible UI replay is presentation automation and does not bypass XML/transaction evidence boundaries. See [CINEMATIC_DEMO_MODE.md](CINEMATIC_DEMO_MODE.md).
 
-The local implementation supports:
+## Evidence status
 
-- deterministic silkscreen and local placement plans;
-- multi-layer orthogonal/45-degree routing with bounded vias;
-- congestion-ordered multi-net routing with batch-local rip-up/retry;
-- atomic centreline-based differential-pair routing;
-- DSN export and guarded SES inspect/import.
+Do not use this document as a universal compatibility matrix. Public registration, repository implementation, runtime availability and real-DipTrace verification are different facts.
 
-It does not implement push-and-shove, arbitrary free-angle routing, global
-optimisation equivalent to a full EDA engine, or native DipTrace autorouter
-control.
+The later private/manual Q1 Component Angle campaign is PASS on the accepted production checkpoint. Historical `v0.2.0` / `v0.2.1` release records and evidence templates retain the status that was true when those artifacts were created; they are not rewritten retroactively.
 
-## Trust and evidence boundary
+For current acceptance status use [ROADMAP.md](ROADMAP.md) and [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md).
 
-User-controlled files, sidecars, hashes, and evidence manifests cannot mint
-package-owned high trust. User-supplied evidence tools can validate and record
-bounded comparison metadata, but remain classified as user supplied and
-requiring DipTrace verification.
+## Updating the public contract
 
-The capability layer intentionally does not claim complete trust-invalidation
-coverage for:
+When an intentional public tool change is approved:
 
-- `plan_apply`;
-- `ses_import`;
-- `schematic_to_pcb_sync`;
-- `live_session_apply`.
+1. update the typed service/domain implementation;
+2. update thin server registration;
+3. add transport/schema/error tests;
+4. regenerate the complete MCP snapshot;
+5. update capability discovery and affected skill contracts;
+6. review discovery-surface budget impact;
+7. update this document and release notes;
+8. keep real-host verification claims separate from implementation claims.
 
-Q1 Component Angle GUI/re-export evidence remains `NOT_RUN`; rotation results
-retain a structured warning.
-
-## Runtime and transport
-
-The server supports:
-
-- MCP stdio;
-- loopback Streamable HTTP;
-- offline XML workflows on Windows, Linux, macOS, and WSL;
-- live DipTrace exchange through the Windows executable bridge.
-
-Streamable HTTP is intended for trusted local loopback use. OAuth, remote
-multi-user isolation, and a hosted service boundary are not implemented.
-
-Mutable source/release versions are intentionally not duplicated here; use the
-package metadata and release records for current publication state.
+Do not hand-edit `reference/mcp-tools-list.snapshot.json` to force a test pass.

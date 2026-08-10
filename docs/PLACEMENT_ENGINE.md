@@ -1,77 +1,127 @@
 # Placement Engine
 
-## Two placement layers
+## Current architecture
 
-The project now has two deliberately different PCB placement layers.
+Placement is intentionally split into low-level legality/geometry handling and higher-level engineering/readability intelligence.
 
-`placement.py` remains the bounded low-level legalizer used by the existing public MCP workflow. `pcb_placement.py` is the Generation A internal intent-aware placer. The higher layer reuses the lower layer's normalized geometry and scoring instead of duplicating outline, keepout or overlap rules.
+```text
+normalized document + explicit constraints
+        |
+        +--> low-level placement/legalization
+        |       outline / keepouts / overlap / locked parts / grid
+        |
+        +--> higher-level intent/readability scoring
+                schematic placement optimizer
+                PCB Generation A placement v2
+                later B-D analysis/joint selection
+        |
+        v
+bounded placement candidate(s)
+        |
+        v
+ordinary semantic move operations / guarded plan
+```
 
-No Generation A change expands the frozen public MCP `tools/list` contract.
+The higher-level engines do not bypass the existing semantic-operation, preview, expected-SHA, policy, transaction or review path.
 
-## Local legalizer — existing public workflow
+## Low-level placement authority
 
-Phase 7 provides a deterministic incremental/local placer. Every write plan requires an explicit selector, source SHA, preview, and semantic transaction. A single plan is limited to 50 components, 512 base grid positions per component, and 30 seconds.
+The existing placement/geometry layer remains responsible for bounded geometric reasoning such as:
 
-Legality checks include:
+- board/sheet bounds where represented;
+- keepouts and obstacles;
+- locked/fixed objects;
+- overlap/collision legality;
+- grid snapping and deterministic ordering;
+- conservative candidate generation/legalization.
 
-- containment within the board outline and an optional region;
-- same-side component spacing;
-- placement keepouts;
-- preservation of locked objects.
+It is deliberately not a full industrial global placer and does not infer missing electrical facts.
 
-Candidate bounds retain the normalized footprint's offset from its component anchor. Moves translate that bound, and rotation candidates rotate it about the real anchor instead of re-centering the bound on the anchor.
+## Schematic placement
 
-The score reports separate weighted contributions for overlap, containment, keepout, ratsnest wire length, movement, rotation, and side changes, together with raw overlap area, wire length, and movement. Ratsnest distance is currently measured between component anchors.
+The schematic layout stack is documented in [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
-The existing public workflow remains:
+Current implementation includes:
 
-1. call `analyze_placement`;
-2. call `generate_placement_candidates` or `score_placement`;
-3. call `plan_component_placement` or `legalize_component_placement`;
-4. review unresolved items, score and preview resources;
-5. call `apply_component_placement_plan(dry_run=true)`;
-6. commit against the source SHA, run review and roll back on regression.
+- functional-block/anchor/support placement;
+- configurable grid and bounded row packing;
+- locked-part preservation;
+- bounded deterministic multi-candidate search;
+- readability, movement and estimated-interconnect scoring;
+- pin-aware joint routing score of hypothetical candidates;
+- route-feedback-driven bounded placement repair.
 
-Before storing a public plan, the MCP server applies its operations in memory and compares placement DRC errors before and after. A plan that introduces new errors is rejected with `drc_regression`.
+Important boundary: placement planners refuse already-wired schematics by default. Moving symbols while leaving existing wire geometry unchanged would degrade connectivity presentation. Selective affected-wire reroute/replacement must be composed atomically with placement before that path is enabled broadly.
 
-## PCB placement v2 — Generation A internal engine
+Automatic pin-facing rotation also remains conservative until the relevant real-host angle/rotation semantics are sufficiently verified.
 
-Generation A adds `pcb_placement.py` above the local legalizer. It consumes `PCBDesignIntent` from `pcb_design_intent.py` and treats placement as an electrical-structure problem rather than only a ratsnest problem.
+## PCB Generation A placement v2
 
-The deterministic order is:
+`pcb_placement.py` is the higher PCB placement layer added by Generation A. It uses engineering intent from `pcb_design_intent.py` while retaining the existing low-level legality engine.
 
-1. keep locked and mechanically anchored components fixed;
-2. place/consider principal functional anchors before support members;
-3. pull support components toward their resolved anchor;
-4. derive other desired positions from critical connected nets;
-5. generate a bounded candidate set around the desired region;
-6. reject candidates that increase hard overlap/containment/keepout penalties;
-7. choose only a candidate that improves the complete decomposed score;
-8. emit ordinary `MoveComponentsOperation` objects.
+Generation A placement can:
 
-The v2 score contains separate terms for:
+1. keep locked/mechanically anchored components fixed;
+2. handle principal functional anchors before support components;
+3. pull support components toward resolved anchors;
+4. derive desired regions from critical connectivity;
+5. generate bounded deterministic board candidates;
+6. reject candidates that worsen hard overlap/outline/keepout penalties;
+7. score functional-block cohesion, support adjacency, critical connection distance and intent-level noise proximity separately;
+8. emit ordinary semantic move operations rather than editing XML directly.
 
-- the existing placement geometry/ratsnest score;
-- functional-block cohesion;
+Generation A preserves unknown physical values and uses bounded proximity/intent proxies where exact physics are unavailable.
+
+## PCB Generations B-D interaction
+
+The old statement that stackup, PDN, routing policy and whole-board optimisation are merely future placement work is no longer correct. They exist as sibling/later internal layers:
+
+- **Generation B (`pcb_physical.py`)** adds stackup/reference, PDN/current-path, return-path, timing-gated noise and via context;
+- **Generation C (`pcb_routing_policy.py`)** adds engineering-aware route policy, observed-route checks and bounded placement feedback;
+- **Generation D (`pcb_joint_optimizer.py`)** compares bounded whole-board candidates with hard safety/mechanical/connectivity/DRC/reference/manufacturing dimensions dominant over soft placement/routing/SI/PI/thermal/etc. scores.
+
+Those layers do not turn placement into a field solver. They refine or select candidates while preserving explicit evidence/unknown boundaries.
+
+## Placement scoring rules
+
+Scores should remain decomposed and explainable. Typical categories include:
+
+- hard geometry/legal violations;
+- movement from current placement;
+- functional-group cohesion;
 - support-to-anchor adjacency;
-- critical-net connection distance;
-- intent-level aggressor/victim proximity.
+- critical connection distance;
+- readability/flow terms for schematic;
+- routeability/route quality evidence;
+- aggressor/victim proximity when supported by intent/evidence;
+- reference-path/manufacturing dimensions at later PCB generations.
 
-The planner preserves existing side and rotation in Generation A. That keeps the first electrical-placement implementation narrow and makes the existing semantic move path the only mutation primitive required.
+Hard safety/legal violations cannot be compensated by a better cosmetic soft score.
 
-## Engineering intent boundary
+## Determinism and bounds
 
-Generation A placement uses deterministic proxies only. Component role, functional grouping, criticality and noise sensitivity/emission may affect placement, but the engine does not claim field-solver, thermal or PDN accuracy.
+Placement search must have explicit deterministic tie-breakers and resource bounds:
 
-Unknown current, edge rate, impedance and datasheet facts remain unknown unless supplied explicitly. Full decoupling loop geometry, power-loop area, stackup/reference-plane scoring, crosstalk and thermal spreading belong to later PCB generations documented in [`PCB_DESIGN_ENGINE.md`](PCB_DESIGN_ENGINE.md).
+- maximum candidate count;
+- grid/translation bounds;
+- stable object ordering;
+- stable candidate IDs/order;
+- finite-score validation;
+- no hidden random global optimization.
 
-## Limitations
+A bounded candidate search may fail to find the global optimum. The project reports that limitation instead of claiming global placement optimality.
 
-- The local Phase 7 engine is still greedy/local legalization, not global placement.
-- Generation A v2 is board-level and intent-aware but remains a bounded deterministic candidate optimizer, not a proof of global optimum.
-- Bounding-box confidence is limited without authoritative footprint body/courtyard geometry.
-- V2 preserves component side and rotation.
-- Decoupling and power-loop terms are connectivity/proximity proxies until pad-level current paths are modeled.
-- Noise separation uses intent risk and distance only; coupling geometry and frequency overlap are deferred.
-- Thermal role is modeled as intent but no heat-flow calculation is performed.
-- `deterministic_seed` remains part of the local placer contract; the current local algorithm does not use randomness.
+## Evidence boundaries
+
+Repository tests can establish deterministic candidate behaviour on fixtures. Real-DipTrace evidence is still required for claims involving native semantics, rotation conventions, refill/copper effects or product-level usefulness.
+
+The Generation D benchmark catalog is synthetic-regression-only until the documented real-DipTrace acceptance path is completed.
+
+## Current limitations
+
+- no globally optimal placer claim;
+- schematic selective reroute transaction after movement is still pending;
+- schematic automatic rotation/pin-facing is evidence-limited;
+- Generation A proximity/noise/thermal/current-return terms are not field/thermal/PI simulation;
+- Generations B-D are bounded evidence-aware layers, not manufacturing/EMC sign-off;
+- authoritative poured-copper/refill behavior is outside the low-level placer and remains a native-host evidence boundary.

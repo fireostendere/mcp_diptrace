@@ -5,8 +5,11 @@ description: Audit DipTrace component and pattern libraries for pin, pad, mappin
 
 # Library quality audit
 
-Validate library records as exported. Native Component/Pattern Library mutation is not an
-implemented or evidence-qualified capability.
+Audit exported Component/Pattern Library records through the public read/validation surface.
+Current `main` also contains an internal raw-preserving library mutation core with controlled real
+Component Editor / Pattern Editor round-trip evidence, but that core is not registered as a public
+native-library write capability and this skill remains read-only.
+
 Use public `tools/list` for exact callable names and `get_capabilities` for document/configured
 feature availability.
 
@@ -32,19 +35,20 @@ feature availability.
   separate fabrication-profile question.
 - Coordinates returned by the service are millimetres regardless of the document `Units` value.
 
-The validators are the source of these checks:
-[`library_adapters.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/library_adapters.py)
-and
-[`server.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/server.py).
+The public validators remain the source of these audit checks. Internal mutation evidence does not
+expand the skill's callable surface.
 
 ## Refusals
 
-- Do not call raw XML edits to imitate a library writer.
-- Do not report a library as DipTrace-round-trip verified without reviewed provenance.
-- Do not infer courtyard, mask, paste, or Component/Pattern Editor semantics absent from public
-  specification or committed evidence.
-- Do not turn a read-only audit into `set_component_pattern`; that tool is not native library
+- Do not call raw XML edits to imitate an unregistered public library writer.
+- Do not invoke an internal mutation implementation through unsupported/private entry points.
+- Do not report a library as universally DipTrace-round-trip verified; scope evidence to the exact
+  controlled operations/editor/candidate that were actually tested.
+- Do not infer untested mask, paste, courtyard, identity, or canonicalization semantics from a
+  synthetic fixture.
+- Do not turn a read-only audit into `set_component_pattern`; that operation is not native library
   mutation.
 
 Use `document` evidence for parsed facts and `heuristic` only for explicitly named engineering
-advice. Consult [`../capability-map.json`](../capability-map.json) for the native-mutation refusal.
+advice. Consult [`../capability-map.json`](../capability-map.json) for the public native-mutation
+boundary.

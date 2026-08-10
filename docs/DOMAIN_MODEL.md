@@ -1,64 +1,181 @@
 # Domain Model
 
-The normalized document/domain layer is independent of XPath and exposes Pydantic models and JSON-compatible types. XML element identity is stored separately in `DocumentSnapshot.elements`.
+## Purpose
 
-The intelligent-layout layer builds additional typed intent models above normalized documents. These models may consume exported connectivity and project/operator constraints, but they do not become a second XML representation and do not write files directly.
+The domain model separates raw DipTrace XML, normalized observable facts, inferred engineering intent, operator-provided constraints and candidate/analysis results. The project deliberately avoids turning an inferred label or missing physical value into an authoritative fact.
 
-## Documents and Objects
+## Core layers
 
-- `DocumentInfo`: source type, version, units, path, live status, size, SHA, compatibility, and warnings.
-- `ObjectRecord`: stable ID, XML ID, kind, parent, RefDes/name/value, layer/side/net, geometry, confidence, attributes, and relationships.
-- `BoardModel`: outline, components, pads, holes, traces, vias, pours, keepouts, layers, patterns, rules, stackup, differential pairs, ratlines, texts, and test points.
-- `ViaStyleModel`: normalized diameter/hole, `Lay1`/`Lay2`, inclusive layer span, provenance (`explicit`/`unspecified`/`invalid`), and original XML attributes.
-- A routed physical via is a trace point with a valid `ViaStyle` **and** an actual change between the incoming and outgoing `Lay`. `ViaStyle` on a same-layer point is preserved as trace metadata but is not normalized as a via. Standalone/static vias are normalized from `Components/Component[@Type='Via']`.
-- `SchematicModel`: sheets, parts, pins, nets, wires, buses, ports, labels, and ERC data.
-- `LibraryModel`: components, pins, patterns, pad styles, pads, holes, shapes, and 3D references.
-- `ConnectivityGraph`: logical net membership, owner connected components, endpoint mapping, and separate physical PCB ratlines.
+```text
+raw DipTrace XML
+    |
+    v
+secure parser / format-specific models
+    |
+    v
+normalized PCB / schematic / library models
+    |
+    +--> observed geometry/connectivity/metadata
+    +--> stable IDs and provenance
+    |
+    v
+engineering-intent / analysis layers
+    |
+    +--> schematic intent + motifs
+    +--> PCB Generations A-D
+    |
+    v
+candidate plans / metrics / findings / feedback
+    |
+    v
+typed semantic operations
+    |
+    v
+guarded transaction path
+```
 
-## Intelligent schematic/PCB intent
+## Facts versus inference
 
-The layout engines deliberately distinguish **observed document facts** from **engineering intent inferred or supplied from those facts**.
+Keep three categories explicit:
 
-Schematic intent remains in the schematic layout modules. PCB Generation A adds the internal models in `pcb_design_intent.py`:
+1. **Observed fact** — directly supported by parsed document/export/evidence;
+2. **Inferred intent** — deterministic heuristic/classification with reasons/confidence;
+3. **Operator/reference fact** — explicit project/operator input with provenance.
 
-- `PCBDesignIntent`: document-level component, net, functional-block and power/ground intent plus explicit assumptions/warnings;
-- `PCBComponentIntent`: role, functional block/anchor, mechanical-anchor status, noise emission/sensitivity, thermal role, placement priority, confidence and reasons;
-- `PCBNetIntent`: multi-role electrical classification, component membership, criticality, noise risk, via penalty, reference-plane expectation, optional electrical constraints, confidence and reasons;
-- `PCBFunctionalBlock`: deterministic principal-anchor/support grouping;
-- `PCBPowerGroundStrategy`: continuous-plane, local plane/pour, local-copper-minimized, Kelvin-candidate, chassis/shield or explicit-star intent;
-- `PCBElectricalConstraints`: optional edge rate, frequency, current, impedance/tolerance, length/skew, via/layer/reference/spacing/stub/shielding facts;
-- `PCBIntentOverrides`: project/operator facts that replace or supplement heuristic inference when XML cannot prove a property.
+A component name may suggest a role. It does not prove a datasheet, current, edge rate, impedance, thermal limit or manufacturing capability. Those values remain unknown unless supplied by appropriate evidence.
 
-A net may have several roles at once. For example, a current-sense net can be analog, precision-sensitive and current-sense simultaneously. Physical values stay `None` unless exported or supplied; role classification never fabricates a current, edge rate or impedance target.
+## Stable identities
 
-The power/ground intent model is policy, not copper geometry. Generation A prefers a continuous reference for ordinary ground and never infers a split/star ground merely because analog/digital names are present. Deeper PDN, return-path, stackup and field reasoning belongs to later PCB generations.
+Normalized objects use stable/canonical IDs where possible so plans, findings, transactions and evidence can refer to the same object without depending on transient list position.
 
-## Placement models
+Stable identity is especially important for:
 
-The existing `PlacementConfig`/`PlacementProposal`/`PlacementPlanningResult` models describe bounded local legalization and retain the established outline/keepout/overlap safety behavior.
+- components/parts;
+- nets;
+- traces/vias/wires;
+- library components/patterns/pins;
+- findings and candidate plans;
+- live-session/transaction records.
 
-PCB Generation A adds `PCBPlacementV2Config`, `PCBPlacementV2Score`, `PCBPlacementV2Analysis` and `PCBPlacementV2Plan`. The v2 planner consumes `PCBDesignIntent`, reuses the existing placement scorer for hard geometry, adds decomposed electrical-intent terms, and emits ordinary semantic move operations. It is intentionally an internal EDA layer rather than a new public MCP contract.
+## Schematic domain layer
 
-## SI, Review, and Workflow
+The normalized schematic model provides parts, sheets, pins/connectivity, wires, labels/text and embedded Design Cache data used by the higher layout engine.
 
-- `StackupModel`, `DifferentialPairModel`, `NetLengthMeasurement`.
-- `ImpedanceInput`/`ImpedanceResult` with method, assumptions, sensitivity, and confidence.
-- `FieldSolverRequest`/`FieldSolverResult`/`FieldSolverPoint` for a frequency-bound, convergence-aware external stripline result.
-- `Finding`/`ReviewReport`, `BomRecord`, `ReturnPathAnalysis`.
-- `TransactionRecord`, `PlanRecord`, `JobRecord`, `ExportRecord`.
-- `QuerySelector`, `QueryRequest`, `WriteScope`.
+The schematic intelligence layer adds:
 
-## Stable IDs
+- coarse part roles;
+- coarse net roles;
+- deterministic functional blocks;
+- principal/support relationships when uniquely supported;
+- reference motifs with provenance/confidence;
+- readability metrics;
+- placement candidates;
+- route metrics/placement feedback;
+- resolved/unresolved pin-geometry evidence;
+- joint route/placement scores;
+- bounded repair candidates.
 
-A stable ID is generated deterministically from the source type, object kind, and verified XML identity. It remains stable across unrelated edits, but is not guaranteed to survive object deletion and recreation with a different XML identity. The writer modifies the original XML tree instead of serializing the entire document from the domain model, so unknown sections are preserved.
+Reference motifs encode relative intent such as near/left/right/above/below/same-row/same-column. They do not copy absolute datasheet page coordinates or silently claim that a component name proves a particular reference circuit.
 
-Intent models reference normalized stable IDs rather than inventing a parallel object identity. Operator overrides may select by stable ID or unambiguous human identifier, then resolve to the normalized stable ID before optimization.
+Unresolved or ambiguous Design Cache/library pin matches remain explicit rather than being guessed.
 
-## Limitations
+## PCB Generation A domain layer
 
-- A bounding box may be an estimate when the XML does not contain body or courtyard geometry.
-- A copper pour contains a normalized polygon for its exported boundary, layer, and net identity, not the final refilled copper geometry. Clearance and routing consumers must disclose `boundary_only`; GEOS polygon distance is exact only with respect to that boundary, while the no-Shapely fallback is a conservative AABB approximation.
-- PCB Generation A noise/thermal/current-return fields are design intent and deterministic placement proxies, not physical simulation results.
-- Cross-document pin-to-pad mapping uses explicitly documented assumptions.
-- `via_count` is the number of normalized physical vias on a net, while `layer_transition_count` counts only routed layer changes; standalone static vias may increase the former without increasing the latter.
-- Hierarchy and library mutation are not exposed without verified writer fixtures.
+`pcb_design_intent.py` adds higher engineering semantics above raw PCB connectivity:
+
+- component roles;
+- deterministic functional blocks;
+- multi-role net classifications;
+- criticality and noise emission/sensitivity intent;
+- optional physical/electrical constraints;
+- conservative power/ground topology intent;
+- provenance/reasons/confidence and explicit overrides.
+
+This layer is the semantic foundation, not the complete PCB engine.
+
+## PCB Generation B domain layer
+
+`pcb_physical.py` augments intent with bounded physical context derived from available evidence:
+
+- exported stackup/reference candidates;
+- PDN source/load/decoupling relationships;
+- regulator hot-loop candidates;
+- return-path observations;
+- timing-gated aggressor/victim risk context;
+- semantic via roles.
+
+Missing current/current density/voltage drop/via capacity or authoritative refill geometry remain unknown. Generation B does not convert local heuristics into field-solver or PI/EMC proof.
+
+## PCB Generation C domain layer
+
+`pcb_routing_policy.py` represents route policy and observed-route engineering constraints:
+
+- deterministic priority/order;
+- spacing preferences/requirements;
+- preferred/forbidden layers;
+- via budgets/penalties;
+- impedance/tolerance;
+- maximum length/skew;
+- reference requirements;
+- stub sensitivity;
+- shielding preference;
+- copper/topology intent;
+- bounded placement feedback.
+
+When width/timing/impedance/reference data are absent, the model preserves that absence rather than synthesizing constants.
+
+## PCB Generation D domain layer
+
+`pcb_joint_optimizer.py` represents bounded whole-board candidates and decomposed score dimensions.
+
+Hard dimensions include safety, mechanical, connectivity, DRC, reference-path and manufacturing constraints. They are lexicographically dominant over soft placement/routing/via/SI/PI/return-path/EMI-risk/thermal-risk/manufacturing metrics.
+
+A candidate may carry plan/evidence references. Selection does not directly mutate the document.
+
+## Placement model
+
+Two placement levels coexist intentionally:
+
+- low-level placement/legalization models handle geometry, outline, keepouts, overlap and ordinary candidate legality;
+- higher-level schematic/PCB intelligence models add functional/electrical/readability scoring and bounded feedback.
+
+The higher layer does not replace the low-level legality authority. See [PLACEMENT_ENGINE.md](PLACEMENT_ENGINE.md).
+
+## Semantic operations
+
+Write intent is represented by typed semantic operations instead of arbitrary XML string patches. Operations are validated/compiled through the guarded execution path and remain subject to preview/expected-SHA/policy/backup/transaction rules.
+
+Internal optimizers should produce operations, operation plans or candidate references rather than writing XML directly.
+
+## Library mutation model
+
+The repository contains an internal raw-preserving Component/Pattern Library mutation core. Its purpose is to preserve unknown/unmodeled XML while making bounded known semantic changes.
+
+Controlled real-editor round-trip evidence exists for the internal core. Public native-library write registration is a separate product/API decision and should not be inferred from the domain implementation.
+
+## Cinematic presentation model
+
+The cinematic subsystem uses presentation-specific models such as timeline events, desktop steps, UI profiles and affine coordinate transforms. These models describe visible replay, not authoritative engineering state.
+
+A `DipTraceUIProfile` is editor/version specific and carries explicit action macros plus a calibrated mapping from design coordinates to normalized client coordinates. It is intentionally separate from normalized engineering models so UI pixels/gestures cannot become hidden engineering facts.
+
+## Evidence and provenance
+
+Analysis/findings/candidates should disclose enough provenance to answer:
+
+- which document/candidate identity was analysed;
+- which facts were observed versus inferred;
+- which optional/operator constraints were used;
+- which approximation/evidence boundary applies;
+- whether the result was synthetic, analytic, runtime-observed or real-DipTrace verified.
+
+User-controlled files/sidecars cannot mint package-owned high trust.
+
+## Current limitations
+
+- full automatic datasheet/reference-design ingestion is not part of the deterministic schematic foundation;
+- schematic rotation/pin-facing semantics are not universally trusted without real-host evidence;
+- selective atomic replacement of existing wires after placement repair remains future work;
+- PCB Generations B-D remain bounded analysis/selection layers, not field/PI/EMC/thermal/native manufacturing authorities;
+- authoritative poured-copper/refill semantics remain a native-host evidence boundary;
+- cinematic replay models cannot be used as proof that a semantic edit succeeded.

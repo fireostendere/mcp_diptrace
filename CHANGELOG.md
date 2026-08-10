@@ -2,8 +2,41 @@
 
 ## Unreleased
 
-No unreleased user-visible changes are recorded after the `v0.2.1` release
-candidate.
+Post-`v0.2.1` development is active on `main` while the next version has not yet
+been selected. The source/package version remains `0.2.1`; these changes are not
+part of the already-published `v0.2.1` bytes.
+
+### Added
+
+- Intelligent schematic-layout foundation: design intent/reference motifs,
+  bounded multi-candidate placement, conservative pin geometry, non-mutating
+  wire planning, pin-aware joint placement/routing scoring, and bounded
+  placement repair.
+- PCB Generations A-D: engineering intent/placement, physical/PDN/return-path
+  context, engineering-aware routing policy, and bounded whole-board candidate
+  selection with a synthetic benchmark catalog.
+- Internal raw-preserving Component/Pattern Library mutation core with
+  controlled real-editor evidence; public native-library write registration
+  remains a separate API decision.
+- Cinematic DipTrace presentation subsystem with UI profiles, affine
+  design-to-client calibration, semantic Schematic/PCB replay adapters, Windows
+  playback, and MP4/GIF recording helpers.
+
+### Changed
+
+- Combined supported-environment coverage is now gated at 90% while the
+  geometry-enabled Linux full-suite job retains its separate 85% floor.
+- Q1 Component Angle was completed as PASS in the later private/manual
+  DipTrace PCB Layout 5.3.0.3 campaign; immutable release-time evidence retains
+  its original historical status.
+- Claude Desktop restart is explicitly WAIVED, not PASS, for the current manual
+  campaign; Windows lifecycle gates remain pending when formal acceptance
+  resumes.
+- Evergreen documentation was reconciled with the published `v0.2.1` state and
+  current post-release implementation without rewriting dated release,
+  acceptance, or compliance snapshots.
+
+See `CHANGELOG_NEXT.md` for the detailed post-`v0.2.1` development record.
 
 ## 0.2.1 - 2026-08-05
 

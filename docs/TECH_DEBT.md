@@ -1,101 +1,140 @@
-# Technical Debt Register
+# Technical Debt
 
-This register separates maintainability debt from evidence debt so release decisions do not conflate missing code with missing real-system proof.
+## Purpose
 
-## Architecture guardrails
+This document tracks remaining engineering limitations in the current `main` implementation. Historical release/audit debt is preserved in dated records and should not be copied here as if it were still current.
 
-The post-0.2.1 maintainability cleanup is complete. The following are continuing constraints, not open refactor tasks:
+## Highest-priority current debt
 
-- keep `diptrace_mcp.server` as a compatibility facade while implementation remains split into input/boundary and runtime modules;
-- keep adapter parsing helpers and record/query builders in explicit modules rather than rebuilding `adapters.py` as a monolith;
-- keep `DipTraceService` focused on orchestration; stateful store construction belongs to `services.container`;
-- keep intelligent schematic/PCB decision logic behind the MCP/application boundary rather than adding one public tool per heuristic;
-- keep normalized XML facts separate from inferred engineering intent and operator-supplied constraints;
-- require intelligent EDA modules to emit typed semantic operations and reuse the existing preview/SHA/transaction/review path instead of writing XML directly;
-- keep unknown physical/electrical facts unknown rather than filling missing current, edge-rate, impedance, stackup or thermal data with invented defaults;
-- coverage floors for high-risk modules are ratchets and must not be lowered merely to make CI pass;
-- packaged skill scripts remain generated copies of canonical scripts and must pass the synchronization gate;
-- release/version-bearing metadata must agree with `release.json`;
-- preserve the published MCP/Facade/error/safety contracts unless a deliberate versioned change is reviewed.
+### 1. Schematic selective reroute transaction
 
-## Repository implementation debt
+The schematic stack now has intent, bounded placement candidates, pin geometry, non-mutating wire planning, joint route scoring and route-feedback placement repair.
 
-There is no known generic repository-only blocker that should be implemented merely to advance the remaining formal acceptance matrix.
+The missing production step is an atomic selective-reroute transaction that can:
 
-The previously open code-side items have implementation/tests, including trust-path coverage, deterministic fixture generation, raw-preserving library mutation, pattern recommendation, DFM/DFA/DFT checks and manual-acceptance tooling.
+1. choose an improved placement candidate/repair;
+2. identify only affected existing nets/wires;
+3. regenerate their bounded routes;
+4. compose placement moves and wire replacement into one guarded plan;
+5. preview/apply/review the whole change under the existing SHA/transaction boundary.
 
-The intelligent design roadmap intentionally creates new product work rather than generic cleanup. PCB Generation A now provides the internal design-intent/net-intelligence layer and intent-aware placement v2. Its documented limitations — pad-level current loops, stackup/reference structure, PDN, crosstalk/field behavior, via roles, copper planning, thermal modeling and joint placement/routing optimization — are scoped Generation B-D work, not hidden defects in Generation A.
+Until that exists, the placement planners correctly refuse already-wired schematics by default.
 
-Real product validation can still expose focused implementation defects. A reproducible schematic or PCB design-quality failure becomes a concrete implementation task even when the corresponding architectural phase is otherwise repository-complete.
+### 2. Schematic real-world quality acceptance
 
-## Completed manual evidence
+Repository tests prove deterministic bounded behaviour, not that complete real schematics consistently look good to engineers.
 
-The current development-line campaign has accepted the following blocking gates:
+Remaining product evidence should cover representative real circuits and measure:
 
-- current real DipTrace PCB open/save/re-export;
-- current real DipTrace Schematic open/save/re-export;
-- Component Library writer round-trip;
-- Pattern Library writer round-trip;
-- authored schematic wires and generated PCB ratlines;
-- complete mask/paste/courtyard/`Common` semantics;
-- Q1 Component Angle GUI/re-export;
-- real Codex Desktop configuration/restart/`get_capabilities`.
+- connectivity/ERC non-regression;
+- symbol/text/wire collisions;
+- crossings/overlaps/bends/detour;
+- block cohesion and compactness;
+- signal-flow readability;
+- native open/save/reopen/re-export preservation;
+- human review of representative before/after results.
 
-The accepted production-code identity through those gates is
-`0bb09b4b3af40a5a3d1a875fab885430a2d251ba`.
+### 3. Schematic rotation/pin-facing authority
 
-## Remaining formal manual evidence debt
+Pin geometry can be resolved conservatively from the embedded Design Cache, but non-zero part rotation remains an evidence-sensitive area. Automatic pin-facing rotation decisions should stay conservative until the exact real-host rotation semantics required by the layout engine are validated.
 
-The project has explicitly waived `claude_desktop_real_client_restart` for the current campaign. This is not PASS evidence: Claude Desktop was not independently configured/restarted, and no Claude-specific runtime evidence exists. The waiver is a project-level risk acceptance based on successful real Codex stdio MCP restart evidence and does not change the conservative canonical manual-acceptance validator.
+### 4. PCB Generations A-D real-host evidence boundary
 
-Three project-required lifecycle gates remain:
+PCB Generations A-D are implemented as internal bounded engineering layers. The remaining debt is not “implement B-D”; it is to strengthen authoritative evidence around the places where the model cannot own native physics/geometry:
 
-- `windows_clean_install_repair_uninstall`;
-- `elevated_plugin_install_profile_preservation`;
-- `custom_state_preservation`.
+- poured copper / refill geometry;
+- plane/reference behavior;
+- native via structures;
+- stackup authority;
+- manufacturing-specific constraints;
+- real-DipTrace product acceptance of Generation D benchmark families.
 
-The formal lifecycle campaign is intentionally paused before those Windows/profile gates while core schematic/PCB design quality is developed and validated more deeply.
+Generation B/C analysis must continue to preserve unknown current/current-density/voltage-drop/impedance/reference facts rather than inventing them.
 
-Claim-specific optional evidence remains external legal/Novarm review when required, a real openEMS integration run only when solver validation is claimed, and public-redownload smoke when a future release changes published bytes.
+### 5. Cinematic real-client acceptance
 
-## Immediate product-validation debt — schematic authoring/readability
+Cinematic mode is implemented and covered in unit/CI tests, but its useful real-world replay depends on editor/version/configuration-specific calibration and action macros.
 
-PR #66 added deterministic bounded wire-quality routing for newly authored schematic wires. Automated tests cover component-region avoidance, schematic text avoidance, crossing avoidance, collinear overlap avoidance, Manhattan paths and bounded deterministic search.
+Remaining work:
 
-That automated coverage and the historical authored-wire round-trip PASS do not prove that the current system can author a complete schematic that is clean and understandable to a human.
+- verify PCB and Schematic action macros against the exact DipTrace 5.3 configurations used for recording;
+- perform end-to-end design-coordinate calibration on real open documents;
+- capture residual/error evidence;
+- add staged playback for via/layer transitions;
+- verify any additional UI gestures before promoting them into reusable profiles.
 
-Before promoting schematic readability claims, validate representative small real schematics in DipTrace. At minimum include:
+Cinematic replay must remain a presentation layer, not a hidden alternate engineering authority.
 
-- resistor divider;
-- LED + resistor;
-- simple RC/divider + capacitor;
-- collision-prone placement;
-- RefDes/Value/net-label-near-wire cases;
-- a small multi-net circuit authored from a clean starting point.
+### 6. Windows lifecycle acceptance
 
-Review both semantics and presentation: connectivity, placement/orientation, wire geometry, crossings/overlaps, text collisions, junction intent, detours/bends, native save/reopen/re-export and whether routine cleanup is unnecessary.
+The current project campaign has 8 canonical manual gates PASS. Claude Desktop restart is explicitly WAIVED, not PASS.
 
-This is a stronger product-quality validation, not a rewrite of the historical `diptrace_ratline_and_wire_roundtrip` gate. Any failure should get its own focused reproducer and regression test.
+When formal lifecycle acceptance resumes, the next project-required gate is:
 
-## PCB Generation A evidence boundary
+`windows_clean_install_repair_uninstall`
 
-Generation A repository tests can prove deterministic intent classification, explicit-unknown handling, conservative power/ground policy, decomposed placement scoring and placement hard-geometry non-regression. They do **not** create real-DipTrace or electrical-performance evidence.
+followed by elevated plug-in/profile preservation and custom-state preservation.
 
-Before later generations promote claims about actual copper/current behavior, controlled evidence must cover the affected native representations. In particular:
+The existing CI installer tests are useful implementation evidence but do not replace the chosen real clean-machine gate.
 
-- ground/power strategy is intent only; it does not prove a plane, pour or star topology is electrically optimal;
-- copper-pour boundaries are not authoritative refill/island/thermal-relief geometry;
-- noise separation is a placement-risk proxy, not crosstalk or EMC simulation;
-- thermal roles are metadata/placement intent, not heat-flow analysis;
-- analytic impedance helpers remain bounded estimates rather than fabrication-controlled impedance certification;
-- Generation A does not require new real-DipTrace evidence because it introduces no new public mutation primitive and emits the already-guarded semantic move operation.
+### 7. Native manufacturing output
 
-Generation B-D acceptance must add targeted real-DipTrace fixtures before authoritative plane/pour/via or product-level PCB claims are promoted.
+The project still does not claim a verified native DipTrace API/path for Gerber, NC Drill, ODB++, IPC-2581 or assembler sign-off generation. Generic manifests/reviews are not manufacturing files.
 
-## Evidence discipline
+This should remain an explicit limitation rather than being papered over by naming an approximation “Gerber export”.
 
-Use `scripts/prepare_manual_acceptance.py` for the canonical manual-only matrix. Historical FAIL attempts remain immutable; repairs get fresh retest attempts.
+### 8. Field/PI/EMC/thermal authority
 
-A project-level waiver must not be rewritten as PASS merely to satisfy the canonical matrix. The validator may continue to report incomplete while Claude remains unrun; that is an explicit known difference between the canonical matrix and the current project campaign.
+Local impedance, return-path, aggressor/victim, PDN and thermal-risk helpers are bounded engineering assistance. They are not field-solver, PI, EMC or thermal sign-off.
 
-Documentation-only commits after an accepted production candidate do not create production-code drift. If relevant production code changes, explicitly identify the new candidate and rerun only the evidence plausibly affected by that change.
+External openEMS integration is an adapter boundary and must be validated as an actual external-solver workflow before stronger claims are made.
+
+### 9. Native library public API decision
+
+A raw-preserving internal Component/Pattern Library mutation core exists and has controlled real-editor round-trip evidence.
+
+Remaining debt is product/API design, not basic implementation:
+
+- decide whether/which native library mutations should become public MCP tools;
+- define exact capability/evidence boundaries;
+- add public schema/snapshot/error/permission tests if exposed;
+- avoid broadening compatibility claims beyond the verified operations.
+
+### 10. Documentation/evidence drift prevention
+
+The repository has many intentionally immutable historical artifacts next to current evergreen docs. This creates recurring drift risk.
+
+Current policy:
+
+- dated release/audit/acceptance/compliance records preserve historical facts;
+- evergreen docs describe current `main` and link to historical evidence explicitly;
+- `CHANGELOG_NEXT.md` tracks post-`v0.2.1` development until the next release is selected;
+- CI-generated contracts/badges/inventories remain generated rather than hand-maintained.
+
+The current status split is maintained in `ROADMAP.md`, `TESTING.md`, `CHANGELOG_NEXT.md` and the dated evidence/release records.
+
+## Resolved / superseded debt
+
+The following should no longer be listed as open technical debt:
+
+- PCB Generation B physical-context implementation — implemented;
+- PCB Generation C routing-policy implementation — implemented;
+- PCB Generation D bounded joint candidate selection — implemented;
+- aggregate repository coverage “target 88%” — superseded by the enforced 90% combined supported-environment gate;
+- Q1 Component Angle manual campaign — PASS on the later accepted production checkpoint;
+- “native Component/Pattern mutation does not exist” — superseded by the internal raw-preserving core and controlled real-editor evidence;
+- cinematic branch integration — merged to `main`.
+
+Historical records that said otherwise remain valid snapshots of their original date/release.
+
+## Permanent non-goals / non-claims
+
+These are not ordinary bugs to “fix” by changing wording:
+
+- universal DipTrace 5.x compatibility;
+- globally optimal schematic or PCB layout;
+- automatic invention of missing electrical/physical values;
+- Novarm/DipTrace endorsement;
+- trusted Authenticode signing without a protected signing identity;
+- independent review when no independent reviewer actually participated;
+- production/fabrication/regulatory sign-off from repository CI.

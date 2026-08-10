@@ -1,41 +1,67 @@
 # Post-0.2.1 development changes
 
-This temporary development record avoids rewriting the immutable `0.2.1` release history while the next release version has not been selected.
+This development record tracks changes merged after the immutable `v0.2.1` release while the next version has not yet been selected. The source/package version remains `0.2.1`; these items are **not** part of the published `v0.2.1` artifacts unless stated otherwise.
 
 ## Added
 
-- raw-preserving internal Component/Pattern Library mutation core;
+### Schematic intelligence
+
+- deterministic schematic design-intent model with functional blocks and provenance-bearing reference motifs;
+- hierarchical schematic placement foundation and bounded multi-candidate placement optimizer;
+- non-mutating schematic wire planner with disclosed readability metrics and explicit placement feedback;
+- conservative Component Library pin-geometry resolution from the embedded Design Cache;
+- pin-aware joint placement/routing scoring for hypothetical candidates;
+- bounded non-mutating placement repair driven by route feedback and re-scored by the joint optimizer.
+
+### PCB Generations A-D
+
+- **Generation A:** engineering intent, component roles, functional blocks, multi-role net classification, explicit electrical constraints, conservative power/ground topology intent and intent-aware placement v2;
+- **Generation B:** exported stackup/reference context, conservative PDN/source/load/decoupling analysis, regulator hot-loop candidates, return-path integration, timing-gated aggressor/victim triage and semantic via roles;
+- **Generation C:** deterministic routing-policy compiler, engineering route ordering, observed-route SI checks, copper/topology strategy and bounded placement feedback;
+- **Generation D:** bounded whole-board candidate selector with lexicographically dominant hard constraints, decomposed soft metrics and a synthetic engineering-trap benchmark catalog.
+
+### Product and engineering support
+
+- raw-preserving internal Component/Pattern Library mutation core with controlled real-editor evidence;
 - deterministic pattern recommendation and privacy-bounded feedback/evaluation baseline;
 - deterministic synthetic acceptance fixture-pack generator;
 - write-path trust invalidation regression coverage;
 - deterministic DFM/DFA/DFT release-readiness supplement;
 - manual-only acceptance evidence generator and validator;
-- internal PCB Generation A design-intent layer with component roles, functional blocks, multi-role net classification, electrical criticality, explicit engineering constraints and conservative power/ground topology intent;
-- internal intent-aware PCB placement v2 layered over the existing geometry legalizer, with decomposed functional-block, support-adjacency, critical-connection and noise-proximity scoring;
-- PCB Generation A regression coverage for unknown-physics preservation, explicit overrides, differential-pair evidence, ground/switch/sense/shield strategies and deterministic placement improvement;
-- internal PCB Generation B physical-context analysis that reuses exported stackup, return-path and normalized via evidence without promoting analytic results to field-solver trust;
-- conservative PDN rail/source/load/decoupling and regulator hot-loop candidates with explicit unknown-current/current-density/voltage-drop boundaries;
-- timing-gated aggressor/victim physical triage and semantic signal/power/ground/return-transition/differential/thermal via roles;
-- PCB Generation B regression coverage for stackup provenance, PDN unknown preservation, explicit current facts, reference-sensitive return paths, timing-gated noise analysis and bounded via-role classification;
-- internal PCB Generation C routing-policy compiler with deterministic engineering route order, explicit layer/via/length/skew/impedance/reference/stub/shield constraints and unknown-width preservation;
-- observed-route SI checks for length, via budget, forbidden layers, reference continuity, impedance, skew and stubs, with no invented universal crosstalk threshold;
-- conservative trace/local-copper/plane/pour strategy and bounded endpoint-placement feedback while native routing/pour edits remain on the existing guarded semantic path;
-- PCB Generation C regression coverage for constraint propagation, route ordering, SI failure/unknown behavior, copper evidence boundaries and wrong-net rejection;
-- internal PCB Generation D whole-board candidate selector with lexicographically dominant safety/mechanical/connectivity/DRC/reference/manufacturing hard violations;
-- decomposed placement/routing/via/SI/PI/return-path/EMI-risk/thermal-risk/manufacturing soft scoring with deterministic tie-breaking and bounded candidate count;
-- Generation D engineering-trap benchmark catalog covering MCU/decoupling/crystal, regulators, mixed-signal ADC, current sense, high-speed differential, Ethernet/CAN, RF, high-current power and multilayer controlled-impedance cases;
-- PCB Generation D regression coverage for hard-rule dominance, deterministic ranking, plan-reference preservation, candidate bounds, non-finite score rejection and synthetic-vs-native acceptance boundaries.
+- aggregate supported-environment coverage gate raised to 90% while preserving the 85% geometry-enabled Linux-only floor.
 
-## Documentation
+### Cinematic presentation mode
 
-- reconciled roadmap, distribution status, release checklist and technical-debt records with the already-published `v0.2.1` state;
-- expanded the intelligent PCB roadmap through Generations A-D: intent/placement, stackup/PDN/return paths/vias, engineering-aware routing/SI/copper strategy, and joint whole-board optimization/acceptance;
-- documented the internal EDA architecture, PCB design-intent domain models and the split between low-level placement legalization and intent-aware placement v2;
-- documented Generation B stackup/reference, PDN, return-path, timing-gated noise and via-intelligence evidence boundaries;
-- documented Generation C routing-policy, observed-route SI, copper/refill and placement-feedback boundaries;
-- documented Generation D hard/soft optimization contract and benchmark acceptance boundary;
-- clarified that the private/manual Q1 Component Angle campaign is PASS while package-owned public evidence/trust promotion remains a separate reviewed contract.
+- deterministic cinematic timelines with `cinematic`, `timelapse`, `tutorial` and `gif` pacing presets;
+- Windows desktop replay host with bounded cursor/click/hotkey/text/path actions and dry-run support;
+- version/editor-specific `DipTraceUIProfile` persistence and readiness validation;
+- affine DipTrace design-coordinate to normalized client-coordinate calibration with residual checks;
+- normalized live cursor probing for one-shot UI calibration;
+- semantic Schematic part/wire replay and PCB Generation A placement replay;
+- same-layer PCB trace replay with fail-closed refusal of unsupported via/layer transitions;
+- HWND-targeted ffmpeg capture plus MP4/GIF post-processing helpers.
 
-The Generation A-D work intentionally leaves the 159-tool public MCP surface unchanged. It is internal EDA capability until a separate, deliberate public API decision is made.
+Cinematic replay is deliberately a presentation branch. The XML bridge and normal preview/SHA/transaction/review path remain authoritative for engineering edits and acceptance.
 
-This file should be folded into the normal `CHANGELOG.md` when the next version is selected.
+## Changed
+
+- The public MCP contract remains frozen at 159 tools despite the new internal EDA layers.
+- The private/manual Q1 Component Angle campaign is now PASS on its accepted production checkpoint; immutable historical release records keep the status that was true when each release was cut.
+- `claude_desktop_real_client_restart` is explicitly WAIVED for the current campaign, not marked PASS; the canonical validator remains conservative.
+- Documentation now distinguishes current implementation state from immutable release/audit/acceptance snapshots.
+- Documentation now describes PCB Generations A-D as implemented internal layers instead of future work.
+- Documentation now describes the schematic phases as partially implemented foundations rather than wholly planned work.
+- Installation/release documentation now reflects that `v0.2.1` and `diptrace-mcp==0.2.1` are already published.
+- Testing documentation now reflects the combined 90% coverage gate and the separate 85% Linux-only floor.
+
+## Remaining boundaries
+
+- selective atomic re-route/replacement of existing schematic wires after placement repair remains future work;
+- stronger sheet-level schematic congestion scheduling and automatic motif ingestion remain future work;
+- real-DipTrace product acceptance for PCB Generation D remains pending;
+- cinematic UI macros and calibration still require real-client verification for the exact DipTrace version/editor configuration;
+- staged cinematic playback of vias/layer transitions remains unsupported;
+- Windows lifecycle gates remain pending after the current manual-acceptance pause;
+- native manufacturing generation, field-solver/PI/EMC/thermal sign-off, universal compatibility, signed-binary trust, independent review and production readiness are not claimed.
+
+This file should be folded into `CHANGELOG.md` when the next version is selected.

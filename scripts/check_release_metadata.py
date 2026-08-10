@@ -33,8 +33,8 @@ def main() -> int:
     if f"Version: `{version}`" not in release_doc:
         failures.append("release record does not match release.json version")
     roadmap = (ROOT / "docs/ROADMAP.md").read_text(encoding="utf-8").lower()
-    if f"current source/package version is `{version}`" not in roadmap:
-        failures.append("ROADMAP current source/package version is stale")
+    if f"source/package version is `{version}`" not in roadmap:
+        failures.append("ROADMAP source/package version is stale")
     if failures:
         for failure in failures:
             print(f"FAIL: {failure}")

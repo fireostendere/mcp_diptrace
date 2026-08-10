@@ -14,22 +14,31 @@ It consists of:
 - `diptrace_mcp_bridge.exe`, the Windows plug-in bridge for projects currently
   open in DipTrace;
 - an internal EDA-intelligence layer for deterministic schematic/PCB intent,
-  candidate generation, scoring and guarded improvement.
+  candidate generation, scoring and guarded improvement;
+- an optional cinematic presentation layer for calibrated visible DipTrace UI
+  replay and MP4/GIF capture.
 
 ## Current status
 
-Version `0.2.1` is the current distribution line. It is prepared as an explicitly
-unsigned alpha/development release with:
+The source/package version remains `0.2.1`. The annotated `v0.2.1` GitHub
+development prerelease and `diptrace-mcp==0.2.1` on PyPI were published on
+2026-08-05 with:
 
-- the Python package `diptrace-mcp==0.2.1` for PyPI;
 - `DipTrace-MCP-Setup-0.2.1.exe`;
 - `DipTrace-MCP-Portable-0.2.1.zip`;
 - `DipTrace-MCP-0.2.1-windows.mcpb`;
 - wheel, source distribution, checksums, SBOM, dependency, notice, provenance,
   and release records.
 
+Development has continued on `main` after that immutable release. Current
+post-release work includes the schematic layout/placement-routing foundation,
+PCB Generations A-D, the 90% combined supported-environment coverage gate, and
+cinematic UI calibration/replay. Those later `main` features are not
+retroactively part of the published `v0.2.1` bytes.
+
 The previous [`v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0)
-release remains immutable. Existing tags and files are never replaced.
+and current `v0.2.1` release identities remain immutable. Existing tags and
+published files are never replaced.
 
 The Windows executables are unsigned. CI, SHA-256, PyPI Trusted Publishing, and
 package attestations establish tested behaviour, byte identity, and publication
@@ -58,12 +67,12 @@ is not yet published.
 
 ## What it provides
 
-The public MCP surface contains 159 registered tools, 157 public
+The public MCP surface remains 159 registered tools, 157 public
 `DipTraceService` methods, and 148 explicit Facade-to-domain-service
 delegations. Runtime `get_capabilities` remains authoritative for the active
 installation and document.
 
-Main capability groups:
+Main public capability groups:
 
 - PCB, schematic, Component Library, and Pattern Library reading and modelling;
 - structured DRC/ERC, connectivity, BOM, assembly, DFM/DFA/DFT, comparison, and
@@ -76,17 +85,43 @@ Main capability groups:
 - local stdio and trusted-loopback Streamable HTTP transports.
 
 Internal EDA development deliberately does not expand that public tool surface
-one heuristic at a time. PCB Generation A adds an internal engineering-intent
-model and intent-aware placement v2: component/function grouping, multi-role net
-classification, electrical criticality, conservative ground/power strategy and
-placement scoring above the existing geometry legalizer. Missing current, edge
-rate, impedance and other physical facts remain explicit unknowns.
+one heuristic at a time. The current schematic stack includes design intent and
+reference motifs, hierarchical and bounded multi-candidate placement,
+conservative pin-geometry resolution, non-mutating wire planning, pin-aware
+joint placement/routing scoring, and bounded placement repair. Selective atomic
+replacement of affected existing wires remains future work.
+
+The PCB design engine is implemented through four internal bounded generations:
+
+- Generation A: engineering intent, functional blocks, net criticality and
+  intent-aware placement v2;
+- Generation B: stackup/reference context, conservative PDN/return-path/noise
+  analysis and via roles;
+- Generation C: routing-policy compilation, route ordering, observed-route SI
+  checks, copper strategy and placement feedback;
+- Generation D: lexicographically safe whole-board candidate selection and a
+  synthetic engineering-trap benchmark catalog.
+
+Missing current, edge rate, impedance, stackup authority, current density and
+other physical facts remain explicit unknowns. PCB Generation D still requires
+real-DipTrace product acceptance before stronger native-host claims are made.
+
+An internal raw-preserving Component/Pattern Library mutation core now exists
+and has controlled real Component Editor/Pattern Editor round-trip evidence.
+That does not create a public native-library MCP write contract; public
+registration remains a separate API/product decision.
+
+The cinematic subsystem can replay already-planned schematic/PCB actions through
+a calibrated visible DipTrace UI and capture MP4/GIF demonstrations. It is a
+presentation path, not the authoritative engineering write path: preview,
+expected SHA, transaction and semantic validation remain authoritative. Exact
+editor/version-specific calibration and UI macros still require real-client
+validation.
 
 DipTrace MCP is not a replacement for DipTrace's interactive EDA engine. It
-does not claim native Component/Pattern Library mutation, native Gerber/NC Drill
-generation, fabrication sign-off, Novarm/DipTrace endorsement, universal
-DipTrace 5.x compatibility, field-solver accuracy, PI/EMC sign-off, or globally
-optimal PCB placement.
+does not claim native Gerber/NC Drill generation, fabrication sign-off,
+Novarm/DipTrace endorsement, universal DipTrace 5.x compatibility, field-solver
+accuracy, PI/EMC sign-off, or globally optimal schematic/PCB layout.
 
 ## Installation
 
@@ -100,7 +135,9 @@ diptrace-mcp --help
 ```
 
 The PyPI package installs the Python MCP server and packaged skills. It does not
-install the Windows DipTrace bridge plug-in automatically.
+install the Windows DipTrace bridge plug-in automatically. A current `main`
+checkout may contain post-release development that is not present in this
+published package.
 
 ### Windows installer
 
@@ -135,18 +172,18 @@ complete path.
 
 ## MCPB, Registry, and Smithery
 
-Version `0.2.1` adds the immutable distribution route prepared after `v0.2.0`:
+Version `0.2.1` is already published through the prepared distribution route:
 
 - deterministic Windows MCPB packaging;
 - canonical Registry identity `io.github.fireostendere/diptrace-mcp`;
 - official Registry `server.json` generation from a public MCPB URL and verified
   SHA-256;
-- Smithery publication from the same public MCPB;
+- Smithery/registry metadata preparation from the same immutable MCPB;
 - PyPI Trusted Publishing for the Python server.
 
 The MCPB contains the self-contained Windows stdio server. It does not silently
 install the DipTrace bridge plug-in. Live exchange requires the matching bridge
-and settings from the same GitHub release.
+and settings from the same GitHub release/source candidate.
 
 See [MCP distribution and package publication](docs/MCP_DISTRIBUTION.md).
 
@@ -164,12 +201,15 @@ MCP client (Codex / Claude / other)
                  |
                  +--> typed domain services
                  +--> internal EDA intelligence
-                 |       +--> schematic layout/optimizer
-                 |       +--> PCB intent/placement/optimizer
+                 |       +--> schematic layout / joint scoring / repair
+                 |       +--> PCB Generations A-D
                  +--> shared stores, policy, cache, document gateway
                  |
                  v
         typed semantic operations
+                 |
+                 v
+       guarded preview / SHA / transactions
                  |
                  v
        XML files / shared state
@@ -179,11 +219,14 @@ MCP client (Codex / Claude / other)
                  ^
                  |
               DipTrace
+
+presentation-only branch:
+planned actions -> calibrated cinematic replay -> visible UI / recording
 ```
 
-Intelligent layout modules emit normal semantic operations and stay behind the
-existing preview/SHA/transaction/review safety path. The public MCP contract is
-not a second EDA engine.
+Intelligent layout modules emit normal semantic operations/plans and stay behind
+the existing preview/SHA/transaction/review safety path. Cinematic replay is not
+a second semantic authority.
 
 ## Safety model
 
@@ -196,16 +239,20 @@ The main write invariants are:
 5. writes use temporary files and atomic replacement;
 6. policy and conservative write-impact limits are enforced;
 7. live apply rechecks the working, exchange, and original-file identities;
-8. cancel leaves the host exchange file unchanged;
+8. cancel preserves the host state for the exact accepted/tested paths and is
+   not generalized to every future DipTrace/profile combination without evidence;
 9. user-controlled sidecars cannot mint high trust;
 10. internal EDA heuristics cannot silently invent physical facts or bypass the
-    guarded semantic-operation path.
+    guarded semantic-operation path;
+11. cinematic replay is presentation automation and is not semantic acceptance
+    evidence by itself.
 
 The private/manual Q1 Component Angle GUI/re-export campaign is PASS on DipTrace
 PCB Layout 5.3.0.3. Package-owned public evidence/trust promotion remains a
-separate reviewed contract, so conservative public warnings are not removed
-merely because the private campaign passed. Several other real
-Windows/DipTrace/client acceptance items remain disclosed limitations.
+separate reviewed contract, and the immutable `v0.2.1` release record correctly
+retains its earlier `NOT_RUN` release-time status. Real Codex restart is PASS;
+Claude Desktop restart is WAIVED for the current project campaign, not PASS.
+Windows lifecycle gates remain pending when formal acceptance resumes.
 
 ## Data Handling
 
@@ -224,18 +271,30 @@ Windows/DipTrace/client acceptance items remain disclosed limitations.
   not uploaded or committed automatically; the operator controls external data
   and publication.
 
+## Development and testing
+
+The combined supported-environment coverage gate is 90%. The geometry-enabled
+Linux full-suite job intentionally retains an 85% Linux-only floor; Linux
+fallback, macOS and Windows coverage are combined for the repository-wide gate.
+Selected critical modules also have dedicated per-file floors.
+
+See [Testing](docs/TESTING.md) and [Development](docs/DEVELOPMENT.md).
+
 ## Documentation
 
 - [Usage](docs/USAGE.md)
 - [MCP tools and resources](docs/MCP_TOOLS.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Schematic layout engine](docs/SCHEMATIC_LAYOUT_ENGINE.md)
 - [PCB design engine and A-D roadmap](docs/PCB_DESIGN_ENGINE.md)
+- [Cinematic demo mode](docs/CINEMATIC_DEMO_MODE.md)
 - [Placement engine](docs/PLACEMENT_ENGINE.md)
 - [Domain model](docs/DOMAIN_MODEL.md)
 - [MCP distribution and package publication](docs/MCP_DISTRIBUTION.md)
 - [Windows and Python installation](docs/INSTALL_FROM_RELEASE.md)
 - [Testing](docs/TESTING.md)
 - [Roadmap](docs/ROADMAP.md)
+- [XML compatibility](docs/XML_COMPATIBILITY.md)
 - [Security and policy](docs/SECURITY_AND_POLICY.md)
 - [Transactions](docs/TRANSACTIONS.md)
 - [Release process](docs/RELEASE_PROCESS.md)

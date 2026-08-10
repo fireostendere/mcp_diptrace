@@ -52,7 +52,7 @@
     }
   },
   "unavailable_contracts": {
-    "native_library_mutation": "No Component/Pattern Library writer is DipTrace-evidence-qualified.",
+    "native_library_mutation": "No public native Component/Pattern Library mutation MCP contract is registered; an internal raw-preserving core has separately scoped real-editor evidence.",
     "differential_stripline": "The analytical model does not implement coupled differential stripline.",
     "native_fabrication_export": "The server emits review manifests, not Gerber, NC Drill, ODB++, or IPC-2581."
   }
