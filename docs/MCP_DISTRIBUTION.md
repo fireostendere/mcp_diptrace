@@ -1,10 +1,10 @@
-# MCP distribution and package publication
+# MCP Distribution and Package Publication
 
-## Current state
+## Current published state
 
-Version `v0.2.1` is the current published development prerelease.
+Version `v0.2.1` is the current published unsigned alpha/development prerelease.
 
-Published and immutable release identities:
+Published immutable identities:
 
 - GitHub prerelease: `v0.2.1`;
 - PyPI package: `diptrace-mcp==0.2.1`;
@@ -13,22 +13,24 @@ Published and immutable release identities:
 - Windows MCPB: `DipTrace-MCP-0.2.1-windows.mcpb`;
 - canonical registry identity: `io.github.fireostendere/diptrace-mcp`.
 
-The annotated tag and published files must never be moved or replaced. A corrected build requires a new version.
+Published tags/files are immutable. A corrected build requires a new version.
 
-The release remains explicitly unsigned alpha/development software. Publication does not imply production readiness, universal DipTrace 5.x compatibility, Novarm/DipTrace endorsement or completed real-system acceptance.
+Development on `main` after `v0.2.1` may contain additional internal capabilities that are not present in the published package/bundles. Track those changes in `CHANGELOG_NEXT.md` until the next release is selected.
 
 ## Distribution roles
 
-- **PyPI** distributes the cross-platform Python MCP server, packaged skills and command-line entry points.
-- **GitHub Release** is the immutable release set for Windows installer, portable bundle, MCPB, Python packages, hashes and provenance records.
-- **MCPB** contains the self-contained Windows stdio server for clients that support local bundles.
-- **MCP registries/directories** index the immutable release identity; they do not strengthen the project's compatibility claims.
+- **PyPI** distributes the cross-platform Python MCP server and packaged skills.
+- **GitHub Release** is the immutable release set for installer, portable bundle, MCPB, Python packages, checksums and provenance.
+- **MCPB** packages the self-contained Windows stdio server for clients supporting local MCP bundles.
+- **Registries/directories** index an immutable release identity; they do not strengthen compatibility/evidence claims.
 
-The Python package and MCPB do not silently install the DipTrace bridge plug-in. Live exchange still requires the matching Windows bridge/settings and real host acceptance.
+The PyPI package and MCPB do not silently install the DipTrace bridge plug-in. Live exchange requires the matching bridge/settings and the relevant real-host acceptance.
 
 ## PyPI Trusted Publishing
 
-`0.2.1` was published through the guarded tag-bound GitHub OIDC workflow. The authorized identity is:
+`0.2.1` was published through the guarded tag-bound GitHub OIDC workflow.
+
+Authorized identity:
 
 ```text
 PyPI project:       diptrace-mcp
@@ -38,48 +40,82 @@ Workflow filename:  pypi.yml
 Environment:        pypi
 ```
 
-No long-lived PyPI token is required. Future versions must preserve the build/publish separation and publish only validated artifacts from an exact annotated tag.
+No long-lived PyPI API token is required. Future versions should preserve the separation between build/validation and the minimal publish job.
 
-A clean package smoke for the published version is:
+Clean package smoke:
 
 ```bash
 python -m pip install --no-cache-dir diptrace-mcp==0.2.1
 diptrace-mcp --help
 ```
 
-## Windows and MCPB build path
+Trusted Publishing establishes publication provenance, not Authenticode signing, real DipTrace compatibility or production readiness.
 
-The repository retains deterministic Windows server, installer, portable and MCPB builders. They are build infrastructure, not evidence that a clean real Windows machine or real MCP client accepted the release.
+## Windows / MCPB build path
 
-A future release must:
+The repository contains deterministic build/audit infrastructure for:
 
-1. build from the exact candidate/tag;
-2. validate wheel/sdist and Windows artifacts;
+- Windows standalone server;
+- live XML bridge;
+- client configurator;
+- Inno Setup installer;
+- portable bundle;
+- MCPB;
+- checksums/provenance inventories.
+
+Those builders/tests are implementation evidence. They do not automatically prove that an arbitrary clean real Windows machine, DipTrace configuration or MCP client accepted the resulting release.
+
+For each future version:
+
+1. build from the exact frozen candidate/tag;
+2. validate Python/Windows artifacts;
 3. freeze filenames, sizes and SHA-256 values;
 4. publish immutable bytes;
 5. redownload the public bytes and repeat checksum/install/stdio smoke;
-6. record the public identities in the release record.
+6. record exact public identities in the release record.
 
-The existing `v0.2.1` publication is already complete; these steps are not a pending `0.2.1` task.
+The existing `v0.2.1` publication is complete; these are future-release rules, not pending `0.2.1` publication steps.
 
 ## Registry / Smithery metadata
 
-Registry metadata must reference only public immutable bytes and their verified SHA-256. Never point registry metadata at a transient CI artifact.
+Registry/directory metadata must reference public immutable artifacts and verified hashes, never transient CI files.
 
-For a future version, generate metadata from the final public MCPB URL and hash, validate it against the registry's then-current schema/tooling, publish it, and record the returned version identity. Registry publication remains distribution metadata; it does not substitute for DipTrace/Windows/client acceptance.
+For a future MCPB:
+
+1. publish the exact versioned MCPB;
+2. redownload and verify SHA-256;
+3. generate concrete metadata from the public URL/hash;
+4. validate against the registry's then-current schema/tooling;
+5. publish and record the immutable returned identity.
+
+Directory publication is distribution metadata, not real-host acceptance evidence.
 
 ## Manual acceptance boundary
 
-All remaining acceptance work is external/manual and is maintained in `docs/ROADMAP.md` plus the generated manual acceptance pack:
+Manual acceptance is tracked in [ROADMAP.md](ROADMAP.md) and the generated acceptance tooling.
+
+The latest accepted manual-production checkpoint has 8 of 12 canonical blocking gates PASS. Q1 Component Angle and real Codex restart are PASS. Claude Desktop restart is WAIVED for the current campaign, not PASS. Windows lifecycle is the next project-required formal gate when acceptance resumes.
+
+The canonical validator intentionally remains stricter than the project-level Claude waiver; do not weaken it merely to make the matrix appear complete.
+
+Example acceptance pack preparation:
 
 ```bash
 python scripts/prepare_manual_acceptance.py acceptance \
   --version 0.2.1 \
-  --commit <exact-commit>
+  --commit <exact-40-character-production-commit>
 ```
 
-That matrix covers clean Windows install/repair/uninstall, current real DipTrace PCB/Schematic/Component/Pattern behavior, real Codex and Claude Desktop restart/configuration, elevated plug-in installation and custom-state preservation. Claim-specific legal/openEMS/public-redownload work is separately identified.
+Manual evidence must remain tied to the exact candidate/artifacts tested.
+
+## Published release versus current `main`
+
+Do not conflate these states:
+
+- `v0.2.1` / PyPI `0.2.1` are immutable published bytes;
+- later `main` includes schematic intelligence, PCB Generations A-D, aggregate 90% coverage and cinematic presentation work;
+- a future release must explicitly package/re-verify those later changes before distribution docs claim they are in published artifacts.
 
 ## Immutability rule
 
-Do not replace bytes under an existing GitHub tag, PyPI version, Registry version or directory release. If a material issue is found, document the affected version, preserve its original identity, withdraw/yank only where appropriate, and publish a corrected new version.
+Do not replace bytes under an existing GitHub tag, PyPI version, Registry version or directory release. If a material issue is found, document affected identities, preserve original bytes, withdraw/yank only where appropriate and publish a corrected new version.

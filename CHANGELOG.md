@@ -1,219 +1,126 @@
 # Changelog
 
+This file records user-visible project changes. Detailed immutable release records live under `docs/releases/`.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
 ## Unreleased
 
-No unreleased user-visible changes are recorded after the `v0.2.1` release
-candidate.
+Post-`v0.2.1` development is active on `main` while the next version has not yet been selected. The source/package version remains `0.2.1`; these changes are not part of the already-published `v0.2.1` bytes.
+
+### Added
+
+- intelligent schematic-layout foundation: design intent/reference motifs, bounded multi-candidate placement, non-mutating wire planning, conservative pin geometry, pin-aware joint placement/routing scoring and bounded placement repair;
+- PCB Generation A intent/net intelligence and intent-aware placement v2;
+- PCB Generation B stackup/PDN/return-path/noise/via context;
+- PCB Generation C routing-policy compilation, observed-route checks, copper strategy and bounded placement feedback;
+- PCB Generation D bounded whole-board candidate selection and synthetic engineering-trap benchmark catalog;
+- internal raw-preserving Component/Pattern Library mutation core with controlled real-editor evidence;
+- deterministic cinematic presentation subsystem with UI profiles, affine design-to-client calibration, Windows replay, semantic Schematic/PCB adapters and MP4/GIF recording helpers.
+
+### Changed
+
+- combined supported-environment coverage gate raised to 90% while retaining the 85% geometry-enabled Linux-only floor and selected per-file floors;
+- Q1 Component Angle private/manual campaign completed as PASS on the later accepted production checkpoint; immutable release records retain their original historical status;
+- Claude Desktop restart explicitly waived for the current campaign without fabricating a PASS;
+- documentation synchronized with the published `v0.2.1` state and post-release `main` implementation while preserving dated evidence snapshots.
+
+See `CHANGELOG_NEXT.md` for the detailed development record before the next version is selected.
 
 ## 0.2.1 - 2026-08-05
 
 ### Added
 
-- Deterministic Windows MCPB packaging with a versioned manifest, reproducible
-  archive layout, and sibling SHA-256 file.
-- Official MCP Registry metadata template and concrete `server.json` generator
-  for the immutable `v0.2.1` MCPB asset.
-- Focused MCPB and Registry metadata tests and distribution documentation for
-  the official Registry, Smithery, and awesome-mcp-servers.
-- Guarded PyPI Trusted Publishing through GitHub OpenID Connect with a minimal
-  tag-bound publish job and no long-lived API token.
-- Strict wheel and source-distribution metadata checks plus clean installation
-  and CLI smoke for both Python artifacts.
-- Candidate release checklist and release record for the PyPI, MCPB, Registry,
-  and Smithery publication sequence.
+- deterministic Windows MCPB packaging with a versioned manifest and SHA-256 output;
+- official MCP Registry metadata/template and canonical identity `io.github.fireostendere/diptrace-mcp`;
+- guarded PyPI Trusted Publishing through GitHub OpenID Connect with no long-lived API token;
+- strict wheel/sdist metadata and clean-install smoke checks;
+- release checklist/record for the PyPI, MCPB, Registry and Smithery distribution path.
 
 ### Changed
 
-- Bumped the Python package and fallback version to `0.2.1`.
-- Synchronized English/Russian README, release records, and installation
-  instructions with the new package and distribution route.
-- Added the canonical ownership marker
-  `io.github.fireostendere/diptrace-mcp`.
-- Removed the completed one-shot automatic v0.2.0 publication trigger and
-  restored the signing workflow to manual preparation only.
-- Kept the existing unsigned alpha/development and evidence limitations explicit
-  across all new distribution channels.
+- package/fallback version aligned to `0.2.1`;
+- installation/distribution documentation aligned with PyPI, MCPB and Registry publication;
+- existing unsigned alpha/development and evidence limitations retained.
 
-### Publication boundary
+### Published state
 
-- Existing `v0.2.0` tags and assets remain immutable.
-- PyPI publication is permitted only from annotated tag `v0.2.1` through the
-  protected `pypi` environment and `.github/workflows/pypi.yml`.
-- The GitHub Release, PyPI project, MCP Registry version, and Smithery entry are
-  not created by the release-preparation pull request itself.
+- annotated tag `v0.2.1` points to release merge commit `1d2b7bef256cd43262b566dc2cd4050248d0145d`;
+- GitHub development prerelease published with installer, portable bundle, MCPB, wheel, sdist, checksums and provenance files;
+- `diptrace-mcp==0.2.1` published to PyPI through the guarded tag-bound Trusted Publishing workflow;
+- immutable release record: `docs/releases/v0.2.1.md`.
+
+The release-time Q1 Component Angle status remains `NOT_RUN` in the immutable release record. The later private/manual PASS belongs to a later production checkpoint and does not rewrite release history.
 
 ## 0.2.0 - 2026-08-04
 
 ### Added
 
-- Windows onedir server, Inno Setup installer, portable bundle, and guarded
-  Codex/Claude Desktop configurator.
-- Typed in-process domain services for document reads, BOM and component
-  metadata, review, discovery, exports, jobs, external adapters, routing,
-  placement, semantic operations, synchronization, XML writes, scaffolding,
-  transactions, evidence, and live sessions.
-- Central service-to-MCP error boundary with stable public error codes and
-  bounded safe details.
-- NetClass-aware routing and trace-to-trace review-clearance resolution with
-  structured partial-review and skip reporting.
-- Clean-room factual inventory generation, pending current-version fixture
-  manifests, evidence warnings, SBOM, dependency inventory, provenance records,
-  and deterministic release-artifact auditing.
-- Project-owned AnyIO worker-thread boundary and connected responsiveness probes
-  for all registered MCP tools.
+- Windows onedir server, Inno Setup installer, portable bundle and guarded Codex/Claude Desktop configurator;
+- typed in-process domain services behind the stable `DipTraceService` Facade;
+- central service-to-MCP error boundary with stable public error codes;
+- NetClass-aware routing/review-clearance support;
+- clean-room factual inventory generation, evidence warnings, SBOM/dependency/provenance records and deterministic release-artifact auditing;
+- project-owned AnyIO worker-thread boundary and responsiveness probes for registered tools.
 
 ### Changed
 
-- Completed the first service-Facade decomposition pass while preserving the
-  159-tool MCP surface, all 157 public `DipTraceService` signatures, and 148
-  explicit delegations.
-- Preserved singleton store ownership, stable error contracts,
-  SHA/policy/atomic-write boundaries, live-session leases, and the server-owned
-  thread-offload boundary.
-- Removed verbatim external reference extracts and source-derived inventory from
-  public surfaces.
-- Hardened installer ownership, compensating plug-in rollback, uninstall/state
-  preservation, portable paths, final-asset checksums, and executable-signature
-  gates.
-- Published CI status and deterministic coverage-gate metadata generated from
-  the enforced workflow threshold.
+- completed the first service-Facade decomposition pass while preserving 159 MCP tools, 157 public service signatures and 148 explicit delegations;
+- preserved singleton stores, SHA/policy/atomic-write, session-lease and trust boundaries;
+- removed verbatim external reference extracts from public release surfaces;
+- hardened installer ownership/rollback/uninstall/state-preservation paths;
+- published deterministic coverage-gate metadata from the then-current workflow threshold.
 
-### Validation and limitations
+### Validation boundary
 
-- Exact PR #48 implementation head passed CI run `30933874564`, Windows
-  installer run `30933874350`, `1074 passed, 4 skipped` on the geometry-enabled
-  Linux coverage job, and `1062 passed, 16 skipped` on Windows.
-- Exact PR #49 release-preparation head passed CI run `30940972328` and Windows
-  installer run `30940972331` across Linux 3.10/3.12/3.13, macOS, Windows,
-  geometry, fallback, static analysis, DCO, MCP contract, decomposition,
-  provenance, and artifact audits.
-- The release is an explicitly unsigned alpha/development prerelease. SHA-256
-  checks establish byte identity, not publisher trust.
-- Universal DipTrace 5.x compatibility, production readiness, independent
-  review, Novarm/DipTrace endorsement, and complete manufacturing sign-off are
-  not claimed.
-- Q1 Component Angle GUI/re-export evidence remains `NOT_RUN`; runtime
-  `get_capabilities` remains authoritative for each installation and document.
-
-This file records user-visible project changes. Version `0.1.0` was the first
-tagged release; the withdrawn `0.1.1` release and the corrected `0.1.2`
-development release are retained as separate historical records.
-
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+The release was an explicitly unsigned alpha/development prerelease. Universal DipTrace compatibility, production readiness, independent review, Novarm/DipTrace endorsement and complete manufacturing sign-off were not claimed. Q1 Component Angle was `NOT_RUN` at this historical point.
 
 ## 0.1.2 - 2026-08-01
 
 ### Fixed
 
-- Synchronized documentation values with the exact generated reports.
-- Added release-asset installation instructions for a no-clone setup.
-- Corrected MCP snapshot, coverage, and format-coverage metadata.
-- Corrected release provenance and preserved the explicit revert of 0.1.1.
-
-### Documentation
-
-- Added the release installation guide.
-- Added the withdrawn `v0.1.1` record and the `v0.1.2` release record.
-- Activated and verified the main-branch GitHub ruleset; pull requests require
-  DCO plus nine unique technical CI contexts.
-- Completed a post-merge security and compliance audit of the current tree and
-  reachable Git history.
-- Added reproducible deep secret-scanning, dependency-audit, and clean-room
-  audit tools; raw reports remain owner-private.
-- Finalized the post-publication `v0.1.2` provenance with the immutable release
-  commit, exact-head CI run, public asset inventory, checksum verification, and
-  public-download smoke results.
-- Opened contribution intake under DCO 1.1 and added provenance/privacy checks.
+- synchronized documentation values with generated reports;
+- added no-clone release-asset installation guidance;
+- corrected MCP snapshot, coverage and format-coverage metadata;
+- corrected release provenance while preserving the explicit withdrawal of `0.1.1`.
 
 ### Validation
 
-- Frozen candidate/local run: Python 3.12.3, Shapely 2.1.2, GEOS 3.13.1,
-  991 passed, 4 skipped, 16,922 statements, 2,379 missed, and 85.941378%
-  total coverage.
-- Exact-head GitHub CI run `30709466348`: all required Linux, macOS, Windows,
-  geometry, fallback, static-analysis, generated-artifact, and native bridge
-  jobs passed; its Python 3.12.13 coverage result was 991 passed, 4 skipped,
-  16,922 statements, 2,375 missed, and 85.9650% total.
-- Wheel/sdist audit, direct-wheel versus sdist-rebuilt-wheel comparison,
-  clean-wheel installation, CLI and MCP stdio smoke, exact-CI Windows bridge
-  provenance, plug-in ZIP/settings validation, checksums, and public-download
-  verification passed.
-- All ten expected GitHub Release assets were present exactly once, and the
-  publicly downloaded files passed `sha256sum -c SHA256SUMS.txt`.
+Historical frozen/local coverage was about 85.94%; exact-head GitHub CI was about 85.97%. Those values are release evidence, not the current repository coverage target.
+
+Wheel/sdist audits, clean installation, CLI/MCP stdio smoke, Windows bridge provenance, settings/plugin checks, public checksums and public-download verification passed for the historical release set.
 
 ## 0.1.1 - 2026-08-01 [Withdrawn]
 
-This release was withdrawn because public documentation contained stale
-generated figures and incomplete release-asset installation guidance. No claim
-that a critical runtime vulnerability existed is made. It is superseded by
-`0.1.2`; see [the withdrawal record](docs/releases/v0.1.1.md).
+This release was withdrawn because public documentation contained stale generated figures and incomplete release-asset installation guidance. It is superseded by `0.1.2`; see `docs/releases/v0.1.1.md`.
 
-### Fixed
+### Fixed before withdrawal
 
-- Preserve Windows-native live exchange paths in session metadata and derive WSL
-  drive-mount paths only in memory, preventing false `applied` results against a
-  phantom `C:\\mnt\\c\\...` target.
-- Ignore the intentional stdout-close race used to unblock a Windows output-reader
-  thread after the root process exits while a descendant inherited the pipe.
+- preserved Windows-native live exchange paths and derived WSL mount paths only in memory;
+- ignored the intentional stdout-close race used to unblock the Windows output-reader thread after the root process exits.
 
-### Validation
+### Historical validation
 
-- Completed Windows DipTrace 5.2.0.4 ↔ WSL MCP live acceptance for PCB and
-  Schematic apply/cancel/wrong-SHA paths, including GUI checks, independent
-  save/re-export comparisons, path invariants, and connectivity/count
-  preservation.
-- Added focused unit coverage for non-WSL Windows-path refusal, relative WSL
-  mount roots, POSIX-path refusal on Windows, and invalid path-platform metadata.
-
-### Documentation
-
-- Reconciled English and Russian readiness, testing, architecture,
-  compatibility, usage, roadmap, and release-policy documentation with the
-  2026-07-31 evidence.
-- Added a dated code-review record and live-acceptance record.
+Windows DipTrace 5.2.0.4 ↔ WSL MCP live acceptance covered PCB/Schematic apply/cancel/wrong-SHA paths with GUI/save/re-export checks.
 
 ## 0.1.0 - 2026-07-30
 
 ### Added
 
-- Apache License 2.0 as the project-wide license (`LICENSE`), with the SPDX
-  identifier `Apache-2.0` in package and citation metadata.
-- Private vulnerability reporting through GitHub, published as `SECURITY.md`.
-- Closed-state contribution and governance policies that do not invite
-  unlicensed external contributions.
-- A license decision matrix and a factual public-release checklist.
-- A release process with fail-closed legal, evidence, security, and artifact
-  gates.
-- GitHub issue forms for bugs, feature requests, and compatibility evidence,
-  plus a pull-request review template.
-- Citation metadata for the repository's current development state.
-- An exact, versioned release-file allowlist and CI audit for Python source
-  distributions and wheels.
-- Public package metadata for repository, documentation, and issue links, plus
-  EDA-focused classifiers without a premature license classifier.
+- Apache-2.0 project license and citation metadata;
+- private vulnerability reporting policy;
+- contribution/governance/release-process documentation;
+- issue/PR templates for bugs, features, compatibility evidence, provenance/privacy and DCO;
+- exact release-file allowlist and Python archive audit;
+- initial public package metadata and release assets.
 
 ### Fixed
 
-- Full pytest CI regression introduced by the release-artifact validation work.
-- Windows bridge executables are now built in an environment that contains the
-  project runtime dependencies; the previous PyInstaller-only environment
-  produced a bridge that failed at startup with `ModuleNotFoundError`. CI now
-  smoke-runs the built executable with `--help`.
+- Windows bridge build environment so the PyInstaller artifact includes required runtime dependencies and smoke-runs in CI.
 
 ### Clarified
 
-- The license release blocker is resolved: Apache-2.0 is committed as
-  `LICENSE`. Security-channel, contribution-provenance, and signing blockers
-  remain open for a fully verified release line.
-- No community size, adoption, sponsorship, vendor endorsement, signed binary,
-  package-index release, or support-program acceptance is asserted.
-- Python wheels intentionally contain the MCP server and eight packaged skills,
-  while Windows bridge installation scripts and settings remain separate
-  source/release assets.
-
-Version `0.1.0` is published as tag `v0.1.0`; its provenance record is
-[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md) and the release assets on
-GitHub.
+No community/adoption/sponsorship/vendor endorsement/signed-binary/production-ready claim was made.
 
 [0.2.1]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.1
 [0.2.0]: https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0

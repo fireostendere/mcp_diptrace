@@ -1,128 +1,140 @@
-# Windows installer audit and design
+# Windows Installer and Portable Bundle
 
-Status: development-stage implementation on branch `feat/windows-one-click-installer`.
-This document records the source audit and the intended evidence boundary. A
-Linux/WSL checkout cannot substitute for the native Windows workflow.
+## Status
 
-## Baseline audit
+The Windows installer/portable/configurator implementation is merged and published in the immutable `v0.2.1` development prerelease. The old `feat/windows-one-click-installer` wording was a historical implementation-branch note and is no longer the current project status.
 
-The baseline was `main` at `e61e0637d246d0d2c3cdb27118fb221724a6027f`. The
-existing path was:
+Published `v0.2.1` Windows distribution includes:
 
-| User action | Required program/permission | Failure point | Automation/rollback |
-| --- | --- | --- | --- |
-| Clone and create a venv | Git, Python, pip; no admin | missing tools or incompatible SDK | manual cleanup only |
-| Install editable wheel and optional geometry | Python/pip; no admin | dependency/network/build failure | remove venv |
-| Build bridge | Python, PyInstaller, PowerShell; no admin | missing runtime dependency or PyInstaller failure | replace the ignored bridge output |
-| Copy four settings profiles | PowerShell; admin under Program Files | wrong DipTrace root, locked module, elevation | existing uninstall mode removes owned folders |
-| Register Codex | Codex CLI and hand-written command | quoting, duplicate entry, wrong environment | manual edit; no transaction |
-| Edit Claude config | JSON editor/manual edit | malformed JSON or lost unknown fields | no atomic backup path |
-| Verify server/bridge | Python and manual MCP client | wrong state/workspace or stale process | manual diagnosis |
+- `DipTrace-MCP-Setup-0.2.1.exe`;
+- `DipTrace-MCP-Portable-0.2.1.zip`;
+- `DipTrace-MCP-0.2.1-windows.mcpb`;
+- the separately packaged live XML bridge/settings in the installer/portable path;
+- release checksums/provenance records.
 
-The baseline bridge was the checked-in `plugin/bridge_entry.py` packaged by
-`plugin/build_bridge.ps1` with PyInstaller `--onefile`. The source uses the
-existing SHA/session guards, allowed-root validation, Windows Job Object
-handling, apply/cancel controls, and native Windows exchange metadata. The new
-installer reuses that artifact and does not introduce a second bridge.
+The binaries are unsigned alpha/development assets.
 
-The four settings profiles are generated/maintained in `plugin/settings/`:
+## Design goals
 
-| DipTrace module | Profile | Import/export behavior |
-| --- | --- | --- |
-| PCB Layout | `pcb.settings.xml` | `Exp/Imp=All` |
-| Schematic Capture | `schematic.settings.xml` | `Exp/Imp=All` |
-| Component Editor | `component.settings.xml` | `Library=All`, `ImpMode=None` |
-| Pattern Editor | `pattern.settings.xml` | `Library=All`, `ImpMode=None` |
+The Windows packaging path is designed to:
 
-The existing installer supported `C:\Program Files\DipTrace5` and
-`C:\Program Files\DipTrace`, selected the first directory, and did not prove
-module executables or registry evidence. The new detection checks both native
-Program Files roots, matching uninstall registry entries, and known module
-executables/plugin directories. Multiple candidates are shown for selection;
-an unknown directory is rejected unless it passes the same layout check.
+- avoid requiring a developer Git/Python environment for normal installation;
+- keep writable state out of Program Files;
+- preserve user workspaces/state on ordinary uninstall;
+- keep client configuration in the original user context;
+- elevate only the narrowly scoped DipTrace plug-in copy/removal when Program Files requires it;
+- support deterministic installer/portable CI smoke and checksum/provenance auditing;
+- reuse the existing bridge/session/SHA safety model rather than creating a second bridge implementation.
 
-The server runtime needs the `diptrace_mcp` package, MCP SDK and Pydantic
-runtime modules/metadata, `typing_extensions`, packaged skills, catalog and
-shared schemas, provenance data, generated resources, and Shapely/GEOS only
-when the geometry build is enabled and its probe passes. Tests, source PDFs,
-`extracted_text`, local/private materials, secrets, release drafts, and dev
-tools are not runtime data. The onedir spec records these boundaries.
+## Components
 
-Writable state is `%LOCALAPPDATA%\DipTraceMCP` by default (or the selected
-state directory): sessions, records, backups, logs, and deferred Codex setup
-commands. Projects remain in the user-selected workspace. Neither state nor
-runtime metadata is intentionally written into Program Files or the installed
-application directory.
+The installer/portable build is assembled from project-owned artifacts including:
 
-## Target bundle
+- standalone `diptrace_mcp` server runtime;
+- `diptrace_mcp_bridge.exe` live XML bridge;
+- PCB/Schematic/Component/Pattern settings profiles;
+- Windows configurator;
+- plug-in install/uninstall helpers;
+- license/version/readme metadata;
+- installation manifest/checksums where applicable.
 
-```text
-%LOCALAPPDATA%\Programs\DipTraceMCP\
-    app\diptrace_mcp_server.exe + runtime files
-    bridge\diptrace_mcp_bridge.exe
-    settings-templates\*.settings.xml
-    tools\diptrace_mcp_configure\diptrace_mcp_configure.exe
-    tools\install_plugin.ps1
-    tools\uninstall_plugin.ps1
-    LICENSE, README_FIRST.txt, VERSION
-    installation-manifest.json
+The server/configurator use frozen Windows application builds. The bridge remains the project-owned DipTrace exchange process and uses the same allowed-root/session/SHA/apply/cancel boundaries as source execution.
+
+## DipTrace module profiles
+
+The shipped settings profiles cover:
+
+| DipTrace module | Profile purpose |
+| --- | --- |
+| PCB Layout | PCB XML import/export bridge path |
+| Schematic Capture | schematic XML import/export bridge path |
+| Component Editor | Component Library bridge/settings path |
+| Pattern Editor | Pattern Library bridge/settings path |
+
+A profile being present in the bundle does not by itself prove every semantic operation for every DipTrace version. Runtime capability and real-host acceptance remain separate.
+
+## Install location and writable state
+
+The frozen application is installed under the selected Windows application location. Writable project-owned state defaults to the user's local application-data area rather than Program Files.
+
+State includes sessions, records, backups/logs and related local metadata. Project files remain in the user-selected workspace.
+
+Uninstall preserves user workspace/state by default. Owned-state removal is explicit and ownership-gated.
+
+## Privilege boundary
+
+Normal application/client configuration should run without silently changing user identity/context.
+
+When a DipTrace installation under protected Program Files requires elevation, only the narrow plug-in copy/removal action is elevated. Client JSON/configuration continues in the original user's profile so an administrator token does not redirect configuration into the wrong account.
+
+## Client configuration
+
+The configurator supports project-owned configuration for supported MCP clients while preserving unknown existing fields and using backup/atomic-update rules.
+
+A configuration change requires an actual client restart before it can be considered tested. The accepted project campaign has real Codex restart evidence. Claude Desktop restart is currently WAIVED for that campaign, not PASS.
+
+## Build
+
+Typical source build commands on Windows:
+
+```powershell
+.\scripts\build_windows_server.ps1 -PythonCommand python -Clean
+.\plugin\build_bridge.ps1 -PythonCommand python -Clean
+.\scripts\build_windows_configurator.ps1 -PythonCommand python -Clean
+.\scripts\build_windows_installer.ps1 `
+  -Version 0.2.1 `
+  -IsccPath "$env:ISCC_PATH"
 ```
 
-The server and configurator are PyInstaller `--onedir` applications. The
-existing onefile bridge remains unchanged. Onedir avoids temporary extraction
-at stdio startup, makes native geometry/import diagnostics inspectable, and
-keeps replacement/rollback predictable.
+Use the actual selected future version when preparing a new release; do not rebuild a different binary under the immutable `0.2.1` identity.
 
-The Inno Setup wizard supports Full, Server only, and Custom types, plus
-workspace/state/client/DipTrace command-line parameters for silent CI. It uses
-`PrivilegesRequired=lowest`; only a plugin copy/removal under protected
-Program Files is launched through a narrowly scoped `runas` child. Client
-configuration always runs in the original user context. The installer does
-not download or execute remote code and does not alter Defender/SmartScreen.
+## CI / automated evidence
 
-## Configurator behavior
+Windows automation covers implementation-level checks such as:
 
-`src/diptrace_mcp/windows_configurator.py` is a separately testable,
-stdlib-first module. It supports Codex, Claude Desktop, both, none, dry-run,
-JSON output, unconfigure, and backup restore. It canonicalizes and validates
-workspace/state/server paths, rejects symlink/reparse surprises where the
-operation is critical, rejects state under the app/Program Files, and quotes
-Unicode/spaced paths through argument vectors.
+- frozen server/bridge/configurator build and startup smoke;
+- installer and portable creation;
+- silent install/repair/uninstall paths in CI;
+- paths containing spaces/Unicode where covered by tests;
+- client configuration backup/atomic update;
+- workspace/state preservation/ownership behavior;
+- checksums/provenance inventories;
+- explicit unsigned-binary status.
 
-Codex uses the documented CLI registration shape when the CLI is available,
-detects an existing `diptrace` entry, and updates idempotently without touching
-other MCP servers. If the CLI is absent, a ready command is saved under the
-state directory. Claude configuration is parsed as JSON, backed up with a
-timestamped adjacent name, updated as one object, atomically replaced, and
-parsed again. Malformed JSON fails closed without changing the original.
+CI evidence is necessary but not equivalent to the project-level clean real-machine acceptance gate.
 
-## Upgrade, repair, and uninstall
+## Current manual acceptance boundary
 
-An upgrade replaces only manifest-owned application files, rechecks client
-configuration, and refuses to proceed while an active
-`diptrace_mcp_server.exe` process is present. It preserves workspace/state and
-does not silently remove a live session. The manifest records version, app
-root, plugin roots, state directory, and owned state categories.
+When formal acceptance resumes, the next project-required lifecycle gate is:
 
-Uninstall removes files recorded by Inno Setup/manifest and plugin directories
-created by this installer. Client entry removal is an explicit checkbox and
-uses the configurator's fail-closed unconfigure path. State/log removal is a
-separate opt-in checkbox and is restricted to `logs`, `sessions`, `records`,
-`offline_backups`, and `codex_setup.txt`. Workspaces, unknown files, client
-backups, and user projects are never removed by the owned-state helper.
+`windows_clean_install_repair_uninstall`
 
-Rollback is file-level: restore the timestamped Claude/Codex backup or rerun
-the previous installer, then use the manifest and preserved state to recover.
-No Git history, release tag, or live workspace is rewritten.
+then:
 
-## Evidence boundary
+1. `elevated_plugin_install_profile_preservation`;
+2. `custom_state_preservation`.
 
-The Windows workflow is responsible for building the server/bridge/configurator,
-compiling Inno Setup 6.4.2 from a hash-checked maintainer prerequisite,
-creating `DipTrace-MCP-Setup-<version>.exe` and
-`DipTrace-MCP-Portable-<version>.zip`, checking hashes/inventory, running
-MCP stdio and installer smoke, measuring sizes/timings, and recording
-Authenticode status. Until that workflow runs for this exact head, these are
-source-level claims only. Synthetic DipTrace directory evidence is not live
-DipTrace semantics; Q1 rotation and Novarm permission remain explicitly
-unclaimed.
+These gates should be run against the exact production candidate/artifacts whose compatibility is being claimed. Do not copy a PASS from an older candidate onto later `main` merely because the installer code looks similar.
+
+## Installation verification
+
+For the published version:
+
+1. download the installer/portable asset and `SHA256SUMS.txt` from the same `v0.2.1` prerelease;
+2. verify SHA-256;
+3. install/configure;
+4. restart DipTrace and the selected MCP client;
+5. call `get_capabilities`;
+6. use native open/save/re-export acceptance when a specific live semantic path requires proof.
+
+See [INSTALL_FROM_RELEASE.md](INSTALL_FROM_RELEASE.md).
+
+## Boundaries and non-claims
+
+- Windows executables are unsigned;
+- successful CI build/install smoke is not Authenticode trust;
+- the installer does not prove universal DipTrace 5.x compatibility;
+- the MCPB does not silently install the DipTrace bridge;
+- a shipped settings profile does not prove every write path;
+- clean-machine/project lifecycle gates remain evidence-bound to the exact candidate;
+- Novarm/DipTrace endorsement, independent review and production readiness are not claimed.

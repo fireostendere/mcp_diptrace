@@ -2,53 +2,58 @@
 
 ## Current release status
 
-Version `v0.2.0` is the latest published unsigned alpha/development prerelease.
-Its annotated tag points to
-`31766cb6e667dc24f3e2921decfd65c03eebd271`; the immutable record is
-[`releases/v0.2.0.md`](releases/v0.2.0.md).
+Version `v0.2.1` is the current published unsigned alpha/development prerelease.
 
-Version `0.2.1` is the active release candidate on branch
-`release/v0.2.1-pypi`. It prepares PyPI Trusted Publishing, a Windows MCPB,
-official MCP Registry metadata, and Smithery distribution. It is not tagged or
-published until the final release sequence is completed.
+Immutable/current published identities:
 
-Windows executables remain unsigned. CI, SHA-256, PyPI Trusted Publishing, and
-package attestations can establish tested behaviour, byte identity, and
-publication provenance. They do not establish Authenticode trust, universal
-compatibility, independent review, or production readiness.
+- annotated tag: `v0.2.1`;
+- exact tag target / release merge commit: `1d2b7bef256cd43262b566dc2cd4050248d0145d`;
+- GitHub prerelease: `v0.2.1`;
+- PyPI package: `diptrace-mcp==0.2.1`;
+- Windows installer: `DipTrace-MCP-Setup-0.2.1.exe`;
+- portable bundle: `DipTrace-MCP-Portable-0.2.1.zip`;
+- Windows MCPB: `DipTrace-MCP-0.2.1-windows.mcpb`;
+- registry identity: `io.github.fireostendere/diptrace-mcp`.
 
-Future releases require a reviewed finalisation pull request, an explicit tag,
-public asset verification, and explicit publication actions. Existing tags and
-published bytes are immutable.
+The immutable release record is [releases/v0.2.1.md](releases/v0.2.1.md). The old `v0.2.0` tag/assets also remain immutable.
 
-## 1. Approve scope and authority
+Development on `main` after `v0.2.1` is tracked in `CHANGELOG_NEXT.md` until the next version is selected. Do not describe post-release `main` features as if they were already present in the published `v0.2.1` bytes.
 
-Before changing release metadata or creating a tag:
+Windows executables remain unsigned. CI, SHA-256, PyPI Trusted Publishing and package attestations can establish tested behaviour, byte identity and publication provenance; they do not establish Authenticode trust, universal compatibility, independent review or production readiness.
 
-1. identify the release manager;
-2. identify an independent reviewer when one exists, or record an explicit
-   solo-maintainer exception;
-3. confirm licensing, contribution, provenance, dependency, bundled-content,
-   fixture, and binary-redistribution status;
-4. choose the exact supported compatibility statement;
-5. complete the real Windows/DipTrace/client acceptance required by that claim;
+## Historical release evidence versus current manual evidence
+
+The `v0.2.1` release record correctly says Q1 Component Angle was `NOT_RUN` for that immutable release candidate.
+
+A later private/manual campaign on the accepted production checkpoint completed Q1 as PASS. That later observation does not rewrite the historical release record or automatically upgrade `v0.2.1` artifact claims.
+
+Likewise, `claude_desktop_real_client_restart` is WAIVED for the current project campaign, not PASS. The canonical validator intentionally remains conservative.
+
+## 1. Select and freeze the next version
+
+Before changing release metadata or creating a new tag:
+
+1. select the new version;
+2. identify the release manager;
+3. identify an independent reviewer when one exists, or record the explicit solo-maintainer exception;
+4. define the exact compatibility/evidence claim;
+5. complete real Windows/DipTrace/client acceptance required by that claim;
 6. freeze one exact candidate commit;
-7. move approved user-visible changes from `Unreleased` to a dated version;
-8. update citation, installation, package, and release documentation to the same
-   immutable identity.
+7. move approved user-visible entries from `CHANGELOG_NEXT.md` / `CHANGELOG.md` into the dated release section;
+8. update package, citation, installation, distribution and release-record metadata to the same immutable identity.
 
-Do not claim Novarm/DipTrace endorsement, affiliation, approval, or permission
-without explicit evidence.
+Never move an existing tag or replace published release/PyPI bytes.
 
 ## 2. Run repository quality gates
 
-Use a clean checkout of the exact candidate commit:
+Use a clean checkout of the exact candidate. Typical repository checks include:
 
 ```bash
 python -m pip install -e '.[dev,geometry]'
 python -m pytest -q
 python -m ruff check --no-cache src tests benchmarks scripts plugin
 python -m mypy --no-incremental src/diptrace_mcp plugin
+python scripts/sync_skill_scripts.py --check
 python scripts/generate_pcb_skills.py --check
 python scripts/generate_mcp_tools_snapshot.py --check
 python scripts/check_service_facade_contract.py --check
@@ -71,189 +76,138 @@ python scripts/audit_release_artifacts.py \
 python -m twine check --strict release-dist/*
 ```
 
-All required GitHub Actions jobs must pass on the same pull-request head. A
-missing platform result cannot be replaced by a local assertion.
+The exact `.github/workflows/*.yml` definitions at the candidate commit are authoritative.
 
-Current public contract expectations are:
+Current contract expectations on `main` are:
 
 - 159 MCP tools;
-- 142,746 canonical snapshot bytes;
-- MCP snapshot SHA-256
-  `073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db`;
-- 157 public Facade methods;
-- 148 explicit delegations.
+- 157 public `DipTraceService` methods;
+- 148 explicit Facade delegations;
+- 90% combined supported-environment coverage floor;
+- 85% geometry-enabled Linux-only coverage floor plus per-file floors.
 
-## 3. Complete real acceptance
+If the public contract intentionally changes, update its generated snapshot and documentation in the same reviewed change.
 
-For a release claiming Windows and live DipTrace integration, record dated
-acceptance from staged/final assets rather than the source tree.
+## 3. Decide what real acceptance is required
 
-Minimum matrix:
+Real acceptance must be claim-specific and exact-version/exact-candidate bound.
 
-- clean Windows 11 install, repair/idempotent reinstall, and uninstall;
-- workspace and pre-existing user-state preservation;
+For a release claiming Windows/live DipTrace/client integration, consider:
+
+- clean Windows install, repair/idempotent reinstall and uninstall;
+- workspace/pre-existing state preservation;
 - a current real DipTrace 5 installation;
-- PCB Layout, Schematic Capture, Component Editor, and Pattern Editor profiles;
-- real Codex configuration, restart, and `get_capabilities`;
-- real Claude Desktop configuration, restart, and `get_capabilities`;
-- elevated plug-in installation under Program Files while client configuration
-  remains in the original user profile;
-- fresh PCB and Schematic live apply/cancel/wrong-SHA paths;
-- GUI/save/re-export confirmation for applied changes;
-- proof that cancel/refusal does not reach the host document.
+- PCB, Schematic, Component Editor and Pattern Editor paths actually claimed;
+- real MCP client configuration/restart and `get_capabilities`;
+- elevated plug-in installation while preserving the original user-profile client configuration;
+- live apply/cancel/wrong-SHA paths;
+- GUI/save/reopen/re-export confirmation for affected edits;
+- proof that cancel/refusal does not mutate the host exchange document.
 
-Record exact OS, DipTrace, MCP client, Python/build, installer, and asset hashes.
-Do not broaden the compatibility claim beyond the tested matrix.
+Do not broaden the published compatibility statement beyond the completed matrix.
 
-Q1 Component Angle GUI/re-export validation remains a separate evidence gate and
-must stay `NOT_RUN` unless captured and reviewed.
+For the current project campaign, Windows lifecycle is the next formal gate when acceptance resumes. Claude Desktop restart remains waived rather than fabricated as PASS.
 
-## 4. Build final assets
+## 4. Build final assets from the frozen commit
 
-Build only from the frozen commit. Inspect:
+Build and inspect only from the exact approved candidate/tag:
 
-- source archive, sdist, and wheel contents;
-- wheel entry points, packaged skills, schemas, metadata, and `RECORD`
-  hashes/sizes;
-- bridge, standalone server, configurator, installer, and portable inventory;
-- MCPB manifest/archive contents when MCPB is part of the version;
-- runtime dependencies, notices, SBOM, and provenance;
+- source archive, sdist and wheel;
+- packaged skills/schemas/metadata and wheel `RECORD` hashes/sizes;
+- bridge, standalone server, configurator, installer and portable bundle;
+- MCPB when part of the version;
+- SBOM, dependency/notice/provenance inventories;
 - source-distribution installation parity;
 - SHA-256 coverage for every final asset;
-- Authenticode status for every executable.
+- Authenticode status for Windows executables.
 
-A successful build does not establish real DipTrace semantics or a trusted code
-signature.
+A successful build does not establish real DipTrace semantics or trusted code signing.
 
 ## 5. Signing decision
 
-A signed claim is allowed only when:
+A trusted signed claim is allowed only when a real protected signing identity is configured and the final distributed executables verify under the documented signing workflow.
 
-- a real protected signing identity is configured;
-- the protected signing workflow is executed for the final assets;
-- every distributed executable verifies;
-- the release record contains signer and verification evidence.
+Self-signed/test certificates or merely configured signing infrastructure must not be represented as trusted publisher signing. PyPI Trusted Publishing is also not an Authenticode substitute.
 
-Self-signed, test, or merely configured certificates must not be represented as
-trusted signing. Otherwise publish only with an explicit unsigned-development
-statement.
+If no protected signing identity exists, publish only with the explicit unsigned-development statement.
 
-PyPI Trusted Publishing and package attestations are not substitutes for
-Authenticode signing. They identify the publishing workflow and artifact digest,
-not the trustworthiness or behaviour of Windows executables.
+## 6. Stage and verify final bytes
 
-## 6. Stage and verify
-
-Stage the exact final files in a non-public release-manager-controlled channel.
-From clean environments:
+Before public publication:
 
 - verify `SHA256SUMS.txt`;
-- install the wheel and source distribution and run CLI/MCP stdio smoke;
-- run `twine check --strict` on both Python distributions;
-- install and uninstall the Windows installer;
-- extract and smoke the portable bundle;
-- inspect and smoke the MCPB when included;
-- verify `tools/list`, `get_capabilities`, packaged skills, and schemas;
-- run the real acceptance matrix where claimed;
-- confirm filenames, sizes, hashes, and unsigned/signed status.
+- install wheel and sdist and run CLI/MCP stdio smoke;
+- run strict package metadata checks;
+- install/uninstall the Windows installer;
+- extract/smoke the portable bundle;
+- inspect/smoke MCPB when included;
+- verify `tools/list`, `get_capabilities`, packaged skills and schemas;
+- perform the real acceptance matrix needed for the intended claims;
+- record filenames, sizes, hashes and unsigned/signed status.
 
-The release record must contain the exact commit/tag target, acceptance versions
-and results, workflow run IDs, final asset inventory and hashes, signing status,
-supported environments, known limitations, security/support paths, and rollback
-or withdrawal decision.
+The release record must identify exact commit/tag target, acceptance versions/results, workflow runs, final asset inventory/hashes, signing status, supported environments, limitations and rollback/withdrawal decision.
 
-## 7. Configure PyPI Trusted Publishing
+## 7. Publish GitHub assets
 
-For the first `diptrace-mcp` publication, create a pending PyPI publisher with
-these exact values:
+Only after the reviewed gates pass:
+
+1. merge the release-finalisation PR;
+2. verify the merge tree matches the approved candidate;
+3. create a **new** annotated tag at that exact commit;
+4. build/fetch the immutable final assets and checksums from the tag-bound workflow;
+5. publish them as the appropriate development/prerelease class;
+6. publish notes that distinguish implemented, runtime-available and real-DipTrace-verified capabilities.
+
+Never reuse or move `v0.2.1` or any older tag.
+
+## 8. Verify public downloads
+
+Redownload public files instead of reusing local/CI copies. Repeat checksum, wheel/sdist installation, CLI/MCP stdio, Windows installer, portable and MCPB verification as appropriate.
+
+Record the immutable release URL/tag SHA, publication date, public asset sizes/hashes and public-download results.
+
+## 9. Publish to PyPI
+
+PyPI publication remains a separate explicit action and must use GitHub OIDC Trusted Publishing from the exact authorized tag/workflow/environment identity.
+
+Current authorized identity:
 
 ```text
-Project name:       diptrace-mcp
+PyPI project:       diptrace-mcp
 GitHub owner:       fireostendere
 Repository:         mcp_diptrace
 Workflow filename:  pypi.yml
 Environment:        pypi
 ```
 
-Create the GitHub environment `pypi` and apply the strongest available reviewer
-and tag restrictions. The workflow's build job must not receive OIDC permission.
-The publish job must retain only `contents: read` and `id-token: write` and must
-contain only artifact retrieval plus the pinned PyPA publish action.
+The build job and publish job stay separated. The publish job receives only already validated wheel/sdist artifacts and requires only the minimal permissions needed for OIDC publication.
 
-Do not configure or store a long-lived PyPI API token. A pending publisher does
-not reserve the project name until the first successful upload; verify name
-availability immediately before publication.
+After publication, verify the exact public version, hashes, project links, README rendering, publisher identity and attestations. Do not use `skip-existing` to hide a version collision.
 
-## 8. Publish GitHub assets
+## 10. Registry / directory metadata
 
-Only after the approved gates pass:
+Registry/Smithery/directory metadata must reference immutable public artifacts, not transient CI files.
 
-1. merge the final release-finalisation pull request;
-2. verify the merge commit matches the approved tree;
-3. create a new annotated tag from that exact commit;
-4. build immutable assets and checksums from the tag;
-5. publish the files as an explicitly unsigned development/prerelease;
-6. publish notes distinguishing implemented, runtime-available, and real
-   DipTrace-verified capabilities;
-7. avoid unsupported production, signing, compatibility, or endorsement claims.
+For a future MCPB version:
 
-Do not replace existing release files or move an existing tag.
+1. publish and redownload the MCPB;
+2. verify its SHA-256;
+3. generate concrete metadata from that public URL/hash;
+4. validate against the then-current registry/tooling schema;
+5. publish and record the returned immutable identity.
 
-## 9. Verify public GitHub downloads
+Directory publication does not strengthen compatibility/evidence claims.
 
-Download public files again rather than reusing local build output. Repeat
-checksum, wheel/sdist installation, CLI/MCP stdio, Windows installer, portable,
-and MCPB verification. Record the immutable release URL, tag SHA, publication
-date, asset sizes/hashes, and public-download results.
+## 11. Post-release and rollback
 
-## 10. Publish to PyPI
+Published tags, GitHub assets, PyPI versions and registry identities are immutable.
 
-PyPI publication is a separate explicit action after the public GitHub assets
-have been verified.
+If a material problem is found:
 
-For `v0.2.1`, manually dispatch `.github/workflows/pypi.yml` from the exact
-annotated tag and set `publish=true`. The workflow must reject branches, `main`,
-lightweight tags, wrong tags, and mismatched tag targets.
+- preserve original bytes and identities;
+- document affected versions/hashes and required user action;
+- withdraw/yank only where appropriate;
+- publish a corrected new version;
+- record whether confidentiality, unsafe mutation, installation or evidence claims were affected.
 
-The build job creates and validates the wheel and sdist, then uploads only those
-two files as a workflow artifact. The minimal publish job downloads that
-artifact and uses GitHub OIDC through the protected `pypi` environment.
-
-After publication:
-
-```bash
-python -m pip install --no-cache-dir diptrace-mcp==0.2.1
-diptrace-mcp --help
-```
-
-Verify the public PyPI files, hashes, project links, README rendering, Trusted
-Publisher identity, and attestations. Record the exact workflow run and public
-file identities. Never enable `skip-existing` for the production upload.
-
-## 11. Publish MCP Registry and Smithery metadata
-
-For a release containing MCPB, generate concrete `server.json` only from the
-public MCPB URL and its redownloaded SHA-256. Revalidate the current official
-Registry and Smithery schemas and CLIs at publication time.
-
-Publish the Registry and Smithery versions only after the exact MCPB is public
-and verified. Record their immutable identifiers and installation/introspection
-results.
-
-## 12. Post-release and rollback
-
-Monitor published security and support paths. Never replace bytes under an
-existing GitHub tag, PyPI version, Registry version, or Smithery release.
-
-If a material problem is discovered:
-
-- preserve the tag and original asset bytes;
-- mark the release withdrawn or yank the PyPI version only when appropriate;
-- record affected versions/hashes and required user action;
-- publish a corrected version rather than moving the old tag;
-- document whether confidentiality, unsafe mutation, installation, or evidence
-  claims were affected.
-
-Before publication, abandon a candidate by closing or reverting its
-release-finalisation pull request. Do not rewrite `main` history or move existing
-tags.
+Before publication, abandon a candidate through ordinary reviewed branch/PR history. Do not rewrite `main` history merely to hide a failed candidate.

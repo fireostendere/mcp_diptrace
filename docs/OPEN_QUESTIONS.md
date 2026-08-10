@@ -1,79 +1,34 @@
 # Open Questions — DipTrace XML Format
 
-This document tracks known, high-impact compatibility questions that the current
-implementation and committed evidence do not settle. It is not exhaustive. Each question
-states the production dependency, a stable code-symbol reference, and an experiment that
-requires a real DipTrace installation or other human-controlled evidence.
+This document tracks compatibility questions that remain open for the current public/package-owned evidence boundary. A question may already have private/manual or older-version observations; those observations are stated explicitly and do not become universal/current-version proof automatically.
 
-Do not turn these questions into conventions by round-tripping a writer through this
-project's reader. Where evidence is absent, the implementation must disclose, preserve, or
-refuse rather than guess.
+Do not close a host-format question from a synthetic fixture or from an MCP writer-reader inverse round trip. Where evidence is incomplete, preserve, disclose, or refuse rather than guess.
 
 ---
 
 ## Q1: Is `Component/@Angle` in radians or degrees?
 
-**Question:** Does DipTrace interpret an ordinary PCB or schematic
-`Component/@Angle` value as radians or degrees? Current status: `NOT RUN` because
-no usable DipTrace PCB Layout GUI was available in this environment.
+**Question:** The project-manual Q1 gate is PASS on DipTrace PCB Layout 5.3.0.3: 90/180/270 degrees serialized as approximately 1.5708/3.1416/4.7124 radians, and the bottom-side change-side case was observed. What remains open is a redistributable/package-owned capture suitable for promoting that convention into reusable public trust evidence.
 
-**Why the code depends on it:** The reader
-`src/diptrace_mcp/adapters.py::_component_records` applies `math.degrees()`, while the
-primary writer `src/diptrace_mcp/semantic_compiler.py::_set_angle_attribute` applies
-`math.radians()`. Those functions are exact inverses, so a writer-reader round trip cannot
-validate the convention.
+**Why the code depends on it:** `src/diptrace_mcp/adapters.py::_component_records` converts stored radians to degrees and `src/diptrace_mcp/semantic_compiler.py::_set_angle_attribute` writes radians. The implementation convention is now supported by manual host evidence, but release/public evidence must remain scoped.
 
-**What is documented:** The public tree does not redistribute external specification
-text. The implementation has a reader/writer convention, but it is not live
-evidence and cannot answer the unit question.
+**What is documented:** `docs/MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md` and `docs/XML_COMPATIBILITY.md` record the later manual PASS. Immutable `v0.2.1` release evidence correctly remains `NOT_RUN` because it predates that campaign.
 
-**Experiment:** Status is `NOT RUN`: no usable DipTrace PCB Layout GUI was available in
-the current environment. In DipTrace, place one component, set its rotation to exactly 90 degrees,
-and export XML without passing the file through MCP. Read the literal value. Approximately
-`1.5708` means radians; `90` means degrees.
+**Experiment:** Repeat the controlled 90/180/270 degree and change-side probe with redistributable artifacts using the committed [Q1 capture recipe](evidence_capture/q1-component-angle.recipe.json), preserving distinct source/open-save/re-export roles and literal angle values.
 
-The repository provides a stricter two-component control/probe
-[operator capture recipe](evidence_capture/q1-component-angle.recipe.json). It records the literal
-values and UI observations without treating either convention as the expected answer.
-
-The post-merge review keeps this question at `NOT RUN`: no live GUI edit and
-independent DipTrace re-export were available. The rotate tool therefore keeps
-its caveat and structured `component_angle_live_validation_pending` warning.
-
-**Who can perform:** Human with a licensed DipTrace installation. HUMAN ACTION REQUIRED:
-follow
-[`q1-component-angle.HUMAN_ACTION_REQUIRED.md`](evidence_capture/q1-component-angle.HUMAN_ACTION_REQUIRED.md).
-Do not mark Q1 closed from a parser round-trip, a synthetic fixture, or an MCP-written XML file.
+**Who can perform:** Human with licensed DipTrace PCB Layout 5.3.x and permission to provide sanitized evidence.
 
 ---
 
 ## Q2: Which objects can an `ImpMode=All` apply delete because the exchange export omitted them?
 
-**Question:** Is an `ExpMode=All` exchange complete enough that returning it under
-`ImpMode=All` cannot delete design objects or embedded records that DipTrace omitted from
-`plugin_exchange.xml`?
+**Question:** Is an `ExpMode=All` exchange complete enough that returning it under `ImpMode=All` cannot delete design objects or embedded records omitted from the exchange?
 
-**Why the code depends on it:** The shipped PCB and schematic profiles use
-`ImpMode=All`, and `src/diptrace_mcp/sessions.py::SessionStore.finalize` copies the complete
-working exchange file back when `src/diptrace_mcp/service.py::DipTraceService.finish_live_session`
-requests apply. There is no per-object survival check before that replacement.
+**Why the code depends on it:** `src/diptrace_mcp/sessions.py::SessionStore.finalize` returns the complete working exchange file on apply, so object classes omitted by DipTrace export can matter even when MCP changes only one scalar.
 
-**What is documented:** The shipped profiles set `ImpMode=All`. The repository's
-[exchange reference](../reference/diptrace-xml/REFERENCE.md#exchange-lifecycle) records list
-replacement behavior, and a committed
-[compatibility observation](XML_COMPATIBILITY.md#preservation-rules) records one live
-round trip in which DipTrace removed unreferenced embedded pattern records. The current
-project evidence does not enumerate everything that an `ExpMode=All` export may omit.
-The current profiles are
-[`pcb.settings.xml`](../plugin/settings/pcb.settings.xml) and
-[`schematic.settings.xml`](../plugin/settings/schematic.settings.xml).
+**What is documented:** A prior live round trip observed DipTrace canonicalization/removal of unreferenced embedded records, but the project has not enumerated every object class that `ExpMode=All` may omit.
 
-**Experiment:** On a disposable copy, export a board rich in object types: components,
-embedded patterns and pad styles, nets, traces, vias, pours, shapes, tables, dimensions,
-differential pairs, groups, and board outline. Record counts, IDs, and relevant subtree
-hashes by type. Apply one unrelated scalar edit under `ImpMode=All`, save, re-export, and
-compare every type. Repeat with a byte-unchanged apply as a canonicalization control. Any
-loss must become a refusal or an explicit deletion disclosure.
+**Experiment:** On a disposable object-rich board, compare source/open-save/re-export counts, IDs and relevant subtree hashes before and after one unrelated scalar edit plus an unchanged control.
 
 **Who can perform:** Human with DipTrace 5.3 and a disposable representative design.
 
@@ -81,38 +36,25 @@ loss must become a refusal or an explicit deletion disclosure.
 
 ## Q3: Does Cancel prevent an `ImpMode=All` exchange from being re-imported?
 
-**Question:** When the bridge returns Cancel, does DipTrace leave the design untouched, or
-does it still read some or all of the exchange file?
+**Question:** The 2026-07-31 DipTrace 5.2.0.4 live campaign proved PCB and Schematic Cancel preserved the tested host state. Does the same behavior hold for the current DipTrace 5.3/profile combinations and broader object sets used by future compatibility claims?
 
-**Why the code depends on it:** `src/diptrace_mcp/bridge.py::BridgeController.finish` and
-`src/diptrace_mcp/sessions.py::SessionStore.finalize` distinguish apply from cancel, but
-the repository has no acknowledgement from DipTrace proving what the host application did
-after the process exited.
+**Why the code depends on it:** `src/diptrace_mcp/bridge.py::BridgeController.finish` distinguishes apply/cancel locally, but the project should not generalize one exact-version host observation to every later editor/profile without evidence.
 
-**Experiment:** On a disposable board, make the test plug-in write a recognizable harmless
-change to the exchange XML, then press Cancel. Save and independently re-export the board.
-Check the specific field and object counts, not only whole-file SHA-256, because DipTrace
-may canonicalize an otherwise unchanged file.
+**What is documented:** `docs/LIVE_ACCEPTANCE_2026-07-31.md` records PCB/Schematic Cancel PASS for DipTrace 5.2.0.4. Current docs treat that as exact-scope evidence, not a universal guarantee.
 
-**Who can perform:** Human with a licensed DipTrace installation.
+**Experiment:** Repeat Cancel on disposable current-version PCB and Schematic designs after a recognizable harmless working-copy edit, then save/re-export and verify the edit never reached host state.
+
+**Who can perform:** Human with the current DipTrace 5.3 configuration used for the target compatibility claim.
 
 ---
 
 ## Q4: Does DipTrace address top-level list entries by `Id` or by position?
 
-**Question:** Are sparse IDs and removal from the middle of top-level arrays preserved, or
-does DipTrace renumber entries by list position?
+**Question:** Are sparse IDs and middle-list removals preserved, or does DipTrace renumber entries by list position?
 
-**Why the code depends on it:** Exact synchronization can remove components, nets, traces,
-and ratlines in `src/diptrace_mcp/semantic_compiler.py::_apply_sync_schematic_to_pcb`, and
-direct routing deletion is implemented by
-`src/diptrace_mcp/routing_compiler.py::_delete_traces`. Cross-references are safe only if
-the host preserves the documented IDs or consistently rewrites every dependent reference.
+**Why the code depends on it:** `src/diptrace_mcp/semantic_compiler.py::_apply_sync_schematic_to_pcb` can remove cross-referenced objects, so host renumbering behavior matters to exact synchronization safety.
 
-**Experiment:** Export a design with three mutually referenced objects whose IDs are
-`0`, `1`, and `2`. In a disposable copy, remove the middle object and import it. Save and
-re-export. Compare remaining IDs and every reference. Repeat with deliberately sparse IDs
-such as `2`, `9`, and `40`.
+**Experiment:** In a disposable design remove a middle object, then repeat with deliberately sparse IDs; save/re-export and compare every remaining ID/reference.
 
 **Who can perform:** Human with DipTrace and a disposable cross-referenced design.
 
@@ -120,24 +62,11 @@ such as `2`, `9`, and `40`.
 
 ## Q5: Which routed `Point` attributes does DipTrace 5.3 require and preserve?
 
-**Question:** Which optional `Point` attributes does DipTrace 5.3 actually emit, require on
-import, and preserve for straight segments, arcs, jumpers, vias, necks, meanders, and
-differential-pair points?
+**Question:** Which optional `Point` attributes are emitted, required, derived or preserved for straight segments, arcs, jumpers, vias, necks, meanders and differential-pair points?
 
-**Why the code depends on it:** `src/diptrace_mcp/routing_compiler.py::_write_points`
-deletes every existing child and writes a fixed set, including `Jumper="0"` and `Arc="N"`;
-`src/diptrace_mcp/routing_compiler.py::_replace_trace` relies on that rewrite. Any
-condition-dependent attribute outside that set is lost.
+**Why the code depends on it:** `src/diptrace_mcp/routing_compiler.py::_write_points` owns a bounded known attribute set, so an unmodeled condition-dependent attribute could otherwise be lost when a trace is replaced.
 
-**What is documented:** The clean-room inventory records only `Point` attributes
-observed in project-owned XML. It does not establish a required set or DipTrace 5.3
-semantics for any routing geometry. The real combination and preservation behavior
-remain unknown for each geometry.
-
-**Experiment:** Export one minimal example each of a straight trace, arc, top and bottom
-jumper, via transition, necked segment, meander, and differential pair. Preserve the raw
-files. Compare the per-`Point` attribute sets, then remove one optional-looking attribute
-at a time in disposable imports to distinguish required, derived, and ignored fields.
+**Experiment:** Export minimal examples of each geometry, compare per-Point attributes, then remove one optional-looking attribute at a time in disposable imports and re-export.
 
 **Who can perform:** Human with DipTrace 5.3 who can create each routing geometry.
 
@@ -145,27 +74,11 @@ at a time in disposable imports to distinguish required, derived, and ignored fi
 
 ## Q6: Under object setting `All`, does `Selected="Y"` become persistent imported selection state?
 
-**Question:** For a newly added PCB or schematic object imported with the object selector
-set to `All`, does `Selected="Y"` control or persist the post-import UI selection state?
+**Question:** For a new PCB or schematic object imported under selector `All`, does `Selected="Y"` control or persist post-import UI selection state?
 
-**Why the code depends on it:** Every creation path that emits this attribute hard-codes
-`Selected="N"`; no creation writer emits `Selected="Y"`. Representative paths are
-`src/diptrace_mcp/semantic_compiler.py::_apply_add_testpoint`,
-`src/diptrace_mcp/semantic_compiler.py::_apply_place_part`,
-`src/diptrace_mcp/routing_compiler.py::_write_points`, and
-`src/diptrace_mcp/scaffolding.py::build_pcb_document`. If the attribute also represents a
-persistent user-visible state, those writers intentionally clear it.
+**Why the code depends on it:** `src/diptrace_mcp/semantic_compiler.py::_apply_add_testpoint` and other creation paths intentionally emit unselected objects, so persistent semantics should not be guessed.
 
-**What is documented:** The
-The current public tree intentionally contains no verbatim external specification text.
-The clean-room inventory records only project-owned XML observations, so this question
-requires a separately captured primary source or controlled live probe. Do not infer
-selection persistence from a synthetic fixture.
-
-**Experiment:** Under a temporary PCB or schematic profile whose object selector is `All`,
-import otherwise identical new objects with `Selected="Y"` and `Selected="N"`. Inspect the
-UI selection immediately, then save and re-export both objects. A separate selector
-`Selected` control can confirm the documented filter without treating it as the unknown.
+**Experiment:** Import otherwise identical objects with `Selected="Y"` and `Selected="N"`, inspect immediate UI state, then save/re-export both.
 
 **Who can perform:** Human with a licensed DipTrace installation.
 
@@ -173,20 +86,11 @@ UI selection immediately, then save and re-export both objects. A separate selec
 
 ## Q7: Which `Real` spellings does DipTrace emit and accept?
 
-**Question:** What precision and lexical forms does DipTrace emit for `Real` values, and
-does its importer accept equivalent scientific notation such as `9.6e-09`?
+**Question:** What precision/lexical forms does DipTrace emit for real numbers, and does it accept equivalent scientific notation?
 
-**Why the code depends on it:** Writers use bounded general formatting in
-`src/diptrace_mcp/semantic_compiler.py::_set_angle_attribute`,
-`src/diptrace_mcp/semantic_compiler.py::_apply_net_class_rules`, and
-`src/diptrace_mcp/routing_compiler.py::_write_points`. The resulting text can differ from
-DipTrace's preferred spelling even when the numeric value is equal.
+**Why the code depends on it:** `src/diptrace_mcp/semantic_compiler.py::_set_angle_attribute` and other writers use bounded numeric formatting that may differ lexically from DipTrace canonical output.
 
-**Experiment:** First export values spanning large, small, and high-precision magnitudes
-and record their literal spellings. Then hand-edit one valid `Real` in a disposable
-exchange file from decimal notation to the equivalent `9.6e-09`, import it, and re-export.
-Record whether DipTrace rejects, accepts and canonicalizes, or preserves the scientific
-notation.
+**Experiment:** Export a range of magnitudes/precisions, then change one disposable valid decimal to equivalent scientific notation and observe import/save/re-export behavior.
 
 **Who can perform:** Human with a licensed DipTrace installation.
 
@@ -194,20 +98,11 @@ notation.
 
 ## Q8: Which encoding, BOM, and line endings does DipTrace export?
 
-**Question:** What source encoding, BOM policy, XML declaration spelling, and line endings
-does each DipTrace editor emit?
+**Question:** What encoding, BOM policy, XML declaration spelling and line endings does each DipTrace editor emit?
 
-**Why the code depends on it:** The parser
-`src/diptrace_mcp/xml_document.py::DipTraceDocument.from_bytes` accepts several encodings,
-records the detected codec and exact BOM, and reuses them for guarded raw and semantic
-edits. That preservation policy prevents MCP from silently changing a supported source
-encoding; it does not establish which encodings or line endings DipTrace itself emits.
-Exact untouched-byte preservation and independent DipTrace canonicalization must not be
-conflated.
+**Why the code depends on it:** `src/diptrace_mcp/xml_document.py::DipTraceDocument.from_bytes` preserves several supported source encodings/BOMs, but parser support does not establish host export policy.
 
-**Experiment:** Export minimal PCB, schematic, Component Library, and Pattern Library
-documents directly from DipTrace. Inspect raw bytes for BOM, declaration encoding, and
-LF/CRLF. Include non-ASCII text such as Cyrillic plus `µ`, `Ω`, `°`, and `±`.
+**Experiment:** Export minimal PCB/Schematic/Component/Pattern documents with non-ASCII text and inspect raw bytes for encoding, BOM, declaration and LF/CRLF.
 
 **Who can perform:** Human with each relevant DipTrace 5.3 editor.
 
@@ -215,20 +110,11 @@ LF/CRLF. Include non-ASCII text such as Cyrillic plus `µ`, `Ω`, `°`, and `±`
 
 ## Q9: Must an MCP edit preserve the source encoding and BOM?
 
-**Question:** Which loaded encodings can be returned after an edit without DipTrace
-rejecting or corrupting the exchange, and must the original BOM/declaration be preserved?
+**Question:** Which loaded encodings can be returned after an edit without host rejection/corruption, and must the original BOM/declaration be preserved?
 
-**Why the code depends on it:** Guarded writes in
-`src/diptrace_mcp/xml_document.py::DipTraceDocument.apply_edits` now retain surrounding
-bytes and encode replacements with the detected source codec for supported UTF-8,
-UTF-16LE/BE, US-ASCII, and ISO-8859-1 inputs. UTF-32 and unsupported declarations fail
-closed with a typed error. This is an MCP safety policy backed by byte-preservation tests,
-not evidence that every accepted encoding can be imported by DipTrace.
+**Why the code depends on it:** `src/diptrace_mcp/xml_document.py::DipTraceDocument.apply_edits` preserves supported source codecs/BOMs as a safety policy, but that does not prove DipTrace accepts every parser-supported encoding.
 
-**Experiment:** For clean UTF-8, UTF-8-with-BOM, UTF-16LE/BE, and any encoding DipTrace
-itself exports, apply one raw attribute edit and one structural insertion. Import each
-result into a disposable design, then save and re-export. Verify non-ASCII text and inspect
-the final declaration/BOM.
+**Experiment:** Apply one raw edit and one structural insertion to controlled UTF-8/BOM/UTF-16 cases that DipTrace can open, then save/re-export and verify text plus declaration/BOM.
 
 **Who can perform:** Human with DipTrace and provenance-preserving encoded fixtures.
 
@@ -236,20 +122,11 @@ the final declaration/BOM.
 
 ## Q10: How does DipTrace 5.3 encode authoritative copper-pour fill data?
 
-**Question:** Does DipTrace 5.3 store filled copper regions as plain XML text,
-Deflate-compressed Base64, another encoding, or only derived data outside the public
-exchange format?
+**Question:** Where and how does DipTrace represent authoritative refilled copper, thermals, cutouts and islands in XML/exchange data?
 
-**Why the code depends on it:** `src/diptrace_mcp/adapters.py::_board_copper_pour_records`
-models only the boundary polygon and explicitly warns that it is not the final refilled
-region. Clearance review and local routing may use that polygon as a conservative
-`boundary_only` obstacle, but clearance, routing, and DFM logic cannot treat it as
-authoritative copper or infer thermals, cutouts, and islands from it.
+**Why the code depends on it:** `src/diptrace_mcp/adapters.py::_board_copper_pour_records` models the observed boundary but does not promote it to authoritative final refill geometry.
 
-**Experiment:** In DipTrace 5.3, create a pour with thermal spokes, a cutout, an island,
-and an obstacle, refill it, and export before and after refill. Inspect every
-`CopperPour` child and payload without assuming a decoder. If an encoded blob changes,
-identify its envelope and compression only from reproducible decode evidence.
+**Experiment:** Create a controlled pour with thermals/cutout/island/obstacle, export before and after refill, and compare every CopperPour child/payload without assuming a decoder.
 
 **Who can perform:** Human with DipTrace 5.3 and a controlled pour fixture.
 
@@ -257,66 +134,25 @@ identify its envelope and compression only from reproducible decode evidence.
 
 ## Q11: What are the standalone Component and Pattern Editor XML mutation semantics?
 
-**Question:** What complete XML structures, identity rules, and replacement behavior do
-the standalone Component and Pattern Editors require for safe library mutation? In
-particular, is `UID32` persistent identity or a value regenerated during save/export, and
-how do full-library saves differ from partial/current-object exports?
+**Question:** The internal raw-preserving mutation core now has controlled real Component Editor and Pattern Editor save/reopen/re-export evidence. What remains open is the complete identity/canonicalization space, including `UID32`, partial-vs-full export behavior, and the exact subset safe enough for any future public native-library write contract.
 
-**Why the code depends on it:** `src/diptrace_mcp/library_adapters.py::get_library_model`
-and `src/diptrace_mcp/library_adapters.py::_components` read observed library structures,
-but the repository's reproducible inventory has no standalone Component/Pattern format
-source and there is no native library writer. Reader success does not prove mutation
-semantics. A local [reference-material audit](REFERENCE_MATERIALS_AUDIT.md#material-classification)
-found that the available library material has unresolved provenance; no `UID32` statement
-is promoted here.
+**Why the code depends on it:** `src/diptrace_mcp/library_mutation.py::LibraryMutationEngine` must preserve unowned structures and stable relationships, while public API design must not generalize beyond the operations/editor cases actually verified.
 
-**What is documented:** The project has no standalone Component/Pattern library
-writer and its clean-room inventory does not establish complete library XML identity or
-canonicalization rules. Editor mode names are not treated as an accepted mutation contract.
+**What is documented:** Current `main` no longer claims that native library mutation is unimplemented. The core is internal/evidence-scoped and public native-library mutation remains unregistered.
 
-**Experiment:** Use separate disposable copies of minimal Component and Pattern libraries
-and capture these controls without assuming an answer:
+**Experiment:** On disposable minimal Component and Pattern libraries, compare repeated untouched exports, full-vs-current-object export, controlled one-setting mutations, UID32/reference stability, save/reopen/re-export and idempotence.
 
-1. hash the exact legacy binary input before opening it, record the editor/build and GUI
-   export steps, and retain the source export, open/save result, and re-export as separate
-   artifacts; bind the binary on the source record with the collector's typed
-   `--input-artifact ROLE=PATH` option so `input_artifacts` records its canonical relative
-   path, binary SHA-256, and size and revalidates the unchanged private file at finalize and
-   ingest without copying its bytes;
-2. export the same untouched library twice, then open/save without an intentional semantic
-   change; compare every `UID32` occurrence and its referenced object path to determine
-   whether values survive export, save, copy, and re-export;
-3. from the same source library, compare `Library All` with partial/current-component or
-   current-part export. Record every root attribute (`Type`, `Version`, `Units`, and any
-   additional attributes), top-level container, object ID, `UID32`, ordering, and omitted
-   subtree. Import each only into a disposable copy and perform a full-save/re-export;
-4. only after those controls, vary one GUI setting at a time: multi-part structure, pin and
-   pad identity, pattern attachment, mask, paste, courtyard, additional fields, and embedded
-   graphics. Retain export → import → save → re-export roles and compare identity
-   references and object counts.
-
-The binary-input hash identifies the local starting bytes and makes later tampering detectable; it
-does not prove authorship, redistribution permission, or that DipTrace bound a particular XML
-export to those bytes. The candidate remains `operator_supplied_unverified` with no trust grant.
-
-**Who can perform:** Human with licensed Component and Pattern Editors and permission to
-share sanitized fixtures.
+**Who can perform:** Human with licensed Component/Pattern Editors and permission to share sanitized evidence.
 
 ---
 
 ## Q12: How does DipTrace acknowledge plug-in failure or output corruption?
 
-**Question:** What does DipTrace do when the plug-in exits non-zero, exits zero without a
-change, produces malformed/truncated XML, or applies successfully?
+**Question:** What does DipTrace do when a plug-in exits non-zero, exits zero unchanged, returns malformed/truncated XML, or returns one valid edit?
 
-**Why the code depends on it:** `src/diptrace_mcp/bridge.py::BridgeController.finish` can
-report local finalization, and `src/diptrace_mcp/sessions.py::SessionStore.finalize` can
-reject local copy/parse failures, but neither receives a host acknowledgement that
-DipTrace accepted the import. Local success is not application success.
+**Why the code depends on it:** `src/diptrace_mcp/bridge.py::BridgeController.finish` reports local finalization but receives no typed host acknowledgement proving import success.
 
-**Experiment:** On disposable files, run four controlled plug-ins: exit `1`; exit `0`
-unchanged; exit `0` with a zero-byte file; and exit `0` with one valid edit. Record dialogs,
-whether the design changes, and the process/host exit behavior. Re-export after each case.
+**Experiment:** On disposable files exercise the four controlled outcomes, record host dialogs/state/exit behavior, and independently re-export after each.
 
 **Who can perform:** Human with DipTrace and a controlled test plug-in.
 
@@ -324,39 +160,23 @@ whether the design changes, and the process/host exit behavior. Re-export after 
 
 ## Q13: Which DipTrace 5.3 XML elements and attributes are absent from current observations?
 
-**Question:** What XML vocabulary or semantics does DipTrace 5.3 emit that is absent from
-the current project-owned observation inventory?
+**Question:** What vocabulary/semantics does representative DipTrace 5.3 data emit that is absent from the project-owned observation inventory?
 
-**Why the code depends on it:** `src/diptrace_mcp/adapters.py::build_snapshot` exposes only
-known normalized structures, while
-`src/diptrace_mcp/adapters.py::_compatibility_for` reports the version boundary. Unknown
-raw XML is generally preserved, but it may remain invisible to analysis or be at risk when
-an owning parent is regenerated.
+**Why the code depends on it:** `src/diptrace_mcp/adapters.py::build_snapshot` normalizes known structures while unknown raw XML may remain invisible to analysis or at risk when an owning parent is regenerated.
 
-**Experiment:** Export representative 5.3 PCB and schematic designs and compare all element
-paths and attributes with `reference/diptrace-xml/spec_inventory.json`. Record unknowns;
-do not promote them from a synthetic fixture alone.
+**Experiment:** Compare representative controlled 5.3 exports against `reference/diptrace-xml/spec_inventory.json`, recording unknown element paths/attributes without promoting synthetic observations.
 
-**Who can perform:** Human with DipTrace 5.3 and access to its installation directory.
+**Who can perform:** Human with DipTrace 5.3 and suitable representative designs.
 
 ---
 
 ## Q14: Can DipTrace 5.3 open and save its native XML project format directly?
 
-**Question:** Can a current `.dip`, `.dch`, `.eli`, or `.lib` XML project be opened and
-saved directly without the plug-in exchange lifecycle, and what subset differs from
-exchange XML?
+**Question:** Can current XML `.dip`, `.dch`, `.eli` or `.lib` files be opened/saved directly without the plug-in exchange lifecycle, and how does that path differ from exchange XML?
 
-**Why the code depends on it:** `src/diptrace_mcp/xml_document.py::DipTraceDocument.from_bytes`
-accepts supported XML roots regardless of filename extension, while
-`src/diptrace_mcp/service.py::DipTraceService.resolve_target` still treats the live bridge
-as the central write channel. If native XML is directly editable, much of the
-`ImpMode`/session risk may be avoidable.
+**Why the code depends on it:** `src/diptrace_mcp/xml_document.py::DipTraceDocument.from_bytes` accepts supported XML roots regardless of extension, while live writes still use the bridge/session trust model.
 
-**Experiment:** Create one native XML project in DipTrace 5.3, close it, copy it, change one
-safe scalar in the copy, and open the copy directly in DipTrace without a plug-in. Save and
-re-export it. Compare roots, object counts, and canonicalization with a plug-in exchange
-from the same design.
+**Experiment:** On a disposable native XML copy make one safe scalar change, open/save directly in DipTrace, re-export, and compare with an exchange export from the same design.
 
 **Who can perform:** Human with DipTrace 5.3 using disposable project copies.
 
@@ -364,18 +184,11 @@ from the same design.
 
 ## Q15: What does DipTrace canonicalize on open, save, and re-export?
 
-**Question:** Which byte and semantic changes does DipTrace itself make to an untouched
-export or native XML project?
+**Question:** Which byte and semantic changes does DipTrace itself make to an otherwise untouched export/native XML project?
 
-**Why the code depends on it:** `src/diptrace_mcp/xml_document.py::RawTreeSnapshot.compile`
-protects untouched MCP regions, while
-`src/diptrace_mcp/service.py::_semantic_roundtrip_check` compares selected normalized
-categories. Neither defines DipTrace's independent ordering, default omission, derived
-records, or numeric canonicalization.
+**Why the code depends on it:** `src/diptrace_mcp/xml_document.py::RawTreeSnapshot.compile` protects MCP-owned byte regions while host canonicalization may independently change ordering/defaults/numbers/derived records.
 
-**Experiment:** Export a representative design, open and save it without editing, then
-re-export. Compare byte-level and semantic changes separately: ordering, IDs, omitted
-defaults, number spelling, derived lists, embedded records, and whitespace.
+**Experiment:** Export, open/save without editing, re-export, and compare byte-level plus semantic changes separately.
 
 **Who can perform:** Human with DipTrace and a representative disposable design.
 
@@ -383,18 +196,11 @@ defaults, number spelling, derived lists, embedded records, and whitespace.
 
 ## Q16: How does the same design scale across root `Units=mm`, `inch`, and `mil`?
 
-**Question:** Does DipTrace rescale every dimension consistently across the three documented
-root units, and are any fields always stored in a fixed unit?
+**Question:** Does DipTrace rescale every dimensional field consistently across root units, or are some fields stored in a fixed unit?
 
-**Why the code depends on it:** Unit normalization is centralized in
-`src/diptrace_mcp/geometry.py::to_mm` and
-`src/diptrace_mcp/geometry.py::from_mm`, and readers such as
-`src/diptrace_mcp/adapters.py::_float_attr_mm` assume dimensional fields follow root
-`Units` unless explicitly documented otherwise.
+**Why the code depends on it:** `src/diptrace_mcp/geometry.py::to_mm` and `src/diptrace_mcp/geometry.py::from_mm` assume dimensional fields follow root units unless explicitly modeled otherwise.
 
-**Experiment:** Export the same unchanged design three times with root units set to `mm`,
-`inch`, and `mil`. Normalize documented dimensions and compare them field by field. Record
-any attribute that does not scale with root units rather than adding an inferred exception.
+**Experiment:** Export the same unchanged design in mm/inch/mil and compare normalized dimensions field by field, recording exceptions rather than inferring them.
 
 **Who can perform:** Human with DipTrace and control of export units.
 
@@ -402,18 +208,11 @@ any attribute that does not scale with root units rather than adding an inferred
 
 ## Q17: What DSN/SES conventions does DipTrace use on a real routed design?
 
-**Question:** Which Specctra quoting, layer, padstack, via, coordinate, and session constructs
-does DipTrace emit and accept in a real DSN/SES round trip?
+**Question:** Which Specctra quoting, layer, padstack, via, coordinate and session constructs does DipTrace emit/accept in a real DSN/SES round trip?
 
-**Why the code depends on it:** `src/diptrace_mcp/specctra.py::export_dsn`,
-`src/diptrace_mcp/specctra.py::parse_ses`, and
-`src/diptrace_mcp/specctra.py::session_to_operations` are currently validated without a
-committed real DipTrace-generated DSN/SES pair. Synthetic inverse tests cannot establish
-host conventions.
+**Why the code depends on it:** `src/diptrace_mcp/specctra.py::export_dsn` and `src/diptrace_mcp/specctra.py::parse_ses` have bounded regression coverage but no committed real paired DipTrace DSN/SES corpus proving all host conventions.
 
-**Experiment:** Export a multilayer board with at least one routed trace and via to DSN,
-route a small change in a compatible external router, import the SES into DipTrace, and
-re-export. Preserve the original DSN, SES, source board XML, and final board XML unchanged.
+**Experiment:** Export a controlled multilayer DSN, route a small change in a compatible router, import SES, then preserve/compare original DSN/SES/source/final board XML.
 
 **Who can perform:** Human with DipTrace and a compatible Specctra-format router.
 
@@ -421,17 +220,10 @@ re-export. Preserve the original DSN, SES, source board XML, and final board XML
 
 ## Q18: What hierarchy records are required for a real multi-sheet schematic?
 
-**Question:** Which IDs, paths, connectors, and net records must agree for DipTrace to
-preserve a hierarchical multi-sheet schematic?
+**Question:** Which IDs, paths, connectors and net records must agree for DipTrace to preserve a hierarchical multi-sheet schematic?
 
-**Why the code depends on it:** `src/diptrace_mcp/adapters.py::_schematic_sheets` normalizes
-known sheet data, while `src/diptrace_mcp/semantic_compiler.py::_apply_add_sheet` and
-`src/diptrace_mcp/semantic_compiler.py::_apply_add_wire` author only the currently
-implemented structures. A flat or synthetic fixture cannot prove hierarchy semantics.
+**Why the code depends on it:** `src/diptrace_mcp/adapters.py::_schematic_sheets` reads known hierarchy data while `src/diptrace_mcp/semantic_compiler.py::_apply_add_sheet` and `_apply_add_wire` author only the currently implemented subset.
 
-**Experiment:** Build a minimal two-level hierarchy with repeated block instances, local and
-global nets, hierarchy connectors, and cross-sheet references. Export, import without
-changes, save, and re-export. Compare all hierarchy paths, block IDs, connector endpoints,
-and logical net memberships.
+**Experiment:** Build a minimal two-level hierarchy with repeated instances/local/global nets/connectors, then export/open-save/re-export and compare paths, IDs, endpoints and logical net membership.
 
 **Who can perform:** Human with DipTrace and a controlled hierarchical schematic.

@@ -1,26 +1,17 @@
 # DipTrace XML implementation reference
 
-This guide is project-authored engineering guidance. The companion
-[`spec_inventory.json`](spec_inventory.json) is a clean-room factual inventory
-generated from the repository's own XML fixtures and controlled exports. It
-contains observed element/attribute names and bounded values only; it is not a
-copy of a vendor specification and does not claim universal format coverage.
+This guide is project-authored engineering guidance. The companion [`spec_inventory.json`](spec_inventory.json) is a clean-room factual inventory generated from project-owned XML fixtures/controlled observations. It is not a redistributed vendor specification and does not claim universal format coverage.
 
 ## Evidence labels
 
-- **Synthetic observation** — a project-authored XML fixture exercised by tests.
-- **Controlled export** — an independently captured DipTrace export with an
-  exact version/build, SHA-256, scenario and acceptance audit.
-- **Open question** — behavior that still requires independent DipTrace GUI or
-  open/save/re-export evidence.
+- **Synthetic observation** — project-authored XML exercised by tests.
+- **Controlled export** — independently captured DipTrace output with exact version/build, hashes and provenance.
+- **Manual/private observation** — real-host evidence useful for project decisions but not automatically package-owned public trust.
+- **Open question** — behavior that still requires additional exact-scope host/open-save/re-export evidence.
 
-The current committed fixture inventory is synthetic. No fixture in this tree
-automatically grants `diptrace_exported`, `diptrace_open_save_verified`, or
-`diptrace_roundtrip_verified` trust.
+The committed inventory remains evidence-scoped. A file appearing in the inventory does not by itself grant `diptrace_exported`, `diptrace_open_save_verified` or `diptrace_roundtrip_verified` trust.
 
 ## Inventory workflow
-
-Generate and validate the factual inventory from project-owned XML only:
 
 ```bash
 python scripts/extract_spec_inventory.py \
@@ -29,30 +20,22 @@ python scripts/extract_spec_inventory.py \
   --check
 ```
 
-The generator rejects PDF and page-text inputs. Each source record binds an XML
-file by SHA-256 and marks it `synthetic_fixture` or `controlled_real_export`.
-The inventory intentionally contains no normative descriptions, copied
-examples, or extracted documentation text.
+The generator accepts project-owned XML observations and rejects PDF/page-text inputs. Inventory records bind source bytes by SHA-256 and preserve their source/evidence classification; they contain factual element/attribute/value observations rather than copied normative prose.
 
-## Observed implementation boundaries
+## Maintained implementation boundaries
 
-- XML roots and feature-specific structures are detected from the source type;
-  unknown XML is preserved outside an operation-owned subtree.
-- Distances are normalized to millimetres at numeric input boundaries.
-- `Shape/@Angle` is handled as radians by the existing implementation.
-- `Component/@Angle` remains an unverified semantic gate; see Q1 in
-  [`docs/OPEN_QUESTIONS.md`](../../docs/OPEN_QUESTIONS.md).
-- Routing clearance uses the maximum of an explicit request, board DRC default,
-  and affected NetClass rules; every routing result discloses the resolution.
-- Trace-to-object review paths still use their object-specific board DRC rules;
-  review output marks this partial coverage.
+- XML roots and feature-specific structures are detected from content/source type; extension/version strings are not treated as sufficient compatibility proof.
+- Unknown XML is preserved outside operation-owned subtrees where the raw-preserving model applies.
+- Distances are normalized to millimetres at typed numeric boundaries.
+- `Shape/@Angle` follows the existing radians implementation convention.
+- `Component/@Angle` is no longer an unanswered project-manual convention: the later DipTrace PCB Layout 5.3.0.3 campaign observed radians plus rotation/change-side behavior and marked Q1 PASS. What remains open is broader/public package-owned evidence and compatibility scope; see `docs/OPEN_QUESTIONS.md`, `docs/XML_COMPATIBILITY.md` and the manual checkpoint.
+- Routing clearance resolves explicit request/document DRC/NetClass constraints under the implemented bounded rules and discloses the source used.
+- Trace/object review coverage remains feature-specific; no review helper silently becomes full native DRC authority.
+- Internal Component/Pattern Library raw-preserving mutation now exists with controlled real-editor evidence, but public native-library mutation remains a separate unregistered API contract.
+- PCB Generations A-D may consume exported physical facts conservatively but cannot invent authoritative stackup/current/refill/manufacturing data.
 
 ## Trust and legal boundary
 
-Synthetic parser success is not live DipTrace evidence. A controlled export is
-not accepted trust evidence until the project acceptance procedure verifies the
-exact source, independent re-export, semantic comparison, hashes, and
-redistribution basis. No Novarm/DipTrace permission or endorsement is claimed.
-Local source materials, if legitimately held by a maintainer, belong under the
-ignored `.local/open-source-readiness/novarm-reference/` directory and are not
-part of the public tree.
+Synthetic parser success is not live DipTrace evidence. Controlled/private real-host evidence remains tied to the exact version/candidate/operation tested and requires a separate reviewed promotion decision before becoming package-owned high trust.
+
+No Novarm/DipTrace permission, endorsement or universal compatibility is claimed. Local source materials legitimately held by a maintainer belong outside the public tree under the documented ignored/private paths unless redistribution and provenance are explicitly cleared.
