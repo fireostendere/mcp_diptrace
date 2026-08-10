@@ -18,7 +18,12 @@ from diptrace_mcp.numeric_inputs import (
 from diptrace_mcp.xml_document import DipTraceDocument
 
 
-def _document(raw: bytes = b'<Source Type="DipTrace-PCB" Version="5.3" Units="mm"><Board/></Source>') -> DipTraceDocument:
+_DEFAULT_DOCUMENT = (
+    b'<Source Type="DipTrace-PCB" Version="5.3" Units="mm"><Board/></Source>'
+)
+
+
+def _document(raw: bytes = _DEFAULT_DOCUMENT) -> DipTraceDocument:
     return DipTraceDocument.from_bytes(Path("synthetic.xml"), raw)
 
 
