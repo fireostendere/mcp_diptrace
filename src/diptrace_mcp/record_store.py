@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,8 @@ from .record_ids import (
 )
 from .retention import Clock, RetentionPolicy, RetentionReport
 from .xml_document import atomic_write_bytes
+
+_ATOMIC_WRITE_RETRY_DELAYS_SECONDS = (0.005, 0.01, 0.02, 0.04, 0.08)
 
 
 class RecordStore:
@@ -83,7 +86,14 @@ class RecordStore:
         ).encode("utf-8")
         if trailing_newline:
             payload += b"\n"
-        atomic_write_bytes(path, payload)
+        for attempt in range(len(_ATOMIC_WRITE_RETRY_DELAYS_SECONDS) + 1):
+            try:
+                atomic_write_bytes(path, payload)
+                return
+            except PermissionError:
+                if attempt == len(_ATOMIC_WRITE_RETRY_DELAYS_SECONDS):
+                    raise
+                time.sleep(_ATOMIC_WRITE_RETRY_DELAYS_SECONDS[attempt])
 
     def _require_safe_output_path(self, path: Path) -> Path:
         self._require_safe_root()
