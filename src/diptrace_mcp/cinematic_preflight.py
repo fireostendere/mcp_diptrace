@@ -110,7 +110,8 @@ def preflight_cinematic_manifest(
             raise ValueError(f"cinematic cue {index} has overlapping or invalid timing")
         if settle_ms - end_ms > budget.max_settle_gap_ms:
             raise ValueError(
-                f"cinematic cue {index} settle gap exceeds {budget.max_settle_gap_ms} ms"
+                f"cinematic cue {index} settle gap exceeds "
+                f"{budget.max_settle_gap_ms} ms"
             )
         previous_settle = settle_ms
         observed_duration = settle_ms
@@ -132,7 +133,8 @@ def preflight_cinematic_manifest(
         )
         if payload_size > budget.max_payload_bytes_per_cue:
             raise ValueError(
-                f"cinematic cue {index} payload exceeds {budget.max_payload_bytes_per_cue} bytes"
+                f"cinematic cue {index} payload exceeds "
+                f"{budget.max_payload_bytes_per_cue} bytes"
             )
         for step in _desktop_steps(payload):
             desktop_commands += 1
@@ -152,7 +154,8 @@ def preflight_cinematic_manifest(
                     raise ValueError("cinematic desktop.hotkey must be an array")
                 if len(hotkey) > budget.max_hotkey_keys:
                     raise ValueError(
-                        f"cinematic desktop hotkey exceeds {budget.max_hotkey_keys} keys"
+                        "cinematic desktop hotkey exceeds "
+                        f"{budget.max_hotkey_keys} keys"
                     )
 
     declared_duration = int(manifest.get("duration_ms", observed_duration))
@@ -167,7 +170,10 @@ def preflight_cinematic_manifest(
     if text_characters > budget.max_text_characters:
         raise ValueError("cinematic typed-text count exceeds safety budget")
     if desktop_commands == 0:
-        warnings.append("Manifest contains no desktop commands; playback will be presentation-only/no-op for operations without host macros.")
+        warnings.append(
+            "Manifest contains no desktop commands; playback will be "
+            "presentation-only/no-op for operations without host macros."
+        )
     return CinematicPreflightResult(
         content_sha256=cinematic_content_sha256(manifest),
         cue_count=len(cues),
