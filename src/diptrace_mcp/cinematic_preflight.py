@@ -73,16 +73,28 @@ def _desktop_steps(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     return steps
 
 
+def _validated_cues(manifest: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    raw_cues = manifest.get("cues")
+    if not isinstance(raw_cues, list):
+        raise ValueError("cinematic manifest has no cues array")
+    cues: list[Mapping[str, Any]] = []
+    for index, cue in enumerate(raw_cues):
+        if not isinstance(cue, Mapping):
+            raise ValueError(f"invalid cue at index {index}")
+        if not isinstance(cue.get("event"), Mapping):
+            raise ValueError(f"cue {index} has no event object")
+        cues.append(cue)
+    return cues
+
+
 def preflight_cinematic_manifest(
     manifest: Mapping[str, Any],
     budget: CinematicSafetyBudget | None = None,
 ) -> CinematicPreflightResult:
     budget = budget or CinematicSafetyBudget()
+    cues = _validated_cues(manifest)
     if manifest.get("format") != "diptrace-cinematic-v1":
         raise ValueError("cinematic manifest format must be diptrace-cinematic-v1")
-    cues = manifest.get("cues")
-    if not isinstance(cues, list):
-        raise ValueError("cinematic manifest has no cues array")
     if len(cues) > budget.max_cues:
         raise ValueError(f"cinematic cue count exceeds {budget.max_cues}")
     declared_count = manifest.get("cue_count")
@@ -96,8 +108,6 @@ def preflight_cinematic_manifest(
     warnings: list[str] = []
     observed_duration = 0
     for index, cue in enumerate(cues):
-        if not isinstance(cue, Mapping):
-            raise ValueError(f"invalid cinematic cue at index {index}")
         cue_index = int(cue.get("index", index))
         if cue_index != index:
             raise ValueError(f"cinematic cue index mismatch at {index}")
@@ -116,9 +126,8 @@ def preflight_cinematic_manifest(
         previous_settle = settle_ms
         observed_duration = settle_ms
 
-        event = cue.get("event")
-        if not isinstance(event, Mapping):
-            raise ValueError(f"cinematic cue {index} has no event object")
+        event = cue["event"]
+        assert isinstance(event, Mapping)
         payload = event.get("payload") or {}
         if not isinstance(payload, Mapping):
             raise ValueError(f"cinematic cue {index} payload must be an object")
