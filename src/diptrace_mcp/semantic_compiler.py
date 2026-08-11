@@ -2929,6 +2929,7 @@ def _wire_endpoint_attributes(
         )
     attributes[f"Object{index_suffix}"] = wire_element.get("Id", "")
     attributes[f"SubObject{index_suffix}"] = str(point_index)
+    attributes[f"Bus{index_suffix}"] = net_element.get("Id", "")
     return attributes
 
 

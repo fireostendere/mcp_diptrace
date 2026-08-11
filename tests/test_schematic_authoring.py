@@ -336,6 +336,7 @@ def test_wire_to_wire_connection_uses_point_index() -> None:
     wires = root.findall("./Schematic/Nets/Net[@Id='0']/Wires/Wire")
     assert len(wires) == 2
     assert wires[1].get("Connected1") == "Wire"
+    assert wires[1].get("Bus1") == "0"
     assert wires[1].get("Object1") == "0"
     assert wires[1].get("SubObject1") == "1"
 
