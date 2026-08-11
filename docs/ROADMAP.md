@@ -10,7 +10,7 @@ Implementation never implies universal DipTrace compatibility. Historical eviden
 
 ## Current checkpoint — 2026-08-11
 
-Source/package version remains `0.2.1`. The immutable `v0.2.1` release and PyPI package are published; post-release development is tracked separately.
+The current source/package version is `0.2.1`. The immutable `v0.2.1` release and PyPI package are published; post-release development is tracked separately.
 
 The latest accepted manual-production checkpoint remains:
 
@@ -215,7 +215,8 @@ Implemented:
 - PCB/Schematic UI profiles and affine calibration;
 - semantic schematic/PCB replay for supported primitives;
 - HWND recording and MP4/GIF helpers;
-- `cinematic_preflight.py` deterministic content hash and finite cue/timing/payload/desktop-action budgets.
+- `cinematic_preflight.py` deterministic content hash and finite cue/timing/payload/desktop-action budgets;
+- mandatory `cinematic_host.play_manifest()` preflight before dry-run or real desktop driver actions.
 
 Still pending real acceptance:
 
@@ -224,9 +225,11 @@ Still pending real acceptance:
 
 # Documentation/CI drift protection
 
-**Status: in this development pass.**
+**Status: implemented.**
 
-Evergreen implementation documentation must name current internal architecture rather than inheriting historical snapshots. CI should verify version/tool-count invariants and require the current EDA modules to remain represented in maintained docs. Historical dated release/acceptance/audit records remain excluded from this freshness rule.
+`scripts/check_documentation_state.py` verifies the frozen public-tool count, current EDA module representation, semantic current-state markers, the mandatory cinematic preflight boundary and the package-only library mutation registration state. `tests/test_documentation_state.py` runs the checker through the normal CI test matrix.
+
+Historical dated release/acceptance/audit records remain excluded from this freshness rule.
 
 # Public contracts
 
@@ -256,7 +259,8 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | XML semantic analysis | fingerprint/delta + property tests implemented |
 | evidence reports | deterministic review-only report pipeline implemented |
 | library mutation public API | package-level request/preview prepared; public MCP registration pending |
-| cinematic | presentation + preflight implemented; exact UI acceptance pending |
+| cinematic | presentation + mandatory preflight implemented; exact UI acceptance pending |
+| documentation drift | evergreen code/docs guard implemented and CI-tested |
 
 # Permanent limitations / non-claims
 
