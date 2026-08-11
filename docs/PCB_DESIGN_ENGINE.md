@@ -2,171 +2,153 @@
 
 ## Scope
 
-The PCB design engine turns normalized board connectivity plus explicit engineering facts into deterministic, explainable placement/routing policy. It is intentionally layered above the existing XML adapters, local placement legalizer, router, review engine and guarded semantic transaction path.
+The PCB design engine turns normalized board connectivity plus explicit engineering facts into deterministic, explainable placement/routing policy and bounded candidate selection. It remains layered above the XML adapters, geometry legalizer, routing compiler, review engine and guarded semantic transaction path.
 
-The goal is not to claim globally optimal PCB layout or replace a mature field solver/autorouter. The goal is to make defensible engineering decisions, expose the assumptions behind them, and improve a board through a bounded generate -> score -> improve loop.
+It does not claim globally optimal PCB layout or replace a field solver/autorouter. Unknown edge rate, current, impedance, stackup or datasheet facts remain unknown until supplied or supported by authoritative project evidence.
 
-PCB-generation capabilities remain internal while the architecture is proven. The current 159-tool public MCP `tools/list` contract stays frozen; generations do not add one MCP tool per heuristic.
+The higher-level generations remain internal. The public MCP contract stays frozen at 159 tools.
+
+See [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md) for the cross-domain implementation map.
 
 ## Architecture
 
 ```text
-schematic / PCB connectivity
-        +
-operator / project constraints
+normalized PCB + explicit project/operator facts
         |
         v
-PCB design intent                         Generation A
-        |
-        +--> component roles / functional blocks
-        +--> net roles / electrical criticality
-        +--> power / ground strategy intent
+Generation A: design intent + bounded placement candidates
         |
         v
-intent-aware placement                    Generation A
+Generation B: stackup / PDN / return-path / noise context
         |
         v
-physical context / stackup / PDN / return Generation B
+Generation C: routing policy / observed-route checks / copper strategy
         |
         v
-routing policy / SI / copper decisions    Generation C
+Generation D: hard-first whole-board candidate selection
         |
         v
-joint score and bounded repair            Generation D
-        |
-        v
-guarded semantic plan -> preview -> SHA-bound apply -> review
+guarded semantic plan -> preview -> expected SHA -> transaction -> review
 ```
 
-Physical facts are never invented to make the model look complete. Unknown edge rate, current, impedance, stackup or datasheet facts remain unknown until supplied or supported by authoritative project data.
+## Generation A — electronics intent and placement
 
-## Generation A — PCB understands electronics
+`pcb_design_intent.py` builds typed component roles, functional blocks, multi-role nets, criticality, explicit electrical constraints and conservative power/ground topology intent.
 
-**Status: implemented, regression-tested and merged to `main` in PR #81.**
+`pcb_placement.py` produces deterministic bounded placement candidates and ordinary `MoveComponentsOperation` objects. It does not write XML directly.
 
-`pcb_design_intent.py` builds a typed engineering view of component roles, functional blocks, multi-role nets, electrical criticality, explicit physical constraints and conservative power/ground topology intent. `pcb_placement.py` adds deterministic bounded placement above the existing geometry legalizer and emits ordinary `MoveComponentsOperation` objects instead of writing XML directly.
+Conservative defaults remain intentional: ordinary ground prefers continuity, switch nodes remain local-copper-minimized candidates, sense nets become Kelvin candidates, and star grounding is never invented automatically.
 
-Generation A deliberately preserves unknown physics. Ordinary ground defaults to `continuous_plane_preferred`; switch nodes to `local_copper_minimized`; sense nets to `kelvin_candidate`; power rails to `local_plane_or_pour_candidate`; star grounding is never inferred automatically.
+## Generation B — physical context
 
-## Generation B — PCB understands fields and current paths
+`pcb_physical.py` consumes Generation-A intent plus exported stackup/geometry/via evidence and provides:
 
-**Status: implemented, regression-tested and merged to `main` in PR #83.**
+- preliminary reference candidates;
+- PDN source/load/decoupling candidates;
+- regulator hot-loop candidates;
+- bounded return-path analysis;
+- aggressor/victim triage only when timing evidence exists;
+- semantic via roles.
 
-`analyze_pcb_physics()` consumes Generation A intent plus existing normalized stackup, geometry, via and return-path evidence. It is non-mutating and provides:
+Analytical impedance remains preliminary. Current density, voltage drop, via current capacity, thermal behavior and EMI compliance remain unknown without sufficient physical evidence.
 
-- typed microstrip/stripline reference candidates from exported stackup;
-- conservative PDN rail source/load/decoupling candidates;
-- regulator hot-loop candidates without pretending pad-level current direction is proven;
-- bounded reuse of `analyze_return_path()` for reference-sensitive nets;
-- aggressor/victim triage only when explicit edge-rate/frequency evidence exists;
-- semantic signal/power/ground/return-transition/differential/thermal via roles.
+## Generation C — intentional routing policy
 
-Analytic impedance candidates stay `preliminary_only`; current density, voltage drop and numeric via capacity remain unknown until sufficient physical evidence exists. No via fence, split ground, EMC compliance or field-solver result is invented.
+`pcb_routing_policy.py` produces deterministic per-net routing policy including priority/order, known spacing/width/layer constraints, via budget, impedance/skew/length constraints when known, reference requirements and copper strategy.
 
-## Generation C — PCB routes intentionally
+Observed-route checks report pass/fail/unknown according to available evidence. Missing constraints stay unknown rather than being fabricated.
 
-**Status: implemented, regression-tested and merged to `main` in PR #84.**
+Strategies involving native poured/plane copper remain subject to real DipTrace refill/geometry evidence before acceptance.
 
-Generation C translates A/B engineering evidence into deterministic routing policy while leaving actual trace/via/pour mutation in the existing routing compiler and guarded semantic transaction path.
+## Generation D — hard-first whole-board comparison
 
-### Routing policy compiler
+`pcb_joint_optimizer.py` ranks bounded candidates lexicographically by hard violations before any soft score.
 
-`compile_pcb_routing_policy()` produces one typed policy per net with:
+Hard dimensions remain separate:
 
-- deterministic engineering priority and stable route order;
-- explicit minimum spacing and preferred/forbidden layers;
-- explicit via budget and Generation A via penalty;
-- target impedance/tolerance when known;
-- max length/skew when known;
-- reference requirement/reference net and preliminary stackup candidates;
-- stub sensitivity and shielding preference.
+- safety;
+- mechanical;
+- connectivity;
+- DRC;
+- reference path;
+- manufacturing.
 
-Missing width, spacing, impedance, timing or other physical limits remain unknown. Generation C does not manufacture a trace width merely because a net is critical.
+Soft dimensions remain decomposed:
 
-### Route ordering
+- placement;
+- routing;
+- vias;
+- signal integrity;
+- power integrity;
+- return path;
+- EMI risk;
+- thermal risk;
+- manufacturing.
 
-Nets are sorted by criticality, electrical roles and explicit constraints rather than XML order or one hard-coded protocol list. Switching/RF/differential/clock/precision nets naturally receive higher priority when their intent/evidence supports it.
+The soft total is only a deterministic tie-break between equal hard-violation vectors.
 
-### Observed-route SI checks
+The Generation-D benchmark catalog remains `synthetic_regression_only` and explicitly requires real-DipTrace acceptance for native copper/plane/via claims.
 
-`evaluate_route_observation()` evaluates supplied route observations for:
+## A-D candidate ensemble
 
-- maximum length;
-- via budget;
-- forbidden-layer use;
-- continuous reference requirement;
-- explicit impedance tolerance;
-- skew;
-- stubs on stub-sensitive nets;
-- measured parallel-route exposure.
+`pcb_candidate_ensemble.py` closes the previous gap where Generation D had a strong selector but did not itself receive a useful family of internally generated whole-board candidates.
 
-Absent observation or absent constraint stays `unknown`. Parallel exposure is reported without inventing one universal crosstalk pass/fail threshold.
+The ensemble now generates actual bounded Generation-A placement plans under multiple disclosed engineering profiles:
 
-### Copper strategy
+- `balanced` — existing default weights;
+- `critical_nets` — stronger critical-connection pressure;
+- `noise_aware` — stronger aggressor/sensitive separation pressure;
+- `support_compact` — stronger local support-component/block cohesion pressure;
+- `existing_board` — unchanged-board baseline for comparison.
 
-Generation C preserves Generation A/B topology intent when deciding whether a net is fundamentally a trace, local-copper-minimized path, local plane/pour candidate, continuous plane, shield/chassis domain, Kelvin candidate or explicit star topology.
+Every non-baseline candidate comes from the existing bounded placement planner. Generation B/C output contributes conservative evidence-proxy score terms. The existing Generation-D `select_pcb_candidate` remains the sole selector and keeps hard violations dominant.
 
-Any strategy involving native poured/plane copper is marked as requiring authoritative DipTrace refill/geometry evidence before acceptance. Unknown rail current does not become a fabricated current-capacity conclusion.
+This is deliberately not an invented autorouter. Candidate scoring may penalize unresolved routing/reference evidence, but it does not synthesize traces, vias, stackup facts, current ratings or solver output.
 
-### Placement feedback
+The selected candidate still requires ordinary semantic application, review/DRC and claim-specific real DipTrace evidence.
 
-Failed route observations can return bounded endpoint-placement feedback. Reference-continuity and via-budget failures are treated as strong feedback signals; the optimizer may consider a bounded endpoint move, but routing policy itself does not move components.
+## DSN/SES integration
 
-## Generation D — whole-board optimization
+The existing DSN exporter, SES parser and bounded semantic SES importer remain authoritative for Specctra exchange.
 
-**Status: implemented, regression-tested and merged to `main` in PR #86.**
+`specctra_analysis.py` adds non-mutating screening before import:
 
-Generation D selects among bounded whole-board candidates without bypassing the existing guarded write path.
+- bounded S-expression root/token/depth/scope inventory;
+- route net/wire/via/segment counts;
+- route length and width range;
+- used layers;
+- duplicate SES nets;
+- unknown target PCB nets/layers;
+- importable/skipped classification using the existing importer itself.
 
-### Hard-rule dominance
+A clean pre-import analysis does not replace post-import connectivity/DRC/native round-trip validation.
 
-`PCBHardViolations` keeps safety, mechanical, connectivity, DRC, reference-path and manufacturing violations as separate integer dimensions. Candidate ranking is lexicographic across those dimensions before any soft metric is considered. A candidate that introduces a hard violation cannot win because it has shorter routing, fewer vias or a prettier placement score.
+## Testing
 
-### Decomposed soft score
+Automated coverage now includes:
 
-`PCBSoftScore` keeps placement, routing, via count, signal integrity, power integrity, return path, EMI risk, thermal risk and manufacturing cost separate. Their finite sum is only a deterministic tie-break between candidates with identical hard-violation vectors.
+- Generation-A intent/placement and unknown-physics preservation;
+- Generation-B stackup/PDN/return-path/noise/via-role behavior;
+- Generation-C routing policy and observed-route behavior;
+- Generation-D hard-rule dominance and deterministic ranking;
+- deterministic generation of multiple A-D ensemble profiles;
+- reuse of the exact existing Generation-D selection key;
+- deterministic profile deduplication;
+- DSN/SES structural/importability analysis.
 
-The optimizer rejects non-finite soft metrics, duplicate candidate IDs, empty candidate sets and candidate counts above the configured bound. External routers, external solvers and operator candidates can participate only as candidate/evidence sources; they do not gain authority to apply edits.
+Repository CI is authoritative. Synthetic tests do not transfer PASS status to a newer real DipTrace candidate by inference.
 
-### Benchmark catalog
+## Non-claims / remaining acceptance
 
-`pcb_benchmark_catalog()` defines engineering-trap families for:
-
-- MCU + decoupling + crystal;
-- regulator/power;
-- ADC mixed signal;
-- precision current sense;
-- high-speed differential;
-- Ethernet/CAN/interface;
-- RF/antenna;
-- higher-current power distribution;
-- multilayer controlled-impedance routing.
-
-These catalog entries are explicitly `synthetic_regression_only`. Each retains `requires_real_diptrace_acceptance=True`; a synthetic PASS cannot be promoted into a claim about native copper refill, planes, via structures or DipTrace round-trip behavior.
-
-## Testing and acceptance
-
-Generation A automated coverage includes component/net role inference, functional grouping, explicit overrides, unknown-value preservation, ground-topology safety, differential-pair evidence, decomposed placement scoring and hard-geometry/budget refusal.
-
-Generation B adds stackup provenance, unknown-current/source preservation, explicit current/converter facts, reference-sensitive return paths, timing-gated noise analysis, bounded via-role classification and invalid-radius rejection.
-
-Generation C adds deterministic route ordering, constraint propagation, preliminary reference policy, unknown-width preservation, observed SI failure/unknown behavior, bounded placement feedback, copper/refill evidence boundaries and wrong-net rejection.
-
-Generation D adds hard-rule dominance, deterministic ranking/tie-breaking, plan-reference preservation, bounded candidate counts, non-finite score rejection and benchmark acceptance-boundary tests.
-
-A real-DipTrace acceptance fixture remains required before claims about poured copper, plane behavior, via structures or native round-trip semantics are promoted beyond the existing evidence boundary.
-
-## Non-claims
-
-The PCB design engine does **not** currently claim:
+The PCB design engine does not currently claim:
 
 - field-solver accuracy;
 - PDN/PI sign-off;
 - EMC compliance;
-- automatic proof that a plane, star point or Kelvin connection is electrically optimal;
-- authoritative copper refill geometry;
 - thermodynamic/CFD analysis;
-- fabrication or assembly sign-off;
+- authoritative native copper refill geometry;
+- proof that a plane/star/Kelvin topology is electrically optimal;
+- manufacturing/fabrication sign-off;
 - globally optimal placement/routing.
 
-Generations A-D provide deterministic intent, placement, physical-context, routing-policy and bounded whole-board candidate-selection foundations. Applying any resulting semantic plan remains subject to the normal preview, SHA, policy, transaction and review boundaries.
+Real-DipTrace whole-board product-quality acceptance remains appropriate before stronger claims about current A-D candidate quality, native refill, planes or via structures are made.
