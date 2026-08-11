@@ -107,6 +107,33 @@ def _schematic_xml(*, wire_x: float = 10.0, endpoint_net: str = "0") -> bytes:
 """.encode()
 
 
+def _native_schematic_canonicalization_xml(
+    *,
+    style: str,
+    include_alias: bool,
+    coordinate: str,
+    explicit_default: bool,
+    shape_y: str = "0",
+) -> bytes:
+    def component(component_style: str, refdes: str, pin_id: str) -> str:
+        return f"""<Component ComponentStyle="{component_style}"><Part Id="0" RefDes="{refdes}" PartType="Net Port" Width="0.3" Height="0.1"><Name>Port_Out3</Name><Pins><Pin Id="{pin_id}" X="-0.15" Y="0" ElectricType="Passive"/></Pins><Shapes><Shape Type="Line"><Points><Point X="-0.15" Y="0"/><Point X="0.15" Y="{shape_y}"/></Points></Shape></Shapes></Part></Component>"""
+
+    components = component("CompType0", "PS", "10")
+    if include_alias:
+        components += component("CompType6", "NetPort", "0")
+    not_connected = ' NotConnected="N"' if explicit_default else ""
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<Source Type="DipTrace-Schematic" Version="5.3.0.3" Units="inch">
+  <Library Type="DipTrace-ComponentLibrary" Units="inch"><Components>{components}</Components></Library>
+  <Schematic>
+    <SheetSettings><ActiveSheet>0</ActiveSheet><Sheets><Sheet><Id>0</Id><Name>Main</Name><Type>Normal</Type></Sheet></Sheets></SheetSettings>
+    <Components><Part Id="0" ComponentStyle="{style}" ComponentPart="0" PartNumber="0" Sheet="0" X="{coordinate}" Y="1"><RefDes>NetPort3</RefDes><Name>OUT</Name><Value/><Pins><Pin NetId="0"{not_connected}/></Pins></Part></Components>
+    <Nets><Net Id="0"><Name>OUT</Name><Pins><Item Part="0" Pin="0"/></Pins><Wires><Wire Id="0" Sheet="0"><Points><Point X="{coordinate}" Y="1"/><Point X="2.652756" Y="1"/></Points></Wire></Wires></Net></Nets>
+  </Schematic>
+</Source>
+""".encode()
+
+
 def _compare(left: bytes, right: bytes, suffix: str = ".dip") -> dict[str, object]:
     a = DipTraceDocument.from_bytes(Path("a" + suffix), left)
     b = DipTraceDocument.from_bytes(Path("b" + suffix), right)
@@ -147,6 +174,45 @@ def test_schematic_pin_net_change_is_detected() -> None:
     assert any(
         "pin_net_membership" in item or "schematic_nets" in item
         for item in cast(list[str], result["differences"])
+    )
+
+
+def test_native_schematic_canonicalization_preserves_real_symbol_checks() -> None:
+    source = _native_schematic_canonicalization_xml(
+        style="CompType6",
+        include_alias=True,
+        coordinate="1.96850394",
+        explicit_default=True,
+    )
+    canonical = _native_schematic_canonicalization_xml(
+        style="CompType0",
+        include_alias=False,
+        coordinate="1.968504",
+        explicit_default=False,
+    )
+
+    result = _compare(source, canonical, ".dchxml")
+
+    assert result["passed"] is True
+    assert result["ignored_normalizations"] == [
+        "coordinate_precision",
+        "default_attribute_omission",
+        "equivalent_component_style_alias",
+    ]
+
+    changed_symbol = _native_schematic_canonicalization_xml(
+        style="CompType0",
+        include_alias=False,
+        coordinate="1.968504",
+        explicit_default=False,
+        shape_y="0.1",
+    )
+    changed_result = _compare(source, changed_symbol, ".dchxml")
+    assert changed_result["passed"] is False
+    assert any(
+        category in difference
+        for difference in cast(list[str], changed_result["differences"])
+        for category in ("parts", "patterns")
     )
 
 

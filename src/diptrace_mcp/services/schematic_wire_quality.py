@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 _EPS = 1e-9
+_ANCHOR_EPS_MM = 1e-6
 _PART_VISUAL_MARGIN_MM = 3.0
 _TEXT_MARGIN_MM = 0.6
 _WIRE_LANE_GAP_MM = 0.75
@@ -284,7 +285,31 @@ def _wire_anchor(snapshot: DocumentSnapshot, endpoint: WireEndpoint, fallback: P
     item = raw_points[index]
     if not isinstance(item, dict) or "x" not in item or "y" not in item:
         return fallback
-    return Point(float(item["x"]), float(item["y"]))
+    anchor = Point(float(item["x"]), float(item["y"]))
+    if index > 0:
+        previous = raw_points[index - 1]
+        if isinstance(previous, dict) and "x" in previous and "y" in previous:
+            segment = _Segment(
+                Point(float(previous["x"]), float(previous["y"])),
+                anchor,
+            )
+            if segment.vertical and (
+                abs(fallback.x - segment.start.x) <= _ANCHOR_EPS_MM
+                and min(segment.start.y, segment.end.y) - _ANCHOR_EPS_MM
+                <= fallback.y
+                <= max(segment.start.y, segment.end.y) + _ANCHOR_EPS_MM
+            ):
+                return Point(segment.start.x, fallback.y)
+            if segment.horizontal and (
+                abs(fallback.y - segment.start.y) <= _ANCHOR_EPS_MM
+                and min(segment.start.x, segment.end.x) - _ANCHOR_EPS_MM
+                <= fallback.x
+                <= max(segment.start.x, segment.end.x) + _ANCHOR_EPS_MM
+            ):
+                return Point(fallback.x, segment.start.y)
+            if _point_on_segment(fallback, segment):
+                return fallback
+    return anchor
 
 
 def _intentional_wire_touches(

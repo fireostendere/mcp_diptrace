@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 142746,
-  "canonical_descriptor_sha256": "073f53681306fd13c5f3f29d61baed9a83fc9eb5c1ed14883846005a39d812db",
+  "canonical_descriptor_bytes": 142745,
+  "canonical_descriptor_sha256": "a148ac9732ee1f5669a544c00d6945e667d56f10289b7e339d8331ff6004890c",
   "format_version": 1,
   "tool_count": 159,
   "tools": [
@@ -101,7 +101,7 @@
             "title": "Expected Sha256"
           },
           "font_size": {
-            "default": 10,
+            "default": 4,
             "title": "Font Size",
             "type": "integer"
           },
