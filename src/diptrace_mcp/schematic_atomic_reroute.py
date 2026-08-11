@@ -30,7 +30,10 @@ from .schematic_pin_geometry import (
     SchematicPinGeometryResolution,
     resolve_document_schematic_pin_geometry,
 )
-from .schematic_wire_planner import SchematicWirePlannerConfig, plan_schematic_wire_candidate
+from .schematic_wire_planner import (
+    SchematicWirePlannerConfig,
+    plan_schematic_wire_candidate,
+)
 from .xml_document import DipTraceDocument
 
 _EPS = 1e-9
@@ -44,7 +47,9 @@ class SchematicAtomicRerouteConfig(StrictModel):
     max_deleted_wires: int = Field(default=2_048, ge=1, le=50_000)
     max_added_wires: int = Field(default=2_048, ge=1, le=50_000)
     include_unwired_affected_nets: bool = False
-    wire_planner: SchematicWirePlannerConfig = Field(default_factory=SchematicWirePlannerConfig)
+    wire_planner: SchematicWirePlannerConfig = Field(
+        default_factory=SchematicWirePlannerConfig
+    )
 
 
 class SchematicAffectedNetGroup(StrictModel):
@@ -127,7 +132,9 @@ def _moved_parts(
         target = Point(float(raw["x"]), float(raw["y"]))
         current = Point(**part.position)
         if math.isclose(current.x, target.x, abs_tol=_EPS) and math.isclose(
-            current.y, target.y, abs_tol=_EPS
+            current.y,
+            target.y,
+            abs_tol=_EPS,
         ):
             continue
         if part.locked:
@@ -218,10 +225,11 @@ def plan_atomic_schematic_placement_reroute(
 ) -> SchematicAtomicReroutePlan:
     """Plan one all-or-nothing placement and selective affected-net reroute.
 
-    The function is deliberately non-mutating.  It returns ordinary semantic operations in
-    dependency-safe order: delete affected wire geometry, move parts, then author replacement
-    wires.  Passing the complete list to the existing semantic-operations transaction path keeps
-    the placement and reroute atomic under the same SHA/preview/commit boundary.
+    The function is deliberately non-mutating. It returns ordinary semantic
+    operations in dependency-safe order: delete affected wire geometry, move parts,
+    then author replacement wires. Passing the complete list to the existing
+    semantic-operations transaction path keeps the placement and reroute atomic under
+    the same SHA/preview/commit boundary.
     """
 
     config = config or SchematicAtomicRerouteConfig()
@@ -281,19 +289,31 @@ def plan_atomic_schematic_placement_reroute(
             added_wire_count=0,
             affected_net_groups=[],
             warnings=[
-                "Moved parts touch no explicit wire geometry under the current selective-reroute policy."
+                (
+                    "Moved parts touch no explicit wire geometry under the current "
+                    "selective-reroute policy."
+                )
             ],
             limitations=[
-                "Unwired affected nets are preserved as connectivity-only nets unless "
-                "include_unwired_affected_nets is enabled."
+                (
+                    "Unwired affected nets are preserved as connectivity-only nets "
+                    "unless include_unwired_affected_nets is enabled."
+                )
             ],
         )
 
     pin_geometry = pin_geometry or resolve_document_schematic_pin_geometry(document)
-    virtual, virtualization_warnings = _virtualize_snapshot(snapshot, candidate.placements)
+    virtual, virtualization_warnings = _virtualize_snapshot(
+        snapshot,
+        candidate.placements,
+    )
     affected_keys = set(group_state)
     _remove_affected_wires(virtual, affected_keys)
-    endpoint_groups, endpoint_warnings = _virtual_endpoints(snapshot, virtual, pin_geometry)
+    endpoint_groups, endpoint_warnings = _virtual_endpoints(
+        snapshot,
+        virtual,
+        pin_geometry,
+    )
     net_names = _net_names(snapshot)
 
     add_operations: list[SemanticOperation] = []
@@ -305,7 +325,8 @@ def plan_atomic_schematic_placement_reroute(
         if len(endpoints) < 2:
             raise CapabilityUnavailableError(
                 f"Affected net {net_names.get(net_id, net_id)!r} on sheet {sheet} "
-                "does not have at least two resolvable endpoints; refusing destructive reroute"
+                "does not have at least two resolvable endpoints; refusing "
+                "destructive reroute"
             )
         edges = _mst_endpoint_edges(endpoints)
         if len(add_operations) + len(edges) > config.max_added_wires:
@@ -340,8 +361,9 @@ def plan_atomic_schematic_placement_reroute(
                 metrics = plan.selected.metrics
                 raise CapabilityUnavailableError(
                     f"Selective reroute rejected {net_name!r} on sheet {sheet}: "
-                    f"obstacle_hits={metrics.obstacle_hits}, overlaps={metrics.overlaps}, "
-                    f"crossings={metrics.crossings}, diagonals={metrics.diagonals}"
+                    f"obstacle_hits={metrics.obstacle_hits}, "
+                    f"overlaps={metrics.overlaps}, crossings={metrics.crossings}, "
+                    f"diagonals={metrics.diagonals}"
                 )
             add_operations.append(plan.selected.operation)
             group_plans.append((net_id, sheet, plan))
@@ -374,11 +396,20 @@ def plan_atomic_schematic_placement_reroute(
         affected_net_groups=reports,
         warnings=sorted(set(warnings)),
         limitations=[
-            "Selective reroute replaces explicit wire geometry only on sheet-local nets touched "
-            "by moved parts; unaffected wire geometry is left byte-semantically untouched by the plan.",
-            "Affected wire geometry is rebuilt from resolved pin endpoints using deterministic MST "
-            "edges; existing manual junction topology is not preserved as a visual constraint.",
-            "The planner is non-mutating. Atomicity is provided when the complete returned operation "
-            "list is previewed/committed through the existing guarded semantic transaction path.",
+            (
+                "Selective reroute replaces explicit wire geometry only on "
+                "sheet-local nets touched by moved parts; unaffected wire geometry "
+                "is left byte-semantically untouched by the plan."
+            ),
+            (
+                "Affected wire geometry is rebuilt from resolved pin endpoints using "
+                "deterministic MST edges; existing manual junction topology is not "
+                "preserved as a visual constraint."
+            ),
+            (
+                "The planner is non-mutating. Atomicity is provided when the complete "
+                "returned operation list is previewed/committed through the existing "
+                "guarded semantic transaction path."
+            ),
         ],
     )
