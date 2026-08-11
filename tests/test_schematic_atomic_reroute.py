@@ -10,7 +10,6 @@ from diptrace_mcp.errors import CapabilityUnavailableError
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.schematic_atomic_reroute import plan_atomic_schematic_placement_reroute
 from diptrace_mcp.schematic_optimizer import generate_schematic_placement_candidates
-from diptrace_mcp.schematic_pin_geometry import SchematicPinGeometryResolution
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.xml_document import DipTraceDocument
 
@@ -158,14 +157,25 @@ def test_atomic_reroute_is_non_mutating_until_semantic_batch_is_applied() -> Non
 
 def test_atomic_reroute_fails_closed_for_unresolved_affected_endpoints() -> None:
     document = _wired_document()
-    candidate, _moved_id = _candidate_for_move(document, xml_id="1", dx=5.0)
+    root = ET.fromstring(document.raw_bytes)
+    part = root.find("./Schematic/Components/Part[@Id='0']")
+    assert part is not None
+    first_pin = part.find("./Pins/Pin")
+    assert first_pin is not None
+    first_pin.set("NetId", "-1")
+    vcc_pins = root.find("./Schematic/Nets/Net[@Id='0']/Pins")
+    assert vcc_pins is not None
+    item = vcc_pins.find("./Item[@Part='0'][@Pin='0']")
+    assert item is not None
+    vcc_pins.remove(item)
+    unresolved = DipTraceDocument.from_bytes(
+        document.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+    candidate, _moved_id = _candidate_for_move(unresolved, xml_id="1", dx=5.0)
 
     with pytest.raises(CapabilityUnavailableError, match="at least two resolvable endpoints"):
-        plan_atomic_schematic_placement_reroute(
-            document,
-            candidate,
-            pin_geometry=SchematicPinGeometryResolution(),
-        )
+        plan_atomic_schematic_placement_reroute(unresolved, candidate)
 
 
 def test_atomic_reroute_fails_closed_for_locked_moved_part() -> None:
