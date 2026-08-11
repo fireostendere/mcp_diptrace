@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from typing import Any
 
 from pydantic import Field
 
@@ -50,7 +49,9 @@ class SchematicCongestionMetrics(StrictModel):
 class SchematicEnsembleConfig(StrictModel):
     optimizer: SchematicOptimizerConfig = Field(default_factory=SchematicOptimizerConfig)
     route: SchematicJointRouteConfig = Field(default_factory=SchematicJointRouteConfig)
-    congestion: SchematicCongestionConfig = Field(default_factory=SchematicCongestionConfig)
+    congestion: SchematicCongestionConfig = Field(
+        default_factory=SchematicCongestionConfig
+    )
     infer_builtin_motifs: bool = True
     max_ranked_candidates: int = Field(default=12, ge=1, le=64)
 
@@ -107,10 +108,10 @@ def infer_builtin_schematic_motifs(
     snapshot: DocumentSnapshot,
     intent: SchematicDesignIntent | None = None,
 ) -> list[BoundReferenceMotif]:
-    """Infer conservative project-local readability motifs from existing intent only.
+    """Infer conservative project-local readability motifs from existing intent.
 
-    These motifs are explicitly labelled ``builtin``. They are layout heuristics, not claims that a
-    datasheet or reference design was consulted.
+    These motifs are explicitly labelled ``builtin``. They are layout heuristics,
+    not claims that a datasheet or reference design was consulted.
     """
 
     if snapshot.schematic is None:
@@ -120,7 +121,13 @@ def infer_builtin_schematic_motifs(
     motifs: list[BoundReferenceMotif] = []
     seen: set[tuple[str, str, str]] = set()
 
-    def add(first: str, second: str, relation: str, *, distance_mm: float | None = None) -> None:
+    def add(
+        first: str,
+        second: str,
+        relation: str,
+        *,
+        distance_mm: float | None = None,
+    ) -> None:
         key = (first, second, relation)
         if first == second or key in seen:
             return
@@ -267,12 +274,16 @@ def rank_schematic_ensemble(
     motifs: list[BoundReferenceMotif] | None = None,
     config: SchematicEnsembleConfig | None = None,
 ) -> SchematicEnsembleResult:
-    """Generate placement candidates and rank them with motifs, routing and congestion."""
+    """Generate placement candidates and rank with motifs, routing, congestion."""
 
     config = config or SchematicEnsembleConfig()
     snapshot = build_snapshot(document)
     intent = infer_schematic_design_intent(snapshot, motifs=motifs)
-    inferred = infer_builtin_schematic_motifs(snapshot, intent) if config.infer_builtin_motifs else []
+    inferred = (
+        infer_builtin_schematic_motifs(snapshot, intent)
+        if config.infer_builtin_motifs
+        else []
+    )
     effective_motifs = [*(motifs or []), *inferred]
     candidates = generate_schematic_placement_candidates(
         snapshot,
@@ -287,7 +298,10 @@ def rank_schematic_ensemble(
             candidate,
             config=config.route,
         )
-        congestion = analyze_schematic_candidate_congestion(candidate, config.congestion)
+        congestion = analyze_schematic_candidate_congestion(
+            candidate,
+            config.congestion,
+        )
         ranked.append(
             SchematicEnsembleCandidate(
                 candidate=candidate,
@@ -305,13 +319,28 @@ def rank_schematic_ensemble(
         candidates=ranked,
         inferred_motifs=inferred,
         assumptions=[
-            "Builtin motifs are conservative readability heuristics derived only from normalized "
-            "part/block roles; they never masquerade as datasheet evidence.",
-            "Routing defects remain lexicographically dominant over congestion and compactness.",
-            "Congestion is a bounded placement-grid pressure estimate, not a physical field model.",
+            (
+                "Builtin motifs are conservative readability heuristics derived only "
+                "from normalized part/block roles; they never masquerade as datasheet "
+                "evidence."
+            ),
+            (
+                "Routing defects remain lexicographically dominant over congestion "
+                "and compactness."
+            ),
+            (
+                "Congestion is a bounded placement-grid pressure estimate, not a "
+                "physical field model."
+            ),
         ],
         limitations=[
-            "Text and pin-facing geometry remain governed by the existing layout and wire planners.",
-            "The ensemble is deterministic and bounded; it does not claim a global optimum.",
+            (
+                "Text and pin-facing geometry remain governed by the existing layout "
+                "and wire planners."
+            ),
+            (
+                "The ensemble is deterministic and bounded; it does not claim a "
+                "global optimum."
+            ),
         ],
     )
