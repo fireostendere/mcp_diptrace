@@ -260,7 +260,8 @@ class ScaffoldingService:
             expected_sha256=expected_sha256,
         )
         impact = write_impact(previous, seed_doc)
-        self.require_write_impact(impact, operation="create_document_from_seed")
+        if previous is not None:
+            self.require_write_impact(impact, operation="create_document_from_seed")
         # Copy seed bytes verbatim — do not modify unknown XML
         if previous is not None:
             assert expected_sha256 is not None

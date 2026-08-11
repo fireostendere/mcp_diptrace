@@ -117,6 +117,7 @@ def test_capability_report_discloses_limit_and_exact_exemptions(
     assert "fail-closed sum" in limits["max_write_objects_accounting"]
     assert limits["max_write_objects_exemptions"] == [
         "exact conflict-checked transaction rollback",
+        "exact validated seed copy to a new target",
     ]
 
 
@@ -287,7 +288,7 @@ def test_global_version_change_charges_the_complete_xml_scope(tmp_path: Path) ->
     assert raised.value.details["structural_element_count"] > MAX_WRITE_OBJECTS
 
 
-def test_seed_create_and_overwrite_refuse_oversized_library_before_write(
+def test_new_seed_copy_allows_oversized_library_but_overwrite_refuses(
     tmp_path: Path,
 ) -> None:
     seed = tmp_path / "seed.lib"
@@ -297,10 +298,9 @@ def test_seed_create_and_overwrite_refuse_oversized_library_before_write(
     target.write_bytes(original)
     service = _service(tmp_path, tmp_path / ".state")
 
-    with pytest.raises(EditError) as create_error:
-        service.create_document_from_seed("seed.lib", "new.lib")
-    assert create_error.value.payload.code == "write_object_limit_exceeded"
-    assert not (tmp_path / "new.lib").exists()
+    created = service.create_document_from_seed("seed.lib", "new.lib")
+    assert (tmp_path / "new.lib").read_bytes() == seed.read_bytes()
+    assert created["result"]["write_object_count"] > MAX_WRITE_OBJECTS
 
     with pytest.raises(EditError) as overwrite_error:
         service.create_document_from_seed(
@@ -363,19 +363,17 @@ def test_seed_reorder_counts_each_moved_unique_element(tmp_path: Path) -> None:
     assert target.read_bytes() == original
 
 
-def test_deep_seed_is_rejected_with_a_typed_limit_error(tmp_path: Path) -> None:
+def test_deep_seed_can_be_copied_exactly_to_a_new_target(tmp_path: Path) -> None:
     depth = 1_500
     nested = "".join(f"<X{index}>" for index in range(depth))
     nested += "".join(f"</X{index}>" for index in reversed(range(depth)))
     (tmp_path / "seed.dip").write_bytes(_opaque_document(nested))
     service = _service(tmp_path, tmp_path / ".state")
 
-    with pytest.raises(EditError) as raised:
-        service.create_document_from_seed("seed.dip", "copy.dip")
+    copied = service.create_document_from_seed("seed.dip", "copy.dip")
 
-    assert raised.value.payload.code == "write_object_limit_exceeded"
-    assert raised.value.details["structural_element_count"] > MAX_WRITE_OBJECTS
-    assert not (tmp_path / "copy.dip").exists()
+    assert (tmp_path / "copy.dip").read_bytes() == (tmp_path / "seed.dip").read_bytes()
+    assert copied["result"]["write_object_count"] > MAX_WRITE_OBJECTS
 
 
 def test_independent_normalized_and_opaque_impacts_are_summed(
@@ -414,16 +412,27 @@ def test_independent_normalized_and_opaque_impacts_are_summed(
     assert target.read_bytes() == original
 
 
-def test_component_library_pin_models_contribute_to_seed_limit(tmp_path: Path) -> None:
+def test_component_library_pin_models_contribute_to_seed_overwrite_limit(
+    tmp_path: Path,
+) -> None:
     (tmp_path / "components.lib").write_bytes(_component_library(MAX_WRITE_OBJECTS + 1))
+    target = tmp_path / "copy.lib"
+    original = _component_library(1)
+    target.write_bytes(original)
     service = _service(tmp_path, tmp_path / ".state")
 
     with pytest.raises(EditError) as raised:
-        service.create_document_from_seed("components.lib", "copy.lib")
+        service.create_document_from_seed(
+            "components.lib",
+            "copy.lib",
+            overwrite=True,
+            expected_sha256=sha256_bytes(original),
+        )
 
     assert raised.value.payload.code == "write_object_limit_exceeded"
-    assert raised.value.details["normalized_object_count"] > MAX_WRITE_OBJECTS
-    assert not (tmp_path / "copy.lib").exists()
+    assert raised.value.details["normalized_object_count"] == MAX_WRITE_OBJECTS
+    assert raised.value.details["object_count"] > MAX_WRITE_OBJECTS
+    assert target.read_bytes() == original
 
 
 def test_create_document_refuses_oversized_scaffold_and_preserves_overwrite(
