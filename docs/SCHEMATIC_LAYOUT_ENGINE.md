@@ -69,16 +69,18 @@ The previous major gap — moving parts in an already-wired schematic without le
 4. virtually removes only the affected explicit wire geometry;
 5. virtually applies the selected placement;
 6. resolves moved pin endpoints and replans every affected group through the existing bounded wire planner;
-7. refuses the whole plan if any affected route is rejected;
+7. keeps connectivity/safety failures fail-closed, while obstacle/crossing/overlap/detour/readability threshold failures are retained as explicit per-group `quality_feedback` and plan warnings when a valid endpoint-to-endpoint replacement can still be authored;
 8. returns one dependency-safe semantic batch:
 
 `DeleteWireOperation* -> MoveComponentsOperation* -> AddWireOperation*`.
+
+This distinction is deliberate. The wire planner's readability acceptance is still used by scoring/repair, but an already-imperfect schematic is not made uneditable merely because its safe replacement remains visually imperfect. Atomic reroute only refuses destructive replacement when connectivity cannot be reconstructed safely, required endpoint evidence is unresolved, bounds are exceeded, or another hard transaction precondition fails.
 
 The planner itself never writes XML. Applying the whole returned list through the existing semantic-operation transaction service gives one preview/SHA/commit boundary, so placement and replacement wires are all-or-nothing from the caller's transaction perspective.
 
 Unwired nets are not automatically turned into explicit page wires by default. Unaffected wire geometry is not rewritten.
 
-Current limitation: affected explicit nets are rebuilt from resolved pin endpoints using deterministic MST edges. Arbitrary hand-authored junction topology is not preserved as a visual constraint. A future topology-preservation layer may improve that without weakening the current fail-closed boundary.
+Current limitation: affected explicit nets are rebuilt from resolved pin endpoints using deterministic MST edges. Arbitrary hand-authored junction topology is not preserved as a visual constraint. A future topology-preservation layer may improve that without weakening the current fail-closed connectivity boundary.
 
 ## Existing direct-planner refusal
 
@@ -86,7 +88,7 @@ The older placement-only planners may still refuse an already-wired schematic wh
 
 ## Testing and evidence
 
-Repository tests cover deterministic candidate generation/ranking, pin resolution, route scoring, repair budgets, selective reroute scope, locked-part refusal, source immutability and semantic replay.
+Repository tests cover deterministic candidate generation/ranking, pin resolution, route scoring, repair budgets, selective reroute scope, locked-part refusal, unresolved-endpoint refusal, explicit readability feedback, source immutability and semantic replay.
 
 Those tests prove repository behavior, not visual product quality in a particular DipTrace build. The real-host schematic readability campaign in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md` remains the appropriate acceptance path for claims about human-readable output.
 
