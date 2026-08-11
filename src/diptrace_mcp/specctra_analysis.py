@@ -45,7 +45,11 @@ class SpecctraCompatibilityAnalysis(StrictModel):
     limitations: list[str] = Field(default_factory=list)
 
 
-def _structure_metrics(value: Any, *, depth: int = 0) -> tuple[int, int, Counter[str]]:
+def _structure_metrics(
+    value: Any,
+    *,
+    depth: int = 0,
+) -> tuple[int, int, Counter[str]]:
     if not isinstance(value, list):
         return 0, depth, Counter()
     scopes = 1
@@ -105,7 +109,9 @@ def analyze_session_routes(session: SpecctraSession) -> SpecctraRouteStatistics:
     segment_count = 0
     names = [route.name for route in session.routes]
     duplicates = sorted(
-        name for name, count in Counter(item.casefold() for item in names).items() if count > 1
+        name
+        for name, count in Counter(item.casefold() for item in names).items()
+        if count > 1
     )
     canonical_name = {item.casefold(): item for item in names}
     duplicate_names = [canonical_name[item] for item in duplicates]
@@ -152,7 +158,9 @@ def analyze_ses_compatibility(
     board_layer_names: set[str] = set()
     if snapshot.board is not None:
         board_net_names = {
-            (item.name or "").casefold() for item in snapshot.board.nets if item.name
+            (item.name or "").casefold()
+            for item in snapshot.board.nets
+            if item.name
         }
         board_layer_names = {
             str(item.get("name", "")).casefold()
@@ -165,19 +173,21 @@ def analyze_ses_compatibility(
         if route.name.casefold() not in board_net_names
     )
     unknown_layers = sorted(
-        layer
-        for layer in route_stats.layers
-        if layer.casefold() not in board_layer_names
+        layer for layer in route_stats.layers if layer.casefold() not in board_layer_names
     )
     warnings: list[str] = []
     if route_stats.duplicate_net_names:
-        warnings.append("SES contains duplicate net scopes under case-insensitive matching.")
+        warnings.append(
+            "SES contains duplicate net scopes under case-insensitive matching."
+        )
     if unknown_nets:
         warnings.append("SES contains nets that do not resolve on the target PCB.")
     if unknown_layers:
         warnings.append("SES contains route layers that do not resolve on the target PCB.")
     if plan.skipped:
-        warnings.append("One or more SES nets are not importable by the bounded semantic importer.")
+        warnings.append(
+            "One or more SES nets are not importable by the bounded semantic importer."
+        )
 
     return SpecctraCompatibilityAnalysis(
         structure=structure,
@@ -189,11 +199,19 @@ def analyze_ses_compatibility(
         unknown_board_layers=unknown_layers,
         warnings=warnings,
         limitations=[
-            "Structural inventory validates the bounded S-expression subset; it does not prove "
-            "compatibility with every Specctra producer or DipTrace build.",
-            "Importability is evaluated without mutating the target PCB and remains limited to the "
-            "existing conservative SES semantic importer.",
-            "A clean analysis does not replace post-import DRC, connectivity review, native "
-            "DipTrace round-trip, or copper-refill acceptance where applicable.",
+            (
+                "Structural inventory validates the bounded S-expression subset; it "
+                "does not prove compatibility with every Specctra producer or "
+                "DipTrace build."
+            ),
+            (
+                "Importability is evaluated without mutating the target PCB and "
+                "remains limited to the existing conservative SES semantic importer."
+            ),
+            (
+                "A clean analysis does not replace post-import DRC, connectivity "
+                "review, native DipTrace round-trip, or copper-refill acceptance "
+                "where applicable."
+            ),
         ],
     )
