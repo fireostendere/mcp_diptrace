@@ -310,6 +310,19 @@ def _rounded_semantic(value: Any) -> Any:
     return value
 
 
+def _rounded_rotation(value: float) -> float:
+    return round(value, 2)
+
+
+def _normalized_schematic_wire_points(points: Any) -> tuple[Any, ...]:
+    normalized: list[Any] = []
+    for point in points:
+        rounded = _rounded_semantic(point)
+        if not normalized or rounded != normalized[-1]:
+            normalized.append(rounded)
+    return tuple(normalized)
+
+
 def _schematic_style_signatures(
     document: DipTraceDocument, *, round_numeric: bool = True
 ) -> dict[str, Any]:
@@ -321,23 +334,37 @@ def _schematic_style_signatures(
         except ValueError:
             return value
 
-    def signature(element: Any) -> Any:
+    def signature(element: Any, *, patterns: dict[str, Any] | None = None) -> Any:
         return (
             element.tag,
             tuple(
                 sorted(
-                    (key, attribute_value(value))
+                    (
+                        key,
+                        patterns.get(value, ("unresolved", value))
+                        if patterns is not None and element.tag == "Pattern" and key == "Style"
+                        else attribute_value(value),
+                    )
                     for key, value in element.attrib.items()
-                    if key not in {"Id", "RefDes", "Locked"}
+                    if key not in {"Id", "RefDes", "Locked", "PatternStyle"}
                 )
             ),
             (element.text or "").strip(),
-            tuple(signature(child) for child in element if child.tag != "LibPath"),
+            tuple(
+                signature(child, patterns=patterns)
+                for child in element
+                if child.tag != "LibPath"
+                and not (element.tag == "Part" and child.tag in {"Name", "Value"})
+            ),
         )
 
+    patterns = {
+        pattern.get("PatternStyle", ""): signature(pattern)
+        for pattern in document.root.findall("./Library/Library/Patterns/Pattern")
+    }
     return {
         component.get("ComponentStyle", ""): tuple(
-            signature(part) for part in component.findall("./Part")
+            signature(part, patterns=patterns) for part in component.findall("./Part")
         )
         for component in document.root.findall("./Library/Components/Component")
     }
@@ -422,6 +449,10 @@ def _detected_semantic_normalizations(
                 left.position
             ) == _rounded_semantic(right.position):
                 detected.add("coordinate_precision")
+            if left.rotation_deg != right.rotation_deg and _rounded_rotation(
+                left.rotation_deg
+            ) == _rounded_rotation(right.rotation_deg):
+                detected.add("coordinate_precision")
 
         source_pins = {item.xml_id: item for item in source_snapshot.schematic.pins}
         reexport_pins = {item.xml_id: item for item in reexport_snapshot.schematic.pins}
@@ -445,7 +476,9 @@ def _detected_semantic_normalizations(
         for wire_id in source_wires.keys() & reexport_wires.keys():
             left = source_wires[wire_id].attributes.get("points", [])
             right = reexport_wires[wire_id].attributes.get("points", [])
-            if left != right and _rounded_semantic(left) == _rounded_semantic(right):
+            if left != right and _normalized_schematic_wire_points(
+                left
+            ) == _normalized_schematic_wire_points(right):
                 detected.add("coordinate_precision")
 
     configured = SEMANTIC_COMPARISON_POLICY_V1["normalizations"]
@@ -652,7 +685,7 @@ def _semantic_roundtrip_check(
                 item.name,
                 item.value,
                 item.position,
-                _rounded_semantic(item.rotation_deg),
+                _rounded_rotation(item.rotation_deg),
                 item.mirrored,
                 item.locked,
                 attrs.get("sheet"),
@@ -745,7 +778,11 @@ def _semantic_roundtrip_check(
                 item.locked,
                 item.attributes.get("sheet"),
             )
-            return base + ((item.attributes.get("points", []),) if include_geometry else ())
+            return base + (
+                (_normalized_schematic_wire_points(item.attributes.get("points", [])),)
+                if include_geometry
+                else ()
+            )
 
         compare_category(
             "wires",
