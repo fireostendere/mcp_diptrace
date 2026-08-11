@@ -4,7 +4,7 @@ import copy
 
 import pytest
 
-from diptrace_mcp.cinematic import CinematicSession
+from diptrace_mcp.cinematic import CinematicTimeline
 from diptrace_mcp.cinematic_preflight import (
     CinematicSafetyBudget,
     cinematic_content_sha256,
@@ -13,7 +13,7 @@ from diptrace_mcp.cinematic_preflight import (
 
 
 def _manifest() -> dict[str, object]:
-    session = CinematicSession(title="safe demo", domain="schematic")
+    session = CinematicTimeline(title="safe demo", domain="schematic")
     session.operation(
         "add_wire",
         payload={
