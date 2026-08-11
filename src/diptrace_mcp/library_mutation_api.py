@@ -31,9 +31,9 @@ LibraryMutationAction = Literal[
 class LibraryMutationRequest(StrictModel):
     """Stable package-level contract prepared for future public registration.
 
-    This model is intentionally not registered as an MCP tool. It makes the request/preview boundary
-    explicit first so evidence and API review can happen without silently expanding the public tool
-    surface.
+    This model is intentionally not registered as an MCP tool. It makes the
+    request/preview boundary explicit first so evidence and API review can happen
+    without silently expanding the public tool surface.
     """
 
     action: LibraryMutationAction
@@ -55,22 +55,36 @@ class LibraryMutationRequest(StrictModel):
         if self.action == "mutate_pattern":
             if self.pattern is None:
                 raise ValueError("mutate_pattern requires pattern")
-            if self.component is not None or self.component_name is not None or self.pattern_style is not None:
+            if (
+                self.component is not None
+                or self.component_name is not None
+                or self.pattern_style is not None
+            ):
                 raise ValueError("mutate_pattern contains fields for another action")
         elif self.action == "mutate_component":
             if self.component is None:
                 raise ValueError("mutate_component requires component")
-            if self.pattern is not None or self.component_name is not None or self.pattern_style is not None:
+            if (
+                self.pattern is not None
+                or self.component_name is not None
+                or self.pattern_style is not None
+            ):
                 raise ValueError("mutate_component contains fields for another action")
         elif self.action == "attach_pattern":
             if self.component_name is None or self.pattern_style is None:
-                raise ValueError("attach_pattern requires component_name and pattern_style")
+                raise ValueError(
+                    "attach_pattern requires component_name and pattern_style"
+                )
             if self.pattern is not None or self.component is not None:
                 raise ValueError("attach_pattern contains fields for another action")
         elif self.action == "validate_mapping":
             if self.component_name is None:
                 raise ValueError("validate_mapping requires component_name")
-            if self.pattern is not None or self.component is not None or self.pattern_style is not None:
+            if (
+                self.pattern is not None
+                or self.component is not None
+                or self.pattern_style is not None
+            ):
                 raise ValueError("validate_mapping contains fields for another action")
         return self
 
@@ -102,7 +116,10 @@ def _check_expected_sha(document: DipTraceDocument, expected_sha256: str) -> str
     return actual
 
 
-def _mutate(document: DipTraceDocument, request: LibraryMutationRequest) -> LibraryMutationResult:
+def _mutate(
+    document: DipTraceDocument,
+    request: LibraryMutationRequest,
+) -> LibraryMutationResult:
     if request.action == "mutate_pattern":
         assert request.pattern is not None
         return mutate_pattern(
@@ -142,8 +159,9 @@ def preview_library_mutation(
 ) -> LibraryMutationExecution:
     """Execute one in-memory mutation behind an expected-SHA preview boundary.
 
-    No filesystem write occurs. Callers can inspect the typed preview, review the byte result, and
-    later route it through an appropriate guarded persistence/real-editor evidence path.
+    No filesystem write occurs. Callers can inspect the typed preview, review the
+    byte result, and later route it through an appropriate guarded
+    persistence/real-editor evidence path.
     """
 
     source_sha = _check_expected_sha(document, request.expected_sha256)
@@ -155,8 +173,14 @@ def preview_library_mutation(
         component_name = request.component.name
     elif request.action in {"attach_pattern", "validate_mapping"}:
         component_name = request.component_name
-    if component_name is not None and result_document.source_type == "DipTrace-ComponentLibrary":
-        mapping_errors = validate_explicit_pin_pad_mapping(result_document, component_name)
+    if (
+        component_name is not None
+        and result_document.source_type == "DipTrace-ComponentLibrary"
+    ):
+        mapping_errors = validate_explicit_pin_pad_mapping(
+            result_document,
+            component_name,
+        )
     result_inventory = analyze_xml_semantics(result_document)
     preview = LibraryMutationPreview(
         action=request.action,
@@ -170,9 +194,19 @@ def preview_library_mutation(
         result_inventory_sha256=result_inventory.semantic_sha256,
         public_registration=False,
         evidence_boundary=[
-            "This package-level request/preview contract is intentionally not registered as a public MCP tool.",
-            "The internal raw-preserving writer has real-editor evidence, but a future public write API still requires explicit product/API review and public-contract snapshot updates.",
-            "Preview execution is in-memory only and cannot bypass expected-SHA, persistence, review, or real-DipTrace acceptance requirements.",
+            (
+                "This package-level request/preview contract is intentionally not "
+                "registered as a public MCP tool."
+            ),
+            (
+                "The internal raw-preserving writer has real-editor evidence, but a "
+                "future public write API still requires explicit product/API review "
+                "and public-contract snapshot updates."
+            ),
+            (
+                "Preview execution is in-memory only and cannot bypass expected-SHA, "
+                "persistence, review, or real-DipTrace acceptance requirements."
+            ),
         ],
     )
     return LibraryMutationExecution(preview=preview, raw_bytes=result.raw_bytes)
