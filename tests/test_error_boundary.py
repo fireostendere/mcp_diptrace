@@ -9,7 +9,7 @@ from diptrace_mcp.error_boundary import (
     exception_to_error_result,
     wrap_tool_callable,
 )
-from diptrace_mcp.errors import InvalidArgumentError, ObjectNotFoundError
+from diptrace_mcp.errors import EditError, InvalidArgumentError, ObjectNotFoundError
 from diptrace_mcp.server import create_server
 
 
@@ -57,6 +57,15 @@ def test_typed_invalid_argument_is_bounded_as_invalid_argument() -> None:
 
     assert result["error"]["code"] == "INVALID_ARGUMENT"
     assert result["error"]["retryable"] is False
+
+
+def test_connectivity_conflict_uses_existing_public_conflict_code() -> None:
+    result = exception_to_error_result(
+        EditError("Pin is not on the requested net", code="connectivity_conflict")
+    )
+
+    assert result["error"]["code"] == "CONFLICT"
+    assert result["error"]["retryable"] is True
 
 
 def test_unexpected_value_error_is_internal_not_user_error() -> None:
