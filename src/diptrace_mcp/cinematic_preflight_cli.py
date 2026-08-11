@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from .cinematic_preflight import preflight_cinematic_manifest
 
@@ -11,7 +11,9 @@ from .cinematic_preflight import preflight_cinematic_manifest
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="diptrace-mcp-cinematic-preflight",
-        description="Validate cinematic timing/payload safety budgets before desktop playback.",
+        description=(
+            "Validate cinematic timing/payload safety budgets before desktop playback."
+        ),
     )
     parser.add_argument("manifest", type=Path)
     return parser
