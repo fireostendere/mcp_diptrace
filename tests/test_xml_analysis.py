@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from diptrace_mcp.xml_analysis import analyze_xml_semantics, compare_xml_semantics
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
 BASE = (FIXTURES / "pcb.xml").read_bytes()
+_SAFE_TEXT = st.text(
+    alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")),
+    min_size=1,
+    max_size=16,
+)
 
 
 def _document(raw: bytes) -> DipTraceDocument:
@@ -27,10 +33,7 @@ def test_xml_semantic_inventory_is_deterministic_on_real_fixture() -> None:
     assert len(first.semantic_sha256) == 64
 
 
-@given(
-    first=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), min_size=1, max_size=16),
-    second=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), min_size=1, max_size=16),
-)
+@given(first=_SAFE_TEXT, second=_SAFE_TEXT)
 def test_semantic_fingerprint_ignores_attribute_order(first: str, second: str) -> None:
     marker = b"</Board>"
     left = f'<UnknownProbe A="{first}" B="{second}" />'.encode()
