@@ -38,14 +38,13 @@ PCBEnsembleProfile = Literal[
 ]
 
 
+def _default_profiles() -> list[PCBEnsembleProfile]:
+    return ["balanced", "critical_nets", "noise_aware", "support_compact"]
+
+
 class PCBEnsembleConfig(StrictModel):
     profiles: list[PCBEnsembleProfile] = Field(
-        default_factory=lambda: [
-            "balanced",
-            "critical_nets",
-            "noise_aware",
-            "support_compact",
-        ],
+        default_factory=_default_profiles,
         min_length=1,
         max_length=8,
     )
