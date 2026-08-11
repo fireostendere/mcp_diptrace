@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
-from typing import Iterable
+from collections.abc import Iterable
 from xml.etree.ElementTree import Element
 
 from pydantic import Field
@@ -45,7 +45,9 @@ def _text(value: str | None) -> str:
 def _canonical_node(element: Element) -> tuple[object, ...]:
     return (
         element.tag,
-        tuple(sorted((str(key), str(value)) for key, value in element.attrib.items())),
+        tuple(
+            sorted((str(key), str(value)) for key, value in element.attrib.items())
+        ),
         _text(element.text),
         tuple(_canonical_node(child) for child in list(element)),
     )
@@ -67,11 +69,13 @@ def _walk(element: Element, *, depth: int = 0) -> Iterable[tuple[Element, int]]:
 
 
 def _local_record(element: Element) -> tuple[object, ...]:
-    """Local structural record used for bounded diff counts without parent-cascade noise."""
+    """Return a local record for bounded diffs without parent-cascade noise."""
 
     return (
         element.tag,
-        tuple(sorted((str(key), str(value)) for key, value in element.attrib.items())),
+        tuple(
+            sorted((str(key), str(value)) for key, value in element.attrib.items())
+        ),
         _text(element.text),
     )
 
@@ -129,14 +133,20 @@ def compare_xml_semantics(
 ) -> XMLSemanticDelta:
     before_inventory = analyze_xml_semantics(before)
     after_inventory = analyze_xml_semantics(after)
-    before_records = Counter(_local_record(element) for element, _depth in _walk(before.root))
-    after_records = Counter(_local_record(element) for element, _depth in _walk(after.root))
+    before_records = Counter(
+        _local_record(element) for element, _depth in _walk(before.root)
+    )
+    after_records = Counter(
+        _local_record(element) for element, _depth in _walk(after.root)
+    )
     added = sum((after_records - before_records).values())
     removed = sum((before_records - after_records).values())
     return XMLSemanticDelta(
         source_type_changed=before.source_type != after.source_type,
         root_tag_changed=before.root.tag != after.root.tag,
-        semantic_equal=(before_inventory.semantic_sha256 == after_inventory.semantic_sha256),
+        semantic_equal=(
+            before_inventory.semantic_sha256 == after_inventory.semantic_sha256
+        ),
         before_sha256=before_inventory.semantic_sha256,
         after_sha256=after_inventory.semantic_sha256,
         added_local_records=added,
@@ -150,11 +160,18 @@ def compare_xml_semantics(
             Counter(after_inventory.attribute_name_counts),
         ),
         limitations=[
-            "The semantic fingerprint ignores XML attribute order and outer text whitespace, but "
-            "preserves element order because DipTrace collections can be order-sensitive.",
-            "Local-record delta counts summarize structural change; they are not a replacement for "
-            "domain-level PCB/schematic connectivity comparison.",
-            "Unknown XML is fingerprinted and counted even when the normalized domain model does not "
-            "interpret its meaning.",
+            (
+                "The semantic fingerprint ignores XML attribute order and outer text "
+                "whitespace, but preserves element order because DipTrace collections "
+                "can be order-sensitive."
+            ),
+            (
+                "Local-record delta counts summarize structural change; they are not "
+                "a replacement for domain-level PCB/schematic connectivity comparison."
+            ),
+            (
+                "Unknown XML is fingerprinted and counted even when the normalized "
+                "domain model does not interpret its meaning."
+            ),
         ],
     )
