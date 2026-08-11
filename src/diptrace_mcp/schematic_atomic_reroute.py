@@ -60,6 +60,7 @@ class SchematicAffectedNetGroup(StrictModel):
     pin_ids: list[str] = Field(default_factory=list)
     deleted_wire_ids: list[str] = Field(default_factory=list)
     replacement_edge_count: int = Field(ge=0)
+    quality_feedback: list[str] = Field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,6 +217,33 @@ def _remove_affected_wires(
         snapshot.objects.pop(stable_id, None)
 
 
+def _readability_feedback(
+    *,
+    net_name: str,
+    sheet: int,
+    route_index: int,
+    plan: Any,
+) -> str:
+    reasons = list(plan.placement_feedback.reasons)
+    if not reasons:
+        metrics = plan.selected.metrics
+        reasons = [
+            f"obstacle_hits={metrics.obstacle_hits}",
+            f"overlaps={metrics.overlaps}",
+            f"crossings={metrics.crossings}",
+            f"self_intersections={metrics.self_intersections}",
+            f"diagonals={metrics.diagonals}",
+            f"bends={metrics.bends}",
+            f"detour_ratio={metrics.detour_ratio:.3g}",
+        ]
+    return (
+        f"Selective reroute readability feedback for {net_name!r} on sheet {sheet}, "
+        f"replacement edge {route_index}: {'; '.join(reasons)}. Connectivity-safe "
+        "replacement is retained for the atomic transaction; readability remains "
+        "explicit review/repair feedback."
+    )
+
+
 def plan_atomic_schematic_placement_reroute(
     document: DipTraceDocument,
     candidate: SchematicPlacementCandidate,
@@ -230,6 +258,11 @@ def plan_atomic_schematic_placement_reroute(
     then author replacement wires. Passing the complete list to the existing
     semantic-operations transaction path keeps the placement and reroute atomic under
     the same SHA/preview/commit boundary.
+
+    Connectivity/safety failures remain fail-closed. Wire-planner readability
+    thresholds are preserved as explicit quality feedback instead of being promoted
+    into destructive-reroute failures when a valid endpoint-to-endpoint replacement
+    can still be authored.
     """
 
     config = config or SchematicAtomicRerouteConfig()
@@ -335,7 +368,8 @@ def plan_atomic_schematic_placement_reroute(
             )
         net_name = net_names.get(net_id, net_id)
         group_plans = []
-        for start, end in edges:
+        group_quality_feedback: list[str] = []
+        for route_index, (start, end) in enumerate(edges, 1):
             operation = AddWireOperation(
                 net=net_name,
                 sheet=sheet,
@@ -358,13 +392,14 @@ def plan_atomic_schematic_placement_reroute(
                 config=config.wire_planner,
             )
             if not plan.accept_route:
-                metrics = plan.selected.metrics
-                raise CapabilityUnavailableError(
-                    f"Selective reroute rejected {net_name!r} on sheet {sheet}: "
-                    f"obstacle_hits={metrics.obstacle_hits}, "
-                    f"overlaps={metrics.overlaps}, crossings={metrics.crossings}, "
-                    f"diagonals={metrics.diagonals}"
+                feedback = _readability_feedback(
+                    net_name=net_name,
+                    sheet=sheet,
+                    route_index=route_index,
+                    plan=plan,
                 )
+                group_quality_feedback.append(feedback)
+                warnings.append(feedback)
             add_operations.append(plan.selected.operation)
             group_plans.append((net_id, sheet, plan))
             _append_completed_net_routes(virtual, [(net_id, sheet, plan)])
@@ -380,6 +415,7 @@ def plan_atomic_schematic_placement_reroute(
                 pin_ids=pin_ids,
                 deleted_wire_ids=sorted(state["deleted_wire_ids"]),
                 replacement_edge_count=len(group_plans),
+                quality_feedback=group_quality_feedback,
             )
         )
 
@@ -405,6 +441,12 @@ def plan_atomic_schematic_placement_reroute(
                 "Affected wire geometry is rebuilt from resolved pin endpoints using "
                 "deterministic MST edges; existing manual junction topology is not "
                 "preserved as a visual constraint."
+            ),
+            (
+                "Unresolved or insufficient endpoints remain fail-closed. Readability "
+                "threshold failures from the wire planner are surfaced as explicit "
+                "quality feedback and do not by themselves discard an otherwise "
+                "connectivity-safe replacement."
             ),
             (
                 "The planner is non-mutating. Atomicity is provided when the complete "
