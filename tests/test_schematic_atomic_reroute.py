@@ -10,6 +10,7 @@ from diptrace_mcp.errors import CapabilityUnavailableError
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.schematic_atomic_reroute import plan_atomic_schematic_placement_reroute
 from diptrace_mcp.schematic_optimizer import generate_schematic_placement_candidates
+from diptrace_mcp.schematic_pin_geometry import SchematicPinGeometryResolution
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.xml_document import DipTraceDocument
 
@@ -104,6 +105,8 @@ def test_atomic_reroute_replaces_only_nets_touched_by_moved_part() -> None:
     assert [item.net_name for item in plan.affected_net_groups] == ["VCC"]
     assert len(plan.deleted_wire_ids) == 1
     assert plan.added_wire_count == 1
+    assert plan.affected_net_groups[0].quality_feedback
+    assert any("readability feedback" in item for item in plan.warnings)
     assert [operation.kind for operation in plan.operations] == [
         "delete_wire",
         "move_components",
@@ -131,6 +134,7 @@ def test_atomic_reroute_rebuilds_all_explicit_wire_groups_for_multi_net_part() -
     assert [item.net_name for item in plan.affected_net_groups] == ["VCC", "SIGNAL"]
     assert len(plan.deleted_wire_ids) == 2
     assert plan.added_wire_count == 2
+    assert any(item.quality_feedback for item in plan.affected_net_groups)
     assert [item.kind for item in plan.operations].count("delete_wire") == 2
     assert [item.kind for item in plan.operations].count("move_components") == 1
     assert [item.kind for item in plan.operations].count("add_wire") == 2
@@ -150,6 +154,18 @@ def test_atomic_reroute_is_non_mutating_until_semantic_batch_is_applied() -> Non
     plan_atomic_schematic_placement_reroute(document, candidate)
 
     assert document.raw_bytes == before
+
+
+def test_atomic_reroute_fails_closed_for_unresolved_affected_endpoints() -> None:
+    document = _wired_document()
+    candidate, _moved_id = _candidate_for_move(document, xml_id="1", dx=5.0)
+
+    with pytest.raises(CapabilityUnavailableError, match="at least two resolvable endpoints"):
+        plan_atomic_schematic_placement_reroute(
+            document,
+            candidate,
+            pin_geometry=SchematicPinGeometryResolution(),
+        )
 
 
 def test_atomic_reroute_fails_closed_for_locked_moved_part() -> None:
