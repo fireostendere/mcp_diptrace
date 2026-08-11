@@ -107,6 +107,37 @@ def _schematic_xml(*, wire_x: float = 10.0, endpoint_net: str = "0") -> bytes:
 """.encode()
 
 
+def _reindexed_schematic_xml(*, reordered: bool, disconnect_led: bool = False) -> bytes:
+    parts = [
+        ("R1", "R", "1k", "5", "0"),
+        ("D1", "LED", "RED", "15", "1" if disconnect_led else "0"),
+    ]
+    if reordered:
+        parts.reverse()
+    part_xml = "".join(
+        f'<Part Id="{index}" ComponentStyle="{name}" ComponentPart="0" '
+        f'PartNumber="0" Sheet="0" X="{x}" Y="5"><RefDes>{refdes}</RefDes>'
+        f'<Name>{name}</Name><Value>{value}</Value><Pins><Pin NetId="{net}"/></Pins></Part>'
+        for index, (refdes, name, value, x, net) in enumerate(parts)
+    )
+    ids = {refdes: str(index) for index, (refdes, *_rest) in enumerate(parts)}
+    led_on_main = "" if disconnect_led else f'<Item Part="{ids["D1"]}" Pin="0"/>'
+    led_on_other = f'<Item Part="{ids["D1"]}" Pin="0"/>' if disconnect_led else ""
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<Source Type="DipTrace-Schematic" Version="5.3.0.3" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary" Version="5.3.0.3" Units="mm" />
+  <Schematic>
+    <SheetSettings><ActiveSheet>0</ActiveSheet><Sheets><Sheet><Id>0</Id><Name>Main</Name><Type>Normal</Type></Sheet></Sheets></SheetSettings>
+    <Components>{part_xml}</Components>
+    <Nets>
+      <Net Id="0"><Name>LED_A</Name><Pins><Item Part="{ids["R1"]}" Pin="0"/>{led_on_main}</Pins><Wires><Wire Id="0" Sheet="0"><Points><Point X="5" Y="5"/><Point X="15" Y="5"/></Points></Wire></Wires></Net>
+      <Net Id="1"><Name>OTHER</Name><Pins>{led_on_other}</Pins><Wires/></Net>
+    </Nets>
+  </Schematic>
+</Source>
+""".encode()
+
+
 def _native_schematic_canonicalization_xml(
     *,
     style: str,
@@ -213,6 +244,25 @@ def test_native_schematic_canonicalization_preserves_real_symbol_checks() -> Non
         category in difference
         for difference in cast(list[str], changed_result["differences"])
         for category in ("parts", "patterns")
+    )
+
+
+def test_native_schematic_object_reindexing_is_not_semantic() -> None:
+    source = _reindexed_schematic_xml(reordered=False)
+    canonical = _reindexed_schematic_xml(reordered=True)
+
+    assert _compare(source, canonical, ".dchxml")["passed"] is True
+
+    changed = _compare(
+        source,
+        _reindexed_schematic_xml(reordered=True, disconnect_led=True),
+        ".dchxml",
+    )
+    assert changed["passed"] is False
+    assert any(
+        category in difference
+        for difference in cast(list[str], changed["differences"])
+        for category in ("pins", "pin_net_membership", "schematic_nets")
     )
 
 

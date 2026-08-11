@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from ..adapters import DocumentSnapshot
 from ..geometry import BBox, Point, to_mm
 from ..operations import AddWireOperation, WireEndpoint
+from ..schematic_pin_geometry import resolve_document_schematic_pin_geometry
 from ..xml_document import DipTraceDocument
 
 if TYPE_CHECKING:
@@ -68,8 +69,8 @@ class _PathQuality:
 
 
 def _same_point(first: Point, second: Point) -> bool:
-    return math.isclose(first.x, second.x, abs_tol=_EPS) and math.isclose(
-        first.y, second.y, abs_tol=_EPS
+    return math.isclose(first.x, second.x, abs_tol=_ANCHOR_EPS_MM) and math.isclose(
+        first.y, second.y, abs_tol=_ANCHOR_EPS_MM
     )
 
 
@@ -270,7 +271,29 @@ def _existing_wire_segments(snapshot: DocumentSnapshot, sheet: int) -> list[_Seg
     return result
 
 
-def _wire_anchor(snapshot: DocumentSnapshot, endpoint: WireEndpoint, fallback: Point) -> Point:
+def _wire_anchor(
+    snapshot: DocumentSnapshot,
+    endpoint: WireEndpoint,
+    fallback: Point,
+    pin_anchors: dict[tuple[str, int], Point] | None = None,
+) -> Point:
+    pin_anchors = pin_anchors or {}
+    if endpoint.type == "Pin" and endpoint.pin is not None and snapshot.schematic is not None:
+        matches = [
+            part
+            for part in snapshot.schematic.parts
+            if (
+                endpoint.refdes is not None
+                and (part.refdes or "").casefold() == endpoint.refdes.casefold()
+            )
+            or (
+                endpoint.part_id is not None
+                and endpoint.part_id in {part.stable_id, part.xml_id or ""}
+            )
+        ]
+        if len(matches) == 1:
+            return pin_anchors.get((matches[0].stable_id, endpoint.pin), fallback)
+        return fallback
     if endpoint.type != "Wire" or endpoint.wire_id is None:
         return fallback
     record = snapshot.objects.get(endpoint.wire_id)
@@ -533,8 +556,13 @@ def clean_schematic_wire_operation(
     supplied = _simplify_points([Point(item.x, item.y) for item in operation.points])
     if len(supplied) < 2:
         return operation
-    supplied[0] = _wire_anchor(snapshot, operation.start, supplied[0])
-    supplied[-1] = _wire_anchor(snapshot, operation.end, supplied[-1])
+    pin_anchors = {
+        (pin.part_id, pin.pin_index): Point(**pin.absolute_position)
+        for pin in resolve_document_schematic_pin_geometry(document).pins
+        if pin.absolute_position is not None
+    }
+    supplied[0] = _wire_anchor(snapshot, operation.start, supplied[0], pin_anchors)
+    supplied[-1] = _wire_anchor(snapshot, operation.end, supplied[-1], pin_anchors)
     supplied = _simplify_points(supplied)
     start, end = supplied[0], supplied[-1]
     obstacles = [*_part_obstacles(snapshot, operation), *_text_obstacles(document, operation.sheet)]

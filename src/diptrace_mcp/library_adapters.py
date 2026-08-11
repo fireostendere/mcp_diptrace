@@ -506,8 +506,7 @@ def _components(document: DipTraceDocument) -> list[LibraryComponent]:
         for part_index, part in enumerate(parts):
             for pin_index, pin in enumerate(part.findall("./Pins/Pin")):
                 xml_id = pin.get("Id", str(pin_index))
-                pins.append(
-                    LibraryPin(
+                library_pin = LibraryPin(
                         stable_id=stable_id(
                             "library-pin", component_id, str(part_index), f"xml:{xml_id}"
                         ),
@@ -525,7 +524,10 @@ def _components(document: DipTraceDocument) -> list[LibraryComponent]:
                         orientation_deg=_number(document, pin, "Orientation"),
                         locked=pin.get("Locked", "N") == "Y",
                     )
+                library_pin._length_mm = _number_mm(
+                    document, pin, "Length", document.units
                 )
+                pins.append(library_pin)
         attached_pattern = first.find("./Pattern")
         components.append(
             LibraryComponent(
