@@ -2,7 +2,7 @@
 
 ## Status
 
-Cinematic mode is implemented on `main` as an optional deterministic presentation layer for DipTrace MCP workflows. It can replay already-planned engineering actions through the visible Windows DipTrace UI and capture video/GIF output.
+Cinematic mode is implemented as an optional deterministic presentation layer for DipTrace MCP workflows. It can replay already-planned engineering actions through the visible Windows DipTrace UI and capture video/GIF output.
 
 It is not engineering authority:
 
@@ -11,7 +11,7 @@ It is not engineering authority:
 - cinematic mode decides how to show an already-planned action visibly;
 - visible replay is not proof of semantic acceptance without separate real-host evidence.
 
-The public MCP contract remains unchanged at 159 tools.
+The public MCP contract remains unchanged at **159 tools**.
 
 ## Modules
 
@@ -19,7 +19,7 @@ The public MCP contract remains unchanged at 159 tools.
 - `cinematic_cli.py` — timeline capture/compile and ffmpeg helper;
 - `cinematic_host.py` — Windows replay host and dry-run driver;
 - `cinematic_preflight.py` — deterministic manifest content identity and safety budgets;
-- `cinematic_preflight_cli.py` — standalone preflight command;
+- `cinematic_preflight_cli.py` — standalone preflight inspection;
 - `cinematic_recording.py` — ffmpeg/Windows recording helper;
 - `diptrace_ui.py` — UI profile model and design-to-client affine calibration;
 - `diptrace_profile_cli.py` — template/probe/calibrate/action/validate CLI;
@@ -42,26 +42,14 @@ PCB trace replay fails closed for via/layer transitions until explicit staged re
 
 ## UI profiles and calibration
 
-PCB and Schematic use separate version/editor-specific profiles. A profile stores:
-
-- editor/version identity;
-- target window-title substring;
-- explicit verified action macros;
-- an affine design-coordinate -> normalized client-coordinate transform.
-
-No guessed toolbar coordinates or shortcuts are installed by default.
-
-Create/probe/calibrate/validate a profile:
+PCB and Schematic use separate version/editor-specific profiles. A profile stores editor/version identity, target window-title substring, explicit verified action macros and an affine design-coordinate -> normalized client-coordinate transform. No guessed toolbar coordinates or shortcuts are installed by default.
 
 ```bash
 python -m diptrace_mcp.diptrace_profile_cli template \
   --editor schematic --version 5.3 --output schematic-5.3.json
-
 python -m diptrace_mcp.diptrace_profile_cli probe --window "DipTrace"
-
 python -m diptrace_mcp.diptrace_profile_cli calibrate \
   schematic-5.3.json anchors.json
-
 python -m diptrace_mcp.diptrace_profile_cli validate schematic-5.3.json
 ```
 
@@ -72,7 +60,6 @@ At least three non-collinear anchors are required; four or more are recommended 
 ```bash
 python -m diptrace_mcp.cinematic_cli init demo.jsonl \
   --title "PCB routing demo" --preset cinematic --domain pcb
-
 python -m diptrace_mcp.cinematic_cli event demo.jsonl route_trace --target CLK
 python -m diptrace_mcp.cinematic_cli compile demo.jsonl --output demo.cinematic.json
 ```
@@ -81,46 +68,41 @@ Payload persistence is disabled by default.
 
 ## Manifest preflight
 
-Before desktop playback, validate the compiled manifest:
+Standalone inspection remains useful:
 
 ```bash
 python -m diptrace_mcp.cinematic_preflight_cli demo.cinematic.json
 ```
 
-The preflight checks:
+The same validation is now enforced inside `cinematic_host.play_manifest()` **before any dry-run or real desktop driver action**. A caller cannot bypass the manifest safety boundary by invoking the Python playback API directly.
+
+Preflight checks:
 
 - exact `diptrace-cinematic-v1` format;
-- cue array/count consistency;
-- cue index sequence;
+- cue array/count and index consistency;
 - monotonic/non-overlapping start/end/settle timing;
-- declared duration against actual final cue timing;
+- declared duration against final cue timing;
 - bounded settle gaps;
 - per-cue serialized payload bytes;
-- total desktop command count;
-- total click-path point count;
-- total typed-text size;
+- desktop command count;
+- click-path point count;
+- typed-text size;
 - maximum hotkey chord length.
 
-It also emits a deterministic `content_sha256`. Random/session metadata such as `session_id` is excluded from that identity, while title/timing/cues/payloads remain significant. This makes two equivalent compiled demonstrations comparable without pretending that two recording sessions are the same session.
+It also emits a deterministic `content_sha256`. Random/session metadata such as `session_id` is excluded from that identity, while title/timing/cues/payloads remain significant.
 
-The default budgets are intentionally generous enough for normal demos but finite. A caller can use `CinematicSafetyBudget` for a stricter controlled environment.
-
-The existing desktop parsers/drivers retain their own per-command bounds (normalized coordinates, supported mouse buttons, click count, pause, hotkeys/text behavior). Preflight is an additional whole-manifest guard, not a replacement for those command-level checks.
+The desktop command parser/driver retains its own per-command validation. Manifest preflight is an additional whole-manifest guard, not a replacement for normalized-coordinate, button, click-count, pause, hotkey or text validation.
 
 ## Dry-run and real playback
 
-Run preflight first, then dry-run:
+Both commands automatically preflight the manifest:
 
 ```bash
-python -m diptrace_mcp.cinematic_preflight_cli demo.cinematic.json
 python -m diptrace_mcp.cinematic_host demo.cinematic.json --dry-run
-```
-
-Real Windows replay:
-
-```bash
 python -m diptrace_mcp.cinematic_host demo.cinematic.json --window "DipTrace"
 ```
+
+Running the standalone preflight CLI first is optional when an operator wants the content fingerprint/summary before playback.
 
 Exact action macros/calibration remain editor/version/configuration specific. Dry-run/preflight do not prove that a real UI profile is correct.
 
@@ -129,7 +111,6 @@ Exact action macros/calibration remain editor/version/configuration specific. Dr
 ```bash
 python -m diptrace_mcp.cinematic_recording raw-demo.mp4 \
   --window-title "DipTrace" --fps 60
-
 python -m diptrace_mcp.cinematic_cli ffmpeg raw-demo.mp4 demo --preset cinematic
 ```
 
@@ -141,7 +122,8 @@ The recorder resolves a title substring to a real HWND and uses Windows ffmpeg `
 - UI profiles require explicit calibration/action macros;
 - no guessed pixels/shortcuts by default;
 - manifest-level and command-level actions are bounded;
-- dry-run is available before cursor movement;
+- mandatory preflight executes before playback driver actions;
+- dry-run remains available before cursor movement;
 - payload recording is off by default;
 - cinematic replay cannot grant engineering acceptance evidence;
 - normal preview/expected-SHA/transaction/review paths remain authoritative.
@@ -156,7 +138,7 @@ Implemented and regression-tested:
 - profile persistence/readiness and affine calibration;
 - semantic schematic part/wire replay;
 - PCB placement and same-layer trace replay;
-- content fingerprint and manifest safety preflight;
+- content fingerprint and mandatory manifest safety preflight;
 - HWND recording and MP4/GIF helper commands.
 
 Still requires real-client evidence:
