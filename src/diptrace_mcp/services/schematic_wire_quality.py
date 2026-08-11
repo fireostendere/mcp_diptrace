@@ -25,6 +25,7 @@ _MAX_EXISTING_SEGMENTS = 512
 _CROSSING_PENALTY = 100_000.0
 _OVERLAP_PENALTY = 1_000_000.0
 _BEND_PENALTY = 0.35
+_MAX_CROSSING_CLEANUP_ADDED_BENDS = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,11 +35,11 @@ class _Segment:
 
     @property
     def horizontal(self) -> bool:
-        return math.isclose(self.start.y, self.end.y, abs_tol=_EPS)
+        return math.isclose(self.start.y, self.end.y, abs_tol=_ANCHOR_EPS_MM)
 
     @property
     def vertical(self) -> bool:
-        return math.isclose(self.start.x, self.end.x, abs_tol=_EPS)
+        return math.isclose(self.start.x, self.end.x, abs_tol=_ANCHOR_EPS_MM)
 
     @property
     def length(self) -> float:
@@ -576,9 +577,22 @@ def clean_schematic_wire_operation(
         if candidate is None:
             cleaned = supplied
         else:
+            candidate_quality = _quality(candidate, obstacles, existing, touches)
+            crossing_only = (
+                original.obstacle_hits == 0
+                and original.overlaps == 0
+                and original.crossings > 0
+                and original.self_intersections == 0
+                and original.diagonals == 0
+            )
             cleaned = (
                 candidate
-                if _quality(candidate, obstacles, existing, touches).score < original.score
+                if candidate_quality.score < original.score
+                and (
+                    not crossing_only
+                    or candidate_quality.bends
+                    <= original.bends + _MAX_CROSSING_CLEANUP_ADDED_BENDS
+                )
                 else supplied
             )
     payload = operation.model_dump(mode="json")

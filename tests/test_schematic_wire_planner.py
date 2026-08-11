@@ -8,6 +8,7 @@ from diptrace_mcp.adapters import build_snapshot, stable_id
 from diptrace_mcp.domain import ObjectRecord
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.schematic_wire_planner import plan_schematic_wire_candidate
+from diptrace_mcp.services.schematic_wire_quality import clean_schematic_wire_operation
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -73,6 +74,40 @@ def test_planner_measures_and_removes_crossing_pressure() -> None:
     assert plan.original.metrics.crossings >= 1
     assert plan.selected.metrics.crossings == 0
     assert plan.selected.metrics.quality_key < plan.original.metrics.quality_key
+
+
+def test_cleaner_preserves_simple_crossing_instead_of_adding_three_bend_hook() -> None:
+    document = _load()
+    snapshot = build_snapshot(document)
+    assert snapshot.schematic is not None
+    snapshot.schematic.parts = []
+    for name, points in {
+        "crossing": [{"x": 20.0, "y": 0.0}, {"x": 20.0, "y": 20.0}],
+        "target": [
+            {"x": 35.0, "y": 0.0},
+            {"x": 40.0, "y": 0.0},
+            {"x": 40.0, "y": 20.0},
+        ],
+    }.items():
+        wire = ObjectRecord(
+            stable_id=stable_id("wire", "test", name),
+            kind="wire",
+            net_name=name,
+            attributes={"sheet": 0, "points": points},
+        )
+        snapshot.schematic.wires.append(wire)
+        snapshot.objects[wire.stable_id] = wire
+    target = snapshot.schematic.wires[-1]
+    operation = AddWireOperation(
+        net="BRANCH",
+        points=[{"x": 0.0, "y": 10.0}, {"x": 40.0, "y": 10.0}],
+        start={"type": "Free"},
+        end={"type": "Wire", "wire_id": target.stable_id, "point_index": 2},
+    )
+
+    cleaned = clean_schematic_wire_operation(document, snapshot, operation)
+
+    assert cleaned.points == operation.points
 
 
 def test_clean_but_pathological_detour_returns_placement_feedback() -> None:

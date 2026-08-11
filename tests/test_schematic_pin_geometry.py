@@ -204,6 +204,24 @@ def test_wire_cleaner_snaps_declared_pin_endpoint_to_native_pin_tip() -> None:
     assert cleaned.points[0].model_dump() == pytest.approx({"x": 8.5, "y": 20.0})
 
 
+def test_wire_cleaner_keeps_native_submicron_axis_noise_orthogonal() -> None:
+    document = _schematic_document_with_embedded_library()
+    operation = AddWireOperation(
+        net="VCC",
+        points=[
+            {"x": 8.5000002, "y": 20.0},
+            {"x": 8.5000002, "y": 5.0},
+            {"x": 20.0, "y": 5.0},
+        ],
+        start={"type": "Pin", "refdes": "R1", "pin": 0},
+        end={"type": "Free"},
+    )
+
+    cleaned = clean_schematic_wire_operation(document, build_snapshot(document), operation)
+
+    assert cleaned.points[1].x == pytest.approx(8.5000002)
+
+
 def test_external_library_fallback_is_disabled_by_default() -> None:
     document = _schematic_document()
 
