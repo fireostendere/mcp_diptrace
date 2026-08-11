@@ -202,13 +202,13 @@ def _remove_affected_wires(
 ) -> None:
     if snapshot.schematic is None:
         return
-    removed = {
-        wire.stable_id
-        for wire in snapshot.schematic.wires
-        if wire.net_id is not None
-        and _wire_sheet(wire) is not None
-        and (wire.net_id, int(_wire_sheet(wire))) in affected
-    }
+    removed: set[str] = set()
+    for wire in snapshot.schematic.wires:
+        if wire.net_id is None:
+            continue
+        sheet = _wire_sheet(wire)
+        if sheet is not None and (wire.net_id, sheet) in affected:
+            removed.add(wire.stable_id)
     snapshot.schematic.wires = [
         wire for wire in snapshot.schematic.wires if wire.stable_id not in removed
     ]
