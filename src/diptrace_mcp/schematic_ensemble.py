@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from typing import Literal
 
 from pydantic import Field
 
@@ -26,6 +27,16 @@ from .schematic_optimizer import (
     generate_schematic_placement_candidates,
 )
 from .xml_document import DipTraceDocument
+
+MotifRelation = Literal[
+    "near",
+    "left_of",
+    "right_of",
+    "above",
+    "below",
+    "same_row",
+    "same_column",
+]
 
 
 class SchematicCongestionConfig(StrictModel):
@@ -78,7 +89,7 @@ def _binding_motif(
     source: str,
     first_id: str,
     second_id: str,
-    relation: str,
+    relation: MotifRelation,
     max_distance_mm: float | None = None,
     tolerance_mm: float = 2.5,
     weight: float = 1.0,
@@ -119,12 +130,12 @@ def infer_builtin_schematic_motifs(
     intent = intent or infer_schematic_design_intent(snapshot)
     part_roles = {item.part_id: item.role for item in intent.parts}
     motifs: list[BoundReferenceMotif] = []
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, str, MotifRelation]] = set()
 
     def add(
         first: str,
         second: str,
-        relation: str,
+        relation: MotifRelation,
         *,
         distance_mm: float | None = None,
     ) -> None:
