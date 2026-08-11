@@ -334,7 +334,15 @@ def _schematic_style_signatures(
         except ValueError:
             return value
 
-    def signature(element: Any, *, patterns: dict[str, Any] | None = None) -> Any:
+    def signature(
+        element: Any,
+        *,
+        patterns: dict[str, Any] | None = None,
+        net_port: bool = False,
+    ) -> Any:
+        net_port = net_port or (
+            element.tag == "Part" and element.get("PartType") == "Net Port"
+        )
         return (
             element.tag,
             tuple(
@@ -347,13 +355,15 @@ def _schematic_style_signatures(
                     )
                     for key, value in element.attrib.items()
                     if key not in {"Id", "RefDes", "Locked", "PatternStyle"}
+                    and not (net_port and key == "PadId")
                 )
             ),
             (element.text or "").strip(),
             tuple(
-                signature(child, patterns=patterns)
+                signature(child, patterns=patterns, net_port=net_port)
                 for child in element
                 if child.tag != "LibPath"
+                and not (net_port and child.tag == "Pattern")
                 and not (element.tag == "Part" and child.tag in {"Name", "Value"})
             ),
         )
@@ -424,8 +434,27 @@ def _detected_semantic_normalizations(
     source_snapshot = build_snapshot(source)
     reexport_snapshot = build_snapshot(reexport)
     if source_snapshot.schematic is not None and reexport_snapshot.schematic is not None:
-        source_parts = {item.xml_id: item for item in source_snapshot.schematic.parts}
-        reexport_parts = {item.xml_id: item for item in reexport_snapshot.schematic.parts}
+        def part_identity(item: ObjectRecord) -> tuple[Any, ...]:
+            attrs = item.attributes
+            return (
+                item.refdes,
+                item.name,
+                attrs.get("part_name"),
+                attrs.get("component_part"),
+                attrs.get("part_number"),
+            )
+
+        def pin_index(item: ObjectRecord) -> str:
+            raw = item.xml_id or ""
+            _, separator, suffix = raw.rpartition(":")
+            return suffix if separator else raw
+
+        source_parts = {
+            part_identity(item): item for item in source_snapshot.schematic.parts
+        }
+        reexport_parts = {
+            part_identity(item): item for item in reexport_snapshot.schematic.parts
+        }
         source_styles = _schematic_style_signatures(source)
         reexport_styles = _schematic_style_signatures(reexport)
         source_raw_styles = _schematic_style_signatures(source, round_numeric=False)
@@ -436,9 +465,9 @@ def _detected_semantic_normalizations(
             for style in source_styles.keys() & reexport_styles.keys()
         ):
             detected.add("coordinate_precision")
-        for part_id in source_parts.keys() & reexport_parts.keys():
-            left = source_parts[part_id]
-            right = reexport_parts[part_id]
+        for identity in source_parts.keys() & reexport_parts.keys():
+            left = source_parts[identity]
+            right = reexport_parts[identity]
             left_style = str(left.attributes.get("component_style", ""))
             right_style = str(right.attributes.get("component_style", ""))
             if left_style != right_style and source_styles.get(left_style) == reexport_styles.get(
@@ -454,32 +483,52 @@ def _detected_semantic_normalizations(
             ) == _rounded_rotation(right.rotation_deg):
                 detected.add("coordinate_precision")
 
-        source_pins = {item.xml_id: item for item in source_snapshot.schematic.pins}
-        reexport_pins = {item.xml_id: item for item in reexport_snapshot.schematic.pins}
-        for pin_id in source_pins.keys() & reexport_pins.keys():
-            source_attributes = dict(source_pins[pin_id].attributes)
-            reexport_attributes = dict(reexport_pins[pin_id].attributes)
+        source_parent_ids = {
+            item.stable_id: part_identity(item) for item in source_snapshot.schematic.parts
+        }
+        reexport_parent_ids = {
+            item.stable_id: part_identity(item) for item in reexport_snapshot.schematic.parts
+        }
+        source_pins = {
+            (source_parent_ids.get(item.parent_id or ""), pin_index(item)): item
+            for item in source_snapshot.schematic.pins
+        }
+        reexport_pins = {
+            (reexport_parent_ids.get(item.parent_id or ""), pin_index(item)): item
+            for item in reexport_snapshot.schematic.pins
+        }
+        for identity in source_pins.keys() & reexport_pins.keys():
+            source_attributes = dict(source_pins[identity].attributes)
+            reexport_attributes = dict(reexport_pins[identity].attributes)
             source_attributes.setdefault("NotConnected", "N")
             reexport_attributes.setdefault("NotConnected", "N")
             if (
-                source_pins[pin_id].attributes != reexport_pins[pin_id].attributes
+                source_pins[identity].attributes != reexport_pins[identity].attributes
                 and source_attributes == reexport_attributes
             ):
                 detected.add("default_attribute_omission")
 
-        source_wires = {
-            (item.net_id, item.xml_id): item for item in source_snapshot.schematic.wires
-        }
-        reexport_wires = {
-            (item.net_id, item.xml_id): item for item in reexport_snapshot.schematic.wires
-        }
-        for wire_id in source_wires.keys() & reexport_wires.keys():
-            left = source_wires[wire_id].attributes.get("points", [])
-            right = reexport_wires[wire_id].attributes.get("points", [])
-            if left != right and _normalized_schematic_wire_points(
-                left
-            ) == _normalized_schematic_wire_points(right):
-                detected.add("coordinate_precision")
+        def wire_signatures(schematic: Any, *, normalized: bool) -> list[tuple[str, str]]:
+            return sorted(
+                (
+                    item.net_name or "",
+                    repr(
+                        _normalized_schematic_wire_points(
+                            item.attributes.get("points", [])
+                        )
+                        if normalized
+                        else item.attributes.get("points", [])
+                    ),
+                )
+                for item in schematic.wires
+            )
+
+        if wire_signatures(
+            source_snapshot.schematic, normalized=False
+        ) != wire_signatures(reexport_snapshot.schematic, normalized=False) and wire_signatures(
+            source_snapshot.schematic, normalized=True
+        ) == wire_signatures(reexport_snapshot.schematic, normalized=True):
+            detected.add("coordinate_precision")
 
     configured = SEMANTIC_COMPARISON_POLICY_V1["normalizations"]
     return sorted(detected & configured)

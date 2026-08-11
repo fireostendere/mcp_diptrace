@@ -149,6 +149,9 @@ def _native_schematic_canonicalization_xml(
     redundant_wire_point: bool = False,
     pattern_pad_x: str = "0",
     wire_end: str = "2.652756",
+    part_type: str = "Net Port",
+    pin_pad_id: str = "0",
+    placed_id: str = "0",
 ) -> bytes:
     def component(
         component_style: str,
@@ -158,7 +161,7 @@ def _native_schematic_canonicalization_xml(
         name: str,
         value: str,
     ) -> str:
-        return f"""<Component ComponentStyle="{component_style}"><Part Id="0" RefDes="{refdes}" PartType="Net Port" Width="0.3" Height="0.1"><Pattern Style="{pattern_style}"/><Name>{name}</Name><Value>{value}</Value><Pins><Pin Id="{pin_id}" X="-0.15" Y="0" ElectricType="Passive"/></Pins><Shapes><Shape Type="Line"><Points><Point X="-0.15" Y="0"/><Point X="0.15" Y="{shape_y}"/></Points></Shape></Shapes></Part></Component>"""
+        return f"""<Component ComponentStyle="{component_style}"><Part Id="0" RefDes="{refdes}" PartType="{part_type}" Width="0.3" Height="0.1"><Pattern Style="{pattern_style}"/><Name>{name}</Name><Value>{value}</Value><Pins><Pin Id="{pin_id}" X="-0.15" Y="0" ElectricType="Passive" PadId="{pin_pad_id}"/></Pins><Shapes><Shape Type="Line"><Points><Point X="-0.15" Y="0"/><Point X="0.15" Y="{shape_y}"/></Points></Shape></Shapes></Part></Component>"""
 
     patterns = f'<Pattern PatternStyle="PatType0" Id="0"><Pads><Pad Id="0" X="{pattern_pad_x}" Y="0"/></Pads></Pattern>'
     components = component("CompType0", "PS", "10", "PatType0", "Port_Out3", "default")
@@ -172,8 +175,8 @@ def _native_schematic_canonicalization_xml(
   <Library Type="DipTrace-ComponentLibrary" Units="inch"><Library Type="DipTrace-PatternLibrary" Units="inch"><Patterns>{patterns}</Patterns></Library><Components>{components}</Components></Library>
   <Schematic>
     <SheetSettings><ActiveSheet>0</ActiveSheet><Sheets><Sheet><Id>0</Id><Name>Main</Name><Type>Normal</Type></Sheet></Sheets></SheetSettings>
-    <Components><Part Id="0" ComponentStyle="{style}" ComponentPart="0" PartNumber="0" Sheet="0" X="{coordinate}" Y="1" Angle="{angle}"><RefDes>NetPort3</RefDes><Name>OUT</Name><Value>placed</Value><Pins><Pin NetId="0"{not_connected}/></Pins></Part></Components>
-    <Nets><Net Id="0"><Name>OUT</Name><Pins><Item Part="0" Pin="0"/></Pins><Wires><Wire Id="0" Sheet="0"><Points><Point X="{coordinate}" Y="1"/>{extra_point}<Point X="{wire_end}" Y="1"/></Points></Wire></Wires></Net></Nets>
+    <Components><Part Id="{placed_id}" ComponentStyle="{style}" ComponentPart="0" PartNumber="0" Sheet="0" X="{coordinate}" Y="1" Angle="{angle}"><RefDes>NetPort3</RefDes><Name>OUT</Name><Value>placed</Value><Pins><Pin NetId="0"{not_connected}/></Pins></Part></Components>
+    <Nets><Net Id="0"><Name>OUT</Name><Pins><Item Part="{placed_id}" Pin="0"/></Pins><Wires><Wire Id="0" Sheet="0"><Points><Point X="{coordinate}" Y="1"/>{extra_point}<Point X="{wire_end}" Y="1"/></Points></Wire></Wires></Net></Nets>
   </Schematic>
 </Source>
 """.encode()
@@ -230,6 +233,8 @@ def test_native_schematic_canonicalization_preserves_real_symbol_checks() -> Non
         explicit_default=True,
         angle="4.7124",
         redundant_wire_point=True,
+        pin_pad_id="-1",
+        placed_id="7",
     )
     canonical = _native_schematic_canonicalization_xml(
         style="CompType0",
@@ -237,6 +242,8 @@ def test_native_schematic_canonicalization_preserves_real_symbol_checks() -> Non
         coordinate="1.968504",
         explicit_default=False,
         angle="4.712389",
+        pin_pad_id="1",
+        placed_id="4",
     )
 
     result = _compare(source, canonical, ".dchxml")
@@ -264,6 +271,15 @@ def test_native_schematic_canonicalization_preserves_real_symbol_checks() -> Non
         for category in ("parts", "patterns")
     )
 
+    normal_source = _native_schematic_canonicalization_xml(
+        style="CompType6",
+        include_alias=True,
+        coordinate="1.96850394",
+        explicit_default=True,
+        angle="4.7124",
+        redundant_wire_point=True,
+        part_type="Normal",
+    )
     changed_pattern = _native_schematic_canonicalization_xml(
         style="CompType0",
         include_alias=False,
@@ -271,12 +287,30 @@ def test_native_schematic_canonicalization_preserves_real_symbol_checks() -> Non
         explicit_default=False,
         angle="4.712389",
         pattern_pad_x="0.1",
+        part_type="Normal",
     )
-    pattern_result = _compare(source, changed_pattern, ".dchxml")
+    pattern_result = _compare(normal_source, changed_pattern, ".dchxml")
     assert pattern_result["passed"] is False
     assert any(
         category in difference
         for difference in cast(list[str], pattern_result["differences"])
+        for category in ("parts", "patterns")
+    )
+
+    changed_mapping = _native_schematic_canonicalization_xml(
+        style="CompType0",
+        include_alias=False,
+        coordinate="1.968504",
+        explicit_default=False,
+        angle="4.712389",
+        part_type="Normal",
+        pin_pad_id="1",
+    )
+    mapping_result = _compare(normal_source, changed_mapping, ".dchxml")
+    assert mapping_result["passed"] is False
+    assert any(
+        category in difference
+        for difference in cast(list[str], mapping_result["differences"])
         for category in ("parts", "patterns")
     )
 
