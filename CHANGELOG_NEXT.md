@@ -11,14 +11,49 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 - non-mutating schematic wire planner with disclosed readability metrics and explicit placement feedback;
 - conservative Component Library pin-geometry resolution from the embedded Design Cache;
 - pin-aware joint placement/routing scoring for hypothetical candidates;
-- bounded non-mutating placement repair driven by route feedback and re-scored by the joint optimizer.
+- bounded non-mutating placement repair driven by route feedback and re-scored by the joint optimizer;
+- **atomic selective schematic reroute planner** that identifies only explicit sheet-local nets touched by moved parts, fails closed on unresolved endpoints/routes, and emits one dependency-safe `delete_wire -> move_components -> add_wire` semantic batch for the existing guarded transaction path;
+- deterministic schematic ensemble ranking that combines builtin-but-explicitly-labelled readability motifs, pin-aware route quality and bounded placement-grid congestion pressure.
 
 ### PCB Generations A-D
 
 - **Generation A:** engineering intent, component roles, functional blocks, multi-role net classification, explicit electrical constraints, conservative power/ground topology intent and intent-aware placement v2;
 - **Generation B:** exported stackup/reference context, conservative PDN/source/load/decoupling analysis, regulator hot-loop candidates, return-path integration, timing-gated aggressor/victim triage and semantic via roles;
 - **Generation C:** deterministic routing-policy compiler, engineering route ordering, observed-route SI checks, copper/topology strategy and bounded placement feedback;
-- **Generation D:** bounded whole-board candidate selector with lexicographically dominant hard constraints, decomposed soft metrics and a synthetic engineering-trap benchmark catalog.
+- **Generation D:** bounded whole-board candidate selector with lexicographically dominant hard constraints, decomposed soft metrics and a synthetic engineering-trap benchmark catalog;
+- bounded A-D candidate ensemble generation using multiple real Generation-A placement profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline, with B/C conservative evidence proxies and the existing hard-first Generation-D selector.
+
+### DSN/SES and XML analysis
+
+- bounded Specctra structure inventory for DSN/SES-style S-expressions with scope histogram, token/depth limits and exact root validation;
+- non-mutating SES compatibility analysis with route length/width/layer statistics, duplicate-net detection, unknown target nets/layers and the existing semantic import planner's importable/skipped classification;
+- deterministic XML semantic inventory/fingerprint and structural delta analysis that ignores XML attribute order while preserving element order and unknown XML;
+- Hypothesis/property regression coverage for fingerprint invariants and unknown-XML mutation detection.
+
+### Evidence and acceptance automation
+
+- deterministic evidence-report builder and CLI for finalized operator capture candidates;
+- evidence reports re-check quarantined artifact SHA-256 bindings, compute XML semantic fingerprints/deltas, render JSON/Markdown, reproduce operator claims/checklists as such, and **never** grant provenance trust, fixture trust, release acceptance or PASS automatically.
+
+### Component/Pattern Library API preparation
+
+- stable package-level `LibraryMutationRequest` / preview contract over the existing raw-preserving mutation core;
+- required expected-SHA binding, deterministic semantic delta/inventory output and explicit pin/pad mapping validation;
+- the contract is intentionally **not** registered as a public MCP tool yet; public registration remains a separate API/product and contract-snapshot decision.
+
+### Cinematic presentation mode
+
+- deterministic cinematic timelines with `cinematic`, `timelapse`, `tutorial` and `gif` pacing presets;
+- Windows desktop replay host with bounded cursor/click/hotkey/text/path actions and dry-run support;
+- version/editor-specific `DipTraceUIProfile` persistence and readiness validation;
+- affine DipTrace design-coordinate to normalized client-coordinate calibration with residual checks;
+- normalized live cursor probing for one-shot UI calibration;
+- semantic Schematic part/wire replay and PCB Generation A placement replay;
+- same-layer PCB trace replay with fail-closed refusal of unsupported via/layer transitions;
+- HWND-targeted ffmpeg capture plus MP4/GIF post-processing helpers;
+- cinematic manifest preflight with deterministic content fingerprint, timing consistency checks and explicit cue/payload/desktop-command/path/text/hotkey safety budgets.
+
+Cinematic replay is deliberately a presentation path. The XML bridge and normal preview/SHA/transaction/review path remain authoritative for engineering edits and acceptance.
 
 ### Product and engineering support
 
@@ -30,38 +65,28 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 - manual-only acceptance evidence generator and validator;
 - aggregate supported-environment coverage gate raised to 90% while preserving the 85% geometry-enabled Linux-only floor.
 
-### Cinematic presentation mode
-
-- deterministic cinematic timelines with `cinematic`, `timelapse`, `tutorial` and `gif` pacing presets;
-- Windows desktop replay host with bounded cursor/click/hotkey/text/path actions and dry-run support;
-- version/editor-specific `DipTraceUIProfile` persistence and readiness validation;
-- affine DipTrace design-coordinate to normalized client-coordinate calibration with residual checks;
-- normalized live cursor probing for one-shot UI calibration;
-- semantic Schematic part/wire replay and PCB Generation A placement replay;
-- same-layer PCB trace replay with fail-closed refusal of unsupported via/layer transitions;
-- HWND-targeted ffmpeg capture plus MP4/GIF post-processing helpers.
-
-Cinematic replay is deliberately a presentation branch. The XML bridge and normal preview/SHA/transaction/review path remain authoritative for engineering edits and acceptance.
-
 ## Changed
 
-- The public MCP contract remains frozen at 159 tools despite the new internal EDA layers.
-- The private/manual Q1 Component Angle campaign is now PASS on its accepted production checkpoint; immutable historical release records keep the status that was true when each release was cut.
+- The public MCP contract remains frozen at 159 tools despite the new internal EDA layers and prepared package-level library mutation request API.
+- Existing-wired schematics no longer represent a fundamental placement dead-end: affected explicit wire geometry can now be selectively replanned as one atomic semantic transaction batch. The older conservative placement planners may still refuse existing wires when used directly.
+- PCB Generation D can now compare multiple internally generated bounded placement candidates rather than only caller-supplied synthetic examples.
+- DSN/SES results can be structurally and semantically screened before import without mutating the PCB.
+- Real-DipTrace capture candidates can be converted into reproducible machine-readable and Markdown evidence reports without rewriting historical evidence or manufacturing trust.
+- The private/manual Q1 Component Angle campaign is PASS on its accepted production checkpoint; immutable historical release records keep the status that was true when each release was cut.
 - `claude_desktop_real_client_restart` is explicitly WAIVED for the current campaign, not marked PASS; the canonical validator remains conservative.
-- Documentation now distinguishes current implementation state from immutable release/audit/acceptance snapshots.
-- Documentation now describes PCB Generations A-D as implemented internal layers instead of future work.
-- Documentation now describes the schematic phases as partially implemented foundations rather than wholly planned work.
-- Installation/release documentation now reflects that `v0.2.1` and `diptrace-mcp==0.2.1` are already published.
-- Testing documentation now reflects the combined 90% coverage gate and the separate 85% Linux-only floor.
+- Documentation distinguishes current implementation state from immutable release/audit/acceptance snapshots.
+- Installation/release documentation reflects that `v0.2.1` and `diptrace-mcp==0.2.1` are already published.
+- Testing documentation reflects the combined 90% coverage gate and the separate 85% Linux-only floor.
 
 ## Remaining boundaries
 
-- selective atomic re-route/replacement of existing schematic wires after placement repair remains future work;
-- stronger sheet-level schematic congestion scheduling and automatic motif ingestion remain future work;
-- real-DipTrace product acceptance for PCB Generation D remains pending;
+- atomic selective schematic reroute currently rebuilds affected sheet-local explicit nets from resolved pin endpoints; it does not preserve arbitrary pre-existing manual junction topology as a visual constraint;
+- stronger sheet-level/global schematic congestion scheduling and external/reference motif ingestion remain future work;
+- real-DipTrace product-quality acceptance for the new higher-level schematic ensemble and PCB candidate ensemble remains claim-specific manual evidence, not inferred from unit tests;
 - cinematic UI macros and calibration still require real-client verification for the exact DipTrace version/editor configuration;
 - staged cinematic playback of vias/layer transitions remains unsupported;
 - Windows lifecycle gates remain pending after the current manual-acceptance pause;
+- the library mutation request/preview contract remains package-level and unregistered in the public MCP tool snapshot;
 - native manufacturing generation, field-solver/PI/EMC/thermal sign-off, universal compatibility, signed-binary trust, independent review and production readiness are not claimed.
 
 This file should be folded into `CHANGELOG.md` when the next version is selected.

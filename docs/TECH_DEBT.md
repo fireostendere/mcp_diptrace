@@ -2,130 +2,120 @@
 
 ## Purpose
 
-This document tracks remaining engineering limitations in the current `main` implementation. Historical release/audit debt is preserved in dated records and should not be copied here as if it were still current.
+This document tracks remaining engineering limitations in the current implementation. Historical release/audit debt remains in dated records and must not be copied here as if it were still current.
 
 ## Highest-priority current debt
 
-### 1. Schematic selective reroute transaction
+### 1. Schematic real-world quality acceptance
 
-The schematic stack now has intent, bounded placement candidates, pin geometry, non-mutating wire planning, joint route scoring and route-feedback placement repair.
+The schematic stack now includes intent, bounded placement, pin-aware route scoring, placement repair, deterministic motif/congestion ensemble ranking and atomic selective affected-net reroute planning.
 
-The missing production step is an atomic selective-reroute transaction that can:
+Repository tests prove deterministic bounded behaviour, not that complete real schematics consistently look good to engineers. Remaining product evidence should cover representative real circuits and measure connectivity/ERC non-regression, collisions, crossings/overlaps/bends/detour, block cohesion, compactness, signal-flow readability, native open/save/reopen/re-export preservation and human review of representative before/after results.
 
-1. choose an improved placement candidate/repair;
-2. identify only affected existing nets/wires;
-3. regenerate their bounded routes;
-4. compose placement moves and wire replacement into one guarded plan;
-5. preview/apply/review the whole change under the existing SHA/transaction boundary.
+### 2. Fuller schematic global optimisation
 
-Until that exists, the placement planners correctly refuse already-wired schematics by default.
+`schematic_atomic_reroute.py` closes the former dangerous gap where moving a symbol could leave stale existing wire geometry. Remaining optimisation debt is broader rather than transactional:
 
-### 2. Schematic real-world quality acceptance
-
-Repository tests prove deterministic bounded behaviour, not that complete real schematics consistently look good to engineers.
-
-Remaining product evidence should cover representative real circuits and measure:
-
-- connectivity/ERC non-regression;
-- symbol/text/wire collisions;
-- crossings/overlaps/bends/detour;
-- block cohesion and compactness;
-- signal-flow readability;
-- native open/save/reopen/re-export preservation;
-- human review of representative before/after results.
+- stronger sheet-level congestion-aware net scheduling;
+- global same-net junction/tree optimisation instead of independent MST-edge planning;
+- richer project/reference motif ingestion;
+- a fuller bounded generate -> score -> repair -> reroute loop with objective history and explicit stopping criteria;
+- broader real-project tuning without hiding score terms.
 
 ### 3. Schematic rotation/pin-facing authority
 
-Pin geometry can be resolved conservatively from the embedded Design Cache, but non-zero part rotation remains an evidence-sensitive area. Automatic pin-facing rotation decisions should stay conservative until the exact real-host rotation semantics required by the layout engine are validated.
+Pin geometry can be resolved conservatively from the embedded Design Cache, but non-zero part rotation remains evidence-sensitive. Automatic pin-facing rotation decisions should stay conservative until exact real-host rotation semantics are validated for the affected path.
 
 ### 4. PCB Generations A-D real-host evidence boundary
 
-PCB Generations A-D are implemented as internal bounded engineering layers. The remaining debt is not “implement B-D”; it is to strengthen authoritative evidence around the places where the model cannot own native physics/geometry:
+PCB Generations A-D plus the bounded `pcb_candidate_ensemble.py` are implemented internal engineering layers. Remaining debt is authoritative evidence around native physics/geometry that the model cannot own:
 
-- poured copper / refill geometry;
-- plane/reference behavior;
+- poured copper/refill geometry;
+- plane/reference behaviour;
 - native via structures;
 - stackup authority;
 - manufacturing-specific constraints;
-- real-DipTrace product acceptance of Generation D benchmark families.
+- real-DipTrace product acceptance of Generation D benchmark families and selected ensemble candidates.
 
-Generation B/C analysis must continue to preserve unknown current/current-density/voltage-drop/impedance/reference facts rather than inventing them.
+Generation B/C analysis must preserve unknown current/current-density/voltage-drop/impedance/reference facts rather than inventing them.
 
-### 5. Cinematic real-client acceptance
+### 5. DSN/SES interoperability acceptance
 
-Cinematic mode is implemented and covered in unit/CI tests, but its useful real-world replay depends on editor/version/configuration-specific calibration and action macros.
+`specctra_analysis.py` can now inspect DSN/SES structure, route geometry, unknown nets/layers and importability before mutation. Remaining debt is real-tool interoperability breadth: more controlled Freerouting/Specctra-family samples, complex layer/via cases, round-trip evidence and explicit compatibility boundaries for syntax that the current bounded parser intentionally refuses.
 
-Remaining work:
+### 6. Cinematic real-client acceptance
 
-- verify PCB and Schematic action macros against the exact DipTrace 5.3 configurations used for recording;
-- perform end-to-end design-coordinate calibration on real open documents;
+Cinematic playback now enforces `cinematic_preflight.py` inside the actual host path, so malformed/oversized manifests cannot bypass the safety budget by calling `play_manifest()` directly.
+
+Remaining work is real-client evidence and UI breadth:
+
+- verify PCB/Schematic action macros against exact DipTrace configurations used for recording;
+- perform end-to-end design-coordinate calibration on real documents;
 - capture residual/error evidence;
 - add staged playback for via/layer transitions;
-- verify any additional UI gestures before promoting them into reusable profiles.
+- verify additional UI gestures before promoting reusable profiles.
 
-Cinematic replay must remain a presentation layer, not a hidden alternate engineering authority.
+Cinematic replay remains presentation automation, not an alternate engineering authority.
 
-### 6. Windows lifecycle acceptance
+### 7. Windows lifecycle acceptance
 
 The current project campaign has 8 canonical manual gates PASS. Claude Desktop restart is explicitly WAIVED, not PASS.
 
-When formal lifecycle acceptance resumes, the next project-required gate is:
+When formal lifecycle acceptance resumes, the next project-required gate is `windows_clean_install_repair_uninstall`, followed by elevated plug-in/profile preservation and custom-state preservation. CI installer tests remain implementation evidence, not a replacement for that chosen real clean-machine gate.
 
-`windows_clean_install_repair_uninstall`
+### 8. Native manufacturing output
 
-followed by elevated plug-in/profile preservation and custom-state preservation.
+The project still does not claim a verified native DipTrace path for Gerber, NC Drill, ODB++, IPC-2581 or assembler sign-off generation. Generic manifests/reviews are not manufacturing files.
 
-The existing CI installer tests are useful implementation evidence but do not replace the chosen real clean-machine gate.
+### 9. Field/PI/EMC/thermal authority
 
-### 7. Native manufacturing output
+Impedance, return-path, aggressor/victim, PDN and thermal-risk helpers remain bounded engineering assistance. They are not field-solver, PI, EMC or thermal sign-off. External solver adapters must be validated as real external-solver workflows before stronger claims are made.
 
-The project still does not claim a verified native DipTrace API/path for Gerber, NC Drill, ODB++, IPC-2581 or assembler sign-off generation. Generic manifests/reviews are not manufacturing files.
+### 10. Native library public API decision
 
-This should remain an explicit limitation rather than being papered over by naming an approximation “Gerber export”.
+`library_mutation.py` provides the raw-preserving internal Component/Pattern mutation core. `library_mutation_api.py` now provides an expected-SHA package-level request/preview contract and remains deliberately `public_registration=False`.
 
-### 8. Field/PI/EMC/thermal authority
+Remaining debt is a product/API decision, not implementation absence:
 
-Local impedance, return-path, aggressor/victim, PDN and thermal-risk helpers are bounded engineering assistance. They are not field-solver, PI, EMC or thermal sign-off.
+- decide whether any native library mutation deserves public MCP registration;
+- if yes, define exact permission/evidence boundaries and public schemas;
+- intentionally update the frozen tools snapshot and discovery budget;
+- add transport/error/permission tests;
+- avoid broadening compatibility claims beyond verified operations.
 
-External openEMS integration is an adapter boundary and must be validated as an actual external-solver workflow before stronger claims are made.
+There is no current reason to expand the 159-tool MCP surface merely because the package-level API exists.
 
-### 9. Native library public API decision
+### 11. Evidence review automation depth
 
-A raw-preserving internal Component/Pattern Library mutation core exists and has controlled real-editor round-trip evidence.
-
-Remaining debt is product/API design, not basic implementation:
-
-- decide whether/which native library mutations should become public MCP tools;
-- define exact capability/evidence boundaries;
-- add public schema/snapshot/error/permission tests if exposed;
-- avoid broadening compatibility claims beyond the verified operations.
-
-### 10. Documentation/evidence drift prevention
-
-The repository has many intentionally immutable historical artifacts next to current evergreen docs. This creates recurring drift risk.
-
-Current policy:
-
-- dated release/audit/acceptance/compliance records preserve historical facts;
-- evergreen docs describe current `main` and link to historical evidence explicitly;
-- `CHANGELOG_NEXT.md` tracks post-`v0.2.1` development until the next release is selected;
-- CI-generated contracts/badges/inventories remain generated rather than hand-maintained.
-
-The current status split is maintained in `ROADMAP.md`, `TESTING.md`, `CHANGELOG_NEXT.md` and the dated evidence/release records.
+`evidence_report.py` now turns finalized capture candidates into deterministic SHA-checked XML semantic reports without granting trust/PASS. Remaining debt is richer claim-specific comparison: connectivity, visual/geometry assertions and manufacturing-specific review must remain explicit rather than being inferred from a generic semantic fingerprint.
 
 ## Resolved / superseded debt
 
 The following should no longer be listed as open technical debt:
 
+- schematic selective affected-net reroute transaction — implemented by `schematic_atomic_reroute.py` and ordinary guarded semantic transactions;
+- basic schematic motif/congestion candidate ensemble — implemented by `schematic_ensemble.py`;
 - PCB Generation B physical-context implementation — implemented;
 - PCB Generation C routing-policy implementation — implemented;
 - PCB Generation D bounded joint candidate selection — implemented;
+- multi-profile bounded A-D candidate generation — implemented by `pcb_candidate_ensemble.py`;
+- DSN/SES pre-import structural/route analysis absence — implemented by `specctra_analysis.py`;
+- XML semantic fingerprint/delta absence — implemented by `xml_analysis.py` with property regression coverage;
+- evidence report assembly being entirely manual — deterministic review-only report generation exists;
+- cinematic manifest preflight being optional — the real playback path now invokes it unconditionally;
+- documentation/evidence drift having only a prose policy — `scripts/check_documentation_state.py` plus `tests/test_documentation_state.py` enforce current evergreen state in CI;
 - aggregate repository coverage “target 88%” — superseded by the enforced 90% combined supported-environment gate;
 - Q1 Component Angle manual campaign — PASS on the later accepted production checkpoint;
 - “native Component/Pattern mutation does not exist” — superseded by the internal raw-preserving core and controlled real-editor evidence;
-- cinematic branch integration — merged to `main`.
+- cinematic branch integration — merged before this development pass.
 
 Historical records that said otherwise remain valid snapshots of their original date/release.
+
+## Documentation/evidence state policy
+
+Dated release/audit/acceptance/compliance records preserve historical facts. Evergreen docs describe current implementation and explicitly link to historical evidence. `CHANGELOG_NEXT.md` tracks post-`v0.2.1` development until the next release is selected.
+
+`scripts/check_documentation_state.py` guards key current-state relationships against code and the frozen public-tools snapshot. It intentionally does not rewrite or reinterpret immutable historical records.
 
 ## Permanent non-goals / non-claims
 

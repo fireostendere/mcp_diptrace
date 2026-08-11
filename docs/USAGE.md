@@ -44,9 +44,7 @@ export DIPTRACE_MCP_STATE_DIR="$HOME/.local/state/diptrace-mcp"
 diptrace-mcp
 ```
 
-On Windows use the equivalent environment variables or the installer/configurator.
-
-The state directory stores project-owned records, sessions, backups and related local metadata. Live-session state is separate from ordinary project files.
+On Windows use the equivalent environment variables or the installer/configurator. The state directory stores project-owned records, sessions, backups and related local metadata. Live-session state is separate from ordinary project files.
 
 ## Start the MCP server
 
@@ -66,15 +64,7 @@ Do not expose the HTTP transport as a general remote network service unless the 
 
 ## Discover capabilities first
 
-The public MCP contract contains 159 registered tools, but availability can depend on:
-
-- document kind;
-- live/offline mode;
-- configured adapters;
-- policy profile;
-- platform;
-- available optional dependencies;
-- evidence/trust state.
+The public MCP contract contains **159 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
 
 Call `get_capabilities` before assuming that a particular write or adapter path is available.
 
@@ -111,17 +101,7 @@ A successful project-owned bridge handshake is not by itself proof that a specif
 
 ## Public capability groups
 
-The exact tool list is frozen in `reference/mcp-tools-list.snapshot.json`. Major groups include:
-
-- document discovery, parsing and structured reads;
-- PCB/schematic/component/pattern inspection;
-- connectivity, BOM, DRC/ERC and review;
-- placement/routing/trace/via/silkscreen/panel/schematic authoring workflows;
-- synchronization and comparison;
-- transactions, backups, recovery and live sessions;
-- evidence/provenance/trust resources;
-- external bounded jobs/adapters;
-- release/readiness helpers.
+The exact tool list is frozen in `reference/mcp-tools-list.snapshot.json`. Major groups include document discovery/parsing, PCB/schematic/library inspection, connectivity/BOM/DRC/ERC/review, placement/routing/authoring, synchronization/comparison, transaction/recovery/live sessions, evidence/trust, external adapters and release/readiness helpers.
 
 See [MCP_TOOLS.md](MCP_TOOLS.md) for the public contract and use runtime introspection for exact schemas.
 
@@ -130,37 +110,48 @@ See [MCP_TOOLS.md](MCP_TOOLS.md) for the public contract and use runtime introsp
 Current internal schematic modules can:
 
 - infer conservative functional blocks and part/net roles;
-- apply explicit/project/reference motifs;
+- apply explicit/project/reference motifs plus deterministic builtin readability motifs;
 - generate bounded placement candidates;
-- score readability and estimated interconnect;
+- score readability, interconnect and congestion;
 - resolve pin geometry conservatively from the embedded Design Cache;
 - plan/evaluate bounded wire candidates without mutation;
 - jointly score placement candidates using pin-aware routes;
-- generate bounded placement repairs when routes explicitly request them.
+- generate bounded placement repairs when routes explicitly request them;
+- identify only explicit sheet-local wire groups affected by moved parts;
+- rebuild those affected routes and return one dependency-safe `delete wire -> move part -> add wire` semantic-operation batch.
 
-Important current boundary: placement planners refuse an already-wired schematic by default. Moving symbols while leaving existing wire geometry behind would be unsafe/ugly. Selective atomic placement + affected-wire replacement remains future work.
+`schematic_atomic_reroute.py` therefore closes the former already-wired placement gap. If affected pin endpoints or replacement routes cannot be resolved safely, planning fails closed before any source mutation. The returned operation list becomes atomic only when previewed/committed as one unit through the normal guarded semantic transaction path.
+
+`schematic_ensemble.py` adds deterministic motif/congestion pressure to the existing route-aware candidate ranking. It remains bounded and does not claim a global optimum.
 
 See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
 ## PCB Generations A-D
 
-The internal PCB design engine can add higher-level engineering judgement without expanding the public MCP tool surface:
+The internal PCB design engine adds higher-level engineering judgement without expanding the 159-tool MCP surface:
 
 - Generation A: intent/net intelligence and intent-aware placement;
 - Generation B: physical/stackup/PDN/return-path/noise/via context;
 - Generation C: routing policy and observed-route engineering checks;
-- Generation D: bounded whole-board candidate selection.
+- Generation D: bounded hard-first whole-board candidate selection;
+- `pcb_candidate_ensemble.py`: multiple bounded Generation-A placements using different engineering weight profiles, conservative B/C evidence terms and Generation-D selection, with the existing board as an optional baseline.
 
 These layers preserve unknown physical facts and do not turn approximate analysis into field-solver/PI/EMC/thermal/manufacturing sign-off. See [PCB_DESIGN_ENGINE.md](PCB_DESIGN_ENGINE.md).
 
+## DSN/SES and XML analysis
+
+`specctra_analysis.py` can inspect bounded DSN/SES structure and route geometry before mutation, including unknown nets/layers and the routes that the current SES import path would import or skip.
+
+`xml_analysis.py` provides deterministic semantic fingerprints and structural deltas. It normalizes attribute order, preserves element-order significance and includes unknown XML in the fingerprint. These are analysis/evidence helpers, not compatibility grants.
+
 ## Cinematic demo / video / GIF mode
 
-The core engineering path remains XML-first, but `main` now also contains an **optional presentation subsystem** that can deliberately drive the visible DipTrace UI on Windows after the engineering action has already been planned.
+The core engineering path remains XML-first. The optional presentation subsystem can deliberately drive the visible DipTrace UI on Windows after the engineering action has been planned.
 
-This is the important distinction:
+The distinction remains strict:
 
-- ordinary MCP edits do **not** depend on mouse/keyboard automation;
-- cinematic replay **does** use bounded cursor/click/hotkey/text/path actions for presentation;
+- ordinary MCP edits do not depend on mouse/keyboard automation;
+- cinematic replay uses bounded cursor/click/hotkey/text/path actions for presentation;
 - cinematic replay is not proof that DipTrace semantically accepted the edit;
 - the normal XML preview/SHA/transaction/review path remains authoritative.
 
@@ -171,17 +162,9 @@ python -m diptrace_mcp.diptrace_profile_cli template \
   --editor schematic \
   --version 5.3 \
   --output schematic-5.3.json
-```
 
-Probe a visible known point in the DipTrace client area:
-
-```bash
 python -m diptrace_mcp.diptrace_profile_cli probe --window "DipTrace"
-```
 
-Fit the design-to-client affine transform from at least three non-collinear anchors (four or more recommended):
-
-```bash
 python -m diptrace_mcp.diptrace_profile_cli calibrate \
   schematic-5.3.json anchors.json
 ```
@@ -210,7 +193,15 @@ python -m diptrace_mcp.cinematic_cli compile demo.jsonl --output demo.cinematic.
 
 Payload recording is disabled by default and must be explicitly enabled when wanted.
 
-### Dry-run / real replay
+### Preflight, dry-run and real replay
+
+Standalone inspection is available:
+
+```bash
+python -m diptrace_mcp.cinematic_preflight_cli demo.cinematic.json
+```
+
+The actual `cinematic_host.play_manifest()` path also runs the same preflight **unconditionally before any desktop driver action**. Calling the host directly therefore cannot bypass cue/timing/payload/action budgets.
 
 ```bash
 python -m diptrace_mcp.cinematic_host demo.cinematic.json --dry-run
@@ -227,13 +218,31 @@ python -m diptrace_mcp.cinematic_recording raw-demo.mp4 \
 python -m diptrace_mcp.cinematic_cli ffmpeg raw-demo.mp4 demo --preset cinematic
 ```
 
-The real recorder uses Windows ffmpeg `gdigrab`. PCB trace replay currently fails closed for via/layer transitions until explicit staged macros exist.
+The real recorder uses Windows ffmpeg `gdigrab`. PCB trace replay fails closed for via/layer transitions until explicit staged macros exist.
 
 See [CINEMATIC_DEMO_MODE.md](CINEMATIC_DEMO_MODE.md).
 
 ## Component/Pattern Library boundary
 
-The repository now contains an internal raw-preserving Component/Pattern Library mutation core with controlled real-editor round-trip evidence. Do not interpret that as a new public native-library MCP write contract: public registration remains a separate API/product decision.
+`library_mutation.py` is the internal raw-preserving mutation core with controlled real-editor round-trip evidence. `library_mutation_api.py` adds an expected-SHA in-memory package-level request/preview contract.
+
+That package API is deliberately **not a public MCP tool**: `public_registration=False`, so the public surface stays at 159 tools. Public registration remains a separate API/product/evidence decision.
+
+## Evidence capture and reports
+
+The capture tool remains operator-assisted and trust-neutral. A finalized capture candidate can be converted into deterministic review material with:
+
+```bash
+python scripts/build_evidence_report.py \
+  /path/to/session.candidate.json \
+  --capture-root /path/to/capture-root \
+  --markdown evidence-report.md \
+  --json-output evidence-report.json
+```
+
+The builder rechecks artifact SHA bindings and emits XML semantic comparisons. It cannot promote provenance, grant fixture trust or manufacture a PASS result.
+
+See [EVIDENCE_CAPTURE.md](EVIDENCE_CAPTURE.md).
 
 ## External adapters
 
@@ -252,13 +261,23 @@ The private/manual Q1 Component Angle campaign is PASS on the later accepted pro
 
 ## Runtime defaults
 
-The bridge timeout default is part of the public operator contract and is also reported by `get_capabilities`.
-
-| Environment variable | Default (seconds) |
-| --- | ---: |
+| Environment variable | Default |
+| --- | --- |
 | `DIPTRACE_MCP_SESSION_TIMEOUT` | `1800` |
+| `DIPTRACE_MCP_SESSION_TTL_SECONDS` | `7200` |
+| `DIPTRACE_MCP_MAX_JOB_TIMEOUT_SECONDS` | `60` |
 
-An explicit positive `--timeout` or `DIPTRACE_MCP_SESSION_TIMEOUT` overrides the default for the bridge session.
+An explicit positive `--timeout` or `DIPTRACE_MCP_SESSION_TIMEOUT` overrides the bridge-session timeout default.
+
+## Developer consistency checks
+
+Evergreen docs are checked against implemented module state and the frozen public tool count:
+
+```bash
+python scripts/check_documentation_state.py
+```
+
+The same guard runs through `tests/test_documentation_state.py` in the normal CI test matrix. Historical dated evidence/release documents are intentionally outside this freshness rule.
 
 ## Troubleshooting
 
@@ -267,9 +286,9 @@ If a tool unexpectedly refuses to act:
 1. call `get_capabilities`;
 2. confirm document kind and live/offline state;
 3. confirm workspace/allowed roots and state directory;
-4. compare the current document SHA with the preview/expected SHA;
+4. compare current SHA with preview/expected SHA;
 5. inspect the stable error code/details rather than retrying blindly;
-6. for Windows live exchange, restart the affected MCP client/DipTrace process when configuration changed;
-7. for cinematic replay, run profile validation and a dry-run before touching the real desktop.
+6. for Windows live exchange, restart the affected MCP client/DipTrace process after configuration changes;
+7. for cinematic replay, validate the UI profile and use dry-run; manifest preflight itself is automatic in the host.
 
 See [API_ERRORS.md](API_ERRORS.md), [TRANSACTIONS.md](TRANSACTIONS.md), [TESTING.md](TESTING.md) and [WINDOWS_WSL_LOCK_INTEROP.md](WINDOWS_WSL_LOCK_INTEROP.md).

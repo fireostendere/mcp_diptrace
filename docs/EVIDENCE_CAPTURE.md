@@ -81,6 +81,31 @@ python scripts/capture_diptrace_evidence.py finalize \
 
 Use `check` for recipe checklist answers. Silence is not confirmation.
 
+## Automatic review report
+
+After `finalize`, the review-only candidate can be converted into deterministic machine-readable and Markdown reports:
+
+```bash
+python scripts/build_evidence_report.py \
+  /mnt/c/capture-work/.diptrace-capture/candidates/probe-001.candidate.json \
+  --capture-root /mnt/c/capture-work \
+  --json-output /mnt/c/capture-work/probe-001.report.json \
+  --markdown /mnt/c/capture-work/probe-001.report.md
+```
+
+The report builder:
+
+- requires the existing `diptrace-capture-candidate-v1` review-only contract;
+- re-resolves every quarantined stage under the explicit capture root;
+- recomputes every stage SHA-256 and reports missing/mismatched artifacts;
+- computes the deterministic XML semantic inventory/fingerprint from `xml_analysis.py`;
+- compares `source -> open_save`, `open_save -> reexport` and `source -> reexport` when the bound artifacts are available;
+- reproduces operator claims and checklist answers as operator-supplied facts;
+- reports review blockers and candidate eligibility without changing either;
+- emits the same report for the same candidate/artifacts.
+
+The report status may be `complete_review_only`, `incomplete`, or `integrity_failure`. It intentionally has no automatic PASS/trust state. Building a report never grants provenance, fixture trust, release acceptance or registry promotion.
+
 ## Non-interactive run
 
 Non-interactive mode is appropriate only when a controlled caller already has explicit answers/attestations. It must not synthesize operator confirmation. Committed attestation templates intentionally default to false; malformed or incomplete answers fail closed.
@@ -107,4 +132,4 @@ python scripts/ingest_fixtures.py \
 
 A separate reviewed repository change is required for package-owned trust promotion.
 
-See `OPEN_QUESTIONS.md`, generated `PROBE_PACK.md`, `XML_COMPATIBILITY.md` and `MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md` for the current evidence boundaries.
+See `OPEN_QUESTIONS.md`, generated `PROBE_PACK.md`, `XML_COMPATIBILITY.md`, `EDA_INTELLIGENCE.md` and `MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md` for the current evidence boundaries.

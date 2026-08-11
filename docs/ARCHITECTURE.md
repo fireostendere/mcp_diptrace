@@ -9,7 +9,7 @@ DipTrace MCP is intentionally split into four concerns:
 3. internal EDA intelligence that generates/scores proposals without bypassing safety boundaries;
 4. optional Windows presentation automation for visible cinematic replay.
 
-The public MCP surface remains stable while the internal EDA layers evolve.
+The frozen public MCP surface remains **159 tools** while internal EDA layers evolve.
 
 ## End-to-end structure
 
@@ -28,8 +28,9 @@ DipTraceService Facade
     +--> typed services under src/diptrace_mcp/services/
     +--> shared context / stores / policy / cache / gateway
     +--> internal EDA modules
-    |      +--> schematic layout + co-optimisation
-    |      +--> PCB Generations A-D
+    |      +--> schematic layout / route / selective reroute ensemble
+    |      +--> PCB Generations A-D candidate ensemble
+    |      +--> DSN/SES and XML semantic analysis
     v
 typed semantic operations
     |
@@ -61,6 +62,9 @@ calibrated DipTraceUIProfile
 cinematic manifest
     |
     v
+mandatory cinematic preflight
+    |
+    v
 WindowsDesktopDriver -> visible DipTrace UI -> ffmpeg capture
 ```
 
@@ -68,13 +72,7 @@ Cinematic replay is presentation automation. It is not a replacement for the gua
 
 ## Public MCP layer
 
-`src/diptrace_mcp/server.py` owns:
-
-- FastMCP tool/resource registration;
-- stdio and trusted-loopback HTTP transports;
-- conversion of internal exceptions into the stable public error envelope;
-- the project-owned worker-thread boundary for synchronous domain work;
-- dependency assembly through the stable `DipTraceService` Facade.
+`src/diptrace_mcp/server.py` owns FastMCP registration, stdio/trusted-loopback HTTP transport, the stable error envelope, worker-thread offload and dependency assembly through `DipTraceService`.
 
 Current frozen public contract:
 
@@ -82,145 +80,127 @@ Current frozen public contract:
 - 157 public `DipTraceService` methods;
 - 148 explicit Facade-to-domain-service delegations.
 
-`reference/mcp-tools-list.snapshot.json` and CI guard that surface. New internal heuristics do not automatically become new tools.
+`reference/mcp-tools-list.snapshot.json` and CI guard that surface. New internal heuristics and package-level APIs do not automatically become new tools.
 
 ## Service and trust boundaries
 
 `DipTraceService` remains the stable public Facade. Domain implementations live under `src/diptrace_mcp/services/` and receive narrow typed dependencies rather than the complete Facade.
 
-Shared state is intentionally centralized:
+Shared state remains centralized: document loading/gateway, normalized-model cache, records, transactions, live sessions, policy and evidence/trust authority. Services must not create parallel stores or duplicate safety state.
 
-- document loading/gateway;
-- normalized model cache;
-- record storage;
-- transaction storage;
-- live-session state;
-- policy configuration;
-- evidence/trust authority.
+Persistent writes continue through the guarded path:
 
-Services must not create parallel stores or duplicate safety state.
-
-Persistent writes continue through the existing guarded path:
-
-1. validate/resolve path inside allowed roots;
+1. resolve an allowed-root path;
 2. parse bounded XML;
-3. bind operation/preview to an exact SHA-256;
+3. bind preview/operation to exact SHA-256;
 4. validate semantic operation and policy impact;
-5. back up existing targets where applicable;
-6. write via temporary file and atomic replace;
+5. create backup/recovery state where applicable;
+6. use temporary-file + atomic replacement;
 7. preserve transaction/recovery metadata;
 8. for live sessions, re-check working/exchange/original identities before apply.
 
 ## Normalized domain model
 
-Parsers/adapters convert DipTrace XML into typed normalized PCB, schematic and library models. The normalized layer carries stable IDs, geometry/connectivity facts and provenance without pretending that every XML token has authoritative engineering meaning.
-
-Observed facts, inferred engineering intent and operator-provided facts remain distinct. In particular, missing current, edge rate, impedance, stackup authority and manufacturing limits remain unknown until supplied by trustworthy evidence.
+Adapters convert DipTrace XML into typed PCB, schematic and library models with stable IDs, geometry/connectivity facts and provenance. Observed facts, inferred engineering intent and operator-supplied facts remain distinct. Missing current, edge rate, impedance, stackup authority or manufacturing limits stay unknown instead of becoming guessed constants.
 
 See [Domain Model](DOMAIN_MODEL.md).
 
 ## Schematic intelligence
 
-The current schematic architecture is internal and non-public. Its modules are:
+The schematic intelligence architecture is internal and deterministic:
 
-- `schematic_layout.py` — design intent, functional blocks, reference motifs, readability metrics and first hierarchical placement plan;
-- `schematic_optimizer.py` — bounded multi-candidate placement search and first-stage interconnect estimates;
-- `schematic_wire_planner.py` — non-mutating wire candidate evaluation and explicit placement feedback;
-- `schematic_pin_geometry.py` — conservative pin geometry resolution from the embedded Design Cache or explicit fallback library;
-- `schematic_joint_optimizer.py` — pin-aware hypothetical route scoring across placement candidates;
-- `schematic_placement_repair.py` — bounded route-feedback-driven placement repair and re-ranking.
+- `schematic_layout.py` — design intent, functional blocks, reference motifs and readability metrics;
+- `schematic_optimizer.py` — bounded placement candidates and first-stage interconnect estimates;
+- `schematic_wire_planner.py` — wire-candidate quality and explicit placement feedback;
+- `schematic_pin_geometry.py` — conservative Design Cache pin geometry;
+- `schematic_joint_optimizer.py` — pin-aware hypothetical route scoring;
+- `schematic_placement_repair.py` — bounded route-feedback-driven placement repair;
+- `schematic_atomic_reroute.py` — selective affected-net wire replacement composed with placement moves as one semantic-operation batch;
+- `schematic_ensemble.py` — deterministic builtin readability motifs, congestion pressure and route-aware candidate ranking.
 
-The implementation deliberately remains non-mutating until an ordinary semantic operation plan is selected. Existing-wire schematics are still refused by the placement planners by default because moving symbols without atomically replacing affected wires would degrade the drawing.
+`schematic_atomic_reroute.py` closes the former existing-wire gap. It detects only sheet-local explicit wire groups touched by moved parts, fails closed when affected endpoints/routes cannot be rebuilt safely, and returns `delete wire -> move part -> add replacement wire` operations. Atomicity is supplied by the existing semantic transaction path when that complete operation list is previewed/committed together.
 
-The next architectural step is a selective-reroute transaction layer that can compose selected placement moves and affected wire replacements into one guarded transaction. See [Schematic Layout Engine](SCHEMATIC_LAYOUT_ENGINE.md).
+The layer remains bounded rather than globally optimal. Global same-net junction optimisation, richer sheet-level scheduling, broader motif ingestion and the full iterative objective-history loop remain future improvement areas.
+
+See [Schematic Layout Engine](SCHEMATIC_LAYOUT_ENGINE.md).
 
 ## PCB design intelligence — Generations A-D
 
-The PCB design engine is layered above the existing geometry legalizer/router/review path.
+The PCB design engine remains layered above geometry/legalisation/routing/review primitives.
 
-### Generation A — intent and placement
+- Generation A: `pcb_design_intent.py` + `pcb_placement.py` provide engineering intent and bounded intent-aware placement.
+- Generation B: `pcb_physical.py` adds exported-stackup/reference context, conservative PDN/return-path/noise/via-role analysis.
+- Generation C: `pcb_routing_policy.py` compiles deterministic routing policy and evaluates supplied route observations.
+- Generation D: `pcb_joint_optimizer.py` applies lexicographically dominant hard-rule selection over decomposed soft scores.
+- `pcb_candidate_ensemble.py` now generates multiple real bounded Generation-A placement candidates under different engineering profiles, carries conservative B/C evidence terms and lets the existing Generation-D selector choose hard-first. The existing board is retained as an optional baseline candidate.
 
-- `pcb_design_intent.py` builds engineering roles, functional blocks, multi-role net intent, criticality and explicit physical constraints;
-- `pcb_placement.py` performs deterministic intent-aware placement v2 while the existing low-level placement engine remains the legality/geometry authority.
-
-Generation A uses conservative proximity/intent proxies and does not invent field/current/thermal values.
-
-### Generation B — physical context
-
-`pcb_physical.py` adds bounded exported-stackup/reference context, conservative PDN source/load/decoupling analysis, regulator hot-loop candidates, return-path integration, timing-gated aggressor/victim triage and semantic via-role classification.
-
-It consumes available evidence but does not promote approximate analysis into field-solver, PI, EMC or thermal sign-off.
-
-### Generation C — routing policy
-
-`pcb_routing_policy.py` compiles intent into deterministic route order and explicit layer/via/length/skew/impedance/reference/stub/shield constraints. It evaluates supplied route observations and can emit bounded placement feedback for pathological candidates.
-
-Native routing/copper writes still use the existing guarded semantic path. Authoritative pour/refill geometry remains a real-host evidence boundary.
-
-### Generation D — whole-board selection
-
-`pcb_joint_optimizer.py` selects among bounded candidates. Hard safety, mechanical, connectivity, DRC, reference-path and manufacturing dimensions are lexicographically dominant over soft placement/routing/via/SI/PI/return-path/EMI-risk/thermal-risk/manufacturing scores.
-
-The optimizer selects and explains candidates; it does not directly apply them. The accompanying engineering-trap catalog is synthetic-regression evidence only. Real-DipTrace Generation D product acceptance remains pending.
+No Generation B/C/D proxy becomes field-solver, PI, EMC, thermal or manufacturing authority. Real-DipTrace product acceptance for the affected primitives remains a separate evidence boundary.
 
 See [PCB Design Engine](PCB_DESIGN_ENGINE.md).
 
-## Low-level placement and routing
+## Exchange and semantic XML analysis
 
-The existing low-level placement/routing modules remain important authorities:
+`specctra_analysis.py` adds bounded DSN/SES inspection around the existing Specctra import/export path. It reports structure, route geometry, unknown nets/layers and which SES routes are importable or skipped before mutation.
 
-- geometry and board-outline/keepout legality;
-- bounded component placement and legalization;
-- route candidate generation, clearance and via validation;
-- differential-pair/length and preliminary impedance/return-path helpers;
-- semantic trace/via operations and guarded transactions.
+`xml_analysis.py` provides deterministic semantic XML fingerprints and structural deltas. Attribute ordering is normalized, element ordering remains significant, and unknown XML contributes to the fingerprint even when the normalized model does not interpret it.
 
-The higher EDA generations compose these primitives; they do not replace or bypass them. See [Placement Engine](PLACEMENT_ENGINE.md), [Routing Engine](ROUTING_ENGINE.md), [Geometry Engine](GEOMETRY_ENGINE.md) and [Transactions](TRANSACTIONS.md).
+These analyzers are review/evidence tools; they do not grant compatibility or mutate documents by themselves.
 
 ## Component and Pattern Library mutation
 
-A raw-preserving internal Component/Pattern Library mutation core exists and has controlled real Component Editor / Pattern Editor round-trip evidence. This is an internal capability. It does not automatically create public native-library write tools or broaden the public compatibility claim.
+`library_mutation.py` remains the raw-preserving internal Component/Pattern writer core with controlled real-editor evidence.
+
+`library_mutation_api.py` adds a stable expected-SHA package-level request/preview contract around that core. It is intentionally **not registered as a public MCP tool** (`public_registration=False`), so this work does not expand the frozen 159-tool contract. A future MCP registration requires an intentional API/product decision, snapshot update and claim-specific acceptance rather than happening incidentally.
+
+## Evidence pipeline
+
+The operator capture boundary remains trust-neutral. `capture_diptrace_evidence.py` records source/open-save/re-export artifacts and operator claims without granting trust.
+
+`evidence_report.py` and `scripts/build_evidence_report.py` now turn a finalized candidate into deterministic JSON/Markdown review output. They re-check artifact SHA bindings and add `xml_analysis.py` fingerprints/deltas, but cannot grant PASS, provenance trust, fixture trust or release acceptance.
 
 ## External adapters
 
-Freerouting, ngspice and openEMS are process adapters with explicit typed boundaries. They run locally through bounded job directories/process controls and cannot bypass project trust, transaction or review policy. Adapter output is evidence/candidate data, not an automatic authority over the document.
+Freerouting, ngspice and openEMS remain typed bounded process adapters. Adapter output is candidate/evidence data and cannot bypass trust, transaction or review policy.
 
 ## Cinematic presentation layer
 
-The cinematic subsystem lives in:
+The cinematic subsystem includes:
 
-- `cinematic.py` — deterministic timeline and presets;
-- `cinematic_cli.py` — JSONL capture/compile and ffmpeg command generation;
-- `cinematic_host.py` — Windows replay host and dry-run driver;
+- `cinematic.py` — deterministic timeline/presets;
+- `cinematic_cli.py` — capture/compile and ffmpeg command generation;
+- `cinematic_preflight.py` — content identity plus timing/payload/desktop-action safety budgets;
+- `cinematic_preflight_cli.py` — standalone preflight inspection;
+- `cinematic_host.py` — Windows replay/dry-run host; `play_manifest()` always invokes preflight before any driver action;
 - `cinematic_recording.py` — Windows ffmpeg capture helpers;
-- `diptrace_ui.py` — version/editor-specific UI profiles and affine design-to-client calibration;
-- `diptrace_profile_cli.py` — profile template/probe/calibrate/action/validate workflows;
-- `diptrace_cinematic_semantic.py` — semantic Schematic/PCB replay adapters;
-- `diptrace_window.py` — Windows target-window resolution/client geometry.
+- `diptrace_ui.py` / `diptrace_profile_cli.py` — version/editor-specific profile calibration and action macros;
+- `diptrace_cinematic_semantic.py` — semantic schematic/PCB replay adapters;
+- `diptrace_window.py` — target-window/client geometry.
 
-UI profiles fail closed until calibrated and supplied with the required verified action macros. The coordinate transform maps DipTrace design coordinates to normalized client coordinates rather than fixed monitor pixels.
-
-The subsystem is Windows-specific where it touches the real desktop. Timeline compilation and dry-run logic remain deterministic/testable without moving the cursor.
+UI profiles still fail closed until calibrated and populated with verified macros for the exact client configuration. Same-layer PCB trace replay is supported; via/layer-transition GUI playback remains fail-closed until verified staged actions exist.
 
 See [Cinematic Demo Mode](CINEMATIC_DEMO_MODE.md).
 
+## Documentation state as a contract
+
+`scripts/check_documentation_state.py` compares evergreen documentation with implemented modules and the frozen public-tools snapshot. `tests/test_documentation_state.py` runs this guard in the normal CI test matrix. It checks current-state docs only; immutable historical release/audit/acceptance records remain historical evidence and are not rewritten to match current code.
+
 ## Evidence model
 
-Three states must not be collapsed:
+Three states remain distinct:
 
 - **implemented** — code and repository regression tests exist;
 - **runtime available** — current document/policy/adapters expose the capability;
 - **DipTrace verified** — controlled real-host/client evidence exists for the exact path and candidate.
 
-Historical evidence stays bound to the exact commit/release where it was captured. Later `main` development does not inherit it automatically.
+Historical evidence stays bound to the exact commit/release where it was captured. Later development does not inherit it automatically.
 
 ## Current architectural limitations
 
-- selective atomic reroute of existing schematic wires after placement repair is not implemented;
-- automatic datasheet/reference-motif ingestion is not required by the schematic engine and remains future work;
+- automatic datasheet/reference-design ingestion remains bounded/future work rather than a source of invented engineering truth;
+- global same-net schematic junction optimisation and the fuller iterative objective-history loop remain incomplete;
 - real-host validation of all schematic rotation/pin-facing conventions remains incomplete;
 - PCB Generation D real-DipTrace product acceptance remains pending;
-- cinematic UI macros/calibration are configuration-specific and still require real-client acceptance;
-- cinematic PCB replay currently refuses via/layer-transition traces;
-- native manufacturing generation and trusted sign-off are outside the current implementation;
+- cinematic UI macros/calibration remain configuration-specific and require real-client acceptance;
+- cinematic PCB replay still refuses unverified via/layer-transition gestures;
+- native manufacturing generation and trusted fabrication/sign-off remain outside the implementation;
 - no internal optimizer result is field-solver, PI, EMC, thermal or fabrication authority by itself.
