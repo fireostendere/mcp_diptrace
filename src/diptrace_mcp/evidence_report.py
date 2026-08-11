@@ -61,6 +61,12 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _mapping(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
 def _load_candidate(candidate_path: Path) -> tuple[dict[str, Any], bytes]:
     raw = candidate_path.read_bytes()
     try:
@@ -71,7 +77,7 @@ def _load_candidate(candidate_path: Path) -> tuple[dict[str, Any], bytes]:
         raise ValueError(f"Evidence candidate must use schema {_CANDIDATE_SCHEMA!r}")
     if value.get("trust_grant") != "none" or value.get("candidate_only") is not True:
         raise ValueError("Evidence report accepts review-only capture candidates only")
-    return value, raw
+    return {str(key): item for key, item in value.items()}, raw
 
 
 def _safe_relative(root: Path, relative: str) -> Path:
@@ -101,13 +107,16 @@ def _stage_report(
 ) -> EvidenceStageReport:
     relative = str(record.get("quarantine_path") or "")
     recorded_sha = str(record.get("sha256") or "")
-    attestations = record.get("operator_attestations")
-    normalized_attestations = (
-        {str(key): bool(value) for key, value in attestations.items()}
-        if isinstance(attestations, dict)
-        else {}
+    attestations = _mapping(record.get("operator_attestations"))
+    normalized_attestations = {
+        str(key): bool(value) for key, value in attestations.items()
+    }
+    warnings_value = record.get("warnings")
+    warnings = (
+        [str(item) for item in warnings_value]
+        if isinstance(warnings_value, list)
+        else []
     )
-    warnings = [str(item) for item in record.get("warnings", [])]
     try:
         path = _safe_relative(root, relative)
         raw = path.read_bytes()
@@ -185,10 +194,9 @@ def build_evidence_report(
     candidate_path = Path(candidate_path)
     root = Path(capture_root)
     candidate, raw = _load_candidate(candidate_path)
-    stages_value = candidate.get("stages")
-    stages_by_name = stages_value if isinstance(stages_value, dict) else {}
+    stages_by_name = _mapping(candidate.get("stages"))
     stage_reports = [
-        _stage_report(root, stage, stages_by_name[stage])
+        _stage_report(root, stage, _mapping(stages_by_name[stage]))
         for stage in _REQUIRED_STAGES
         if isinstance(stages_by_name.get(stage), dict)
     ]
@@ -220,20 +228,10 @@ def build_evidence_report(
                 _comparison(by_stage[first_name], by_stage[second_name], root=root)
             )
 
-    recipe = candidate.get("recipe") if isinstance(candidate.get("recipe"), dict) else {}
-    recipe_snapshot = (
-        recipe.get("snapshot") if isinstance(recipe.get("snapshot"), dict) else {}
-    )
-    checklist = (
-        candidate.get("checklist")
-        if isinstance(candidate.get("checklist"), dict)
-        else {}
-    )
-    operator_claims = (
-        candidate.get("operator_claims")
-        if isinstance(candidate.get("operator_claims"), dict)
-        else {}
-    )
+    recipe = _mapping(candidate.get("recipe"))
+    recipe_snapshot = _mapping(recipe.get("snapshot"))
+    checklist = _mapping(candidate.get("checklist"))
+    operator_claims = _mapping(candidate.get("operator_claims"))
     semantic_equal_pairs = [
         f"{item.first_stage}->{item.second_stage}"
         for item in comparisons
@@ -248,6 +246,12 @@ def build_evidence_report(
         and item.delta is not None
         and not item.delta.semantic_equal
     ]
+    blockers_value = candidate.get("review_blockers")
+    review_blockers = (
+        [str(item) for item in blockers_value]
+        if isinstance(blockers_value, list)
+        else []
+    )
     return EvidenceReport(
         session_id=str(candidate.get("session_id") or ""),
         recipe_id=str(recipe_snapshot.get("recipe_id") or ""),
@@ -258,9 +262,9 @@ def build_evidence_report(
         report_status=report_status,
         candidate_sha256=_sha256(raw),
         eligible_for_registry_review=bool(candidate.get("eligible_for_registry_review")),
-        review_blockers=[str(item) for item in candidate.get("review_blockers", [])],
-        operator_claims=dict(operator_claims),
-        checklist=dict(checklist),
+        review_blockers=review_blockers,
+        operator_claims=operator_claims,
+        checklist=checklist,
         stages=stage_reports,
         comparisons=comparisons,
         summary={
