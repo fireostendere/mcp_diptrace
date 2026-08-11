@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .cinematic import CinematicEvent
+from .cinematic_preflight import preflight_cinematic_manifest
 
 
 @dataclass(frozen=True, slots=True)
@@ -345,6 +346,7 @@ def play_manifest(
     *,
     sleep: Any = time.sleep,
 ) -> None:
+    preflight_cinematic_manifest(manifest)
     cues = manifest.get("cues")
     if not isinstance(cues, list):
         raise ValueError("cinematic manifest has no cues array")
@@ -360,7 +362,11 @@ def play_manifest(
             domain=str(raw_event.get("domain") or "general"),  # type: ignore[arg-type]
             phase=str(raw_event.get("phase") or "single"),  # type: ignore[arg-type]
             tool=str(raw_event["tool"]) if raw_event.get("tool") is not None else None,
-            target=str(raw_event["target"]) if raw_event.get("target") is not None else None,
+            target=(
+                str(raw_event["target"])
+                if raw_event.get("target") is not None
+                else None
+            ),
             payload=dict(raw_event.get("payload") or {}),
         )
         driver.handle(event)
