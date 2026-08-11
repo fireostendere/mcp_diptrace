@@ -3,22 +3,22 @@
 This roadmap separates three states:
 
 1. **implemented** — production code and repository tests exist;
-2. **runtime available** — the active document, policy and configured adapters allow the feature;
+2. **runtime available** — the active document/policy/configuration permits the feature;
 3. **DipTrace verified** — controlled real DipTrace/client evidence exists for the exact path and candidate.
 
-Implementation never implies universal DipTrace compatibility. Runtime `get_capabilities` remains authoritative.
+Implementation never implies universal DipTrace compatibility. Historical evidence stays bound to the production identity that was actually tested.
 
 ## Current checkpoint — 2026-08-11
 
-The source/package version is `0.2.1`. Annotated tag `v0.2.1`, the GitHub development prerelease and `diptrace-mcp==0.2.1` on PyPI are published.
+Source/package version remains `0.2.1`. The immutable `v0.2.1` release and PyPI package are published; post-release development is tracked separately.
 
 The latest accepted manual-production checkpoint remains:
 
 `main@0bb09b4b3af40a5a3d1a875fab885430a2d251ba`
 
-That identity is preserved because manual evidence is commit-bound. Later development on `main` — schematic intelligence, 90% aggregate coverage, PCB Generations A-D and cinematic replay — is implemented/tested repository work but does not silently inherit the earlier real-host/client evidence.
+The durable recovery record is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md). Completed real-host/client PASS evidence is not silently transferred to later code.
 
-The durable manual recovery record is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md), updated on 2026-08-10.
+Current cross-domain implementation detail is in [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md).
 
 ## Completed manual gates on the accepted checkpoint
 
@@ -33,242 +33,239 @@ PASS:
 - Q1 Component Angle GUI/re-export;
 - real Codex Desktop restart/configuration/`get_capabilities`.
 
-The canonical matrix therefore has **8 of 12 blocking manual gates PASS**.
+The canonical matrix therefore has 8 of 12 blocking manual gates PASS.
 
-`claude_desktop_real_client_restart` is **WAIVED for the current project campaign**. It was not run and is not PASS. The repository validator intentionally remains stricter and may continue to report the canonical matrix incomplete.
+`claude_desktop_real_client_restart` is **WAIVED for the current project campaign**, not PASS.
 
-When formal lifecycle acceptance resumes, the next project-required gate is:
+When lifecycle acceptance resumes, the project-required sequence remains:
 
-`windows_clean_install_repair_uninstall`
-
-followed by:
-
-1. `elevated_plugin_install_profile_preservation`;
-2. `custom_state_preservation`.
-
-## Product-development priority
-
-Formal lifecycle acceptance is intentionally paused while the project improves the core engineering product: useful schematic layout and explainable PCB design decisions under the existing trust/write boundaries.
-
-The shared optimization pattern is:
-
-```text
-observed project facts + explicit constraints + optional reference intent
-                              |
-                              v
-                       bounded candidates
-                              |
-                              v
-                    measure / score / explain
-                              |
-                       bounded feedback
-                              |
-                              v
-          guarded semantic plan -> preview -> apply -> review
-```
-
-Unknown current, edge rate, impedance, authoritative stackup, manufacturing capability and similar physical facts remain explicit unknowns rather than guessed constants.
+1. `windows_clean_install_repair_uninstall`;
+2. `elevated_plugin_install_profile_preservation`;
+3. `custom_state_preservation`.
 
 # Schematic track
 
-Detailed implementation documentation: [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
+Detailed implementation: [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
 ## Phase 26 — real-world readability baseline
 
 **Status: active product checkpoint.**
 
-The repository has deterministic authored-wire quality handling, but the product-level question remains whether complete real schematics become materially easier to read without routine cleanup.
+Repository functionality is substantially stronger than the historical wire-only acceptance. The remaining question is product quality in real DipTrace: whether complete generated/repaired schematics become materially easier to read without routine manual cleanup.
 
-Representative acceptance cases should cover small RC/divider/LED circuits, regulator support networks, MCU power/decoupling, collision-prone layouts and at least one multi-block schematic. Measure connectivity/ERC preservation, symbol/text/wire collisions, crossings, overlaps, bends, detour, block cohesion, compactness, signal flow and native open/save/re-export behavior.
+The real-host validation document remains `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md`.
 
 ## Phase 27 — design intent and reference motifs
 
-**Status: foundation implemented.**
+**Status: implemented foundation + bounded builtin motif generation.**
 
-`schematic_layout.py` now provides deterministic design intent, coarse part/net roles, functional blocks and provenance-bearing reference motifs (`datasheet`, `reference_design`, `project`, `builtin`) expressed as relative presentation constraints rather than copied absolute coordinates.
+Implemented:
 
-Still pending: automated datasheet/reference-design ingestion. The engine intentionally works without online retrieval.
+- conservative part/net roles and functional blocks;
+- provenance-bearing project/datasheet/reference/builtin motif model;
+- deterministic builtin readability motifs that are explicitly labelled as heuristics rather than external evidence.
 
-## Phase 28 — schematic placement engine v2
+Still pending: automatic external datasheet/reference-design ingestion with provenance/redistribution controls.
 
-**Status: bounded implementation.**
+## Phase 28 — placement engine v2
+
+**Status: bounded implementation complete for current scope.**
 
 Implemented:
 
 - hierarchical block/anchor/support placement;
-- configurable grid and bounded row packing;
-- locked-part preservation;
-- multiple deterministic candidates with bounded search;
-- first-stage readability/interconnect/movement scoring;
-- ordinary `MoveComponentsOperation` output through the existing semantic path.
+- configurable grid/row packing and locked-part preservation;
+- bounded deterministic candidate generation;
+- readability/interconnect/movement scoring;
+- ordinary `MoveComponentsOperation` output.
 
-Still pending: fully validated automatic rotation/pin-facing decisions for real DipTrace rotation semantics and broader motif-driven candidate generation.
+Still pending: real-host-backed automatic rotation/pin-facing decisions and broader externally sourced motif generation.
 
 ## Phase 29 — human-readable interconnect planning
 
-**Status: bounded implementation.**
+**Status: bounded implementation complete for current scope.**
 
 Implemented:
 
-- non-mutating route-candidate evaluation;
+- non-mutating route evaluation/cleanup;
 - obstacle/crossing/overlap/self-intersection/diagonal/bend/length/detour metrics;
-- explicit placement feedback for pathological routes;
-- conservative Design Cache pin-geometry resolution;
-- configurable ground/power routing policy for joint scoring.
+- explicit placement feedback;
+- conservative Design Cache pin geometry;
+- configurable ground/power policy;
+- deterministic motif + route + placement-grid congestion ensemble ranking.
 
-Still pending: stronger sheet-level congestion scheduling, global same-net junction optimisation and automatic label/bus strategy.
+Still pending: stronger global/sheet-level congestion scheduling, same-net junction optimization and automatic label/bus strategy.
 
-## Phase 30 — joint schematic layout optimizer
+## Phase 30 — joint placement/routing + existing-wire transaction
 
-**Status: partial implementation.**
+**Status: major functional gap closed; bounded implementation complete for current scope.**
 
 Implemented:
 
 - pin-aware route scoring for hypothetical placement candidates;
-- deterministic bounded edge budgets;
-- joint lexicographic ranking of placement plus route quality;
 - bounded route-feedback-driven placement repair;
-- rigid block moves where appropriate, local same-block repair where appropriate;
-- strict candidate/translation bounds and source-document immutability.
+- rigid block/local repair policy and strict translation/candidate budgets;
+- source-document immutability during planning;
+- **selective reroute of explicit affected `(net, sheet)` groups when moved parts touch existing wires**;
+- **one dependency-safe semantic batch combining wire deletion, component movement and replacement wire authoring**;
+- fail-closed refusal if any affected endpoint/route cannot be rebuilt;
+- no rewriting of unaffected explicit wire geometry;
+- no automatic page-spanning explicit wiring of previously unwired nets by default.
 
-Still pending:
+Current limitation: affected explicit nets are rebuilt from resolved pin endpoints through deterministic MST edges; arbitrary hand-authored junction topology is not preserved as a visual constraint.
 
-- selective reroute of only affected existing nets;
-- one atomic guarded plan combining selected placement moves and wire replacement;
-- fuller iterative generate -> score -> repair -> reroute loop with objective history/stopping criteria.
+Next refinement: optional intentional-junction preservation and bounded iterative generate -> score -> repair -> reroute convergence with objective history/stopping criteria.
 
 ## Phase 31 — schematic quality gate
 
-**Status: pending product-level acceptance.**
+**Status: pending product-level real-DipTrace acceptance.**
 
-Close only when representative ugly-but-electrically-correct schematics are reliably improved without routine manual cleanup and without connectivity/ERC regression, with controlled real-DipTrace open/save/re-export evidence for the affected primitives.
+Close only when representative ugly-but-electrically-correct schematics are reliably improved without connectivity/ERC regression and without routine manual cleanup, with controlled real-host open/save/re-export evidence for the affected primitives.
 
 # PCB track — Generations A-D
 
-Detailed implementation documentation: [PCB_DESIGN_ENGINE.md](PCB_DESIGN_ENGINE.md).
+Detailed implementation: [PCB_DESIGN_ENGINE.md](PCB_DESIGN_ENGINE.md).
 
 ## Generation A — electronics intent and placement
 
-### Phase 32 — design intent / net intelligence
+**Status: implemented.**
 
-**Status: complete internal implementation (PR #81).**
-
-`pcb_design_intent.py` provides component roles, functional blocks, multi-role net classification, criticality/noise intent, explicit physical constraints and conservative power/ground topology intent. Naming heuristics may classify intent but do not invent physical numbers.
-
-### Phase 33 — intent-aware placement v2
-
-**Status: complete internal implementation (PR #81).**
-
-`pcb_placement.py` builds bounded deterministic board candidates above the existing low-level legality/geometry engine. It preserves locked/mechanically anchored components and scores functional cohesion, support adjacency, critical connection distance and intent-level aggressor/victim proximity separately.
+`pcb_design_intent.py` and `pcb_placement.py` provide component/net roles, blocks, explicit constraints, conservative power/ground topology intent and bounded deterministic placement candidates.
 
 ## Generation B — physical context
 
-### Phase 34 — stackup / PDN / return path / vias
+**Status: bounded implementation complete.**
 
-**Status: complete bounded implementation (PR #83).**
-
-`pcb_physical.py` reuses exported stackup/reference data, conservative PDN source/load/decoupling analysis, hot-loop candidates, return-path analysis and semantic via roles. Unknown current/current density/voltage drop/via capacity remain unknown.
-
-### Phase 35 — noise compatibility and physical refinement
-
-**Status: bounded complete (PR #83).**
-
-Timing-gated aggressor/victim analysis uses explicit edge-rate/frequency evidence plus normalized geometry/reference context. It is risk triage, not EMC/PI sign-off.
+`pcb_physical.py` provides exported stackup/reference candidates, conservative PDN topology, hot-loop/return-path/noise context and semantic via roles while preserving unknown current/current-density/voltage-drop/via-capacity facts.
 
 ## Generation C — intentional routing
 
-### Phase 36 — routing policy compiler
+**Status: bounded implementation complete.**
 
-**Status: complete internal implementation (PR #84).**
+`pcb_routing_policy.py` compiles deterministic routing policy/order and evaluates supplied route observations without inventing missing width, impedance, timing or crosstalk limits.
 
-`pcb_routing_policy.py` compiles intent into deterministic routing priority/order and explicit spacing, preferred/forbidden layers, via budgets/penalties, impedance/tolerance, max length/skew, reference, stub and shielding preferences.
-
-### Phase 37 — SI-aware route observation / copper strategy / feedback
-
-**Status: bounded complete (PR #84).**
-
-The layer evaluates supplied route observations for length, vias, forbidden layers, reference continuity, impedance, skew and stubs; reports parallel exposure without inventing a universal crosstalk threshold; preserves copper topology intent; and can emit bounded endpoint-placement feedback.
-
-Native routing and poured-copper edits remain in the guarded semantic path. Authoritative refill geometry is still a real-host boundary.
+Native copper refill remains a real-host evidence boundary.
 
 ## Generation D — whole-board selection
 
-### Phase 38 — joint multi-objective optimizer
+**Status: selector + internally generated candidate ensemble implemented.**
 
-**Status: complete internal implementation (PR #86).**
+`pcb_joint_optimizer.py` retains lexicographically dominant hard safety/mechanical/connectivity/DRC/reference/manufacturing dimensions over decomposed soft placement/routing/via/SI/PI/return/EMI/thermal/manufacturing metrics.
 
-`pcb_joint_optimizer.py` applies lexicographically dominant hard safety/mechanical/connectivity/DRC/reference/manufacturing dimensions over decomposed soft placement/routing/via/SI/PI/return-path/EMI-risk/thermal-risk/manufacturing metrics. It selects candidates; it does not apply edits directly.
+`pcb_candidate_ensemble.py` now feeds that selector real bounded Generation-A placement plans under disclosed profiles:
 
-### Phase 39 — benchmark and real-DipTrace product acceptance
+- `balanced`;
+- `critical_nets`;
+- `noise_aware`;
+- `support_compact`;
+- unchanged `existing_board` baseline.
 
-**Status: synthetic benchmark catalog complete; real-DipTrace product acceptance pending.**
+Generation B/C facts contribute conservative proxy/uncertainty terms only. No invented autorouter traces or solver facts are introduced.
 
-The catalog covers MCU/decoupling/crystal, regulators, mixed signal, precision current sense, high-speed differential, Ethernet/CAN, RF, high-current power and multilayer controlled-impedance traps. These cases are regression fixtures, not native-DipTrace proof.
+### Real-DipTrace product acceptance
 
-Real acceptance must use the affected generate -> open -> refill where required -> DRC/review -> save -> reopen -> re-export -> compare path.
+**Status: pending for stronger whole-board quality claims.**
+
+The synthetic engineering-trap catalog remains useful regression coverage but is not native-DipTrace proof. Real acceptance should use generate -> open -> refill where needed -> DRC/review -> save/reopen/re-export -> compare.
+
+# DSN/SES and XML analysis track
+
+**Status: implemented bounded analysis layer.**
+
+`specctra_analysis.py` adds structural/token/depth inventory plus route statistics and non-mutating import compatibility classification for SES results. Unknown target nets/layers and skipped imports are explicit before mutation.
+
+`xml_analysis.py` adds deterministic semantic fingerprints/inventories and structural deltas for all parsed XML, including unknown elements. Attribute order is normalized; child order remains significant.
+
+Hypothesis/property tests cover fingerprint determinism, attribute-order invariance and unknown-XML change detection.
+
+Further work should focus on additional real router dialect fixtures and claim-specific round-trip evidence, not broadening the parser by guessing unsupported syntax.
+
+# Evidence automation track
+
+**Status: capture + deterministic report pipeline implemented.**
+
+Existing `capture_diptrace_evidence.py` owns source/open-save/re-export capture, hashes, quarantine, operator attestations and review-only candidate generation.
+
+`evidence_report.py` + `scripts/build_evidence_report.py` now:
+
+- recheck candidate artifact SHA bindings;
+- compute XML semantic fingerprints/deltas;
+- emit deterministic JSON/Markdown;
+- surface missing/tampered artifacts and review blockers;
+- never grant PASS/provenance/fixture/release trust automatically.
+
+Further automation may aggregate multiple candidate reports into campaign dashboards, but trust promotion must remain a separate reviewed decision.
+
+# Component/Pattern mutation API track
+
+**Status: internal writer proven for its historical scope; stable package-level preview API prepared; public MCP registration intentionally pending.**
+
+`library_mutation_api.py` provides an expected-SHA-bound request/preview layer over the raw-preserving mutation core with semantic delta/fingerprint and explicit mapping errors.
+
+It remains `public_registration=false`. A public write tool must be an explicit product/API decision with public-contract snapshot, policy, documentation and current-candidate real-editor evidence review.
 
 # Cinematic presentation track
 
-**Status: implemented on `main`; real-client calibration/acceptance pending.**
-
-The cinematic subsystem is not a new engineering authority. It converts already-planned semantic actions/placement proposals/route vertices into deterministic visible playback for demos/video/GIF capture.
+**Status: implemented presentation subsystem + bounded whole-manifest preflight; exact-client UI acceptance pending.**
 
 Implemented:
 
-- deterministic timeline/pacing presets;
-- generic JSONL workflow capture and deterministic manifest compilation;
-- Windows cursor/click/hotkey/text/path replay plus dry-run;
-- PCB/Schematic version-specific UI profiles;
-- affine design-coordinate -> normalized-client-coordinate calibration with residual checks;
-- semantic Schematic part/wire and PCB placement/same-layer trace replay;
-- HWND-targeted ffmpeg recording and MP4/GIF command generation.
+- deterministic timeline/presets and JSONL capture/compile;
+- Windows cursor/click/hotkey/text/path replay and dry-run;
+- PCB/Schematic UI profiles and affine calibration;
+- semantic schematic/PCB replay for supported primitives;
+- HWND recording and MP4/GIF helpers;
+- `cinematic_preflight.py` deterministic content hash and finite cue/timing/payload/desktop-action budgets.
 
-Pending real acceptance:
+Still pending real acceptance:
 
-- verified UI action macros for the exact DipTrace 5.3 editor configuration used for recording;
-- end-to-end calibration against a real document;
-- explicit staged playback for via/layer transitions and other not-yet-verified UI gestures.
+- verified action macros/calibration for the exact editor/version/configuration;
+- staged via/layer-transition replay and other unverified editor gestures.
 
-See [CINEMATIC_DEMO_MODE.md](CINEMATIC_DEMO_MODE.md).
+# Documentation/CI drift protection
 
-# Current public contracts
+**Status: in this development pass.**
 
-- 159 MCP tools;
-- 157 public `DipTraceService` methods;
-- 148 explicit Facade-to-domain-service delegations;
+Evergreen implementation documentation must name current internal architecture rather than inheriting historical snapshots. CI should verify version/tool-count invariants and require the current EDA modules to remain represented in maintained docs. Historical dated release/acceptance/audit records remain excluded from this freshness rule.
+
+# Public contracts
+
+- 159 registered MCP tools;
 - stable structured error envelope;
 - server-owned worker-thread boundary;
 - SHA/policy/backup/atomic-write/session-lease/trust/transaction boundaries.
 
-Internal EDA development should continue to prefer typed modules/services and a small deliberate public surface rather than one MCP tool per heuristic.
+Higher-level EDA modules should continue to prefer typed package internals and a small deliberate public surface.
 
 # Phase summary
 
-| Phase | Current status |
+| Area | Current status |
 | --- | --- |
-| 0–24 | repository implementation complete/bounded as documented in specialist docs; native/real-host claims remain evidence-scoped |
-| 25 | manual acceptance paused at 8 canonical PASS gates; Claude restart WAIVED; Windows lifecycle next |
-| 26 | active schematic product-quality checkpoint |
-| 27 | schematic intent/motif foundation implemented |
-| 28 | bounded schematic placement v2 implemented |
-| 29 | bounded schematic wire planning + pin geometry implemented |
-| 30 | joint scoring + bounded placement repair partially implemented; selective reroute transaction pending |
-| 31 | schematic product-level real-DipTrace quality acceptance pending |
-| 32–33 | PCB Generation A complete internal implementation |
-| 34–35 | PCB Generation B complete/bounded internal implementation |
-| 36–37 | PCB Generation C complete/bounded internal implementation |
-| 38 | PCB Generation D joint selector complete internal implementation |
-| 39 | Generation D synthetic benchmark complete; real-DipTrace product acceptance pending |
-| cinematic | deterministic presentation subsystem implemented; real UI calibration/action acceptance pending |
+| manual acceptance | 8 canonical PASS gates on accepted historical checkpoint; Claude WAIVED; Windows lifecycle next |
+| schematic intent/motifs | implemented + builtin heuristic motifs |
+| schematic placement | bounded implementation |
+| schematic route/joint repair | bounded implementation |
+| schematic selective atomic reroute | implemented for affected explicit sheet-local nets |
+| schematic product quality | real-DipTrace acceptance pending |
+| PCB Generation A | implemented |
+| PCB Generation B | implemented/bounded |
+| PCB Generation C | implemented/bounded |
+| PCB Generation D | selector + real bounded placement candidate ensemble implemented |
+| PCB product quality | stronger current-candidate real-DipTrace acceptance pending |
+| DSN/SES analysis | bounded structural/importability analysis implemented |
+| XML semantic analysis | fingerprint/delta + property tests implemented |
+| evidence reports | deterministic review-only report pipeline implemented |
+| library mutation public API | package-level request/preview prepared; public MCP registration pending |
+| cinematic | presentation + preflight implemented; exact UI acceptance pending |
 
-# Permanent limitations and non-claims
+# Permanent limitations / non-claims
 
 - Synthetic fixtures and benchmark catalogs are not DipTrace exports unless explicitly recorded as such.
-- Changing `format_version` is not conversion or compatibility evidence.
-- Reference motifs are provenance-bearing guidance, not manufacturer approval.
-- The local router is bounded, not a full push-and-shove/free-angle/global EDA router.
-- PCB analytic layers do not become field-solver, PI, thermal or EMC proof.
+- Changing `format_version` is not conversion evidence.
+- Builtin motifs are labelled heuristics, not manufacturer/reference-design approval.
+- Local routing/placement search is bounded, not a globally optimal EDA solver.
+- PCB analytic layers are not field-solver, PI, thermal or EMC proof.
 - Native manufacturing generation is unavailable.
-- The ngspice adapter runs provided netlists; it is not a complete schematic-to-SPICE compiler.
-- Cinematic replay is presentation automation, not proof that DipTrace semantically accepted an edit.
+- Cinematic replay is presentation automation, not engineering acceptance evidence.
+- Evidence reports do not grant trust/PASS.
 - The project does not claim Novarm/DipTrace endorsement, universal compatibility, signed binaries, independent review, production readiness, direct Claude Desktop validation or globally optimal schematic/PCB layout.
