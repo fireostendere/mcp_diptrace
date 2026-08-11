@@ -2969,9 +2969,11 @@ def _apply_add_wire(
         else:
             dx = point.x - previous[0]
             dy = point.y - previous[1]
-            if dx != 0 and dy == 0:
+            dx_zero = math.isclose(dx, 0.0, abs_tol=1e-6)
+            dy_zero = math.isclose(dy, 0.0, abs_tol=1e-6)
+            if not dx_zero and dy_zero:
                 direction = "0"
-            elif dy != 0 and dx == 0:
+            elif not dy_zero and dx_zero:
                 direction = "1"
             else:
                 direction = "-1"

@@ -319,6 +319,29 @@ def test_add_wire_rejects_pin_of_another_net() -> None:
         )
 
 
+def test_add_wire_direction_tolerates_submicrometre_axis_noise() -> None:
+    result = apply_semantic_operations(
+        _load("schematic.xml"),
+        [
+            AddWireOperation(
+                net="VCC",
+                points=[
+                    {"x": 0.0, "y": 0.0},
+                    {"x": 10.0, "y": 0.0000002},
+                    {"x": 10.0000002, "y": 10.0},
+                ],
+                start={"type": "Free"},
+                end={"type": "Free"},
+            )
+        ],
+    )
+
+    points = ET.fromstring(result.raw_bytes).findall(
+        "./Schematic/Nets/Net[@Id='0']/Wires/Wire/Points/Point"
+    )
+    assert [point.get("Dir") for point in points] == ["-1", "0", "1"]
+
+
 def test_wire_to_wire_connection_uses_point_index() -> None:
     first = _wired_document()
     result = apply_semantic_operations(
