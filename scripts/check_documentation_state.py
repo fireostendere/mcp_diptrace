@@ -19,7 +19,6 @@ FEATURE_DOCS: dict[str, tuple[str, ...]] = {
     "schematic_atomic_reroute.py": (
         "docs/EDA_INTELLIGENCE.md",
         "docs/SCHEMATIC_LAYOUT_ENGINE.md",
-        "docs/ROADMAP.md",
     ),
     "schematic_ensemble.py": (
         "docs/EDA_INTELLIGENCE.md",
@@ -31,10 +30,7 @@ FEATURE_DOCS: dict[str, tuple[str, ...]] = {
     ),
     "specctra_analysis.py": ("docs/EDA_INTELLIGENCE.md",),
     "xml_analysis.py": ("docs/EDA_INTELLIGENCE.md",),
-    "evidence_report.py": (
-        "docs/EDA_INTELLIGENCE.md",
-        "docs/EVIDENCE_CAPTURE.md",
-    ),
+    "evidence_report.py": ("docs/EDA_INTELLIGENCE.md",),
     "cinematic_preflight.py": (
         "docs/EDA_INTELLIGENCE.md",
         "docs/CINEMATIC_DEMO_MODE.md",
@@ -45,6 +41,20 @@ FEATURE_DOCS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+SEMANTIC_DOC_MARKERS: dict[str, tuple[str, ...]] = {
+    "docs/ROADMAP.md": (
+        "selective reroute of explicit affected",
+        "one dependency-safe semantic batch",
+        "pcb_candidate_ensemble.py",
+    ),
+    "docs/EVIDENCE_CAPTURE.md": ("scripts/build_evidence_report.py",),
+    "docs/USAGE.md": (
+        "cinematic_host.play_manifest()",
+        "public_registration=False",
+        "scripts/check_documentation_state.py",
+    ),
+}
+
 STALE_PHRASES: dict[str, tuple[str, ...]] = {
     "CHANGELOG_NEXT.md": (
         "selective atomic re-route/replacement of existing schematic wires after "
@@ -52,6 +62,13 @@ STALE_PHRASES: dict[str, tuple[str, ...]] = {
     ),
     "docs/TESTING.md": (
         "Existing-wire selective reroute is not yet the default supported placement path",
+    ),
+    "docs/ARCHITECTURE.md": (
+        "selective atomic reroute of existing schematic wires after placement repair "
+        "is not implemented",
+    ),
+    "docs/USAGE.md": (
+        "Selective atomic placement + affected-wire replacement remains future work",
     ),
 }
 
@@ -105,10 +122,18 @@ def check_documentation_state(root: Path) -> list[str]:
                     f"{relative}: implemented module {module_name} is undocumented"
                 )
 
+    for relative, markers in SEMANTIC_DOC_MARKERS.items():
+        text = _read_text(root, relative, errors)
+        folded = text.casefold()
+        for marker in markers:
+            if marker.casefold() not in folded:
+                errors.append(f"{relative}: missing current-state marker: {marker}")
+
     for relative, phrases in STALE_PHRASES.items():
         text = _read_text(root, relative, errors)
+        folded = text.casefold()
         for phrase in phrases:
-            if phrase.casefold() in text.casefold():
+            if phrase.casefold() in folded:
                 errors.append(f"{relative}: contains stale current-state claim: {phrase}")
 
     cinematic_host = _read_text(
