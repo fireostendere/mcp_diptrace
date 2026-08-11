@@ -3,18 +3,28 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
-from diptrace_mcp.evidence_report import build_evidence_report, render_evidence_report_markdown
+from diptrace_mcp.evidence_report import (
+    build_evidence_report,
+    render_evidence_report_markdown,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Build a deterministic review-only report from a finalized DipTrace capture candidate."
+        description=(
+            "Build a deterministic review-only report from a finalized "
+            "DipTrace capture candidate."
+        )
     )
     parser.add_argument("candidate", help="Finalized *.candidate.json manifest")
-    parser.add_argument("--capture-root", required=True, help="Allowed root used by capture_diptrace_evidence.py")
+    parser.add_argument(
+        "--capture-root",
+        required=True,
+        help="Allowed root used by capture_diptrace_evidence.py",
+    )
     parser.add_argument("--markdown", help="Optional Markdown report output path")
     parser.add_argument("--json-output", help="Optional JSON report output path")
     return parser
