@@ -7,7 +7,11 @@ from pydantic import Field
 from .adapters import DocumentSnapshot
 from .domain import StrictModel
 from .errors import CapabilityUnavailableError
-from .pcb_design_intent import PCBDesignIntent, PCBIntentOverrides, build_pcb_design_intent
+from .pcb_design_intent import (
+    PCBDesignIntent,
+    PCBIntentOverrides,
+    build_pcb_design_intent,
+)
 from .pcb_joint_optimizer import (
     PCBHardViolations,
     PCBOptimizationCandidate,
@@ -71,7 +75,10 @@ class PCBEnsembleResult(StrictModel):
     limitations: list[str] = Field(default_factory=list)
 
 
-def _weights(profile: PCBEnsembleProfile, base: PCBPlacementV2Weights) -> PCBPlacementV2Weights:
+def _weights(
+    profile: PCBEnsembleProfile,
+    base: PCBPlacementV2Weights,
+) -> PCBPlacementV2Weights:
     values = base.model_dump()
     if profile == "critical_nets":
         values["critical_connection"] *= 2.5
@@ -99,7 +106,12 @@ def _geometry_hard(analysis: PCBPlacementV2Analysis) -> PCBHardViolations:
     drc = 0
     for item in analysis.geometry_violations:
         text = " ".join(str(value) for value in item.values()).casefold()
-        if "outline" in text or "contain" in text or "board" in text or "keepout" in text:
+        if (
+            "outline" in text
+            or "contain" in text
+            or "board" in text
+            or "keepout" in text
+        ):
             mechanical += 1
         else:
             drc += 1
@@ -152,10 +164,14 @@ def _candidate_from_analysis(
     warnings: list[str] | None = None,
 ) -> PCBEnsembleCandidate:
     assumptions = [
-        "Generation A candidate geometry comes from the bounded pcb_placement planner or the "
-        "existing board baseline.",
-        "Generation B/C score terms are conservative evidence proxies; unknown physical facts "
-        "remain visible and are not promoted to solver truth.",
+        (
+            "Generation A candidate geometry comes from the bounded pcb_placement "
+            "planner or the existing board baseline."
+        ),
+        (
+            "Generation B/C score terms are conservative evidence proxies; unknown "
+            "physical facts remain visible and are not promoted to solver truth."
+        ),
     ]
     optimization = PCBOptimizationCandidate(
         candidate_id=f"pcb-ensemble:{profile}",
@@ -209,9 +225,10 @@ def build_pcb_candidate_ensemble(
 ) -> PCBEnsembleResult:
     """Generate and rank bounded Generation A-D placement candidates.
 
-    Candidate generation is real: every non-baseline candidate comes from the existing bounded
-    Generation-A placement planner. Generation B/C data contributes conservative score terms, and
-    the existing Generation-D hard-first selector chooses the winner.
+    Candidate generation is real: every non-baseline candidate comes from the
+    existing bounded Generation-A placement planner. Generation B/C data contributes
+    conservative score terms, and the existing Generation-D hard-first selector
+    chooses the winner.
     """
 
     if snapshot.board is None:
@@ -219,7 +236,11 @@ def build_pcb_candidate_ensemble(
     config = config or PCBEnsembleConfig()
     intent = build_pcb_design_intent(snapshot, overrides)
     physical = analyze_pcb_physics(snapshot, intent=intent)
-    routing = compile_pcb_routing_policy(snapshot, intent=intent, physical=physical)
+    routing = compile_pcb_routing_policy(
+        snapshot,
+        intent=intent,
+        physical=physical,
+    )
 
     baseline = analyze_pcb_placement_v2(
         snapshot,
@@ -269,11 +290,19 @@ def build_pcb_candidate_ensemble(
         physical=physical,
         routing_policy=routing,
         limitations=[
-            "Generation-D selection compares bounded candidate plans; it does not claim global "
-            "placement/routing optimality.",
-            "SI/PI/thermal/EMI score terms are conservative proxies from exported facts and "
-            "normalized topology, not field-solver or manufacturing sign-off.",
-            "The selected placement plan still requires the normal semantic transaction, DRC/review, "
-            "and claim-specific real-DipTrace evidence before production acceptance.",
+            (
+                "Generation-D selection compares bounded candidate plans; it does not "
+                "claim global placement/routing optimality."
+            ),
+            (
+                "SI/PI/thermal/EMI score terms are conservative proxies from exported "
+                "facts and normalized topology, not field-solver or manufacturing "
+                "sign-off."
+            ),
+            (
+                "The selected placement plan still requires the normal semantic "
+                "transaction, DRC/review, and claim-specific real-DipTrace evidence "
+                "before production acceptance."
+            ),
         ],
     )
