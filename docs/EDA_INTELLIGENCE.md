@@ -1,12 +1,12 @@
 # EDA Intelligence — Current Implementation
 
-This is the evergreen cross-domain map for higher-level schematic/PCB intelligence on `main` after the post-0.2.1 development work. Historical release and acceptance records remain immutable evidence snapshots and must not be rewritten to inherit later capabilities.
+This is the evergreen cross-domain map for higher-level schematic/PCB intelligence after the post-0.2.1 development work. Historical release and acceptance records remain immutable evidence snapshots and must not be rewritten to inherit later capabilities.
 
 ## Safety model
 
 The intelligence modules generate facts, candidates, scores, feedback, or ordinary semantic operations. They do not bypass the existing allowed-root, expected-SHA, policy, preview, transaction, backup/recovery, live-session, or review boundaries.
 
-The public MCP contract remains frozen at 159 registered tools. New modules in this document are internal/package-level unless a public tool is explicitly added and the frozen tools/list snapshot is updated.
+The public MCP contract remains frozen at **159 registered tools**. New modules in this document are internal/package-level unless a public tool is explicitly added and the frozen tools/list snapshot is intentionally updated.
 
 ## Schematic pipeline
 
@@ -29,9 +29,7 @@ The returned operation order is dependency-safe:
 
 `DeleteWireOperation* -> MoveComponentsOperation* -> AddWireOperation*`
 
-Passing the complete operation list to the existing semantic transaction path gives one preview/SHA/commit boundary for placement and replacement wires. The planner itself is non-mutating.
-
-Unwired nets are not turned into page-spanning explicit wires by default. Unaffected existing wire geometry is not rewritten.
+Passing the complete operation list to the existing semantic transaction path gives one preview/SHA/commit boundary for placement and replacement wires. The planner itself is non-mutating. Unwired nets are not turned into page-spanning explicit wires by default, and unaffected existing wire geometry is not rewritten.
 
 Current limitation: affected explicit nets are rebuilt from resolved pin endpoints through deterministic MST edges; arbitrary hand-authored junction topology is not preserved as a visual constraint.
 
@@ -52,30 +50,21 @@ The current layers are:
 - **Generation C:** `pcb_routing_policy.py` — deterministic net routing policy/order and conservative observed-route checks;
 - **Generation D:** `pcb_joint_optimizer.py` — hard-first bounded candidate comparison.
 
-`pcb_candidate_ensemble.py` now creates real Generation-A placement candidates under multiple engineering profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline. Generation B/C facts contribute conservative soft evidence terms, and the existing Generation-D selector chooses the winner with hard safety/mechanical/connectivity/DRC/reference/manufacturing violations lexicographically dominant.
+`pcb_candidate_ensemble.py` creates real Generation-A placement candidates under multiple engineering profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline. Generation B/C facts contribute conservative soft evidence terms, and the existing Generation-D selector chooses the winner with hard safety/mechanical/connectivity/DRC/reference/manufacturing violations lexicographically dominant.
 
 No SI/PI/thermal/EMI proxy is upgraded into field-solver truth. Unknown stackup/current/edge-rate/reference facts remain unknown or penalized as uncertainty. Real-DipTrace/native-router/solver evidence remains claim-specific.
 
 ## DSN/SES and XML analysis
 
-`specctra_analysis.py` adds non-mutating pre-import analysis on top of the existing bounded Specctra parser/export/import path:
+`specctra_analysis.py` adds non-mutating pre-import analysis on top of the bounded Specctra path: structural inventory, route net/wire/via/segment counts, total route length/width range, route layer inventory, duplicate SES net detection, unknown target-board nets/layers and semantic import-planner classification into importable/skipped nets.
 
-- one-root structural inventory;
-- token/scope/depth counts;
-- route net/wire/via/segment counts;
-- total route length and width range;
-- route layer inventory;
-- duplicate SES net detection;
-- unknown target-board nets/layers;
-- existing semantic import planner classification into importable/skipped nets.
-
-`xml_analysis.py` provides a deterministic semantic fingerprint/inventory for all parsed XML, including unknown elements. Attribute order and outer text whitespace do not change the fingerprint; element order remains significant. A companion delta reports local structural additions/removals and tag/attribute-count changes. This supplements, but does not replace, PCB/schematic domain-level connectivity comparison.
+`xml_analysis.py` provides a deterministic semantic fingerprint/inventory for parsed XML, including unknown elements. Attribute order and outer text whitespace do not change the fingerprint; element order remains significant. A companion delta reports local structural additions/removals and tag/attribute-count changes. This supplements, but does not replace, domain-level connectivity comparison.
 
 ## Evidence automation
 
 The existing operator capture pipeline still owns `source -> open/save -> re-export`, hashes, attestations and quarantine/candidate creation.
 
-`evidence_report.py` and `scripts/build_evidence_report.py` can now turn a finalized review-only candidate into deterministic JSON/Markdown while rechecking artifact SHA-256 bindings and computing XML semantic fingerprints/deltas.
+`evidence_report.py` and `scripts/build_evidence_report.py` can turn a finalized review-only candidate into deterministic JSON/Markdown while rechecking artifact SHA-256 bindings and computing XML semantic fingerprints/deltas.
 
 The report builder cannot grant PASS, provenance trust, fixture trust or release acceptance. Operator claims remain labelled as operator-supplied facts. Trust promotion continues to require a separate reviewed action.
 
@@ -83,24 +72,23 @@ The report builder cannot grant PASS, provenance trust, fixture trust or release
 
 `library_mutation.py` remains the internal raw-preserving writer core with real-editor evidence for its controlled scope.
 
-`library_mutation_api.py` adds a stable expected-SHA-bound package contract around that core:
-
-- `LibraryMutationRequest`;
-- in-memory mutation/validation;
-- deterministic result SHA;
-- XML semantic delta/fingerprint;
-- explicit pin/pad mapping errors;
-- `public_registration=false` in the preview.
+`library_mutation_api.py` adds a stable expected-SHA-bound package contract around that core: `LibraryMutationRequest`, in-memory mutation/validation, deterministic result SHA, XML semantic delta/fingerprint, explicit pin/pad mapping errors and `public_registration=False` in the preview.
 
 This is API preparation, not a new public MCP tool. Registering native-library writes publicly remains a deliberate product/API decision and must update the public contract snapshot and claim/evidence documentation.
 
 ## Cinematic hardening
 
-Cinematic replay is a presentation subsystem, not engineering authority.
+Cinematic replay remains a presentation subsystem, not engineering authority.
 
-`cinematic_preflight.py` adds deterministic content identity independent of random session IDs plus bounded checks for cue count, duration/timing consistency, payload bytes, desktop-command count, path points, typed text and hotkey chord size. `cinematic_preflight_cli.py` exposes this validation before real desktop playback.
+`cinematic_preflight.py` adds deterministic content identity independent of random session IDs plus bounded checks for cue count, duration/timing consistency, payload bytes, desktop-command count, path points, typed text and hotkey chord size. `cinematic_preflight_cli.py` provides standalone inspection.
 
-Exact DipTrace UI macros/calibration remain editor/version/configuration specific. PCB via/layer-transition replay remains fail-closed until staged real-UI macros are validated.
+The safety boundary is also enforced inside `cinematic_host.py`: `play_manifest()` calls `preflight_cinematic_manifest(manifest)` before any dry-run or real desktop driver action. Exact DipTrace UI macros/calibration remain editor/version/configuration specific. PCB via/layer-transition replay remains fail-closed until staged real-UI macros are validated.
+
+## Documentation drift guard
+
+`scripts/check_documentation_state.py` compares evergreen current-state docs with the implemented module set and frozen public-tools snapshot, and checks that cinematic playback still enforces preflight and library mutation remains package-only. `tests/test_documentation_state.py` executes that contract in the normal CI test matrix.
+
+Historical dated evidence/release records are intentionally excluded from this freshness contract.
 
 ## Testing
 
@@ -112,8 +100,9 @@ New regression/property coverage includes:
 - DSN/SES structure/importability analysis;
 - Hypothesis XML fingerprint invariants and unknown-XML mutation detection;
 - evidence-report hash/tamper/determinism behavior;
-- cinematic preflight budgets/content identity;
-- SHA-bound library mutation preview behavior.
+- cinematic preflight budgets/content identity and mandatory playback invocation;
+- SHA-bound library mutation preview behavior;
+- evergreen documentation-state regression.
 
 Repository CI remains authoritative. The supported-environment combined coverage gate remains 90%; the geometry-enabled Linux-only floor remains 85%.
 
