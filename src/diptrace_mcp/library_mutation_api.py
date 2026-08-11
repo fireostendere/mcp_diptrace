@@ -112,7 +112,10 @@ class LibraryMutationExecution:
 def _check_expected_sha(document: DipTraceDocument, expected_sha256: str) -> str:
     actual = sha256_bytes(document.raw_bytes)
     if actual != expected_sha256:
-        raise Sha256MismatchError(expected_sha256, actual)
+        raise Sha256MismatchError(
+            "Library mutation source SHA-256 does not match expected_sha256",
+            details={"expected_sha256": expected_sha256, "actual_sha256": actual},
+        )
     return actual
 
 
