@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from typing import Literal
 
 from pydantic import Field
@@ -12,15 +11,17 @@ from .pcb_design_intent import PCBDesignIntent, PCBIntentOverrides, build_pcb_de
 from .pcb_joint_optimizer import (
     PCBHardViolations,
     PCBOptimizationCandidate,
-    PCBOptimizationSelection,
+    PCBOptimizationResult,
     PCBSoftScore,
     select_pcb_candidate,
 )
 from .pcb_physical import PCBPhysicalAnalysis, analyze_pcb_physics
 from .pcb_placement import (
+    PCBPlacementV2Analysis,
     PCBPlacementV2Config,
     PCBPlacementV2Plan,
     PCBPlacementV2Weights,
+    analyze_pcb_placement_v2,
     plan_pcb_placement_v2,
 )
 from .pcb_routing_policy import PCBRoutingPolicySet, compile_pcb_routing_policy
@@ -56,12 +57,13 @@ class PCBEnsembleCandidate(StrictModel):
     placement_score_after: float = Field(ge=0.0)
     physical_warning_count: int = Field(ge=0)
     routing_unknown_count: int = Field(ge=0)
+    score_terms: dict[str, float] = Field(default_factory=dict)
     assumptions: list[str] = Field(default_factory=list)
 
 
 class PCBEnsembleResult(StrictModel):
     selected_profile: str
-    selection: PCBOptimizationSelection
+    selection: PCBOptimizationResult
     candidates: list[PCBEnsembleCandidate] = Field(default_factory=list)
     intent: PCBDesignIntent
     physical: PCBPhysicalAnalysis
@@ -92,29 +94,16 @@ def _profile_config(
     return PCBPlacementV2Config.model_validate(values)
 
 
-def _geometry_hard(plan: PCBPlacementV2Plan) -> PCBHardViolations:
-    counts = {
-        "overlap": 0,
-        "courtyard": 0,
-        "keepout": 0,
-        "outline": 0,
-    }
-    for item in plan.after.geometry_violations:
+def _geometry_hard(analysis: PCBPlacementV2Analysis) -> PCBHardViolations:
+    mechanical = 0
+    drc = 0
+    for item in analysis.geometry_violations:
         text = " ".join(str(value) for value in item.values()).casefold()
-        if "keepout" in text:
-            counts["keepout"] += 1
-        elif "outline" in text or "contain" in text or "board" in text:
-            counts["outline"] += 1
-        elif "courtyard" in text:
-            counts["courtyard"] += 1
+        if "outline" in text or "contain" in text or "board" in text or "keepout" in text:
+            mechanical += 1
         else:
-            counts["overlap"] += 1
-    return PCBHardViolations(
-        overlap_count=counts["overlap"],
-        courtyard_collision_count=counts["courtyard"],
-        keepout_violation_count=counts["keepout"],
-        outline_violation_count=counts["outline"],
-    )
+            drc += 1
+    return PCBHardViolations(mechanical=mechanical, drc=drc)
 
 
 def _routing_unknown_count(policy: PCBRoutingPolicySet) -> int:
@@ -130,62 +119,85 @@ def _routing_unknown_count(policy: PCBRoutingPolicySet) -> int:
 
 
 def _soft_score(
-    plan: PCBPlacementV2Plan,
+    analysis: PCBPlacementV2Analysis,
     physical: PCBPhysicalAnalysis,
     routing: PCBRoutingPolicySet,
 ) -> PCBSoftScore:
-    score = plan.after.score
+    score = analysis.score
     unknown_routing = _routing_unknown_count(routing)
     return PCBSoftScore(
-        estimated_routed_length_mm=score.critical_connection,
-        via_penalty=float(unknown_routing),
-        si_penalty=score.noise_coupling,
-        pi_penalty=float(len(physical.pdn_rails) + len(physical.warnings)),
-        thermal_penalty=float(len(physical.hot_loop_candidates)),
-        emi_penalty=score.noise_coupling + float(len(physical.noise_pairs)),
-        congestion_penalty=score.geometry + score.block_cohesion,
-        soft_constraint_penalty=score.support_adjacency,
+        placement=score.geometry + score.block_cohesion + score.support_adjacency,
+        routing=score.critical_connection,
+        vias=float(unknown_routing),
+        signal_integrity=score.noise_coupling,
+        power_integrity=float(len(physical.pdn_rails) + len(physical.warnings)),
+        return_path=float(
+            sum(1 for item in routing.policies if item.reference_plane_required)
+        ),
+        emi_risk=score.noise_coupling + float(len(physical.noise_pairs)),
+        thermal_risk=float(len(physical.hot_loop_candidates)),
+        manufacturing=0.0,
     )
 
 
-def _candidate(
+def _candidate_from_analysis(
+    profile: str,
+    analysis: PCBPlacementV2Analysis,
+    physical: PCBPhysicalAnalysis,
+    routing: PCBRoutingPolicySet,
+    *,
+    changed_component_ids: list[str],
+    before_score: float,
+    source: Literal["internal", "existing_board"] = "internal",
+    warnings: list[str] | None = None,
+) -> PCBEnsembleCandidate:
+    assumptions = [
+        "Generation A candidate geometry comes from the bounded pcb_placement planner or the "
+        "existing board baseline.",
+        "Generation B/C score terms are conservative evidence proxies; unknown physical facts "
+        "remain visible and are not promoted to solver truth.",
+    ]
+    optimization = PCBOptimizationCandidate(
+        candidate_id=f"pcb-ensemble:{profile}",
+        source=source,
+        hard=_geometry_hard(analysis),
+        soft=_soft_score(analysis, physical, routing),
+        plan_refs=[f"placement-profile:{profile}"],
+        assumptions=assumptions,
+        warnings=sorted(set(warnings or [])),
+    )
+    terms = analysis.score.model_dump(mode="json")
+    return PCBEnsembleCandidate(
+        profile=profile,
+        optimization=optimization,
+        changed_component_ids=list(changed_component_ids),
+        placement_score_before=before_score,
+        placement_score_after=analysis.score.total,
+        physical_warning_count=len(physical.warnings),
+        routing_unknown_count=_routing_unknown_count(routing),
+        score_terms={
+            key: float(value)
+            for key, value in terms.items()
+            if key != "total"
+        },
+        assumptions=assumptions,
+    )
+
+
+def _candidate_from_plan(
     profile: str,
     plan: PCBPlacementV2Plan,
     physical: PCBPhysicalAnalysis,
     routing: PCBRoutingPolicySet,
 ) -> PCBEnsembleCandidate:
-    hard = _geometry_hard(plan)
-    soft = _soft_score(plan, physical, routing)
-    optimization = PCBOptimizationCandidate(
-        candidate_id=f"pcb-ensemble:{profile}",
-        source="internal",
-        hard=hard,
-        soft=soft,
-        metrics={
-            "profile": profile,
-            "changed_component_count": len(plan.changed_component_ids),
-            "placement_score_before": plan.before.score.total,
-            "placement_score_after": plan.after.score.total,
-            "routing_unknown_count": _routing_unknown_count(routing),
-            "physical_warning_count": len(physical.warnings),
-            "score_terms": plan.after.score.model_dump(mode="json"),
-        },
-        assumptions=[
-            "Generation A placement candidates are actual bounded move proposals from pcb_placement.",
-            "Generation B/C penalties are conservative evidence proxies; unknown physical facts "
-            "remain visible and are not promoted to solver truth.",
-        ],
-        warnings=sorted(set([*plan.warnings, *physical.warnings, *routing.warnings])),
-    )
-    return PCBEnsembleCandidate(
-        profile=profile,
-        optimization=optimization,
-        changed_component_ids=list(plan.changed_component_ids),
-        placement_score_before=plan.before.score.total,
-        placement_score_after=plan.after.score.total,
-        physical_warning_count=len(physical.warnings),
-        routing_unknown_count=_routing_unknown_count(routing),
-        assumptions=list(optimization.assumptions),
+    return _candidate_from_analysis(
+        profile,
+        plan.after,
+        physical,
+        routing,
+        changed_component_ids=plan.changed_component_ids,
+        before_score=plan.before.score.total,
+        warnings=[*plan.warnings, *physical.warnings, *routing.warnings],
     )
 
 
@@ -209,6 +221,11 @@ def build_pcb_candidate_ensemble(
     physical = analyze_pcb_physics(snapshot, intent=intent)
     routing = compile_pcb_routing_policy(snapshot, intent=intent, physical=physical)
 
+    baseline = analyze_pcb_placement_v2(
+        snapshot,
+        intent=intent,
+        config=config.placement,
+    )
     candidates: list[PCBEnsembleCandidate] = []
     seen_profiles: set[str] = set()
     for profile in config.profiles:
@@ -220,23 +237,21 @@ def build_pcb_candidate_ensemble(
             overrides=overrides,
             config=_profile_config(profile, config.placement),
         )
-        candidates.append(_candidate(profile, plan, physical, routing))
+        candidates.append(_candidate_from_plan(profile, plan, physical, routing))
 
     if config.include_existing_board:
-        base_plan = plan_pcb_placement_v2(
-            snapshot,
-            overrides=overrides,
-            config=PCBPlacementV2Config.model_validate(
-                {
-                    **config.placement.model_dump(),
-                    "search_radius_steps": 1,
-                    "max_candidates_per_component": 4,
-                }
-            ),
+        candidates.append(
+            _candidate_from_analysis(
+                "existing_board",
+                baseline,
+                physical,
+                routing,
+                changed_component_ids=[],
+                before_score=baseline.score.total,
+                source="existing_board",
+                warnings=[*baseline.warnings, *physical.warnings, *routing.warnings],
+            )
         )
-        existing = _candidate("existing_board", base_plan, physical, routing)
-        existing.optimization.candidate_id = "pcb-ensemble:existing_board"
-        candidates.append(existing)
 
     if not candidates:
         raise CapabilityUnavailableError("PCB candidate ensemble produced no candidates")
@@ -246,8 +261,6 @@ def build_pcb_candidate_ensemble(
         for item in candidates
         if item.optimization.candidate_id == selection.selected.candidate_id
     )
-    if not math.isfinite(selection.selected.soft.total):
-        raise CapabilityUnavailableError("PCB candidate ensemble produced a non-finite score")
     return PCBEnsembleResult(
         selected_profile=selected_profile,
         selection=selection,
