@@ -31,6 +31,7 @@ docs/CINEMATIC_DEMO_MODE.md
 docs/CODE_REVIEW_2026-07-31.md
 docs/DEVELOPMENT.md
 docs/DOMAIN_MODEL.md
+docs/EDA_INTELLIGENCE.md
 docs/EVIDENCE_CAPTURE.md
 docs/EXTERNAL_ADAPTERS.md
 docs/FIELD_SOLVER_PROTOCOL.md
@@ -136,6 +137,7 @@ scripts/audit_event_loop.py
 scripts/audit_reference_materials.py
 scripts/audit_release_artifacts.py
 scripts/audit_windows_bundle.py
+scripts/build_evidence_report.py
 scripts/build_mcpb.py
 scripts/build_windows_configurator.ps1
 scripts/build_windows_installer.ps1
@@ -143,6 +145,7 @@ scripts/build_windows_server.ps1
 scripts/capture_diptrace_evidence.py
 scripts/check_coverage.py
 scripts/check_dco.py
+scripts/check_documentation_state.py
 scripts/check_provenance_inventory.py
 scripts/check_public_privacy.py
 scripts/check_release_metadata.py
@@ -207,6 +210,8 @@ src/diptrace_mcp/capability_model.py
 src/diptrace_mcp/cinematic.py
 src/diptrace_mcp/cinematic_cli.py
 src/diptrace_mcp/cinematic_host.py
+src/diptrace_mcp/cinematic_preflight.py
+src/diptrace_mcp/cinematic_preflight_cli.py
 src/diptrace_mcp/cinematic_recording.py
 src/diptrace_mcp/clearance.py
 src/diptrace_mcp/config.py
@@ -220,6 +225,7 @@ src/diptrace_mcp/diptrace_window.py
 src/diptrace_mcp/domain.py
 src/diptrace_mcp/error_boundary.py
 src/diptrace_mcp/errors.py
+src/diptrace_mcp/evidence_report.py
 src/diptrace_mcp/evidence_status.py
 src/diptrace_mcp/exports.py
 src/diptrace_mcp/external_adapters.py
@@ -234,12 +240,14 @@ src/diptrace_mcp/jobs.py
 src/diptrace_mcp/lengths.py
 src/diptrace_mcp/library_adapters.py
 src/diptrace_mcp/library_mutation.py
+src/diptrace_mcp/library_mutation_api.py
 src/diptrace_mcp/manual_acceptance.py
 src/diptrace_mcp/model_cache.py
 src/diptrace_mcp/multirouter.py
 src/diptrace_mcp/numeric_inputs.py
 src/diptrace_mcp/operations.py
 src/diptrace_mcp/pattern_recommendation.py
+src/diptrace_mcp/pcb_candidate_ensemble.py
 src/diptrace_mcp/pcb_design_intent.py
 src/diptrace_mcp/pcb_joint_optimizer.py
 src/diptrace_mcp/pcb_physical.py
@@ -260,6 +268,8 @@ src/diptrace_mcp/review.py
 src/diptrace_mcp/routing.py
 src/diptrace_mcp/routing_compiler.py
 src/diptrace_mcp/scaffolding.py
+src/diptrace_mcp/schematic_atomic_reroute.py
+src/diptrace_mcp/schematic_ensemble.py
 src/diptrace_mcp/schematic_joint_optimizer.py
 src/diptrace_mcp/schematic_layout.py
 src/diptrace_mcp/schematic_optimizer.py
@@ -296,6 +306,7 @@ src/diptrace_mcp/sessions.py
 src/diptrace_mcp/silkscreen.py
 src/diptrace_mcp/spatial.py
 src/diptrace_mcp/specctra.py
+src/diptrace_mcp/specctra_analysis.py
 src/diptrace_mcp/synchronization.py
 src/diptrace_mcp/synthetic_fixture_pack.py
 src/diptrace_mcp/transactions.py
@@ -303,6 +314,7 @@ src/diptrace_mcp/via_styles.py
 src/diptrace_mcp/windows_configurator.py
 src/diptrace_mcp/windows_job.py
 src/diptrace_mcp/write_limits.py
+src/diptrace_mcp/xml_analysis.py
 src/diptrace_mcp/xml_document.py
 tests/fixture_hashes.sha256
 tests/fixtures/component_library.xml
@@ -345,6 +357,8 @@ tests/test_ci_workflow.py
 tests/test_cinematic.py
 tests/test_cinematic_cli.py
 tests/test_cinematic_host.py
+tests/test_cinematic_host_preflight.py
+tests/test_cinematic_preflight.py
 tests/test_cinematic_recording.py
 tests/test_clearance_resolution.py
 tests/test_config_paths.py
@@ -361,9 +375,11 @@ tests/test_diptrace_ui_templates.py
 tests/test_diptrace_window.py
 tests/test_document_service_edge_coverage.py
 tests/test_documentation_links.py
+tests/test_documentation_state.py
 tests/test_error_boundary.py
 tests/test_event_loop_responsiveness.py
 tests/test_evidence_mcp.py
+tests/test_evidence_report.py
 tests/test_exports.py
 tests/test_external_process.py
 tests/test_extract_spec_inventory.py
@@ -378,6 +394,7 @@ tests/test_inspector.py
 tests/test_large_synthetic_board.py
 tests/test_libraries.py
 tests/test_library_mutation.py
+tests/test_library_mutation_api.py
 tests/test_live_apply_binding.py
 tests/test_live_session_lifecycle.py
 tests/test_low_level_edge_coverage.py
@@ -395,6 +412,7 @@ tests/test_openems.py
 tests/test_operation_schema.py
 tests/test_pattern_recommendation.py
 tests/test_pattern_validation.py
+tests/test_pcb_candidate_ensemble.py
 tests/test_pcb_design_engine.py
 tests/test_pcb_joint_optimizer.py
 tests/test_pcb_physical.py
@@ -424,7 +442,9 @@ tests/test_routing_4layer.py
 tests/test_routing_primitives.py
 tests/test_routing_service_edge_coverage.py
 tests/test_scaffolding.py
+tests/test_schematic_atomic_reroute.py
 tests/test_schematic_authoring.py
+tests/test_schematic_ensemble.py
 tests/test_schematic_joint_optimizer.py
 tests/test_schematic_layout.py
 tests/test_schematic_layout_edge_coverage.py
@@ -452,6 +472,7 @@ tests/test_spatial.py
 tests/test_spec_inventory.py
 tests/test_spec_inventory_integrity.py
 tests/test_specctra.py
+tests/test_specctra_analysis.py
 tests/test_store_identifiers.py
 tests/test_synthetic_fixture_pack.py
 tests/test_transaction_recovery.py
@@ -463,5 +484,6 @@ tests/test_windows_installer_sources.py
 tests/test_windows_wsl_lock_interop_probe.py
 tests/test_write_object_limit.py
 tests/test_write_path_trust_closure.py
+tests/test_xml_analysis.py
 tests/test_xml_document.py
 tests/test_xml_encoding_preservation.py
