@@ -8,7 +8,12 @@ from typing import Any, Literal
 from pydantic import Field
 
 from .domain import StrictModel
-from .xml_analysis import XMLSemanticDelta, XMLSemanticInventory, analyze_xml_semantics, compare_xml_semantics
+from .xml_analysis import (
+    XMLSemanticDelta,
+    XMLSemanticInventory,
+    analyze_xml_semantics,
+    compare_xml_semantics,
+)
 from .xml_document import DipTraceDocument
 
 _CANDIDATE_SCHEMA = "diptrace-capture-candidate-v1"
@@ -71,7 +76,9 @@ def _load_candidate(candidate_path: Path) -> tuple[dict[str, Any], bytes]:
 
 def _safe_relative(root: Path, relative: str) -> Path:
     candidate = Path(relative)
-    if candidate.is_absolute() or any(part in {"", ".", ".."} for part in candidate.parts):
+    if candidate.is_absolute() or any(
+        part in {"", ".", ".."} for part in candidate.parts
+    ):
         raise ValueError(f"Unsafe evidence artifact path: {relative!r}")
     path = root / candidate
     resolved_root = root.resolve(strict=True)
@@ -79,13 +86,19 @@ def _safe_relative(root: Path, relative: str) -> Path:
     try:
         resolved.relative_to(resolved_root)
     except ValueError as exc:
-        raise ValueError(f"Evidence artifact escapes capture root: {relative!r}") from exc
+        raise ValueError(
+            f"Evidence artifact escapes capture root: {relative!r}"
+        ) from exc
     if not resolved.is_file():
         raise ValueError(f"Evidence artifact is not a regular file: {relative!r}")
     return resolved
 
 
-def _stage_report(root: Path, stage: str, record: dict[str, Any]) -> EvidenceStageReport:
+def _stage_report(
+    root: Path,
+    stage: str,
+    record: dict[str, Any],
+) -> EvidenceStageReport:
     relative = str(record.get("quarantine_path") or "")
     recorded_sha = str(record.get("sha256") or "")
     attestations = record.get("operator_attestations")
@@ -117,7 +130,10 @@ def _stage_report(root: Path, stage: str, record: dict[str, Any]) -> EvidenceSta
         try:
             inventory = analyze_xml_semantics(DipTraceDocument.from_bytes(path, raw))
         except Exception:
-            warnings.append("Artifact bytes passed SHA binding but could not be analyzed as DipTrace XML.")
+            warnings.append(
+                "Artifact bytes passed SHA binding but could not be analyzed "
+                "as DipTrace XML."
+            )
     return EvidenceStageReport(
         stage=stage,
         recorded_sha256=recorded_sha,
@@ -162,7 +178,10 @@ def _comparison(
     )
 
 
-def build_evidence_report(candidate_path: str | Path, capture_root: str | Path) -> EvidenceReport:
+def build_evidence_report(
+    candidate_path: str | Path,
+    capture_root: str | Path,
+) -> EvidenceReport:
     candidate_path = Path(candidate_path)
     root = Path(capture_root)
     candidate, raw = _load_candidate(candidate_path)
@@ -173,12 +192,16 @@ def build_evidence_report(candidate_path: str | Path, capture_root: str | Path) 
         for stage in _REQUIRED_STAGES
         if isinstance(stages_by_name.get(stage), dict)
     ]
-    missing_stage_names = [stage for stage in _REQUIRED_STAGES if stage not in stages_by_name]
-    integrity_failures = [item.stage for item in stage_reports if item.integrity != "verified"]
+    missing_stage_names = [
+        stage for stage in _REQUIRED_STAGES if stage not in stages_by_name
+    ]
+    integrity_failures = [
+        item.stage for item in stage_reports if item.integrity != "verified"
+    ]
     if integrity_failures:
-        report_status: Literal["complete_review_only", "incomplete", "integrity_failure"] = (
-            "integrity_failure"
-        )
+        report_status: Literal[
+            "complete_review_only", "incomplete", "integrity_failure"
+        ] = "integrity_failure"
     elif missing_stage_names:
         report_status = "incomplete"
     else:
@@ -186,15 +209,26 @@ def build_evidence_report(candidate_path: str | Path, capture_root: str | Path) 
 
     by_stage = {item.stage: item for item in stage_reports}
     comparisons: list[EvidenceComparisonReport] = []
-    for first_name, second_name in (("source", "open_save"), ("open_save", "reexport"), ("source", "reexport")):
+    pairs = (
+        ("source", "open_save"),
+        ("open_save", "reexport"),
+        ("source", "reexport"),
+    )
+    for first_name, second_name in pairs:
         if first_name in by_stage and second_name in by_stage:
             comparisons.append(
                 _comparison(by_stage[first_name], by_stage[second_name], root=root)
             )
 
     recipe = candidate.get("recipe") if isinstance(candidate.get("recipe"), dict) else {}
-    recipe_snapshot = recipe.get("snapshot") if isinstance(recipe.get("snapshot"), dict) else {}
-    checklist = candidate.get("checklist") if isinstance(candidate.get("checklist"), dict) else {}
+    recipe_snapshot = (
+        recipe.get("snapshot") if isinstance(recipe.get("snapshot"), dict) else {}
+    )
+    checklist = (
+        candidate.get("checklist")
+        if isinstance(candidate.get("checklist"), dict)
+        else {}
+    )
     operator_claims = (
         candidate.get("operator_claims")
         if isinstance(candidate.get("operator_claims"), dict)
@@ -203,18 +237,24 @@ def build_evidence_report(candidate_path: str | Path, capture_root: str | Path) 
     semantic_equal_pairs = [
         f"{item.first_stage}->{item.second_stage}"
         for item in comparisons
-        if item.status == "available" and item.delta is not None and item.delta.semantic_equal
+        if item.status == "available"
+        and item.delta is not None
+        and item.delta.semantic_equal
     ]
     changed_pairs = [
         f"{item.first_stage}->{item.second_stage}"
         for item in comparisons
-        if item.status == "available" and item.delta is not None and not item.delta.semantic_equal
+        if item.status == "available"
+        and item.delta is not None
+        and not item.delta.semantic_equal
     ]
     return EvidenceReport(
         session_id=str(candidate.get("session_id") or ""),
         recipe_id=str(recipe_snapshot.get("recipe_id") or ""),
         authority=str(candidate.get("authority") or "operator_supplied_unverified"),
-        review_status=str(candidate.get("review_status") or "pending_independent_review"),
+        review_status=str(
+            candidate.get("review_status") or "pending_independent_review"
+        ),
         report_status=report_status,
         candidate_sha256=_sha256(raw),
         eligible_for_registry_review=bool(candidate.get("eligible_for_registry_review")),
@@ -230,17 +270,27 @@ def build_evidence_report(candidate_path: str | Path, capture_root: str | Path) 
             "semantic_equal_pairs": semantic_equal_pairs,
             "semantic_changed_pairs": changed_pairs,
             "all_required_checklist_yes": all(
-                isinstance(item, dict) and (not item.get("required") or item.get("answer") == "yes")
+                isinstance(item, dict)
+                and (not item.get("required") or item.get("answer") == "yes")
                 for item in checklist.values()
             ),
         },
         limitations=[
-            "This report verifies candidate/artifact binding and summarizes XML semantics; it does "
-            "not grant provenance trust, fixture trust, release acceptance, or a PASS result.",
-            "Operator claims and checklist answers are reproduced as operator-supplied facts and are "
-            "not independently authenticated by the report builder.",
-            "XML semantic fingerprints complement but do not replace claim-specific PCB/schematic "
-            "connectivity, visual, manufacturing, or real-host review.",
+            (
+                "This report verifies candidate/artifact binding and summarizes XML "
+                "semantics; it does not grant provenance trust, fixture trust, release "
+                "acceptance, or a PASS result."
+            ),
+            (
+                "Operator claims and checklist answers are reproduced as "
+                "operator-supplied facts and are not independently authenticated by "
+                "the report builder."
+            ),
+            (
+                "XML semantic fingerprints complement but do not replace "
+                "claim-specific PCB/schematic connectivity, visual, manufacturing, "
+                "or real-host review."
+            ),
         ],
     )
 
@@ -254,7 +304,10 @@ def render_evidence_report_markdown(report: EvidenceReport) -> str:
         f"- Authority: `{report.authority}`",
         f"- Trust grant: `{report.trust_grant}`",
         f"- Candidate SHA-256: `{report.candidate_sha256}`",
-        f"- Registry-review eligible: `{str(report.eligible_for_registry_review).lower()}`",
+        (
+            "- Registry-review eligible: "
+            f"`{str(report.eligible_for_registry_review).lower()}`"
+        ),
         "",
         "## Captured stages",
         "",
@@ -262,9 +315,12 @@ def render_evidence_report_markdown(report: EvidenceReport) -> str:
         "| --- | --- | --- | --- |",
     ]
     for stage in report.stages:
-        semantic_sha = stage.inventory.semantic_sha256 if stage.inventory else "unavailable"
+        semantic_sha = (
+            stage.inventory.semantic_sha256 if stage.inventory else "unavailable"
+        )
         lines.append(
-            f"| `{stage.stage}` | **{stage.integrity}** | `{stage.recorded_sha256}` | `{semantic_sha}` |"
+            f"| `{stage.stage}` | **{stage.integrity}** | "
+            f"`{stage.recorded_sha256}` | `{semantic_sha}` |"
         )
     lines.extend(["", "## Semantic comparisons", ""])
     for comparison in report.comparisons:
