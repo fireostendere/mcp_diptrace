@@ -210,11 +210,17 @@ def test_transaction_append_validation_and_conflict_safe_rollback(tmp_path: Path
         service.commit_transaction(txid, begun["transaction"]["source_sha256"])
 
     preview = service.preview_transaction(txid)
+    with pytest.raises(Sha256MismatchError, match="Commit refused") as mismatch:
+        service.commit_transaction(txid, "0" * 64)
+    assert "Document changed" not in str(mismatch.value)
     committed = service.commit_transaction(
         txid,
         preview["transaction"]["source_sha256"],
     )
     commit_sha = committed["transaction"]["committed_sha256"]
+    with pytest.raises(Sha256MismatchError, match="Rollback refused") as mismatch:
+        service.rollback_transaction(txid, "0" * 64)
+    assert "document changed" not in str(mismatch.value).casefold()
     path.write_bytes(path.read_bytes().replace(b"<Value>47k</Value>", b"<Value>48k</Value>"))
 
     with pytest.raises(Sha256MismatchError):

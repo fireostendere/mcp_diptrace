@@ -584,7 +584,7 @@ class TransactionService:
         expected = record.expected_sha256 or record.source_sha256
         if expected_sha256 != expected or current_sha256 != expected:
             raise Sha256MismatchError(
-                f"Document changed: expected {expected}, current {current_sha256}",
+                "Commit refused: SHA-256 confirmation or current document mismatch",
                 details={
                     "transaction_expected_sha256": expected,
                     "provided_sha256": expected_sha256,
@@ -970,7 +970,7 @@ class TransactionService:
             current = DipTraceDocument.load(target_path, self.context.settings.max_document_bytes)
             if expected_sha256 != record.committed_sha256 or current.sha256 != expected_sha256:
                 raise Sha256MismatchError(
-                    "The committed document changed after this transaction",
+                    "Rollback refused: SHA-256 confirmation or current document mismatch",
                     details={
                         "transaction_commit_sha256": record.committed_sha256,
                         "provided_sha256": expected_sha256,
