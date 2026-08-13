@@ -13,7 +13,9 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 - pin-aware joint placement/routing scoring for hypothetical candidates;
 - bounded non-mutating placement repair driven by route feedback and re-scored by the joint optimizer;
 - **atomic selective schematic reroute planner** that identifies only explicit sheet-local nets touched by moved parts, fails closed on unresolved endpoints/routes, and emits one dependency-safe `delete_wire -> move_components -> add_wire` semantic batch for the existing guarded transaction path;
-- deterministic schematic ensemble ranking that combines builtin-but-explicitly-labelled readability motifs, pin-aware route quality and bounded placement-grid congestion pressure.
+- deterministic schematic ensemble ranking that combines builtin-but-explicitly-labelled readability motifs, pin-aware route quality and bounded placement-grid congestion pressure;
+- fail-closed validation for stale/geometrically inconsistent Wire segment references while preserving valid middle-of-segment joins;
+- real-DipTrace schematic authoring/readability campaign coverage for cases 01–18, including incremental editing, failed-operation safety, single- and multi-net atomic reroute, obstacle/readability repair and a repaired 22-part stress schematic.
 
 ### PCB Generations A-D
 
@@ -69,6 +71,7 @@ Cinematic replay is deliberately a presentation path. The XML bridge and normal 
 
 - The public MCP contract remains frozen at 159 tools despite the new internal EDA layers and prepared package-level library mutation request API.
 - Existing-wired schematics no longer represent a fundamental placement dead-end: affected explicit wire geometry can now be selectively replanned as one atomic semantic transaction batch. The older conservative placement planners may still refuse existing wires when used directly.
+- The initial real-DipTrace schematic quality campaign is complete: cases 01–18 closed with retained failed/invalid attempts, targeted fixes, operator visual review and native Save/Close/Reopen/re-export evidence. PR #90 merged the bounded fixes into `main`.
 - PCB Generation D can now compare multiple internally generated bounded placement candidates rather than only caller-supplied synthetic examples.
 - DSN/SES results can be structurally and semantically screened before import without mutating the PCB.
 - Real-DipTrace capture candidates can be converted into reproducible machine-readable and Markdown evidence reports without rewriting historical evidence or manufacturing trust.
@@ -82,10 +85,11 @@ Cinematic replay is deliberately a presentation path. The XML bridge and normal 
 
 - atomic selective schematic reroute currently rebuilds affected sheet-local explicit nets from resolved pin endpoints; it does not preserve arbitrary pre-existing manual junction topology as a visual constraint;
 - stronger sheet-level/global schematic congestion scheduling and external/reference motif ingestion remain future work;
-- real-DipTrace product-quality acceptance for the new higher-level schematic ensemble and PCB candidate ensemble remains claim-specific manual evidence, not inferred from unit tests;
+- the completed 18-case schematic campaign supports its tested scope only; new schematic claims such as hierarchy, topology-preserving reroute or automatic rotation/pin-facing behavior still require claim-specific evidence;
+- PCB candidate/whole-board quality remains subject to current-candidate real-DipTrace/native refill/plane/via acceptance where stronger claims are desired;
 - cinematic UI macros and calibration still require real-client verification for the exact DipTrace version/editor configuration;
 - staged cinematic playback of vias/layer transitions remains unsupported;
-- Windows lifecycle gates remain pending after the current manual-acceptance pause;
+- Windows lifecycle gates remain pending; the next project-required formal gate is `windows_clean_install_repair_uninstall`;
 - the library mutation request/preview contract remains package-level and unregistered in the public MCP tool snapshot;
 - native manufacturing generation, field-solver/PI/EMC/thermal sign-off, universal compatibility, signed-binary trust, independent review and production readiness are not claimed.
 
