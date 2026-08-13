@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..adapters import DocumentSnapshot
+from ..errors import EditError
 from ..geometry import BBox, Point, to_mm
 from ..operations import AddWireOperation, WireEndpoint
 from ..schematic_pin_geometry import resolve_document_schematic_pin_geometry
@@ -333,7 +334,13 @@ def _wire_anchor(
                 return Point(fallback.x, segment.start.y)
             if _point_on_segment(fallback, segment):
                 return fallback
-    return anchor
+    if index == 0 and _same_point(fallback, anchor):
+        return anchor
+    raise EditError(
+        f"Wire endpoint is not on referenced wire segment {index}",
+        code="geometry_invalid",
+        object_ids=[endpoint.wire_id],
+    )
 
 
 def _intentional_wire_touches(
