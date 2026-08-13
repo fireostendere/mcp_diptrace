@@ -1,3 +1,5 @@
+# ruff: noqa: I001
+
 from diptrace_mcp.headless_gui import main
 
 
