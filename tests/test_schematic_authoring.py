@@ -88,8 +88,17 @@ def test_place_part_compiles_official_structure() -> None:
     assert part.get("Sheet") == "0"
     assert part.get("X") == "55"
     assert part.get("Y") == "30"
+    assert part.get("MarkingFontSize") == "6"
+    assert part.get("MarkingFontSizeFloat") == "6"
     assert part.findtext("./RefDes") == "R9"
     assert part.findtext("./Value") == "4k7"
+    refdes_marking = part.find("./RefDesMarking")
+    value_marking = part.find("./ValueMarking")
+    assert refdes_marking is not None
+    assert value_marking is not None
+    assert refdes_marking.get("Show") == "Common"
+    assert refdes_marking.get("ShowPart") == "Common"
+    assert value_marking.get("Show") == "Common"
     pins = part.findall("./Pins/Pin")
     assert len(pins) == 2
     assert all(pin.get("NetId") == "-1" for pin in pins)
@@ -113,6 +122,34 @@ def test_place_part_rejects_duplicate_refdes() -> None:
                 )
             ],
         )
+
+
+def test_place_part_uses_native_net_port_markings() -> None:
+    raw = _load("schematic.xml").raw_bytes.replace(
+        b'<Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm" />',
+        b'<Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm">'
+        b'<Components><Component ComponentStyle="PortStyle">'
+        b'<Part Id="0" PartType="Net Port" /></Component></Components></Library>',
+    )
+    result = apply_semantic_operations(
+        _load_bytes(raw),
+        [
+            PlacePartOperation(
+                component_style="PortStyle",
+                refdes="NetPort1",
+                name="OUT",
+                x=20.0,
+                y=20.0,
+                pin_count=1,
+            )
+        ],
+    )
+    part = ET.fromstring(result.raw_bytes).findall("./Schematic/Components/Part")[-1]
+    assert part.get("AllowParts") == "N"
+    assert part.get("ShowNumbers") == "Hide"
+    assert part.find("./RefDesMarking").get("Show") == "Hide"  # type: ignore[union-attr]
+    assert part.find("./NameMarking").get("Show") == "Show"  # type: ignore[union-attr]
+    assert part.find("./ValueMarking").get("Show") == "Hide"  # type: ignore[union-attr]
 
 
 def test_place_part_requires_known_sheet() -> None:
@@ -282,6 +319,29 @@ def test_add_wire_rejects_pin_of_another_net() -> None:
         )
 
 
+def test_add_wire_direction_tolerates_submicrometre_axis_noise() -> None:
+    result = apply_semantic_operations(
+        _load("schematic.xml"),
+        [
+            AddWireOperation(
+                net="VCC",
+                points=[
+                    {"x": 0.0, "y": 0.0},
+                    {"x": 10.0, "y": 0.0000002},
+                    {"x": 10.0000002, "y": 10.0},
+                ],
+                start={"type": "Free"},
+                end={"type": "Free"},
+            )
+        ],
+    )
+
+    points = ET.fromstring(result.raw_bytes).findall(
+        "./Schematic/Nets/Net[@Id='0']/Wires/Wire/Points/Point"
+    )
+    assert [point.get("Dir") for point in points] == ["-1", "0", "1"]
+
+
 def test_wire_to_wire_connection_uses_point_index() -> None:
     first = _wired_document()
     result = apply_semantic_operations(
@@ -299,6 +359,7 @@ def test_wire_to_wire_connection_uses_point_index() -> None:
     wires = root.findall("./Schematic/Nets/Net[@Id='0']/Wires/Wire")
     assert len(wires) == 2
     assert wires[1].get("Connected1") == "Wire"
+    assert wires[1].get("Bus1") == "0"
     assert wires[1].get("Object1") == "0"
     assert wires[1].get("SubObject1") == "1"
 
@@ -336,6 +397,7 @@ def test_add_net_label_compiles_text_shape_bound_to_net() -> None:
     assert shape.get("Type") == "Text"
     assert shape.get("NetId") == "0"
     assert shape.get("BusId") == "-1"
+    assert shape.get("FontSize") == "4"
     assert shape.find("./Points/Point").get("X") == "12"  # type: ignore[union-attr]
     assert shape.findtext("./TextLines/TextLine") == "VCC"
 

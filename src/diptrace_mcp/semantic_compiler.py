@@ -2616,6 +2616,17 @@ def _apply_place_part(
             f"RefDes already exists: {operation.refdes}",
             object_ids=[item.stable_id for item in existing],
         )
+    library_part = next(
+        (
+            part
+            for component in document.root.findall("./Library/Components/Component")
+            if component.get("ComponentStyle") == operation.component_style
+            for part in component.findall("./Part")
+            if part.get("Id") == str(operation.component_part)
+        ),
+        None,
+    )
+    is_net_port = library_part is not None and library_part.get("PartType") == "Net Port"
     components = document.container.find("./Components")
     if components is None:
         components = ET.SubElement(document.container, "Components")
@@ -2635,11 +2646,15 @@ def _apply_place_part(
         "Sheet": str(operation.sheet),
         "X": f"{from_mm(operation.x, document.units):.9g}",
         "Y": f"{from_mm(operation.y, document.units):.9g}",
+        "MarkingFontSize": "6",
+        "MarkingFontSizeFloat": "6",
         "Locked": "N",
         "Selected": "N",
     }
     if operation.angle_deg:
         attributes["Angle"] = f"{math.radians(operation.angle_deg):.9g}"
+    if is_net_port:
+        attributes.update({"AllowParts": "N", "ShowNumbers": "Hide"})
     part = ET.SubElement(components, "Part", attributes)
     ET.SubElement(part, "RefDes").text = operation.refdes
     ET.SubElement(part, "PartRefDes").text = operation.part_refdes or str(
@@ -2648,6 +2663,31 @@ def _apply_place_part(
     ET.SubElement(part, "PartName").text = operation.part_name or "Part 1"
     ET.SubElement(part, "Value").text = operation.value
     ET.SubElement(part, "Name").text = operation.name or operation.component_style
+    common_marking = {
+        "Show": "Common",
+        "Align": "Common",
+        "Horz": "Center",
+        "Vert": "Center",
+        "X": "0",
+        "Y": "0",
+        "Angle": "0",
+    }
+    if is_net_port:
+        ET.SubElement(
+            part,
+            "RefDesMarking",
+            {**common_marking, "Show": "Hide", "ShowPart": "Common"},
+        )
+        ET.SubElement(
+            part,
+            "NameMarking",
+            {**common_marking, "Show": "Show", "ShowPart": "Hide"},
+        )
+        for tag in ("ValueMarking", "ManufacturerMarking", "DatasheetMarking"):
+            ET.SubElement(part, tag, {**common_marking, "Show": "Hide"})
+    else:
+        ET.SubElement(part, "RefDesMarking", {**common_marking, "ShowPart": "Common"})
+        ET.SubElement(part, "ValueMarking", common_marking)
     pins = ET.SubElement(part, "Pins")
     for _ in range(operation.pin_count):
         ET.SubElement(pins, "Pin", {"NetId": "-1", "NotConnected": "N"})
@@ -2889,6 +2929,7 @@ def _wire_endpoint_attributes(
         )
     attributes[f"Object{index_suffix}"] = wire_element.get("Id", "")
     attributes[f"SubObject{index_suffix}"] = str(point_index)
+    attributes[f"Bus{index_suffix}"] = net_element.get("Id", "")
     return attributes
 
 
@@ -2928,9 +2969,11 @@ def _apply_add_wire(
         else:
             dx = point.x - previous[0]
             dy = point.y - previous[1]
-            if dx != 0 and dy == 0:
+            dx_zero = math.isclose(dx, 0.0, abs_tol=1e-6)
+            dy_zero = math.isclose(dy, 0.0, abs_tol=1e-6)
+            if not dx_zero and dy_zero:
                 direction = "0"
-            elif dy != 0 and dx == 0:
+            elif not dy_zero and dx_zero:
                 direction = "1"
             else:
                 direction = "-1"

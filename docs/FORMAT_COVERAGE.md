@@ -10,10 +10,10 @@
 | Project-authored omission clauses | 0 |
 | Documented parent/child relationships | 143 across 61 parents |
 | Normalized (reader produces typed field) | 72 |
-| Written only (writer can create/modify) | 18 |
-| Mentioned only (literal, not an XML call) | 7 |
+| Written only (writer can create/modify) | 19 |
+| Mentioned only (literal, not an XML call) | 6 |
 | Passthrough (unknown XML, kept byte-for-byte) | 10 |
-| **Coverage** | **84.1%** |
+| **Coverage** | **85.0%** |
 
 ## Inventory Provenance
 
@@ -117,6 +117,7 @@ the current reader/writer call sites; it is not a normative DipTrace format spec
 - `PartName`
 - `PartRefDes`
 - `RefDes`
+- `RefDesMarking`
 - `Schematic`
 - `Source`
 - `Text`
@@ -131,7 +132,6 @@ the current reader/writer call sites; it is not a normative DipTrace format spec
 - `NegPoints`
 - `PosPoint`
 - `PosPoints`
-- `RefDesMarking`
 - `Silk`
 
 ## Passthrough Elements

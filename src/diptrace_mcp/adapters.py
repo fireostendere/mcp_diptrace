@@ -475,6 +475,13 @@ def _component_records(
         return records, by_xml_id, by_refdes
 
     if document.kind == "schematic":
+        part_types = {
+            (component.get("ComponentStyle", ""), part.get("Id", "")): part.get(
+                "PartType", ""
+            )
+            for component in document.root.findall("./Library/Components/Component")
+            for part in component.findall("./Part")
+        }
         for part in document.container.findall("./Components/Part"):
             xml_id = part.get("Id", "")
             refdes = _text(part, "RefDes")
@@ -509,6 +516,9 @@ def _component_records(
                 confidence=0.55,
                 attributes={
                     "component_style": part.get("ComponentStyle", ""),
+                    "part_type": part_types.get(
+                        (part.get("ComponentStyle", ""), part.get("ComponentPart", "")), ""
+                    ),
                     "angle_rad": angle_rad,
                     "component_part": part.get("ComponentPart", ""),
                     "part_number": part.get("PartNumber", ""),

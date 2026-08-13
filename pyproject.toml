@@ -101,3 +101,8 @@ warn_unreachable = true
 [[tool.mypy.overrides]]
 module = "diptrace_mcp.server_runtime"
 warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "diptrace_mcp.services.evidence"
+allow_redefinition_new = true
+local_partial_types = true

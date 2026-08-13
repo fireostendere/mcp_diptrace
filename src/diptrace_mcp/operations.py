@@ -606,7 +606,7 @@ class AddNetLabelOperation(SemanticOperation):
     y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     sheet: int = Field(default=0, ge=0)
     text: str | None = Field(default=None, min_length=1, max_length=1_000)
-    font_size: int = Field(default=10, ge=1, le=1_000)
+    font_size: int = Field(default=4, ge=1, le=1_000)
 
 
 class SetPanelizationOperation(SemanticOperation):

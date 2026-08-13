@@ -424,6 +424,28 @@ def test_erc_reports_unconnected_pin_not_intentional_no_connect() -> None:
     assert metrics["schematic.unconnected_pin"]["pins_checked"] == 6
 
 
+def test_erc_does_not_require_values_on_net_ports() -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    library = root.find("./Library")
+    part = root.find("./Schematic/Components/Part[@Id='0']")
+    assert library is not None and part is not None
+    components = ET.SubElement(library, "Components")
+    component = ET.SubElement(components, "Component", {"ComponentStyle": "CompType0"})
+    ET.SubElement(component, "Part", {"Id": "0", "PartType": "Net Port"})
+    value = part.find("./Value")
+    assert value is not None
+    value.text = ""
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+    findings, _, _, _ = run_checks(build_snapshot(document), categories={"metadata"})
+
+    assert not [item for item in findings if item.check_id == "schematic.missing_value"]
+
+
 def test_review_service_persists_report_and_resources(tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
