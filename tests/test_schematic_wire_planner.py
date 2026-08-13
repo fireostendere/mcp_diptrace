@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from diptrace_mcp.adapters import build_snapshot, stable_id
 from diptrace_mcp.domain import ObjectRecord
+from diptrace_mcp.geometry import Point
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.schematic_wire_planner import plan_schematic_wire_candidate
+from diptrace_mcp.services import schematic_wire_quality
 from diptrace_mcp.services.schematic_wire_quality import clean_schematic_wire_operation
 from diptrace_mcp.xml_document import DipTraceDocument
 
@@ -17,6 +20,58 @@ MAX_BYTES = 10_000_000
 
 def _load() -> DipTraceDocument:
     return DipTraceDocument.load(FIXTURES / "schematic.xml", MAX_BYTES)
+
+
+def test_cleanup_rejects_reroute_that_reenters_endpoint_symbol(monkeypatch) -> None:
+    snapshot = build_snapshot(_load())
+    assert snapshot.schematic is not None
+    part = next(item for item in snapshot.schematic.parts if item.refdes == "R1")
+    obstacle = ObjectRecord(
+        stable_id=stable_id("part", "test", "obstacle"),
+        kind="part",
+        refdes="U2",
+        bbox={"min_x": -1.0, "min_y": 19.0, "max_x": 1.0, "max_y": 21.0},
+        attributes={"sheet": 0},
+    )
+    snapshot.schematic.parts = [part, obstacle]
+    snapshot.objects[obstacle.stable_id] = obstacle
+    monkeypatch.setattr(
+        schematic_wire_quality,
+        "resolve_document_schematic_pin_geometry",
+        lambda _: SimpleNamespace(
+            pins=[
+                SimpleNamespace(
+                    part_id=part.stable_id,
+                    pin_index=index,
+                    absolute_position={"x": x, "y": y},
+                )
+                for index, (x, y) in enumerate(
+                    ((8.0, 20.0), (12.0, 18.0), (8.0, 22.0), (12.0, 22.0))
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        schematic_wire_quality,
+        "_route",
+        lambda *_: [
+            Point(8.0, 20.0),
+            Point(12.0, 20.0),
+            Point(12.0, 30.0),
+            Point(-10.0, 30.0),
+            Point(-10.0, 20.0),
+        ],
+    )
+    operation = AddWireOperation(
+        net="VCC",
+        points=[{"x": 8.0, "y": 20.0}, {"x": -10.0, "y": 20.0}],
+        start={"type": "Pin", "refdes": "R1", "pin": 0},
+        end={"type": "Free"},
+    )
+
+    cleaned = clean_schematic_wire_operation(_load(), snapshot, operation)
+
+    assert cleaned.points == operation.points
 
 
 def test_planner_is_non_mutating_and_routes_around_component_obstacles() -> None:
