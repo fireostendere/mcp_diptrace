@@ -39,6 +39,9 @@ Repository = "https://github.com/fireostendere/mcp_diptrace"
 geometry = [
   "shapely>=2.0,<3",
 ]
+headless-gui = [
+  "pywinauto==0.6.9; sys_platform == 'win32'",
+]
 dev = [
   "hatchling>=1.27,<2",
   "hypothesis>=6.135,<7",
@@ -58,6 +61,7 @@ bridge = [
 diptrace-mcp = "diptrace_mcp.server:main"
 diptrace-mcp-bridge = "diptrace_mcp.bridge:main"
 diptrace-mcp-configure = "diptrace_mcp.windows_configurator:main"
+diptrace-mcp-headless-gui = "diptrace_mcp.headless_gui:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/diptrace_mcp"]
@@ -89,7 +93,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["diptrace_mcp"]
-known-third-party = ["mcp", "pydantic", "pytest"]
+known-third-party = ["mcp", "pydantic", "pywinauto", "pytest"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -106,3 +110,7 @@ warn_return_any = false
 module = "diptrace_mcp.services.evidence"
 allow_redefinition_new = true
 local_partial_types = true
+
+[[tool.mypy.overrides]]
+module = ["pywinauto", "pywinauto.*"]
+ignore_missing_imports = true
