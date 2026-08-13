@@ -114,3 +114,7 @@ local_partial_types = true
 [[tool.mypy.overrides]]
 module = ["pywinauto", "pywinauto.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "diptrace_mcp.headless_gui"
+disable_error_code = ["attr-defined"]
