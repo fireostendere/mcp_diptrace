@@ -214,6 +214,39 @@ def _part_obstacles(snapshot: DocumentSnapshot, operation: AddWireOperation) -> 
     return result
 
 
+def _endpoint_pin_envelopes(
+    snapshot: DocumentSnapshot,
+    operation: AddWireOperation,
+    pin_anchors: dict[tuple[str, int], Point],
+) -> list[BBox]:
+    """Keep cleanup routes from re-entering their own endpoint symbols."""
+    if snapshot.schematic is None:
+        return []
+    result: list[BBox] = []
+    for part in snapshot.schematic.parts:
+        if not (
+            _endpoint_matches_part(operation.start, part)
+            or _endpoint_matches_part(operation.end, part)
+        ):
+            continue
+        points = [
+            point
+            for (part_id, _), point in pin_anchors.items()
+            if part_id == part.stable_id
+        ]
+        if len(points) < 2:
+            continue
+        box = BBox(
+            min(point.x for point in points),
+            min(point.y for point in points),
+            max(point.x for point in points),
+            max(point.y for point in points),
+        )
+        if box.width > _EPS and box.height > _EPS:
+            result.append(box)
+    return result
+
+
 def _xml_mm(document: DipTraceDocument, value: str | None) -> float | None:
     if value is None:
         return None
@@ -573,7 +606,11 @@ def clean_schematic_wire_operation(
     supplied[-1] = _wire_anchor(snapshot, operation.end, supplied[-1], pin_anchors)
     supplied = _simplify_points(supplied)
     start, end = supplied[0], supplied[-1]
-    obstacles = [*_part_obstacles(snapshot, operation), *_text_obstacles(document, operation.sheet)]
+    obstacles = [
+        *_part_obstacles(snapshot, operation),
+        *_endpoint_pin_envelopes(snapshot, operation, pin_anchors),
+        *_text_obstacles(document, operation.sheet),
+    ]
     existing = _existing_wire_segments(snapshot, operation.sheet)
     touches = _intentional_wire_touches(operation, start, end)
     original = _quality(supplied, obstacles, existing, touches)
