@@ -104,4 +104,5 @@ warn_return_any = false
 
 [[tool.mypy.overrides]]
 module = "diptrace_mcp.services.evidence"
-allow_redefinition = true
+allow_redefinition_new = true
+local_partial_types = true
