@@ -675,7 +675,7 @@ class SemanticOperationsService:
         y: float,
         sheet: int = 0,
         text: str | None = None,
-        font_size: int = 10,
+        font_size: int = 4,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,

@@ -6,14 +6,17 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..adapters import DocumentSnapshot
+from ..errors import EditError
 from ..geometry import BBox, Point, to_mm
 from ..operations import AddWireOperation, WireEndpoint
+from ..schematic_pin_geometry import resolve_document_schematic_pin_geometry
 from ..xml_document import DipTraceDocument
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
 _EPS = 1e-9
+_ANCHOR_EPS_MM = 1e-6
 _PART_VISUAL_MARGIN_MM = 3.0
 _TEXT_MARGIN_MM = 0.6
 _WIRE_LANE_GAP_MM = 0.75
@@ -23,6 +26,7 @@ _MAX_EXISTING_SEGMENTS = 512
 _CROSSING_PENALTY = 100_000.0
 _OVERLAP_PENALTY = 1_000_000.0
 _BEND_PENALTY = 0.35
+_MAX_CROSSING_CLEANUP_ADDED_BENDS = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,11 +36,11 @@ class _Segment:
 
     @property
     def horizontal(self) -> bool:
-        return math.isclose(self.start.y, self.end.y, abs_tol=_EPS)
+        return math.isclose(self.start.y, self.end.y, abs_tol=_ANCHOR_EPS_MM)
 
     @property
     def vertical(self) -> bool:
-        return math.isclose(self.start.x, self.end.x, abs_tol=_EPS)
+        return math.isclose(self.start.x, self.end.x, abs_tol=_ANCHOR_EPS_MM)
 
     @property
     def length(self) -> float:
@@ -67,8 +71,8 @@ class _PathQuality:
 
 
 def _same_point(first: Point, second: Point) -> bool:
-    return math.isclose(first.x, second.x, abs_tol=_EPS) and math.isclose(
-        first.y, second.y, abs_tol=_EPS
+    return math.isclose(first.x, second.x, abs_tol=_ANCHOR_EPS_MM) and math.isclose(
+        first.y, second.y, abs_tol=_ANCHOR_EPS_MM
     )
 
 
@@ -269,7 +273,29 @@ def _existing_wire_segments(snapshot: DocumentSnapshot, sheet: int) -> list[_Seg
     return result
 
 
-def _wire_anchor(snapshot: DocumentSnapshot, endpoint: WireEndpoint, fallback: Point) -> Point:
+def _wire_anchor(
+    snapshot: DocumentSnapshot,
+    endpoint: WireEndpoint,
+    fallback: Point,
+    pin_anchors: dict[tuple[str, int], Point] | None = None,
+) -> Point:
+    pin_anchors = pin_anchors or {}
+    if endpoint.type == "Pin" and endpoint.pin is not None and snapshot.schematic is not None:
+        matches = [
+            part
+            for part in snapshot.schematic.parts
+            if (
+                endpoint.refdes is not None
+                and (part.refdes or "").casefold() == endpoint.refdes.casefold()
+            )
+            or (
+                endpoint.part_id is not None
+                and endpoint.part_id in {part.stable_id, part.xml_id or ""}
+            )
+        ]
+        if len(matches) == 1:
+            return pin_anchors.get((matches[0].stable_id, endpoint.pin), fallback)
+        return fallback
     if endpoint.type != "Wire" or endpoint.wire_id is None:
         return fallback
     record = snapshot.objects.get(endpoint.wire_id)
@@ -284,7 +310,37 @@ def _wire_anchor(snapshot: DocumentSnapshot, endpoint: WireEndpoint, fallback: P
     item = raw_points[index]
     if not isinstance(item, dict) or "x" not in item or "y" not in item:
         return fallback
-    return Point(float(item["x"]), float(item["y"]))
+    anchor = Point(float(item["x"]), float(item["y"]))
+    if index > 0:
+        previous = raw_points[index - 1]
+        if isinstance(previous, dict) and "x" in previous and "y" in previous:
+            segment = _Segment(
+                Point(float(previous["x"]), float(previous["y"])),
+                anchor,
+            )
+            if segment.vertical and (
+                abs(fallback.x - segment.start.x) <= _ANCHOR_EPS_MM
+                and min(segment.start.y, segment.end.y) - _ANCHOR_EPS_MM
+                <= fallback.y
+                <= max(segment.start.y, segment.end.y) + _ANCHOR_EPS_MM
+            ):
+                return Point(segment.start.x, fallback.y)
+            if segment.horizontal and (
+                abs(fallback.y - segment.start.y) <= _ANCHOR_EPS_MM
+                and min(segment.start.x, segment.end.x) - _ANCHOR_EPS_MM
+                <= fallback.x
+                <= max(segment.start.x, segment.end.x) + _ANCHOR_EPS_MM
+            ):
+                return Point(fallback.x, segment.start.y)
+            if _point_on_segment(fallback, segment):
+                return fallback
+    if index == 0 and _same_point(fallback, anchor):
+        return anchor
+    raise EditError(
+        f"Wire endpoint is not on referenced wire segment {index}",
+        code="geometry_invalid",
+        object_ids=[endpoint.wire_id],
+    )
 
 
 def _intentional_wire_touches(
@@ -508,8 +564,13 @@ def clean_schematic_wire_operation(
     supplied = _simplify_points([Point(item.x, item.y) for item in operation.points])
     if len(supplied) < 2:
         return operation
-    supplied[0] = _wire_anchor(snapshot, operation.start, supplied[0])
-    supplied[-1] = _wire_anchor(snapshot, operation.end, supplied[-1])
+    pin_anchors = {
+        (pin.part_id, pin.pin_index): Point(**pin.absolute_position)
+        for pin in resolve_document_schematic_pin_geometry(document).pins
+        if pin.absolute_position is not None
+    }
+    supplied[0] = _wire_anchor(snapshot, operation.start, supplied[0], pin_anchors)
+    supplied[-1] = _wire_anchor(snapshot, operation.end, supplied[-1], pin_anchors)
     supplied = _simplify_points(supplied)
     start, end = supplied[0], supplied[-1]
     obstacles = [*_part_obstacles(snapshot, operation), *_text_obstacles(document, operation.sheet)]
@@ -523,9 +584,22 @@ def clean_schematic_wire_operation(
         if candidate is None:
             cleaned = supplied
         else:
+            candidate_quality = _quality(candidate, obstacles, existing, touches)
+            crossing_only = (
+                original.obstacle_hits == 0
+                and original.overlaps == 0
+                and original.crossings > 0
+                and original.self_intersections == 0
+                and original.diagonals == 0
+            )
             cleaned = (
                 candidate
-                if _quality(candidate, obstacles, existing, touches).score < original.score
+                if candidate_quality.score < original.score
+                and (
+                    not crossing_only
+                    or candidate_quality.bends
+                    <= original.bends + _MAX_CROSSING_CLEANUP_ADDED_BENDS
+                )
                 else supplied
             )
     payload = operation.model_dump(mode="json")

@@ -701,7 +701,7 @@ def check_missing_values(snapshot: DocumentSnapshot) -> tuple[list[Finding], dic
             object_ids=[part.stable_id],
         )
         for part in snapshot.schematic.parts
-        if not (part.value or "").strip()
+        if part.attributes.get("part_type") != "Net Port" and not (part.value or "").strip()
     ]
     return findings, {"parts_checked": len(snapshot.schematic.parts)}
 

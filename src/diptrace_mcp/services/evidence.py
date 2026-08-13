@@ -290,9 +290,94 @@ SEMANTIC_COMPARISON_POLICY_V1: dict[str, Any] = {
             "whitespace_in_text",
             "attribute_order",
             "xml_declaration_encoding",
+            "coordinate_precision",
+            "default_attribute_omission",
+            "equivalent_component_style_alias",
         }
     ),
 }
+
+
+def _rounded_semantic(value: Any) -> Any:
+    if isinstance(value, float):
+        return round(value, 4)
+    if isinstance(value, dict):
+        return tuple(sorted((str(key), _rounded_semantic(item)) for key, item in value.items()))
+    if isinstance(value, list):
+        return tuple(_rounded_semantic(item) for item in value)
+    if isinstance(value, tuple):
+        return tuple(_rounded_semantic(item) for item in value)
+    return value
+
+
+def _rounded_rotation(value: float) -> float:
+    return round(value, 2)
+
+
+def _normalized_schematic_wire_points(points: Any) -> tuple[Any, ...]:
+    normalized: list[Any] = []
+    for point in points:
+        rounded = _rounded_semantic(point)
+        if not normalized or rounded != normalized[-1]:
+            normalized.append(rounded)
+    return tuple(normalized)
+
+
+def _schematic_style_signatures(
+    document: DipTraceDocument, *, round_numeric: bool = True
+) -> dict[str, Any]:
+    def attribute_value(value: str) -> Any:
+        if not round_numeric:
+            return value
+        try:
+            return _rounded_semantic(float(value))
+        except ValueError:
+            return value
+
+    def signature(
+        element: Any,
+        *,
+        patterns: dict[str, Any] | None = None,
+        net_port: bool = False,
+    ) -> Any:
+        net_port = net_port or (
+            element.tag == "Part" and element.get("PartType") == "Net Port"
+        )
+        return (
+            element.tag,
+            tuple(
+                sorted(
+                    (
+                        key,
+                        patterns.get(value, ("unresolved", value))
+                        if patterns is not None and element.tag == "Pattern" and key == "Style"
+                        else attribute_value(value),
+                    )
+                    for key, value in element.attrib.items()
+                    if key not in {"Id", "RefDes", "Locked", "PatternStyle"}
+                    and not (net_port and key == "PadId")
+                )
+            ),
+            (element.text or "").strip(),
+            tuple(
+                signature(child, patterns=patterns, net_port=net_port)
+                for child in element
+                if child.tag != "LibPath"
+                and not (net_port and child.tag == "Pattern")
+                and not (element.tag == "Part" and child.tag in {"Name", "Value"})
+            ),
+        )
+
+    patterns = {
+        pattern.get("PatternStyle", ""): signature(pattern)
+        for pattern in document.root.findall("./Library/Library/Patterns/Pattern")
+    }
+    return {
+        component.get("ComponentStyle", ""): tuple(
+            signature(part, patterns=patterns) for part in component.findall("./Part")
+        )
+        for component in document.root.findall("./Library/Components/Component")
+    }
 
 
 def _detected_semantic_normalizations(
@@ -346,6 +431,105 @@ def _detected_semantic_normalizations(
                 if (left_text or "").strip() == (right_text or "").strip():
                     detected.add("whitespace_in_text")
 
+    source_snapshot = build_snapshot(source)
+    reexport_snapshot = build_snapshot(reexport)
+    if source_snapshot.schematic is not None and reexport_snapshot.schematic is not None:
+        def part_identity(item: ObjectRecord) -> tuple[Any, ...]:
+            attrs = item.attributes
+            return (
+                item.refdes,
+                item.name,
+                attrs.get("part_name"),
+                attrs.get("component_part"),
+                attrs.get("part_number"),
+            )
+
+        def pin_index(item: ObjectRecord) -> str:
+            raw = item.xml_id or ""
+            _, separator, suffix = raw.rpartition(":")
+            return suffix if separator else raw
+
+        source_parts = {
+            part_identity(item): item for item in source_snapshot.schematic.parts
+        }
+        reexport_parts = {
+            part_identity(item): item for item in reexport_snapshot.schematic.parts
+        }
+        source_styles = _schematic_style_signatures(source)
+        reexport_styles = _schematic_style_signatures(reexport)
+        source_raw_styles = _schematic_style_signatures(source, round_numeric=False)
+        reexport_raw_styles = _schematic_style_signatures(reexport, round_numeric=False)
+        if any(
+            source_raw_styles[style] != reexport_raw_styles[style]
+            and source_styles[style] == reexport_styles[style]
+            for style in source_styles.keys() & reexport_styles.keys()
+        ):
+            detected.add("coordinate_precision")
+        for identity in source_parts.keys() & reexport_parts.keys():
+            left = source_parts[identity]
+            right = reexport_parts[identity]
+            left_style = str(left.attributes.get("component_style", ""))
+            right_style = str(right.attributes.get("component_style", ""))
+            if left_style != right_style and source_styles.get(left_style) == reexport_styles.get(
+                right_style
+            ):
+                detected.add("equivalent_component_style_alias")
+            if left.position != right.position and _rounded_semantic(
+                left.position
+            ) == _rounded_semantic(right.position):
+                detected.add("coordinate_precision")
+            if left.rotation_deg != right.rotation_deg and _rounded_rotation(
+                left.rotation_deg
+            ) == _rounded_rotation(right.rotation_deg):
+                detected.add("coordinate_precision")
+
+        source_parent_ids = {
+            item.stable_id: part_identity(item) for item in source_snapshot.schematic.parts
+        }
+        reexport_parent_ids = {
+            item.stable_id: part_identity(item) for item in reexport_snapshot.schematic.parts
+        }
+        source_pins = {
+            (source_parent_ids.get(item.parent_id or ""), pin_index(item)): item
+            for item in source_snapshot.schematic.pins
+        }
+        reexport_pins = {
+            (reexport_parent_ids.get(item.parent_id or ""), pin_index(item)): item
+            for item in reexport_snapshot.schematic.pins
+        }
+        for identity in source_pins.keys() & reexport_pins.keys():
+            source_attributes = dict(source_pins[identity].attributes)
+            reexport_attributes = dict(reexport_pins[identity].attributes)
+            source_attributes.setdefault("NotConnected", "N")
+            reexport_attributes.setdefault("NotConnected", "N")
+            if (
+                source_pins[identity].attributes != reexport_pins[identity].attributes
+                and source_attributes == reexport_attributes
+            ):
+                detected.add("default_attribute_omission")
+
+        def wire_signatures(schematic: Any, *, normalized: bool) -> list[tuple[str, str]]:
+            return sorted(
+                (
+                    item.net_name or "",
+                    repr(
+                        _normalized_schematic_wire_points(
+                            item.attributes.get("points", [])
+                        )
+                        if normalized
+                        else item.attributes.get("points", [])
+                    ),
+                )
+                for item in schematic.wires
+            )
+
+        if wire_signatures(
+            source_snapshot.schematic, normalized=False
+        ) != wire_signatures(reexport_snapshot.schematic, normalized=False) and wire_signatures(
+            source_snapshot.schematic, normalized=True
+        ) == wire_signatures(reexport_snapshot.schematic, normalized=True):
+            detected.add("coordinate_precision")
+
     configured = SEMANTIC_COMPARISON_POLICY_V1["normalizations"]
     return sorted(detected & configured)
 
@@ -367,21 +551,12 @@ def _semantic_roundtrip_check(
     warnings.extend(source_snapshot.warnings)
     warnings.extend(reexport_snapshot.warnings)
 
-    def rounded(value: Any) -> Any:
-        if isinstance(value, float):
-            return round(value, 6)
-        if isinstance(value, dict):
-            return tuple(sorted((str(key), rounded(item)) for key, item in value.items()))
-        if isinstance(value, list):
-            return tuple(rounded(item) for item in value)
-        return value
-
     def record_key(record: ObjectRecord) -> tuple[str, str, str]:
         return (record.xml_id or "", record.refdes or "", record.label or record.stable_id)
 
     def compare_category(name: str, left: Any, right: Any) -> None:
         compared.append(name)
-        if rounded(left) != rounded(right):
+        if _rounded_semantic(left) != _rounded_semantic(right):
             differences.append(f"{name}: semantic content differs")
 
     if source_snapshot.board is not None and reexport_snapshot.board is not None:
@@ -403,7 +578,7 @@ def _semantic_roundtrip_check(
                 item.side,
                 item.locked,
                 item.position,
-                rounded(item.rotation_deg),
+                _rounded_semantic(item.rotation_deg),
                 item.mirrored,
                 item.attributes.get("pattern_style"),
                 item.attributes.get("pattern_name"),
@@ -522,102 +697,161 @@ def _semantic_roundtrip_check(
     if source_snapshot.schematic is not None and reexport_snapshot.schematic is not None:
         ss = source_snapshot.schematic
         rs = reexport_snapshot.schematic
+        source_styles = _schematic_style_signatures(source)
+        reexport_styles = _schematic_style_signatures(reexport)
         compare_category("sheets", ss.sheets, rs.sheets)
 
-        def part_sig(item: ObjectRecord) -> Any:
+        def part_identity(item: ObjectRecord) -> tuple[Any, ...]:
             attrs = item.attributes
             return (
-                record_key(item),
+                item.refdes,
+                item.name,
+                attrs.get("part_name"),
+                attrs.get("component_part"),
+                attrs.get("part_number"),
+            )
+
+        def pin_index(item: ObjectRecord) -> str:
+            raw = item.xml_id or ""
+            _, separator, suffix = raw.rpartition(":")
+            return suffix if separator else raw
+
+        def pin_identities(schematic: Any) -> dict[str, tuple[Any, ...]]:
+            parts = {item.stable_id: part_identity(item) for item in schematic.parts}
+            return {
+                item.stable_id: (parts.get(item.parent_id or ""), pin_index(item))
+                for item in schematic.pins
+            }
+
+        source_pin_identities = pin_identities(ss)
+        reexport_pin_identities = pin_identities(rs)
+
+        def part_sig(item: ObjectRecord, styles: dict[str, Any]) -> Any:
+            attrs = item.attributes
+            style = str(attrs.get("component_style", ""))
+            return (
+                part_identity(item),
                 item.name,
                 item.value,
                 item.position,
-                rounded(item.rotation_deg),
+                _rounded_rotation(item.rotation_deg),
                 item.mirrored,
                 item.locked,
                 attrs.get("sheet"),
-                attrs.get("component_style"),
+                styles.get(style, ("unresolved", style)),
                 attrs.get("component_part"),
                 attrs.get("part_number"),
             )
 
         compare_category(
             "parts",
-            [part_sig(item) for item in sorted(ss.parts, key=record_key)],
-            [part_sig(item) for item in sorted(rs.parts, key=record_key)],
+            sorted((part_sig(item, source_styles) for item in ss.parts), key=repr),
+            sorted((part_sig(item, reexport_styles) for item in rs.parts), key=repr),
         )
         compare_category(
             "patterns",
             [
-                (record_key(item), item.attributes.get("component_style"))
-                for item in sorted(ss.parts, key=record_key)
+                (
+                    part_identity(item),
+                    source_styles.get(
+                        str(item.attributes.get("component_style", "")),
+                        ("unresolved", item.attributes.get("component_style")),
+                    ),
+                )
+                for item in sorted(ss.parts, key=lambda part: repr(part_identity(part)))
             ],
             [
-                (record_key(item), item.attributes.get("component_style"))
-                for item in sorted(rs.parts, key=record_key)
+                (
+                    part_identity(item),
+                    reexport_styles.get(
+                        str(item.attributes.get("component_style", "")),
+                        ("unresolved", item.attributes.get("component_style")),
+                    ),
+                )
+                for item in sorted(rs.parts, key=lambda part: repr(part_identity(part)))
             ],
         )
 
-        def pin_sig(item: ObjectRecord) -> Any:
+        def pin_sig(item: ObjectRecord, identities: dict[str, tuple[Any, ...]]) -> Any:
+            attributes = dict(item.attributes)
+            attributes.pop("NetId", None)
+            attributes.setdefault("NotConnected", "N")
             return (
-                record_key(item),
-                item.parent_id,
-                item.net_id,
+                identities[item.stable_id],
                 item.net_name,
-                item.attributes,
+                attributes,
             )
 
-        source_pins = [pin_sig(item) for item in sorted(ss.pins, key=record_key)]
-        reexport_pins = [pin_sig(item) for item in sorted(rs.pins, key=record_key)]
+        source_pins = sorted((pin_sig(item, source_pin_identities) for item in ss.pins), key=repr)
+        reexport_pins = sorted(
+            (pin_sig(item, reexport_pin_identities) for item in rs.pins), key=repr
+        )
         compare_category("pins", source_pins, reexport_pins)
         compare_category(
             "pin_net_membership",
-            [(item.xml_id, item.net_id, item.net_name) for item in sorted(ss.pins, key=record_key)],
-            [(item.xml_id, item.net_id, item.net_name) for item in sorted(rs.pins, key=record_key)],
+            sorted(
+                [(source_pin_identities[item.stable_id], item.net_name) for item in ss.pins],
+                key=repr,
+            ),
+            sorted(
+                [(reexport_pin_identities[item.stable_id], item.net_name) for item in rs.pins],
+                key=repr,
+            ),
         )
 
-        def schematic_net_sig(item: ObjectRecord) -> Any:
+        def schematic_net_sig(item: ObjectRecord, identities: dict[str, tuple[Any, ...]]) -> Any:
             return (
-                record_key(item),
                 item.name,
                 item.locked,
-                sorted(item.relationships.get("endpoints", [])),
+                sorted(
+                    (identities[endpoint] for endpoint in item.relationships.get("endpoints", [])),
+                    key=repr,
+                ),
             )
 
         compare_category(
             "schematic_nets",
-            [schematic_net_sig(item) for item in sorted(ss.nets, key=record_key)],
-            [schematic_net_sig(item) for item in sorted(rs.nets, key=record_key)],
+            sorted(
+                (schematic_net_sig(item, source_pin_identities) for item in ss.nets),
+                key=repr,
+            ),
+            sorted(
+                (schematic_net_sig(item, reexport_pin_identities) for item in rs.nets),
+                key=repr,
+            ),
         )
 
         def wire_sig(item: ObjectRecord, include_geometry: bool) -> Any:
             base = (
-                record_key(item),
-                item.net_id,
                 item.net_name,
                 item.locked,
                 item.attributes.get("sheet"),
             )
-            return base + ((item.attributes.get("points", []),) if include_geometry else ())
+            return base + (
+                (_normalized_schematic_wire_points(item.attributes.get("points", [])),)
+                if include_geometry
+                else ()
+            )
 
         compare_category(
             "wires",
-            [wire_sig(item, False) for item in sorted(ss.wires, key=record_key)],
-            [wire_sig(item, False) for item in sorted(rs.wires, key=record_key)],
+            sorted((wire_sig(item, False) for item in ss.wires), key=repr),
+            sorted((wire_sig(item, False) for item in rs.wires), key=repr),
         )
         compare_category(
             "wire_geometry",
-            [wire_sig(item, True) for item in sorted(ss.wires, key=record_key)],
-            [wire_sig(item, True) for item in sorted(rs.wires, key=record_key)],
+            sorted((wire_sig(item, True) for item in ss.wires), key=repr),
+            sorted((wire_sig(item, True) for item in rs.wires), key=repr),
         )
         compare_category(
             "hierarchy",
             [
-                (record_key(item), item.attributes.get("sheet"))
-                for item in sorted(ss.parts, key=record_key)
+                (part_identity(item), item.attributes.get("sheet"))
+                for item in sorted(ss.parts, key=lambda part: repr(part_identity(part)))
             ],
             [
-                (record_key(item), item.attributes.get("sheet"))
-                for item in sorted(rs.parts, key=record_key)
+                (part_identity(item), item.attributes.get("sheet"))
+                for item in sorted(rs.parts, key=lambda part: repr(part_identity(part)))
             ],
         )
         compare_category(

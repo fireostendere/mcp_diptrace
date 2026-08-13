@@ -4,7 +4,10 @@ import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import pytest
+
 from diptrace_mcp.config import Settings
+from diptrace_mcp.errors import EditError
 from diptrace_mcp.service import DipTraceService
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -181,3 +184,57 @@ def test_wire_routes_around_schematic_text(tmp_path: Path) -> None:
     assert points != [(0.0, 10.0), (50.0, 10.0)]
     assert _orthogonal(points)
     assert any(y != 10.0 for _, y in points[1:-1])
+
+
+def test_wire_can_join_middle_of_existing_segment(tmp_path: Path) -> None:
+    service, target = _prepare(tmp_path)
+    service.add_wire(
+        "VCC",
+        [{"x": 10.000000076, "y": 50.0}, {"x": 10.000000076, "y": 70.0}],
+        {"type": "Free"},
+        {"type": "Free"},
+        path="main.dch",
+        dry_run=False,
+        expected_sha256=_sha(service),
+    )
+    model = service.schematic_model("main.dch")["result"]
+    wire_id = next(wire["stable_id"] for wire in model["wires"] if wire["net_name"] == "VCC")
+    service.add_wire(
+        "VCC",
+        [{"x": 30.0, "y": 60.0}, {"x": 10.0, "y": 60.0}],
+        {"type": "Free"},
+        {"type": "Wire", "wire_id": wire_id, "point_index": 1},
+        path="main.dch",
+        dry_run=False,
+        expected_sha256=_sha(service),
+    )
+    points = _wire_points(target, "VCC")
+    assert points[0] == (30.0, 60.0)
+    assert abs(points[1][0] - 10.000000076) < 1e-6
+    assert points[1][1] == 60.0
+
+
+def test_wire_rejects_endpoint_on_a_different_segment(tmp_path: Path) -> None:
+    service, _ = _prepare(tmp_path)
+    service.add_wire(
+        "VCC",
+        [{"x": 10.0, "y": 50.0}, {"x": 10.0, "y": 70.0}, {"x": 40.0, "y": 70.0}],
+        {"type": "Free"},
+        {"type": "Free"},
+        path="main.dch",
+        dry_run=False,
+        expected_sha256=_sha(service),
+    )
+    model = service.schematic_model("main.dch")["result"]
+    wire_id = next(wire["stable_id"] for wire in model["wires"] if wire["net_name"] == "VCC")
+
+    with pytest.raises(EditError, match="not on referenced wire segment"):
+        service.add_wire(
+            "VCC",
+            [{"x": 30.0, "y": 60.0}, {"x": 10.0, "y": 60.0}],
+            {"type": "Free"},
+            {"type": "Wire", "wire_id": wire_id, "point_index": 2},
+            path="main.dch",
+            dry_run=False,
+            expected_sha256=_sha(service),
+        )

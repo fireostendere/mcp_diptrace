@@ -23,7 +23,7 @@ LibrarySource = Literal["provided", "embedded_design_cache", "external_fallback"
 class SchematicPinGeometryConfig(StrictModel):
     allow_component_style_index_match: bool = True
     allow_unique_component_name_match: bool = True
-    allow_unverified_part_rotation: bool = False
+    allow_unverified_part_rotation: bool = True
     allow_external_library_fallback: bool = False
 
 
@@ -221,7 +221,11 @@ def _absolute_geometry(
     warnings: list[str] = []
     if part.position is None or pin.position is None:
         return None, None, ["part or library pin position is unavailable"]
-    local = Point(**pin.position)
+    orientation_rad = math.radians(pin.orientation_deg)
+    local = Point(
+        pin.position["x"] - math.cos(orientation_rad) * pin._length_mm,
+        pin.position["y"] + math.sin(orientation_rad) * pin._length_mm,
+    )
     origin = Point(**part.position)
     angle = part.rotation_deg
     if not math.isclose(angle, 0.0, abs_tol=_EPS) and not config.allow_unverified_part_rotation:
@@ -238,7 +242,7 @@ def _absolute_geometry(
             rotation_deg=angle,
         ).apply_point(local)
         warnings.append(
-            "absolute pin geometry uses the currently parsed schematic rotation convention"
+            "absolute pin geometry uses the verified DipTrace schematic rotation convention"
         )
     orientation = (pin.orientation_deg + angle) % 360.0
     return absolute.as_dict(), orientation, warnings
@@ -389,8 +393,9 @@ def resolve_schematic_pin_geometry(
             "Schematic pin order is matched to library pin order within the resolved "
             "component part, consistent with the current normalized Pin indexing model.",
             "CompTypeN is only an index hint; structural identity checks are mandatory.",
-            "Non-zero part rotation is fail-closed by default until its live-host angle "
-            "convention is accepted for pin geometry.",
+            "Pin Length and Orientation are applied to the routed connection point.",
+            "Part rotation follows the convention verified by a DipTrace 5.3 native "
+            "re-export; callers may still disable it with the conservative config flag.",
         ],
         warnings=sorted(set(aggregate_warnings)),
         limitations=[

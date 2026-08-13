@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
 from typing_extensions import TypedDict
 
 from .capability_model import MAX_TRANSACTION_OPERATIONS
@@ -1047,6 +1047,7 @@ class LibraryPin(StrictModel):
     position: dict[str, float] | None = None
     orientation_deg: float = 0.0
     locked: bool = False
+    _length_mm: float = PrivateAttr(default=0.0)
 
 
 class LibraryPadStyle(StrictModel):

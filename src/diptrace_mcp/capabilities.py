@@ -213,7 +213,7 @@ def capability_report(
             ),
             "default_live_session_ttl_seconds": DEFAULT_LIVE_SESSION_TTL_SECONDS,
             "max_write_objects_scope": (
-                "semantic transactions, raw XML edits, document creation, seed copies, "
+                "semantic transactions, raw XML edits, document creation, seed-copy "
                 "overwrites, and live-session apply"
             ),
             "max_write_objects_accounting": (
@@ -223,6 +223,7 @@ def capability_report(
             ),
             "max_write_objects_exemptions": [
                 "exact conflict-checked transaction rollback",
+                "exact validated seed copy to a new target",
             ],
             "expected_sha256_required_for": [
                 "semantic design-file commit",

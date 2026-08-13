@@ -60,6 +60,7 @@ _DOMAIN_CODE_MAP = {
     "transaction_conflict": "CONFLICT",
     "sha256_mismatch": "CONFLICT",
     "evidence_output_conflict": "CONFLICT",
+    "connectivity_conflict": "CONFLICT",
     "confirmation_required": "SAFETY_GATE",
     "policy_denied": "SAFETY_GATE",
     "locked_object": "SAFETY_GATE",
