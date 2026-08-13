@@ -61,7 +61,6 @@ bridge = [
 diptrace-mcp = "diptrace_mcp.server:main"
 diptrace-mcp-bridge = "diptrace_mcp.bridge:main"
 diptrace-mcp-configure = "diptrace_mcp.windows_configurator:main"
-diptrace-mcp-headless-gui = "diptrace_mcp.headless_gui:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/diptrace_mcp"]
