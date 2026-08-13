@@ -63,9 +63,12 @@ Focused tests cover:
 - atomic selective reroute scope;
 - preservation of unaffected wire geometry;
 - source-document immutability before applying the semantic batch;
-- fail-closed locked-part behavior.
+- fail-closed locked-part and unresolved-endpoint behavior;
+- fail-closed rejection of stale/geometrically inconsistent Wire segment references while valid middle-of-segment joins remain accepted.
 
 Existing-wire support is now available through the dedicated atomic selective-reroute planner. Placement-only planners may still refuse already-wired schematics because they cannot safely move symbols without replacing affected geometry.
+
+The initial 18-case real-DipTrace schematic quality campaign is complete. Repository tests remain the automated regression layer; the detailed manual/native evidence and retained QUALITY FAIL/SEMANTIC FAIL/INVALID ATTEMPT history are in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md`. Future manual reruns are impact-based rather than a replay of the whole campaign.
 
 ## PCB Generations A-D tests
 
@@ -155,19 +158,24 @@ Keep these distinct:
 
 Changing a version string does not convert one evidence class into another.
 
-## Manual acceptance checkpoint
+## Manual acceptance checkpoints
 
-The latest accepted manual-production checkpoint remains documented in `MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md` and bound to `main@0bb09b4b3af40a5a3d1a875fab885430a2d251ba`.
+The historical formal manual-production checkpoint remains documented in `MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md` and bound to `main@0bb09b4b3af40a5a3d1a875fab885430a2d251ba` for the eight canonical PASS gates collected there.
 
 At that checkpoint:
 
 - 8 of 12 canonical blocking manual gates are PASS;
 - Q1 Component Angle is PASS;
 - real Codex restart is PASS;
-- Claude Desktop restart is WAIVED, not PASS;
-- Windows lifecycle acceptance remains next when the formal campaign resumes.
+- Claude Desktop restart is WAIVED, not PASS.
 
-New repository tests do not transfer those PASS results to newer code automatically.
+A separate post-release schematic product-quality campaign subsequently completed cases 01–18 and its bounded fixes were merged by PR #90. That later evidence does not rewrite the historical eight-gate identities, and the historical gates do not automatically transfer to newer code.
+
+The next project-required formal manual gate is:
+
+`windows_clean_install_repair_uninstall`
+
+It is followed by `elevated_plugin_install_profile_preservation` and `custom_state_preservation`.
 
 ## Typical local validation
 

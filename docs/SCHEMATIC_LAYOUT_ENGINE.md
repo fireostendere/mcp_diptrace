@@ -86,11 +86,13 @@ Current limitation: affected explicit nets are rebuilt from resolved pin endpoin
 
 The older placement-only planners may still refuse an already-wired schematic when used directly. That behavior remains correct: a placement-only operation cannot safely move symbols while leaving wire geometry behind. Existing-wire support belongs to the atomic selective-reroute planner above.
 
-## Testing and evidence
+## Testing and real-host evidence
 
 Repository tests cover deterministic candidate generation/ranking, pin resolution, route scoring, repair budgets, selective reroute scope, locked-part refusal, unresolved-endpoint refusal, explicit readability feedback, source immutability and semantic replay.
 
-Those tests prove repository behavior, not visual product quality in a particular DipTrace build. The real-host schematic readability campaign in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md` remains the appropriate acceptance path for claims about human-readable output.
+The initial real-host schematic authoring/readability campaign is complete in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md`. Cases 01–18 covered small circuits, reference-style composition, incremental edits, failed-operation safety, single- and multi-net atomic reroute, obstacle/readability repairs and a repaired 22-part stress schematic. The final representative artifacts were operator-accepted and survived real DipTrace Save/Close/Reopen/re-export with all 12 required semantic categories preserved.
+
+PR #90 merged the bounded fixes found by that campaign without expanding the 159-tool MCP contract. This closes the initial schematic product-quality gate for its tested scope. It does not prove global optimality, arbitrary hierarchy/topology handling or universal DipTrace compatibility. Later real-host retests should be impact-based or tied to new claims.
 
 ## Remaining work
 

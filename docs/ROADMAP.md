@@ -8,19 +8,27 @@ This roadmap separates three states:
 
 Implementation never implies universal DipTrace compatibility. Historical evidence stays bound to the production identity that was actually tested.
 
-## Current checkpoint — 2026-08-11
+## Current checkpoint — 2026-08-13
 
 The current source/package version is `0.2.1`. The immutable `v0.2.1` release and PyPI package are published; post-release development is tracked separately.
 
-The latest accepted manual-production checkpoint remains:
+The schematic-quality production fixes were merged by PR #90. The production merge identity is:
+
+`main@6bfb656008e27f07e665a9b63540d6dc4a5174b6`
+
+Documentation-only commits after that merge do not change the production-code identity of the closed schematic-quality campaign.
+
+The historical formal manual-acceptance checkpoint remains:
 
 `main@0bb09b4b3af40a5a3d1a875fab885430a2d251ba`
 
 The durable recovery record is [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md). Completed real-host/client PASS evidence is not silently transferred to later code.
 
+The detailed schematic product-quality campaign is in [SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md](SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md). Cases 01–18 are complete; future reruns are impact-based or tied to new claims rather than a replay of the whole campaign.
+
 Current cross-domain implementation detail is in [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md).
 
-## Completed manual gates on the accepted checkpoint
+## Completed manual gates on the accepted historical checkpoint
 
 PASS:
 
@@ -37,7 +45,7 @@ The canonical matrix therefore has 8 of 12 blocking manual gates PASS.
 
 `claude_desktop_real_client_restart` is **WAIVED for the current project campaign**, not PASS.
 
-When lifecycle acceptance resumes, the project-required sequence remains:
+The project-required formal lifecycle sequence is now the next acceptance track:
 
 1. `windows_clean_install_repair_uninstall`;
 2. `elevated_plugin_install_profile_preservation`;
@@ -49,11 +57,9 @@ Detailed implementation: [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md
 
 ## Phase 26 — real-world readability baseline
 
-**Status: active product checkpoint.**
+**Status: complete for the initial real-DipTrace product-quality campaign.**
 
-Repository functionality is substantially stronger than the historical wire-only acceptance. The remaining question is product quality in real DipTrace: whether complete generated/repaired schematics become materially easier to read without routine manual cleanup.
-
-The real-host validation document remains `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md`.
+The historical wire-only acceptance was strengthened by an 18-case real-host campaign covering authored schematics, visual readability, incremental editing, transaction-failure safety, native round-trip and representative stress composition. Failed/invalid intermediate attempts remain retained as evidence rather than being erased by later repairs.
 
 ## Phase 27 — design intent and reference motifs
 
@@ -109,6 +115,7 @@ Implemented:
 - **selective reroute of explicit affected `(net, sheet)` groups when moved parts touch existing wires**;
 - **one dependency-safe semantic batch combining wire deletion, component movement and replacement wire authoring**;
 - fail-closed refusal if any affected endpoint/route cannot be rebuilt;
+- fail-closed rejection of stale/geometrically inconsistent Wire segment references;
 - no rewriting of unaffected explicit wire geometry;
 - no automatic page-spanning explicit wiring of previously unwired nets by default.
 
@@ -118,9 +125,13 @@ Next refinement: optional intentional-junction preservation and bounded iterativ
 
 ## Phase 31 — schematic quality gate
 
-**Status: pending product-level real-DipTrace acceptance.**
+**Status: PASS / closed for the initial 18-case campaign.**
 
-Close only when representative ugly-but-electrically-correct schematics are reliably improved without connectivity/ERC regression and without routine manual cleanup, with controlled real-host open/save/re-export evidence for the affected primitives.
+Cases 01–18 in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md` are complete. The campaign found and repaired real quality/semantic issues, retained failed and invalid attempts, validated single- and multi-net atomic reroute, checked incremental edits and transaction failure behavior, reused representative native evidence where impact analysis allowed it, and closed on a repaired 22-part stress schematic.
+
+The final representative schematic was operator-accepted and survived real DipTrace Save/Close/Reopen/re-export with all 12 required schematic semantic categories preserved. PR #90 merged the bounded fixes without expanding the public MCP contract.
+
+This gate is not a universal claim. New capabilities outside the tested scope — hierarchy, automatic symbol rotation/pin-facing, topology-preserving reroute, broader datasheet/reference ingestion, or materially changed production code — require focused new evidence.
 
 # PCB track — Generations A-D
 
@@ -240,6 +251,13 @@ Historical dated release/acceptance/audit records remain excluded from this fres
 
 Higher-level EDA modules should continue to prefer typed package internals and a small deliberate public surface.
 
+# Next project sequence
+
+1. Keep the completed schematic cases 01–18 closed unless an impact-based production change requires a focused rerun.
+2. Resume the formal Windows lifecycle gates, starting with `windows_clean_install_repair_uninstall`.
+3. Continue PCB whole-board/native quality work when stronger PCB claims are the active product priority.
+4. Treat cinematic exact-UI acceptance and any future public library-write API as separate claim/product tracks.
+
 # Phase summary
 
 | Area | Current status |
@@ -249,7 +267,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | schematic placement | bounded implementation |
 | schematic route/joint repair | bounded implementation |
 | schematic selective atomic reroute | implemented for affected explicit sheet-local nets |
-| schematic product quality | real-DipTrace acceptance pending |
+| schematic product quality | **PASS for initial 18-case real-DipTrace campaign; future work impact/claim-based** |
 | PCB Generation A | implemented |
 | PCB Generation B | implemented/bounded |
 | PCB Generation C | implemented/bounded |
@@ -272,4 +290,5 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 - Native manufacturing generation is unavailable.
 - Cinematic replay is presentation automation, not engineering acceptance evidence.
 - Evidence reports do not grant trust/PASS.
+- The completed schematic campaign proves only its recorded scope and does not imply arbitrary hierarchy/topology/global-optimality support.
 - The project does not claim Novarm/DipTrace endorsement, universal compatibility, signed binaries, independent review, production readiness, direct Claude Desktop validation or globally optimal schematic/PCB layout.

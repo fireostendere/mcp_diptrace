@@ -33,8 +33,10 @@ development prerelease and `diptrace-mcp==0.2.1` on PyPI were published on
 Development has continued on `main` after that immutable release. Current
 post-release work includes the schematic layout/placement-routing foundation,
 PCB Generations A-D, the 90% combined supported-environment coverage gate, and
-cinematic UI calibration/replay. Those later `main` features are not
-retroactively part of the published `v0.2.1` bytes.
+cinematic UI calibration/replay. The initial 18-case real-DipTrace schematic
+authoring/readability campaign is complete and its bounded fixes were merged by
+PR #90. Those later `main` features are not retroactively part of the published
+`v0.2.1` bytes.
 
 The previous [`v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0)
 and current `v0.2.1` release identities remain immutable. Existing tags and
@@ -88,8 +90,19 @@ Internal EDA development deliberately does not expand that public tool surface
 one heuristic at a time. The current schematic stack includes design intent and
 reference motifs, hierarchical and bounded multi-candidate placement,
 conservative pin-geometry resolution, non-mutating wire planning, pin-aware
-joint placement/routing scoring, and bounded placement repair. Selective atomic
-replacement of affected existing wires remains future work.
+joint placement/routing scoring, bounded placement repair, and selective atomic
+replacement of affected existing wire geometry. `schematic_atomic_reroute.py`
+rebuilds only affected explicit sheet-local nets as one dependency-safe
+`delete_wire -> move_components -> add_wire` semantic batch while preserving
+unaffected explicit geometry and the existing guarded transaction boundary.
+
+The initial 18-case real-DipTrace schematic authoring/readability campaign is
+complete. The final repaired stress schematic contained 22 parts, 48 pins,
+16 nets, and 32 wires; it was operator-accepted and survived real DipTrace
+Save/Close/Reopen/re-export with all 12 required schematic semantic categories
+preserved. This is exact-scope product evidence, not a claim of globally optimal
+layout, arbitrary hierarchy/topology support, or universal DipTrace compatibility.
+Future schematic host retests are impact-based or tied to genuinely new claims.
 
 The PCB design engine is implemented through four internal bounded generations:
 
@@ -252,7 +265,9 @@ PCB Layout 5.3.0.3. Package-owned public evidence/trust promotion remains a
 separate reviewed contract, and the immutable `v0.2.1` release record correctly
 retains its earlier `NOT_RUN` release-time status. Real Codex restart is PASS;
 Claude Desktop restart is WAIVED for the current project campaign, not PASS.
-Windows lifecycle gates remain pending when formal acceptance resumes.
+The initial 18-case schematic product-quality campaign is PASS for its recorded
+scope. Windows lifecycle gates remain pending; the next project-required formal
+gate is `windows_clean_install_repair_uninstall`.
 
 ## Data Handling
 
@@ -285,7 +300,10 @@ See [Testing](docs/TESTING.md) and [Development](docs/DEVELOPMENT.md).
 - [Usage](docs/USAGE.md)
 - [MCP tools and resources](docs/MCP_TOOLS.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [EDA intelligence map](docs/EDA_INTELLIGENCE.md)
 - [Schematic layout engine](docs/SCHEMATIC_LAYOUT_ENGINE.md)
+- [Schematic authoring validation campaign](docs/SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md)
+- [Manual acceptance checkpoint](docs/MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md)
 - [PCB design engine and A-D roadmap](docs/PCB_DESIGN_ENGINE.md)
 - [Cinematic demo mode](docs/CINEMATIC_DEMO_MODE.md)
 - [Placement engine](docs/PLACEMENT_ENGINE.md)
