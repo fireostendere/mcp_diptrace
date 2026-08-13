@@ -41,6 +41,14 @@ The schematic ensemble adds a bounded congestion estimate using placement-grid o
 
 External/project/datasheet motifs can still be supplied explicitly with provenance. Automatic external motif ingestion remains separate work.
 
+### Real-DipTrace schematic quality checkpoint
+
+The initial product-quality campaign in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md` is complete. Cases 01–18 exercised real DipTrace authoring/readability, incremental edits, transaction safety, single- and multi-net atomic reroute, obstacle/readability repair, native Save/Close/Reopen/re-export and a repaired 22-part stress schematic.
+
+The final repaired stress case was operator-accepted and all 12 required schematic semantic categories survived native round-trip. PR #90 merged the bounded production fixes while preserving the frozen 159-tool public contract. This is evidence for the tested campaign scope, not a universal DipTrace-layout or global-optimality claim.
+
+Future schematic real-host work is impact-based: rerun only cases plausibly affected by later production changes, or add new cases for genuinely new claims such as hierarchy, external motif ingestion, topology preservation or automatic symbol rotation.
+
 ## PCB Generations A-D
 
 The current layers are:
@@ -108,10 +116,10 @@ Repository CI remains authoritative. The supported-environment combined coverage
 
 ## What still needs real hardware/software/operator evidence
 
-Unit/property tests do not replace:
+The completed 18-case schematic campaign should not be repeated without an impact-based reason. Remaining manual/native evidence is claim-specific and currently includes:
 
-- current-candidate real DipTrace schematic readability/product-quality acceptance;
 - current-candidate PCB whole-board/native refill/plane/via quality acceptance where claimed;
 - exact UI-profile cinematic replay validation;
 - Windows clean install/repair/uninstall and profile/custom-state preservation gates;
+- new schematic claims outside the completed campaign scope, such as hierarchy, topology-preserving reroute or automatic rotation/pin-facing behavior;
 - manufacturing output, independent review, regulatory, EMC, PI, thermal or field-solver sign-off.

@@ -1,16 +1,35 @@
-# Manual Acceptance Checkpoint — 2026-08-09, updated 2026-08-10
+# Manual Acceptance Checkpoint — 2026-08-09, updated 2026-08-13
 
-This file is the durable recovery checkpoint for the current real-system acceptance campaign.
+This file is the durable recovery checkpoint for the real-system acceptance campaign.
 Its purpose is to prevent already completed manual gates from being repeated after an interrupted
-Work session, a focused repair, or later documentation-only commits.
+session, a focused repair, a product-quality sub-campaign, or later documentation-only commits.
 
 The evidence archives themselves remain authoritative for individual observations. This document
-records the accepted production candidate, completed gates, the intentional pause point, and the
-next validation priority.
+records the historical formal-acceptance identity, completed gates, the completed schematic-quality
+detour, and the next project-required validation sequence.
 
-## Accepted production candidate
+## Current post-merge project checkpoint
 
-The production-code candidate accepted through the latest completed gates is:
+PR #90 (`Complete schematic authoring quality validation`) is merged. Its production merge identity is:
+
+`main@6bfb656008e27f07e665a9b63540d6dc4a5174b6`
+
+That merge closes the initial 18-case real-DipTrace schematic authoring/readability campaign described
+in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md`. The final repaired stress design contains 22 parts,
+48 pins, 16 nets and 32 wires; it was operator-accepted and survived real DipTrace Save/Close/Reopen/
+re-export with all 12 required schematic semantic categories preserved.
+
+PR #90 was green before merge, including DCO, Ruff/Mypy/static generated checks, Linux/macOS/Windows
+tests, geometry/fallback coverage, bridge build/smoke and the frozen 159-tool public MCP contract.
+The bounded fixes found during the campaign were merged without adding a public MCP tool.
+
+Documentation-only commits after `6bfb656...` do not change that production-code identity. Future
+schematic reruns are impact-based or tied to new claims; cases 01–18 are not a standing regression
+ritual that must be repeated in full.
+
+## Historical formal accepted production candidate
+
+The production-code candidate accepted through the eight historical canonical manual PASS gates is:
 
 `main@0bb09b4b3af40a5a3d1a875fab885430a2d251ba`
 
@@ -18,9 +37,9 @@ This is the merge of PR #68 (`Ponytail: aggressive repository cleanup`). The acc
 confirmed no relevant production-code drift through the COMMON, Q1 Component Angle, and Codex
 restart gates.
 
-Later repository development does not retroactively move those evidence identities. When resuming
-acceptance or starting a new product-quality validation, explicitly record the actual production
-candidate being tested rather than transferring PASS results to newer code by inference.
+Later repository development does not retroactively move those evidence identities. The schematic
+quality campaign is separate later evidence and does not rewrite the identity of the older formal
+gates.
 
 ## Formal acceptance progress
 
@@ -36,11 +55,11 @@ Eight of the twelve canonical blocking manual gates are PASS.
 | `diptrace_mask_paste_courtyard_common_semantics` | **PASS** | MASK, PASTE, COURTYARD and COMMON all accepted. |
 | `diptrace_q1_component_angle` | **PASS** | Real DipTrace PCB Layout 5.3.0.3 angle/side semantics accepted on `0bb09b4...`. |
 | `codex_real_client_restart` | **PASS** | Real Codex Desktop restart/configuration/`get_capabilities` accepted on `0bb09b4...`. |
-| `claude_desktop_real_client_restart` | **WAIVED for current project campaign** | Not run and not PASS. The project accepts the residual interoperability risk after successful real Codex stdio MCP restart evidence and will not spend current validation time duplicating this client-specific check. |
+| `claude_desktop_real_client_restart` | **WAIVED for current project campaign** | Not run and not PASS. The project accepts the residual interoperability risk after successful real Codex stdio MCP restart evidence and does not currently duplicate this client-specific check. |
 
 The remaining project-required formal lifecycle gates are:
 
-1. `windows_clean_install_repair_uninstall` — **PENDING**.
+1. `windows_clean_install_repair_uninstall` — **PENDING / NEXT**.
 2. `elevated_plugin_install_profile_preservation` — **PENDING**.
 3. `custom_state_preservation` — **PENDING**.
 
@@ -135,8 +154,7 @@ Codex evidence ZIP SHA256:
 
 Rationale: the real Codex client demonstrated the current server's stdio MCP startup, tool exposure,
 restart lifecycle and stable `get_capabilities` behavior. The project chooses not to spend current
-manual-validation time duplicating that lifecycle check in Claude Desktop before core schematic
-quality is proven.
+manual-validation time duplicating that lifecycle check in Claude Desktop.
 
 This is a risk acceptance, not evidence. Specifically:
 
@@ -145,66 +163,62 @@ This is a risk acceptance, not evidence. Specifically:
 - the gate must not be recorded as PASS;
 - claims of direct Claude Desktop validation remain unsupported unless the gate is run later.
 
-## Intentional pause before the remaining formal lifecycle gates
+## Schematic authoring/readability campaign — COMPLETE
 
-The formal lifecycle campaign is intentionally **PAUSED** while the project validates core schematic
-authoring/readability. When lifecycle acceptance resumes, the next project-required gate is:
+The schematic-quality detour that previously paused the remaining lifecycle gates is complete.
+Detailed per-case evidence, retained failures and hashes remain in
+`SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md`.
+
+Campaign coverage included:
+
+- small authored circuits and label/marking readability;
+- RC/reference-style placement and routing;
+- single-net and multi-net atomic reroute;
+- near-obstacle and pre-existing ugly-geometry repair;
+- incremental edits across multiple commits;
+- failed-operation/transaction safety and actionable diagnostics;
+- representative native Save/Close/Reopen/re-export;
+- a larger 22-part / 48-pin / 16-net / 32-wire stress schematic.
+
+The campaign intentionally retained QUALITY FAIL, SEMANTIC FAIL and INVALID ATTEMPT evidence where
+appropriate. Fixes were focused, affected tests and adjacent smoke checks were added, and historical
+PASS cases were not reset without impact-based cause.
+
+The final repaired stress candidate was visually accepted, electrically correct, and native-round-trip
+stable across all 12 required schematic semantic categories. PR #90 merged the production fixes.
+
+This closes the initial schematic quality gate for the tested scope. It does not claim globally optimal
+layout, arbitrary hand-authored junction-topology preservation, hierarchy support, automatic symbol
+rotation/pin-facing correctness, or universal DipTrace compatibility.
+
+## Next formal validation sequence
+
+The project no longer needs to keep the lifecycle campaign paused for schematic-quality work.
+The next project-required gate is:
 
 `windows_clean_install_repair_uninstall`
 
-The Claude Desktop gate is skipped by explicit project waiver, not by inference.
+Then run, in order:
 
-Before resuming the Windows/profile gates, the project will prioritize real-world schematic
-authoring/readability validation. The reason is product confidence: the next question is not merely
-whether the server installs and restarts, but whether it can produce a normal, readable, useful
-schematic in real DipTrace.
+1. `elevated_plugin_install_profile_preservation`;
+2. `custom_state_preservation`.
 
-## Immediate validation priority — real schematic authoring/readability
-
-PR #66 added deterministic bounded readability routing for newly authored schematic wires, and the
-subsequent Ponytail pass may have changed adjacent code. The historical
-`diptrace_ratline_and_wire_roundtrip` PASS proves its exact historical scope, but it does not prove
-that current higher-level schematic authoring produces good human-readable designs.
-
-The next project validation should exercise the explicitly selected current code candidate on small
-real circuits, for example:
-
-- resistor divider;
-- LED + resistor;
-- divider + capacitor / simple RC network;
-- a deliberately collision-prone placement;
-- cases with RefDes, Value and net labels near wires;
-- at least one small multi-net schematic built from a clean starting point.
-
-Inspect both electrical correctness and presentation quality:
-
-- correct parts, pins and net connectivity;
-- sensible component placement and orientation;
-- orthogonal/Manhattan wire geometry where appropriate;
-- no wire through unrelated symbols;
-- no unnecessary wire crossings or collinear overlaps;
-- no wire covering RefDes, Value or net labels;
-- clear intentional junctions and no accidental junction implication;
-- no absurd detours or needless bends;
-- native DipTrace open/save/reopen/re-export preserves the result;
-- the resulting schematic is understandable to a human without manual cleanup being the default.
-
-Any reproducible visual/authoring problem should become a focused regression case and, if needed, a
-separate code repair. Do not erase or rerun historical PASS evidence merely because this stronger
-product-quality validation finds a new issue.
+Claude Desktop remains skipped by explicit project waiver, not by inference.
 
 ## Resume rules
 
 When resuming work from this checkpoint:
 
-- do not restart completed gates;
-- treat `0bb09b4...` as the accepted production-code identity for the completed PASS gates;
+- do not restart completed historical gates;
+- do not replay schematic cases 01–18 without an impact-based production change or a genuinely new claim;
+- treat `0bb09b4...` as the accepted production-code identity for the eight historical formal PASS gates;
+- treat `6bfb656...` as the production merge identity for the closed schematic-quality fixes;
 - treat Claude Desktop as WAIVED, not PASS;
 - if a later project decision requires direct Claude evidence, run it as a fresh gate rather than rewriting the waiver;
 - if relevant production code changes, record the new candidate explicitly and rerun only the evidence plausibly affected by that code change;
-- keep historical FAIL attempts immutable;
+- keep historical FAIL/QUALITY FAIL/SEMANTIC FAIL/INVALID ATTEMPT records immutable;
 - distinguish operator/path/seed mistakes from product defects;
-- Work may prepare files, hashes, XML comparisons and evidence automatically; ask the operator only for meaningful real-GUI checkpoints;
+- prepare files, hashes, XML comparisons and evidence automatically where possible; ask the operator only for meaningful real-GUI checkpoints;
 - stop on a genuine blocking product FAIL and repair it separately;
 - do not silently expand the public MCP contract while performing acceptance or validation repairs.
 
