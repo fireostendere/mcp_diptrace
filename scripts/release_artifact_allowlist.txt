@@ -37,6 +37,7 @@ docs/EXTERNAL_ADAPTERS.md
 docs/FIELD_SOLVER_PROTOCOL.md
 docs/FORMAT_COVERAGE.md
 docs/GEOMETRY_ENGINE.md
+docs/HEADLESS_GUI.md
 docs/IMPEDANCE_AND_SI.md
 docs/INSTALL_FROM_RELEASE.md
 docs/LICENSE_DECISION.md
@@ -102,6 +103,7 @@ installer/DipTraceMCP.iss
 installer/README.md
 packaging/README_FIRST.txt
 packaging/diptrace_mcp_configure.spec
+packaging/diptrace_mcp_headless_gui.spec
 packaging/diptrace_mcp_server.spec
 packaging/inno_setup_prerequisite.json
 packaging/install_portable.ps1
@@ -161,6 +163,7 @@ scripts/generate_registry_server_json.py
 scripts/generate_synthetic_fixture_pack.py
 scripts/gitleaks.toml
 scripts/hatch_build.py
+scripts/headless_gui_entry.py
 scripts/ingest_fixtures.py
 scripts/make_probe_pack.py
 scripts/mcp_smoke.py
@@ -234,6 +237,7 @@ src/diptrace_mcp/findings.py
 src/diptrace_mcp/frozen_server.py
 src/diptrace_mcp/geometry.py
 src/diptrace_mcp/geometry_backend.py
+src/diptrace_mcp/headless_gui.py
 src/diptrace_mcp/impedance.py
 src/diptrace_mcp/inspector.py
 src/diptrace_mcp/jobs.py
@@ -388,6 +392,7 @@ tests/test_format_coverage.py
 tests/test_foundation.py
 tests/test_frozen_server_smoke.py
 tests/test_geometry.py
+tests/test_headless_gui.py
 tests/test_impedance_invariants.py
 tests/test_ingest_fixtures.py
 tests/test_inspector.py
