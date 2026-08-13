@@ -621,7 +621,7 @@ def query_library_items(model: LibraryModel, query: str | None = None) -> list[d
         if needle
         in " ".join(
             str(item.get(key, ""))
-            for key in ("name", "unique_name", "refdes", "value", "manufacturer")
+            for key in ("name", "unique_name", "refdes", "value", "manufacturer", "fields")
         ).casefold()
     ]
 
