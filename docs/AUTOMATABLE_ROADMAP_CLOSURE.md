@@ -40,4 +40,4 @@ The statement “no unresolved repository-only blocker” applied to the closure
 
 The first schematic product-quality campaign is now closed. Its detailed evidence remains in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md`; PR #90 merged the bounded fixes into `main`. Future schematic retests are impact-based rather than a restart of cases 01–18.
 
-Current unresolved product work is described in `ROADMAP.md`, `PCB_DESIGN_ENGINE.md`, `CINEMATIC_DEMO_MODE.md` and the remaining formal lifecycle gates. `windows_clean_install_repair_uninstall` and elevated plug-in/profile preservation are PASS; `custom_state_preservation` is next. Claude Desktop restart remains WAIVED, not PASS.
+Current unresolved product work is described in `ROADMAP.md`, `PCB_DESIGN_ENGINE.md` and `CINEMATIC_DEMO_MODE.md`. All 12 blocking manual gates are PASS across the accepted checkpoints, including operator-confirmed custom-state preservation and Claude Desktop restart on a separate machine.
