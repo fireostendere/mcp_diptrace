@@ -58,27 +58,21 @@ Q1 manual acceptance established real DipTrace angle semantics on the developmen
 
 Codex restart acceptance used Codex Desktop `26.803.5235.0`; both restarts exposed 159 tools and returned identical `get_capabilities` evidence. Production code remained unchanged.
 
-The canonical matrix therefore has **8 of 12 gates PASS**.
+The historical checkpoint had **8 of 12 gates PASS**. Later evidence raises the accepted checkpoints to **12 of 12 blocking gates PASS**: clean Windows install/repair/uninstall, including an operator-confirmed from-zero run on a separate new machine, elevated Program Files plug-in/profile preservation, custom-state preservation and Claude Desktop restart are also PASS. The latter two are operator-confirmed from a separate machine.
 
-## Claude Desktop waiver and intentional pause
+## Historical Claude Desktop waiver and pause
 
-`claude_desktop_real_client_restart` has been deliberately **WAIVED for the current project campaign**.
+`claude_desktop_real_client_restart` was initially **WAIVED** while schematic product-quality validation took priority.
 
-It was not run and must not be represented as PASS. The project accepts the residual client-specific interoperability risk because the real Codex gate already demonstrated stdio MCP startup, tool exposure, actual process restart and stable `get_capabilities` behavior. No direct Claude Desktop evidence is claimed.
+Later operator confirmation from a separate machine supplied the missing direct Claude Desktop evidence, so the gate is now PASS across the accepted checkpoints.
 
-The repository's canonical manual-acceptance validator still treats Claude Desktop as a required gate and does not encode this project-level waiver. It may therefore continue to report the canonical matrix as incomplete. Do not weaken the validator or fabricate a PASS solely to remove that warning.
+The repository's canonical manual-acceptance validator correctly continues to treat Claude Desktop as a required gate.
 
-The project is intentionally pausing the remaining Windows/profile lifecycle sequence to validate core product quality first: schematic authoring/readability in real DipTrace.
+The project then paused the remaining Windows/profile lifecycle sequence to validate schematic authoring/readability in real DipTrace first.
 
-This separate validation should build small real circuits and inspect electrical correctness, component placement, wire routing, text/label collisions, junction clarity and native save/reopen/re-export behavior.
+That separate validation completed its small real-circuit campaign and native quality checks.
 
-Remaining project-required formal gates after the pause:
-
-- [ ] Clean Windows 11 install, repair and uninstall using the applicable release bytes.
-- [ ] Elevated Program Files plug-in install while retaining the original user profile.
-- [ ] Pre-existing custom-state preservation across install/repair/uninstall.
-
-If direct Claude Desktop validation becomes important later, run it as a fresh real-client gate and replace the waiver with real evidence at that time; do not retroactively label the current waiver PASS.
+Operator-confirmed custom-state preservation and Claude Desktop restart evidence from a separate machine complete the remaining formal gates.
 
 Claim-specific optional work remains a future public-redownload smoke when release bytes change, external legal/Novarm review when required for a planned claim/activity, and a real openEMS run only if external-solver validation is claimed.
 

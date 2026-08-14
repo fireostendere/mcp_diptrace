@@ -8,7 +8,7 @@ This roadmap separates three states:
 
 Implementation never implies universal DipTrace compatibility. Historical evidence stays bound to the production identity that was actually tested.
 
-## Current checkpoint — 2026-08-13
+## Current checkpoint — 2026-08-14
 
 The current source/package version is `0.2.1`. The immutable `v0.2.1` release and PyPI package are published; post-release development is tracked separately.
 
@@ -41,11 +41,9 @@ PASS:
 - Q1 Component Angle GUI/re-export;
 - real Codex Desktop restart/configuration/`get_capabilities`.
 
-The canonical matrix therefore has 8 of 12 blocking manual gates PASS.
+The canonical matrix therefore has 8 of 12 blocking manual gates PASS at that historical checkpoint.
 
-`claude_desktop_real_client_restart` is **WAIVED for the current project campaign**, not PASS.
-
-The real-host lifecycle track has completed a clean product-state install/repair/uninstall run and `elevated_plugin_install_profile_preservation` on exact candidate `9af6da2`. The strict pristine-machine qualifier remains explicit for the former. The next campaign gate is `custom_state_preservation`.
+Later operator-confirmed evidence from a separate machine completed `claude_desktop_real_client_restart` and `custom_state_preservation`. Together with `windows_clean_install_repair_uninstall`, including a from-zero run on a separate new Windows machine, and `elevated_plugin_install_profile_preservation` on exact candidate `9af6da2`, all 12 blocking gates are PASS across the accepted checkpoints.
 
 # Schematic track
 
@@ -230,13 +228,21 @@ Still pending real acceptance:
 - verified action macros/calibration for the exact editor/version/configuration;
 - staged via/layer-transition replay and other unverified editor gestures.
 
+# Headless native GUI track
+
+**Status: Windows isolation primitive and packaged helper implemented; real DipTrace actions remain exact-host evidence.**
+
+`headless_gui.py` creates an isolated Win32 desktop inside the current interactive session, launches a worker and DipTrace there, and performs only bounded automation. It never switches the user's input desktop and has no physical mouse/keyboard fallback. The current native action is open -> Save -> close for PCB/Schematic/Component/Pattern editors.
+
+Source checkouts invoke it with `py -m diptrace_mcp.headless_gui`; Windows packaged builds include `diptrace_mcp_headless_gui.exe` under the helper tools directory. Hosted CI verifies desktop isolation and packaging without claiming licensed DipTrace UI compatibility. See [HEADLESS_GUI.md](HEADLESS_GUI.md).
+
 # Documentation/CI drift protection
 
 **Status: implemented.**
 
-`scripts/check_documentation_state.py` verifies the frozen public-tool count, current EDA module representation, semantic current-state markers, the mandatory cinematic preflight boundary and the package-only library mutation registration state. `tests/test_documentation_state.py` runs the checker through the normal CI test matrix.
+`scripts/check_documentation_state.py` verifies the frozen public-tool count, current EDA module representation, semantic current-state markers, the mandatory cinematic preflight boundary, package-only library mutation registration, completed 12/12 acceptance wording, current selective-reroute claims and the headless source command contract. `tests/test_documentation_state.py` runs the checker through the normal CI test matrix.
 
-Historical dated release/acceptance/audit records remain excluded from this freshness rule.
+Historical dated release/acceptance/audit records remain excluded from current-state freshness assertions.
 
 # Public contracts
 
@@ -250,15 +256,15 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 # Next project sequence
 
 1. Keep the completed schematic cases 01–18 closed unless an impact-based production change requires a focused rerun.
-2. Run `custom_state_preservation`; do not broaden the earlier clean product-state result into a pristine-machine claim.
+2. Keep the completed 12-gate manual matrix closed unless an impact-based production change requires a focused rerun.
 3. Continue PCB whole-board/native quality work when stronger PCB claims are the active product priority.
-4. Treat cinematic exact-UI acceptance and any future public library-write API as separate claim/product tracks.
+4. Treat cinematic exact-UI acceptance, headless native-action expansion and any future public library-write API as separate claim/product tracks.
 
 # Phase summary
 
 | Area | Current status |
 | --- | --- |
-| manual acceptance | 8 canonical PASS gates on the historical checkpoint; Claude WAIVED; elevated profile gate PASS on `9af6da2`; custom-state gate next |
+| manual acceptance | all 12 blocking gates PASS across the accepted checkpoints |
 | schematic intent/motifs | implemented + builtin heuristic motifs |
 | schematic placement | bounded implementation |
 | schematic route/joint repair | bounded implementation |
@@ -274,6 +280,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | evidence reports | deterministic review-only report pipeline implemented |
 | library mutation public API | package-level request/preview prepared; public MCP registration pending |
 | cinematic | presentation + mandatory preflight implemented; exact UI acceptance pending |
+| headless GUI | hidden Win32 desktop helper implemented; real DipTrace native actions remain claim-specific evidence |
 | documentation drift | evergreen code/docs guard implemented and CI-tested |
 
 # Permanent limitations / non-claims
@@ -287,4 +294,4 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 - Cinematic replay is presentation automation, not engineering acceptance evidence.
 - Evidence reports do not grant trust/PASS.
 - The completed schematic campaign proves only its recorded scope and does not imply arbitrary hierarchy/topology/global-optimality support.
-- The project does not claim Novarm/DipTrace endorsement, universal compatibility, signed binaries, independent review, production readiness, direct Claude Desktop validation or globally optimal schematic/PCB layout.
+- The project does not claim Novarm/DipTrace endorsement, universal DipTrace or MCP-client compatibility, signed binaries, independent review, production readiness or globally optimal schematic/PCB layout.

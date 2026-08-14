@@ -175,7 +175,7 @@ User-controlled files/sidecars cannot mint package-owned high trust.
 
 - full automatic datasheet/reference-design ingestion is not part of the deterministic schematic foundation;
 - schematic rotation/pin-facing semantics are not universally trusted without real-host evidence;
-- selective atomic replacement of existing wires after placement repair remains future work;
+- selective atomic affected-wire replacement is implemented, but rebuilt explicit nets do not preserve arbitrary hand-authored junction topology as a visual constraint;
 - PCB Generations B-D remain bounded analysis/selection layers, not field/PI/EMC/thermal/native manufacturing authorities;
 - authoritative poured-copper/refill semantics remain a native-host evidence boundary;
 - cinematic replay models cannot be used as proof that a semantic edit succeeded.

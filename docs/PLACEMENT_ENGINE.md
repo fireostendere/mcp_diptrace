@@ -49,9 +49,10 @@ Current implementation includes:
 - bounded deterministic multi-candidate search;
 - readability, movement and estimated-interconnect scoring;
 - pin-aware joint routing score of hypothetical candidates;
-- route-feedback-driven bounded placement repair.
+- route-feedback-driven bounded placement repair;
+- selective atomic replacement of affected existing wire geometry when placement moves touch explicit sheet-local nets.
 
-Important boundary: placement planners refuse already-wired schematics by default. Moving symbols while leaving existing wire geometry unchanged would degrade connectivity presentation. Selective affected-wire reroute/replacement must be composed atomically with placement before that path is enabled broadly.
+Important boundary: the older placement-only planners may still refuse already-wired schematics because moving symbols while leaving existing wire geometry unchanged would degrade connectivity presentation. The dedicated atomic reroute planner closes that gap for supported cases by composing affected-wire deletion, component movement and replacement-wire authoring into one dependency-safe semantic batch. It fails closed when affected endpoints or replacement routes cannot be rebuilt safely and does not rewrite unaffected explicit wire geometry.
 
 Automatic pin-facing rotation also remains conservative until the relevant real-host angle/rotation semantics are sufficiently verified.
 
@@ -120,7 +121,7 @@ The Generation D benchmark catalog is synthetic-regression-only until the docume
 ## Current limitations
 
 - no globally optimal placer claim;
-- schematic selective reroute transaction after movement is still pending;
+- atomic affected-net reroute is implemented, but arbitrary hand-authored junction topology is not preserved as a visual constraint when an affected explicit net is rebuilt;
 - schematic automatic rotation/pin-facing is evidence-limited;
 - Generation A proximity/noise/thermal/current-return terms are not field/thermal/PI simulation;
 - Generations B-D are bounded evidence-aware layers, not manufacturing/EMC sign-off;

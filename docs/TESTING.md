@@ -21,7 +21,7 @@ The coverage badge represents the combined 90% gate. `scripts/check_coverage.py`
 
 The static-analysis job includes Ruff, strict Mypy, release metadata, skill sync/generation, privacy/provenance/compliance checks, event-loop audit, coverage badge generation, MCP discovery budget/snapshot, release artifact audit, format inventory and generated probe-pack verification.
 
-This development pass also adds `scripts/check_documentation_state.py` as an evergreen documentation/code drift gate. Historical dated evidence/release/audit files are intentionally excluded from freshness assertions.
+`scripts/check_documentation_state.py` is an evergreen documentation/code drift gate. In addition to current tool/module markers, it rejects known stale current-state acceptance/reroute claims and obsolete source commands for the headless GUI worker. Historical dated evidence/release/audit files remain outside current-state freshness assertions.
 
 `.github/workflows/ci.yml` remains the source of truth for the exact required commands.
 
@@ -162,16 +162,16 @@ Changing a version string does not convert one evidence class into another.
 
 The historical formal manual-production checkpoint remains documented in `MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md` and bound to `main@0bb09b4b3af40a5a3d1a875fab885430a2d251ba` for the eight canonical PASS gates collected there.
 
-At that checkpoint:
+At that historical checkpoint:
 
-- 8 of 12 canonical blocking manual gates are PASS;
-- Q1 Component Angle is PASS;
-- real Codex restart is PASS;
-- Claude Desktop restart is WAIVED, not PASS.
+- 8 of 12 canonical blocking manual gates were PASS;
+- Q1 Component Angle was PASS;
+- real Codex restart was PASS;
+- Claude Desktop restart was not run and was recorded as a project waiver at that stage.
 
 A separate post-release schematic product-quality campaign subsequently completed cases 01–18 and its bounded fixes were merged by PR #90. That later evidence does not rewrite the historical eight-gate identities, and the historical gates do not automatically transfer to newer code.
 
-Later real-host lifecycle evidence completed a clean product-state install/repair/uninstall run (with the strict pristine-machine qualifier retained) and `elevated_plugin_install_profile_preservation` on exact candidate `9af6da2`. The next campaign gate is `custom_state_preservation`.
+Later real-host lifecycle evidence completed `windows_clean_install_repair_uninstall`, including an operator-confirmed from-zero run on a separate new Windows machine, and `elevated_plugin_install_profile_preservation` on exact candidate `9af6da2`. Subsequent operator-confirmed evidence from a separate machine completed `custom_state_preservation` and the Claude Desktop restart gate. All 12 blocking gates are therefore PASS across the accepted checkpoints.
 
 ## Typical local validation
 

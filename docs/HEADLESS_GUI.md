@@ -57,10 +57,11 @@ From PowerShell in the repository:
 py -m pip install -e ".[headless-gui]"
 ```
 
-The package exposes:
+The source checkout does not install a separate `diptrace-mcp-headless-gui`
+console entry point. Invoke the maintained module directly:
 
 ```powershell
-diptrace-mcp-headless-gui --help
+py -m diptrace_mcp.headless_gui --help
 ```
 
 ## Isolation smoke test
@@ -68,7 +69,7 @@ diptrace-mcp-headless-gui --help
 Run this before testing DipTrace itself:
 
 ```powershell
-diptrace-mcp-headless-gui smoke
+py -m diptrace_mcp.headless_gui smoke
 ```
 
 A successful result is JSON with `"ok": true`. The test creates a private desktop,
@@ -83,13 +84,13 @@ The test does not require DipTrace.
 Auto-detect DipTrace and verify that the automation backend is installed:
 
 ```powershell
-diptrace-mcp-headless-gui doctor --require-automation
+py -m diptrace_mcp.headless_gui doctor --require-automation
 ```
 
 Or specify the install directory explicitly:
 
 ```powershell
-diptrace-mcp-headless-gui doctor `
+py -m diptrace_mcp.headless_gui doctor `
   --diptrace-root "C:\Program Files\DipTrace" `
   --require-automation
 ```
@@ -106,7 +107,7 @@ The report includes:
 PCB example:
 
 ```powershell
-diptrace-mcp-headless-gui roundtrip `
+py -m diptrace_mcp.headless_gui roundtrip `
   --diptrace-root "C:\Program Files\DipTrace" `
   --editor pcb `
   --project "C:\work\board.dip"
@@ -115,7 +116,7 @@ diptrace-mcp-headless-gui roundtrip `
 Schematic example:
 
 ```powershell
-diptrace-mcp-headless-gui roundtrip `
+py -m diptrace_mcp.headless_gui roundtrip `
   --diptrace-root "C:\Program Files\DipTrace" `
   --editor schematic `
   --project "C:\work\design.dch"

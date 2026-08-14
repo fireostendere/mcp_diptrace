@@ -263,11 +263,10 @@ The main write invariants are:
 The private/manual Q1 Component Angle GUI/re-export campaign is PASS on DipTrace
 PCB Layout 5.3.0.3. Package-owned public evidence/trust promotion remains a
 separate reviewed contract, and the immutable `v0.2.1` release record correctly
-retains its earlier `NOT_RUN` release-time status. Real Codex restart is PASS;
-Claude Desktop restart is WAIVED for the current project campaign, not PASS.
+retains its earlier `NOT_RUN` release-time status. Real Codex restart and an
+operator-confirmed Claude Desktop restart on a separate machine are PASS.
 The initial 18-case schematic product-quality campaign is PASS for its recorded
-scope. Windows lifecycle gates remain pending; the next project-required formal
-gate is `windows_clean_install_repair_uninstall`.
+scope. All 12 blocking manual gates are PASS across the accepted checkpoints.
 
 ## Data Handling
 

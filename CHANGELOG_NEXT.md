@@ -57,6 +57,14 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 
 Cinematic replay is deliberately a presentation path. The XML bridge and normal preview/SHA/transaction/review path remain authoritative for engineering edits and acceptance.
 
+### Headless Windows GUI worker
+
+- isolated Win32-desktop worker for bounded native DipTrace open/save/close work without switching the user's input desktop or synthesizing physical mouse/keyboard input;
+- Windows smoke/readiness checks and a frozen packaged helper under `app/tools/diptrace_mcp_headless_gui/`;
+- fail-closed automation with no coordinate-input fallback when a native control action cannot be completed safely.
+
+The headless worker is a host-automation boundary, not a second semantic authoring authority. Real DipTrace actions remain claim-specific acceptance evidence.
+
 ### Product and engineering support
 
 - raw-preserving internal Component/Pattern Library mutation core with controlled real-editor evidence;
@@ -76,7 +84,7 @@ Cinematic replay is deliberately a presentation path. The XML bridge and normal 
 - DSN/SES results can be structurally and semantically screened before import without mutating the PCB.
 - Real-DipTrace capture candidates can be converted into reproducible machine-readable and Markdown evidence reports without rewriting historical evidence or manufacturing trust.
 - The private/manual Q1 Component Angle campaign is PASS on its accepted production checkpoint; immutable historical release records keep the status that was true when each release was cut.
-- `claude_desktop_real_client_restart` is explicitly WAIVED for the current campaign, not marked PASS; the canonical validator remains conservative.
+- The accepted manual matrix is complete at 12 of 12 blocking gates PASS across its recorded checkpoints. Claude Desktop restart and custom-state preservation are operator-confirmed PASS from a separate machine; their earlier WAIVED/pending states remain historical only.
 - Documentation distinguishes current implementation state from immutable release/audit/acceptance snapshots.
 - Installation/release documentation reflects that `v0.2.1` and `diptrace-mcp==0.2.1` are already published.
 - Testing documentation reflects the combined 90% coverage gate and the separate 85% Linux-only floor.
@@ -89,7 +97,7 @@ Cinematic replay is deliberately a presentation path. The XML bridge and normal 
 - PCB candidate/whole-board quality remains subject to current-candidate real-DipTrace/native refill/plane/via acceptance where stronger claims are desired;
 - cinematic UI macros and calibration still require real-client verification for the exact DipTrace version/editor configuration;
 - staged cinematic playback of vias/layer transitions remains unsupported;
-- Windows lifecycle gates remain pending; the next project-required formal gate is `windows_clean_install_repair_uninstall`;
+- the 12-gate manual matrix is complete for its recorded checkpoints; future Windows/client reruns are impact- or release-claim-based rather than automatically replaying the full matrix;
 - the library mutation request/preview contract remains package-level and unregistered in the public MCP tool snapshot;
 - native manufacturing generation, field-solver/PI/EMC/thermal sign-off, universal compatibility, signed-binary trust, independent review and production readiness are not claimed.
 

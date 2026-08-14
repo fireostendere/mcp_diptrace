@@ -27,7 +27,7 @@ The `v0.2.1` release record correctly says Q1 Component Angle was `NOT_RUN` for 
 
 A later private/manual campaign on the accepted production checkpoint completed Q1 as PASS. That later observation does not rewrite the historical release record or automatically upgrade `v0.2.1` artifact claims.
 
-Likewise, `claude_desktop_real_client_restart` is WAIVED for the current project campaign, not PASS. The canonical validator intentionally remains conservative.
+The accepted project-level manual matrix later reached 12 of 12 blocking gates PASS across its recorded checkpoints. `claude_desktop_real_client_restart` and `custom_state_preservation`, which were previously WAIVED/pending, are operator-confirmed PASS from a separate machine. That later evidence remains exact-checkpoint evidence and does not retroactively change the immutable `v0.2.1` release record.
 
 ## 1. Select and freeze the next version
 
@@ -106,7 +106,7 @@ For a release claiming Windows/live DipTrace/client integration, consider:
 
 Do not broaden the published compatibility statement beyond the completed matrix.
 
-For the current project campaign, Windows lifecycle is the next formal gate when acceptance resumes. Claude Desktop restart remains waived rather than fabricated as PASS.
+The current project's 12-gate manual matrix is complete for its recorded checkpoints. A future release does not inherit those PASS results automatically: rerun only the gates affected by changed production code/artifacts or required by the new release claim, plus reasonable adjacent smoke coverage.
 
 ## 4. Build final assets from the frozen commit
 
