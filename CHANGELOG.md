@@ -10,8 +10,8 @@ part of the already-published `v0.2.1` bytes.
 
 - Intelligent schematic-layout foundation: design intent/reference motifs,
   bounded multi-candidate placement, conservative pin geometry, non-mutating
-  wire planning, pin-aware joint placement/routing scoring, and bounded
-  placement repair.
+  wire planning, pin-aware joint placement/routing scoring, bounded placement
+  repair, and selective atomic affected-net reroute.
 - PCB Generations A-D: engineering intent/placement, physical/PDN/return-path
   context, engineering-aware routing policy, and bounded whole-board candidate
   selection with a synthetic benchmark catalog.
@@ -21,17 +21,20 @@ part of the already-published `v0.2.1` bytes.
 - Cinematic DipTrace presentation subsystem with UI profiles, affine
   design-to-client calibration, semantic Schematic/PCB replay adapters, Windows
   playback, and MP4/GIF recording helpers.
+- Optional Windows headless GUI worker using an isolated Win32 desktop for
+  bounded native open/save/close operations without physical-input fallback.
 
 ### Changed
 
-- Combined supported-environment coverage is now gated at 90% while the
+- Combined supported-environment coverage remains gated at 90% while the
   geometry-enabled Linux full-suite job retains its separate 85% floor.
 - Q1 Component Angle was completed as PASS in the later private/manual
   DipTrace PCB Layout 5.3.0.3 campaign; immutable release-time evidence retains
   its original historical status.
-- Claude Desktop restart is explicitly WAIVED, not PASS, for the current manual
-  campaign; Windows lifecycle gates remain pending when formal acceptance
-  resumes.
+- The accepted manual matrix is complete at 12 of 12 blocking gates PASS across
+  its recorded checkpoints. Claude Desktop restart and custom-state preservation
+  are operator-confirmed PASS from a separate machine; their earlier
+  WAIVED/pending states remain historical only.
 - Evergreen documentation was reconciled with the published `v0.2.1` state and
   current post-release implementation without rewriting dated release,
   acceptance, or compliance snapshots.

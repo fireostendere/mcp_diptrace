@@ -55,6 +55,39 @@ SEMANTIC_DOC_MARKERS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+CURRENT_ACCEPTANCE_DOCS = (
+    "README.md",
+    "CHANGELOG.md",
+    "CHANGELOG_NEXT.md",
+    "docs/ROADMAP.md",
+    "docs/TESTING.md",
+    "docs/TECH_DEBT.md",
+    "docs/MCP_DISTRIBUTION.md",
+    "docs/RELEASE_PROCESS.md",
+    "docs/AUTOMATABLE_ROADMAP_CLOSURE.md",
+    "docs/EDA_INTELLIGENCE.md",
+)
+
+CURRENT_ACCEPTANCE_MARKERS = (
+    "all 12 blocking manual gates are pass",
+    "all 12 blocking manual gates pass",
+    "all 12 blocking gates are pass",
+    "all 12 blocking gates are therefore pass",
+    "all 12 blocking gates pass",
+    "12 of 12 blocking gates pass",
+    "12 of 12 blocking manual gates pass",
+)
+
+GLOBAL_STALE_ACCEPTANCE_PHRASES = (
+    "claude desktop restart is waived",
+    "claude desktop restart remains waived",
+    "claude_desktop_real_client_restart` is explicitly waived for the current campaign",
+    "windows lifecycle gates remain pending",
+    "windows lifecycle is the next formal gate",
+    "custom_state_preservation` is next",
+    "next campaign gate is `custom_state_preservation`",
+)
+
 STALE_PHRASES: dict[str, tuple[str, ...]] = {
     "CHANGELOG_NEXT.md": (
         "selective atomic re-route/replacement of existing schematic wires after "
@@ -69,6 +102,12 @@ STALE_PHRASES: dict[str, tuple[str, ...]] = {
     ),
     "docs/USAGE.md": (
         "Selective atomic placement + affected-wire replacement remains future work",
+    ),
+    "docs/DOMAIN_MODEL.md": (
+        "selective atomic replacement of existing wires after placement repair remains future work",
+    ),
+    "docs/PLACEMENT_ENGINE.md": (
+        "schematic selective reroute transaction after movement is still pending",
     ),
 }
 
@@ -129,12 +168,47 @@ def check_documentation_state(root: Path) -> list[str]:
             if marker.casefold() not in folded:
                 errors.append(f"{relative}: missing current-state marker: {marker}")
 
+    for relative in CURRENT_ACCEPTANCE_DOCS:
+        text = _read_text(root, relative, errors)
+        folded = text.casefold()
+        if not any(marker in folded for marker in CURRENT_ACCEPTANCE_MARKERS):
+            errors.append(
+                f"{relative}: does not record the completed 12/12 blocking manual matrix"
+            )
+        for phrase in GLOBAL_STALE_ACCEPTANCE_PHRASES:
+            if phrase in folded:
+                errors.append(
+                    f"{relative}: contains stale current acceptance claim: {phrase}"
+                )
+
     for relative, phrases in STALE_PHRASES.items():
         text = _read_text(root, relative, errors)
         folded = text.casefold()
         for phrase in phrases:
             if phrase.casefold() in folded:
                 errors.append(f"{relative}: contains stale current-state claim: {phrase}")
+
+    headless_doc = _read_text(root, "docs/HEADLESS_GUI.md", errors)
+    headless_folded = headless_doc.casefold()
+    if "py -m diptrace_mcp.headless_gui smoke" not in headless_folded:
+        errors.append("docs/HEADLESS_GUI.md: source smoke command must use the module entry point")
+    if "py -m diptrace_mcp.headless_gui doctor" not in headless_folded:
+        errors.append("docs/HEADLESS_GUI.md: source doctor command must use the module entry point")
+    if "py -m diptrace_mcp.headless_gui roundtrip" not in headless_folded:
+        errors.append(
+            "docs/HEADLESS_GUI.md: source roundtrip command must use the module entry point"
+        )
+    for obsolete_command in (
+        "\ndiptrace-mcp-headless-gui --help",
+        "\ndiptrace-mcp-headless-gui smoke",
+        "\ndiptrace-mcp-headless-gui doctor",
+        "\ndiptrace-mcp-headless-gui roundtrip",
+    ):
+        if obsolete_command in headless_folded:
+            errors.append(
+                "docs/HEADLESS_GUI.md: advertises nonexistent source console command: "
+                f"{obsolete_command.strip()}"
+            )
 
     cinematic_host = _read_text(
         root,

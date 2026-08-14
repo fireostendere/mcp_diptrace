@@ -8,6 +8,8 @@ The intelligence modules generate facts, candidates, scores, feedback, or ordina
 
 The public MCP contract remains frozen at **159 registered tools**. New modules in this document are internal/package-level unless a public tool is explicitly added and the frozen tools/list snapshot is intentionally updated.
 
+The project-level manual acceptance matrix is also complete for its recorded scope: **all 12 blocking manual gates are PASS across the accepted checkpoints**. That evidence remains bound to those exact checkpoints and is not inherited automatically by later release bytes.
+
 ## Schematic pipeline
 
 The current deterministic pipeline is:
@@ -94,9 +96,9 @@ The safety boundary is also enforced inside `cinematic_host.py`: `play_manifest(
 
 ## Documentation drift guard
 
-`scripts/check_documentation_state.py` compares evergreen current-state docs with the implemented module set and frozen public-tools snapshot, and checks that cinematic playback still enforces preflight and library mutation remains package-only. `tests/test_documentation_state.py` executes that contract in the normal CI test matrix.
+`scripts/check_documentation_state.py` compares evergreen current-state docs with the implemented module set and frozen public-tools snapshot, checks that cinematic playback still enforces preflight and library mutation remains package-only, and rejects known stale current-state acceptance/reroute/headless-CLI claims. `tests/test_documentation_state.py` executes that contract in the normal CI test matrix.
 
-Historical dated evidence/release records are intentionally excluded from this freshness contract.
+Historical dated evidence/release records are intentionally excluded from current-state freshness assertions.
 
 ## Testing
 
@@ -116,10 +118,10 @@ Repository CI remains authoritative. The supported-environment combined coverage
 
 ## What still needs real hardware/software/operator evidence
 
-The completed 18-case schematic campaign should not be repeated without an impact-based reason. Remaining manual/native evidence is claim-specific and currently includes:
+The completed 18-case schematic campaign and the completed 12-gate manual matrix should not be repeated without an impact- or claim-based reason. Remaining manual/native evidence is claim-specific and currently includes:
 
-- current-candidate PCB whole-board/native refill/plane/via quality acceptance where claimed;
+- current-candidate PCB whole-board/native refill/plane/via quality acceptance where stronger claims are desired;
 - exact UI-profile cinematic replay validation;
-- Windows clean install/repair/uninstall and profile/custom-state preservation gates;
+- release-specific Windows/client lifecycle retests only when changed production code/artifacts or a new claim make them relevant;
 - new schematic claims outside the completed campaign scope, such as hierarchy, topology-preserving reroute or automatic rotation/pin-facing behavior;
 - manufacturing output, independent review, regulatory, EMC, PI, thermal or field-solver sign-off.
