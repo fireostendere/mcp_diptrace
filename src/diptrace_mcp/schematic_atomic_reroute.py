@@ -1,27 +1,27 @@
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from typing import Any
 
 from pydantic import Field
 
-from .adapters import DocumentSnapshot, build_snapshot
+from .adapters import build_snapshot
 from .domain import QuerySelector, StrictModel
 from .errors import CapabilityUnavailableError
-from .geometry import Point
 from .operations import (
     AddWireOperation,
     DeleteWireOperation,
-    MoveComponentsOperation,
     SemanticOperation,
     WireEndpoint,
 )
 from .schematic_joint_optimizer import (
+    _affected_groups,
     _append_completed_net_routes,
     _initial_points,
+    _moved_parts,
     _mst_endpoint_edges,
     _net_names,
+    _remove_affected_wires,
     _virtual_endpoints,
     _virtualize_snapshot,
 )
@@ -87,134 +87,6 @@ class SchematicAtomicReroutePlan:
             "warnings": list(self.warnings),
             "limitations": list(self.limitations),
         }
-
-
-def _part_sheet(snapshot: DocumentSnapshot, part_id: str) -> int | None:
-    assert snapshot.schematic is not None
-    part = next(
-        (item for item in snapshot.schematic.parts if item.stable_id == part_id),
-        None,
-    )
-    if part is None:
-        return None
-    try:
-        value = int(str(part.attributes.get("sheet", "0")))
-    except ValueError:
-        return None
-    return value if value >= 0 else None
-
-
-def _wire_sheet(wire: Any) -> int | None:
-    try:
-        value = int(str(wire.attributes.get("sheet", "0")))
-    except (AttributeError, ValueError):
-        return None
-    return value if value >= 0 else None
-
-
-def _moved_parts(
-    snapshot: DocumentSnapshot,
-    candidate: SchematicPlacementCandidate,
-) -> tuple[list[str], list[MoveComponentsOperation]]:
-    assert snapshot.schematic is not None
-    parts = {item.stable_id: item for item in snapshot.schematic.parts}
-    moved: list[str] = []
-    operations: list[MoveComponentsOperation] = []
-    for part_id, raw in sorted(candidate.placements.items()):
-        part = parts.get(part_id)
-        if part is None:
-            raise CapabilityUnavailableError(
-                f"Placement candidate references missing schematic part {part_id}"
-            )
-        if part.position is None:
-            raise CapabilityUnavailableError(
-                f"Schematic part {part_id} has no source position for atomic reroute"
-            )
-        target = Point(float(raw["x"]), float(raw["y"]))
-        current = Point(**part.position)
-        if math.isclose(current.x, target.x, abs_tol=_EPS) and math.isclose(
-            current.y,
-            target.y,
-            abs_tol=_EPS,
-        ):
-            continue
-        if part.locked:
-            raise CapabilityUnavailableError(
-                f"Atomic schematic reroute refuses to move locked part {part_id}"
-            )
-        moved.append(part_id)
-        operations.append(
-            MoveComponentsOperation(
-                selector=QuerySelector(ids=[part_id]),
-                absolute_x=target.x,
-                absolute_y=target.y,
-            )
-        )
-    return moved, operations
-
-
-def _affected_groups(
-    snapshot: DocumentSnapshot,
-    moved_part_ids: list[str],
-    *,
-    include_unwired: bool,
-) -> dict[tuple[str, int], dict[str, Any]]:
-    assert snapshot.schematic is not None
-    moved = set(moved_part_ids)
-    existing_by_group: dict[tuple[str, int], list[str]] = {}
-    for wire in snapshot.schematic.wires:
-        if wire.net_id is None:
-            continue
-        sheet = _wire_sheet(wire)
-        if sheet is None:
-            continue
-        existing_by_group.setdefault((wire.net_id, sheet), []).append(wire.stable_id)
-
-    groups: dict[tuple[str, int], dict[str, Any]] = {}
-    parts = {item.stable_id: item for item in snapshot.schematic.parts}
-    for pin in snapshot.schematic.pins:
-        if pin.parent_id not in moved or pin.net_id is None:
-            continue
-        part = parts.get(pin.parent_id)
-        if part is None:
-            continue
-        sheet = _part_sheet(snapshot, part.stable_id)
-        if sheet is None:
-            raise CapabilityUnavailableError(
-                f"Part {part.stable_id} has an invalid sheet index"
-            )
-        key = (pin.net_id, sheet)
-        if not include_unwired and not existing_by_group.get(key):
-            continue
-        group = groups.setdefault(
-            key,
-            {
-                "moved_part_ids": set(),
-                "deleted_wire_ids": list(existing_by_group.get(key, [])),
-            },
-        )
-        group["moved_part_ids"].add(part.stable_id)
-    return groups
-
-
-def _remove_affected_wires(
-    snapshot: DocumentSnapshot,
-    affected: set[tuple[str, int]],
-) -> None:
-    if snapshot.schematic is None:
-        return
-    removed: set[str] = set()
-    for wire in snapshot.schematic.wires:
-        if wire.net_id is None:
-            continue
-        sheet = _wire_sheet(wire)
-        if sheet is not None and (wire.net_id, sheet) in affected:
-            removed.add(wire.stable_id)
-    snapshot.schematic.wires = [
-        wire for wire in snapshot.schematic.wires if wire.stable_id not in removed
-    ]
-    for stable_id in removed:
-        snapshot.objects.pop(stable_id, None)
 
 
 def _readability_feedback(

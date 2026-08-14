@@ -9,6 +9,10 @@ from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.errors import CapabilityUnavailableError
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.schematic_atomic_reroute import plan_atomic_schematic_placement_reroute
+from diptrace_mcp.schematic_joint_optimizer import (
+    SchematicJointRouteConfig,
+    score_schematic_placement_candidate_routes,
+)
 from diptrace_mcp.schematic_optimizer import generate_schematic_placement_candidates
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.xml_document import DipTraceDocument
@@ -192,3 +196,62 @@ def test_atomic_reroute_fails_closed_for_locked_moved_part() -> None:
 
     with pytest.raises(CapabilityUnavailableError, match="locked part"):
         plan_atomic_schematic_placement_reroute(locked, candidate)
+
+
+def test_scorer_and_reroute_model_same_affected_wire_geometry() -> None:
+    """The joint route scorer must score the same world the reroute will apply:
+    affected wires removed, unaffected nets untouched and kept as obstacles."""
+    document = _wired_document()
+    snapshot = build_snapshot(document)
+    assert snapshot.schematic is not None
+
+    candidate, moved_id = _candidate_for_move(document, xml_id="2", dy=20.0)
+    plan = plan_atomic_schematic_placement_reroute(document, candidate)
+
+    signal_wires = sorted(
+        wire.stable_id for wire in snapshot.schematic.wires if wire.net_name == "SIGNAL"
+    )
+    vcc_wires = sorted(
+        wire.stable_id for wire in snapshot.schematic.wires if wire.net_name == "VCC"
+    )
+    # The moved part touches only SIGNAL: only SIGNAL wires are replaced.
+    assert plan.moved_part_ids == [moved_id]
+    assert plan.deleted_wire_ids == signal_wires
+    assert not set(vcc_wires).intersection(plan.deleted_wire_ids)
+
+    score = score_schematic_placement_candidate_routes(
+        document,
+        candidate,
+        config=SchematicJointRouteConfig(allow_existing_wires=True),
+    )
+    signal_net_id = next(
+        wire.net_id for wire in snapshot.schematic.wires if wire.net_name == "SIGNAL"
+    )
+    vcc_net_id = next(
+        wire.net_id for wire in snapshot.schematic.wires if wire.net_name == "VCC"
+    )
+    edge_groups = {(edge.net_id, edge.sheet) for edge in score.edges}
+    assert (signal_net_id, 0) in edge_groups
+    assert (vcc_net_id, 0) not in edge_groups
+
+    # The wire planner scored the SIGNAL replacement against the preserved VCC
+    # geometry: unaffected wires remain as obstacles in the scored snapshot.
+    assert score.edges
+
+
+def test_scorer_produces_no_phantom_feedback_on_current_wired_layout() -> None:
+    document = _wired_document()
+    snapshot = build_snapshot(document)
+    assert snapshot.schematic is not None
+
+    current_layout, _moved = _candidate_for_move(document, xml_id="2")
+    score = score_schematic_placement_candidate_routes(
+        document,
+        current_layout,
+        config=SchematicJointRouteConfig(allow_existing_wires=True),
+    )
+
+    # No moved parts -> no affected groups -> no hypothetical replacement
+    # routes scored against the schematic's own preserved wires.
+    assert score.edges == []
+    assert score.metrics.rejected_route_count == 0

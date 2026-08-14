@@ -131,9 +131,16 @@ class PlacementService:
             diff=preview["diff"],
         )
         record = self.plan_store.read(record.plan_id)
+        if not planned.operations:
+            record = self.plan_store.update(
+                record.plan_id, status="noop", transaction_id=None
+            )
         return read_success(
             snapshot.info,
-            {"plan": record.model_dump(mode="json")},
+            {
+                "plan": record.model_dump(mode="json"),
+                "no_changes": not planned.operations,
+            },
             warnings=planned.warnings,
             limitations=planned.limitations,
             resources=resources,
@@ -279,9 +286,16 @@ class PlacementService:
             diff=preview["diff"],
         )
         record = self.plan_store.read(record.plan_id)
+        if not planned.operations:
+            record = self.plan_store.update(
+                record.plan_id, status="noop", transaction_id=None
+            )
         return read_success(
             snapshot.info,
-            {"plan": record.model_dump(mode="json")},
+            {
+                "plan": record.model_dump(mode="json"),
+                "no_changes": not planned.operations,
+            },
             warnings=planned.warnings,
             limitations=planned.limitations,
             resources=resources,
@@ -322,7 +336,8 @@ class PlacementService:
             base = base.model_copy(deep=True)
             base.placements = {**base.placements, **fixed_moves}
         repair_config = SchematicPlacementRepairConfig(
-            joint_route=SchematicJointRouteConfig(allow_existing_wires=True)
+            joint_route=SchematicJointRouteConfig(allow_existing_wires=True),
+            fixed_part_ids=tuple(fixed_moves),
         )
         repair = repair_schematic_placement_from_route_feedback(
             document, base, config=repair_config
@@ -331,10 +346,15 @@ class PlacementService:
             repair.selected.candidate if repair.selected is not None else repair.base_candidate
         )
         if fixed_moves:
-            # Operator-directed coordinates are fixed constraints: repair may
-            # improve other parts but never displaces the requested positions.
-            final_candidate = final_candidate.model_copy(deep=True)
-            final_candidate.placements = {**final_candidate.placements, **fixed_moves}
+            # Repair search is constrained to never move fixed parts; verify the
+            # invariant fail-closed instead of silently re-applying coordinates.
+            for part_id, requested in fixed_moves.items():
+                actual = final_candidate.placements.get(part_id)
+                if actual != requested:
+                    raise EditError(
+                        "Schematic placement repair violated an operator-fixed "
+                        f"coordinate for part {part_id}"
+                    )
         reroute = plan_atomic_schematic_placement_reroute(document, final_candidate)
         if len(reroute.operations) > MAX_TRANSACTION_OPERATIONS:
             raise EditError(
@@ -407,9 +427,16 @@ class PlacementService:
             diff=preview["diff"],
         )
         record = self.plan_store.read(record.plan_id)
+        if not reroute.operations:
+            record = self.plan_store.update(
+                record.plan_id, status="noop", transaction_id=None
+            )
         return read_success(
             snapshot.info,
-            {"plan": record.model_dump(mode="json")},
+            {
+                "plan": record.model_dump(mode="json"),
+                "no_changes": not reroute.operations,
+            },
             warnings=warnings,
             limitations=limitations,
             resources=resources,
@@ -467,16 +494,28 @@ class PlacementService:
         snapshot: Any,
         moves: list[dict[str, Any]],
     ) -> dict[str, dict[str, float]]:
+        """Resolve operator moves fail-closed.
+
+        Contract: a part may be selected by its stable object ID (exact) or by
+        RefDes (case-insensitive). A RefDes shared by several schematic parts
+        (for example a multi-part component section) is ambiguous and refused;
+        the caller must select the exact stable ID instead. Duplicate moves for
+        one part are always refused, including identical duplicates.
+        """
         assert snapshot.schematic is not None
-        by_refdes: dict[str, str] = {}
-        by_id: set[str] = set()
+        by_refdes: dict[str, list[str]] = {}
+        stable_ids: set[str] = set()
         for part in snapshot.schematic.parts:
-            by_id.add(part.stable_id)
+            stable_ids.add(part.stable_id)
             if part.refdes:
-                by_refdes[part.refdes.upper()] = part.stable_id
+                by_refdes.setdefault(part.refdes.upper(), []).append(part.stable_id)
         resolved: dict[str, dict[str, float]] = {}
         for move in moves:
-            part = str(move.get("part", "")).strip()
+            raw_part = str(move.get("part", "")).strip()
+            if not raw_part:
+                raise EditError(
+                    "Each schematic repair move needs a non-empty part identifier"
+                )
             try:
                 position = {
                     "x": float(move["x_mm"]),
@@ -484,11 +523,28 @@ class PlacementService:
                 }
             except (KeyError, TypeError, ValueError) as exc:
                 raise EditError("Each schematic repair move needs numeric x_mm and y_mm") from exc
-            if not part:
-                raise EditError("Each schematic repair move needs a non-empty part identifier")
-            stable_id = by_refdes.get(part.upper()) or (part if part in by_id else None)
-            if stable_id is None:
-                raise EditError(f"Schematic repair move references unknown part '{part}'")
+            if raw_part in stable_ids:
+                stable_id = raw_part
+            else:
+                matches = sorted(by_refdes.get(raw_part.upper(), []))
+                if not matches:
+                    raise EditError(
+                        f"Schematic repair move references unknown part '{raw_part}'"
+                    )
+                if len(matches) > 1:
+                    bounded = matches[:8]
+                    suffix = f" (+{len(matches) - len(bounded)} more)" if len(matches) > 8 else ""
+                    raise EditError(
+                        f"Schematic repair move selector '{raw_part}' is ambiguous: "
+                        "RefDes matches multiple schematic parts "
+                        f"{bounded}{suffix}; select one exact stable object ID"
+                    )
+                stable_id = matches[0]
+            if stable_id in resolved:
+                raise EditError(
+                    f"Schematic repair moves contain duplicate entries for part "
+                    f"'{raw_part}' ({stable_id}); conflicting duplicate moves are refused"
+                )
             resolved[stable_id] = position
         return resolved
 

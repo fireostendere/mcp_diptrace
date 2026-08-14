@@ -94,10 +94,13 @@ The headless worker is a host-automation boundary, not a second semantic authori
 
 ## Fixed
 
-- `plan_schematic_placement_repair` no longer plans from optimizer-regenerated layouts; the baseline is built from the document's current placement and the joint route scorer runs with existing wires allowed, so repair-plus-reroute now works on already-wired schematics as documented.
-- Operator `moves` passed to `plan_schematic_placement_repair` are fixed constraints: they apply on top of the current placement and are re-enforced after repair, so requested coordinates survive planning exactly; regression covers the committed geometry.
-- Schematic placement-repair planning now fails closed when the generated operation batch exceeds the 100-operation transaction limit, instead of storing a plan that the paired apply tool could never execute.
-- Capability reporting no longer overstates availability: `release_readiness` requires a board document, and `schematic_placement_candidate_ranking` is reported unavailable for wired schematics where the underlying scorer refuses to run.
+- Wired-schematic repair scoring now models the same world the atomic reroute applies: the joint route scorer removes exactly the affected wire geometry the reroute would replace for a candidate's moved parts (through the same shared affected-group logic) and keeps unaffected nets as obstacles instead of re-scoring their preserved wires as phantom replacement candidates; a clean wired schematic no longer receives spurious repair motion, and unaffected nets' geometry is provably never deleted.
+- `plan_schematic_placement_repair` builds its baseline from the document's current placement, so repair-plus-reroute works on already-wired schematics as documented (the previous optimizer candidate generation refused wired documents before the reroute stage ran).
+- Operator `moves` are true immutable repair constraints: the engine carries `fixed_part_ids`, proposal generation never moves a fixed part or a group containing one, scoring happens on the constrained geometry, and the service verifies the final coordinates fail-closed instead of silently re-applying them; reported `improved`/score now refer to the actually applied geometry.
+- RefDes resolution for `moves` is fail-closed: a RefDes shared by multiple schematic parts (multi-part components) is refused with the bounded list of matching stable IDs, duplicate moves for one part are refused (conflicting or identical), unique RefDes remain case-insensitive and stable object IDs remain the exact selector.
+- No-op plan/apply contract is consistent across the stored-plan tools: empty placement/silkscreen/repair plans are stored with `status="noop"` plus `no_changes=true`, and applying one is an idempotent success (`ok=true`, `changed=false`, no transaction, SHA unchanged) instead of raising after looking applicable.
+- Schematic placement-repair planning fails closed when the generated operation batch exceeds the 100-operation transaction limit, instead of storing a plan that the paired apply tool could never execute.
+- Capability reporting matches runtime availability: `release_readiness` requires a board document, and `schematic_placement_candidate_ranking` is reported unavailable for wired schematics where the underlying scorer refuses to run.
 - `recommend_patterns` exposes the typed `PatternRequirement` schema in `tools/list` (pad count, mounting, geometry bounds, pitch, holes, required pad numbers) instead of an opaque object.
 
 ## Remaining boundaries

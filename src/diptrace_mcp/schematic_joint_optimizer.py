@@ -4,15 +4,20 @@ import copy
 import math
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
 from .adapters import DocumentSnapshot, build_snapshot, stable_id
-from .domain import ObjectRecord, StrictModel
+from .domain import ObjectRecord, QuerySelector, StrictModel
 from .errors import CapabilityUnavailableError
 from .geometry import BBox, Point, distance
-from .operations import AddWireOperation, WireEndpoint, WirePathPoint
+from .operations import (
+    AddWireOperation,
+    MoveComponentsOperation,
+    WireEndpoint,
+    WirePathPoint,
+)
 from .schematic_layout import NetRole, infer_schematic_design_intent
 from .schematic_optimizer import SchematicPlacementCandidate
 from .schematic_pin_geometry import (
@@ -348,6 +353,140 @@ def _append_completed_net_routes(
         snapshot.objects[stable] = record
 
 
+def _wire_sheet(wire: Any) -> int | None:
+    try:
+        value = int(str(wire.attributes.get("sheet", "0")))
+    except (AttributeError, ValueError):
+        return None
+    return value if value >= 0 else None
+
+
+def _part_sheet(snapshot: DocumentSnapshot, part_id: str) -> int | None:
+    assert snapshot.schematic is not None
+    part = next(
+        (item for item in snapshot.schematic.parts if item.stable_id == part_id),
+        None,
+    )
+    if part is None:
+        return None
+    try:
+        value = int(str(part.attributes.get("sheet", "0")))
+    except ValueError:
+        return None
+    return value if value >= 0 else None
+
+
+def _moved_parts(
+    snapshot: DocumentSnapshot,
+    candidate: SchematicPlacementCandidate,
+) -> tuple[list[str], list[MoveComponentsOperation]]:
+    """Parts whose candidate placement differs from the document, fail-closed."""
+    assert snapshot.schematic is not None
+    parts = {item.stable_id: item for item in snapshot.schematic.parts}
+    moved: list[str] = []
+    operations: list[MoveComponentsOperation] = []
+    for part_id, raw in sorted(candidate.placements.items()):
+        part = parts.get(part_id)
+        if part is None:
+            raise CapabilityUnavailableError(
+                f"Placement candidate references missing schematic part {part_id}"
+            )
+        if part.position is None:
+            raise CapabilityUnavailableError(
+                f"Schematic part {part_id} has no source position for atomic reroute"
+            )
+        target = Point(float(raw["x"]), float(raw["y"]))
+        current = Point(**part.position)
+        if math.isclose(current.x, target.x, abs_tol=_EPS) and math.isclose(
+            current.y,
+            target.y,
+            abs_tol=_EPS,
+        ):
+            continue
+        if part.locked:
+            raise CapabilityUnavailableError(
+                f"Atomic schematic reroute refuses to move locked part {part_id}"
+            )
+        moved.append(part_id)
+        operations.append(
+            MoveComponentsOperation(
+                selector=QuerySelector(ids=[part_id]),
+                absolute_x=target.x,
+                absolute_y=target.y,
+            )
+        )
+    return moved, operations
+
+
+def _affected_groups(
+    snapshot: DocumentSnapshot,
+    moved_part_ids: list[str],
+    *,
+    include_unwired: bool,
+) -> dict[tuple[str, int], dict[str, Any]]:
+    """Sheet-local (net, sheet) wire groups that a reroute of the moved parts replaces.
+
+    This is the single source of truth shared by the atomic reroute planner and the
+    joint route scorer so both model the same affected-wire geometry.
+    """
+    assert snapshot.schematic is not None
+    moved = set(moved_part_ids)
+    existing_by_group: dict[tuple[str, int], list[str]] = {}
+    for wire in snapshot.schematic.wires:
+        if wire.net_id is None:
+            continue
+        sheet = _wire_sheet(wire)
+        if sheet is None:
+            continue
+        existing_by_group.setdefault((wire.net_id, sheet), []).append(wire.stable_id)
+
+    groups: dict[tuple[str, int], dict[str, Any]] = {}
+    parts = {item.stable_id: item for item in snapshot.schematic.parts}
+    for pin in snapshot.schematic.pins:
+        if pin.parent_id not in moved or pin.net_id is None:
+            continue
+        part = parts.get(pin.parent_id)
+        if part is None:
+            continue
+        sheet = _part_sheet(snapshot, part.stable_id)
+        if sheet is None:
+            raise CapabilityUnavailableError(
+                f"Part {part.stable_id} has an invalid sheet index"
+            )
+        key = (pin.net_id, sheet)
+        if not include_unwired and not existing_by_group.get(key):
+            continue
+        group = groups.setdefault(
+            key,
+            {
+                "moved_part_ids": set(),
+                "deleted_wire_ids": list(existing_by_group.get(key, [])),
+            },
+        )
+        group["moved_part_ids"].add(part.stable_id)
+    return groups
+
+
+def _remove_affected_wires(
+    snapshot: DocumentSnapshot,
+    affected: set[tuple[str, int]],
+) -> None:
+    if snapshot.schematic is None:
+        return
+    removed: set[str] = set()
+    for wire in snapshot.schematic.wires:
+        if wire.net_id is None:
+            continue
+        sheet = _wire_sheet(wire)
+        if sheet is not None and (wire.net_id, sheet) in affected:
+            removed.add(wire.stable_id)
+    snapshot.schematic.wires = [
+        wire for wire in snapshot.schematic.wires if wire.stable_id not in removed
+    ]
+    for wire_id in removed:
+        snapshot.objects.pop(wire_id, None)
+
+
 def _route_rank_key(
     *,
     rejected: int,
@@ -396,6 +535,18 @@ def score_schematic_placement_candidate_routes(
         )
     pin_geometry = pin_geometry or resolve_document_schematic_pin_geometry(document)
     virtual, warnings = _virtualize_snapshot(original, candidate.placements)
+    affected_keys: set[tuple[str, int]] = set()
+    if original.schematic.wires:
+        # Model the same world the atomic reroute planner will actually apply:
+        # remove exactly the wire geometry the reroute replaces for this
+        # candidate's moved parts and keep unaffected wires as obstacles.
+        # Unaffected nets keep their existing geometry and are not re-scored as
+        # hypothetical replacements.
+        moved_ids, _ = _moved_parts(original, candidate)
+        affected_keys = set(
+            _affected_groups(original, moved_ids, include_unwired=False)
+        )
+        _remove_affected_wires(virtual, affected_keys)
     groups, endpoint_warnings = _virtual_endpoints(original, virtual, pin_geometry)
     warnings.extend(endpoint_warnings)
     net_names = _net_names(original)
@@ -407,6 +558,8 @@ def score_schematic_placement_candidate_routes(
     skipped_net_groups = 0
     for key, endpoints in sorted(groups.items(), key=lambda item: item[0]):
         net_id, _sheet_index = key
+        if original.schematic.wires and key not in affected_keys:
+            continue
         role = net_roles.get(net_id, "unknown")
         if role == "ground" and not config.include_ground_nets:
             skipped_net_groups += 1
@@ -553,6 +706,10 @@ def score_schematic_placement_candidate_routes(
             "included unless configured otherwise.",
             "Completed prior nets may be exposed as virtual wire obstacles to later nets.",
             "Hard route-quality terms are ranked before the existing placement score.",
+            "On wired schematics the scorer removes exactly the wire geometry that the "
+            "selective atomic reroute would replace for the candidate's moved parts; "
+            "unaffected nets keep their existing geometry as obstacles and are not "
+            "re-scored as hypothetical replacements.",
         ],
         warnings=sorted(set(warnings + pin_geometry.warnings)),
         limitations=[

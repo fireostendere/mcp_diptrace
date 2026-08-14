@@ -4,6 +4,8 @@
 
 The intelligent schematic track is implemented as a bounded deterministic pipeline. Bounded placement repair plus selective atomic reroute and deterministic ensemble ranking are productized as public tools (`plan_schematic_placement_repair`, `apply_schematic_placement_repair_plan`, `rank_schematic_placement_candidates`); the remaining engines stay internal. None of it bypasses the existing semantic-operation, preview, expected-SHA, transaction or real-DipTrace evidence boundaries.
 
+On wired schematics the repair route scorer and the atomic reroute planner share one affected-wire model: exactly the wire geometry the reroute would replace for the candidate's moved parts is removed from the scored snapshot, unaffected nets keep their existing geometry as obstacles and are not re-scored as hypothetical replacements. Operator-fixed placements (`moves`) and locked parts are immutable repair constraints; a group containing one is never moved.
+
 Current modules:
 
 - `schematic_layout.py` — design intent, functional blocks, provenance-bearing motifs and readability metrics;

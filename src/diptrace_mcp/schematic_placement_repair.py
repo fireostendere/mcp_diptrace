@@ -57,6 +57,7 @@ class SchematicPlacementRepairConfig(StrictModel):
     translation_step_mm: float = Field(default=10.0, gt=0.0, le=500.0)
     max_translation_mm: float = Field(default=80.0, gt=0.0, le=2_000.0)
     reject_new_part_overlaps: bool = True
+    fixed_part_ids: tuple[str, ...] = Field(default_factory=tuple)
     optimizer: SchematicOptimizerConfig = Field(default_factory=SchematicOptimizerConfig)
     joint_route: SchematicJointRouteConfig = Field(default_factory=SchematicJointRouteConfig)
 
@@ -230,12 +231,15 @@ def _movable_group(
     *,
     parts_by_id: dict[str, ObjectRecord],
     placements: dict[str, Point],
+    fixed_part_ids: frozenset[str] = frozenset(),
 ) -> bool:
     if not group.part_ids:
         return False
     for part_id in group.part_ids:
         part = parts_by_id.get(part_id)
         if part is None or part.locked or part_id not in placements:
+            return False
+        if part_id in fixed_part_ids:
             return False
     return True
 
@@ -654,9 +658,11 @@ def repair_schematic_placement_from_route_feedback(
     parts_by_id = {part.stable_id: part for part in snapshot.schematic.parts}
     part_to_block, block_members = _block_maps(intent)
     base_points = _point_map(base_candidate)
+    fixed_part_ids = frozenset(config.fixed_part_ids)
     proposals: list[_RepairProposal] = []
     warnings: list[str] = []
     locked_feedback = 0
+    fixed_feedback = 0
 
     for edge in feedback_edges:
         operation = edge.plan.selected.operation
@@ -685,14 +691,21 @@ def repair_schematic_placement_from_route_feedback(
             start_group,
             parts_by_id=parts_by_id,
             placements=base_points,
+            fixed_part_ids=fixed_part_ids,
         )
         end_movable = _movable_group(
             end_group,
             parts_by_id=parts_by_id,
             placements=base_points,
+            fixed_part_ids=fixed_part_ids,
         )
         if not start_movable and not end_movable:
-            locked_feedback += 1
+            if fixed_part_ids & (
+                set(start_group.part_ids) | set(end_group.part_ids)
+            ):
+                fixed_feedback += 1
+            else:
+                locked_feedback += 1
             continue
         proposals.extend(
             _edge_proposals(
@@ -715,6 +728,11 @@ def repair_schematic_placement_from_route_feedback(
         warnings.append(
             f"Skipped {locked_feedback} feedback edge(s) because both candidate repair "
             "groups contain locked or unresolved parts."
+        )
+    if fixed_feedback:
+        warnings.append(
+            f"Skipped {fixed_feedback} feedback edge(s) because both candidate repair "
+            "groups contain operator-fixed parts that must not move."
         )
     if not feedback_edges:
         warnings.append("Base route score requires no placement repair.")
@@ -803,6 +821,8 @@ def repair_schematic_placement_from_route_feedback(
             "Different functional blocks move as rigid groups; feedback within one block "
             "uses endpoint-part local moves so internal packing can improve.",
             "Axis-alignment repairs use the actual routed pin anchors when available.",
+            "Locked parts and operator-fixed placements are immutable repair constraints; "
+            "a group containing one is never moved as a whole or in part.",
             "Every unique repair geometry counts against max_candidates before placement "
             "and route scoring, including candidates later rejected for overlap.",
             "Every retained repair candidate is re-scored by both placement metrics and "

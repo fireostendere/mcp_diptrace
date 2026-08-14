@@ -1342,7 +1342,7 @@ class TransactionRecord(StrictModel):
     notes: list[str] = Field(default_factory=list)
 
 
-PlanStatus = Literal["planned", "staged", "committed", "obsolete"]
+PlanStatus = Literal["planned", "staged", "committed", "obsolete", "noop"]
 
 
 class PlanRecord(StrictModel):
