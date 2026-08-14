@@ -6,7 +6,7 @@ from typing import Any
 
 from ..errors import CapabilityUnavailableError, DocumentError
 from ..library_adapters import get_library_model
-from ..pattern_recommendation import recommend_patterns
+from ..pattern_recommendation import PatternRequirement, recommend_patterns
 from ..pcb_candidate_ensemble import PCBEnsembleConfig, build_pcb_candidate_ensemble
 from ..release_readiness import run_release_readiness
 from ..schematic_ensemble import rank_schematic_ensemble
@@ -74,7 +74,7 @@ class IntelligenceService:
 
     def recommend_patterns(
         self,
-        requirement: dict[str, Any],
+        requirement: PatternRequirement,
         path: str | None = None,
         *,
         limit: int = 10,

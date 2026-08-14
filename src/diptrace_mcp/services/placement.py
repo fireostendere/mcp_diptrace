@@ -5,9 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, Protocol
 
-from ..adapters import build_snapshot
+from ..adapters import DocumentSnapshot, build_snapshot
+from ..capability_model import MAX_TRANSACTION_OPERATIONS
 from ..domain import QuerySelector
 from ..errors import CapabilityUnavailableError, DrcRegressionError, EditError
+from ..geometry import Point
 from ..operations import SemanticOperation
 from ..placement import (
     PlacementConfig,
@@ -22,8 +24,13 @@ from ..plans import PlanStore
 from ..preview import render_preview_json, render_preview_svg
 from ..review import run_checks
 from ..schematic_atomic_reroute import plan_atomic_schematic_placement_reroute
-from ..schematic_optimizer import generate_schematic_placement_candidates
-from ..schematic_placement_repair import repair_schematic_placement_from_route_feedback
+from ..schematic_joint_optimizer import SchematicJointRouteConfig
+from ..schematic_layout import analyze_schematic_layout
+from ..schematic_optimizer import SchematicPlacementCandidate
+from ..schematic_placement_repair import (
+    SchematicPlacementRepairConfig,
+    repair_schematic_placement_from_route_feedback,
+)
 from ..semantic_compiler import apply_semantic_operations
 from ..silkscreen import SilkscreenPlanConfig, plan_silkscreen
 from ..xml_document import DipTraceDocument
@@ -308,20 +315,33 @@ class PlacementService:
             raise CapabilityUnavailableError(
                 "Schematic placement repair requires a schematic document"
             )
-        candidates = generate_schematic_placement_candidates(snapshot)
-        if not candidates:
-            raise CapabilityUnavailableError(
-                "No schematic placement candidate could be generated"
-            )
-        base = candidates[0].model_copy(deep=True)
+        base = self._current_layout_candidate(snapshot)
+        fixed_moves: dict[str, dict[str, float]] = {}
         if moves:
-            resolved = self._resolve_schematic_moves(snapshot, moves)
-            base.placements = {**base.placements, **resolved}
-        repair = repair_schematic_placement_from_route_feedback(document, base)
+            fixed_moves = self._resolve_schematic_moves(snapshot, moves)
+            base = base.model_copy(deep=True)
+            base.placements = {**base.placements, **fixed_moves}
+        repair_config = SchematicPlacementRepairConfig(
+            joint_route=SchematicJointRouteConfig(allow_existing_wires=True)
+        )
+        repair = repair_schematic_placement_from_route_feedback(
+            document, base, config=repair_config
+        )
         final_candidate = (
             repair.selected.candidate if repair.selected is not None else repair.base_candidate
         )
+        if fixed_moves:
+            # Operator-directed coordinates are fixed constraints: repair may
+            # improve other parts but never displaces the requested positions.
+            final_candidate = final_candidate.model_copy(deep=True)
+            final_candidate.placements = {**final_candidate.placements, **fixed_moves}
         reroute = plan_atomic_schematic_placement_reroute(document, final_candidate)
+        if len(reroute.operations) > MAX_TRANSACTION_OPERATIONS:
+            raise EditError(
+                "Schematic placement repair plan would exceed the "
+                f"{MAX_TRANSACTION_OPERATIONS} operations transaction limit "
+                f"({len(reroute.operations)} planned); reduce the affected scope"
+            )
         if reroute.operations:
             preview = self.preview_semantic_operations(document, reroute.operations)
         else:
@@ -352,8 +372,9 @@ class PlacementService:
             *reroute.warnings,
         ]
         limitations = [
-            "Joint placement optimization of already-wired schematics is not enabled; "
-            "repair planning targets authoring-stage documents.",
+            "Affected explicit nets are rebuilt from resolved pin endpoints through "
+            "deterministic MST edges; hand-authored junction topology is not preserved "
+            "as a visual constraint.",
             *repair.limitations,
             *reroute.limitations,
         ]
@@ -408,6 +429,37 @@ class PlacementService:
             dry_run=dry_run,
             expected_sha256=expected_sha256,
             txid=txid,
+        )
+
+    @staticmethod
+    def _current_layout_candidate(snapshot: DocumentSnapshot) -> SchematicPlacementCandidate:
+        """Build a repair baseline from the document's actual current placement.
+
+        Unlike optimizer candidate generation this accepts already-wired
+        schematics, which is exactly the repair-plus-reroute target case.
+        """
+        assert snapshot.schematic is not None
+        placements: dict[str, Point] = {}
+        for part in snapshot.schematic.parts:
+            position = part.position
+            if position is not None:
+                placements[part.stable_id] = Point(float(position["x"]), float(position["y"]))
+        layout = analyze_schematic_layout(snapshot, placements=placements)
+        return SchematicPlacementCandidate(
+            candidate_id="current-layout",
+            order_strategy="role_then_id",
+            local_style="support_balanced",
+            row_width_mm=1.0,
+            placements={
+                part_id: {"x": point.x, "y": point.y} for part_id, point in placements.items()
+            },
+            estimated_interconnect_length_mm=0.0,
+            estimated_crossing_count=0,
+            backward_connector_flow_count=0,
+            movement_mm=0.0,
+            score_terms={},
+            total_score=0.0,
+            layout=layout,
         )
 
     @staticmethod

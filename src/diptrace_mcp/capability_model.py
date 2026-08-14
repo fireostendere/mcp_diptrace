@@ -43,10 +43,10 @@ _READ_CAPABILITIES: dict[str, CapabilityRule] = {
     "placement_analysis": CapabilityRule("board"),
     "placement_scoring": CapabilityRule("board"),
     "local_placement_candidates": CapabilityRule("board"),
-    "schematic_placement_candidate_ranking": CapabilityRule("schematic"),
+    "schematic_placement_candidate_ranking": CapabilityRule("unwired_schematic"),
     "pcb_placement_candidate_ensemble": CapabilityRule("board"),
     "pattern_recommendation": CapabilityRule("library"),
-    "release_readiness": CapabilityRule("design"),
+    "release_readiness": CapabilityRule("board"),
     "unrouted_connections": CapabilityRule("board"),
     "route_details": CapabilityRule("board"),
     "physical_stackup": CapabilityRule("board"),
@@ -148,6 +148,9 @@ def _evaluate_rule(rule: CapabilityRule, snapshot: Any | None) -> bool:
         "unsupported": False,
         "board": snapshot.board is not None,
         "schematic": snapshot.schematic is not None,
+        "unwired_schematic": bool(
+            snapshot.schematic is not None and not snapshot.schematic.wires
+        ),
         "design": document_kind in {"pcb", "schematic"},
         "library": document_kind in {"component_library", "pattern_library"},
         "differential_pairs": bool(

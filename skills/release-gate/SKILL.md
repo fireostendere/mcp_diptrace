@@ -16,7 +16,9 @@ feature availability.
 2. Select profiles by document kind:
    - PCB: `run_board_review`, `run_drc`, `run_connectivity_check`,
      `run_manufacturing_review`, `run_assembly_review`, `run_testability_review`,
-     `run_bom_review`, and `run_thermal_review`.
+     `run_bom_review`, and `run_thermal_review`; supplement with
+     `analyze_release_readiness` for bounded DFM/DFA/DFT findings available from
+     exported XML (it supplements, not replaces, DipTrace sign-off).
    - schematic: `run_schematic_review`, `run_erc`, `run_connectivity_check`, and
      `run_bom_review`.
 3. Compare each result against the implemented/partial/missing matrix in
