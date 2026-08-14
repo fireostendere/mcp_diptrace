@@ -1,8 +1,8 @@
 {
-  "canonical_descriptor_bytes": 142745,
-  "canonical_descriptor_sha256": "a148ac9732ee1f5669a544c00d6945e667d56f10289b7e339d8331ff6004890c",
+  "canonical_descriptor_bytes": 146874,
+  "canonical_descriptor_sha256": "796b1a2f249baf516f62c1c3f5afd4e8a901c80dc1c7a6bc257d0b5a2675ab36",
   "format_version": 1,
-  "tool_count": 159,
+  "tool_count": 165,
   "tools": [
     {
       "description": "Abandon stale local session state without applying its working XML.",
@@ -1224,6 +1224,33 @@
       }
     },
     {
+      "description": "Report bounded DFM/DFA/DFT release-readiness findings from exported XML.",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          }
+        },
+        "title": "analyze_release_readinessArguments",
+        "type": "object"
+      },
+      "name": "analyze_release_readiness",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "analyze_release_readinessDictOutput",
+        "type": "object"
+      }
+    },
+    {
       "description": "Run low-confidence geometry heuristics with a caller-supplied radius.\n\nAll distances are in millimetres, regardless of the document's own Units attribute.",
       "inputSchema": {
         "properties": {
@@ -1461,6 +1488,57 @@
       "outputSchema": {
         "additionalProperties": true,
         "title": "apply_route_planDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Stage or commit a stored schematic placement-repair plan transactionally. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
+      "inputSchema": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "expected_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Sha256"
+          },
+          "plan_id": {
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "txid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Txid"
+          }
+        },
+        "required": [
+          "plan_id"
+        ],
+        "title": "apply_schematic_placement_repair_planArguments",
+        "type": "object"
+      },
+      "name": "apply_schematic_placement_repair_plan",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "apply_schematic_placement_repair_planDictOutput",
         "type": "object"
       }
     },
@@ -2076,6 +2154,59 @@
       "outputSchema": {
         "additionalProperties": true,
         "title": "compare_bom_to_designDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Generate and rank bounded PCB Generation A-D placement candidates.",
+      "inputSchema": {
+        "properties": {
+          "include_existing_board": {
+            "default": true,
+            "title": "Include Existing Board",
+            "type": "boolean"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          },
+          "profiles": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "balanced",
+                    "critical_nets",
+                    "noise_aware",
+                    "support_compact"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profiles"
+          }
+        },
+        "title": "compare_pcb_placement_candidatesArguments",
+        "type": "object"
+      },
+      "name": "compare_pcb_placement_candidates",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "compare_pcb_placement_candidatesDictOutput",
         "type": "object"
       }
     },
@@ -5691,6 +5822,79 @@
       }
     },
     {
+      "description": "Plan bounded placement repair plus selective affected-net reroute as one transaction. All distances are in millimetres, regardless of the document's own Units attribute.",
+      "inputSchema": {
+        "$defs": {
+          "SchematicRepairMoveInput": {
+            "description": "One operator-directed part move for schematic placement repair planning.",
+            "properties": {
+              "part": {
+                "description": "Part reference designator or stable object identifier.",
+                "maxLength": 256,
+                "minLength": 1,
+                "title": "Part",
+                "type": "string"
+              },
+              "x_mm": {
+                "description": "Target X position in millimetres.",
+                "title": "X Mm",
+                "type": "number"
+              },
+              "y_mm": {
+                "description": "Target Y position in millimetres.",
+                "title": "Y Mm",
+                "type": "number"
+              }
+            },
+            "required": [
+              "part",
+              "x_mm",
+              "y_mm"
+            ],
+            "title": "SchematicRepairMoveInput",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "moves": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/SchematicRepairMoveInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Moves"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          }
+        },
+        "title": "plan_schematic_placement_repairArguments",
+        "type": "object"
+      },
+      "name": "plan_schematic_placement_repair",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "plan_schematic_placement_repairDictOutput",
+        "type": "object"
+      }
+    },
+    {
       "description": "Generate and persist a deterministic legal silkscreen placement plan. All distances are in millimetres, regardless of the document's own Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -5884,6 +6088,33 @@
       }
     },
     {
+      "description": "Rank bounded schematic placement candidates by route quality, motifs and congestion.",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          }
+        },
+        "title": "rank_schematic_placement_candidatesArguments",
+        "type": "object"
+      },
+      "name": "rank_schematic_placement_candidates",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "rank_schematic_placement_candidatesDictOutput",
+        "type": "object"
+      }
+    },
+    {
       "description": "Read bounded XML fragments using ElementTree-compatible XPath.",
       "inputSchema": {
         "properties": {
@@ -5922,6 +6153,46 @@
       "outputSchema": {
         "additionalProperties": true,
         "title": "read_xml_fragmentDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Rank compatible footprint patterns from a pattern library deterministically.",
+      "inputSchema": {
+        "properties": {
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          },
+          "requirement": {
+            "additionalProperties": true,
+            "title": "Requirement",
+            "type": "object"
+          }
+        },
+        "required": [
+          "requirement"
+        ],
+        "title": "recommend_patternsArguments",
+        "type": "object"
+      },
+      "name": "recommend_patterns",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "recommend_patternsDictOutput",
         "type": "object"
       }
     },

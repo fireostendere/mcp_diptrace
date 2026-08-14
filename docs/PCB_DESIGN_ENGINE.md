@@ -6,7 +6,7 @@ The PCB design engine turns normalized board connectivity plus explicit engineer
 
 It does not claim globally optimal PCB layout or replace a field solver/autorouter. Unknown edge rate, current, impedance, stackup or datasheet facts remain unknown until supplied or supported by authoritative project evidence.
 
-The higher-level generations remain internal. The public MCP contract stays frozen at 159 tools.
+The higher-level generations remain internal engines; the bounded read-only ensemble comparison is productized as the `compare_pcb_placement_candidates` tool. The public MCP contract currently registers 165 tools.
 
 See [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md) for the cross-domain implementation map.
 

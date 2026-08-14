@@ -64,7 +64,7 @@ Do not expose the HTTP transport as a general remote network service unless the 
 
 ## Discover capabilities first
 
-The public MCP contract contains **159 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
+The public MCP contract contains **165 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
 
 Call `get_capabilities` before assuming that a particular write or adapter path is available.
 
@@ -128,7 +128,7 @@ See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
 ## PCB Generations A-D
 
-The internal PCB design engine adds higher-level engineering judgement without expanding the 159-tool MCP surface:
+The internal PCB design engine adds higher-level engineering judgement; bounded read-only candidate comparison is productized as `compare_pcb_placement_candidates` within the 165-tool MCP surface:
 
 - Generation A: intent/net intelligence and intent-aware placement;
 - Generation B: physical/stackup/PDN/return-path/noise/via context;
@@ -226,7 +226,7 @@ See [CINEMATIC_DEMO_MODE.md](CINEMATIC_DEMO_MODE.md).
 
 `library_mutation.py` is the internal raw-preserving mutation core with controlled real-editor round-trip evidence. `library_mutation_api.py` adds an expected-SHA in-memory package-level request/preview contract.
 
-That package API is deliberately **not a public MCP tool**: `public_registration=False`, so the public surface stays at 159 tools. Public registration remains a separate API/product/evidence decision.
+That package API is deliberately **not a public MCP tool**: `public_registration=False`, so the public surface stays at 165 tools. Public registration remains a separate API/product/evidence decision.
 
 ## Evidence capture and reports
 

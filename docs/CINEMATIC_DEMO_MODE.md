@@ -11,7 +11,7 @@ It is not engineering authority:
 - cinematic mode decides how to show an already-planned action visibly;
 - visible replay is not proof of semantic acceptance without separate real-host evidence.
 
-The public MCP contract remains unchanged at **159 tools**.
+Cinematic does not change the public MCP contract, which currently registers **165 tools**.
 
 ## Modules
 

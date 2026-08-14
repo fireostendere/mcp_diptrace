@@ -27,6 +27,7 @@ from .services.evidence import (
 )
 from .services.exports import ExportService
 from .services.external_jobs import ExternalJobsService
+from .services.intelligence import IntelligenceService
 from .services.jobs import JobService
 from .services.live_sessions import LiveSessionService
 from .services.placement import PlacementService
@@ -90,6 +91,9 @@ class DipTraceService:
         )
         self._job_service = JobService(settings, self.jobs, self.external_jobs)
         self._bom_service = BomService(self._service_context, self._document_gateway)
+        self._intelligence_service = IntelligenceService(
+            self._service_context, self._document_gateway
+        )
         self._review_service = ReviewService(self._service_context, self._document_gateway)
         self._evidence_service = EvidenceService(
             self._service_context,
@@ -190,6 +194,7 @@ class DipTraceService:
         self._delegates: tuple[object, ...] = (
             self._document_service,
             self._bom_service,
+            self._intelligence_service,
             self._review_service,
             self._semantic_operations_service,
             self._routing_service,

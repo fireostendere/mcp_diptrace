@@ -246,7 +246,7 @@ Historical dated release/acceptance/audit records remain excluded from current-s
 
 # Public contracts
 
-- 159 registered MCP tools;
+- 165 registered MCP tools (intentionally expanded from 159 to productize bounded EDA intelligence engines);
 - stable structured error envelope;
 - server-owned worker-thread boundary;
 - SHA/policy/backup/atomic-write/session-lease/trust/transaction boundaries.
@@ -267,13 +267,13 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | manual acceptance | all 12 blocking gates PASS across the accepted checkpoints |
 | schematic intent/motifs | implemented + builtin heuristic motifs |
 | schematic placement | bounded implementation |
-| schematic route/joint repair | bounded implementation |
-| schematic selective atomic reroute | implemented for affected explicit sheet-local nets |
+| schematic route/joint repair | bounded implementation; public repair/reroute plan tools shipped |
+| schematic selective atomic reroute | implemented for affected explicit sheet-local nets; shipped via `plan_schematic_placement_repair` |
 | schematic product quality | **PASS for initial 18-case real-DipTrace campaign; future work impact/claim-based** |
 | PCB Generation A | implemented |
 | PCB Generation B | implemented/bounded |
 | PCB Generation C | implemented/bounded |
-| PCB Generation D | selector + real bounded placement candidate ensemble implemented |
+| PCB Generation D | selector + real bounded placement candidate ensemble implemented; read-only `compare_pcb_placement_candidates` tool shipped |
 | PCB product quality | stronger current-candidate real-DipTrace acceptance pending |
 | DSN/SES analysis | bounded structural/importability analysis implemented |
 | XML semantic analysis | fingerprint/delta + property tests implemented |

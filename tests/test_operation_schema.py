@@ -297,7 +297,7 @@ def test_every_write_tool_description_discloses_dry_run_contract() -> None:
         if "dry_run" in tool.parameters.get("properties", {})
     }
 
-    assert len(write_tools) == 53
+    assert len(write_tools) == 54
     for name in write_tools:
         tool = server._tool_manager._tools[name]
         assert _DRY_RUN_DESCRIPTION in (tool.description or ""), name
