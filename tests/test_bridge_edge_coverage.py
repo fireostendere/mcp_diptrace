@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+import json
 import sys
 import types
 from pathlib import Path
@@ -258,3 +260,127 @@ def test_headless_request_helper_success_rejection_and_missing_hash() -> None:
 
     with pytest.raises(ValueError, match="control hash"):
         bridge._handle_headless_request(controller, {"action": "erase"})
+
+
+def test_fatal_log_is_bounded_and_write_failures_are_non_authoritative(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exchange = tmp_path / "exchange.xml"
+    exchange.write_bytes(_SOURCE)
+
+    log_path = bridge._write_fatal_log(exchange, OSError("disk unavailable"))
+    assert log_path == tmp_path / bridge.BRIDGE_ERROR_LOG_NAME
+    assert log_path is not None
+    payload = json.loads(log_path.read_text(encoding="utf-8"))
+    assert payload["error"]["code"] == "bridge_io_error"
+
+    monkeypatch.setattr(bridge, "BRIDGE_ERROR_LOG_MAX_BYTES", 512)
+    long_path = bridge._write_fatal_log(exchange, RuntimeError("x" * 10_000))
+    assert long_path is not None
+    assert long_path.stat().st_size <= 512
+    bounded = json.loads(long_path.read_text(encoding="utf-8"))
+    assert bounded["error"]["details"]["bridge_log_truncated"] is True
+
+    def fail_write(_path: Path, _data: bytes) -> None:
+        raise OSError("read-only")
+
+    monkeypatch.setattr(bridge, "atomic_write_bytes", fail_write)
+    assert bridge._write_fatal_log(exchange, RuntimeError("boom")) is None
+
+
+def test_timeout_helpers_cover_defaults_overrides_and_invalid_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert bridge._positive_timeout("3") == 3
+    for value, message in (("bad", "integer"), ("0", "greater than zero")):
+        with pytest.raises(argparse.ArgumentTypeError, match=message):
+            bridge._positive_timeout(value)
+
+    monkeypatch.delenv("DIPTRACE_MCP_SESSION_TIMEOUT", raising=False)
+    assert bridge._timeout_from_environment() == bridge.DEFAULT_LIVE_SESSION_TIMEOUT_SECONDS
+    monkeypatch.setenv("DIPTRACE_MCP_SESSION_TIMEOUT", "7")
+    assert bridge._timeout_from_environment() == 7
+    monkeypatch.setenv("DIPTRACE_MCP_SESSION_TIMEOUT", "invalid")
+    with pytest.raises(bridge.ConfigurationError, match="DIPTRACE_MCP_SESSION_TIMEOUT"):
+        bridge._timeout_from_environment()
+
+    args = bridge._build_parser().parse_args(["exchange.xml", "--headless", "--timeout", "9"])
+    assert args.exchange_file == "exchange.xml"
+    assert args.headless is True
+    assert args.timeout == 9
+
+
+def test_run_headless_handles_immediate_request_and_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = {
+        "request_id": "req",
+        "action": "cancel",
+        "expected_sha256": "a" * 64,
+        "requested_at": "now",
+        "_control_sha256": "b" * 64,
+    }
+
+    class FakeController:
+        def __init__(self, requests: list[dict[str, Any] | None]) -> None:
+            self.requests = requests
+            self.finished: list[tuple[str, str | None]] = []
+
+        def poll_request(self) -> dict[str, Any] | None:
+            return self.requests.pop(0) if self.requests else None
+
+        def finish(self, action: str, expected: str | None = None) -> None:
+            self.finished.append((action, expected))
+
+        def reject_request(self, *_args: object, **_kwargs: object) -> None:
+            raise AssertionError("unexpected rejection")
+
+    immediate = FakeController([request])
+    monkeypatch.setattr(bridge.time, "monotonic", lambda: 0.0)
+    monkeypatch.setattr(bridge.time, "sleep", lambda _seconds: None)
+    assert bridge.run_headless(immediate, 1) == 0
+    assert immediate.finished == [("cancel", "a" * 64)]
+
+    values = iter((0.0, 2.0))
+    monkeypatch.setattr(bridge.time, "monotonic", lambda: next(values))
+    expired = FakeController([None])
+    assert bridge.run_headless(expired, 1) == 2
+    assert expired.finished == [("cancel", None)]
+
+
+def test_bridge_main_headless_success_and_error_paths(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exchange = tmp_path / "exchange.xml"
+    exchange.write_bytes(_SOURCE)
+
+    class FakeSettings:
+        def resolve_allowed_path(self, value: str, *, must_exist: bool) -> Path:
+            assert value == str(exchange)
+            assert must_exist is True
+            return exchange
+
+    fake_settings = FakeSettings()
+    monkeypatch.setattr(
+        bridge.Settings,
+        "from_env",
+        classmethod(lambda _cls: fake_settings),
+    )
+    fake_controller = object()
+    monkeypatch.setattr(bridge, "BridgeController", lambda *_args: fake_controller)
+    monkeypatch.setattr(
+        bridge,
+        "run_headless",
+        lambda controller, timeout: 17 if controller is fake_controller and timeout == 3 else 99,
+    )
+    assert bridge.main([str(exchange), "--headless", "--timeout", "3"]) == 17
+
+    def fail_settings(_cls: type[Settings]) -> Settings:
+        raise RuntimeError("configuration exploded")
+
+    monkeypatch.setattr(bridge.Settings, "from_env", classmethod(fail_settings))
+    assert bridge.main([str(exchange), "--headless"]) == 1
+    assert "configuration exploded" in capsys.readouterr().err
