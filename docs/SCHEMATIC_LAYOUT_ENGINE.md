@@ -2,7 +2,7 @@
 
 ## Status
 
-The intelligent schematic track is implemented as a bounded deterministic internal pipeline. It does not add public MCP tools by itself and it does not bypass the existing semantic-operation, preview, expected-SHA, transaction or real-DipTrace evidence boundaries.
+The intelligent schematic track is implemented as a bounded deterministic pipeline. Bounded placement repair plus selective atomic reroute and deterministic ensemble ranking are productized as public tools (`plan_schematic_placement_repair`, `apply_schematic_placement_repair_plan`, `rank_schematic_placement_candidates`); the remaining engines stay internal. None of it bypasses the existing semantic-operation, preview, expected-SHA, transaction or real-DipTrace evidence boundaries.
 
 Current modules:
 

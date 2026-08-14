@@ -69,9 +69,8 @@ is not yet published.
 
 ## What it provides
 
-The public MCP surface remains 159 registered tools, 157 public
-`DipTraceService` methods, and 148 explicit Facade-to-domain-service
-delegations. Runtime `get_capabilities` remains authoritative for the active
+The public MCP surface currently registers 165 tools. Runtime
+`get_capabilities` remains authoritative for the active
 installation and document.
 
 Main public capability groups:

@@ -47,6 +47,7 @@ from .server_inputs import (
     PcbScaffoldInput,
     RoundtripEvidenceInput,
     RouteConnectionInput,
+    SchematicRepairMoveInput,
     SelectorInput,
     SyncPlacementInput,
     XmlEditInput,
@@ -1510,6 +1511,67 @@ def create_server(
             expected_sha256=expected_sha256,
             txid=txid,
         )
+
+    @mcp.tool()
+    def rank_schematic_placement_candidates(path: str | None = None) -> dict[str, Any]:
+        """Rank bounded schematic placement candidates by route quality, motifs and congestion."""
+        return service.rank_schematic_placement_candidates(path)
+
+    @mcp.tool()
+    def plan_schematic_placement_repair(
+        path: str | None = None,
+        moves: list[SchematicRepairMoveInput] | None = None,
+    ) -> dict[str, Any]:
+        """Plan bounded placement repair plus selective affected-net reroute as one transaction."""
+        return service.plan_schematic_placement_repair(
+            path,
+            moves=[move.model_dump() for move in moves] if moves else None,
+        )
+
+    @mcp.tool()
+    def apply_schematic_placement_repair_plan(
+        plan_id: str,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Stage or commit a stored schematic placement-repair plan transactionally."""
+        return service.apply_schematic_placement_repair_plan(
+            plan_id,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+        )
+
+    @mcp.tool()
+    def compare_pcb_placement_candidates(
+        path: str | None = None,
+        profiles: list[
+            Literal["balanced", "critical_nets", "noise_aware", "support_compact"]
+        ]
+        | None = None,
+        include_existing_board: bool = True,
+    ) -> dict[str, Any]:
+        """Generate and rank bounded PCB Generation A-D placement candidates."""
+        return service.compare_pcb_placement_candidates(
+            path,
+            profiles=profiles,
+            include_existing_board=include_existing_board,
+        )
+
+    @mcp.tool()
+    def recommend_patterns(
+        requirement: dict[str, Any],
+        path: str | None = None,
+        limit: int = 10,
+    ) -> dict[str, Any]:
+        """Rank compatible footprint patterns from a pattern library deterministically."""
+        return service.recommend_patterns(requirement, path, limit=limit)
+
+    @mcp.tool()
+    def analyze_release_readiness(path: str | None = None) -> dict[str, Any]:
+        """Report bounded DFM/DFA/DFT release-readiness findings from exported XML."""
+        return service.analyze_release_readiness(path)
 
     @mcp.tool()
     def add_trace(

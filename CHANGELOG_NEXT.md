@@ -15,7 +15,8 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 - **atomic selective schematic reroute planner** that identifies only explicit sheet-local nets touched by moved parts, fails closed on unresolved endpoints/routes, and emits one dependency-safe `delete_wire -> move_components -> add_wire` semantic batch for the existing guarded transaction path;
 - deterministic schematic ensemble ranking that combines builtin-but-explicitly-labelled readability motifs, pin-aware route quality and bounded placement-grid congestion pressure;
 - fail-closed validation for stale/geometrically inconsistent Wire segment references while preserving valid middle-of-segment joins;
-- real-DipTrace schematic authoring/readability campaign coverage for cases 01–18, including incremental editing, failed-operation safety, single- and multi-net atomic reroute, obstacle/readability repair and a repaired 22-part stress schematic.
+- real-DipTrace schematic authoring/readability campaign coverage for cases 01–18, including incremental editing, failed-operation safety, single- and multi-net atomic reroute, obstacle/readability repair and a repaired 22-part stress schematic;
+- public MCP tools `rank_schematic_placement_candidates`, `plan_schematic_placement_repair` and `apply_schematic_placement_repair_plan` productizing ensemble ranking and the repair-plus-atomic-reroute pipeline through the stored-plan preview/expected-SHA/transaction path.
 
 ### PCB Generations A-D
 
@@ -23,7 +24,8 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 - **Generation B:** exported stackup/reference context, conservative PDN/source/load/decoupling analysis, regulator hot-loop candidates, return-path integration, timing-gated aggressor/victim triage and semantic via roles;
 - **Generation C:** deterministic routing-policy compiler, engineering route ordering, observed-route SI checks, copper/topology strategy and bounded placement feedback;
 - **Generation D:** bounded whole-board candidate selector with lexicographically dominant hard constraints, decomposed soft metrics and a synthetic engineering-trap benchmark catalog;
-- bounded A-D candidate ensemble generation using multiple real Generation-A placement profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline, with B/C conservative evidence proxies and the existing hard-first Generation-D selector.
+- bounded A-D candidate ensemble generation using multiple real Generation-A placement profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline, with B/C conservative evidence proxies and the existing hard-first Generation-D selector;
+- public MCP tool `compare_pcb_placement_candidates` exposing that ensemble as a read-only comparison.
 
 ### DSN/SES and XML analysis
 
@@ -73,11 +75,12 @@ The headless worker is a host-automation boundary, not a second semantic authori
 - write-path trust invalidation regression coverage;
 - deterministic DFM/DFA/DFT release-readiness supplement;
 - manual-only acceptance evidence generator and validator;
-- aggregate supported-environment coverage gate raised to 90% while preserving the 85% geometry-enabled Linux-only floor.
+- aggregate supported-environment coverage gate raised to 90% while preserving the 85% geometry-enabled Linux-only floor;
+- public MCP tools `recommend_patterns` (deterministic pattern-library recommendation without model calls) and `analyze_release_readiness` (bounded DFM/DFA/DFT findings from exported XML).
 
 ## Changed
 
-- The public MCP contract remains frozen at 159 tools despite the new internal EDA layers and prepared package-level library mutation request API.
+- The public MCP contract was intentionally expanded from the frozen 159 to 165 tools to productize bounded intelligence engines; package-level library mutation registration remains intentionally unregistered and the contract snapshot/regeneration gate was updated in the same change.
 - Existing-wired schematics no longer represent a fundamental placement dead-end: affected explicit wire geometry can now be selectively replanned as one atomic semantic transaction batch. The older conservative placement planners may still refuse existing wires when used directly.
 - The initial real-DipTrace schematic quality campaign is complete: cases 01–18 closed with retained failed/invalid attempts, targeted fixes, operator visual review and native Save/Close/Reopen/re-export evidence. PR #90 merged the bounded fixes into `main`.
 - PCB Generation D can now compare multiple internally generated bounded placement candidates rather than only caller-supplied synthetic examples.

@@ -7,7 +7,7 @@ from typing import Any, Protocol
 
 from ..adapters import build_snapshot
 from ..domain import QuerySelector
-from ..errors import DrcRegressionError
+from ..errors import CapabilityUnavailableError, DrcRegressionError, EditError
 from ..operations import SemanticOperation
 from ..placement import (
     PlacementConfig,
@@ -21,6 +21,9 @@ from ..placement import (
 from ..plans import PlanStore
 from ..preview import render_preview_json, render_preview_svg
 from ..review import run_checks
+from ..schematic_atomic_reroute import plan_atomic_schematic_placement_reroute
+from ..schematic_optimizer import generate_schematic_placement_candidates
+from ..schematic_placement_repair import repair_schematic_placement_from_route_feedback
 from ..semantic_compiler import apply_semantic_operations
 from ..silkscreen import SilkscreenPlanConfig, plan_silkscreen
 from ..xml_document import DipTraceDocument
@@ -292,6 +295,151 @@ class PlacementService:
             expected_sha256=expected_sha256,
             txid=txid,
         )
+
+    def plan_schematic_placement_repair(
+        self,
+        path: str | None = None,
+        *,
+        moves: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        document, target = self.gateway.load(path)
+        snapshot = self.context.model_cache.get(document, live_session=target.is_live)
+        if snapshot.schematic is None:
+            raise CapabilityUnavailableError(
+                "Schematic placement repair requires a schematic document"
+            )
+        candidates = generate_schematic_placement_candidates(snapshot)
+        if not candidates:
+            raise CapabilityUnavailableError(
+                "No schematic placement candidate could be generated"
+            )
+        base = candidates[0].model_copy(deep=True)
+        if moves:
+            resolved = self._resolve_schematic_moves(snapshot, moves)
+            base.placements = {**base.placements, **resolved}
+        repair = repair_schematic_placement_from_route_feedback(document, base)
+        final_candidate = (
+            repair.selected.candidate if repair.selected is not None else repair.base_candidate
+        )
+        reroute = plan_atomic_schematic_placement_reroute(document, final_candidate)
+        if reroute.operations:
+            preview = self.preview_semantic_operations(document, reroute.operations)
+        else:
+            preview = {
+                "svg": render_preview_svg(snapshot, snapshot, []),
+                "json": render_preview_json(snapshot, snapshot, []),
+                "diff": "",
+            }
+        metrics = {
+            "repair": {
+                "improved": repair.improved,
+                "selected_action_feedback_kind": (
+                    repair.selected.action.feedback_kind if repair.selected else None
+                ),
+                "feedback_edge_count": repair.feedback_edge_count,
+                "generated_candidate_count": repair.generated_candidate_count,
+                "rejected_overlap_candidate_count": repair.rejected_overlap_candidate_count,
+            },
+            "reroute": {
+                "moved_part_count": len(reroute.moved_part_ids),
+                "deleted_wire_count": len(reroute.deleted_wire_ids),
+                "added_wire_count": reroute.added_wire_count,
+                "affected_net_group_count": len(reroute.affected_net_groups),
+            },
+        }
+        warnings = [
+            *repair.warnings,
+            *reroute.warnings,
+        ]
+        limitations = [
+            "Joint placement optimization of already-wired schematics is not enabled; "
+            "repair planning targets authoring-stage documents.",
+            *repair.limitations,
+            *reroute.limitations,
+        ]
+        record = self.plan_store.create(
+            plan_type="schematic_placement_repair",
+            document_id=snapshot.info.document_id,
+            source_sha256=snapshot.info.sha256,
+            target_path=target.path,
+            config={"moves": list(moves or [])},
+            operations=[operation.model_dump(mode="json") for operation in reroute.operations],
+            changed_ids=[*reroute.moved_part_ids, *reroute.deleted_wire_ids],
+            unresolved=list(base.unresolved),
+            candidates=[],
+            score={
+                "placement_total_score": repair.base_score.placement_total_score,
+            },
+            metrics=metrics,
+            assumptions=list(repair.assumptions),
+            warnings=warnings,
+            limitations=limitations,
+        )
+        resources = self.plan_store.store_preview(
+            record.plan_id,
+            svg=preview["svg"],
+            geometry={
+                **preview["json"],
+                "plan_id": record.plan_id,
+                "metrics": metrics,
+            },
+            diff=preview["diff"],
+        )
+        record = self.plan_store.read(record.plan_id)
+        return read_success(
+            snapshot.info,
+            {"plan": record.model_dump(mode="json")},
+            warnings=warnings,
+            limitations=limitations,
+            resources=resources,
+        )
+
+    def apply_schematic_placement_repair_plan(
+        self,
+        plan_id: str,
+        *,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        return self.apply_stored_plan(
+            plan_id,
+            expected_plan_type="schematic_placement_repair",
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+        )
+
+    @staticmethod
+    def _resolve_schematic_moves(
+        snapshot: Any,
+        moves: list[dict[str, Any]],
+    ) -> dict[str, dict[str, float]]:
+        assert snapshot.schematic is not None
+        by_refdes: dict[str, str] = {}
+        by_id: set[str] = set()
+        for part in snapshot.schematic.parts:
+            by_id.add(part.stable_id)
+            if part.refdes:
+                by_refdes[part.refdes.upper()] = part.stable_id
+        resolved: dict[str, dict[str, float]] = {}
+        for move in moves:
+            part = str(move.get("part", "")).strip()
+            try:
+                position = {
+                    "x": float(move["x_mm"]),
+                    "y": float(move["y_mm"]),
+                }
+            except (KeyError, TypeError, ValueError) as exc:
+                raise EditError("Each schematic repair move needs numeric x_mm and y_mm") from exc
+            if not part:
+                raise EditError("Each schematic repair move needs a non-empty part identifier")
+            stable_id = by_refdes.get(part.upper()) or (part if part in by_id else None)
+            if stable_id is None:
+                raise EditError(f"Schematic repair move references unknown part '{part}'")
+            resolved[stable_id] = position
+        return resolved
+
 
     def apply_silkscreen_plan(
         self,

@@ -29,7 +29,7 @@ The static-analysis job includes Ruff, strict Mypy, release metadata, skill sync
 
 Current public contract remains:
 
-- 159 registered tools;
+- 165 registered tools;
 - generated `reference/mcp-tools-list.snapshot.json` frozen by CI.
 
 Internal schematic/PCB/DSN-SES/XML/evidence/cinematic/library API modules must not silently expand this surface. Package-level preparation is not public registration.

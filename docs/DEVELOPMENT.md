@@ -2,7 +2,7 @@
 
 ## Current baseline
 
-The current source/package version is `0.2.1`. The public MCP contract remains 159 tools. `DipTraceService` is the stable public Facade; typed domain implementations live under `src/diptrace_mcp/services/`.
+The current source/package version is `0.2.1`. The public MCP contract currently registers 165 tools (intentionally expanded from the earlier frozen 159 to productize bounded EDA intelligence engines). `DipTraceService` is the stable public Facade; typed domain implementations live under `src/diptrace_mcp/services/`.
 
 `v0.2.1` is already published as an unsigned GitHub development prerelease and as `diptrace-mcp==0.2.1` on PyPI. Development on `main` has continued after that immutable release, so a source checkout may contain capabilities not present in the published `v0.2.1` artifacts.
 
@@ -119,9 +119,7 @@ python scripts/validate_service_decomposition.py --check
 
 Current expected values:
 
-- 159 MCP tools;
-- 157 public `DipTraceService` methods;
-- 148 explicit delegations.
+- 165 MCP tools.
 
 The MCP discovery budget and exact snapshot are CI-gated. Internal schematic/PCB/cinematic work should not expand the public surface without an explicit API decision.
 

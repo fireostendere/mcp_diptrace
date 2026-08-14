@@ -148,6 +148,18 @@ ExpectedLiveWorkingSha256Input = Annotated[
         ),
     ),
 ]
+class SchematicRepairMoveInput(BaseModel):
+    """One operator-directed part move for schematic placement repair planning."""
+
+    part: str = Field(
+        min_length=1,
+        max_length=256,
+        description="Part reference designator or stable object identifier.",
+    )
+    x_mm: float = Field(allow_inf_nan=False, description="Target X position in millimetres.")
+    y_mm: float = Field(allow_inf_nan=False, description="Target Y position in millimetres.")
+
+
 SelectorInput = Annotated[
     dict[str, object],
     Field(

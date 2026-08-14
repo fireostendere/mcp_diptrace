@@ -9,7 +9,7 @@ DipTrace MCP is intentionally split into four concerns:
 3. internal EDA intelligence that generates/scores proposals without bypassing safety boundaries;
 4. optional Windows presentation automation for visible cinematic replay.
 
-The frozen public MCP surface remains **159 tools** while internal EDA layers evolve.
+The public MCP surface currently registers **165 tools**; it was intentionally expanded from the earlier frozen 159 to expose bounded EDA intelligence engines as products.
 
 ## End-to-end structure
 
@@ -74,13 +74,11 @@ Cinematic replay is presentation automation. It is not a replacement for the gua
 
 `src/diptrace_mcp/server.py` owns FastMCP registration, stdio/trusted-loopback HTTP transport, the stable error envelope, worker-thread offload and dependency assembly through `DipTraceService`.
 
-Current frozen public contract:
+Current public contract:
 
-- 159 registered tools;
-- 157 public `DipTraceService` methods;
-- 148 explicit Facade-to-domain-service delegations.
+- 165 registered tools.
 
-`reference/mcp-tools-list.snapshot.json` and CI guard that surface. New internal heuristics and package-level APIs do not automatically become new tools.
+`reference/mcp-tools-list.snapshot.json` and CI guard that surface. New internal heuristics and package-level APIs do not automatically become new tools; public registration is an intentional contract decision.
 
 ## Service and trust boundaries
 
@@ -150,7 +148,7 @@ These analyzers are review/evidence tools; they do not grant compatibility or mu
 
 `library_mutation.py` remains the raw-preserving internal Component/Pattern writer core with controlled real-editor evidence.
 
-`library_mutation_api.py` adds a stable expected-SHA package-level request/preview contract around that core. It is intentionally **not registered as a public MCP tool** (`public_registration=False`), so this work does not expand the frozen 159-tool contract. A future MCP registration requires an intentional API/product decision, snapshot update and claim-specific acceptance rather than happening incidentally.
+`library_mutation_api.py` adds a stable expected-SHA package-level request/preview contract around that core. It is intentionally **not registered as a public MCP tool** (`public_registration=False`), so this work does not expand the current 165-tool contract. A future MCP registration requires an intentional API/product decision, snapshot update and claim-specific acceptance rather than happening incidentally.
 
 ## Evidence pipeline
 

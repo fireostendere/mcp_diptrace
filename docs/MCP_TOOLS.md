@@ -2,7 +2,7 @@
 
 ## Public contract
 
-DipTrace MCP currently exposes **159 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
+DipTrace MCP currently exposes **165 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
 
 `reference/mcp-tools-list.snapshot.json`
 
@@ -32,7 +32,7 @@ The exact names and schemas are in the generated snapshot. Conceptually the publ
 - bounded external jobs/adapters;
 - release/readiness and other project-owned analysis helpers.
 
-Use MCP introspection rather than copying a manually maintained 159-item list into application code or documentation.
+Use MCP introspection rather than copying a manually maintained 165-item list into application code or documentation.
 
 ## Tool availability
 
@@ -69,29 +69,32 @@ Write-capable tools remain behind the guarded operation path:
 
 The public tool surface is not permission to bypass those boundaries.
 
-## Internal schematic intelligence
+## Schematic intelligence tools
 
-The following current capabilities are internal modules/services and are not represented as new public tools solely because they exist:
+Schematic design intent / functional blocks / reference motifs, bounded multi-candidate placement optimization, non-mutating wire quality planning/feedback, conservative pin-geometry resolution, and pin-aware joint route/placement scoring remain internal engines. They are now productized through bounded public tools:
 
-- schematic design intent / functional blocks / reference motifs;
-- bounded multi-candidate placement optimization;
-- non-mutating wire quality planning/feedback;
-- conservative pin-geometry resolution;
-- pin-aware joint route/placement scoring;
-- bounded placement repair.
+- `rank_schematic_placement_candidates` — deterministic ensemble ranking of placement candidates by route quality, readable motifs and congestion;
+- `plan_schematic_placement_repair` — bounded route-feedback placement repair combined with selective atomic affected-net reroute, stored as one dependency-safe plan;
+- `apply_schematic_placement_repair_plan` — stages or commits that stored plan through the ordinary expected-SHA transaction path (`dry_run` defaults to true).
 
 Selected results ultimately use ordinary semantic operations/transaction paths. See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
-## Internal PCB Generations A-D
+## PCB Generations A-D and analysis tools
 
-The PCB design-engine layers are also internal:
+The PCB design-engine layers remain internal engines:
 
 - Generation A intent/net intelligence and placement v2;
 - Generation B physical/PDN/return-path/noise/via context;
 - Generation C routing policy / observed-route engineering checks / feedback;
 - Generation D bounded whole-board candidate selection.
 
-They preserve the existing 159-tool public contract. See [PCB_DESIGN_ENGINE.md](PCB_DESIGN_ENGINE.md).
+They are read-only productized through:
+
+- `compare_pcb_placement_candidates` — generate and rank bounded Generation A-D placement candidates;
+- `recommend_patterns` — deterministic hard-filter and geometry-score ranking of footprint patterns from a pattern library (no model calls);
+- `analyze_release_readiness` — bounded DFM/DFA/DFT findings available from exported XML (supplement, not replacement, of DipTrace sign-off).
+
+See [PCB_DESIGN_ENGINE.md](PCB_DESIGN_ENGINE.md).
 
 ## Component/Pattern Library mutation
 

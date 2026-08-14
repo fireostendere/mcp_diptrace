@@ -83,7 +83,7 @@ Remaining debt is a product/API decision, not implementation absence:
 - add transport/error/permission tests;
 - avoid broadening compatibility claims beyond verified operations.
 
-There is no current reason to expand the 159-tool MCP surface merely because the package-level API exists.
+The 165-tool MCP surface already productizes the bounded intelligence engines; there is no current reason to expand it further merely because a package-level API exists.
 
 ### 11. Evidence review automation depth
 
