@@ -80,13 +80,16 @@ function Test-StagedBundle([string]$Root) {
 
 try {
     if (-not $SkipBuild) {
-        $serverArgs = @('-PythonCommand', $PythonCommand, '-OutputDir', 'dist\windows-server', '-Clean')
-        if ($NoGeometry) { $serverArgs += '-NoGeometry' }
-        Invoke-Checked (Join-Path $RepoRoot 'scripts\build_windows_server.ps1') $serverArgs
-        Invoke-Checked (Join-Path $RepoRoot 'scripts\build_windows_configurator.ps1') @('-PythonCommand', $PythonCommand, '-OutputDir', 'dist\windows-configurator', '-Clean')
+        & (Join-Path $RepoRoot 'scripts\build_windows_server.ps1') `
+            -PythonCommand $PythonCommand -OutputDir 'dist\windows-server' -Clean -NoGeometry:$NoGeometry
+        if ($LASTEXITCODE -ne 0) { throw "Windows server build failed with exit code $LASTEXITCODE" }
+        & (Join-Path $RepoRoot 'scripts\build_windows_configurator.ps1') `
+            -PythonCommand $PythonCommand -OutputDir 'dist\windows-configurator' -Clean
+        if ($LASTEXITCODE -ne 0) { throw "Windows configurator build failed with exit code $LASTEXITCODE" }
         if (-not $BridgePath) { $BridgePath = $BridgeDefault }
         if (-not (Test-Path -LiteralPath $BridgePath -PathType Leaf)) {
-            Invoke-Checked (Join-Path $RepoRoot 'plugin\build_bridge.ps1') @('-PythonCommand', $PythonCommand, '-Clean')
+            & (Join-Path $RepoRoot 'plugin\build_bridge.ps1') -PythonCommand $PythonCommand -Clean
+            if ($LASTEXITCODE -ne 0) { throw "Windows bridge build failed with exit code $LASTEXITCODE" }
         }
     }
     if (-not $BridgePath) { $BridgePath = $BridgeDefault }
@@ -152,7 +155,8 @@ try {
         $displayVersion = (Get-ItemProperty -LiteralPath $registryPath -Name DisplayVersion -ErrorAction SilentlyContinue).DisplayVersion
         if ($displayVersion) { $isccVersions += ([string]$displayVersion -replace '\s', '') }
     }
-    foreach ($argument in @('/?')) {
+    if (-not ($isccVersions | Where-Object { $_.StartsWith('6.4.2') } | Select-Object -First 1)) {
+        $argument = '/?'
         $isccBanner = (& $IsccPath $argument 2>&1 | Out-String)
         $isccMatch = [regex]::Match($isccBanner, '(?im)Inno Setup(?: Compiler)?\s+([0-9]+\.[0-9]+\.[0-9]+)')
         if ($isccMatch.Success) { $isccVersions += $isccMatch.Groups[1].Value }
