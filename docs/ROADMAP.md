@@ -45,11 +45,7 @@ The canonical matrix therefore has 8 of 12 blocking manual gates PASS.
 
 `claude_desktop_real_client_restart` is **WAIVED for the current project campaign**, not PASS.
 
-The project-required formal lifecycle sequence is now the next acceptance track:
-
-1. `windows_clean_install_repair_uninstall`;
-2. `elevated_plugin_install_profile_preservation`;
-3. `custom_state_preservation`.
+The real-host lifecycle track has completed a clean product-state install/repair/uninstall run and `elevated_plugin_install_profile_preservation` on exact candidate `9af6da2`. The strict pristine-machine qualifier remains explicit for the former. The next campaign gate is `custom_state_preservation`.
 
 # Schematic track
 
@@ -254,7 +250,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 # Next project sequence
 
 1. Keep the completed schematic cases 01–18 closed unless an impact-based production change requires a focused rerun.
-2. Resume the formal Windows lifecycle gates, starting with `windows_clean_install_repair_uninstall`.
+2. Run `custom_state_preservation`; do not broaden the earlier clean product-state result into a pristine-machine claim.
 3. Continue PCB whole-board/native quality work when stronger PCB claims are the active product priority.
 4. Treat cinematic exact-UI acceptance and any future public library-write API as separate claim/product tracks.
 
@@ -262,7 +258,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 
 | Area | Current status |
 | --- | --- |
-| manual acceptance | 8 canonical PASS gates on accepted historical checkpoint; Claude WAIVED; Windows lifecycle next |
+| manual acceptance | 8 canonical PASS gates on the historical checkpoint; Claude WAIVED; elevated profile gate PASS on `9af6da2`; custom-state gate next |
 | schematic intent/motifs | implemented + builtin heuristic motifs |
 | schematic placement | bounded implementation |
 | schematic route/joint repair | bounded implementation |

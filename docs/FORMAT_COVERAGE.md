@@ -10,10 +10,10 @@
 | Project-authored omission clauses | 0 |
 | Documented parent/child relationships | 143 across 61 parents |
 | Normalized (reader produces typed field) | 72 |
-| Written only (writer can create/modify) | 19 |
+| Written only (writer can create/modify) | 21 |
 | Mentioned only (literal, not an XML call) | 6 |
-| Passthrough (unknown XML, kept byte-for-byte) | 10 |
-| **Coverage** | **85.0%** |
+| Passthrough (unknown XML, kept byte-for-byte) | 8 |
+| **Coverage** | **86.9%** |
 
 ## Inventory Provenance
 
@@ -107,10 +107,12 @@ the current reader/writer call sites; it is not a normative DipTrace format spec
 
 - `ActiveSheet`
 - `Board`
+- `Datasheet`
 - `GNDTemplate`
 - `Id`
 - `LayerName`
 - `LayerStackName`
+- `Manufacturer`
 - `Name`
 - `Name_Unique`
 - `Origin`
@@ -137,13 +139,11 @@ the current reader/writer call sites; it is not a normative DipTrace format spec
 ## Passthrough Elements
 
 - `Data`
-- `Datasheet`
 - `Filename`
 - `FutureComponentData`
 - `FutureExtension`
 - `FuturePatternData`
 - `FutureStackupExtension`
-- `Manufacturer`
 - `Note`
 - `PadNumber`
 
@@ -166,4 +166,3 @@ does not make undocumented children safe.
 Any operation listed above can discard matching passthrough children rather than
 preserve their original bytes. Unlisted dynamic removal sites remain unavailable
 to this static detector and must not be assumed safe.
-

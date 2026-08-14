@@ -64,6 +64,7 @@ function Test-StagedBundle([string]$Root) {
     Assert-File (Join-Path $Root 'app\diptrace_mcp_server.exe') 'standalone server'
     Assert-File (Join-Path $Root 'bridge\diptrace_mcp_bridge.exe') 'bridge'
     Assert-File (Join-Path $Root 'tools\diptrace_mcp_configure\diptrace_mcp_configure.exe') 'configurator'
+    Assert-File (Join-Path $Root 'tools\diptrace_mcp_configure\_internal\python312.dll') 'configurator runtime'
     Assert-File (Join-Path $Root 'tools\install_portable.ps1') 'portable installer helper'
     foreach ($name in @('pcb.settings.xml', 'schematic.settings.xml', 'component.settings.xml', 'pattern.settings.xml')) {
         Assert-File (Join-Path $Root ("settings-templates\$name")) "settings template $name"
@@ -80,13 +81,16 @@ function Test-StagedBundle([string]$Root) {
 
 try {
     if (-not $SkipBuild) {
-        $serverArgs = @('-PythonCommand', $PythonCommand, '-OutputDir', 'dist\windows-server', '-Clean')
-        if ($NoGeometry) { $serverArgs += '-NoGeometry' }
-        Invoke-Checked (Join-Path $RepoRoot 'scripts\build_windows_server.ps1') $serverArgs
-        Invoke-Checked (Join-Path $RepoRoot 'scripts\build_windows_configurator.ps1') @('-PythonCommand', $PythonCommand, '-OutputDir', 'dist\windows-configurator', '-Clean')
+        & (Join-Path $RepoRoot 'scripts\build_windows_server.ps1') `
+            -PythonCommand $PythonCommand -OutputDir 'dist\windows-server' -Clean -NoGeometry:$NoGeometry
+        if ($LASTEXITCODE -ne 0) { throw "Windows server build failed with exit code $LASTEXITCODE" }
+        & (Join-Path $RepoRoot 'scripts\build_windows_configurator.ps1') `
+            -PythonCommand $PythonCommand -OutputDir 'dist\windows-configurator' -Clean
+        if ($LASTEXITCODE -ne 0) { throw "Windows configurator build failed with exit code $LASTEXITCODE" }
         if (-not $BridgePath) { $BridgePath = $BridgeDefault }
         if (-not (Test-Path -LiteralPath $BridgePath -PathType Leaf)) {
-            Invoke-Checked (Join-Path $RepoRoot 'plugin\build_bridge.ps1') @('-PythonCommand', $PythonCommand, '-Clean')
+            & (Join-Path $RepoRoot 'plugin\build_bridge.ps1') -PythonCommand $PythonCommand -Clean
+            if ($LASTEXITCODE -ne 0) { throw "Windows bridge build failed with exit code $LASTEXITCODE" }
         }
     }
     if (-not $BridgePath) { $BridgePath = $BridgeDefault }
@@ -95,7 +99,7 @@ try {
     Assert-File $BridgePath 'bridge executable'
 
     New-Item -ItemType Directory -Force -Path $Stage, $InstallerDir, $PortableDir | Out-Null
-    New-Item -ItemType Directory -Force -Path (Join-Path $Stage 'app'), (Join-Path $Stage 'bridge'), (Join-Path $Stage 'settings-templates'), (Join-Path $Stage 'tools'), (Join-Path $Stage 'tools\settings') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $Stage 'app'), (Join-Path $Stage 'bridge'), (Join-Path $Stage 'settings-templates'), (Join-Path $Stage 'tools'), (Join-Path $Stage 'tools\settings'), (Join-Path $Stage 'tools\diptrace_mcp_configure') | Out-Null
     Copy-Item -Path (Join-Path $ServerDist '*') -Destination (Join-Path $Stage 'app') -Recurse -Force
     Copy-Item -LiteralPath $BridgePath -Destination (Join-Path $Stage 'bridge\diptrace_mcp_bridge.exe') -Force
     Copy-Item -Path (Join-Path $RepoRoot 'plugin\settings\*') -Destination (Join-Path $Stage 'settings-templates') -Force
@@ -152,7 +156,8 @@ try {
         $displayVersion = (Get-ItemProperty -LiteralPath $registryPath -Name DisplayVersion -ErrorAction SilentlyContinue).DisplayVersion
         if ($displayVersion) { $isccVersions += ([string]$displayVersion -replace '\s', '') }
     }
-    foreach ($argument in @('/?')) {
+    if (-not ($isccVersions | Where-Object { $_.StartsWith('6.4.2') } | Select-Object -First 1)) {
+        $argument = '/?'
         $isccBanner = (& $IsccPath $argument 2>&1 | Out-String)
         $isccMatch = [regex]::Match($isccBanner, '(?im)Inno Setup(?: Compiler)?\s+([0-9]+\.[0-9]+\.[0-9]+)')
         if ($isccMatch.Success) { $isccVersions += $isccMatch.Groups[1].Value }

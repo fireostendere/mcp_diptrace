@@ -61,7 +61,7 @@ Cinematic replay remains presentation automation, not an alternate engineering a
 
 The current project campaign has 8 canonical manual gates PASS. Claude Desktop restart is explicitly WAIVED, not PASS.
 
-When formal lifecycle acceptance resumes, the next project-required gate is `windows_clean_install_repair_uninstall`, followed by elevated plug-in/profile preservation and custom-state preservation. CI installer tests remain implementation evidence, not a replacement for that chosen real clean-machine gate.
+A clean product-state install/repair/uninstall run and exact-candidate `elevated_plugin_install_profile_preservation` are now complete on the real Windows host. The former retains its stricter pristine-machine wording qualifier. `custom_state_preservation` is next; CI installer tests remain implementation evidence, not a replacement for real-host gates.
 
 ### 8. Native manufacturing output
 

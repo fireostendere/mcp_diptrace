@@ -168,6 +168,9 @@ def test_library_service_scan_query_get_and_validate(tmp_path: Path) -> None:
 
     queried = service.query_library_items(str(component_path), "RES")
     assert queried["result"]["matched_count"] == 1
+    assert service.query_library_items(str(component_path), "RC0603-GOLDEN")["result"][
+        "matched_count"
+    ] == 1
     component = service.get_library_component(str(component_path), name="RES_0603")
     assert component["result"]["pattern_style"] == "PatType0"
     mapping = service.validate_pin_pad_mapping(str(component_path), name="RES_0603")
