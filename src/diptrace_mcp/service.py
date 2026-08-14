@@ -658,7 +658,24 @@ class DipTraceService:
             )
         operations = parse_semantic_operations(plan.operations)
         if not operations:
-            raise EditError("Plan contains no changes")
+            if plan.status != "noop":
+                raise EditError("Plan contains no changes")
+            # Documented no-op contract: the planner stored this plan as
+            # no_changes, so apply is an idempotent success without a write or
+            # a transaction, and the document SHA must not change.
+            return {
+                "ok": True,
+                "changed": False,
+                "changed_ids": [],
+                "changed_id_count": 0,
+                "changed_ids_truncated": False,
+                "transaction": None,
+                "plan": plan.model_dump(mode="json"),
+                "warnings": [],
+                "limitations": [
+                    "Plan contains no operations; apply is a documented no-op."
+                ],
+            }
         response = self._run_semantic_operations(
             operations,
             str(target_path),

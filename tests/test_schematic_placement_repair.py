@@ -483,3 +483,66 @@ def test_apply_proposal_fails_closed_for_missing_or_noop_groups() -> None:
         deltas=((_RepairGroup("part", (part_id,)), Point(0.0, 0.0)),),
     )
     assert _apply_proposal(base, noop, grid=1.0) is None
+
+
+def _signal_endpoint_part_ids(document) -> list[str]:
+    snapshot = build_snapshot(document)
+    assert snapshot.schematic is not None
+    signal_net = next(
+        net for net in snapshot.schematic.nets if (net.net_name or net.name) == "SIGNAL"
+    )
+    pin_by_id = {pin.stable_id: pin for pin in snapshot.schematic.pins}
+    return sorted(
+        {
+            pin_by_id[endpoint_id].parent_id
+            for endpoint_id in signal_net.relationships.get("endpoints", [])
+            if endpoint_id in pin_by_id and pin_by_id[endpoint_id].parent_id is not None
+        }
+    )
+
+
+def test_fixed_part_ids_are_immutable_repair_constraints() -> None:
+    document = _document_with_embedded_library()
+    base = _diagonal_signal_candidate(document)
+    endpoints = _signal_endpoint_part_ids(document)
+    assert endpoints
+    fixed = endpoints[0]
+
+    config = _repair_config()
+    config = config.model_copy(update={"fixed_part_ids": (fixed,)})
+    result = repair_schematic_placement_from_route_feedback(document, base, config=config)
+
+    base_position = base.placements[fixed]
+    for item in result.candidates:
+        assert item.candidate.placements[fixed] == base_position
+        assert fixed not in item.action.moved_part_ids
+    if result.selected is not None:
+        assert result.selected.candidate.placements[fixed] == base_position
+        # The reported improvement is computed on the constrained final geometry:
+        # the selected candidate rank is better than the base rank without any
+        # displacement of the fixed part.
+        assert tuple(result.selected.route_score.joint_rank_key) < tuple(
+            result.base_score.joint_rank_key
+        )
+
+
+def test_fixed_constraint_blocks_group_move_for_fixed_endpoint_pairs() -> None:
+    document = _document_with_embedded_library()
+    base = _diagonal_signal_candidate(document)
+    endpoints = _signal_endpoint_part_ids(document)
+
+    config = _repair_config()
+    config = config.model_copy(update={"fixed_part_ids": tuple(endpoints)})
+    result = repair_schematic_placement_from_route_feedback(document, base, config=config)
+
+    # Both feedback endpoint groups contain fixed parts, so no endpoint move is
+    # generated; the engine must not lie about improvement.
+    for item in result.candidates:
+        for part_id in endpoints:
+            assert item.candidate.placements[part_id] == base.placements[part_id]
+        assert not set(endpoints) & set(item.action.moved_part_ids)
+    if not result.candidates:
+        assert result.improved is False
+    assert any(
+        "operator-fixed" in warning for warning in result.warnings
+    )
