@@ -28,6 +28,10 @@ def test_inno_installer_is_user_scoped_and_has_required_wizard_contracts() -> No
     assert 'Type: files; Name: "{app}\\plugin-targets.txt"' in script
     assert 'Type: files; Name: "{app}\\state-dir.txt"' in script
     assert 'Type: dirifempty; Name: "{app}"' in script
+    assert "{autopf}" not in script
+    assert "{autopf32}" not in script
+    assert "{commonpf}" in script
+    assert "{commonpf32}" in script
     assert "PrivilegesRequired=admin" not in script
 
 

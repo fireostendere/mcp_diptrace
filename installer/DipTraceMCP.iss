@@ -278,8 +278,8 @@ begin
   Parameters := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\tools\install_plugin.ps1') +
     '" -DipTraceDir "' + SelectedDipTrace +
     '" -Mode All -BridgeExe "' + ExpandConstant('{app}\bridge\diptrace_mcp_bridge.exe') + '"';
-  NeedsElevation := IsPathUnder(SelectedDipTrace, ExpandConstant('{autopf}')) or
-    IsPathUnder(SelectedDipTrace, ExpandConstant('{autopf32}'));
+  NeedsElevation := IsPathUnder(SelectedDipTrace, ExpandConstant('{commonpf}')) or
+    IsPathUnder(SelectedDipTrace, ExpandConstant('{commonpf32}'));
   AppendInstallLog('DipTrace plugin integration requested; elevation may be required.');
   if not RunPowerShell(Parameters, NeedsElevation, ResultCode) or (ResultCode <> 0) then
     RaiseException('DipTrace plug-in installation failed. No client configuration was attempted.');
@@ -295,8 +295,8 @@ begin
   if not IsPluginSelected or (SelectedDipTrace = '') then Exit;
   Parameters := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\tools\uninstall_plugin.ps1') +
     '" -DipTraceDir "' + SelectedDipTrace + '" -InstallScript "' + ExpandConstant('{app}\tools\install_plugin.ps1') + '"';
-  NeedsElevation := IsPathUnder(SelectedDipTrace, ExpandConstant('{autopf}')) or
-    IsPathUnder(SelectedDipTrace, ExpandConstant('{autopf32}'));
+  NeedsElevation := IsPathUnder(SelectedDipTrace, ExpandConstant('{commonpf}')) or
+    IsPathUnder(SelectedDipTrace, ExpandConstant('{commonpf32}'));
   if not RunPowerShell(Parameters, NeedsElevation, ResultCode) or (ResultCode <> 0) then
     AppendInstallLog('WARNING: automatic DipTrace plug-in rollback failed.')
   else
@@ -412,8 +412,8 @@ begin
   if CurPageID = StatePage.ID then begin
     ResolvedStateDir := Trim(StatePage.Values[0]);
     if IsPathUnder(StatePage.Values[0], ExpandConstant('{app}')) or
-       IsPathUnder(StatePage.Values[0], ExpandConstant('{autopf}')) or
-       IsPathUnder(StatePage.Values[0], ExpandConstant('{autopf32}')) then begin
+       IsPathUnder(StatePage.Values[0], ExpandConstant('{commonpf}')) or
+       IsPathUnder(StatePage.Values[0], ExpandConstant('{commonpf32}')) then begin
       MsgBox('State must remain outside the installed application and Program Files.', mbError, MB_OK);
       Result := False;
     end else if not ForceDirectories(StatePage.Values[0]) then begin
@@ -430,10 +430,10 @@ var
 begin
   PluginSelection := not HasCommandLineParam('/SERVERONLY');
   DipTracePage := CreateInputOptionPage(wpSelectComponents, 'DipTrace installation', 'Choose DipTrace integration', 'Only a validated installation is offered for plug-in integration.', True, True);
-  AddDipTraceCandidate(ExpandConstant('{autopf}\DipTrace5'), 'Program Files');
-  AddDipTraceCandidate(ExpandConstant('{autopf}\DipTrace'), 'Program Files');
-  AddDipTraceCandidate(ExpandConstant('{autopf32}\DipTrace5'), 'Program Files (x86)');
-  AddDipTraceCandidate(ExpandConstant('{autopf32}\DipTrace'), 'Program Files (x86)');
+  AddDipTraceCandidate(ExpandConstant('{commonpf}\DipTrace5'), 'Program Files');
+  AddDipTraceCandidate(ExpandConstant('{commonpf}\DipTrace'), 'Program Files');
+  AddDipTraceCandidate(ExpandConstant('{commonpf32}\DipTrace5'), 'Program Files (x86)');
+  AddDipTraceCandidate(ExpandConstant('{commonpf32}\DipTrace'), 'Program Files (x86)');
   AddRegistryDipTraceCandidates(HKCU);
   AddRegistryDipTraceCandidates(HKLM);
   DipTracePage.Add('Browse for another validated DipTrace installation');
@@ -547,8 +547,8 @@ begin
   for I := 0 to GetArrayLength(Lines) - 1 do begin
     if Trim(Lines[I]) = '' then Continue;
     Parameters := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\tools\uninstall_plugin.ps1') + '" -DipTraceDir "' + Trim(Lines[I]) + '" -InstallScript "' + ExpandConstant('{app}\tools\install_plugin.ps1') + '"';
-    NeedsElevation := IsPathUnder(Trim(Lines[I]), ExpandConstant('{autopf}')) or
-      IsPathUnder(Trim(Lines[I]), ExpandConstant('{autopf32}'));
+    NeedsElevation := IsPathUnder(Trim(Lines[I]), ExpandConstant('{commonpf}')) or
+      IsPathUnder(Trim(Lines[I]), ExpandConstant('{commonpf32}'));
     if not RunPowerShell(Parameters, NeedsElevation, ResultCode) or (ResultCode <> 0) then begin
       Log('DipTrace MCP uninstall: plug-in removal failed with code ' + IntToStr(ResultCode));
       if not UninstallSilent then
