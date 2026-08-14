@@ -105,14 +105,12 @@ CI evidence is necessary but not equivalent to the project-level clean real-mach
 
 ## Current manual acceptance boundary
 
-When formal acceptance resumes, the next project-required lifecycle gate is:
+Post-release real-host validation now has:
 
-`windows_clean_install_repair_uninstall`
+- a clean product-state install/repair/uninstall PASS, while the stricter pristine-machine/VM wording remains a documented qualifier;
+- `elevated_plugin_install_profile_preservation` PASS on exact candidate `9af6da2` and Windows 11 build `26200` with DipTrace `5.3.0.2`.
 
-then:
-
-1. `elevated_plugin_install_profile_preservation`;
-2. `custom_state_preservation`.
+The next campaign gate is `custom_state_preservation`. The elevated gate found and fixed protected-root detection and a flattened frozen-configurator runtime; schematic/native gates were unaffected and were not repeated.
 
 These gates should be run against the exact production candidate/artifacts whose compatibility is being claimed. Do not copy a PASS from an older candidate onto later `main` merely because the installer code looks similar.
 
