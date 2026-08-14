@@ -71,7 +71,7 @@ When a DipTrace installation under protected Program Files requires elevation, o
 
 The configurator supports project-owned configuration for supported MCP clients while preserving unknown existing fields and using backup/atomic-update rules.
 
-A configuration change requires an actual client restart before it can be considered tested. The accepted project campaign has real Codex restart evidence. Claude Desktop restart is currently WAIVED for that campaign, not PASS.
+A configuration change requires an actual client restart before it can be considered tested. The accepted project campaign has real Codex restart evidence and operator-confirmed Claude Desktop restart evidence from a separate machine.
 
 ## Build
 
@@ -107,10 +107,11 @@ CI evidence is necessary but not equivalent to the project-level clean real-mach
 
 Post-release real-host validation now has:
 
-- a clean product-state install/repair/uninstall PASS, while the stricter pristine-machine/VM wording remains a documented qualifier;
-- `elevated_plugin_install_profile_preservation` PASS on exact candidate `9af6da2` and Windows 11 build `26200` with DipTrace `5.3.0.2`.
+- `windows_clean_install_repair_uninstall` PASS, including operator-confirmed from-zero installation on a separate new Windows machine;
+- `elevated_plugin_install_profile_preservation` PASS on exact candidate `9af6da2` and Windows 11 build `26200` with DipTrace `5.3.0.2`;
+- `custom_state_preservation` PASS by operator confirmation from a separate machine.
 
-The next campaign gate is `custom_state_preservation`. The elevated gate found and fixed protected-root detection and a flattened frozen-configurator runtime; schematic/native gates were unaffected and were not repeated.
+The formal lifecycle sequence is complete. The elevated gate found and fixed protected-root detection and a flattened frozen-configurator runtime; schematic/native gates were unaffected and were not repeated.
 
 These gates should be run against the exact production candidate/artifacts whose compatibility is being claimed. Do not copy a PASS from an older candidate onto later `main` merely because the installer code looks similar.
 

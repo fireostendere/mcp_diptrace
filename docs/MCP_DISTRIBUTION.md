@@ -94,9 +94,9 @@ Directory publication is distribution metadata, not real-host acceptance evidenc
 
 Manual acceptance is tracked in [ROADMAP.md](ROADMAP.md) and the generated acceptance tooling.
 
-The latest accepted manual-production checkpoint has 8 of 12 canonical blocking gates PASS. Q1 Component Angle and real Codex restart are PASS. Claude Desktop restart is WAIVED for the current campaign, not PASS. Windows lifecycle is the next project-required formal gate when acceptance resumes.
+The accepted manual-production checkpoints now have all 12 blocking gates PASS. Q1 Component Angle, real Codex and Claude Desktop restarts, clean Windows lifecycle, elevated plug-in/profile preservation and custom-state preservation are PASS. The latter Claude/custom-state evidence is operator-confirmed from a separate machine.
 
-The canonical validator intentionally remains stricter than the project-level Claude waiver; do not weaken it merely to make the matrix appear complete.
+Evidence remains bound to its recorded checkpoint and must not be copied to changed release bytes without an impact-based retest.
 
 Example acceptance pack preparation:
 
