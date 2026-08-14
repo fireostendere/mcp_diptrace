@@ -1523,14 +1523,7 @@ def create_server(
         path: str | None = None,
         moves: list[SchematicRepairMoveInput] | None = None,
     ) -> dict[str, Any]:
-        """Plan bounded placement repair plus selective affected-net reroute as one transaction.
-
-        Works on already-wired schematics: affected explicit wire geometry is
-        deleted and selectively replanned around the repaired placement. Moves
-        in `moves` are fixed constraints built on the current placement; repair
-        may additionally improve other parts but never displaces the requested
-        coordinates.
-        """
+        """Plan placement repair and selective affected-net reroute; wired-safe, moves are fixed."""
         return service.plan_schematic_placement_repair(
             path,
             moves=[move.model_dump() for move in moves] if moves else None,

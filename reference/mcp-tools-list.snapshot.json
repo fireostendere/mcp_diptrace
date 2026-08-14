@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 148461,
-  "canonical_descriptor_sha256": "f836c7116f49812401de7eb86b08348dda17cf3adba1a06996655a946d226158",
+  "canonical_descriptor_bytes": 148118,
+  "canonical_descriptor_sha256": "582789457e3afb09bee235d60ed76c57b74e2728cf95d7408a9970de7a998b0a",
   "format_version": 1,
   "tool_count": 165,
   "tools": [
@@ -5822,7 +5822,7 @@
       }
     },
     {
-      "description": "Plan bounded placement repair plus selective affected-net reroute as one transaction.\n\n        Works on already-wired schematics: affected explicit wire geometry is\n        deleted and selectively replanned around the repaired placement. Moves\n        in `moves` are fixed constraints built on the current placement; repair\n        may additionally improve other parts but never displaces the requested\n        coordinates. All distances are in millimetres, regardless of the document's own Units attribute.",
+      "description": "Plan placement repair and selective affected-net reroute; wired-safe, moves are fixed. All distances are in millimetres, regardless of the document's own Units attribute.",
       "inputSchema": {
         "$defs": {
           "SchematicRepairMoveInput": {
