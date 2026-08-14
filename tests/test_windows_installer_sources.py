@@ -25,6 +25,9 @@ def test_inno_installer_is_user_scoped_and_has_required_wizard_contracts() -> No
     assert "runas" in script
     assert "Remove local DipTrace MCP state and logs" in script
     assert "Projects are never removed".casefold() in script.casefold()
+    assert 'Type: files; Name: "{app}\\plugin-targets.txt"' in script
+    assert 'Type: files; Name: "{app}\\state-dir.txt"' in script
+    assert 'Type: dirifempty; Name: "{app}"' in script
     assert "PrivilegesRequired=admin" not in script
 
 

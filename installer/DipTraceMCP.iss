@@ -59,6 +59,11 @@ Source: "{#StageDir}\installation-manifest.template.json"; DestDir: "{app}"; Des
 Name: "{group}\DipTrace MCP README"; Filename: "{app}\README_FIRST.txt"
 Name: "{group}\DipTrace MCP Configurator"; Filename: "{app}\tools\diptrace_mcp_configure\diptrace_mcp_configure.exe"
 
+[UninstallDelete]
+Type: files; Name: "{app}\plugin-targets.txt"
+Type: files; Name: "{app}\state-dir.txt"
+Type: dirifempty; Name: "{app}"
+
 [Code]
 const
   ClientCodex = 0;
