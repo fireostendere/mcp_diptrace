@@ -64,6 +64,7 @@ function Test-StagedBundle([string]$Root) {
     Assert-File (Join-Path $Root 'app\diptrace_mcp_server.exe') 'standalone server'
     Assert-File (Join-Path $Root 'bridge\diptrace_mcp_bridge.exe') 'bridge'
     Assert-File (Join-Path $Root 'tools\diptrace_mcp_configure\diptrace_mcp_configure.exe') 'configurator'
+    Assert-File (Join-Path $Root 'tools\diptrace_mcp_configure\_internal\python312.dll') 'configurator runtime'
     Assert-File (Join-Path $Root 'tools\install_portable.ps1') 'portable installer helper'
     foreach ($name in @('pcb.settings.xml', 'schematic.settings.xml', 'component.settings.xml', 'pattern.settings.xml')) {
         Assert-File (Join-Path $Root ("settings-templates\$name")) "settings template $name"
@@ -98,7 +99,7 @@ try {
     Assert-File $BridgePath 'bridge executable'
 
     New-Item -ItemType Directory -Force -Path $Stage, $InstallerDir, $PortableDir | Out-Null
-    New-Item -ItemType Directory -Force -Path (Join-Path $Stage 'app'), (Join-Path $Stage 'bridge'), (Join-Path $Stage 'settings-templates'), (Join-Path $Stage 'tools'), (Join-Path $Stage 'tools\settings') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $Stage 'app'), (Join-Path $Stage 'bridge'), (Join-Path $Stage 'settings-templates'), (Join-Path $Stage 'tools'), (Join-Path $Stage 'tools\settings'), (Join-Path $Stage 'tools\diptrace_mcp_configure') | Out-Null
     Copy-Item -Path (Join-Path $ServerDist '*') -Destination (Join-Path $Stage 'app') -Recurse -Force
     Copy-Item -LiteralPath $BridgePath -Destination (Join-Path $Stage 'bridge\diptrace_mcp_bridge.exe') -Force
     Copy-Item -Path (Join-Path $RepoRoot 'plugin\settings\*') -Destination (Join-Path $Stage 'settings-templates') -Force
