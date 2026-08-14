@@ -45,7 +45,7 @@ The canonical matrix therefore has 8 of 12 blocking manual gates PASS.
 
 `claude_desktop_real_client_restart` is **WAIVED for the current project campaign**, not PASS.
 
-The real-host lifecycle track has completed a clean product-state install/repair/uninstall run and `elevated_plugin_install_profile_preservation` on exact candidate `9af6da2`. The strict pristine-machine qualifier remains explicit for the former. The next campaign gate is `custom_state_preservation`.
+The real-host lifecycle track has completed `windows_clean_install_repair_uninstall`, including an operator-confirmed from-zero run on a separate new Windows machine, and `elevated_plugin_install_profile_preservation` on exact candidate `9af6da2`. The next campaign gate is `custom_state_preservation`.
 
 # Schematic track
 
@@ -250,7 +250,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 # Next project sequence
 
 1. Keep the completed schematic cases 01–18 closed unless an impact-based production change requires a focused rerun.
-2. Run `custom_state_preservation`; do not broaden the earlier clean product-state result into a pristine-machine claim.
+2. Run `custom_state_preservation`.
 3. Continue PCB whole-board/native quality work when stronger PCB claims are the active product priority.
 4. Treat cinematic exact-UI acceptance and any future public library-write API as separate claim/product tracks.
 
@@ -258,7 +258,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 
 | Area | Current status |
 | --- | --- |
-| manual acceptance | 8 canonical PASS gates on the historical checkpoint; Claude WAIVED; elevated profile gate PASS on `9af6da2`; custom-state gate next |
+| manual acceptance | 10 of 12 blocking gates PASS across the accepted checkpoints; Claude WAIVED; custom-state gate next |
 | schematic intent/motifs | implemented + builtin heuristic motifs |
 | schematic placement | bounded implementation |
 | schematic route/joint repair | bounded implementation |

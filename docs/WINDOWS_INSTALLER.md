@@ -107,7 +107,7 @@ CI evidence is necessary but not equivalent to the project-level clean real-mach
 
 Post-release real-host validation now has:
 
-- a clean product-state install/repair/uninstall PASS, while the stricter pristine-machine/VM wording remains a documented qualifier;
+- `windows_clean_install_repair_uninstall` PASS, including operator-confirmed from-zero installation on a separate new Windows machine;
 - `elevated_plugin_install_profile_preservation` PASS on exact candidate `9af6da2` and Windows 11 build `26200` with DipTrace `5.3.0.2`.
 
 The next campaign gate is `custom_state_preservation`. The elevated gate found and fixed protected-root detection and a flattened frozen-configurator runtime; schematic/native gates were unaffected and were not repeated.

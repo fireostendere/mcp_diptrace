@@ -266,8 +266,8 @@ separate reviewed contract, and the immutable `v0.2.1` release record correctly
 retains its earlier `NOT_RUN` release-time status. Real Codex restart is PASS;
 Claude Desktop restart is WAIVED for the current project campaign, not PASS.
 The initial 18-case schematic product-quality campaign is PASS for its recorded
-scope. Windows lifecycle gates remain pending; the next project-required formal
-gate is `windows_clean_install_repair_uninstall`.
+scope. The clean Windows lifecycle and elevated plug-in/profile gates are PASS;
+the next project-required formal gate is `custom_state_preservation`.
 
 ## Data Handling
 

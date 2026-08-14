@@ -58,7 +58,7 @@ Q1 manual acceptance established real DipTrace angle semantics on the developmen
 
 Codex restart acceptance used Codex Desktop `26.803.5235.0`; both restarts exposed 159 tools and returned identical `get_capabilities` evidence. Production code remained unchanged.
 
-The canonical matrix therefore has **8 of 12 gates PASS**.
+The historical checkpoint had **8 of 12 gates PASS**. Later lifecycle evidence raises the accepted checkpoints to **10 of 12 blocking gates PASS**: clean Windows install/repair/uninstall, including an operator-confirmed from-zero run on a separate new machine, and elevated Program Files plug-in/profile preservation are also PASS.
 
 ## Claude Desktop waiver and intentional pause
 
@@ -72,10 +72,8 @@ The project is intentionally pausing the remaining Windows/profile lifecycle seq
 
 This separate validation should build small real circuits and inspect electrical correctness, component placement, wire routing, text/label collisions, junction clarity and native save/reopen/re-export behavior.
 
-Remaining project-required formal gates after the pause:
+Remaining project-required formal gate after the pause:
 
-- [ ] Clean Windows 11 install, repair and uninstall using the applicable release bytes.
-- [ ] Elevated Program Files plug-in install while retaining the original user profile.
 - [ ] Pre-existing custom-state preservation across install/repair/uninstall.
 
 If direct Claude Desktop validation becomes important later, run it as a fresh real-client gate and replace the waiver with real evidence at that time; do not retroactively label the current waiver PASS.

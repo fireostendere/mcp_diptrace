@@ -171,7 +171,7 @@ At that checkpoint:
 
 A separate post-release schematic product-quality campaign subsequently completed cases 01–18 and its bounded fixes were merged by PR #90. That later evidence does not rewrite the historical eight-gate identities, and the historical gates do not automatically transfer to newer code.
 
-Later real-host lifecycle evidence completed a clean product-state install/repair/uninstall run (with the strict pristine-machine qualifier retained) and `elevated_plugin_install_profile_preservation` on exact candidate `9af6da2`. The next campaign gate is `custom_state_preservation`.
+Later real-host lifecycle evidence completed `windows_clean_install_repair_uninstall`, including an operator-confirmed from-zero run on a separate new Windows machine, and `elevated_plugin_install_profile_preservation` on exact candidate `9af6da2`. This brings the accepted checkpoints to 10 of 12 blocking gates PASS. The next campaign gate is `custom_state_preservation`; Claude Desktop remains WAIVED, not PASS.
 
 ## Typical local validation
 
