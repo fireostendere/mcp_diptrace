@@ -294,6 +294,7 @@ src/diptrace_mcp/services/documents.py
 src/diptrace_mcp/services/evidence.py
 src/diptrace_mcp/services/exports.py
 src/diptrace_mcp/services/external_jobs.py
+src/diptrace_mcp/services/intelligence.py
 src/diptrace_mcp/services/jobs.py
 src/diptrace_mcp/services/live_sessions.py
 src/diptrace_mcp/services/placement.py
@@ -396,6 +397,7 @@ tests/test_headless_gui.py
 tests/test_impedance_invariants.py
 tests/test_ingest_fixtures.py
 tests/test_inspector.py
+tests/test_intelligence_tools.py
 tests/test_large_synthetic_board.py
 tests/test_libraries.py
 tests/test_library_mutation.py
