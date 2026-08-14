@@ -27,6 +27,7 @@ from .operations import (
     WireEndpoint,
     WirePathPoint,
 )
+from .pattern_recommendation import PatternRequirement
 from .placement import PlacementProposal
 from .routing import RouteConnectionConfig
 from .scaffolding import (
@@ -1522,7 +1523,14 @@ def create_server(
         path: str | None = None,
         moves: list[SchematicRepairMoveInput] | None = None,
     ) -> dict[str, Any]:
-        """Plan bounded placement repair plus selective affected-net reroute as one transaction."""
+        """Plan bounded placement repair plus selective affected-net reroute as one transaction.
+
+        Works on already-wired schematics: affected explicit wire geometry is
+        deleted and selectively replanned around the repaired placement. Moves
+        in `moves` are fixed constraints built on the current placement; repair
+        may additionally improve other parts but never displaces the requested
+        coordinates.
+        """
         return service.plan_schematic_placement_repair(
             path,
             moves=[move.model_dump() for move in moves] if moves else None,
@@ -1561,7 +1569,7 @@ def create_server(
 
     @mcp.tool()
     def recommend_patterns(
-        requirement: dict[str, Any],
+        requirement: PatternRequirement,
         path: str | None = None,
         limit: int = 10,
     ) -> dict[str, Any]:

@@ -92,6 +92,14 @@ The headless worker is a host-automation boundary, not a second semantic authori
 - Installation/release documentation reflects that `v0.2.1` and `diptrace-mcp==0.2.1` are already published.
 - Testing documentation reflects the combined 90% coverage gate and the separate 85% Linux-only floor.
 
+## Fixed
+
+- `plan_schematic_placement_repair` no longer plans from optimizer-regenerated layouts; the baseline is built from the document's current placement and the joint route scorer runs with existing wires allowed, so repair-plus-reroute now works on already-wired schematics as documented.
+- Operator `moves` passed to `plan_schematic_placement_repair` are fixed constraints: they apply on top of the current placement and are re-enforced after repair, so requested coordinates survive planning exactly; regression covers the committed geometry.
+- Schematic placement-repair planning now fails closed when the generated operation batch exceeds the 100-operation transaction limit, instead of storing a plan that the paired apply tool could never execute.
+- Capability reporting no longer overstates availability: `release_readiness` requires a board document, and `schematic_placement_candidate_ranking` is reported unavailable for wired schematics where the underlying scorer refuses to run.
+- `recommend_patterns` exposes the typed `PatternRequirement` schema in `tools/list` (pad count, mounting, geometry bounds, pitch, holes, required pad numbers) instead of an opaque object.
+
 ## Remaining boundaries
 
 - atomic selective schematic reroute currently rebuilds affected sheet-local explicit nets from resolved pin endpoints; it does not preserve arbitrary pre-existing manual junction topology as a visual constraint;

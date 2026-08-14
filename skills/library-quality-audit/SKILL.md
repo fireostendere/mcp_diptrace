@@ -22,8 +22,11 @@ feature availability.
 4. Run `validate_library_component` for pin identity, attached pattern, and pin-to-pad mapping.
    Run `validate_library_pattern` for unique pad numbers, style references, holes, and annular
    geometry.
-5. Group findings by stable item ID and preserve the source SHA-256.
-6. Emit [`../shared/result.schema.json`](../shared/result.schema.json) and keep `actions` proposed
+5. When the caller states footprint requirements, optionally run `recommend_patterns` for a
+   deterministic hard-filter and geometry-score ranking of compatible patterns; it is a
+   read-only advisory and never mutates the library.
+6. Group findings by stable item ID and preserve the source SHA-256.
+7. Emit [`../shared/result.schema.json`](../shared/result.schema.json) and keep `actions` proposed
    or refused.
 
 ## Quantitative boundaries

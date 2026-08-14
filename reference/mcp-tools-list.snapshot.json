@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 146874,
-  "canonical_descriptor_sha256": "796b1a2f249baf516f62c1c3f5afd4e8a901c80dc1c7a6bc257d0b5a2675ab36",
+  "canonical_descriptor_bytes": 148461,
+  "canonical_descriptor_sha256": "f836c7116f49812401de7eb86b08348dda17cf3adba1a06996655a946d226158",
   "format_version": 1,
   "tool_count": 165,
   "tools": [
@@ -5822,7 +5822,7 @@
       }
     },
     {
-      "description": "Plan bounded placement repair plus selective affected-net reroute as one transaction. All distances are in millimetres, regardless of the document's own Units attribute.",
+      "description": "Plan bounded placement repair plus selective affected-net reroute as one transaction.\n\n        Works on already-wired schematics: affected explicit wire geometry is\n        deleted and selectively replanned around the repaired placement. Moves\n        in `moves` are fixed constraints built on the current placement; repair\n        may additionally improve other parts but never displaces the requested\n        coordinates. All distances are in millimetres, regardless of the document's own Units attribute.",
       "inputSchema": {
         "$defs": {
           "SchematicRepairMoveInput": {
@@ -6157,8 +6157,132 @@
       }
     },
     {
-      "description": "Rank compatible footprint patterns from a pattern library deterministically.",
+      "description": "Rank compatible footprint patterns from a pattern library deterministically. All distances are in millimetres, regardless of the document's own Units attribute.",
       "inputSchema": {
+        "$defs": {
+          "PatternRequirement": {
+            "additionalProperties": false,
+            "properties": {
+              "height_mm": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Height Mm"
+              },
+              "hole_count": {
+                "anyOf": [
+                  {
+                    "maximum": 4096,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hole Count"
+              },
+              "max_height_mm": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Max Height Mm"
+              },
+              "max_width_mm": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Max Width Mm"
+              },
+              "mounting": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Mounting"
+              },
+              "pad_count": {
+                "anyOf": [
+                  {
+                    "maximum": 4096,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Pad Count"
+              },
+              "pitch_mm": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Pitch Mm"
+              },
+              "required_pad_numbers": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 4096,
+                "title": "Required Pad Numbers",
+                "type": "array"
+              },
+              "width_mm": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Width Mm"
+              }
+            },
+            "title": "PatternRequirement",
+            "type": "object"
+          }
+        },
         "properties": {
           "limit": {
             "default": 10,
@@ -6178,9 +6302,7 @@
             "title": "Path"
           },
           "requirement": {
-            "additionalProperties": true,
-            "title": "Requirement",
-            "type": "object"
+            "$ref": "#/$defs/PatternRequirement"
           }
         },
         "required": [
