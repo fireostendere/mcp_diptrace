@@ -220,7 +220,7 @@ def test_pure_python_shape_distances_cover_circle_line_and_bbox(
     rect_b = GeometryShape(
         kind="rectangle", center={"x": 4.0, "y": 5.0}, width=2.0, height=2.0
     )
-    assert shape_distance(rect_a, rect_b) == pytest.approx(5.0)
+    assert shape_distance(rect_a, rect_b) == pytest.approx(13**0.5)
     assert geometry_backend._point_distance(Point(0, 0), Point(3, 4)) == 5.0
     assert geometry_backend._bbox_distance(BBox(0, 0, 1, 1), BBox(4, 5, 6, 7)) == 5.0
 
