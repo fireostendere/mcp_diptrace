@@ -25,6 +25,13 @@ def test_inno_installer_is_user_scoped_and_has_required_wizard_contracts() -> No
     assert "runas" in script
     assert "Remove local DipTrace MCP state and logs" in script
     assert "Projects are never removed".casefold() in script.casefold()
+    assert 'Type: files; Name: "{app}\\plugin-targets.txt"' in script
+    assert 'Type: files; Name: "{app}\\state-dir.txt"' in script
+    assert 'Type: dirifempty; Name: "{app}"' in script
+    assert "{autopf}" not in script
+    assert "{autopf32}" not in script
+    assert "{commonpf}" in script
+    assert "{commonpf32}" in script
     assert "PrivilegesRequired=admin" not in script
 
 
@@ -48,6 +55,11 @@ def test_windows_build_wrapper_pins_inno_and_emits_two_named_assets() -> None:
     assert "SHA256SUMS.txt" in wrapper
     assert "artifact-inventory.json" in wrapper
     assert "SIGNING_REQUIRED" not in wrapper or "SigningRequired" in wrapper
+    assert r"tools\diptrace_mcp_configure\_internal\python312.dll" in wrapper
+    assert "(Join-Path $Stage 'tools\\diptrace_mcp_configure')" in wrapper
+    assert "Invoke-Checked (Join-Path $RepoRoot 'scripts\\build_windows_server.ps1')" not in wrapper
+    assert "-NoGeometry:$NoGeometry" in wrapper
+    assert "if (-not ($isccVersions | Where-Object" in wrapper
 
 
 def test_existing_bridge_pipeline_remains_the_source_of_bridge_artifact() -> None:

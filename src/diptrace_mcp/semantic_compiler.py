@@ -2663,6 +2663,21 @@ def _apply_place_part(
     ET.SubElement(part, "PartName").text = operation.part_name or "Part 1"
     ET.SubElement(part, "Value").text = operation.value
     ET.SubElement(part, "Name").text = operation.name or operation.component_style
+    if library_part is not None:
+        manufacturer = (library_part.findtext("./Manufacturer") or "").strip()
+        datasheet = (library_part.findtext("./Datasheet") or "").strip()
+        if manufacturer:
+            ET.SubElement(part, "Manufacturer").text = manufacturer
+        if datasheet:
+            ET.SubElement(part, "Datasheet").text = datasheet
+        fields = {
+            (field.findtext("./Name") or "").strip(): field.findtext("./Text") or ""
+            for field in library_part.findall("./AddFields/AddField")
+            if (field.findtext("./Name") or "").strip()
+        }
+        if manufacturer and not any(name.casefold() in {"manufacturer", "mfr"} for name in fields):
+            fields["Manufacturer"] = manufacturer
+        _set_additional_fields(part, fields)
     common_marking = {
         "Show": "Common",
         "Align": "Common",

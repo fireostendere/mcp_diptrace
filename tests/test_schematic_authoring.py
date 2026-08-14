@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from diptrace_mcp.adapters import build_snapshot
+from diptrace_mcp.bom import extract_bom
 from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import AmbiguousSelectorError, EditError, ObjectNotFoundError
 from diptrace_mcp.operations import (
@@ -122,6 +123,37 @@ def test_place_part_rejects_duplicate_refdes() -> None:
                 )
             ],
         )
+
+
+def test_place_part_copies_embedded_library_identity_into_bom() -> None:
+    raw = _load("schematic.xml").raw_bytes.replace(
+        b'<Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm" />',
+        b'<Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm">'
+        b'<Components><Component ComponentStyle="ExactStyle"><Part Id="0" RefDes="Q">'
+        b'<Name>BSS138</Name><Manufacturer>onsemi</Manufacturer>'
+        b'<Datasheet>https://example.invalid/bss138.pdf</Datasheet><AddFields>'
+        b'<AddField Type="Text"><Name>MPN</Name><Text>BSS138</Text></AddField>'
+        b'<AddField Type="Text"><Name>LCSC</Name><Text>C52895</Text></AddField>'
+        b'</AddFields></Part></Component></Components></Library>',
+    )
+    result = apply_semantic_operations(
+        _load_bytes(raw),
+        [
+            PlacePartOperation(
+                component_style="ExactStyle", refdes="Q1", name="BSS138", x=0, y=0, pin_count=3
+            )
+        ],
+    )
+    part = ET.fromstring(result.raw_bytes).findall("./Schematic/Components/Part")[-1]
+    assert part.findtext("./Manufacturer") == "onsemi"
+    assert part.findtext("./Datasheet") == "https://example.invalid/bss138.pdf"
+    fields = {
+        item.findtext("./Name"): item.findtext("./Text")
+        for item in part.findall("./AddFields/AddField")
+    }
+    assert fields == {"MPN": "BSS138", "LCSC": "C52895", "Manufacturer": "onsemi"}
+    bom = extract_bom(build_snapshot(result.document))[-1]
+    assert (bom.manufacturer, bom.mpn, bom.fields["LCSC"]) == ("onsemi", "BSS138", "C52895")
 
 
 def test_place_part_uses_native_net_port_markings() -> None:
