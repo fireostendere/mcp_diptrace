@@ -230,14 +230,14 @@ class HiddenMessageDesktopDriver:
                 self._click(target, point, command.click or "left", command.click_count)
         else:
             target = hwnd
-            point: tuple[int, int] | None = None
+            click_point: tuple[int, int] | None = None
             if command.move_to is not None:
-                target, point = self._target(hwnd, *command.move_to)
-                self._send(target, _WM_MOUSEMOVE, 0, _pack_point(*point))
+                target, click_point = self._target(hwnd, *command.move_to)
+                self._send(target, _WM_MOUSEMOVE, 0, _pack_point(*click_point))
             if command.click is not None:
                 self._click(
                     target,
-                    point if point is not None else self._center(target),
+                    click_point if click_point is not None else self._center(target),
                     command.click,
                     command.click_count,
                 )
@@ -356,7 +356,8 @@ def _pack_point(x: int, y: int) -> int:
 def _find_window_handle_for_pid(user32: Any, pid: int, title: str) -> int | None:
     needle = title.casefold()
     matches: list[int] = []
-    callback_type: Any = ctypes.WINFUNCTYPE(
+    ctypes_any: Any = ctypes
+    callback_type: Any = ctypes_any.WINFUNCTYPE(
         ctypes.c_bool,
         ctypes.c_void_p,
         ctypes.c_void_p,
@@ -666,13 +667,11 @@ def _perform_hidden_capture(
         ffmpeg_process = hg._launch_process_on_desktop(command, qualified)
         ffmpeg_pid = ffmpeg_process.pid
         time.sleep(_CAPTURE_LEAD_SECONDS)
-        play_manifest(
-            manifest,
-            HiddenMessageDesktopDriver(
-                expected_pid=diptrace.pid,
-                default_window=request.window_title,
-            ),
+        message_driver: Any = HiddenMessageDesktopDriver(
+            expected_pid=diptrace.pid,
+            default_window=request.window_title,
         )
+        play_manifest(manifest, message_driver)
         exit_code = ffmpeg_process.wait(capture_seconds + 15.0)
         if exit_code is None:
             ffmpeg_process.terminate(124)
