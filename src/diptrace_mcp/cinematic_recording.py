@@ -17,31 +17,11 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, cast
 
+from . import headless_gui as hg
 from .cinematic import CinematicEvent
 from .cinematic_host import DesktopCommand, desktop_commands_from_payload, play_manifest
 from .cinematic_preflight import CinematicPreflightResult, preflight_cinematic_manifest
 from .diptrace_window import find_window_handle
-from .headless_gui import (
-    HeadlessGuiError,
-    HiddenDesktop,
-    _EDITOR_EXECUTABLES,
-    _INTERACTIVE_WINDOW_STATION,
-    _coerce_float,
-    _coerce_int,
-    _launch_process_on_desktop,
-    _load_json,
-    _optional_int,
-    _optional_string,
-    _required_string,
-    _sha256,
-    _string_or_default,
-    _write_json,
-    input_desktop_name,
-    process_is_elevated,
-    process_session_id,
-    process_window_station_name,
-    thread_desktop_name,
-)
 from .windows_configurator import ConfiguratorError, validate_diptrace_directory
 
 _WM_CLOSE = 0x0010
@@ -54,7 +34,7 @@ _BUTTON_MESSAGES = {
     "right": (0x0204, 0x0205, 0x0206, 0x0002),
     "middle": (0x0207, 0x0208, 0x0209, 0x0010),
 }
-_VK = {
+_SINGLE_KEYS = {
     "enter": 0x0D,
     "return": 0x0D,
     "esc": 0x1B,
@@ -70,7 +50,7 @@ _VK = {
     "right": 0x27,
     "down": 0x28,
 }
-_SMTO_FLAGS = 0x0001 | 0x0002
+_SEND_TIMEOUT_FLAGS = 0x0001 | 0x0002
 _CHILD_FLAGS = 0x0001 | 0x0002
 _CAPTURE_LEAD_SECONDS = 0.35
 
@@ -92,10 +72,9 @@ class HeadlessCinematicRequest:
 
     def __post_init__(self) -> None:
         editor = self.editor.strip().lower()
-        if editor not in _EDITOR_EXECUTABLES:
-            raise ValueError(
-                "editor must be one of: " + ", ".join(sorted(_EDITOR_EXECUTABLES))
-            )
+        if editor not in hg._EDITOR_EXECUTABLES:
+            choices = ", ".join(sorted(hg._EDITOR_EXECUTABLES))
+            raise ValueError(f"editor must be one of: {choices}")
         if not self.window_title.strip():
             raise ValueError("window_title must not be empty")
         if not 1 <= self.fps <= 240:
@@ -123,7 +102,7 @@ class HeadlessCinematicRequest:
 
     @property
     def executable(self) -> Path:
-        return self.diptrace_root / _EDITOR_EXECUTABLES[self.editor]
+        return self.diptrace_root / hg._EDITOR_EXECUTABLES[self.editor]
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -143,22 +122,22 @@ class HeadlessCinematicRequest:
 
     @classmethod
     def from_json(cls, value: Mapping[str, object]) -> HeadlessCinematicRequest:
-        gif = _optional_string(value.get("gif_output"))
+        gif = hg._optional_string(value.get("gif_output"))
         return cls(
-            diptrace_root=Path(_required_string(value, "diptrace_root")),
-            project=Path(_required_string(value, "project")),
-            manifest=Path(_required_string(value, "manifest")),
-            video_output=Path(_required_string(value, "video_output")),
-            editor=_required_string(value, "editor"),
-            window_title=_string_or_default(value.get("window_title"), "DipTrace"),
-            fps=_coerce_int(value.get("fps"), 60),
-            startup_timeout_seconds=_coerce_float(
+            diptrace_root=Path(hg._required_string(value, "diptrace_root")),
+            project=Path(hg._required_string(value, "project")),
+            manifest=Path(hg._required_string(value, "manifest")),
+            video_output=Path(hg._required_string(value, "video_output")),
+            editor=hg._required_string(value, "editor"),
+            window_title=hg._string_or_default(value.get("window_title"), "DipTrace"),
+            fps=hg._coerce_int(value.get("fps"), 60),
+            startup_timeout_seconds=hg._coerce_float(
                 value.get("startup_timeout_seconds"), 30.0
             ),
-            tail_seconds=_coerce_float(value.get("tail_seconds"), 0.75),
+            tail_seconds=hg._coerce_float(value.get("tail_seconds"), 0.75),
             gif_output=Path(gif) if gif else None,
-            gif_fps=_coerce_int(value.get("gif_fps"), 20),
-            gif_width=_coerce_int(value.get("gif_width"), 1280),
+            gif_fps=hg._coerce_int(value.get("gif_fps"), 20),
+            gif_width=hg._coerce_int(value.get("gif_width"), 1280),
         )
 
 
@@ -190,28 +169,28 @@ class HeadlessCinematicResult:
     def from_json(cls, value: Mapping[str, object]) -> HeadlessCinematicResult:
         return cls(
             ok=bool(value.get("ok", False)),
-            desktop_name=_string_or_default(value.get("desktop_name"), "unknown"),
-            worker_pid=_coerce_int(value.get("worker_pid"), 0),
-            diptrace_pid=_optional_int(value.get("diptrace_pid")),
-            ffmpeg_pid=_optional_int(value.get("ffmpeg_pid")),
-            project=_string_or_default(value.get("project"), ""),
-            manifest=_string_or_default(value.get("manifest"), ""),
-            manifest_sha256=_optional_string(value.get("manifest_sha256")),
-            video_output=_string_or_default(value.get("video_output"), ""),
-            video_sha256=_optional_string(value.get("video_sha256")),
-            gif_output=_optional_string(value.get("gif_output")),
-            gif_sha256=_optional_string(value.get("gif_sha256")),
-            input_desktop_before=_optional_string(value.get("input_desktop_before")),
-            input_desktop_after=_optional_string(value.get("input_desktop_after")),
-            window_station_name=_optional_string(value.get("window_station_name")),
-            session_id=_optional_int(value.get("session_id")),
+            desktop_name=hg._string_or_default(value.get("desktop_name"), "unknown"),
+            worker_pid=hg._coerce_int(value.get("worker_pid"), 0),
+            diptrace_pid=hg._optional_int(value.get("diptrace_pid")),
+            ffmpeg_pid=hg._optional_int(value.get("ffmpeg_pid")),
+            project=hg._string_or_default(value.get("project"), ""),
+            manifest=hg._string_or_default(value.get("manifest"), ""),
+            manifest_sha256=hg._optional_string(value.get("manifest_sha256")),
+            video_output=hg._string_or_default(value.get("video_output"), ""),
+            video_sha256=hg._optional_string(value.get("video_sha256")),
+            gif_output=hg._optional_string(value.get("gif_output")),
+            gif_sha256=hg._optional_string(value.get("gif_sha256")),
+            input_desktop_before=hg._optional_string(value.get("input_desktop_before")),
+            input_desktop_after=hg._optional_string(value.get("input_desktop_after")),
+            window_station_name=hg._optional_string(value.get("window_station_name")),
+            session_id=hg._optional_int(value.get("session_id")),
             forced_termination=bool(value.get("forced_termination", False)),
-            error=_optional_string(value.get("error")),
+            error=hg._optional_string(value.get("error")),
         )
 
 
 class HiddenMessageDesktopDriver:
-    """Replay cinematic commands via bounded window messages, never global input."""
+    """Replay through window messages without touching global physical input."""
 
     def __init__(self, *, expected_pid: int, default_window: str = "DipTrace") -> None:
         if os.name != "nt":
@@ -228,7 +207,8 @@ class HiddenMessageDesktopDriver:
 
     def handle(self, event: CinematicEvent) -> None:
         commands = desktop_commands_from_payload(
-            event.payload, default_window=self.default_window
+            event.payload,
+            default_window=self.default_window,
         )
         if not commands:
             if event.kind == "focus":
@@ -246,18 +226,18 @@ class HiddenMessageDesktopDriver:
         if command.path:
             for x, y in command.path:
                 target, point = self._target(hwnd, x, y)
-                self._mouse_move(target, point)
+                self._send(target, _WM_MOUSEMOVE, 0, _pack_point(*point))
                 self._click(target, point, command.click or "left", command.click_count)
         else:
             target = hwnd
             point: tuple[int, int] | None = None
             if command.move_to is not None:
                 target, point = self._target(hwnd, *command.move_to)
-                self._mouse_move(target, point)
+                self._send(target, _WM_MOUSEMOVE, 0, _pack_point(*point))
             if command.click is not None:
                 self._click(
                     target,
-                    point or self._center(target),
+                    point if point is not None else self._center(target),
                     command.click,
                     command.click_count,
                 )
@@ -271,12 +251,16 @@ class HiddenMessageDesktopDriver:
         return hwnd
 
     def _target(
-        self, hwnd: int, normalized_x: float, normalized_y: float
+        self,
+        hwnd: int,
+        normalized_x: float,
+        normalized_y: float,
     ) -> tuple[int, tuple[int, int]]:
         rect = wintypes.RECT()
         if not self.user32.GetClientRect(hwnd, ctypes.byref(rect)):
             raise RuntimeError("cannot read DipTrace client rectangle")
-        width, height = rect.right - rect.left, rect.bottom - rect.top
+        width = rect.right - rect.left
+        height = rect.bottom - rect.top
         if width <= 0 or height <= 0:
             raise RuntimeError("DipTrace client rectangle is empty")
         point = wintypes.POINT(
@@ -290,7 +274,8 @@ class HiddenMessageDesktopDriver:
                 break
             mapped = wintypes.POINT(point.x, point.y)
             self.user32.MapWindowPoints(current, child, ctypes.byref(mapped), 1)
-            current, point = child, mapped
+            current = child
+            point = mapped
         self._last_target = current
         return current, (int(point.x), int(point.y))
 
@@ -298,8 +283,9 @@ class HiddenMessageDesktopDriver:
         rect = wintypes.RECT()
         if not self.user32.GetClientRect(hwnd, ctypes.byref(rect)):
             raise RuntimeError("cannot read target client rectangle")
-        return max((rect.right - rect.left) // 2, 0), max(
-            (rect.bottom - rect.top) // 2, 0
+        return (
+            max((rect.right - rect.left) // 2, 0),
+            max((rect.bottom - rect.top) // 2, 0),
         )
 
     def _send(self, hwnd: int, message: int, wparam: int, lparam: int) -> None:
@@ -309,17 +295,18 @@ class HiddenMessageDesktopDriver:
             message,
             wparam,
             lparam,
-            _SMTO_FLAGS,
+            _SEND_TIMEOUT_FLAGS,
             2_000,
             ctypes.byref(result),
         ):
             raise RuntimeError(f"bounded Win32 message failed: 0x{message:04x}")
 
-    def _mouse_move(self, hwnd: int, point: tuple[int, int]) -> None:
-        self._send(hwnd, _WM_MOUSEMOVE, 0, _pack_point(*point))
-
     def _click(
-        self, hwnd: int, point: tuple[int, int], button: str, count: int
+        self,
+        hwnd: int,
+        point: tuple[int, int],
+        button: str,
+        count: int,
     ) -> None:
         down, up, double, mask = _BUTTON_MESSAGES[button]
         packed = _pack_point(*point)
@@ -345,18 +332,14 @@ class HiddenMessageDesktopDriver:
     def _text(self, hwnd: int, text: str) -> None:
         encoded = text.encode("utf-16-le")
         for offset in range(0, len(encoded), 2):
-            self._send(
-                hwnd,
-                _WM_CHAR,
-                int.from_bytes(encoded[offset : offset + 2], "little"),
-                0,
-            )
+            code_unit = int.from_bytes(encoded[offset : offset + 2], "little")
+            self._send(hwnd, _WM_CHAR, code_unit, 0)
 
 
 def _virtual_key(key: str) -> int:
     normalized = key.strip().lower()
-    if normalized in _VK:
-        return _VK[normalized]
+    if normalized in _SINGLE_KEYS:
+        return _SINGLE_KEYS[normalized]
     if len(normalized) == 1 and normalized.isascii() and normalized.isalnum():
         return ord(normalized.upper())
     if normalized.startswith("f") and normalized[1:].isdigit():
@@ -373,8 +356,10 @@ def _pack_point(x: int, y: int) -> int:
 def _find_window_handle_for_pid(user32: Any, pid: int, title: str) -> int | None:
     needle = title.casefold()
     matches: list[int] = []
-    callback_type: Any = getattr(ctypes, "WINFUNCTYPE")(
-        ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p
+    callback_type: Any = ctypes.WINFUNCTYPE(
+        ctypes.c_bool,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
     )
 
     def callback(hwnd: int, _lparam: int) -> bool:
@@ -425,7 +410,7 @@ def _validate_headless_request(
     try:
         root = validate_diptrace_directory(request.diptrace_root).root
     except ConfiguratorError as exc:
-        raise HeadlessGuiError(str(exc)) from exc
+        raise hg.HeadlessGuiError(str(exc)) from exc
     request = replace(
         request,
         diptrace_root=root,
@@ -439,16 +424,18 @@ def _validate_headless_request(
         ),
     )
     if not request.executable.is_file():
-        raise HeadlessGuiError(f"selected DipTrace editor is missing: {request.executable}")
+        raise hg.HeadlessGuiError(f"selected DipTrace editor is missing: {request.executable}")
     if not request.project.is_file():
-        raise HeadlessGuiError(f"project file does not exist: {request.project}")
+        raise hg.HeadlessGuiError(f"project file does not exist: {request.project}")
     if not request.manifest.is_file():
-        raise HeadlessGuiError(f"cinematic manifest does not exist: {request.manifest}")
-    protected = {request.project, request.manifest}
-    if request.video_output in protected or request.gif_output in protected:
-        raise HeadlessGuiError("capture output must not overwrite project or manifest")
-    if request.gif_output is not None and request.gif_output == request.video_output:
-        raise HeadlessGuiError("video and GIF outputs must be different files")
+        raise hg.HeadlessGuiError(f"cinematic manifest does not exist: {request.manifest}")
+    if request.video_output in {request.project, request.manifest}:
+        raise hg.HeadlessGuiError("capture output must not overwrite project or manifest")
+    if request.gif_output is not None:
+        if request.gif_output in {request.project, request.manifest}:
+            raise hg.HeadlessGuiError("capture output must not overwrite project or manifest")
+        if request.gif_output == request.video_output:
+            raise hg.HeadlessGuiError("video and GIF outputs must be different files")
     manifest, preflight = _read_manifest(request.manifest)
     return request, manifest, preflight
 
@@ -470,7 +457,8 @@ def _capture_seconds(
             payload = event.get("payload")
             if isinstance(payload, Mapping):
                 pause_ms += sum(
-                    command.pause_ms for command in desktop_commands_from_payload(payload)
+                    command.pause_ms
+                    for command in desktop_commands_from_payload(payload)
                 )
     return max(
         1.0,
@@ -583,9 +571,9 @@ def _convert_video_to_gif(video: Path, gif: Path, *, fps: int, width: int) -> No
     gif.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="diptrace-cinematic-gif-") as raw_temp:
         palette = Path(raw_temp) / "palette.png"
-        base = f"fps={fps},scale={width}:-1:flags=lanczos"
+        scale = f"fps={fps},scale={width}:-1:flags=lanczos"
         commands = [
-            [ffmpeg, "-y", "-i", str(video), "-vf", f"{base},palettegen", str(palette)],
+            [ffmpeg, "-y", "-i", str(video), "-vf", f"{scale},palettegen", str(palette)],
             [
                 ffmpeg,
                 "-y",
@@ -594,7 +582,7 @@ def _convert_video_to_gif(video: Path, gif: Path, *, fps: int, width: int) -> No
                 "-i",
                 str(palette),
                 "-lavfi",
-                f"{base}[x];[x][1:v]paletteuse",
+                f"{scale}[x];[x][1:v]paletteuse",
                 str(gif),
             ],
         ]
@@ -627,27 +615,28 @@ def _perform_hidden_capture(
     expected_session: int,
 ) -> HeadlessCinematicResult:
     request, manifest, preflight = _validate_headless_request(request)
-    if process_is_elevated():
-        raise HeadlessGuiError("headless cinematic worker must not be elevated")
-    if thread_desktop_name().casefold() != desktop_name.casefold():
-        raise HeadlessGuiError("cinematic worker landed on the wrong desktop")
-    station = process_window_station_name()
-    session = process_session_id()
-    if station.casefold() != _INTERACTIVE_WINDOW_STATION.casefold():
-        raise HeadlessGuiError("cinematic worker is not attached to WinSta0")
+    if hg.process_is_elevated():
+        raise hg.HeadlessGuiError("headless cinematic worker must not be elevated")
+    if hg.thread_desktop_name().casefold() != desktop_name.casefold():
+        raise hg.HeadlessGuiError("cinematic worker landed on the wrong desktop")
+    station = hg.process_window_station_name()
+    session = hg.process_session_id()
+    if station.casefold() != hg._INTERACTIVE_WINDOW_STATION.casefold():
+        raise hg.HeadlessGuiError("cinematic worker is not attached to WinSta0")
     if session != expected_session:
-        raise HeadlessGuiError("cinematic worker landed in the wrong Windows session")
+        raise hg.HeadlessGuiError("cinematic worker landed in the wrong Windows session")
     ffmpeg_path = shutil.which("ffmpeg")
     if ffmpeg_path is None:
-        raise HeadlessGuiError("ffmpeg is required for headless cinematic capture")
+        raise hg.HeadlessGuiError("ffmpeg is required for headless cinematic capture")
 
     qualified = f"{station}\\{desktop_name}"
     request.video_output.parent.mkdir(parents=True, exist_ok=True)
     request.video_output.unlink(missing_ok=True)
-    diptrace = _launch_process_on_desktop(
-        [str(request.executable), str(request.project)], qualified
+    diptrace = hg._launch_process_on_desktop(
+        [str(request.executable), str(request.project)],
+        qualified,
     )
-    ffmpeg_process = None
+    ffmpeg_process: hg.CreatedProcess | None = None
     ffmpeg_pid: int | None = None
     hwnd: int | None = None
     forced = False
@@ -655,10 +644,13 @@ def _perform_hidden_capture(
     try:
         windll = getattr(ctypes, "windll", None)
         if windll is None:
-            raise HeadlessGuiError("Windows user32 bindings are unavailable")
+            raise hg.HeadlessGuiError("Windows user32 bindings are unavailable")
         user32: Any = windll.user32
         hwnd = _wait_for_window(
-            user32, diptrace.pid, request.window_title, request.startup_timeout_seconds
+            user32,
+            diptrace.pid,
+            request.window_title,
+            request.startup_timeout_seconds,
         )
         user32.ShowWindow(hwnd, 3)
         capture_seconds = _capture_seconds(manifest, preflight, request.tail_seconds)
@@ -671,24 +663,27 @@ def _perform_hidden_capture(
             draw_mouse=False,
         )
         command[0] = ffmpeg_path
-        ffmpeg_process = _launch_process_on_desktop(command, qualified)
+        ffmpeg_process = hg._launch_process_on_desktop(command, qualified)
         ffmpeg_pid = ffmpeg_process.pid
         time.sleep(_CAPTURE_LEAD_SECONDS)
         play_manifest(
             manifest,
             HiddenMessageDesktopDriver(
-                expected_pid=diptrace.pid, default_window=request.window_title
+                expected_pid=diptrace.pid,
+                default_window=request.window_title,
             ),
         )
         exit_code = ffmpeg_process.wait(capture_seconds + 15.0)
         if exit_code is None:
             ffmpeg_process.terminate(124)
             ffmpeg_process.wait(2.0)
-            raise HeadlessGuiError("headless cinematic ffmpeg capture timed out")
+            raise hg.HeadlessGuiError("headless cinematic ffmpeg capture timed out")
         if exit_code != 0:
-            raise HeadlessGuiError(f"headless cinematic ffmpeg exited with code {exit_code}")
+            raise hg.HeadlessGuiError(
+                f"headless cinematic ffmpeg exited with code {exit_code}"
+            )
         if not request.video_output.is_file() or request.video_output.stat().st_size <= 0:
-            raise HeadlessGuiError("headless cinematic capture produced no video")
+            raise hg.HeadlessGuiError("headless cinematic capture produced no video")
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
     finally:
@@ -718,7 +713,7 @@ def _perform_hidden_capture(
         manifest=str(request.manifest),
         manifest_sha256=preflight.content_sha256,
         video_output=str(request.video_output),
-        video_sha256=_sha256(request.video_output),
+        video_sha256=hg._sha256(request.video_output),
         window_station_name=station,
         session_id=session,
         forced_termination=forced,
@@ -730,16 +725,16 @@ def run_headless_cinematic(
     request: HeadlessCinematicRequest,
 ) -> HeadlessCinematicResult:
     if os.name != "nt":
-        raise HeadlessGuiError("headless cinematic capture is available only on Windows")
-    if process_is_elevated():
-        raise HeadlessGuiError("headless cinematic capture must not be elevated")
+        raise hg.HeadlessGuiError("headless cinematic capture is available only on Windows")
+    if hg.process_is_elevated():
+        raise hg.HeadlessGuiError("headless cinematic capture must not be elevated")
     request, manifest, preflight = _validate_headless_request(request)
     if shutil.which("ffmpeg") is None:
-        raise HeadlessGuiError("ffmpeg is required for headless cinematic capture")
+        raise hg.HeadlessGuiError("ffmpeg is required for headless cinematic capture")
 
-    before = input_desktop_name()
-    station_before = process_window_station_name()
-    session_before = process_session_id()
+    before = hg.input_desktop_name()
+    station_before = hg.process_window_station_name()
+    session_before = hg.process_session_id()
     desktop_name = f"DipTraceMCP-Cinematic-{os.getpid()}-{uuid.uuid4().hex[:8]}"
     timeout = (
         request.startup_timeout_seconds
@@ -751,8 +746,8 @@ def run_headless_cinematic(
         result_path = Path(raw_temp) / "result.json"
         payload = request.as_json()
         payload["_expected_session_id"] = session_before
-        _write_json(request_path, payload)
-        with HiddenDesktop(desktop_name) as desktop:
+        hg._write_json(request_path, payload)
+        with hg.HiddenDesktop(desktop_name) as desktop:
             argv = _cinematic_worker_argv(
                 "_worker",
                 "--request",
@@ -766,16 +761,16 @@ def run_headless_cinematic(
                 exit_code = worker.wait(timeout)
                 if exit_code is None:
                     worker.terminate(124)
-                    raise HeadlessGuiError("headless cinematic worker timed out")
+                    raise hg.HeadlessGuiError("headless cinematic worker timed out")
         if not result_path.is_file():
-            raise HeadlessGuiError(
+            raise hg.HeadlessGuiError(
                 f"cinematic worker exited with code {exit_code} without a result"
             )
-        result = HeadlessCinematicResult.from_json(_load_json(result_path))
+        result = HeadlessCinematicResult.from_json(hg._load_json(result_path))
 
-    after = input_desktop_name()
-    station_after = process_window_station_name()
-    session_after = process_session_id()
+    after = hg.input_desktop_name()
+    station_after = hg.process_window_station_name()
+    session_after = hg.process_session_id()
     errors: list[str] = []
     if before is not None and after is not None and before != after:
         errors.append(f"input desktop changed unexpectedly: {before!r} -> {after!r}")
@@ -791,11 +786,8 @@ def run_headless_cinematic(
         session_id=session_after,
     )
     if errors:
-        result = replace(
-            result,
-            ok=False,
-            error="; ".join(filter(None, [result.error, *errors])),
-        )
+        combined = [value for value in [result.error, *errors] if value]
+        result = replace(result, ok=False, error="; ".join(combined))
     if result.ok and request.gif_output is not None:
         try:
             _convert_video_to_gif(
@@ -807,14 +799,14 @@ def run_headless_cinematic(
             result = replace(
                 result,
                 gif_output=str(request.gif_output),
-                gif_sha256=_sha256(request.gif_output),
+                gif_sha256=hg._sha256(request.gif_output),
             )
         except Exception as exc:
             result = replace(
                 result,
                 ok=False,
                 gif_output=str(request.gif_output),
-                gif_sha256=_sha256(request.gif_output),
+                gif_sha256=hg._sha256(request.gif_output),
                 error=f"{type(exc).__name__}: {exc}",
             )
     return result
@@ -824,11 +816,11 @@ def _cmd_headless_worker(args: argparse.Namespace) -> int:
     result_path = Path(str(args.result))
     payload: dict[str, object] = {}
     try:
-        payload = _load_json(Path(str(args.request)))
+        payload = hg._load_json(Path(str(args.request)))
         result = _perform_hidden_capture(
             HeadlessCinematicRequest.from_json(payload),
             desktop_name=str(args.desktop_name),
-            expected_session=_coerce_int(payload.get("_expected_session_id"), -1),
+            expected_session=hg._coerce_int(payload.get("_expected_session_id"), -1),
         )
     except Exception as exc:
         result = HeadlessCinematicResult(
@@ -837,15 +829,15 @@ def _cmd_headless_worker(args: argparse.Namespace) -> int:
             os.getpid(),
             None,
             None,
-            _string_or_default(payload.get("project"), ""),
-            _string_or_default(payload.get("manifest"), ""),
+            hg._string_or_default(payload.get("project"), ""),
+            hg._string_or_default(payload.get("manifest"), ""),
             None,
-            _string_or_default(payload.get("video_output"), ""),
+            hg._string_or_default(payload.get("video_output"), ""),
             None,
-            gif_output=_optional_string(payload.get("gif_output")),
+            gif_output=hg._optional_string(payload.get("gif_output")),
             error=f"{type(exc).__name__}: {exc}",
         )
-    _write_json(result_path, result.as_json())
+    hg._write_json(result_path, result.as_json())
     return 0 if result.ok else 1
 
 
@@ -866,7 +858,7 @@ def _cmd_headless_capture(args: argparse.Namespace) -> int:
     )
     try:
         result = run_headless_cinematic(request)
-    except (HeadlessGuiError, OSError, ValueError) as exc:
+    except (hg.HeadlessGuiError, OSError, ValueError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
         return 1
     print(json.dumps(result.as_json(), ensure_ascii=False, indent=2))
@@ -882,7 +874,7 @@ def _build_headless_parser() -> argparse.ArgumentParser:
     capture = subs.add_parser("capture")
     capture.add_argument("--diptrace-root", required=True)
     capture.add_argument("--project", required=True)
-    capture.add_argument("--editor", choices=sorted(_EDITOR_EXECUTABLES), required=True)
+    capture.add_argument("--editor", choices=sorted(hg._EDITOR_EXECUTABLES), required=True)
     capture.add_argument("--manifest", required=True)
     capture.add_argument("--video", required=True)
     capture.add_argument("--gif")
