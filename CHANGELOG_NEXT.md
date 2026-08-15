@@ -62,6 +62,7 @@ Cinematic replay is deliberately a presentation path. The XML bridge and normal 
 ### Headless Windows GUI worker
 
 - isolated Win32-desktop worker for bounded native DipTrace open/save/close work without switching the user's input desktop or synthesizing physical mouse/keyboard input;
+- selectable launch mode: `hidden` (private `WinSta0` desktop, invisible) is the default, and `native` launches the editor on the operator's current interactive desktop so the round trip stays visible; the worker verifies it landed on the expected input desktop and fails closed with `native launch declined` when that desktop cannot be resolved;
 - Windows smoke/readiness checks and a frozen packaged helper under `app/tools/diptrace_mcp_headless_gui/`;
 - fail-closed automation with no coordinate-input fallback when a native control action cannot be completed safely.
 

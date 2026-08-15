@@ -280,7 +280,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | evidence reports | deterministic review-only report pipeline implemented |
 | library mutation public API | package-level request/preview prepared; public MCP registration pending |
 | cinematic | presentation + mandatory preflight implemented; exact UI acceptance pending |
-| headless GUI | hidden Win32 desktop helper implemented; real DipTrace native actions remain claim-specific evidence |
+| headless GUI | hidden Win32 desktop helper implemented with selectable `hidden`/`native` launch mode for open -> Save -> close; real DipTrace native actions remain claim-specific evidence |
 | documentation drift | evergreen code/docs guard implemented and CI-tested |
 
 # Permanent limitations / non-claims

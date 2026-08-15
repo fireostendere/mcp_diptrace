@@ -519,6 +519,7 @@ def test_cmd_roundtrip_success_and_failure(
         editor="pcb",
         timeout=1,
         save_menu="File->Save",
+        desktop="hidden",
     )
     result = RoundtripResult(
         True,

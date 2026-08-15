@@ -54,6 +54,7 @@ _UOI_NAME = 2
 _WAIT_OBJECT_0 = 0
 _WAIT_TIMEOUT = 0x102
 _STILL_ACTIVE = 259
+_DESKTOP_MODES = ("hidden", "native")
 
 
 class HeadlessGuiError(RuntimeError):
@@ -67,6 +68,7 @@ class RoundtripRequest:
     editor: str
     timeout_seconds: float = 30.0
     save_menu: str = "File->Save"
+    desktop_mode: str = "hidden"
 
     def __post_init__(self) -> None:
         editor = self.editor.strip().lower()
@@ -77,7 +79,12 @@ class RoundtripRequest:
             raise ValueError("timeout_seconds must be > 0 and <= 300")
         if not self.save_menu.strip():
             raise ValueError("save_menu must not be empty")
+        desktop_mode = self.desktop_mode.strip().lower()
+        if desktop_mode not in _DESKTOP_MODES:
+            choices = ", ".join(sorted(_DESKTOP_MODES))
+            raise ValueError(f"desktop_mode must be one of: {choices}")
         object.__setattr__(self, "editor", editor)
+        object.__setattr__(self, "desktop_mode", desktop_mode)
         object.__setattr__(self, "diptrace_root", Path(self.diptrace_root))
         object.__setattr__(self, "project", Path(self.project))
 
@@ -92,6 +99,7 @@ class RoundtripRequest:
             "editor": self.editor,
             "timeout_seconds": self.timeout_seconds,
             "save_menu": self.save_menu,
+            "desktop_mode": self.desktop_mode,
         }
 
     @classmethod
@@ -102,6 +110,7 @@ class RoundtripRequest:
             editor=_required_string(value, "editor"),
             timeout_seconds=_coerce_float(value.get("timeout_seconds"), 30.0),
             save_menu=_string_or_default(value.get("save_menu"), "File->Save"),
+            desktop_mode=_string_or_default(value.get("desktop_mode"), "hidden"),
         )
 
 
@@ -121,6 +130,7 @@ class RoundtripResult:
     sha256_after: str | None
     forced_termination: bool = False
     error: str | None = None
+    desktop_mode: str = "hidden"
 
     def as_json(self) -> dict[str, object]:
         return cast(dict[str, object], asdict(self))
@@ -144,6 +154,7 @@ class RoundtripResult:
             sha256_after=_optional_string(value.get("sha256_after")),
             forced_termination=bool(value.get("forced_termination", False)),
             error=_optional_string(value.get("error")),
+            desktop_mode=_string_or_default(value.get("desktop_mode"), "hidden"),
         )
 
 
@@ -378,6 +389,40 @@ class HiddenDesktop:
         self.close()
 
 
+def _launch_on_current_desktop(argv: Sequence[str], *, cwd: Path | None = None) -> CreatedProcess:
+    """Launch the worker on the user's current interactive desktop (native mode).
+
+    The bounded lifecycle contract is identical to the hidden-desktop launch;
+    only the desktop override is absent, so the child inherits the current
+    Win32 desktop and the editor window stays visible to the operator.
+    """
+    if not argv or not str(argv[0]).strip():
+        raise ValueError("argv must contain an executable")
+    api = _Win32Api()
+    application = str(argv[0])
+    command = ctypes.create_unicode_buffer(
+        subprocess.list2cmdline([str(item) for item in argv])
+    )
+    startup = _STARTUPINFOW()
+    startup.cb = ctypes.sizeof(_STARTUPINFOW)
+    info = _PROCESS_INFORMATION()
+    created = api.kernel32.CreateProcessW(
+        application,
+        command,
+        None,
+        None,
+        False,
+        0,
+        None,
+        str(cwd) if cwd is not None else None,
+        ctypes.byref(startup),
+        ctypes.byref(info),
+    )
+    if not created:
+        raise api.error("CreateProcessW")
+    return CreatedProcess(api, info)
+
+
 def _required_string(value: Mapping[str, object], key: str) -> str:
     raw = value.get(key)
     if not isinstance(raw, str) or not raw.strip():
@@ -585,6 +630,7 @@ def _validated_request(request: RoundtripRequest) -> RoundtripRequest:
         request.editor,
         request.timeout_seconds,
         request.save_menu,
+        request.desktop_mode,
     )
 
 
@@ -599,7 +645,11 @@ def run_native_roundtrip(request: RoundtripRequest) -> RoundtripResult:
         request_path = temp / "request.json"
         result_path = temp / "result.json"
         _write_json(request_path, request.as_json())
-        with HiddenDesktop(desktop_name) as desktop:
+        if request.desktop_mode == "native":
+            if before is None:
+                raise HeadlessGuiError(
+                    "cannot determine the current input desktop; native launch declined"
+                )
             argv = _entry_argv(
                 "_worker",
                 "--request",
@@ -607,14 +657,31 @@ def run_native_roundtrip(request: RoundtripRequest) -> RoundtripResult:
                 "--result",
                 str(result_path),
                 "--desktop-name",
-                desktop_name,
+                before,
             )
-            with desktop.launch(argv) as worker:
+            with _launch_on_current_desktop(argv) as worker:
                 exit_code = worker.wait(request.timeout_seconds + 20.0)
                 if exit_code is None:
                     worker.terminate(124)
                     worker.wait(2.0)
-                    raise HeadlessGuiError("headless DipTrace worker timed out")
+                    raise HeadlessGuiError("native DipTrace worker timed out")
+        else:
+            with HiddenDesktop(desktop_name) as desktop:
+                argv = _entry_argv(
+                    "_worker",
+                    "--request",
+                    str(request_path),
+                    "--result",
+                    str(result_path),
+                    "--desktop-name",
+                    desktop_name,
+                )
+                with desktop.launch(argv) as worker:
+                    exit_code = worker.wait(request.timeout_seconds + 20.0)
+                    if exit_code is None:
+                        worker.terminate(124)
+                        worker.wait(2.0)
+                        raise HeadlessGuiError("headless DipTrace worker timed out")
         if not result_path.is_file():
             raise HeadlessGuiError(
                 f"headless worker exited with code {exit_code} without a result"
@@ -710,6 +777,7 @@ def _perform_worker_roundtrip(
         sha256_after=_sha256(request.project),
         forced_termination=forced,
         error=error,
+        desktop_mode=request.desktop_mode,
     )
 
 
@@ -806,6 +874,7 @@ def _cmd_roundtrip(args: argparse.Namespace) -> int:
         str(args.editor),
         float(args.timeout),
         str(args.save_menu),
+        str(args.desktop),
     )
     try:
         result = run_native_roundtrip(request)
@@ -839,6 +908,7 @@ def _build_parser() -> argparse.ArgumentParser:
     roundtrip.add_argument("--editor", choices=sorted(_EDITOR_EXECUTABLES), required=True)
     roundtrip.add_argument("--timeout", type=float, default=30.0)
     roundtrip.add_argument("--save-menu", default="File->Save")
+    roundtrip.add_argument("--desktop", choices=tuple(_DESKTOP_MODES), default="hidden")
     roundtrip.set_defaults(handler=_cmd_roundtrip)
 
     worker = subs.add_parser("_worker", help=argparse.SUPPRESS)

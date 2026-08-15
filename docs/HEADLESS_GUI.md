@@ -126,6 +126,34 @@ Available editor identifiers are `pcb`, `schematic`, `component` and `pattern`.
 The command returns JSON. `ok: false` is a bounded failure and should be treated as
 host evidence, not silently retried with coordinate/mouse automation.
 
+## Launch mode
+
+The worker supports two launch modes, selected with `--desktop`:
+
+- `hidden` (default): the editor starts on a private Win32 desktop under `WinSta0`
+  and stays invisible to the operator. This is the original isolation behaviour.
+- `native`: the editor starts directly on the operator's current interactive desktop
+  and remains visible. Use this when an operator wants to watch the round trip, or
+  when a sandbox/VM already provides isolation and the extra hidden desktop is
+  undesirable.
+
+Native example:
+
+```powershell
+py -m diptrace_mcp.headless_gui roundtrip `
+  --diptrace-root "C:\Program Files\DipTrace" `
+  --editor pcb `
+  --project "C:\work\board.dip" `
+  --desktop native
+```
+
+In `native` mode the worker inherits the current desktop, so the window is visible
+and the worker verifies it landed on the expected (`before`) input desktop. If the
+current input desktop cannot be determined, the operation fails closed with
+`native launch declined` instead of guessing. All other safety invariants
+(no `SwitchDesktop`, no synthesized input, bounded timeouts) apply unchanged. The
+evidence JSON reports the chosen `desktop_mode` so a caller can distinguish the two.
+
 ## Bundled Windows build
 
 `scripts/build_windows_server.ps1` now builds the helper together with the normal
