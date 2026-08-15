@@ -2,14 +2,14 @@
 
 ## Status
 
-Cinematic mode is implemented as an optional deterministic presentation layer for DipTrace MCP workflows. It can replay already-planned engineering actions through the visible Windows DipTrace UI and capture video/GIF output.
+Cinematic mode is implemented as an optional deterministic presentation layer for DipTrace MCP workflows. It can replay already-planned engineering actions through the Windows DipTrace UI and capture video/GIF output.
 
 It is not engineering authority:
 
 - normal planners decide what should happen;
 - semantic operations/XML bridge/transactions remain authoritative for edits;
-- cinematic mode decides how to show an already-planned action visibly;
-- visible replay is not proof of semantic acceptance without separate real-host evidence.
+- cinematic mode decides how to show an already-planned action;
+- replay is not proof of semantic acceptance without separate real-host evidence.
 
 Cinematic does not change the public MCP contract, which currently registers **165 tools**.
 
@@ -20,7 +20,7 @@ Cinematic does not change the public MCP contract, which currently registers **1
 - `cinematic_host.py` — Windows replay host and dry-run driver;
 - `cinematic_preflight.py` — deterministic manifest content identity and safety budgets;
 - `cinematic_preflight_cli.py` — standalone preflight inspection;
-- `cinematic_recording.py` — ffmpeg/Windows recording helper;
+- `cinematic_recording.py` — visible-window recording plus hidden-desktop cinematic orchestration;
 - `diptrace_ui.py` — UI profile model and design-to-client affine calibration;
 - `diptrace_profile_cli.py` — template/probe/calibrate/action/validate CLI;
 - `diptrace_cinematic_semantic.py` — semantic Schematic/PCB replay adapters;
@@ -74,7 +74,7 @@ Standalone inspection remains useful:
 python -m diptrace_mcp.cinematic_preflight_cli demo.cinematic.json
 ```
 
-The same validation is now enforced inside `cinematic_host.play_manifest()` **before any dry-run or real desktop driver action**. A caller cannot bypass the manifest safety boundary by invoking the Python playback API directly.
+The same validation is enforced before any dry-run, visible replay, or hidden capture action. A caller cannot bypass the manifest safety boundary by invoking the Python playback API directly.
 
 Preflight checks:
 
@@ -93,7 +93,7 @@ It also emits a deterministic `content_sha256`. Random/session metadata such as 
 
 The desktop command parser/driver retains its own per-command validation. Manifest preflight is an additional whole-manifest guard, not a replacement for normalized-coordinate, button, click-count, pause, hotkey or text validation.
 
-## Dry-run and real playback
+## Dry-run and visible playback
 
 Both commands automatically preflight the manifest:
 
@@ -106,7 +106,7 @@ Running the standalone preflight CLI first is optional when an operator wants th
 
 Exact action macros/calibration remain editor/version/configuration specific. Dry-run/preflight do not prove that a real UI profile is correct.
 
-## Recording
+## Visible recording
 
 ```bash
 python -m diptrace_mcp.cinematic_recording raw-demo.mp4 \
@@ -114,7 +114,37 @@ python -m diptrace_mcp.cinematic_recording raw-demo.mp4 \
 python -m diptrace_mcp.cinematic_cli ffmpeg raw-demo.mp4 demo --preset cinematic
 ```
 
-The recorder resolves a title substring to a real HWND and uses Windows ffmpeg `gdigrab`.
+The visible recorder resolves a title substring to a real HWND and uses Windows ffmpeg `gdigrab`.
+
+## Hidden Win32 desktop capture
+
+The packaged headless helper can run DipTrace, deterministic replay, and ffmpeg on the same separate hidden `WinSta0` desktop. The operator's normal input desktop remains available while the recording is produced.
+
+```powershell
+& "<install-root>\app\tools\diptrace_mcp_headless_gui\diptrace_mcp_headless_gui.exe" `
+  cinematic capture `
+  --diptrace-root "C:\Program Files\DipTrace" `
+  --editor pcb `
+  --project "C:\work\board.dip" `
+  --manifest "C:\work\demo.cinematic.json" `
+  --video "C:\work\demo.mp4" `
+  --gif "C:\work\demo.gif"
+```
+
+The hidden capture path is deliberately different from the visible cinematic driver:
+
+1. validate the DipTrace installation/project and mandatory cinematic preflight before launching the host;
+2. create a random hidden Win32 desktop under `WinSta0`;
+3. launch the worker and DipTrace explicitly on that desktop;
+4. launch ffmpeg `gdigrab` on the same desktop and capture that desktop rather than the operator's `Default` desktop;
+5. replay normalized commands with bounded `SendMessageTimeoutW` window messages;
+6. close/terminate bounded child processes and return structured evidence including manifest/video/GIF SHA-256 values, PIDs, desktop, window-station and session identity.
+
+Hidden replay never calls global `SetCursorPos`, `mouse_event`, `keybd_event`, `SendInput` or `SwitchDesktop`. It therefore does not steal the operator's physical cursor or keyboard.
+
+For safety, hidden replay currently accepts normalized click/path commands, text via window messages and message-safe single keys. Modifier/multi-key hotkeys such as `Ctrl+...` deliberately fail closed; configure an equivalent calibrated click path or another verified message-safe macro instead. Visible cinematic playback retains its existing profile semantics.
+
+`ffmpeg` must be available on `PATH` for recording/GIF conversion. The helper does not upload frames or send screenshots to a model; MP4/GIF generation is local.
 
 ## Safety/evidence boundary
 
@@ -123,8 +153,9 @@ The recorder resolves a title substring to a real HWND and uses Windows ffmpeg `
 - no guessed pixels/shortcuts by default;
 - manifest-level and command-level actions are bounded;
 - mandatory preflight executes before playback driver actions;
-- dry-run remains available before cursor movement;
+- dry-run remains available before visible cursor movement;
 - payload recording is off by default;
+- hidden replay does not synthesize global physical input;
 - cinematic replay cannot grant engineering acceptance evidence;
 - normal preview/expected-SHA/transaction/review paths remain authoritative.
 
@@ -134,15 +165,19 @@ Implemented and regression-tested:
 
 - deterministic timeline/presets;
 - capture/compile;
-- Windows cursor/click/hotkey/text/path host;
+- visible Windows cursor/click/hotkey/text/path host;
 - profile persistence/readiness and affine calibration;
 - semantic schematic part/wire replay;
 - PCB placement and same-layer trace replay;
 - content fingerprint and mandatory manifest safety preflight;
-- HWND recording and MP4/GIF helper commands.
+- visible HWND recording and MP4/GIF helper commands;
+- hidden `WinSta0` cinematic orchestration with DipTrace and ffmpeg on the same desktop;
+- bounded hidden message replay that does not use global physical-input APIs;
+- packaged-helper startup smoke for the cinematic subcommand.
 
 Still requires real-client evidence:
 
 - verified macros for the exact DipTrace PCB/Schematic configuration used for a recording;
 - end-to-end calibration against the real open document;
+- one real Windows/DipTrace proof that `gdigrab` records the intended hidden desktop on the supported host configuration;
 - staged via/layer-transition and other unverified editor gestures.

@@ -17,6 +17,12 @@ datas.extend(copy_metadata("pywinauto"))
 
 hiddenimports = [
     *collect_submodules("pywinauto", on_error="ignore"),
+    "diptrace_mcp.cinematic",
+    "diptrace_mcp.cinematic_host",
+    "diptrace_mcp.cinematic_preflight",
+    "diptrace_mcp.cinematic_recording",
+    "diptrace_mcp.diptrace_window",
+    "diptrace_mcp.domain",
     "diptrace_mcp.headless_gui",
     "diptrace_mcp.windows_configurator",
 ]
@@ -37,7 +43,6 @@ analysis = Analysis(
         "mypy",
         "hatchling",
         "mcp",
-        "pydantic",
         "shapely",
     ],
     noarchive=False,
