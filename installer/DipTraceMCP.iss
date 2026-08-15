@@ -193,13 +193,13 @@ var
 begin
   if SelectedDipTrace = '' then Exit;
   Target := ModuleTarget('Pcb');
-  DelTree(Target, True, True, True, False);
+  DelTree(Target, True, True, True);
   Target := ModuleTarget('Schematic');
-  DelTree(Target, True, True, True, False);
+  DelTree(Target, True, True, True);
   Target := ModuleTarget('CompEdit');
-  DelTree(Target, True, True, True, False);
+  DelTree(Target, True, True, True);
   Target := ModuleTarget('PattEdit');
-  DelTree(Target, True, True, True, False);
+  DelTree(Target, True, True, True);
 end;
 
 procedure InstallModule(const ModuleName, SettingsName: string);
