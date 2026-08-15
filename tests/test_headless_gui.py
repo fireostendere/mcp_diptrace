@@ -42,7 +42,7 @@ def test_roundtrip_request_rejects_unsafe_timeout(tmp_path: Path, timeout: float
 
 
 def test_desktop_name_validation() -> None:
-    for value in ["", "a\\b", "a/b", "x" * 129]:
+    for value in ["", "a\\b", "a/b", "x" * 129, "bad\x00name"]:
         with pytest.raises(ValueError):
             headless_gui._validate_desktop_name(value)
     headless_gui._validate_desktop_name("DipTraceMCP-test")
@@ -80,6 +80,8 @@ def test_roundtrip_result_json_roundtrip() -> None:
         input_desktop_after="Default",
         sha256_before="a",
         sha256_after="b",
+        window_station_name="WinSta0",
+        session_id=1,
     )
     assert RoundtripResult.from_json(result.as_json()) == result
 
@@ -134,6 +136,17 @@ def test_real_hidden_desktop_smoke() -> None:
         assert result.input_desktop_before == result.input_desktop_after
 
 
+@pytest.mark.skipif(os.name != "nt", reason="requires Win32 desktop objects")
+def test_real_native_desktop_targeting_smoke() -> None:
+    result = headless_gui.native_desktop_smoke_test(timeout_seconds=20)
+    assert result.ok, result.error
+    assert result.child_exit_code == 0
+    assert result.desktop_name == result.child_desktop_name
+    assert result.window_station_name == result.child_window_station_name
+    assert result.session_id == result.child_session_id
+    assert (result.window_station_name or "").casefold() == "winsta0"
+
+
 def test_cli_help_and_non_windows_smoke(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc:
         headless_gui.main(["--help"])
@@ -160,7 +173,7 @@ def test_roundtrip_request_json_desktop_mode_backward_compatible(tmp_path: Path)
     assert RoundtripRequest.from_json(payload).desktop_mode == "native"
 
 
-def test_roundtrip_result_json_desktop_mode() -> None:
+def test_roundtrip_result_json_desktop_mode_backward_compatible() -> None:
     result = RoundtripResult(
         ok=True,
         editor="pcb",
@@ -169,17 +182,26 @@ def test_roundtrip_result_json_desktop_mode() -> None:
         worker_pid=1,
         diptrace_pid=2,
         automation_backend="pywinauto-win32-message",
-        desktop_name="WinSta0\\DipTraceMCP-x",
+        desktop_name="Default",
         input_desktop_before="Default",
         input_desktop_after="Default",
         sha256_before=None,
         sha256_after=None,
         desktop_mode="native",
+        window_station_name="WinSta0",
+        session_id=3,
     )
     assert RoundtripResult.from_json(result.as_json()) == result
     legacy = dict(result.as_json())
     legacy.pop("desktop_mode")
-    assert RoundtripResult.from_json(legacy).desktop_mode == "hidden"
+    legacy.pop("window_station_name")
+    legacy.pop("session_id")
+    legacy.pop("desktop_changed")
+    restored = RoundtripResult.from_json(legacy)
+    assert restored.desktop_mode == "hidden"
+    assert restored.window_station_name is None
+    assert restored.session_id is None
+    assert restored.desktop_changed is False
 
 
 def test_cli_roundtrip_desktop_argument_defaults_and_rejects_invalid() -> None:
@@ -232,7 +254,24 @@ def _result_payload(desktop_name: str, desktop_mode: str) -> dict[str, object]:
         sha256_before=None,
         sha256_after=None,
         desktop_mode=desktop_mode,
+        window_station_name="WinSta0",
+        session_id=1,
     ).as_json()
+
+
+def _patch_runtime_context(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    input_desktop: object = "Default",
+    elevated: bool = False,
+) -> None:
+    monkeypatch.setattr(headless_gui, "process_window_station_name", lambda: "WinSta0")
+    monkeypatch.setattr(headless_gui, "process_session_id", lambda pid=None: 1)
+    monkeypatch.setattr(headless_gui, "process_is_elevated", lambda: elevated)
+    if callable(input_desktop):
+        monkeypatch.setattr(headless_gui, "input_desktop_name", input_desktop)
+    else:
+        monkeypatch.setattr(headless_gui, "input_desktop_name", lambda: input_desktop)
 
 
 def test_run_native_roundtrip_hidden_mode_launches_worker_on_hidden_desktop(
@@ -243,7 +282,7 @@ def test_run_native_roundtrip_hidden_mode_launches_worker_on_hidden_desktop(
     fake_os.__dict__.update(os.__dict__)
     fake_os.name = "nt"
     monkeypatch.setattr(headless_gui, "os", fake_os)
-    monkeypatch.setattr(headless_gui, "input_desktop_name", lambda: "Default")
+    _patch_runtime_context(monkeypatch)
     monkeypatch.setattr(headless_gui, "_validated_request", lambda request: request)
     launched: dict[str, object] = {}
 
@@ -285,7 +324,7 @@ def test_run_native_roundtrip_native_mode_uses_current_desktop(
     fake_os.__dict__.update(os.__dict__)
     fake_os.name = "nt"
     monkeypatch.setattr(headless_gui, "os", fake_os)
-    monkeypatch.setattr(headless_gui, "input_desktop_name", lambda: "Default")
+    _patch_runtime_context(monkeypatch)
     monkeypatch.setattr(headless_gui, "_validated_request", lambda request: request)
     launched: dict[str, object] = {}
 
@@ -316,8 +355,52 @@ def test_run_native_roundtrip_native_mode_declined_without_input_desktop(
     fake_os.__dict__.update(os.__dict__)
     fake_os.name = "nt"
     monkeypatch.setattr(headless_gui, "os", fake_os)
-    monkeypatch.setattr(headless_gui, "input_desktop_name", lambda: None)
+    _patch_runtime_context(monkeypatch, input_desktop=None)
     monkeypatch.setattr(headless_gui, "_validated_request", lambda request: request)
 
     with pytest.raises(headless_gui.HeadlessGuiError, match="native launch declined"):
         headless_gui.run_native_roundtrip(request)
+
+
+def test_run_native_roundtrip_native_mode_declined_when_elevated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request = RoundtripRequest(tmp_path, tmp_path / "b.dip", "pcb", desktop_mode="native")
+    fake_os = types.ModuleType("os")
+    fake_os.__dict__.update(os.__dict__)
+    fake_os.name = "nt"
+    monkeypatch.setattr(headless_gui, "os", fake_os)
+    _patch_runtime_context(monkeypatch, elevated=True)
+    monkeypatch.setattr(headless_gui, "_validated_request", lambda request: request)
+
+    with pytest.raises(headless_gui.HeadlessGuiError, match="elevated process"):
+        headless_gui.run_native_roundtrip(request)
+
+
+def test_roundtrip_preserves_side_effect_evidence_when_input_desktop_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request = RoundtripRequest(tmp_path, tmp_path / "b.dip", "pcb", desktop_mode="native")
+    fake_os = types.ModuleType("os")
+    fake_os.__dict__.update(os.__dict__)
+    fake_os.name = "nt"
+    monkeypatch.setattr(headless_gui, "os", fake_os)
+    desktops = iter(["Default", "ConsentUi"])
+    _patch_runtime_context(monkeypatch, input_desktop=lambda: next(desktops))
+    monkeypatch.setattr(headless_gui, "_validated_request", lambda request: request)
+
+    def fake_plain(argv, cwd=None):
+        payload = _result_payload("Default", "native")
+        payload["sha256_after"] = "saved"
+        return _FakeWorker(list(argv), payload)
+
+    monkeypatch.setattr(headless_gui, "_launch_on_current_desktop", fake_plain)
+
+    result = headless_gui.run_native_roundtrip(request)
+
+    assert result.ok is False
+    assert result.desktop_changed is True
+    assert result.sha256_after == "saved"
+    assert result.input_desktop_before == "Default"
+    assert result.input_desktop_after == "ConsentUi"
+    assert "after worker side effects" in (result.error or "")
