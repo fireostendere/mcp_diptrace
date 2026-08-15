@@ -6,7 +6,7 @@ This is the evergreen cross-domain map for higher-level schematic/PCB intelligen
 
 The intelligence modules generate facts, candidates, scores, feedback, or ordinary semantic operations. They do not bypass the existing allowed-root, expected-SHA, policy, preview, transaction, backup/recovery, live-session, or review boundaries.
 
-The public MCP contract was intentionally expanded from 159 to **165 registered tools** to productize a bounded selection of the engines below (see [MCP_TOOLS.md](MCP_TOOLS.md)). All other modules in this document remain internal/package-level unless a public tool is explicitly added and the tools/list snapshot is intentionally updated.
+The intelligence productization expanded the public contract from 159 to 165 tools; the separate read-only built-in-library bridge brings the current total to **167 registered tools** (see [MCP_TOOLS.md](MCP_TOOLS.md)). All other modules in this document remain internal/package-level unless a public tool is explicitly added and the tools/list snapshot is intentionally updated.
 
 The project-level manual acceptance matrix is also complete for its recorded scope: **all 12 blocking manual gates are PASS across the accepted checkpoints**. That evidence remains bound to those exact checkpoints and is not inherited automatically by later release bytes.
 

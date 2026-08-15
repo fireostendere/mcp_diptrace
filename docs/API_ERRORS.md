@@ -57,9 +57,9 @@ safe. Mutations still require the existing transaction and SHA-256 gates.
 The registered-tool surface is generated in `src/diptrace_mcp/server.py`; every
 registered callable is wrapped by `error_boundary.wrap_tool_callable`, and the
 argument-validation and tool-run hooks use the same boundary. A registry
-traversal test proves that all 165 snapshot tools carry all three boundary
+traversal test proves that all 167 snapshot tools carry all three boundary
 markers; end-to-end tests cover representative groups rather than invoking all
-165 tools with every possible invalid input. The project service layer also
+167 tools with every possible invalid input. The project service layer also
 validates the same high-risk unit and numeric inputs before mutation.
 
 ## Boundary audit matrix
