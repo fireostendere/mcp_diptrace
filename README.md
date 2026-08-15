@@ -29,6 +29,16 @@ over the operator's cursor or keyboard. The editable source is
 [`i2c-level-shifter.dchxml`](i2c-level-shifter.dchxml); the full-resolution
 recording is [`i2c-level-shifter-demo.mp4`](i2c-level-shifter-demo.mp4).
 
+### Autorouted PCB
+
+[![I2C level-shifter PCB routing in DipTrace](i2c-level-shifter-pcb-demo.gif)](i2c-level-shifter-pcb-demo.mp4)
+
+The same converter is placed and routed as a 40 × 20 mm PCB in four captured
+stages. The final board has 15 routed connections and no vias. The editable
+board is [`i2c-level-shifter-pcb.dipxml`](i2c-level-shifter-pcb.dipxml), and the
+deterministic generator is
+[`scripts/build_i2c_level_shifter_pcb.py`](scripts/build_i2c_level_shifter_pcb.py).
+
 The example is scoped presentation evidence for the validated host
 configuration, not universal DipTrace compatibility or engineering sign-off.
 

@@ -88,6 +88,7 @@ class RouteConnectionConfig(StrictModel):
     max_nodes: int = Field(default=100_000, ge=100, le=1_000_000)
     time_budget_ms: int = Field(default=5_000, ge=100, le=30_000)
     avoid_component_bodies: bool = True
+    routing_priority: int = Field(default=0, ge=0, le=1_000)
 
     @model_validator(mode="after")
     def validate_layers_and_vias(self) -> RouteConnectionConfig:
@@ -295,7 +296,11 @@ def synthesize_route(
     if start_layer != end_layer and (via is None or config.max_vias == 0):
         raise RoutingError(
             "Different endpoint layers require an enabled via style",
-            details={"start_layer": start_layer, "end_layer": end_layer},
+            details={
+                "reason": "via_budget_insufficient",
+                "start_layer": start_layer,
+                "end_layer": end_layer,
+            },
         )
     if (
         start_layer != end_layer
@@ -378,6 +383,7 @@ def synthesize_route(
         raise RoutingError(
             "Found route exceeds max_detour",
             details={
+                "reason": "detour_exceeded",
                 "route_length_mm": route_length,
                 "direct_length_mm": direct_length,
                 "detour": detour,
@@ -485,6 +491,57 @@ def synthesize_route(
             ),
         ],
     )
+
+
+def synthesize_route_min_vias(
+    snapshot: DocumentSnapshot,
+    config: RouteConnectionConfig,
+) -> RouteSynthesisResult:
+    """Route with the first feasible VIA budget from zero through the caller's cap."""
+
+    failures: list[dict[str, Any]] = []
+    last_error: RoutingError | None = None
+    for via_budget in range(config.max_vias + 1):
+        try:
+            result = synthesize_route(
+                snapshot,
+                config.model_copy(update={"max_vias": via_budget}),
+            )
+        except RoutingError as exc:
+            if exc.details.get("reason") not in {
+                "detour_exceeded",
+                "no_route",
+                "via_budget_insufficient",
+            }:
+                raise
+            last_error = exc
+            failures.append(
+                {
+                    "max_vias": via_budget,
+                    "reason": exc.details.get("reason"),
+                    "error": str(exc),
+                }
+            )
+            continue
+        return replace(
+            result,
+            metrics={
+                **result.metrics,
+                "minimum_via_count": result.metrics.get("via_count", 0),
+                "via_budget_attempts": [
+                    *failures,
+                    {"max_vias": via_budget, "status": "routed"},
+                ],
+            },
+            assumptions=[
+                *result.assumptions,
+                "VIA budgets are attempted from zero upward; resource-limit "
+                "failures stop the search.",
+            ],
+        )
+    assert last_error is not None
+    last_error.details["via_budget_attempts"] = failures
+    raise last_error
 
 
 def synthesize_differential_pair_route(
@@ -1506,6 +1563,7 @@ def _a_star(
         raise RoutingError(
             "No legal multi-layer 45-degree route was found within configured bounds",
             details={
+                "reason": "no_route",
                 "visited_nodes": visited,
                 "obstacle_count": sum(len(items) for items in obstacles.values()),
                 "layers": layer_ids,

@@ -22,7 +22,7 @@ from ..routing import (
     _find_net,
     _route_layers,
     synthesize_differential_pair_route,
-    synthesize_route,
+    synthesize_route_min_vias,
 )
 from ..semantic_compiler import apply_semantic_operations
 from ..xml_document import DipTraceDocument
@@ -284,7 +284,7 @@ class RoutingService:
             time_budget_ms=time_budget_ms,
             avoid_component_bodies=avoid_component_bodies,
         )
-        route = synthesize_route(snapshot, config)
+        route = synthesize_route_min_vias(snapshot, config)
         response = self.semantic_write(route.operation, path, dry_run, expected_sha256, txid)
         response["routing"] = {
             "points": [point.as_dict() for point in route.points],
@@ -329,7 +329,7 @@ class RoutingService:
         working = document
         working_snapshot = snapshot
         for pair in pairs:
-            route = synthesize_route(
+            route = synthesize_route_min_vias(
                 working_snapshot,
                 RouteConnectionConfig(
                     net=pair["net_id"],
@@ -556,7 +556,7 @@ class RoutingService:
         working = document
         working_snapshot = snapshot
         for pair in pairs:
-            route = synthesize_route(
+            route = synthesize_route_min_vias(
                 working_snapshot,
                 RouteConnectionConfig(
                     net=pair["net_id"],

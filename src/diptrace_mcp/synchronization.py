@@ -26,12 +26,8 @@ class ComponentSyncMapping(StrictModel):
     pattern_style: str | None = Field(default=None, min_length=1, max_length=1_000)
     pad_numbers: list[str] = Field(default_factory=list, max_length=10_000)
     pin_map: list[PinPadAssignment] = Field(default_factory=list, max_length=100_000)
-    x: float | None = Field(
-        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
-    )
-    y: float | None = Field(
-        default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
-    )
+    x: float | None = Field(default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
+    y: float | None = Field(default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     side: Literal["Top", "Bottom"] = "Top"
 
     @model_validator(mode="after")
@@ -92,9 +88,7 @@ def _pattern_elements(document: DipTraceDocument) -> list[ET.Element]:
 def _pad_style_elements(document: DipTraceDocument) -> list[ET.Element]:
     if document.source_type == "DipTrace-PatternLibrary":
         return document.root.findall("./PadStyles/PadStyle")
-    return document.root.findall(
-        ".//Library[@Type='DipTrace-PatternLibrary']/PadStyles/PadStyle"
-    )
+    return document.root.findall(".//Library[@Type='DipTrace-PatternLibrary']/PadStyles/PadStyle")
 
 
 def _pattern_style(pattern: ET.Element) -> str:
@@ -145,6 +139,15 @@ def _board_origin(pcb: DipTraceDocument, placement: SyncPlacement) -> tuple[floa
     )
 
 
+def _board_bounds(pcb: DipTraceDocument) -> tuple[float, float, float, float] | None:
+    points = pcb.container.findall("./BoardOutline/Points/Point")
+    if not points:
+        return None
+    xs = [xml_number_mm(pcb, item, "X") for item in points]
+    ys = [xml_number_mm(pcb, item, "Y") for item in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
 def _inferred_pattern(part: ET.Element) -> str | None:
     attached_pattern = part.find("./Pattern")
     candidates = [
@@ -181,9 +184,7 @@ def build_sync_plan(
     for provided_mapping in mappings or []:
         key = provided_mapping.refdes.casefold()
         if key in mapping_by_refdes:
-            raise AmbiguousSelectorError(
-                f"Duplicate component mapping: {provided_mapping.refdes}"
-            )
+            raise AmbiguousSelectorError(f"Duplicate component mapping: {provided_mapping.refdes}")
         mapping_by_refdes[key] = provided_mapping
 
     parts_by_refdes: dict[str, list[ET.Element]] = {}
@@ -240,8 +241,7 @@ def build_sync_plan(
                     existing_pad_style_entry is not None
                     and existing_pad_style_entry[0] is not pcb
                     and document is not pcb
-                    and ET.tostring(existing_pad_style_entry[1])
-                    != ET.tostring(style_element)
+                    and ET.tostring(existing_pad_style_entry[1]) != ET.tostring(style_element)
                 ):
                     raise AmbiguousSelectorError(
                         f"Conflicting pad-style definitions found for {name}"
@@ -249,13 +249,19 @@ def build_sync_plan(
                 pad_styles.setdefault(key, (document, style_element))
 
     origin_x, origin_y = _board_origin(pcb, placement)
+    board_bounds = _board_bounds(pcb)
+    row_index = 0
+    row_count = 0
+    row_right = float("-inf")
+    row_bottom = float("-inf")
+    row_min_y = float("-inf")
     component_specs: list[dict[str, Any]] = []
     pin_to_pad: dict[tuple[str, int], tuple[str, str]] = {}
     copied_patterns: dict[str, str] = {}
     copied_pad_styles: dict[str, str] = {}
     warnings: list[str] = []
 
-    for component_index, key in enumerate(sorted(parts_by_refdes)):
+    for key in sorted(parts_by_refdes):
         parts = sorted(
             parts_by_refdes[key],
             key=lambda item: (
@@ -279,6 +285,69 @@ def build_sync_plan(
                 details={"refdes": refdes, "hint": "supply component_mappings.pattern_style"},
             )
         pattern_entry = patterns.get(pattern_style.casefold())
+        pattern_document, pattern_element = pattern_entry or (None, None)
+        width = max(
+            0.0,
+            (
+                xml_number_mm(pattern_document, pattern_element, "Width")
+                if pattern_document is not None and pattern_element is not None
+                else 0.0
+            ),
+        )
+        height = max(
+            0.0,
+            (
+                xml_number_mm(pattern_document, pattern_element, "Height")
+                if pattern_document is not None and pattern_element is not None
+                else 0.0
+            ),
+        )
+        if not width or not height:
+            warnings.append(
+                f"{refdes}: pattern size is incomplete; initial placement uses a "
+                "point-sized fallback for the missing dimension"
+            )
+        half_width = width / 2.0
+        half_height = height / 2.0
+        auto_x = (
+            origin_x
+            if row_count == 0
+            else max(
+                origin_x + row_count * placement.pitch_x,
+                row_right + half_width,
+            )
+        )
+        if board_bounds is not None:
+            min_x, min_y, max_x, max_y = board_bounds
+            auto_x = max(auto_x, min_x + half_width)
+            if row_count >= placement.columns or auto_x + half_width > max_x:
+                row_index += 1
+                row_count = 0
+                auto_x = max(origin_x, min_x + half_width)
+                row_min_y = row_bottom
+            elif row_count == 0:
+                row_min_y = min_y
+            auto_y = max(
+                origin_y + row_index * placement.pitch_y,
+                row_min_y + half_height,
+            )
+            if auto_x + half_width > max_x or auto_y + half_height > max_y:
+                raise EditError(
+                    f"PCB outline has no room for component {refdes}",
+                    details={"refdes": refdes, "board_bounds_mm": board_bounds},
+                )
+        else:
+            auto_y = origin_y + row_index * placement.pitch_y
+            if row_count >= placement.columns:
+                row_index += 1
+                row_count = 0
+                auto_x = origin_x
+                auto_y = origin_y + row_index * placement.pitch_y
+        # ponytail: shelf packing uses the outline bounding box; run the existing
+        # placement legalizer when polygonal-board containment matters.
+        row_right = auto_x + half_width
+        row_bottom = max(row_bottom, auto_y + half_height)
+        row_count += 1
         if mapping is not None and mapping.pad_numbers:
             pad_numbers = list(mapping.pad_numbers)
         elif target is not None:
@@ -316,9 +385,7 @@ def build_sync_plan(
                 if pin_index >= len(pins):
                     raise EditError(f"Pin map for {refdes} references missing pin {pin_index}")
                 if pad_number.casefold() not in {item.casefold() for item in pad_numbers}:
-                    raise EditError(
-                        f"Pin map for {refdes} references missing pad {pad_number}"
-                    )
+                    raise EditError(f"Pin map for {refdes} references missing pad {pad_number}")
                 pin_to_pad[(part_id, pin_index)] = (refdes, pad_number)
         elif len(parts) == 1:
             pins = parts[0].findall("./Pins/Pin")
@@ -346,18 +413,8 @@ def build_sync_plan(
             y = xml_number_mm(pcb, target, "Y")
             side = target.get("Side", "Top")
         else:
-            column = component_index % placement.columns
-            row = component_index // placement.columns
-            x = (
-                mapping.x
-                if mapping is not None and mapping.x is not None
-                else origin_x + column * placement.pitch_x
-            )
-            y = (
-                mapping.y
-                if mapping is not None and mapping.y is not None
-                else origin_y + row * placement.pitch_y
-            )
+            x = mapping.x if mapping is not None and mapping.x is not None else auto_x
+            y = mapping.y if mapping is not None and mapping.y is not None else auto_y
             side = mapping.side if mapping is not None else "Top"
         component_specs.append(
             {
@@ -422,8 +479,7 @@ def build_sync_plan(
             endpoints.append({"refdes": endpoint[0], "pad_number": endpoint[1]})
         if endpoints:
             unique = {
-                (item["refdes"].casefold(), item["pad_number"].casefold())
-                for item in endpoints
+                (item["refdes"].casefold(), item["pad_number"].casefold()) for item in endpoints
             }
             if len(unique) != len(endpoints):
                 raise EditError(f"Net {name} contains duplicate mapped PCB endpoints")
@@ -461,8 +517,9 @@ def build_sync_plan(
                 else "Synchronization is additive; extra PCB components, nets and traces "
                 "are preserved."
             ),
-            "New components use deterministic grid placement and should be legalized "
-            "before routing.",
+            "New components use deterministic footprint-aware shelf placement inside "
+            "the board bounding box and should be legalized before routing on polygonal "
+            "boards.",
             (
                 "Ratline geometry is derived by DipTrace from pad NetId membership; "
                 "create_ratlines=false hides the derived guides on synchronized nets."
