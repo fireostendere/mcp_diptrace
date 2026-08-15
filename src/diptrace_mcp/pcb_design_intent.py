@@ -69,6 +69,7 @@ class PCBElectricalConstraints(StrictModel):
     signal_frequency_hz: float | None = Field(default=None, gt=0.0)
     edge_rate_ns: float | None = Field(default=None, gt=0.0)
     current_a: float | None = Field(default=None, ge=0.0)
+    trace_width_mm: float | None = Field(default=None, gt=0.0)
     target_impedance_ohm: float | None = Field(default=None, gt=0.0)
     impedance_tolerance_percent: float | None = Field(default=None, gt=0.0, le=100.0)
     max_length_mm: float | None = Field(default=None, gt=0.0)

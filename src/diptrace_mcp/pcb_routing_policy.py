@@ -214,7 +214,7 @@ def _policy_for_net(
         roles=list(net.roles),
         priority=_priority(net),
         criticality=net.criticality,
-        trace_width_mm=None,
+        trace_width_mm=constraints.trace_width_mm,
         minimum_spacing_mm=constraints.minimum_spacing_mm,
         preferred_layers=preferred,
         forbidden_layers=forbidden,

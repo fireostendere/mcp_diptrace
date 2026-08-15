@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Source Type="DipTrace-PCB" Version="5.3.0.3" Units="inch">
+  <Library Type="DipTrace-ComponentLibrary" Units="inch"><Library Type="DipTrace-PatternLibrary" Units="inch"><PadStyles><PadStyle Name="PadT3" Type="Through" HoleType="Round" Hole="0.04252">
+<MainStack Shape="Obround" Width="0.06378" Height="0.06378" XOff="0" YOff="0" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.025" Height="0.025" Corner="0" />
+</Terminals>
+</PadStyle><PadStyle Name="PadT4" Type="Through" HoleType="Round" Hole="0.04252">
+<MainStack Shape="Rectangle" Width="0.06378" Height="0.06378" XOff="0" YOff="0" Corner="0" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.025" Height="0.025" Corner="0" />
+</Terminals>
+</PadStyle><PadStyle Name="C52895_PAD" Type="Surface" Side="Top">
+        <MainStack Shape="Rectangle" Width="0.042126" Height="0.023622" XOff="0" YOff="0" />
+      </PadStyle><PadStyle Name="PadT2" Type="Surface">
+<MainStack Shape="Rectangle" Width="0.023622" Height="0.022835" Corner="25.8621" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0.003543" Y="0" Angle="0" Width="0.009843" Height="0.019685" Corner="0" />
+</Terminals>
+</PadStyle></PadStyles><Patterns><Pattern PatternStyle="PatType100" Id="0" Mounting="Through" Width="0.439509" Height="0.520748" Orientation="0" LockTypeChange="Y" Type="IPC-7351" Float1="0" Float2="0" Float3="0" Int1="1" Int2="0">
+<Name>HDRRA4W66P254_4X1_1016X508H490_AL1</Name>
+<Name_Description>Header, Right Angle, Non-Shrouded, 4 pin, 0.66mm lead width, 2.54mm in column pitch, 4 columns x 1 rows, 10.16mm body length x 5.08mm body width, 4.902mm height, alternative layer 1</Name_Description>
+<Name_Unique>TE_640453-4</Name_Unique>
+<Manufacturer>TE Connectivity</Manufacturer>
+<Category Index="42">
+<Name>Con Rectangular</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="0">''''''1 Row</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="18">''Horizontal</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="21">'Male</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="12">''''Pitch 2.54mm</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="17">'''Unshrouded</SubType>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Origin X="-0.140621" Y="0.1475" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<RecoveryCode Generator="N" Model="N">[N;Header (Right Angle, Non-Shrouded);1;N;Y;0;0;0;Y;Y;Y;Y;101;Default;|0;0;0;1;4;1;2.54;;0;0.609;0.635;0.66;0.025;-0.025;10.033;10.16;10.287;0.127;-0.127;4.902;4.902;4.902;0;0;4.826;5.08;5.334;0.254;-0.254;;0;;;;7.239;7.493;7.747;0.254;-0.254;1.08;1.62|0;|;;;;0.5||||||||||||||4934475;15461355;16119285;N]</RecoveryCode>
+<DefPad Style="PadT3" />
+<Pads>
+<Pad Id="1" Style="PadT4" X="-0.140621" Y="0.1475" Angle="3.141593" Locked="N" Side="Top">
+<Number>1</Number>
+</Pad>
+<Pad Id="2" Style="PadT3" X="-0.040621" Y="0.1475" Angle="3.141593" Locked="N" Side="Top">
+<Number>2</Number>
+</Pad>
+<Pad Id="3" Style="PadT3" X="0.059379" Y="0.1475" Angle="3.141593" Locked="N" Side="Top">
+<Number>3</Number>
+</Pad>
+<Pad Id="4" Style="PadT3" X="0.159379" Y="0.1475" Angle="3.141593" Locked="N" Side="Top">
+<Number>4</Number>
+</Pad>
+</Pads>
+<Shapes>
+<Shape Id="1" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.193121" Y="0.2525" />
+<Point X="0.211881" Y="0.0425" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.200995" Y="0.260374" />
+<Point X="0.219755" Y="-0.260374" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Line" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.140621" Y="0.0425" />
+<Point X="-0.140621" Y="-0.2525" />
+</Points>
+</Shape>
+<Shape Id="4" Type="Line" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.040621" Y="0.0425" />
+<Point X="-0.040621" Y="-0.2525" />
+</Points>
+</Shape>
+<Shape Id="5" Type="Line" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="0.059381" Y="0.0425" />
+<Point X="0.059379" Y="-0.2525" />
+</Points>
+</Shape>
+<Shape Id="6" Type="Line" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="0.159379" Y="0.0425" />
+<Point X="0.159379" Y="-0.2525" />
+</Points>
+</Shape>
+<Shape Id="7" Type="FillObround" Locked="N" Layer="Top Silk" LineWidth="0" AllLayers="N">
+<Points>
+<Point X="-0.219755" Y="0.157343" />
+<Point X="-0.20007" Y="0.137657" />
+</Points>
+</Shape>
+<Shape Id="8" Type="Polyline" Locked="N" Layer="Top Assy" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.192982" Y="0.042382" />
+<Point X="-0.192982" Y="0.213248" />
+<Point X="-0.153612" Y="0.252618" />
+<Point X="0.211741" Y="0.252618" />
+<Point X="0.211741" Y="0.042382" />
+<Point X="-0.192982" Y="0.042382" />
+</Points>
+</Shape>
+<Shape Id="9" Type="Rectangle" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.193121" Y="0.2525" />
+<Point X="0.211881" Y="0.0425" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="mm" IPC_XOff="0.009379" IPC_YOff="0.1475" AutoHeight="0.192992" AutoColor="4934475" Type="File" KeepPins="N">
+<Filename>
+<Path>hdr-1x4th_2.54_10x13.step</Path>
+<Var>hdr-1x4th_2.54_10x13.step</Var>
+</Filename>
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0.15" Y="0" Z="0.07874" />
+<Zoom X="1" Y="1" Z="1" />
+</Model3D>
+</Pattern><Pattern PatternStyle="PatType99" Id="1" RefDes="Q" Mounting="Surface" Width="0.14" Height="0.14" Orientation="0" LockTypeChange="Y" Type="Free" Float1="0" Float2="0" Float3="0" Int1="0" Int2="0">
+        <Name>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Name>
+        <Name_Unique>EasyEDA_b3b82869fa924bae820e3a6cfb44d689</Name_Unique>
+        <Value>BSS138</Value>
+        <Manufacturer>onsemi</Manufacturer>
+        <Datasheet>https://www.onsemi.com/pdf/datasheet/bss138-d.pdf</Datasheet>
+        <Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+        <DefPad Style="C52895_PAD" />
+        <Pads>
+          <Pad Id="1" Style="C52895_PAD" X="0.048625" Y="-0.037400" Angle="0" Locked="N" Side="Top">
+            <Number>1</Number>
+            <Note />
+          </Pad>
+          <Pad Id="2" Style="C52895_PAD" X="0.048625" Y="0.037400" Angle="0" Locked="N" Side="Top">
+            <Number>2</Number>
+            <Note />
+          </Pad>
+          <Pad Id="3" Style="C52895_PAD" X="-0.048625" Y="0.000000" Angle="0" Locked="N" Side="Top">
+            <Number>3</Number>
+            <Note />
+          </Pad>
+        </Pads>
+        <Shapes>
+          <Shape Id="0" Type="Polyline" LineWidth="0.006000" Locked="N" Layer="Top Silk" AllLayers="N">
+            <Points>
+              <Point X="0.034491" Y="0.060480" />
+              <Point X="-0.034501" Y="0.060480" />
+              <Point X="-0.034501" Y="0.019472" />
+            </Points>
+          </Shape>
+          <Shape Id="1" Type="Polyline" LineWidth="0.006000" Locked="N" Layer="Top Silk" AllLayers="N">
+            <Points>
+              <Point X="0.034491" Y="-0.060480" />
+              <Point X="-0.034501" Y="-0.060480" />
+              <Point X="-0.034501" Y="-0.019472" />
+            </Points>
+          </Shape>
+          <Shape Id="2" Type="Polyline" LineWidth="0.006000" Locked="N" Layer="Top Silk" AllLayers="N">
+            <Points>
+              <Point X="0.034491" Y="0.017929" />
+              <Point X="0.034491" Y="-0.017929" />
+            </Points>
+          </Shape>
+        </Shapes>
+      </Pattern><Pattern PatternStyle="PatType2" Id="2" Mounting="SMD" Width="0.07244" Height="0.034646" Orientation="0" LockTypeChange="Y" Type="IPC-7351" Float1="0" Float2="0" Float3="0" Int1="1" Int2="0">
+<Name>RESC100X50X40L25N_AD1</Name>
+<Name_Description>Resistor, Chip, 1mm body length x 0.5mm body width x 0.4mm height, 0.25mm lead length, nominal density, alternative duplicate 1</Name_Description>
+<Name_Unique>UNI-ROYAL_0402</Name_Unique>
+<Manufacturer>UNI-ROYAL(Uniroyal Elec)</Manufacturer>
+<Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<RecoveryCode Generator="Y" Model="Y">[Y;Chip;1;N;Y;1;0;0;Y;Y;Y;Y;101;Default;|10;;;0.4;;;0.9;1;1.1;0.1;-0.1;0.45;0.5;0.55;0.05;-0.05;0.15;0.25;0.35;0.1;-0.1;;;;;;0.33;0.6;0.58;0.6|0;|;;;;;;;;;0.5;0.5;0.5|||||;;;1|||||||||4934475;15461355;4079359;Y]</RecoveryCode>
+<DefPad Style="PadT2" />
+<Pads>
+<Pad Id="1" Style="PadT2" X="-0.018307" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>1</Number>
+</Pad>
+<Pad Id="2" Style="PadT2" X="0.018307" Y="0" Angle="3.141593" Locked="N" Side="Top">
+<Number>2</Number>
+</Pad>
+</Pads>
+<Shapes>
+<Shape Id="1" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.019685" Y="0.009843" />
+<Point X="0.019685" Y="-0.009843" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Rectangle" Locked="N" Layer="Top Assy" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.021654" Y="0.011024" />
+<Point X="0.021654" Y="-0.011024" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.03622" Y="0.017323" />
+<Point X="0.03622" Y="-0.017323" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="mm" IPC_XOff="0" IPC_YOff="0" AutoHeight="0.015748" AutoColor="4934475" Type="IPC-7351" KeepPins="N">
+<Filename>
+<Path>led100.wrl</Path>
+<Var>led100.wrl</Var>
+</Filename>
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0" Y="0" Z="-0.001969" />
+<Zoom X="1" Y="1" Z="1" />
+</Model3D>
+</Pattern></Patterns></Library></Library>
+
+  <Board>
+    <BoardOutline Locked="N" Selected="N">
+      <Points>
+        <Point X="0" Y="0" />
+        <Point X="1.57480315" Y="0" />
+        <Point X="1.57480315" Y="0.787401575" />
+        <Point X="0" Y="0.787401575" />
+      </Points>
+    </BoardOutline>
+    <Settings>
+      <Routing TraceWidth="0.00984251969" TraceClearance="0.00787401575" ViaSize="0.0236220472" ViaHole="0.0118110236" />
+    </Settings>
+    <CopperLayers>
+      <Lay Id="0" Type="Signal">
+        <Name>Top</Name>
+      </Lay>
+      <Lay Id="1" Type="Signal">
+        <Name>Bottom</Name>
+      </Lay>
+    </CopperLayers>
+    <LayerStackName>Custom</LayerStackName>
+    <LayerStackItems>
+      <LayerStackItem Lay="0">
+        <Material Type="Conductor" VariableThickness="N" Thickness="0.00137795276" Constant="0" TraceWidth="0.00984251969">
+          <Name>Copper</Name>
+        </Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="-1">
+        <Material Type="Dielectric" VariableThickness="N" Thickness="0.062992126" Constant="4.5">
+          <Name>Core</Name>
+        </Material>
+      </LayerStackItem>
+      <LayerStackItem Lay="1">
+        <Material Type="Conductor" VariableThickness="N" Thickness="0.00137795276" Constant="0" TraceWidth="0.00984251969">
+          <Name>Copper</Name>
+        </Material>
+      </LayerStackItem>
+    </LayerStackItems>
+    <ViaStyles>
+      <ViaStyle Id="0" Diameter="0.0236220472" Hole="0.0118110236">
+        <Name>Default</Name>
+      </ViaStyle>
+    </ViaStyles>
+    <NetClasses>
+      <NetClass Id="0" UpdateId="0" Type="Normal" AllLayers="Y" CheckLength="N" AllVias="Y" PerformDRC="Y" LengthDelta="0.1" FixedLength="0" MaxUncoupledLength="0.393700787" Tolerance="0.0787401575">
+        <Name>Default</Name>
+        <LayProperties>
+          <LayProperty Width="0.00984251969" MinWidth="0.00590551181" MaxWidth="0.0787401575" Clearance="0.00787401575" Neck_Width="0.00590551181" Neck_DifClearance="0.00787401575" Neck_MaxLength="0.118110236" DifClearance="0.00787401575">
+            <LayerName>Top</LayerName>
+          </LayProperty>
+          <LayProperty Width="0.00984251969" MinWidth="0.00590551181" MaxWidth="0.0787401575" Clearance="0.00787401575" Neck_Width="0.00590551181" Neck_DifClearance="0.00787401575" Neck_MaxLength="0.118110236" DifClearance="0.00787401575">
+            <LayerName>Bottom</LayerName>
+          </LayProperty>
+        </LayProperties>
+      </NetClass>
+    </NetClasses>
+    <DRC CheckClearance="Y" CheckNetConnectivity="Y">
+      <LayClearances>
+        <LayClearance Lay="0" TraceToTrace="0.00787401575" TraceToPad="0.00787401575" />
+        <LayClearance Lay="1" TraceToTrace="0.00787401575" TraceToPad="0.00787401575" />
+      </LayClearances>
+      <LaySizes>
+        <LaySize Lay="0" MinTrace="0.00590551181" MinDrill="0.00787401575" MinRing="0.00393700787" />
+        <LaySize Lay="1" MinTrace="0.00590551181" MinDrill="0.00787401575" MinRing="0.00393700787" />
+      </LaySizes>
+    </DRC>
+    <ConnectivityCheck Traces="Y" Shapes="Y" CopperPours="Y" />
+    <Components><Component Id="0" UpdateId="100" PatternStyle="PatType100" X="0.275590551" Y="0.393700787" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad" Locked="N" Selected="N" Angle="1.57079633"><RefDes>J1</RefDes><Name>640453-4</Name><Value>I2C LV</Value><RefDesMarking><Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.287933055" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.287933055" Angle="0" /></RefDesMarking><NameMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.287933055" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.287933055" Angle="0" /></NameMarking><ValueMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.346988173" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.346988173" Angle="0" /></ValueMarking><PatternMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></PatternMarking><ManufacturerMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></ManufacturerMarking><DatasheetMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></DatasheetMarking><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>TE_640453-4</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text>A1917-ND</Text></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text>571-6404534</Text></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text /></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>TE Connectivity</Text></AddField></AddFields><Pads><Pad Id="1" NetId="6" InternalConnection="-1" /><Pad Id="2" NetId="0" InternalConnection="-1" /><Pad Id="3" NetId="4" InternalConnection="-1" /><Pad Id="4" NetId="2" InternalConnection="-1" /></Pads></Component><Component Id="1" UpdateId="101" PatternStyle="PatType100" X="1.2992126" Y="0.393700787" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad" Locked="N" Selected="N" Angle="1.57079633"><RefDes>J2</RefDes><Name>640453-4</Name><Value>I2C HV</Value><RefDesMarking><Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.287933055" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.287933055" Angle="0" /></RefDesMarking><NameMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.287933055" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.287933055" Angle="0" /></NameMarking><ValueMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.346988173" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.346988173" Angle="0" /></ValueMarking><PatternMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></PatternMarking><ManufacturerMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></ManufacturerMarking><DatasheetMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></DatasheetMarking><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>TE_640453-4</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text>A1917-ND</Text></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text>571-6404534</Text></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text /></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>TE Connectivity</Text></AddField></AddFields><Pads><Pad Id="1" NetId="6" InternalConnection="-1" /><Pad Id="2" NetId="1" InternalConnection="-1" /><Pad Id="3" NetId="5" InternalConnection="-1" /><Pad Id="4" NetId="3" InternalConnection="-1" /></Pads></Component><Component Id="2" UpdateId="102" PatternStyle="PatType99" X="0.728346457" Y="0.551181102" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad" Locked="N" Selected="N"><RefDes>Q1</RefDes><Name>BSS138</Name><Value>BSS138 / C52895</Value><RefDesMarking><Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0975590551" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0975590551" Angle="0" /></RefDesMarking><NameMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0975590551" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0975590551" Angle="0" /></NameMarking><ValueMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.156614173" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.156614173" Angle="0" /></ValueMarking><PatternMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></PatternMarking><ManufacturerMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></ManufacturerMarking><DatasheetMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></DatasheetMarking><AddFields><AddField Type="Text"><Name>MPN</Name><Text>BSS138</Text></AddField><AddField Type="Text"><Name>LCSC</Name><Text>C52895</Text></AddField><AddField Type="Text"><Name>Package</Name><Text>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Text></AddField><AddField Type="Text"><Name>EasyEDA Symbol UUID</Name><Text>1d638380c6a74ae0b0aab17a51b21d35</Text></AddField><AddField Type="Text"><Name>EasyEDA Footprint UUID</Name><Text>b3b82869fa924bae820e3a6cfb44d689</Text></AddField><AddField Type="Text"><Name>EasyEDA 3D UUID</Name><Text>7c3db6199fa840ee9a913d70da71e002</Text></AddField><AddField Type="Text"><Name>Source</Name><Text>Official LCSC/EasyEDA ready model</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>onsemi</Text></AddField></AddFields><Pads><Pad Id="1" NetId="0" InternalConnection="-1" /><Pad Id="2" NetId="2" InternalConnection="-1" /><Pad Id="3" NetId="3" InternalConnection="-1" /></Pads></Component><Component Id="3" UpdateId="103" PatternStyle="PatType99" X="0.748031496" Y="0.413385827" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad" Locked="N" Selected="N"><RefDes>Q2</RefDes><Name>BSS138</Name><Value>BSS138 / C52895</Value><RefDesMarking><Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0975590551" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0975590551" Angle="0" /></RefDesMarking><NameMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0975590551" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0975590551" Angle="0" /></NameMarking><ValueMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.156614173" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.156614173" Angle="0" /></ValueMarking><PatternMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></PatternMarking><ManufacturerMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></ManufacturerMarking><DatasheetMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></DatasheetMarking><AddFields><AddField Type="Text"><Name>MPN</Name><Text>BSS138</Text></AddField><AddField Type="Text"><Name>LCSC</Name><Text>C52895</Text></AddField><AddField Type="Text"><Name>Package</Name><Text>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Text></AddField><AddField Type="Text"><Name>EasyEDA Symbol UUID</Name><Text>1d638380c6a74ae0b0aab17a51b21d35</Text></AddField><AddField Type="Text"><Name>EasyEDA Footprint UUID</Name><Text>b3b82869fa924bae820e3a6cfb44d689</Text></AddField><AddField Type="Text"><Name>EasyEDA 3D UUID</Name><Text>7c3db6199fa840ee9a913d70da71e002</Text></AddField><AddField Type="Text"><Name>Source</Name><Text>Official LCSC/EasyEDA ready model</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>onsemi</Text></AddField></AddFields><Pads><Pad Id="1" NetId="0" InternalConnection="-1" /><Pad Id="2" NetId="4" InternalConnection="-1" /><Pad Id="3" NetId="5" InternalConnection="-1" /></Pads></Component><Component Id="4" UpdateId="104" PatternStyle="PatType2" X="0.61023622" Y="0.531496063" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad" Locked="N" Selected="N"><RefDes>R1</RefDes><Name>0402WGF1002TCE</Name><Value>4.7k</Value><RefDesMarking><Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0590551181" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0590551181" Angle="0" /></RefDesMarking><NameMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0590551181" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0590551181" Angle="0" /></NameMarking><ValueMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.118110236" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.118110236" Angle="0" /></ValueMarking><PatternMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></PatternMarking><ManufacturerMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></ManufacturerMarking><DatasheetMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></DatasheetMarking><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>UNI-ROYAL_0402</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text>C25744</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>UNI-ROYAL(Uniroyal Elec)</Text></AddField></AddFields><Pads><Pad Id="1" NetId="0" InternalConnection="-1" /><Pad Id="2" NetId="2" InternalConnection="-1" /></Pads></Component><Component Id="5" UpdateId="105" PatternStyle="PatType2" X="0.61023622" Y="0.452755906" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad" Locked="N" Selected="N"><RefDes>R2</RefDes><Name>0402WGF1002TCE</Name><Value>4.7k</Value><RefDesMarking><Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0590551181" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0590551181" Angle="0" /></RefDesMarking><NameMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0590551181" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0590551181" Angle="0" /></NameMarking><ValueMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.118110236" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.118110236" Angle="0" /></ValueMarking><PatternMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></PatternMarking><ManufacturerMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></ManufacturerMarking><DatasheetMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></DatasheetMarking><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>UNI-ROYAL_0402</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text>C25744</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>UNI-ROYAL(Uniroyal Elec)</Text></AddField></AddFields><Pads><Pad Id="1" NetId="0" InternalConnection="-1" /><Pad Id="2" NetId="4" InternalConnection="-1" /></Pads></Component><Component Id="6" UpdateId="106" PatternStyle="PatType2" X="0.964566929" Y="0.531496063" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad" Locked="N" Selected="N"><RefDes>R3</RefDes><Name>0402WGF1002TCE</Name><Value>4.7k</Value><RefDesMarking><Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0590551181" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0590551181" Angle="0" /></RefDesMarking><NameMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0590551181" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0590551181" Angle="0" /></NameMarking><ValueMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.118110236" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.118110236" Angle="0" /></ValueMarking><PatternMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></PatternMarking><ManufacturerMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></ManufacturerMarking><DatasheetMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></DatasheetMarking><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>UNI-ROYAL_0402</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text>C25744</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>UNI-ROYAL(Uniroyal Elec)</Text></AddField></AddFields><Pads><Pad Id="1" NetId="1" InternalConnection="-1" /><Pad Id="2" NetId="3" InternalConnection="-1" /></Pads></Component><Component Id="7" UpdateId="107" PatternStyle="PatType2" X="0.964566929" Y="0.452755906" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad" Locked="N" Selected="N"><RefDes>R4</RefDes><Name>0402WGF1002TCE</Name><Value>4.7k</Value><RefDesMarking><Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0590551181" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.0590551181" Angle="0" /></RefDesMarking><NameMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0590551181" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.0590551181" Angle="0" /></NameMarking><ValueMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.118110236" Angle="0" /><Assy Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.118110236" Angle="0" /></ValueMarking><PatternMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></PatternMarking><ManufacturerMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></ManufacturerMarking><DatasheetMarking><Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /></DatasheetMarking><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>UNI-ROYAL_0402</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text>C25744</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>UNI-ROYAL(Uniroyal Elec)</Text></AddField></AddFields><Pads><Pad Id="1" NetId="1" InternalConnection="-1" /><Pad Id="2" NetId="5" InternalConnection="-1" /></Pads></Component></Components>
+
+    <Ratlines></Ratlines><Nets><Net Id="0" HiddenId="0" NetClass="0" Locked="N" RouteMode="Ratlines"><Name>3V3</Name><Pads><Item Comp="4" Pad="1" /><Item Comp="5" Pad="1" /><Item Comp="2" Pad="1" /><Item Comp="3" Pad="1" /><Item Comp="0" Pad="2" /></Pads><Traces><Trace Id="1" Connected1="Pad" Object1="4" SubObject1="1" Point1="-1" Connected2="Pad" Object2="2" SubObject2="1" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.59192922" Y="0.531496063" /><Point Id="1" X="0.600393701" Y="0.531496063" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.600393701" Y="0.501968504" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.757874016" Y="0.501968504" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="0.767716535" Y="0.511811024" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="0.767716535" Y="0.513781102" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="6" X="0.776971457" Y="0.513781102" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="2" Connected1="Pad" Object1="4" SubObject1="1" Point1="-1" Connected2="Pad" Object2="5" SubObject2="1" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.59192922" Y="0.531496063" /><Point Id="1" X="0.590551181" Y="0.531496063" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.590551181" Y="0.452755906" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.59192922" Y="0.452755906" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="3" Connected1="Pad" Object1="4" SubObject1="1" Point1="-1" Connected2="Pad" Object2="0" SubObject2="2" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.59192922" Y="0.531496063" /><Point Id="1" X="0.59192922" Y="0.531496063" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.206692913" Y="0.531496063" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.177165354" Y="0.501968504" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="0.0787401575" Y="0.501968504" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="0.0787401575" Y="0.403543307" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="6" X="0.127952756" Y="0.354330709" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="7" X="0.127952756" Y="0.353079787" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="8" X="0.128090551" Y="0.353079787" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="4" Connected1="Pad" Object1="2" SubObject1="1" Point1="-1" Connected2="Pad" Object2="3" SubObject2="1" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.776971457" Y="0.513781102" /><Point Id="1" X="0.776971457" Y="0.511811024" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.807086614" Y="0.511811024" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.836614173" Y="0.482283465" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="0.836614173" Y="0.423228346" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="0.797244094" Y="0.383858268" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="6" X="0.796656496" Y="0.383858268" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="7" X="0.796656496" Y="0.375985827" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="1" HiddenId="1" NetClass="0" Locked="N" RouteMode="Ratlines"><Name>5V</Name><Pads><Item Comp="6" Pad="1" /><Item Comp="7" Pad="1" /><Item Comp="1" Pad="2" /></Pads><Traces><Trace Id="1" Connected1="Pad" Object1="6" SubObject1="1" Point1="-1" Connected2="Pad" Object2="7" SubObject2="1" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.946259929" Y="0.531496063" /><Point Id="1" X="0.94488189" Y="0.531496063" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.94488189" Y="0.452755906" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.946259929" Y="0.452755906" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="2" Connected1="Pad" Object1="6" SubObject1="1" Point1="-1" Connected2="Pad" Object2="1" SubObject2="2" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.946259929" Y="0.531496063" /><Point Id="1" X="0.954724409" Y="0.531496063" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.954724409" Y="0.501968504" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="1.2007874" Y="0.501968504" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="1.2007874" Y="0.403543307" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="1.1515748" Y="0.354330709" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="6" X="1.1515748" Y="0.353079787" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="7" X="1.1517126" Y="0.353079787" Lay="0" Width="0.0157480315" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="2" HiddenId="2" NetClass="0" Locked="N" RouteMode="Ratlines"><Name>SDA_3V3</Name><Pads><Item Comp="2" Pad="2" /><Item Comp="4" Pad="2" /><Item Comp="0" Pad="4" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="2" SubObject1="2" Point1="-1" Connected2="Pad" Object2="4" SubObject2="2" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.776971457" Y="0.588581102" /><Point Id="1" X="0.776971457" Y="0.590551181" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.659448819" Y="0.590551181" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.62992126" Y="0.561023622" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="0.62992126" Y="0.541338583" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="0.62854322" Y="0.541338583" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="6" X="0.62854322" Y="0.531496063" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="1" Connected1="Pad" Object1="4" SubObject1="2" Point1="-1" Connected2="Pad" Object2="0" SubObject2="4" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.62854322" Y="0.531496063" /><Point Id="1" X="0.62992126" Y="0.531496063" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.62992126" Y="0.561023622" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.12809055" Y="0.561023622" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="0.12809055" Y="0.553079787" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="3" HiddenId="3" NetClass="0" Locked="N" RouteMode="Ratlines"><Name>SDA_5V</Name><Pads><Item Comp="2" Pad="3" /><Item Comp="6" Pad="2" /><Item Comp="1" Pad="4" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="2" SubObject1="3" Point1="-1" Connected2="Pad" Object2="6" SubObject2="2" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.679721457" Y="0.551181102" /><Point Id="1" X="0.688976378" Y="0.551181102" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.688976378" Y="0.561023622" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.984251969" Y="0.561023622" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="0.984251969" Y="0.541338583" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="0.982873929" Y="0.541338583" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="6" X="0.982873929" Y="0.531496063" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="1" Connected1="Pad" Object1="6" SubObject1="2" Point1="-1" Connected2="Pad" Object2="1" SubObject2="4" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.982873929" Y="0.531496063" /><Point Id="1" X="0.982873929" Y="0.531496063" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="1.13188976" Y="0.531496063" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="1.1515748" Y="0.551181102" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="1.1515748" Y="0.553079787" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="1.1517126" Y="0.553079787" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="4" HiddenId="4" NetClass="0" Locked="N" RouteMode="Ratlines"><Name>SCL_3V3</Name><Pads><Item Comp="3" Pad="2" /><Item Comp="5" Pad="2" /><Item Comp="0" Pad="3" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="3" SubObject1="2" Point1="-1" Connected2="Pad" Object2="5" SubObject2="2" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.796656496" Y="0.450785827" /><Point Id="1" X="0.796656496" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.62854322" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.62854322" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="1" Connected1="Pad" Object1="5" SubObject1="2" Point1="-1" Connected2="Pad" Object2="0" SubObject2="3" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.62854322" Y="0.452755906" /><Point Id="1" X="0.62007874" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.62007874" Y="0.423228346" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.167322835" Y="0.423228346" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="0.137795276" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="0.128090551" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="6" X="0.128090551" Y="0.453079787" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="5" HiddenId="5" NetClass="0" Locked="N" RouteMode="Ratlines"><Name>SCL_5V</Name><Pads><Item Comp="3" Pad="3" /><Item Comp="7" Pad="2" /><Item Comp="1" Pad="3" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="3" SubObject1="3" Point1="-1" Connected2="Pad" Object2="7" SubObject2="2" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.699406496" Y="0.413385827" /><Point Id="1" X="0.699406496" Y="0.413385827" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="0.698818898" Y="0.413385827" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="0.767716535" Y="0.344488189" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="0.895669291" Y="0.344488189" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="5" X="0.974409449" Y="0.423228346" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="6" X="0.974409449" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="7" X="0.982873929" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace><Trace Id="1" Connected1="Pad" Object1="7" SubObject1="2" Point1="-1" Connected2="Pad" Object2="1" SubObject2="3" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.982873929" Y="0.452755906" /><Point Id="1" X="0.982873929" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="1.1515748" Y="0.452755906" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="1.1515748" Y="0.453079787" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="1.1517126" Y="0.453079787" Lay="0" Width="0.00984251969" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net><Net Id="6" HiddenId="6" NetClass="0" Locked="N" RouteMode="Ratlines"><Name>GND</Name><Pads><Item Comp="0" Pad="1" /><Item Comp="1" Pad="1" /></Pads><Traces><Trace Id="0" Connected1="Pad" Object1="0" SubObject1="1" Point1="-1" Connected2="Pad" Object2="1" SubObject2="1" Point2="-1" Group="-1" PairSeparateTrace="-1" Selected="N"><Points><Point Id="0" X="0.128090551" Y="0.253079787" /><Point Id="1" X="0.128090551" Y="0.255905512" Lay="1" Width="0.0196850394" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="2" X="1.1515748" Y="0.255905512" Lay="1" Width="0.0196850394" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="3" X="1.1515748" Y="0.253079787" Lay="1" Width="0.0196850394" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /><Point Id="4" X="1.1517126" Y="0.253079787" Lay="1" Width="0.0196850394" Jumper="0" Arc="N" ViaStyle="-1" Selected="N" /></Points></Trace></Traces></Net></Nets>
+    <DifferentialPairs />
+    <CopperPours />
+    <Shapes />
+  </Board>
+</Source>
