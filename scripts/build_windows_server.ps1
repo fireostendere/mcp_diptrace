@@ -80,6 +80,12 @@ if (-not (Test-Path -LiteralPath $HeadlessExecutable -PathType Leaf)) {
 & $HeadlessExecutable --help | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Headless GUI executable startup smoke failed" }
 
+# The same frozen helper owns headless cinematic capture. This smoke verifies that
+# cinematic/preflight/message-driver dependencies were bundled without requiring
+# DipTrace or ffmpeg on the build runner.
+& $HeadlessExecutable cinematic --help | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "Headless cinematic helper startup smoke failed" }
+
 # Exercise the real CreateProcessW native-desktop targeting primitive on Windows
 # without DipTrace. The probe verifies desktop, WinSta0 window station and
 # session identity. It performs no GUI mutation and is allowed on an elevated
@@ -88,4 +94,4 @@ if ($LASTEXITCODE -ne 0) { throw "Headless GUI executable startup smoke failed" 
 if ($LASTEXITCODE -ne 0) { throw "Headless GUI native desktop security smoke failed" }
 
 Write-Host "Standalone server built: $Executable" -ForegroundColor Green
-Write-Host "Headless GUI helper built: $HeadlessExecutable" -ForegroundColor Green
+Write-Host "Headless GUI/cinematic helper built: $HeadlessExecutable" -ForegroundColor Green
