@@ -80,5 +80,12 @@ if (-not (Test-Path -LiteralPath $HeadlessExecutable -PathType Leaf)) {
 & $HeadlessExecutable --help | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Headless GUI executable startup smoke failed" }
 
+# Exercise the real CreateProcessW native-desktop targeting primitive on Windows
+# without DipTrace. The probe verifies desktop, WinSta0 window station and
+# session identity. It performs no GUI mutation and is allowed on an elevated
+# CI runner; actual native round-trips still fail closed when elevated.
+& $HeadlessExecutable native-smoke --timeout 20 | Out-Host
+if ($LASTEXITCODE -ne 0) { throw "Headless GUI native desktop security smoke failed" }
+
 Write-Host "Standalone server built: $Executable" -ForegroundColor Green
 Write-Host "Headless GUI helper built: $HeadlessExecutable" -ForegroundColor Green

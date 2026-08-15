@@ -66,7 +66,7 @@ jobs:
           if-no-files-found: error
 
   build-installer:
-    name: Build Inno Setup and portable assets
+    name: Build split Inno Setup and portable assets
     needs: [build-server, build-bridge]
     runs-on: windows-latest
     steps:
@@ -100,7 +100,7 @@ jobs:
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
           if (-not (Test-Path -LiteralPath $iscc)) { throw "Pinned ISCC.exe was not installed" }
           "ISCC_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-      - name: Build unsigned installer and portable fallback
+      - name: Build unsigned per-user installer, admin plug-in installer, and portable fallback
         shell: pwsh
         run: .\scripts\build_windows_installer.ps1 -Version 0.2.1 -PythonCommand python -BridgePath .\plugin\dist\diptrace_mcp_bridge.exe -IsccPath "$env:ISCC_PATH" -OutputDir dist\windows-artifacts -SkipBuild
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -110,7 +110,7 @@ jobs:
           if-no-files-found: error
 
   installer-smoke:
-    name: Silent install, upgrade, uninstall, and stdio smoke
+    name: Split install, upgrade, uninstall, and stdio smoke
     needs: build-installer
     runs-on: windows-latest
     steps:
@@ -134,10 +134,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "portable server smoke failed" }
           New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\portable-workspace" | Out-Null
           Copy-Item -LiteralPath .\tests\fixtures\pcb.xml -Destination "$env:RUNNER_TEMP\portable-workspace\pcb.xml"
-      - name: Silent server-only install with spaces and Unicode workspace
+          $checksums = Get-Content .\dist\windows-artifacts\SHA256SUMS.txt -Raw
+          if ($checksums -notmatch 'DipTrace-MCP-Setup-') { throw "per-user installer missing from release checksum manifest" }
+          if ($checksums -notmatch 'DipTrace-MCP-Plugin-Setup-') { throw "plug-in installer missing from release checksum manifest" }
+      - name: Silent per-user install with spaces and Unicode workspace
         shell: pwsh
         run: |
-          $setup = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe | Select-Object -First 1
+          $setup = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe |
+            Where-Object { $_.Name -notlike '*Plugin*' } | Select-Object -First 1
           $root = Join-Path $env:RUNNER_TEMP 'DipTrace MCP installer smoke'
           $install = Join-Path $root 'installed server'
           $workspace = Join-Path $root 'Проекты DipTrace'
@@ -145,57 +149,36 @@ jobs:
           $setupLog = Join-Path $root 'setup.log'
           New-Item -ItemType Directory -Force -Path $workspace | Out-Null
           Set-Content -LiteralPath (Join-Path $workspace 'fixture.txt') -Value 'preserve' -Encoding utf8
-          $setupArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$setupLog`"", '/TYPE=server', '/SERVERONLY', '/CLIENT=none', "/DIR=`"$install`"", "/WORKSPACE=`"$workspace`"", "/STATEDIR=`"$state`"")
+          $setupArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$setupLog`"", '/TYPE=server', '/CLIENT=none', "/DIR=`"$install`"", "/WORKSPACE=`"$workspace`"", "/STATEDIR=`"$state`"")
           $setupProcess = Start-Process -FilePath $setup.FullName -ArgumentList $setupArgs -Wait -PassThru
-          $setupExit = $setupProcess.ExitCode
-          if ($setupExit -ne 0) {
-            Write-Host "Silent server-only setup exit code: $setupExit"
+          if ($setupProcess.ExitCode -ne 0) {
             if (Test-Path -LiteralPath $setupLog) { Get-Content -LiteralPath $setupLog }
-            $stateLogs = Join-Path $state 'logs'
-            if (Test-Path -LiteralPath $stateLogs) {
-              Get-ChildItem -LiteralPath $stateLogs -File | ForEach-Object {
-                Write-Host "--- $($_.FullName) ---"
-                Get-Content -LiteralPath $_.FullName
-              }
-            }
-            throw "silent server-only install failed"
+            throw "silent per-user install failed"
           }
           $server = Join-Path $install 'app\diptrace_mcp_server.exe'
           & $server --help
           if ($LASTEXITCODE -ne 0) { throw "installed server --help failed" }
+          if (Test-Path -LiteralPath (Join-Path $install 'bridge')) { throw "per-user installer must not install bridge payload" }
+          if (Test-Path -LiteralPath (Join-Path $install 'settings-templates')) { throw "per-user installer must not install settings payload" }
+          if (Test-Path -LiteralPath (Join-Path $install 'tools\install_plugin.ps1')) { throw "per-user installer must not install an elevation script" }
           $manifestPath = Join-Path $install 'installation-manifest.json'
           if (-not (Test-Path -LiteralPath $manifestPath)) { throw "installation manifest missing" }
           $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-          if ($manifest.PSObject.Properties.Name -notcontains 'created_by') { throw "installer did not write the runtime installation manifest" }
+          if ($manifest.PSObject.Properties.Name -notcontains 'created_by') { throw "installer did not write runtime manifest" }
           $stateMarker = Join-Path $install 'state-dir.txt'
           if (-not (Test-Path -LiteralPath $stateMarker)) { throw "installer state marker missing" }
           $actualState = (Get-Content -LiteralPath $stateMarker -Raw).Trim()
-          Write-Host "Installer manifest state_dir: $($manifest.state_dir)"
-          Write-Host "Installer state marker: $actualState"
-          Write-Host "Expected state directory: $state"
           if ([IO.Path]::GetFullPath($actualState) -ne [IO.Path]::GetFullPath($state)) { throw "installer resolved a different state directory" }
           $stateLogs = Join-Path $state 'logs'
-          if (-not (Test-Path -LiteralPath $stateLogs)) {
-            throw "install log directory missing"
-          }
           if (-not (Get-ChildItem -LiteralPath $stateLogs -Filter 'install-*.log')) { throw "install log missing" }
           Set-Content -LiteralPath (Join-Path $state 'keep.txt') -Value 'keep' -Encoding utf8
           $uninstallProcess = Start-Process -FilePath (Join-Path $install 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
           if ($uninstallProcess.ExitCode -ne 0) { throw "silent default uninstall failed" }
           if (-not (Test-Path -LiteralPath (Join-Path $workspace 'fixture.txt'))) { throw "workspace was removed" }
           if (-not (Test-Path -LiteralPath (Join-Path $state 'keep.txt'))) { throw "state was removed by default" }
-      - name: Full install, repair/idempotency, and optional state removal
+      - name: Split user and administrator plug-in lifecycle
         shell: pwsh
         run: |
-          $setup = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe | Select-Object -First 1
-          $root = Join-Path $env:RUNNER_TEMP 'DipTrace MCP full smoke'
-          $diptrace = Join-Path $root 'DipTrace5'
-          $install = Join-Path $root 'installed full'
-          $workspace = Join-Path $root 'Рабочие проекты'
-          $state = Join-Path $root 'state'
-          New-Item -ItemType Directory -Force -Path $diptrace, $workspace | Out-Null
-          Set-Content -LiteralPath (Join-Path $diptrace 'Pcb.exe') -Value 'synthetic module' -Encoding utf8
-          Set-Content -LiteralPath (Join-Path $workspace 'fixture.txt') -Value 'preserve' -Encoding utf8
           function Invoke-BoundedInstallerProcess {
             param(
               [Parameter(Mandatory = $true)] [string]$FilePath,
@@ -205,7 +188,6 @@ jobs:
             Write-Host "Starting $Label"
             $process = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -PassThru
             if (-not $process.WaitForExit(180000)) {
-              Write-Host "$Label exceeded the 180 second CI bound; terminating its process tree."
               & taskkill.exe /PID $process.Id /T /F | Out-Host
               throw "$Label timed out"
             }
@@ -213,32 +195,56 @@ jobs:
             Write-Host "$Label exited with code $($process.ExitCode)"
             return $process.ExitCode
           }
-          $fullSetupArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TYPE=full', '/CLIENT=none', "/DIR=`"$install`"", "/DIPTRACE=`"$diptrace`"", "/WORKSPACE=`"$workspace`"", "/STATEDIR=`"$state`"")
-          if ((Invoke-BoundedInstallerProcess -FilePath $setup.FullName -ArgumentList $fullSetupArgs -Label 'silent full install') -ne 0) { throw "silent full install failed" }
+
+          $setup = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe |
+            Where-Object { $_.Name -notlike '*Plugin*' } | Select-Object -First 1
+          $pluginSetup = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Plugin-Setup-*.exe | Select-Object -First 1
+          $root = Join-Path $env:RUNNER_TEMP 'DipTrace MCP split smoke'
+          $diptrace = Join-Path $root 'DipTrace5'
+          $install = Join-Path $root 'user install'
+          $pluginMeta = Join-Path $root 'admin plugin metadata'
+          $workspace = Join-Path $root 'Рабочие проекты'
+          $state = Join-Path $root 'state'
+          New-Item -ItemType Directory -Force -Path $diptrace, $workspace | Out-Null
+          Set-Content -LiteralPath (Join-Path $diptrace 'Pcb.exe') -Value 'synthetic module' -Encoding utf8
+          Set-Content -LiteralPath (Join-Path $workspace 'fixture.txt') -Value 'preserve' -Encoding utf8
+
+          $userArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TYPE=full', '/CLIENT=none', "/DIR=`"$install`"", "/WORKSPACE=`"$workspace`"", "/STATEDIR=`"$state`"")
+          if ((Invoke-BoundedInstallerProcess -FilePath $setup.FullName -ArgumentList $userArgs -Label 'per-user install') -ne 0) { throw "per-user install failed" }
           foreach ($module in @('Pcb','Schematic','CompEdit','PattEdit')) {
-            if (-not (Test-Path -LiteralPath (Join-Path $diptrace "Plugins\$module\DipTraceMCP\settings.xml"))) { throw "settings missing for $module" }
+            if (Test-Path -LiteralPath (Join-Path $diptrace "Plugins\$module\DipTraceMCP")) {
+              throw "per-user installer crossed the privilege boundary for $module"
+            }
           }
+
+          $pluginArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$pluginMeta`"", "/DIPTRACE=`"$diptrace`"")
+          if ((Invoke-BoundedInstallerProcess -FilePath $pluginSetup.FullName -ArgumentList $pluginArgs -Label 'administrator plug-in install') -ne 0) { throw "plug-in install failed" }
+          foreach ($module in @('Pcb','Schematic','CompEdit','PattEdit')) {
+            $target = Join-Path $diptrace "Plugins\$module\DipTraceMCP"
+            if (-not (Test-Path -LiteralPath (Join-Path $target 'settings.xml'))) { throw "settings missing for $module" }
+            if (-not (Test-Path -LiteralPath (Join-Path $target 'diptrace_mcp_bridge.exe'))) { throw "bridge missing for $module" }
+          }
+          if (-not (Test-Path -LiteralPath (Join-Path $pluginMeta 'payload\diptrace_mcp_bridge.exe'))) { throw "admin-owned plug-in payload missing" }
+
+          if ((Invoke-BoundedInstallerProcess -FilePath $setup.FullName -ArgumentList $userArgs -Label 'per-user repair') -ne 0) { throw "per-user repair failed" }
+          if ((Invoke-BoundedInstallerProcess -FilePath $pluginSetup.FullName -ArgumentList $pluginArgs -Label 'plug-in repair') -ne 0) { throw "plug-in repair failed" }
+
           $ownedStateMarker = Join-Path $state 'records\owned.txt'
           $unknownStateMarker = Join-Path $state 'user-state.txt'
           New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ownedStateMarker) | Out-Null
           Set-Content -LiteralPath $ownedStateMarker -Value 'remove' -Encoding utf8
           Set-Content -LiteralPath $unknownStateMarker -Value 'preserve' -Encoding utf8
-          if ((Invoke-BoundedInstallerProcess -FilePath $setup.FullName -ArgumentList $fullSetupArgs -Label 'repair/second install') -ne 0) { throw "repair/second install failed" }
-          $uninstallLog = Join-Path $root 'optional-state-uninstall.log'
-          $uninstallArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/REMOVE_STATE', "/LOG=`"$uninstallLog`"")
-          try {
-            if ((Invoke-BoundedInstallerProcess -FilePath (Join-Path $install 'unins000.exe') -ArgumentList $uninstallArgs -Label 'optional state uninstall') -ne 0) { throw "optional state uninstall failed" }
-          } catch {
-            if (Test-Path -LiteralPath $uninstallLog) {
-              Write-Host '--- optional-state-uninstall.log ---'
-              Get-Content -LiteralPath $uninstallLog -Tail 120
-            }
-            throw
-          }
+
+          $pluginUninstaller = Join-Path $pluginMeta 'unins000.exe'
+          if ((Invoke-BoundedInstallerProcess -FilePath $pluginUninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Label 'plug-in uninstall') -ne 0) { throw "plug-in uninstall failed" }
           foreach ($module in @('Pcb','Schematic','CompEdit','PattEdit')) {
-            if (Test-Path -LiteralPath (Join-Path $diptrace "Plugins\$module\DipTraceMCP")) { throw "plugin directory survived uninstall for $module" }
+            if (Test-Path -LiteralPath (Join-Path $diptrace "Plugins\$module\DipTraceMCP")) { throw "plugin directory survived plug-in uninstall for $module" }
           }
-          if (-not (Test-Path -LiteralPath (Join-Path $workspace 'fixture.txt'))) { throw "workspace was removed on full uninstall" }
+
+          $userUninstaller = Join-Path $install 'unins000.exe'
+          $uninstallArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/REMOVE_STATE')
+          if ((Invoke-BoundedInstallerProcess -FilePath $userUninstaller -ArgumentList $uninstallArgs -Label 'per-user optional-state uninstall') -ne 0) { throw "per-user uninstall failed" }
+          if (-not (Test-Path -LiteralPath (Join-Path $workspace 'fixture.txt'))) { throw "workspace was removed" }
           if (Test-Path -LiteralPath $ownedStateMarker) { throw "optional state removal did not remove owned state" }
           if (-not (Test-Path -LiteralPath $unknownStateMarker)) { throw "optional state removal removed unknown user state" }
       - name: Frozen server MCP stdio initialize tools/list capabilities and read-only XML tool
@@ -252,13 +258,16 @@ jobs:
             & $portable --help | Out-Null
             if ($LASTEXITCODE -ne 0) { throw "portable --help failed during timing" }
           }
-          $installer = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe | Select-Object -First 1
+          $installer = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe |
+            Where-Object { $_.Name -notlike '*Plugin*' } | Select-Object -First 1
+          $pluginInstaller = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Plugin-Setup-*.exe | Select-Object -First 1
           $portableZip = Get-ChildItem .\dist\windows-artifacts\portable\DipTrace-MCP-Portable-*.zip | Select-Object -First 1
           $serverBytes = (Get-ChildItem "$env:RUNNER_TEMP\portable\app" -File -Recurse | Measure-Object -Property Length -Sum).Sum
           "server_bundle_bytes=$serverBytes"
           "bridge_bytes=$((Get-Item "$env:RUNNER_TEMP\portable\bridge\diptrace_mcp_bridge.exe").Length)"
           "portable_zip_bytes=$($portableZip.Length)"
-          "installer_bytes=$($installer.Length)"
+          "user_installer_bytes=$($installer.Length)"
+          "plugin_installer_bytes=$($pluginInstaller.Length)"
           "server_help_seconds=$([math]::Round($help.TotalSeconds, 3))"
 
   artifact-audit:
@@ -282,19 +291,23 @@ jobs:
           $portable = Get-ChildItem .\dist\windows-artifacts\portable\DipTrace-MCP-Portable-*.zip | Select-Object -First 1
           Expand-Archive -LiteralPath $portable.FullName -DestinationPath "$env:RUNNER_TEMP\audit-portable" -Force
           python scripts/audit_windows_bundle.py --root "$env:RUNNER_TEMP\audit-portable" --sha256 "$env:RUNNER_TEMP\audit-portable\SHA256SUMS.txt" --json
-      - name: Verify unsigned development artifacts fail closed when signing is required
+      - name: Verify unsigned development installers fail closed when signing is required
         shell: pwsh
         run: |
-          $installer = Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe | Select-Object -First 1
-          $result = Get-AuthenticodeSignature -LiteralPath $installer.FullName
-          if ($result.Status -ne 'NotSigned') { Write-Host "Installer status is $($result.Status); retaining evidence." }
-          $requireSignExit = 0
-          try {
-            & .\plugin\verify_signature.ps1 -Path $installer.FullName -RequireSigned -ExpectedSignerSubject 'HUMAN_ACTION_REQUIRED'
-            $requireSignExit = $LASTEXITCODE
-          } catch {
-            Write-Host "Expected fail-closed signing result: $($_.Exception.Message)"
-            $requireSignExit = 1
+          $installers = @(
+            (Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Setup-*.exe | Where-Object { $_.Name -notlike '*Plugin*' } | Select-Object -First 1),
+            (Get-ChildItem .\dist\windows-artifacts\installer\DipTrace-MCP-Plugin-Setup-*.exe | Select-Object -First 1)
+          )
+          foreach ($installer in $installers) {
+            $result = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+            if ($result.Status -ne 'NotSigned') { Write-Host "$($installer.Name) status is $($result.Status); retaining evidence." }
+            $requireSignExit = 0
+            try {
+              & .\plugin\verify_signature.ps1 -Path $installer.FullName -RequireSigned -ExpectedSignerSubject 'HUMAN_ACTION_REQUIRED'
+              $requireSignExit = $LASTEXITCODE
+            } catch {
+              Write-Host "Expected fail-closed signing result for $($installer.Name): $($_.Exception.Message)"
+              $requireSignExit = 1
+            }
+            if ($requireSignExit -eq 0) { throw "unsigned installer passed a required-signing check: $($installer.Name)" }
           }
-          if ($requireSignExit -eq 0) { throw "unsigned installer passed a required-signing check" }
-          Write-Host "Unsigned installer correctly failed the required-signing check."

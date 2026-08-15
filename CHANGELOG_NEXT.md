@@ -62,10 +62,12 @@ Cinematic replay is deliberately a presentation path. The XML bridge and normal 
 ### Headless Windows GUI worker
 
 - isolated Win32-desktop worker for bounded native DipTrace open/save/close work without switching the user's input desktop or synthesizing physical mouse/keyboard input;
-- Windows smoke/readiness checks and a frozen packaged helper under `app/tools/diptrace_mcp_headless_gui/`;
-- fail-closed automation with no coordinate-input fallback when a native control action cannot be completed safely.
+- selectable launch mode: `hidden` (separate randomly named `WinSta0` desktop, invisible) is the default, and `native` explicitly targets the verified current `WinSta0` input desktop so the round trip stays visible; native mode rejects elevated callers and validates desktop/window-station/session identity before DipTrace work;
+- Windows hidden/native smoke/readiness checks and a frozen packaged helper under `app/tools/diptrace_mcp_headless_gui/`;
+- fail-closed automation with no coordinate-input fallback when a native control action cannot be completed safely;
+- split Windows packaging boundary: the per-user MCP installer is permanently non-elevated, while a separate self-contained administrator plug-in installer owns only the bridge/settings payload and bounded DipTrace `Plugins\\<module>\\DipTraceMCP` writes.
 
-The headless worker is a host-automation boundary, not a second semantic authoring authority. Real DipTrace actions remain claim-specific acceptance evidence.
+The headless worker is a host-automation boundary, not a second semantic authoring authority or a process/filesystem/network/token/privilege sandbox. Real DipTrace actions remain claim-specific acceptance evidence.
 
 ### Product and engineering support
 
@@ -89,7 +91,7 @@ The headless worker is a host-automation boundary, not a second semantic authori
 - The private/manual Q1 Component Angle campaign is PASS on its accepted production checkpoint; immutable historical release records keep the status that was true when each release was cut.
 - The accepted manual matrix is complete at 12 of 12 blocking gates PASS across its recorded checkpoints. Claude Desktop restart and custom-state preservation are operator-confirmed PASS from a separate machine; their earlier WAIVED/pending states remain historical only.
 - Documentation distinguishes current implementation state from immutable release/audit/acceptance snapshots.
-- Installation/release documentation reflects that `v0.2.1` and `diptrace-mcp==0.2.1` are already published.
+- Installation/release documentation reflects that `v0.2.1` and `diptrace-mcp==0.2.1` are already published; current source hardens the next Windows packaging line without rewriting immutable `v0.2.1` assets.
 - Testing documentation reflects the combined 90% coverage gate and the separate 85% Linux-only floor.
 
 ## Fixed

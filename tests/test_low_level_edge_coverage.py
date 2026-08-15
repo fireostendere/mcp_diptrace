@@ -477,8 +477,15 @@ def test_headless_command_handlers_and_resolution(
 ) -> None:
     result_path = tmp_path / "probe.json"
     monkeypatch.setattr(headless_gui, "thread_desktop_name", lambda: "hidden")
+    monkeypatch.setattr(headless_gui, "process_window_station_name", lambda: "WinSta0")
+    monkeypatch.setattr(headless_gui, "process_session_id", lambda pid=None: 1)
+    monkeypatch.setattr(headless_gui, "process_is_elevated", lambda: False)
     assert headless_gui._cmd_probe(argparse.Namespace(result=str(result_path))) == 0
-    assert headless_gui._load_json(result_path)["desktop_name"] == "hidden"
+    probe = headless_gui._load_json(result_path)
+    assert probe["desktop_name"] == "hidden"
+    assert probe["window_station_name"] == "WinSta0"
+    assert probe["session_id"] == 1
+    assert probe["elevated"] is False
 
     def broken_desktop() -> str:
         raise HeadlessGuiError("boom")
@@ -519,6 +526,7 @@ def test_cmd_roundtrip_success_and_failure(
         editor="pcb",
         timeout=1,
         save_menu="File->Save",
+        desktop="hidden",
     )
     result = RoundtripResult(
         True,
