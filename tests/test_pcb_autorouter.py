@@ -113,6 +113,7 @@ def test_multirouter_proves_minimum_via_budget() -> None:
                 via_style="Default",
                 max_vias=2,
                 max_detour=6.0,
+                time_budget_ms=30_000,
             )
         ],
         ripup_retry=False,
