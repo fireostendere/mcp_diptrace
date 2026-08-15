@@ -220,6 +220,7 @@ Implemented:
 - PCB/Schematic UI profiles and affine calibration;
 - semantic schematic/PCB replay for supported primitives;
 - HWND recording and MP4/GIF helpers;
+- isolated hidden-window `PrintWindow`/`WM_PRINT` capture with local ffmpeg MP4/GIF output;
 - `cinematic_preflight.py` deterministic content hash and finite cue/timing/payload/desktop-action budgets;
 - mandatory `cinematic_host.play_manifest()` preflight before dry-run or real desktop driver actions.
 
@@ -232,7 +233,7 @@ Still pending real acceptance:
 
 **Status: Windows isolation primitive and packaged helper implemented; real DipTrace actions remain exact-host evidence.**
 
-`headless_gui.py` creates an isolated Win32 desktop inside the current interactive session, launches a worker and DipTrace there, and performs only bounded automation. It never switches the user's input desktop and has no physical mouse/keyboard fallback. The current native action is open -> Save -> close for PCB/Schematic/Component/Pattern editors.
+`headless_gui.py` creates an isolated Win32 desktop inside the current interactive session, launches a worker and DipTrace there, and performs only bounded automation. It never switches the user's input desktop and has no physical mouse/keyboard fallback. The current native action is open -> Save -> close for PCB/Schematic/Component/Pattern editors; `cinematic_recording.py` reuses the isolation primitive for presentation-only hidden MP4/GIF capture.
 
 Source checkouts invoke it with `py -m diptrace_mcp.headless_gui`; Windows packaged builds include `diptrace_mcp_headless_gui.exe` under the helper tools directory. Hosted CI verifies desktop isolation and packaging without claiming licensed DipTrace UI compatibility. See [HEADLESS_GUI.md](HEADLESS_GUI.md).
 
@@ -279,8 +280,8 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | XML semantic analysis | fingerprint/delta + property tests implemented |
 | evidence reports | deterministic review-only report pipeline implemented |
 | library mutation public API | package-level request/preview prepared; public MCP registration pending |
-| cinematic | presentation + mandatory preflight implemented; exact UI acceptance pending |
-| headless GUI | hidden Win32 desktop helper implemented with selectable `hidden`/`native` launch mode for open -> Save -> close; real DipTrace native actions remain claim-specific evidence |
+| cinematic | presentation + mandatory preflight + hidden MP4/GIF capture implemented; exact UI acceptance remains configuration-specific |
+| headless GUI | hidden Win32 desktop helper implemented with selectable `hidden`/`native` open -> Save -> close plus isolated cinematic capture; real DipTrace actions remain claim-specific evidence |
 | documentation drift | evergreen code/docs guard implemented and CI-tested |
 
 # Permanent limitations / non-claims

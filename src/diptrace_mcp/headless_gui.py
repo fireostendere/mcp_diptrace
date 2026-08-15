@@ -56,6 +56,9 @@ _UOI_NAME = 2
 _WAIT_OBJECT_0 = 0
 _WAIT_TIMEOUT = 0x102
 _STILL_ACTIVE = 259
+_WM_CLOSE = 0x0010
+_WM_COMMAND = 0x0111
+_WM_MENUCOMMAND = 0x0126
 _DESKTOP_MODES = ("hidden", "native")
 _INTERACTIVE_WINDOW_STATION = "WinSta0"
 
@@ -271,6 +274,13 @@ class _Win32Api:
             ctypes.POINTER(wintypes.DWORD),
         ]
         self.user32.GetUserObjectInformationW.restype = wintypes.BOOL
+        self.user32.PostMessageW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        self.user32.PostMessageW.restype = wintypes.BOOL
         self.kernel32.CreateProcessW.argtypes = [
             wintypes.LPCWSTR,
             wintypes.LPWSTR,
@@ -925,6 +935,68 @@ def _window_titles(app: Any) -> list[str]:
     return titles
 
 
+def _main_window(app: Any, project: Path, timeout_seconds: float) -> Any:
+    identifiers = {project.name.casefold(), project.stem.casefold()}
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        fallback_handle: int | None = None
+        for window in app.windows(visible_only=False, enabled_only=True):
+            with suppress(Exception):
+                title = str(window.window_text()).casefold()
+                if any(identifier and identifier in title for identifier in identifiers):
+                    fallback_handle = int(window.handle)
+                    if window.menu() is not None:
+                        return app.window(handle=fallback_handle)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            if fallback_handle is not None:
+                return app.window(handle=fallback_handle)
+            raise HeadlessGuiError(
+                f"DipTrace main window for {project.name!r} was not found"
+            )
+        time.sleep(min(0.1, remaining))
+
+
+def _post_window_message(hwnd: int, message: int, wparam: int = 0, lparam: int = 0) -> None:
+    api = _Win32Api()
+    if not api.user32.PostMessageW(hwnd, message, wparam, lparam):
+        raise api.error("PostMessageW")
+
+
+def _save_window(window: Any, save_menu: str) -> None:
+    menu: Any = None
+    with suppress(Exception):
+        menu = window.menu()
+    if menu is None:
+        raise HeadlessGuiError("DipTrace project window has no native menu")
+    normalized_path = "->".join(
+        part.replace("&", "").strip().casefold() for part in save_menu.split("->")
+    )
+    try:
+        item = window.menu_item(save_menu)
+        enabled = item.is_enabled()
+    except Exception as exc:
+        if normalized_path != "file->save":
+            raise HeadlessGuiError(f"native menu item {save_menu!r} was not found") from exc
+        item = window.menu_item("#0->#4")
+        enabled = item.is_enabled()
+    if not enabled:
+        raise HeadlessGuiError(f"native menu item {save_menu!r} is disabled")
+    command = int(item.menu.COMMAND)
+    if command == _WM_COMMAND:
+        command_id = int(item.item_id())
+        if not 1 <= command_id <= 0xFFFF:
+            raise HeadlessGuiError(f"invalid native menu command ID: {command_id}")
+        wparam, lparam = command_id, 0
+    elif command == _WM_MENUCOMMAND:
+        wparam, lparam = int(item.index()), int(item.menu.handle)
+        if wparam < 0 or lparam <= 0:
+            raise HeadlessGuiError("invalid native menu position or handle")
+    else:
+        raise HeadlessGuiError(f"unsupported native menu command: {command:#x}")
+    _post_window_message(int(window.handle), command, wparam, lparam)
+
+
 def _perform_worker_roundtrip(
     request: RoundtripRequest,
     *,
@@ -945,16 +1017,16 @@ def _perform_worker_roundtrip(
             timeout=request.timeout_seconds,
         )
         pid = int(app.process)
-        window = app.top_window()
-        window.wait("exists visible enabled ready", timeout=request.timeout_seconds)
-        window.menu_select(request.save_menu)
-        time.sleep(0.8)
-        window.close()
+        window = _main_window(app, request.project, request.timeout_seconds)
+        window.wait("exists enabled", timeout=request.timeout_seconds)
+        _save_window(window, request.save_menu)
+        # Both messages target the same GUI queue, so WM_CLOSE cannot overtake Save.
+        _post_window_message(int(window.handle), _WM_CLOSE)
         try:
             app.wait_for_process_exit(timeout=min(10.0, request.timeout_seconds))
-        except Exception:
+        except Exception as exc:
             forced = True
-            app.kill(soft=False)
+            raise HeadlessGuiError("DipTrace did not exit after Save/Close") from exc
     except Exception as exc:
         titles = _window_titles(app) if app is not None else []
         suffix = f"; open windows: {titles!r}" if titles else ""

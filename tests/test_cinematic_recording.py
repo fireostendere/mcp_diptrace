@@ -31,6 +31,7 @@ def test_window_capture_command_targets_arbitrary_window() -> None:
     assert "title=DipTrace Schematic" in command
     assert command[command.index("-framerate") + 1] == "60"
     assert command[command.index("-t") + 1] == "12.5"
+    assert command[command.index("-vf") + 1] == "pad=ceil(iw/2)*2:ceil(ih/2)*2"
     assert command[-1] == "demo.mp4"
 
 
@@ -55,6 +56,47 @@ def test_desktop_capture_command_can_hide_cursor() -> None:
 
     assert "desktop" in command
     assert command[command.index("-draw_mouse") + 1] == "0"
+
+
+def test_printwindow_encoder_accepts_bgra_frames_over_pipe() -> None:
+    command = recording._build_printwindow_encode_command(
+        "ffmpeg.exe",
+        "demo.mp4",
+        width=1001,
+        height=701,
+        fps=30,
+    )
+
+    assert command[command.index("-f") + 1] == "rawvideo"
+    assert command[command.index("-pixel_format") + 1] == "bgra"
+    assert command[command.index("-video_size") + 1] == "1001x701"
+    assert command[command.index("-i") + 1] == "pipe:0"
+    assert command[command.index("-vf") + 1] == "pad=ceil(iw/2)*2:ceil(ih/2)*2"
+
+
+def test_printwindow_black_frame_check_ignores_alpha() -> None:
+    black = bytes((0, 0, 0, 255)) * (32 * 32)
+    box = (0, 8, 32, 32)
+    assert recording._frame_has_visible_client_content(
+        black, width=32, client_box=box
+    ) is False
+    visible = bytearray(black)
+    for y in range(12, 28):
+        for x in range(8, 24):
+            visible[(y * 32 + x) * 4] = 255
+    assert recording._frame_has_visible_client_content(
+        bytes(visible), width=32, client_box=box
+    ) is True
+
+
+def test_printwindow_client_check_rejects_titlebar_only() -> None:
+    frame = bytearray(bytes((0, 0, 0, 255)) * (32 * 32))
+    for pixel in range(32 * 8):
+        frame[pixel * 4] = 255
+
+    assert recording._frame_has_visible_client_content(
+        bytes(frame), width=32, client_box=(0, 8, 32, 32)
+    ) is False
 
 
 def test_capture_command_rejects_invalid_inputs() -> None:
@@ -197,6 +239,7 @@ def test_headless_request_and_result_json_contract(tmp_path: Path) -> None:
         gif_output=tmp_path / "demo.gif",
     )
     assert request.editor == "pcb"
+    assert request.effective_window_title == "board"
     assert HeadlessCinematicRequest.from_json(request.as_json()) == request
     result = HeadlessCinematicResult(
         True,
@@ -362,6 +405,74 @@ def test_hidden_driver_window_and_click_messages(monkeypatch: pytest.MonkeyPatch
     assert recording._BUTTON_MESSAGES["left"][1] in user32.messages
 
 
+def test_hidden_capture_records_resolved_window_with_printwindow(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request = HeadlessCinematicRequest(
+        tmp_path / "DipTrace",
+        tmp_path / "board.dch",
+        tmp_path / "manifest.json",
+        tmp_path / "demo.mp4",
+        "schematic",
+    )
+    preflight = SimpleNamespace(duration_ms=100, content_sha256="manifest-sha")
+    diptrace = SimpleNamespace(
+        pid=10,
+        wait=lambda _timeout: 0,
+        terminate=lambda _code: None,
+        close=lambda: None,
+    )
+    captured: dict[str, object] = {}
+
+    def record(**kwargs):
+        captured.update(kwargs)
+        request.video_output.write_bytes(b"video")
+        return 11
+
+    user32 = SimpleNamespace(
+        ShowWindow=lambda *_args: 1,
+        UpdateWindow=lambda *_args: 1,
+        PostMessageW=lambda *_args: 1,
+    )
+    monkeypatch.setattr(
+        recording,
+        "_validate_headless_request",
+        lambda value: (value, {}, preflight),
+    )
+    monkeypatch.setattr(recording.hg, "process_is_elevated", lambda: False)
+    monkeypatch.setattr(recording.hg, "thread_desktop_name", lambda: "hidden")
+    monkeypatch.setattr(recording.hg, "process_window_station_name", lambda: "WinSta0")
+    monkeypatch.setattr(recording.hg, "process_session_id", lambda: 7)
+    monkeypatch.setattr(recording.os, "name", "nt")
+    monkeypatch.setattr(recording.shutil, "which", lambda _name: "ffmpeg.exe")
+    monkeypatch.setattr(
+        recording.hg,
+        "_launch_process_on_desktop",
+        lambda *_args: diptrace,
+    )
+    monkeypatch.setattr(recording, "_wait_for_window", lambda *_args: 0xCAFE)
+    monkeypatch.setattr(recording, "_dismiss_project_ok_dialog", lambda *_args: False)
+    monkeypatch.setattr(recording, "_record_printwindow_video", record)
+    monkeypatch.setattr(recording, "play_manifest", lambda *_args: None)
+    monkeypatch.setattr(
+        recording.ctypes,
+        "windll",
+        SimpleNamespace(user32=user32),
+        raising=False,
+    )
+
+    result = recording._perform_hidden_capture(
+        request,
+        desktop_name="hidden",
+        expected_session=7,
+    )
+
+    assert result.ok is True
+    assert result.ffmpeg_pid == 11
+    assert captured["hwnd"] == 0xCAFE
+    assert captured["user32"] is user32
+
+
 def test_window_lookup_filters_pid_and_title(monkeypatch: pytest.MonkeyPatch) -> None:
     class User32:
         def EnumWindows(self, callback, _lparam):
@@ -394,6 +505,108 @@ def test_window_lookup_filters_pid_and_title(monkeypatch: pytest.MonkeyPatch) ->
     assert recording._find_window_handle_for_pid(User32(), 12, "DipTrace") is None
 
 
+def test_window_lookup_prefers_hidden_tform_with_menu(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class User32:
+        def EnumWindows(self, callback, _lparam):
+            for hwnd in (22, 33):
+                callback(hwnd, 0)
+            return 1
+
+        def IsWindowVisible(self, hwnd):
+            return hwnd == 22
+
+        def GetWindowThreadProcessId(self, _hwnd, pointer):
+            pointer._obj.value = 10
+            return 1
+
+        def GetWindowTextLengthW(self, _hwnd):
+            return len("Schematics - board.dch")
+
+        def GetWindowTextW(self, _hwnd, buffer, _length):
+            buffer.value = "Schematics - board.dch"
+            return len(buffer.value)
+
+        def GetClassNameW(self, hwnd, buffer, _length):
+            buffer.value = "TForm1" if hwnd == 33 else "Proxy"
+            return len(buffer.value)
+
+        def GetMenu(self, hwnd):
+            return 100 if hwnd == 33 else 0
+
+        def GetWindowRect(self, _hwnd, pointer):
+            rect = pointer._obj
+            rect.left, rect.top, rect.right, rect.bottom = 0, 0, 1200, 800
+            return 1
+
+    monkeypatch.setattr(
+        recording.ctypes,
+        "WINFUNCTYPE",
+        lambda *_types: lambda callback: callback,
+        raising=False,
+    )
+
+    assert recording._find_window_handle_for_pid(User32(), 10, "board") == 33
+
+
+def test_dismiss_project_ok_dialog_uses_message_only_button_click(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages: list[tuple[int, int, int, int]] = []
+
+    class User32:
+        visible = {33: True, 44: True}
+
+        def EnumWindows(self, callback, _lparam):
+            callback(33, 0)
+            return 1
+
+        def EnumChildWindows(self, _parent, callback, _lparam):
+            callback(44, 0)
+            return 1
+
+        def GetWindowThreadProcessId(self, _hwnd, pointer):
+            pointer._obj.value = 10
+            return 1
+
+        def IsWindowVisible(self, hwnd):
+            return self.visible.get(hwnd, False)
+
+        def IsWindowEnabled(self, _hwnd):
+            return True
+
+        def GetClassNameW(self, hwnd, buffer, _length):
+            buffer.value = "TFMyMessage" if hwnd == 33 else "TButton"
+            return len(buffer.value)
+
+        def GetWindowTextLengthW(self, hwnd):
+            return len("Schematics - board.dchxml" if hwnd == 33 else "OK")
+
+        def GetWindowTextW(self, hwnd, buffer, _length):
+            buffer.value = "Schematics - board.dchxml" if hwnd == 33 else "OK"
+            return len(buffer.value)
+
+        def PostMessageW(self, *message):
+            messages.append(message)
+            self.visible[33] = False
+            return 1
+
+        def IsWindow(self, _hwnd):
+            return 1
+
+    monkeypatch.setattr(
+        recording.ctypes,
+        "WINFUNCTYPE",
+        lambda *_types: lambda callback: callback,
+        raising=False,
+    )
+    user32 = User32()
+
+    assert recording._dismiss_project_ok_dialog(user32, 10, "board") is True
+    assert messages == [(44, recording._BM_CLICK, 0, 0)]
+
+
 def test_message_helpers_are_bounded() -> None:
     assert recording._virtual_key("escape") == 0x1B
     assert recording._virtual_key("f24") == 0x87
@@ -412,8 +625,9 @@ def test_gif_conversion_uses_shell_free_two_pass_pipeline(
     gif = tmp_path / "demo.gif"
     monkeypatch.setattr(recording.shutil, "which", lambda _name: "ffmpeg")
 
-    def fake_run(command: list[str], *, check: bool):
+    def fake_run(command: list[str], *, check: bool, timeout: float):
         assert check is False
+        assert timeout == recording._MIN_GIF_TIMEOUT_SECONDS
         calls.append(command)
         Path(command[-1]).write_bytes(b"artifact")
         return SimpleNamespace(returncode=0)
@@ -422,8 +636,48 @@ def test_gif_conversion_uses_shell_free_two_pass_pipeline(
     recording._convert_video_to_gif(video, gif, fps=20, width=800)
     assert len(calls) == 2
     assert "palettegen" in " ".join(calls[0])
+    assert calls[0][calls[0].index("-frames:v") + 1] == "1"
+    assert calls[0][calls[0].index("-update") + 1] == "1"
     assert "paletteuse" in " ".join(calls[1])
     assert gif.is_file()
+
+
+def test_gif_conversion_removes_stale_output_on_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"video")
+    gif = tmp_path / "demo.gif"
+    gif.write_bytes(b"stale")
+    monkeypatch.setattr(recording.shutil, "which", lambda _name: "ffmpeg")
+    monkeypatch.setattr(
+        recording.subprocess,
+        "run",
+        lambda _command, check, timeout: SimpleNamespace(returncode=1),
+    )
+
+    with pytest.raises(RuntimeError, match="GIF conversion failed"):
+        recording._convert_video_to_gif(video, gif, fps=20, width=800)
+    assert not gif.exists()
+
+
+def test_gif_conversion_removes_output_on_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"video")
+    gif = tmp_path / "demo.gif"
+    gif.write_bytes(b"stale")
+    monkeypatch.setattr(recording.shutil, "which", lambda _name: "ffmpeg")
+
+    def time_out(command: list[str], *, check: bool, timeout: float):
+        raise recording.subprocess.TimeoutExpired(command, timeout)
+
+    monkeypatch.setattr(recording.subprocess, "run", time_out)
+
+    with pytest.raises(RuntimeError, match="timed out"):
+        recording._convert_video_to_gif(video, gif, fps=20, width=800)
+    assert not gif.exists()
 
 
 def test_headless_worker_argv_supports_source_and_frozen(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -453,6 +707,93 @@ def test_run_headless_cinematic_guards_platform_and_elevation(
     monkeypatch.setattr(recording.hg, "process_is_elevated", lambda: True)
     with pytest.raises(HeadlessGuiError, match="must not be elevated"):
         recording.run_headless_cinematic(request)
+
+
+def test_run_headless_cinematic_removes_stale_outputs_before_worker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    video = tmp_path / "demo.mp4"
+    gif = tmp_path / "demo.gif"
+    video.write_bytes(b"stale video")
+    gif.write_bytes(b"stale gif")
+    request = HeadlessCinematicRequest(
+        tmp_path / "DipTrace",
+        tmp_path / "board.dch",
+        tmp_path / "manifest.json",
+        video,
+        "schematic",
+        gif_output=gif,
+    )
+    preflight = SimpleNamespace(duration_ms=100, content_sha256="manifest-sha")
+    monkeypatch.setattr(
+        recording,
+        "os",
+        SimpleNamespace(name="nt", getpid=recording.os.getpid),
+    )
+    monkeypatch.setattr(recording.hg, "process_is_elevated", lambda: False)
+    monkeypatch.setattr(
+        recording,
+        "_validate_headless_request",
+        lambda value: (value, {}, preflight),
+    )
+    monkeypatch.setattr(recording.shutil, "which", lambda _name: "ffmpeg.exe")
+    monkeypatch.setattr(recording.hg, "input_desktop_name", lambda: "Default")
+    monkeypatch.setattr(recording.hg, "process_window_station_name", lambda: "WinSta0")
+    monkeypatch.setattr(recording.hg, "process_session_id", lambda: 1)
+
+    class Worker:
+        def __init__(self, argv: list[str]) -> None:
+            self.argv = argv
+
+        def wait(self, _timeout: float) -> int:
+            assert not video.exists()
+            assert not gif.exists()
+            result_path = Path(self.argv[self.argv.index("--result") + 1])
+            result = HeadlessCinematicResult(
+                False,
+                "hidden",
+                1,
+                2,
+                None,
+                str(request.project),
+                str(request.manifest),
+                "manifest-sha",
+                str(video),
+                None,
+                error="capture failed",
+            )
+            result_path.write_text(json.dumps(result.as_json()), encoding="utf-8")
+            return 1
+
+        def terminate(self, _exit_code: int) -> None:
+            raise AssertionError("completed worker must not be terminated")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc: object) -> None:
+            return None
+
+    class Desktop:
+        def __init__(self, _name: str) -> None:
+            pass
+
+        def launch(self, argv: list[str]) -> Worker:
+            return Worker(argv)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc: object) -> None:
+            return None
+
+    monkeypatch.setattr(recording.hg, "HiddenDesktop", Desktop)
+
+    result = recording.run_headless_cinematic(request)
+
+    assert result.ok is False
+    assert not video.exists()
+    assert not gif.exists()
 
 
 def test_headless_cli_delegates_and_prints_result(

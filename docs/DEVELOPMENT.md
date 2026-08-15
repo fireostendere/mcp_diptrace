@@ -37,7 +37,7 @@ src/diptrace_mcp/
   cinematic.py                  deterministic presentation timeline
   cinematic_cli.py              capture/compile/ffmpeg helper CLI
   cinematic_host.py             Windows visible replay host
-  cinematic_recording.py        ffmpeg recording helper
+  cinematic_recording.py        visible and hidden-window ffmpeg recording
   diptrace_ui.py                UI profiles + affine coordinate calibration
   diptrace_profile_cli.py       profile template/probe/calibrate/action/validate
   diptrace_cinematic_semantic.py semantic replay adapters

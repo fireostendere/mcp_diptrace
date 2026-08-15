@@ -7,7 +7,7 @@ DipTrace MCP is intentionally split into four concerns:
 1. public MCP transport and stable error/contract handling;
 2. application/domain services and guarded engineering operations;
 3. internal EDA intelligence that generates/scores proposals without bypassing safety boundaries;
-4. optional Windows presentation automation for visible cinematic replay.
+4. optional Windows presentation automation for visible replay or isolated hidden capture.
 
 The public MCP surface currently registers **165 tools**; it was intentionally expanded from the earlier frozen 159 to expose bounded EDA intelligence engines as products.
 
@@ -47,7 +47,7 @@ Windows bridge
 DipTrace
 ```
 
-A separate optional branch turns already-planned actions into visible UI replay:
+A separate optional branch turns already-planned actions into UI replay and recording:
 
 ```text
 planned semantic action / placement proposal / route vertices
@@ -65,7 +65,9 @@ cinematic manifest
 mandatory cinematic preflight
     |
     v
-WindowsDesktopDriver -> visible DipTrace UI -> ffmpeg capture
+WindowsDesktopDriver -> visible DipTrace UI -> gdigrab
+                         or
+HiddenMessageDesktopDriver -> hidden DipTrace window -> PrintWindow/WM_PRINT -> ffmpeg
 ```
 
 Cinematic replay is presentation automation. It is not a replacement for the guarded XML engineering path and is not semantic acceptance evidence by itself.
@@ -169,7 +171,7 @@ The cinematic subsystem includes:
 - `cinematic_preflight.py` — content identity plus timing/payload/desktop-action safety budgets;
 - `cinematic_preflight_cli.py` — standalone preflight inspection;
 - `cinematic_host.py` — Windows replay/dry-run host; `play_manifest()` always invokes preflight before any driver action;
-- `cinematic_recording.py` — Windows ffmpeg capture helpers;
+- `cinematic_recording.py` — visible `gdigrab` plus isolated hidden-window BGRA/ffmpeg capture;
 - `diptrace_ui.py` / `diptrace_profile_cli.py` — version/editor-specific profile calibration and action macros;
 - `diptrace_cinematic_semantic.py` — semantic schematic/PCB replay adapters;
 - `diptrace_window.py` — target-window/client geometry.
