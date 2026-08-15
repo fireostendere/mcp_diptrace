@@ -118,7 +118,7 @@ The visible recorder resolves a title substring to a real HWND and uses Windows 
 
 ## Hidden Win32 desktop capture
 
-The packaged headless helper can run DipTrace, deterministic replay, and ffmpeg on the same separate hidden `WinSta0` desktop. The operator's normal input desktop remains available while the recording is produced.
+The packaged headless helper can run DipTrace and deterministic replay on a separate hidden `WinSta0` desktop. The operator's normal input desktop remains available while the recording is produced.
 
 ```powershell
 & "<install-root>\app\tools\diptrace_mcp_headless_gui\diptrace_mcp_headless_gui.exe" `
@@ -131,20 +131,42 @@ The packaged headless helper can run DipTrace, deterministic replay, and ffmpeg 
   --gif "C:\work\demo.gif"
 ```
 
+The equivalent source-checkout command is:
+
+```powershell
+python -m diptrace_mcp.cinematic_recording headless-capture capture `
+  --diptrace-root "C:\Program Files\DipTrace" `
+  --editor schematic `
+  --project "C:\work\design.dch" `
+  --manifest "C:\work\demo.cinematic.json" `
+  --video "C:\work\demo.mp4" `
+  --gif "C:\work\demo.gif"
+```
+
 The hidden capture path is deliberately different from the visible cinematic driver:
 
 1. validate the DipTrace installation/project and mandatory cinematic preflight before launching the host;
 2. create a random hidden Win32 desktop under `WinSta0`;
 3. launch the worker and DipTrace explicitly on that desktop;
-4. launch ffmpeg `gdigrab` on the same desktop and capture that desktop rather than the operator's `Default` desktop;
+4. render the selected DipTrace window into BGRA frames with `PrintWindow` and a 2-second `SendMessageTimeoutW(WM_PRINT)` fallback, under the bounded worker lifetime, then pipe those frames to ffmpeg `rawvideo` encoding;
 5. replay normalized commands with bounded `SendMessageTimeoutW` window messages;
 6. close/terminate bounded child processes and return structured evidence including manifest/video/GIF SHA-256 values, PIDs, desktop, window-station and session identity.
+
+The recorder selects the real project `TForm1` by PID, project title, native menu and window geometry instead of a visible proxy window. It fails closed when the central client area is not materially rendered, so a title-bar-only or black capture cannot be reported as success.
+
+Validated output paths are cleared before the worker starts. A failed launch or GIF conversion therefore cannot leave a stale MP4/GIF that looks like the result of the current run. GIF palette generation and conversion also have a finite timeout derived from the capture duration.
 
 Hidden replay never calls global `SetCursorPos`, `mouse_event`, `keybd_event`, `SendInput` or `SwitchDesktop`. It therefore does not steal the operator's physical cursor or keyboard.
 
 For safety, hidden replay currently accepts normalized click/path commands, text via window messages and message-safe single keys. Modifier/multi-key hotkeys such as `Ctrl+...` deliberately fail closed; configure an equivalent calibrated click path or another verified message-safe macro instead. Visible cinematic playback retains its existing profile semantics.
 
 `ffmpeg` must be available on `PATH` for recording/GIF conversion. The helper does not upload frames or send screenshots to a model; MP4/GIF generation is local.
+
+## Repository example
+
+[![I2C level-shifter assembly](../i2c-level-shifter-demo.gif)](../i2c-level-shifter-demo.mp4)
+
+The repository example opens [`i2c-level-shifter.dchxml`](../i2c-level-shifter.dchxml) in real DipTrace Schematic. Sixteen symbols appear one at a time, then six nets are added one at a time. Its MP4 is 1280×720 at 30 FPS; the GIF is 960×540 at 18 FPS. This is exact-host evidence only.
 
 ## Safety/evidence boundary
 
@@ -171,13 +193,14 @@ Implemented and regression-tested:
 - PCB placement and same-layer trace replay;
 - content fingerprint and mandatory manifest safety preflight;
 - visible HWND recording and MP4/GIF helper commands;
-- hidden `WinSta0` cinematic orchestration with DipTrace and ffmpeg on the same desktop;
+- hidden `WinSta0` cinematic orchestration with real-window `PrintWindow`/`WM_PRINT` capture piped to ffmpeg;
 - bounded hidden message replay that does not use global physical-input APIs;
+- stale-output cleanup and bounded GIF post-processing;
 - packaged-helper startup smoke for the cinematic subcommand.
 
 Still requires real-client evidence:
 
 - verified macros for the exact DipTrace PCB/Schematic configuration used for a recording;
 - end-to-end calibration against the real open document;
-- one real Windows/DipTrace proof that `gdigrab` records the intended hidden desktop on the supported host configuration;
+- repeat capture evidence for additional Windows/DipTrace configurations beyond the validated host;
 - staged via/layer-transition and other unverified editor gestures.

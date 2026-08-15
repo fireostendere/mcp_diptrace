@@ -9,10 +9,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
-from collections.abc import Mapping, Sequence
-from contextlib import suppress
+from collections.abc import Callable, Mapping, Sequence
+from contextlib import ExitStack, suppress
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, cast
@@ -28,7 +29,9 @@ _WM_CLOSE = 0x0010
 _WM_KEYDOWN = 0x0100
 _WM_KEYUP = 0x0101
 _WM_CHAR = 0x0102
+_BM_CLICK = 0x00F5
 _WM_MOUSEMOVE = 0x0200
+_WM_PRINT = 0x0317
 _BUTTON_MESSAGES = {
     "left": (0x0201, 0x0202, 0x0203, 0x0001),
     "right": (0x0204, 0x0205, 0x0206, 0x0002),
@@ -52,7 +55,33 @@ _SINGLE_KEYS = {
 }
 _SEND_TIMEOUT_FLAGS = 0x0001 | 0x0002
 _CHILD_FLAGS = 0x0001 | 0x0002
+_PW_RENDERFULLCONTENT = 0x00000002
+_PRF_RENDER_ALL = 0x0002 | 0x0004 | 0x0008 | 0x0010
 _CAPTURE_LEAD_SECONDS = 0.35
+_MIN_GIF_TIMEOUT_SECONDS = 300.0
+
+
+class _BitmapInfoHeader(ctypes.Structure):
+    _fields_ = [
+        ("biSize", ctypes.c_uint32),
+        ("biWidth", ctypes.c_int32),
+        ("biHeight", ctypes.c_int32),
+        ("biPlanes", ctypes.c_uint16),
+        ("biBitCount", ctypes.c_uint16),
+        ("biCompression", ctypes.c_uint32),
+        ("biSizeImage", ctypes.c_uint32),
+        ("biXPelsPerMeter", ctypes.c_int32),
+        ("biYPelsPerMeter", ctypes.c_int32),
+        ("biClrUsed", ctypes.c_uint32),
+        ("biClrImportant", ctypes.c_uint32),
+    ]
+
+
+class _BitmapInfo(ctypes.Structure):
+    _fields_ = [
+        ("bmiHeader", _BitmapInfoHeader),
+        ("bmiColors", ctypes.c_uint32 * 1),
+    ]
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,7 +91,7 @@ class HeadlessCinematicRequest:
     manifest: Path
     video_output: Path
     editor: str
-    window_title: str = "DipTrace"
+    window_title: str | None = None
     fps: int = 60
     startup_timeout_seconds: float = 30.0
     tail_seconds: float = 0.75
@@ -75,7 +104,7 @@ class HeadlessCinematicRequest:
         if editor not in hg._EDITOR_EXECUTABLES:
             choices = ", ".join(sorted(hg._EDITOR_EXECUTABLES))
             raise ValueError(f"editor must be one of: {choices}")
-        if not self.window_title.strip():
+        if self.window_title is not None and not self.window_title.strip():
             raise ValueError("window_title must not be empty")
         if not 1 <= self.fps <= 240:
             raise ValueError("fps must be between 1 and 240")
@@ -104,6 +133,10 @@ class HeadlessCinematicRequest:
     def executable(self) -> Path:
         return self.diptrace_root / hg._EDITOR_EXECUTABLES[self.editor]
 
+    @property
+    def effective_window_title(self) -> str:
+        return self.window_title.strip() if self.window_title else self.project.stem
+
     def as_json(self) -> dict[str, object]:
         return {
             "diptrace_root": str(self.diptrace_root),
@@ -129,7 +162,7 @@ class HeadlessCinematicRequest:
             manifest=Path(hg._required_string(value, "manifest")),
             video_output=Path(hg._required_string(value, "video_output")),
             editor=hg._required_string(value, "editor"),
-            window_title=hg._string_or_default(value.get("window_title"), "DipTrace"),
+            window_title=hg._optional_string(value.get("window_title")),
             fps=hg._coerce_int(value.get("fps"), 60),
             startup_timeout_seconds=hg._coerce_float(
                 value.get("startup_timeout_seconds"), 30.0
@@ -355,7 +388,7 @@ def _pack_point(x: int, y: int) -> int:
 
 def _find_window_handle_for_pid(user32: Any, pid: int, title: str) -> int | None:
     needle = title.casefold()
-    matches: list[int] = []
+    matches: list[tuple[int, int]] = []
     ctypes_any: Any = ctypes
     callback_type: Any = ctypes_any.WINFUNCTYPE(
         ctypes.c_bool,
@@ -364,8 +397,6 @@ def _find_window_handle_for_pid(user32: Any, pid: int, title: str) -> int | None
     )
 
     def callback(hwnd: int, _lparam: int) -> bool:
-        if not user32.IsWindowVisible(hwnd):
-            return True
         process_id = wintypes.DWORD()
         user32.GetWindowThreadProcessId(hwnd, ctypes.byref(process_id))
         if int(process_id.value) != pid:
@@ -376,12 +407,27 @@ def _find_window_handle_for_pid(user32: Any, pid: int, title: str) -> int | None
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, len(buffer))
         if needle in buffer.value.casefold():
-            matches.append(int(hwnd))
-            return False
+            score = int(bool(user32.IsWindowVisible(hwnd)))
+            if hasattr(user32, "GetClassNameW"):
+                class_name = ctypes.create_unicode_buffer(256)
+                user32.GetClassNameW(hwnd, class_name, len(class_name))
+                if class_name.value.casefold() == "tform1":
+                    score += 8
+            if hasattr(user32, "GetMenu") and user32.GetMenu(hwnd):
+                score += 4
+            if hasattr(user32, "GetWindowRect"):
+                rect = wintypes.RECT()
+                if (
+                    user32.GetWindowRect(hwnd, ctypes.byref(rect))
+                    and rect.right > rect.left
+                    and rect.bottom > rect.top
+                ):
+                    score += 2
+            matches.append((score, int(hwnd)))
         return True
 
     user32.EnumWindows(callback_type(callback), 0)
-    return matches[0] if matches else None
+    return max(matches)[1] if matches else None
 
 
 def _wait_for_window(user32: Any, pid: int, title: str, timeout: float) -> int:
@@ -392,6 +438,77 @@ def _wait_for_window(user32: Any, pid: int, title: str, timeout: float) -> int:
             return hwnd
         time.sleep(0.1)
     raise RuntimeError(f"DipTrace window did not appear within {timeout:g}s")
+
+
+def _dismiss_project_ok_dialog(user32: Any, pid: int, title: str) -> bool:
+    """Dismiss DipTrace's informational XML-open dialog without physical input."""
+
+    needle = title.casefold()
+    callback_type: Any = ctypes.__dict__.get("WINFUNCTYPE", ctypes.CFUNCTYPE)(
+        ctypes.c_bool,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    )
+    dialogs: list[int] = []
+
+    def text(hwnd: int) -> str:
+        length = int(user32.GetWindowTextLengthW(hwnd))
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buffer, len(buffer))
+        return buffer.value
+
+    def class_name(hwnd: int) -> str:
+        buffer = ctypes.create_unicode_buffer(256)
+        user32.GetClassNameW(hwnd, buffer, len(buffer))
+        return buffer.value
+
+    def find_dialog(hwnd: int, _lparam: int) -> bool:
+        process_id = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(process_id))
+        if (
+            int(process_id.value) == pid
+            and user32.IsWindowVisible(hwnd)
+            and class_name(hwnd).casefold() == "tfmymessage"
+            and needle in text(hwnd).casefold()
+        ):
+            dialogs.append(int(hwnd))
+        return True
+
+    appearance_deadline = time.monotonic() + 2.0
+    while True:
+        dialogs.clear()
+        user32.EnumWindows(callback_type(find_dialog), 0)
+        if dialogs:
+            break
+        if time.monotonic() >= appearance_deadline:
+            return False
+        time.sleep(0.05)
+
+    buttons: list[int] = []
+
+    def find_button(hwnd: int, _lparam: int) -> bool:
+        if (
+            user32.IsWindowVisible(hwnd)
+            and user32.IsWindowEnabled(hwnd)
+            and class_name(hwnd).casefold() == "tbutton"
+            and text(hwnd).strip().casefold() in {"ok", "ок"}
+        ):
+            buttons.append(int(hwnd))
+            return False
+        return True
+
+    dialog = dialogs[0]
+    user32.EnumChildWindows(dialog, callback_type(find_button), 0)
+    if not buttons:
+        raise RuntimeError("DipTrace startup dialog has no enabled OK button")
+    if not user32.PostMessageW(buttons[0], _BM_CLICK, 0, 0):
+        raise RuntimeError("cannot dismiss DipTrace startup dialog")
+    deadline = time.monotonic() + 5.0
+    while user32.IsWindow(dialog) and user32.IsWindowVisible(dialog):
+        if time.monotonic() >= deadline:
+            raise RuntimeError("DipTrace startup dialog did not close")
+        time.sleep(0.05)
+    return True
 
 
 def _read_manifest(path: Path) -> tuple[dict[str, Any], CinematicPreflightResult]:
@@ -470,6 +587,81 @@ def _capture_seconds(
     )
 
 
+def _h264_output_arguments(output: str | Path) -> list[str]:
+    return [
+        "-vf",
+        "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "16",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(output),
+    ]
+
+
+def _build_printwindow_encode_command(
+    ffmpeg: str,
+    output: str | Path,
+    *,
+    width: int,
+    height: int,
+    fps: int,
+) -> list[str]:
+    if width <= 0 or height <= 0:
+        raise ValueError("raw-video dimensions must be positive")
+    if not 1 <= fps <= 240:
+        raise ValueError("fps must be between 1 and 240")
+    return [
+        ffmpeg,
+        "-y",
+        "-loglevel",
+        "error",
+        "-f",
+        "rawvideo",
+        "-pixel_format",
+        "bgra",
+        "-video_size",
+        f"{width}x{height}",
+        "-framerate",
+        str(fps),
+        "-i",
+        "pipe:0",
+        *_h264_output_arguments(output),
+    ]
+
+
+def _frame_has_visible_client_content(
+    frame: bytes,
+    *,
+    width: int,
+    client_box: tuple[int, int, int, int],
+) -> bool:
+    left, top, right, bottom = client_box
+    inset_x = max(1, (right - left) // 20)
+    inset_y = max(1, (bottom - top) // 10)
+    left, top = left + inset_x, top + inset_y
+    right, bottom = right - inset_x, bottom - inset_y
+    xs = range(left, right, max(1, (right - left) // 64))
+    ys = range(top, bottom, max(1, (bottom - top) // 32))
+    # ponytail: sparse central-client sampling; use a histogram for dark PCB themes.
+    samples = [
+        (y * width + x) * 4
+        for y in ys
+        for x in xs
+    ]
+    visible = sum(
+        max(frame[offset : offset + 3]) > 16
+        for offset in samples
+    )
+    return visible >= max(1, len(samples) // 20)
+
+
 def build_windows_capture_command(
     output: str | Path,
     *,
@@ -515,22 +707,256 @@ def build_windows_capture_command(
     ]
     if duration_seconds is not None:
         command.extend(["-t", f"{duration_seconds:g}"])
-    command.extend(
-        [
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-crf",
-            "16",
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-            str(output),
-        ]
-    )
+    command.extend(_h264_output_arguments(output))
     return command
+
+
+def _record_printwindow_video(
+    *,
+    user32: Any,
+    hwnd: int,
+    ffmpeg: str,
+    output: Path,
+    fps: int,
+    duration_seconds: float,
+    playback: Callable[[], None],
+) -> int:
+    windll = getattr(ctypes, "windll", None)
+    if windll is None:
+        raise RuntimeError("Windows GDI bindings are unavailable")
+    gdi32: Any = windll.gdi32
+    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user32.GetWindowRect.restype = wintypes.BOOL
+    user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user32.GetClientRect.restype = wintypes.BOOL
+    user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
+    user32.ClientToScreen.restype = wintypes.BOOL
+    user32.PrintWindow.argtypes = [wintypes.HWND, wintypes.HDC, wintypes.UINT]
+    user32.PrintWindow.restype = wintypes.BOOL
+    user32.SendMessageTimeoutW.argtypes = [
+        wintypes.HWND,
+        wintypes.UINT,
+        wintypes.WPARAM,
+        wintypes.LPARAM,
+        wintypes.UINT,
+        wintypes.UINT,
+        ctypes.POINTER(ctypes.c_size_t),
+    ]
+    user32.SendMessageTimeoutW.restype = wintypes.LPARAM
+    gdi32.CreateCompatibleDC.argtypes = [wintypes.HDC]
+    gdi32.CreateCompatibleDC.restype = wintypes.HDC
+    gdi32.CreateDIBSection.argtypes = [
+        wintypes.HDC,
+        ctypes.POINTER(_BitmapInfo),
+        wintypes.UINT,
+        ctypes.POINTER(ctypes.c_void_p),
+        wintypes.HANDLE,
+        wintypes.DWORD,
+    ]
+    gdi32.CreateDIBSection.restype = wintypes.HBITMAP
+    gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HGDIOBJ]
+    gdi32.SelectObject.restype = wintypes.HGDIOBJ
+    gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
+    gdi32.DeleteObject.restype = wintypes.BOOL
+    gdi32.DeleteDC.argtypes = [wintypes.HDC]
+    gdi32.DeleteDC.restype = wintypes.BOOL
+    gdi32.GdiFlush.argtypes = []
+    gdi32.GdiFlush.restype = wintypes.BOOL
+
+    rect = wintypes.RECT()
+    if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+        raise RuntimeError("cannot read DipTrace window rectangle")
+    width = int(rect.right - rect.left)
+    height = int(rect.bottom - rect.top)
+    if width <= 0 or height <= 0:
+        raise RuntimeError("DipTrace window rectangle is empty")
+    client_rect = wintypes.RECT()
+    client_origin = wintypes.POINT()
+    if not user32.GetClientRect(hwnd, ctypes.byref(client_rect)) or not user32.ClientToScreen(
+        hwnd, ctypes.byref(client_origin)
+    ):
+        raise RuntimeError("cannot read DipTrace client rectangle")
+    client_left = max(0, int(client_origin.x - rect.left))
+    client_top = max(0, int(client_origin.y - rect.top))
+    client_box = (
+        client_left,
+        client_top,
+        min(width, client_left + int(client_rect.right - client_rect.left)),
+        min(height, client_top + int(client_rect.bottom - client_rect.top)),
+    )
+    if client_box[2] <= client_box[0] or client_box[3] <= client_box[1]:
+        raise RuntimeError("DipTrace client rectangle is empty")
+    frame_size = width * height * 4
+    bitmap_info = _BitmapInfo()
+    bitmap_info.bmiHeader = _BitmapInfoHeader(
+        ctypes.sizeof(_BitmapInfoHeader),
+        width,
+        -height,
+        1,
+        32,
+        0,
+        frame_size,
+        0,
+        0,
+        0,
+        0,
+    )
+    memory_dc = gdi32.CreateCompatibleDC(None)
+    if not memory_dc:
+        raise RuntimeError("cannot create PrintWindow device context")
+    bits = ctypes.c_void_p()
+    bitmap: int | None = None
+    previous: int | None = None
+    process: subprocess.Popen[bytes] | None = None
+    resources = ExitStack()
+    stderr_log: Any = None
+    playback_thread: threading.Thread | None = None
+    playback_errors: list[Exception] = []
+    try:
+        bitmap = int(
+            gdi32.CreateDIBSection(
+                memory_dc,
+                ctypes.byref(bitmap_info),
+                0,
+                ctypes.byref(bits),
+                None,
+                0,
+            )
+        )
+        if not bitmap or not bits.value:
+            raise RuntimeError("cannot allocate PrintWindow frame buffer")
+        previous = int(gdi32.SelectObject(memory_dc, bitmap))
+        if previous in {0, ctypes.c_void_p(-1).value}:
+            raise RuntimeError("cannot select PrintWindow frame buffer")
+
+        command = _build_printwindow_encode_command(
+            ffmpeg,
+            output,
+            width=width,
+            height=height,
+            fps=fps,
+        )
+        stderr_log = resources.enter_context(
+            tempfile.TemporaryFile()  # noqa: SIM115 - ExitStack owns this file.
+        )
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=stderr_log,
+        )
+        if process.stdin is None:
+            raise RuntimeError("cannot open ffmpeg raw-video pipe")
+
+        def run_playback() -> None:
+            try:
+                playback()
+            except Exception as exc:
+                playback_errors.append(exc)
+
+        total_frames = max(1, round(duration_seconds * fps))
+        lead_frames = min(total_frames - 1, max(0, round(_CAPTURE_LEAD_SECONDS * fps)))
+        started = time.monotonic()
+        saw_visible_client_content = False
+        for index in range(total_frames):
+            delay = started + index / fps - time.monotonic()
+            if delay > 0:
+                time.sleep(delay)
+            if playback_thread is None and index >= lead_frames:
+                playback_thread = threading.Thread(target=run_playback, daemon=True)
+                playback_thread.start()
+            frame: bytes | None = None
+            has_client_content = False
+            for flags in (0, None, _PW_RENDERFULLCONTENT):
+                ctypes.memset(bits.value, 0, frame_size)
+                if flags is None:
+                    message_result = ctypes.c_size_t()
+                    rendered = user32.SendMessageTimeoutW(
+                        hwnd,
+                        _WM_PRINT,
+                        memory_dc,
+                        _PRF_RENDER_ALL,
+                        _SEND_TIMEOUT_FLAGS,
+                        2_000,
+                        ctypes.byref(message_result),
+                    )
+                else:
+                    rendered = user32.PrintWindow(hwnd, memory_dc, flags)
+                if not rendered:
+                    continue
+                gdi32.GdiFlush()
+                candidate = ctypes.string_at(bits.value, frame_size)
+                candidate_has_content = _frame_has_visible_client_content(
+                    candidate,
+                    width=width,
+                    client_box=client_box,
+                )
+                if frame is None or candidate_has_content:
+                    frame = candidate
+                    has_client_content = candidate_has_content
+                if candidate_has_content:
+                    break
+            if frame is None:
+                raise RuntimeError("PrintWindow failed to render DipTrace")
+            saw_visible_client_content = (
+                saw_visible_client_content or has_client_content
+            )
+            try:
+                written = process.stdin.write(frame)
+            except BrokenPipeError as exc:
+                code = process.poll()
+                raise RuntimeError(
+                    f"ffmpeg raw-video pipe closed unexpectedly (code {code})"
+                ) from exc
+            if written != frame_size:
+                raise RuntimeError("ffmpeg raw-video pipe accepted a partial frame")
+
+        if playback_thread is not None:
+            playback_thread.join(5.0)
+            if playback_thread.is_alive():
+                raise RuntimeError("hidden cinematic playback did not finish")
+        with suppress(BrokenPipeError):
+            process.stdin.close()
+        exit_code = process.wait(timeout=15.0)
+        if exit_code != 0:
+            stderr_log.seek(0)
+            detail = stderr_log.read().decode("utf-8", errors="replace").strip()
+            raise RuntimeError(
+                f"ffmpeg raw-video encode failed with code {exit_code}"
+                + (f": {detail}" if detail else "")
+            )
+        if playback_errors:
+            raise RuntimeError(f"hidden cinematic playback failed: {playback_errors[0]}")
+        if not saw_visible_client_content:
+            raise RuntimeError("PrintWindow capture has no rendered client-area content")
+        return process.pid
+    except Exception:
+        output.unlink(missing_ok=True)
+        raise
+    finally:
+        if playback_thread is not None and playback_thread.is_alive():
+            playback_thread.join(5.0)
+        if process is not None:
+            if process.stdin is not None and not process.stdin.closed:
+                with suppress(OSError):
+                    process.stdin.close()
+            if process.poll() is None:
+                with suppress(OSError):
+                    process.terminate()
+                try:
+                    process.wait(timeout=2.0)
+                except subprocess.TimeoutExpired:
+                    with suppress(OSError):
+                        process.kill()
+                    with suppress(subprocess.TimeoutExpired):
+                        process.wait(timeout=2.0)
+        with suppress(Exception):
+            resources.close()
+        if previous:
+            gdi32.SelectObject(memory_dc, previous)
+        if bitmap:
+            gdi32.DeleteObject(bitmap)
+        gdi32.DeleteDC(memory_dc)
 
 
 def record_windows(
@@ -565,16 +991,38 @@ def record_windows(
     return subprocess.run(command, check=False).returncode
 
 
-def _convert_video_to_gif(video: Path, gif: Path, *, fps: int, width: int) -> None:
+def _convert_video_to_gif(
+    video: Path,
+    gif: Path,
+    *,
+    fps: int,
+    width: int,
+    timeout_seconds: float = _MIN_GIF_TIMEOUT_SECONDS,
+) -> None:
+    if not 0 < timeout_seconds < float("inf"):
+        raise ValueError("timeout_seconds must be finite and positive")
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg is None:
         raise RuntimeError("ffmpeg is required for GIF conversion")
     gif.parent.mkdir(parents=True, exist_ok=True)
+    gif.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory(prefix="diptrace-cinematic-gif-") as raw_temp:
         palette = Path(raw_temp) / "palette.png"
         scale = f"fps={fps},scale={width}:-1:flags=lanczos"
         commands = [
-            [ffmpeg, "-y", "-i", str(video), "-vf", f"{scale},palettegen", str(palette)],
+            [
+                ffmpeg,
+                "-y",
+                "-i",
+                str(video),
+                "-vf",
+                f"{scale},palettegen",
+                "-frames:v",
+                "1",
+                "-update",
+                "1",
+                str(palette),
+            ],
             [
                 ffmpeg,
                 "-y",
@@ -588,12 +1036,24 @@ def _convert_video_to_gif(video: Path, gif: Path, *, fps: int, width: int) -> No
             ],
         ]
         for command in commands:
-            completed = subprocess.run(command, check=False)
+            try:
+                completed = subprocess.run(
+                    command,
+                    check=False,
+                    timeout=timeout_seconds,
+                )
+            except subprocess.TimeoutExpired as exc:
+                gif.unlink(missing_ok=True)
+                raise RuntimeError(
+                    f"GIF conversion timed out after {timeout_seconds:g}s"
+                ) from exc
             if completed.returncode != 0:
+                gif.unlink(missing_ok=True)
                 raise RuntimeError(
                     f"GIF conversion failed with code {completed.returncode}"
                 )
     if not gif.is_file() or gif.stat().st_size <= 0:
+        gif.unlink(missing_ok=True)
         raise RuntimeError("GIF conversion produced no output")
 
 
@@ -637,7 +1097,6 @@ def _perform_hidden_capture(
         [str(request.executable), str(request.project)],
         qualified,
     )
-    ffmpeg_process: hg.CreatedProcess | None = None
     ffmpeg_pid: int | None = None
     hwnd: int | None = None
     forced = False
@@ -647,59 +1106,55 @@ def _perform_hidden_capture(
         if windll is None:
             raise hg.HeadlessGuiError("Windows user32 bindings are unavailable")
         user32: Any = windll.user32
+        window_title = request.effective_window_title
         hwnd = _wait_for_window(
             user32,
             diptrace.pid,
-            request.window_title,
+            window_title,
             request.startup_timeout_seconds,
         )
+        time.sleep(0.2)
+        _dismiss_project_ok_dialog(user32, diptrace.pid, window_title)
         user32.ShowWindow(hwnd, 3)
+        user32.UpdateWindow(hwnd)
+        time.sleep(1.0)
         capture_seconds = _capture_seconds(manifest, preflight, request.tail_seconds)
-        command = build_windows_capture_command(
-            request.video_output,
-            window_title=None,
-            desktop=True,
-            fps=request.fps,
-            duration_seconds=capture_seconds,
-            draw_mouse=False,
-        )
-        command[0] = ffmpeg_path
-        ffmpeg_process = hg._launch_process_on_desktop(command, qualified)
-        ffmpeg_pid = ffmpeg_process.pid
-        time.sleep(_CAPTURE_LEAD_SECONDS)
         message_driver: Any = HiddenMessageDesktopDriver(
             expected_pid=diptrace.pid,
-            default_window=request.window_title,
+            default_window=window_title,
         )
-        play_manifest(manifest, message_driver)
-        exit_code = ffmpeg_process.wait(capture_seconds + 15.0)
-        if exit_code is None:
-            ffmpeg_process.terminate(124)
-            ffmpeg_process.wait(2.0)
-            raise hg.HeadlessGuiError("headless cinematic ffmpeg capture timed out")
-        if exit_code != 0:
-            raise hg.HeadlessGuiError(
-                f"headless cinematic ffmpeg exited with code {exit_code}"
-            )
+        ffmpeg_pid = _record_printwindow_video(
+            user32=user32,
+            hwnd=hwnd,
+            ffmpeg=ffmpeg_path,
+            output=request.video_output,
+            fps=request.fps,
+            duration_seconds=capture_seconds,
+            playback=lambda: play_manifest(manifest, message_driver),
+        )
         if not request.video_output.is_file() or request.video_output.stat().st_size <= 0:
             raise hg.HeadlessGuiError("headless cinematic capture produced no video")
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
     finally:
-        if ffmpeg_process is not None:
-            with suppress(Exception):
-                if ffmpeg_process.wait(0) is None:
-                    ffmpeg_process.terminate(125)
-            ffmpeg_process.close()
         if hwnd is not None:
             with suppress(Exception):
                 windll = getattr(ctypes, "windll", None)
                 if windll is not None:
                     windll.user32.PostMessageW(hwnd, _WM_CLOSE, 0, 0)
-        with suppress(Exception):
-            if diptrace.wait(2.0) is None:
-                forced = True
+        try:
+            exit_code = diptrace.wait(2.0)
+        except Exception as exc:
+            exit_code = None
+            error = hg._append_error(error, f"DipTrace cleanup wait failed: {exc}")
+        if exit_code is None:
+            forced = True
+            try:
                 diptrace.terminate(126)
+                with suppress(Exception):
+                    diptrace.wait(2.0)
+            except Exception as exc:
+                error = hg._append_error(error, f"DipTrace cleanup failed: {exc}")
         diptrace.close()
 
     return HeadlessCinematicResult(
@@ -730,6 +1185,9 @@ def run_headless_cinematic(
     request, manifest, preflight = _validate_headless_request(request)
     if shutil.which("ffmpeg") is None:
         raise hg.HeadlessGuiError("ffmpeg is required for headless cinematic capture")
+    request.video_output.unlink(missing_ok=True)
+    if request.gif_output is not None:
+        request.gif_output.unlink(missing_ok=True)
 
     before = hg.input_desktop_name()
     station_before = hg.process_window_station_name()
@@ -760,6 +1218,8 @@ def run_headless_cinematic(
                 exit_code = worker.wait(timeout)
                 if exit_code is None:
                     worker.terminate(124)
+                    with suppress(Exception):
+                        worker.wait(2.0)
                     raise hg.HeadlessGuiError("headless cinematic worker timed out")
         if not result_path.is_file():
             raise hg.HeadlessGuiError(
@@ -794,6 +1254,10 @@ def run_headless_cinematic(
                 request.gif_output,
                 fps=request.gif_fps,
                 width=request.gif_width,
+                timeout_seconds=max(
+                    _MIN_GIF_TIMEOUT_SECONDS,
+                    _capture_seconds(manifest, preflight, request.tail_seconds) * 4,
+                ),
             )
             result = replace(
                 result,
@@ -847,7 +1311,7 @@ def _cmd_headless_capture(args: argparse.Namespace) -> int:
         Path(str(args.manifest)),
         Path(str(args.video)),
         str(args.editor),
-        str(args.window_title),
+        str(args.window_title) if args.window_title else None,
         int(args.fps),
         float(args.startup_timeout),
         float(args.tail),
@@ -877,7 +1341,10 @@ def _build_headless_parser() -> argparse.ArgumentParser:
     capture.add_argument("--manifest", required=True)
     capture.add_argument("--video", required=True)
     capture.add_argument("--gif")
-    capture.add_argument("--window-title", default="DipTrace")
+    capture.add_argument(
+        "--window-title",
+        help="Window-title substring (defaults to the project filename).",
+    )
     capture.add_argument("--fps", type=int, default=60)
     capture.add_argument("--gif-fps", type=int, default=20)
     capture.add_argument("--gif-width", type=int, default=1280)

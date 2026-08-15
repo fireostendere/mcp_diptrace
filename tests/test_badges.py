@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import importlib.metadata
 import runpy
+import sys
 from pathlib import Path
 
 import pytest
@@ -51,6 +52,7 @@ def test_module_entrypoints_delegate_to_runtime(monkeypatch: pytest.MonkeyPatch)
 
     runpy.run_module("diptrace_mcp.__main__", run_name="__main__")
     runpy.run_module("diptrace_mcp.frozen_server", run_name="__main__")
+    monkeypatch.delitem(sys.modules, "diptrace_mcp.server", raising=False)
     runpy.run_module("diptrace_mcp.server", run_name="__main__")
 
     assert calls == [None, None, None]

@@ -56,6 +56,8 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 - same-layer PCB trace replay with fail-closed refusal of unsupported via/layer transitions;
 - HWND-targeted ffmpeg capture plus MP4/GIF post-processing helpers;
 - cinematic manifest preflight with deterministic content fingerprint, timing consistency checks and explicit cue/payload/desktop-command/path/text/hotkey safety budgets.
+- isolated hidden-desktop capture of the real DipTrace project window through `PrintWindow`/bounded `WM_PRINT` BGRA frames piped to ffmpeg, with black/title-bar-only rejection;
+- repository I²C level-shifter source plus MP4/GIF demonstration with one-at-a-time symbol and net reveal.
 
 Cinematic replay is deliberately a presentation path. The XML bridge and normal preview/SHA/transaction/review path remain authoritative for engineering edits and acceptance.
 
@@ -104,6 +106,8 @@ The headless worker is a host-automation boundary, not a second semantic authori
 - Schematic placement-repair planning fails closed when the generated operation batch exceeds the 100-operation transaction limit, instead of storing a plan that the paired apply tool could never execute.
 - Capability reporting matches runtime availability: `release_readiness` requires a board document, and `schematic_placement_candidate_ranking` is reported unavailable for wired schematics where the underlying scorer refuses to run.
 - `recommend_patterns` exposes the typed `PatternRequirement` schema in `tools/list` (pad count, mounting, geometry bounds, pitch, holes, required pad numbers) instead of an opaque object.
+- Headless Save targets the project window rather than IME/proxy windows, dispatches the native menu command without physical input, orders `WM_CLOSE` behind Save on the same queue, and fails when normal process exit cannot be observed.
+- Hidden recording selects the real project `TForm1`, dismisses the XML-open information dialog through a button message, pads odd H.264 frames, bounds GIF post-processing, and removes stale MP4/GIF outputs before each validated run.
 
 ## Remaining boundaries
 

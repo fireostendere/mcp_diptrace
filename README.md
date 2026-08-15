@@ -18,6 +18,20 @@ It consists of:
 - an optional cinematic presentation layer for calibrated visible DipTrace UI
   replay and MP4/GIF capture.
 
+## Headless cinematic example
+
+[![I2C level-shifter assembly in DipTrace](i2c-level-shifter-demo.gif)](i2c-level-shifter-demo.mp4)
+
+This real DipTrace Schematic capture assembles a two-channel BSS138 I²C level
+shifter: all 16 symbols appear one at a time, followed by the six electrical
+nets. The recording was produced on an isolated Win32 desktop without taking
+over the operator's cursor or keyboard. The editable source is
+[`i2c-level-shifter.dchxml`](i2c-level-shifter.dchxml); the full-resolution
+recording is [`i2c-level-shifter-demo.mp4`](i2c-level-shifter-demo.mp4).
+
+The example is scoped presentation evidence for the validated host
+configuration, not universal DipTrace compatibility or engineering sign-off.
+
 ## Current status
 
 The source/package version remains `0.2.1`. The annotated `v0.2.1` GitHub

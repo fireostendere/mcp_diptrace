@@ -404,3 +404,261 @@ def test_roundtrip_preserves_side_effect_evidence_when_input_desktop_changes(
     assert result.input_desktop_before == "Default"
     assert result.input_desktop_after == "ConsentUi"
     assert "after worker side effects" in (result.error or "")
+
+
+def test_main_window_prefers_hidden_project_form_with_native_menu(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Window:
+        def __init__(
+            self,
+            handle: int,
+            title: str,
+            *,
+            menu: object | None = None,
+            visible: bool = True,
+            enabled: bool = True,
+        ) -> None:
+            self.handle = handle
+            self.title = title
+            self._menu = menu
+            self.visible = visible
+            self.enabled = enabled
+
+        def window_text(self) -> str:
+            return self.title
+
+        def menu(self) -> object | None:
+            return self._menu
+
+    ime = Window(1, "Default IME")
+    hidden = Window(2, "Schematics - board.dch", menu=object(), visible=False)
+    main = Window(3, "Schematics - board.dch")
+
+    class Specification:
+        waited = False
+
+        def wait(self, *_args: object, **_kwargs: object) -> None:
+            self.waited = True
+
+    specification = Specification()
+
+    class App:
+        calls = 0
+
+        def windows(
+            self, *, visible_only: bool = False, enabled_only: bool = False
+        ) -> list[Window]:
+            self.calls += 1
+            windows = [ime] if self.calls == 1 else [hidden, main]
+            if visible_only:
+                windows = [window for window in windows if window.visible]
+            if enabled_only:
+                windows = [window for window in windows if window.enabled]
+            return windows
+
+        def window(self, *, handle: int) -> Specification:
+            assert handle == hidden.handle
+            return specification
+
+    app = App()
+    monkeypatch.setattr(headless_gui.time, "sleep", lambda _seconds: None)
+
+    window = headless_gui._main_window(app, Path("board.dch"), 1)
+    window.wait("exists enabled", timeout=1)
+
+    assert window is specification
+    assert specification.waited is True
+    assert app.calls == 2
+
+
+def test_save_window_falls_back_to_owner_drawn_file_save_item(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths: list[str] = []
+    messages: list[tuple[int, int, int, int]] = []
+
+    class User32:
+        def PostMessageW(self, *message: int) -> bool:
+            messages.append(message)
+            return True
+
+    class Api:
+        user32 = User32()
+
+    class Menu:
+        COMMAND = 0x0111
+        handle = 100
+
+    class Item:
+        menu = Menu()
+
+        def is_enabled(self) -> bool:
+            return True
+
+        def item_id(self) -> int:
+            return 11
+
+        def index(self) -> int:
+            return 4
+
+    class Window:
+        handle = 42
+
+        def menu(self) -> object:
+            return object()
+
+        def menu_item(self, path: str) -> Item:
+            paths.append(path)
+            if path == "File->Save":
+                raise RuntimeError("owner-drawn captions are empty")
+            assert path == "#0->#4"
+            return Item()
+
+    monkeypatch.setattr(headless_gui, "_Win32Api", Api)
+
+    headless_gui._save_window(Window(), "File->Save")
+
+    assert paths == ["File->Save", "#0->#4"]
+    assert messages == [(42, 0x0111, 11, 0)]
+
+
+def test_save_window_sends_wm_command_for_native_menu(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages: list[tuple[int, int, int]] = []
+
+    class User32:
+        def PostMessageW(
+            self, _handle: int, message: int, wparam: int, lparam: int
+        ) -> bool:
+            messages.append((message, wparam, lparam))
+            return True
+
+    class Api:
+        user32 = User32()
+
+    class Item:
+        class Menu:
+            COMMAND = 0x0111
+            handle = 100
+
+        menu = Menu()
+
+        def is_enabled(self) -> bool:
+            return True
+
+        def item_id(self) -> int:
+            return 7
+
+    class Window:
+        handle = 42
+
+        def menu(self) -> object:
+            return object()
+
+        def menu_item(self, path: str) -> Item:
+            assert path == "File->Save"
+            return Item()
+
+    monkeypatch.setattr(headless_gui, "_Win32Api", Api)
+
+    headless_gui._save_window(Window(), "File->Save")
+
+    assert messages == [(0x0111, 7, 0)]
+
+
+def test_save_window_fails_when_post_message_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class User32:
+        def PostMessageW(self, *_message: int) -> bool:
+            return False
+
+    class Api:
+        user32 = User32()
+
+        def error(self, operation: str) -> headless_gui.HeadlessGuiError:
+            return headless_gui.HeadlessGuiError(f"{operation} failed")
+
+    class Item:
+        class Menu:
+            COMMAND = 0x0111
+
+        menu = Menu()
+
+        def is_enabled(self) -> bool:
+            return True
+
+        def item_id(self) -> int:
+            return 7
+
+    class Window:
+        handle = 42
+
+        def menu(self) -> object:
+            return object()
+
+        def menu_item(self, _path: str) -> Item:
+            return Item()
+
+    monkeypatch.setattr(headless_gui, "_Win32Api", Api)
+
+    with pytest.raises(headless_gui.HeadlessGuiError, match="PostMessageW failed"):
+        headless_gui._save_window(Window(), "File->Save")
+
+
+def test_worker_roundtrip_posts_fifo_close_and_fails_when_exit_is_forced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "board.dch"
+    project.write_bytes(b"project")
+    request = RoundtripRequest(tmp_path / "DipTrace", project, "schematic", timeout_seconds=1)
+    calls: list[object] = []
+
+    class Window:
+        handle = 42
+
+        def wait(self, *_args: object, **_kwargs: object) -> None:
+            calls.append("wait-window")
+
+    class App:
+        process = 7
+
+        def start(self, _command: str, *, timeout: float):
+            calls.append(("start", timeout))
+            return self
+
+        def wait_for_process_exit(self, *, timeout: float) -> None:
+            calls.append(("wait-exit", timeout))
+            raise TimeoutError
+
+        def kill(self, *, soft: bool) -> None:
+            calls.append(("kill", soft))
+
+    class Application:
+        def __new__(cls, *, backend: str) -> App:
+            assert backend == "win32"
+            return App()
+
+    monkeypatch.setattr(headless_gui, "_validated_request", lambda value: value)
+    monkeypatch.setattr(headless_gui, "_pywinauto_application", lambda: Application)
+    monkeypatch.setattr(headless_gui, "_main_window", lambda *_args: Window())
+    monkeypatch.setattr(headless_gui, "_save_window", lambda *_args: calls.append("save"))
+    monkeypatch.setattr(
+        headless_gui,
+        "_post_window_message",
+        lambda *message: calls.append(message),
+    )
+    monkeypatch.setattr(headless_gui, "input_desktop_name", lambda: "Default")
+    monkeypatch.setattr(headless_gui, "process_window_station_name", lambda: "WinSta0")
+    monkeypatch.setattr(headless_gui, "process_session_id", lambda: 1)
+
+    result = headless_gui._perform_worker_roundtrip(request, desktop_name="hidden")
+
+    assert result.ok is False
+    assert result.forced_termination is True
+    assert (42, headless_gui._WM_CLOSE) in calls
+    assert calls.index("save") < calls.index((42, headless_gui._WM_CLOSE))
+    assert ("kill", False) in calls
+    assert "did not exit" in (result.error or "")

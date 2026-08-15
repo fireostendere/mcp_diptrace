@@ -32,8 +32,8 @@ The first supported native operation is a bounded round trip:
 1. choose `hidden` or explicit `native` desktop mode;
 2. launch the worker on the verified target desktop;
 3. launch the requested DipTrace editor and open an existing project;
-4. invoke `File -> Save` through the Win32 automation backend;
-5. close the editor;
+4. post the resolved native `File -> Save` menu command without focus or physical input;
+5. post `WM_CLOSE` to the same window queue after Save and require normal process exit;
 6. return structured evidence including PIDs, desktop/window-station/session
    identity and file SHA-256 before and after the operation.
 
@@ -152,6 +152,26 @@ Available editor identifiers are `pcb`, `schematic`, `component` and `pattern`.
 The command returns JSON. `ok: false` is bounded failure evidence and must not be
 silently retried with coordinate/mouse automation.
 
+### Save delivery and completion
+
+The worker resolves the project window by project filename and native menu. It
+uses the menu's own `WM_COMMAND` or `WM_MENUCOMMAND` value; it does not call
+`menu_select()`, focus the window, or synthesize `Ctrl+S`. DipTrace 5.3's
+owner-drawn default `File -> Save` item has a validated numeric-menu fallback.
+
+Save and `WM_CLOSE` are posted to the same target window queue in that order.
+The result is successful only when DipTrace exits normally. A timeout requires
+forced termination and is returned as `ok: false`, so a posted-but-unprocessed
+Save cannot be reported as a completed round trip.
+
+## Hidden cinematic capture
+
+The same isolation layer also supports presentation-only MP4/GIF capture. The
+capture worker renders the real DipTrace project window into BGRA frames with
+`PrintWindow`/`WM_PRINT` and pipes them to ffmpeg without switching desktops or
+using physical input. See [Cinematic Demo Mode](CINEMATIC_DEMO_MODE.md) and the
+[I²C level-shifter GIF](../i2c-level-shifter-demo.gif).
+
 ## Launch modes
 
 The worker supports two modes selected with `--desktop`:
@@ -238,6 +258,7 @@ The implementation must retain all of these properties:
 - refuse visible/native DipTrace work from an elevated token;
 - explicitly verify desktop, `WinSta0` window station and session identity;
 - use bounded timeouts and terminate a stuck worker rather than block indefinitely;
+- require normal DipTrace exit before reporting an open/Save/close round trip as successful;
 - retain structured evidence when a post-side-effect desktop change is detected;
 - keep the admin plug-in payload separate from user-writable installer payload;
 - do not expand the public MCP tool contract merely to expose Windows-worker details.
@@ -249,7 +270,7 @@ They verify desktop creation/targeting, `WinSta0` attachment and session identit
 without requiring DipTrace. The Windows packaging workflow also builds and tests
 the split per-user/admin installer boundary.
 
-A real DipTrace open/save/reopen validation remains real-host evidence: hosted
-GitHub runners do not provide the licensed/local DipTrace installation used for
-product acceptance. Passing CI proves the bounded Windows primitives and
-packaging, not universal DipTrace UI compatibility.
+The repository includes one real-host I²C schematic capture and controlled
+open/save/reopen evidence. Hosted GitHub runners do not provide the licensed/local
+DipTrace installation used for that evidence. Passing CI proves the bounded
+Windows primitives and packaging, not universal DipTrace UI compatibility.

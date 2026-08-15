@@ -218,7 +218,19 @@ python -m diptrace_mcp.cinematic_recording raw-demo.mp4 \
 python -m diptrace_mcp.cinematic_cli ffmpeg raw-demo.mp4 demo --preset cinematic
 ```
 
-The real recorder uses Windows ffmpeg `gdigrab`. PCB trace replay fails closed for via/layer transitions until explicit staged macros exist.
+The visible recorder uses Windows ffmpeg `gdigrab`. Hidden capture instead renders the selected DipTrace window with `PrintWindow`/`WM_PRINT` on an isolated Win32 desktop and pipes BGRA frames to ffmpeg:
+
+```powershell
+python -m diptrace_mcp.cinematic_recording headless-capture capture `
+  --diptrace-root "C:\Program Files\DipTrace" `
+  --editor schematic `
+  --project "C:\work\design.dch" `
+  --manifest "C:\work\demo.cinematic.json" `
+  --video "C:\work\demo.mp4" `
+  --gif "C:\work\demo.gif"
+```
+
+Hidden capture clears validated output paths before launch, rejects black/title-bar-only frames, and bounds GIF post-processing. PCB trace replay fails closed for via/layer transitions until explicit staged macros exist.
 
 See [CINEMATIC_DEMO_MODE.md](CINEMATIC_DEMO_MODE.md).
 
