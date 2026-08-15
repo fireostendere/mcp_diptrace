@@ -21,6 +21,7 @@ $BridgeDefault = Join-Path $RepoRoot "plugin\dist\diptrace_mcp_bridge.exe"
 $InstallerDir = Join-Path $OutputRoot "installer"
 $PortableDir = Join-Path $OutputRoot "portable"
 $InstallerOutput = Join-Path $InstallerDir ("DipTrace-MCP-Setup-{0}.exe" -f $Version)
+$PluginInstallerOutput = Join-Path $InstallerDir ("DipTrace-MCP-Plugin-Setup-{0}.exe" -f $Version)
 $PortableOutput = Join-Path $PortableDir ("DipTrace-MCP-Portable-{0}.zip" -f $Version)
 
 function Assert-File([string]$Path, [string]$Label) {
@@ -118,7 +119,7 @@ try {
         product_id = 'diptrace-mcp'
         version = $Version
         state_marker_file = '.diptrace-mcp-state-owner.json'
-        owned_install_relative_paths = @('app', 'bridge', 'settings-templates', 'tools', 'LICENSE', 'README_FIRST.txt', 'VERSION', 'installation-manifest.json')
+        owned_install_relative_paths = @('app', 'tools', 'LICENSE', 'README_FIRST.txt', 'VERSION', 'installation-manifest.json')
         owned_state_paths = @('logs', 'sessions', 'records', 'offline_backups', 'codex_setup.txt')
         signing_status = if ($SigningRequired) { 'signed-required' } else { 'unsigned-until-verified' }
     }
@@ -164,19 +165,26 @@ try {
     }
     $isccVersion = $isccVersions | Where-Object { $_.StartsWith('6.4.2') } | Select-Object -First 1
     if (-not $isccVersion) { throw "Inno Setup 6.4.2 is required; found $($isccVersions -join ', ')" }
-    $issArgs = @(
+
+    $baseIssArgs = @(
         ("/DAppVersion={0}" -f $Version)
         ("/DStageDir={0}" -f $Stage)
         ("/DOutputDir={0}" -f $InstallerDir)
-        (Join-Path $RepoRoot 'installer\DipTraceMCP.iss')
     )
-    Write-Host ("ISCC compile arguments ({0}): {1}" -f $issArgs.Count, ($issArgs -join ' | '))
-    Invoke-Checked -File $IsccPath -Arguments $issArgs
-    Assert-File $InstallerOutput 'Inno Setup installer'
+    $userIssArgs = @($baseIssArgs + (Join-Path $RepoRoot 'installer\DipTraceMCP.iss'))
+    Write-Host ("User ISCC compile arguments ({0}): {1}" -f $userIssArgs.Count, ($userIssArgs -join ' | '))
+    Invoke-Checked -File $IsccPath -Arguments $userIssArgs
+    Assert-File $InstallerOutput 'per-user Inno Setup installer'
+
+    $pluginIssArgs = @($baseIssArgs + '/DPluginOnly=1' + (Join-Path $RepoRoot 'installer\DipTraceMCP.iss'))
+    Write-Host ("Plugin ISCC compile arguments ({0}): {1}" -f $pluginIssArgs.Count, ($pluginIssArgs -join ' | '))
+    Invoke-Checked -File $IsccPath -Arguments $pluginIssArgs
+    Assert-File $PluginInstallerOutput 'administrator plug-in Inno Setup installer'
 
     $verifyScript = Join-Path $RepoRoot 'plugin\verify_signature.ps1'
     $signatureTargets = @(
         $InstallerOutput,
+        $PluginInstallerOutput,
         $BridgePath,
         (Join-Path $ServerDist 'diptrace_mcp_server.exe'),
         (Join-Path $ConfiguratorDist 'diptrace_mcp_configure.exe')
@@ -189,9 +197,10 @@ try {
         Invoke-Checked 'powershell.exe' $verifyArgs
     }
     $releaseChecksums = Join-Path $OutputRoot 'SHA256SUMS.txt'
-    Write-ReleaseAssetShaManifest -Path $releaseChecksums -Assets @($InstallerOutput, $PortableOutput)
+    Write-ReleaseAssetShaManifest -Path $releaseChecksums -Assets @($InstallerOutput, $PluginInstallerOutput, $PortableOutput)
     Assert-File $releaseChecksums 'release asset checksum manifest'
-    Write-Host "Installer: $InstallerOutput" -ForegroundColor Green
+    Write-Host "User installer: $InstallerOutput" -ForegroundColor Green
+    Write-Host "Plug-in installer: $PluginInstallerOutput" -ForegroundColor Green
     Write-Host "Portable: $PortableOutput" -ForegroundColor Green
     Write-Host "Checksums: $releaseChecksums" -ForegroundColor Green
 } finally {
