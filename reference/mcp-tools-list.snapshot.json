@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 150194,
-  "canonical_descriptor_sha256": "54e8a7443a1a4d23da98f66d1f2f6ab845785624ef3ce879319e73b4c5ff6ed9",
+  "canonical_descriptor_bytes": 150193,
+  "canonical_descriptor_sha256": "8ac7c0820162e63409fc9291c50753e54b94e3784f7aa4c0fdc0073ef032e0ec",
   "format_version": 1,
   "tool_count": 167,
   "tools": [
@@ -5999,7 +5999,7 @@
       "inputSchema": {
         "properties": {
           "avoid_component_bodies": {
-            "default": false,
+            "default": true,
             "title": "Avoid Component Bodies",
             "type": "boolean"
           },

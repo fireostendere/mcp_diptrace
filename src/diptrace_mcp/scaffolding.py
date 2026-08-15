@@ -232,9 +232,7 @@ def build_schematic_document(
 
     scaffold = options or SchematicScaffold()
     version = validate_format_version(version)
-    root = ET.Element(
-        "Source", {"Type": "DipTrace-Schematic", "Version": version, "Units": units}
-    )
+    root = ET.Element("Source", {"Type": "DipTrace-Schematic", "Version": version, "Units": units})
     ET.SubElement(
         root,
         "Library",
@@ -304,9 +302,7 @@ def build_pcb_document(
     def dim(value_mm: float) -> str:
         return _format(value_mm * factor)
 
-    root = ET.Element(
-        "Source", {"Type": "DipTrace-PCB", "Version": version, "Units": units}
-    )
+    root = ET.Element("Source", {"Type": "DipTrace-PCB", "Version": version, "Units": units})
     ET.SubElement(
         root,
         "Library",
@@ -374,8 +370,8 @@ def build_pcb_document(
     via_styles = ET.SubElement(board, "ViaStyles")
     via_attributes = {
         "Id": "0",
-        "Diameter": dim(scaffold.via_diameter_mm),
-        "Hole": dim(scaffold.via_hole_mm),
+        "Size": dim(scaffold.via_diameter_mm),
+        "HoleSize": dim(scaffold.via_hole_mm),
     }
     if len(layers) > 2:
         via_attributes.update({"Lay1": "0", "Lay2": str(len(layers) - 1)})

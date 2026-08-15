@@ -344,12 +344,12 @@
         "pkg:pypi/tomli",
         "pkg:pypi/typing-extensions"
       ],
-      "ref": "pkg:pypi/diptrace-mcp@0.2.1"
+      "ref": "pkg:pypi/diptrace-mcp@0.3.0"
     }
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pkg:pypi/diptrace-mcp@0.2.1",
+      "bom-ref": "pkg:pypi/diptrace-mcp@0.3.0",
       "licenses": [
         {
           "license": {
@@ -358,25 +358,25 @@
         }
       ],
       "name": "diptrace-mcp",
-      "purl": "pkg:pypi/diptrace-mcp@0.2.1",
+      "purl": "pkg:pypi/diptrace-mcp@0.3.0",
       "type": "application",
-      "version": "0.2.1"
+      "version": "0.3.0"
     },
     "properties": [
       {
         "name": "diptrace-mcp:inspected-commit",
-        "value": "08ff658a5e35a72b70747d5d506f8f03ec8f8cc3"
+        "value": "dc9bb244c17fdbe2578e255e0231c97cb3ea260d"
       },
       {
         "name": "diptrace-mcp:inspection-date",
-        "value": "2026-08-04"
+        "value": "2026-08-16"
       },
       {
         "name": "diptrace-mcp:resolution",
         "value": "declarative-direct-dependency-inventory"
       }
     ],
-    "timestamp": "2026-08-04T00:00:00Z",
+    "timestamp": "2026-08-16T00:00:00Z",
     "tools": [
       {
         "name": "generate_compliance_inventory.py",
@@ -384,7 +384,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:ee2259fe-27d1-5c7f-844d-578f040b9106",
+  "serialNumber": "urn:uuid:1dd91350-baf3-51c4-a443-8cb66c1cacc8",
   "specVersion": "1.5",
   "version": 1
 }

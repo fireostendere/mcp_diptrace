@@ -51,6 +51,35 @@ def test_registry_runs_real_board_connectivity_checks() -> None:
     assert "pcb.component_overlap" in registry.ids()
 
 
+def test_poured_net_is_not_reported_as_unrouted_and_hidden_silk_is_ignored() -> None:
+    original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    pours = root.find("./Board/CopperPours")
+    if pours is None:
+        board = root.find("./Board")
+        assert board is not None
+        pours = ET.SubElement(board, "CopperPours")
+    pour = ET.SubElement(
+        pours,
+        "CopperPour",
+        {"Id": "0", "NetId": "0", "Lay": "0", "Poured": "Y"},
+    )
+    points = ET.SubElement(pour, "Points")
+    for x, y in ((0, 0), (30, 0), (30, 30), (0, 30)):
+        ET.SubElement(points, "Point", {"X": str(x), "Y": str(y)})
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+    findings, metrics, _, _ = run_checks(
+        build_snapshot(document), categories={"connectivity", "silkscreen"}
+    )
+
+    assert not any(item.check_id == "pcb.net_without_traces" for item in findings)
+    assert metrics["pcb.silk_overlap"]["texts_checked"] == 2
+
+
 def test_degenerate_trace_check_does_not_claim_connectivity_analysis() -> None:
     original = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
     root = ET.fromstring(original.raw_bytes)

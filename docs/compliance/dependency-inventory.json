@@ -270,12 +270,12 @@
     ],
     "unknown_license_metadata": []
   },
-  "inspected_commit": "08ff658a5e35a72b70747d5d506f8f03ec8f8cc3",
-  "inspected_date": "2026-08-04",
+  "inspected_commit": "dc9bb244c17fdbe2578e255e0231c97cb3ea260d",
+  "inspected_date": "2026-08-16",
   "project": {
     "license": "Apache-2.0",
     "name": "diptrace-mcp",
-    "version": "0.2.1"
+    "version": "0.3.0"
   },
   "resolution": {
     "kind": "declarative-direct-dependency-inventory",

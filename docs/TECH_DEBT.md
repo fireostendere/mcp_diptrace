@@ -47,11 +47,15 @@ Generation B/C analysis must preserve unknown current/current-density/voltage-dr
 
 Cinematic playback now enforces `cinematic_preflight.py` inside the actual host path, so malformed/oversized manifests cannot bypass the safety budget by calling `play_manifest()` directly.
 
-Remaining work is real-client evidence and UI breadth:
+The repository PCB and Schematic GIF/MP4 examples are operator-accepted in the
+current DipTrace configuration as of 2026-08-16, including complete-design
+framing with margin and control-free crops.
 
-- verify PCB/Schematic action macros against exact DipTrace configurations used for recording;
-- perform end-to-end design-coordinate calibration on real documents;
-- capture residual/error evidence;
+Remaining work is broader real-client evidence and UI breadth:
+
+- repeat PCB/Schematic action-macro and calibration evidence for additional
+  DipTrace configurations;
+- retain residual/error evidence when promoting a new reusable profile;
 - add staged playback for via/layer transitions;
 - verify additional UI gestures before promoting reusable profiles.
 

@@ -11,6 +11,7 @@ from .adapter_common import (
     _bbox_dict,
     _bbox_from_center,
     _bool_attr,
+    _component_markings_rotate,
     _element_short,
     _first_float_attr_mm,
     _float_attr,
@@ -79,6 +80,7 @@ def _component_records(
             if pattern_model is not None
             else {}
         )
+        markings_rotate = _component_markings_rotate(document)
         for component in document.container.findall("./Components/Component"):
             xml_id = component.get("Id", "")
             refdes = _text(component, "RefDes")
@@ -379,8 +381,7 @@ def _component_records(
                     board_position = Transform(
                         translate_x=parent_position["x"],
                         translate_y=parent_position["y"],
-                        rotation_deg=parent_record.rotation_deg,
-                        mirror_x=parent_record.side == "Bottom",
+                        rotation_deg=parent_record.rotation_deg if markings_rotate else 0.0,
                     ).apply_point(local)
                     text_value = (
                         component.get(value_source, "")
@@ -409,7 +410,10 @@ def _component_records(
                                     1.0,
                                 )
                             ),
-                            rotation_deg=math.degrees(
+                            rotation_deg=(
+                                parent_record.rotation_deg if markings_rotate else 0.0
+                            )
+                            + math.degrees(
                                 _float_attr(document, settings, "Angle") or 0.0
                             ),
                             mirrored=parent_record.side == "Bottom",

@@ -18,7 +18,9 @@ It consists of:
 - an optional cinematic presentation layer for calibrated visible DipTrace UI
   replay and MP4/GIF capture.
 
-## Headless cinematic example
+## Headless cinematic examples
+
+### Schematic assembly
 
 [![I2C level-shifter assembly in DipTrace](i2c-level-shifter-demo.gif)](i2c-level-shifter-demo.mp4)
 
@@ -29,14 +31,29 @@ over the operator's cursor or keyboard. The editable source is
 [`i2c-level-shifter.dchxml`](i2c-level-shifter.dchxml); the full-resolution
 recording is [`i2c-level-shifter-demo.mp4`](i2c-level-shifter-demo.mp4).
 
-The example is scoped presentation evidence for the validated host
-configuration, not universal DipTrace compatibility or engineering sign-off.
+### PCB layout
+
+[![I2C level-shifter PCB in DipTrace](i2c-level-shifter-pcb-demo.gif)](i2c-level-shifter-pcb-demo.mp4)
+
+The matching 25×12 mm PCB uses compact straight 1×4 2.54 mm headers, symmetric
+device placement, 14 routed traces, Top and Bottom GND pours, and 14 distributed
+GND stitching vias; connector GND pads request four-spoke thermal reliefs.
+Components and routes appear in construction order; the
+capture is cropped to the complete purple board outline with margin instead of
+the editor controls. The editable source is
+[`i2c-level-shifter-pcb.dipxml`](i2c-level-shifter-pcb.dipxml); the
+full-resolution recording is
+[`i2c-level-shifter-pcb-demo.mp4`](i2c-level-shifter-pcb-demo.mp4).
+
+The operator confirmed both repository examples in the current DipTrace
+configuration on 2026-08-16. This is scoped presentation evidence, not universal
+DipTrace compatibility, authoritative refill geometry, or engineering sign-off.
 
 ## Current status
 
-The source/package version remains `0.2.1`. The annotated `v0.2.1` GitHub
-development prerelease and `diptrace-mcp==0.2.1` on PyPI were published on
-2026-08-05 with:
+The selected source/package candidate is `0.3.0`; it is not published yet. The
+annotated `v0.2.1` GitHub development prerelease and `diptrace-mcp==0.2.1` on
+PyPI remain the current published distribution, released on 2026-08-05 with:
 
 - `DipTrace-MCP-Setup-0.2.1.exe`;
 - `DipTrace-MCP-Portable-0.2.1.zip`;
@@ -44,13 +61,13 @@ development prerelease and `diptrace-mcp==0.2.1` on PyPI were published on
 - wheel, source distribution, checksums, SBOM, dependency, notice, provenance,
   and release records.
 
-Development has continued on `main` after that immutable release. Current
-post-release work includes the schematic layout/placement-routing foundation,
-PCB Generations A-D, the 90% combined supported-environment coverage gate, and
-cinematic UI calibration/replay. The initial 18-case real-DipTrace schematic
-authoring/readability campaign is complete and its bounded fixes were merged by
-PR #90. Those later `main` features are not retroactively part of the published
-`v0.2.1` bytes.
+The `0.3.0` candidate adds the schematic layout/placement-routing foundation,
+PCB Generations A-D, compact-footprint preference, bounded two-layer GND-pour
+and stitching helpers, silkscreen cleanup, the 90% combined
+supported-environment coverage gate, and board-framed cinematic replay. The
+initial 18-case real-DipTrace schematic authoring/readability campaign is
+complete. These later source features are not retroactively part of the
+published `v0.2.1` bytes.
 
 The previous [`v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0)
 and current `v0.2.1` release identities remain immutable. Existing tags and
@@ -332,6 +349,8 @@ See [Testing](docs/TESTING.md) and [Development](docs/DEVELOPMENT.md).
 - [Security and policy](docs/SECURITY_AND_POLICY.md)
 - [Transactions](docs/TRANSACTIONS.md)
 - [Release process](docs/RELEASE_PROCESS.md)
+- [v0.3.0 candidate checklist](docs/RELEASE_0_3_0_CHECKLIST.md)
+- [v0.3.0 candidate record](docs/releases/v0.3.0.md)
 - [v0.2.1 release checklist](docs/RELEASE_0_2_1_CHECKLIST.md)
 - [v0.2.1 release record](docs/releases/v0.2.1.md)
 

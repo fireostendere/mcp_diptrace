@@ -133,6 +133,12 @@ The PCB design engine remains layered above geometry/legalisation/routing/review
 - Generation C: `pcb_routing_policy.py` compiles deterministic routing policy and evaluates supplied route observations.
 - Generation D: `pcb_joint_optimizer.py` applies lexicographically dominant hard-rule selection over decomposed soft scores.
 - `pcb_candidate_ensemble.py` now generates multiple real bounded Generation-A placement candidates under different engineering profiles, carries conservative B/C evidence terms and lets the existing Generation-D selector choose hard-first. The existing board is retained as an optional baseline candidate.
+- `pattern_recommendation.py` uses compact area as the deterministic tie-break
+  between equally compatible footprints.
+- `copper_pours.py` adds explicit-net pour boundaries and bounded stitching vias
+  without claiming authoritative refill geometry.
+- `silkscreen.py` plans readable markings around body/pad/hole/via obstacles and
+  can suppress assembly-only labels.
 
 No Generation B/C/D proxy becomes field-solver, PI, EMC, thermal or manufacturing authority. Real-DipTrace product acceptance for the affected primitives remains a separate evidence boundary.
 
@@ -183,7 +189,11 @@ The cinematic subsystem includes:
 - `diptrace_cinematic_semantic.py` — semantic schematic/PCB replay adapters;
 - `diptrace_window.py` — target-window/client geometry.
 
-UI profiles still fail closed until calibrated and populated with verified macros for the exact client configuration. Same-layer PCB trace replay is supported; via/layer-transition GUI playback remains fail-closed until verified staged actions exist.
+`cinematic_recording.py` also derives a stable UI-free crop from the PCB's
+purple outline or the Schematic's visible design bounds, retaining output
+margin around the complete design.
+
+UI profiles still fail closed until calibrated and populated with verified macros for the exact client configuration. The current repository examples are operator-accepted; additional client profiles remain exact-configuration evidence. Same-layer PCB trace replay is supported; via/layer-transition GUI playback remains fail-closed until verified staged actions exist.
 
 See [Cinematic Demo Mode](CINEMATIC_DEMO_MODE.md).
 

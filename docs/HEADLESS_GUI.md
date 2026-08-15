@@ -169,8 +169,9 @@ Save cannot be reported as a completed round trip.
 The same isolation layer also supports presentation-only MP4/GIF capture. The
 capture worker renders the real DipTrace project window into BGRA frames with
 `PrintWindow`/`WM_PRINT` and pipes them to ffmpeg without switching desktops or
-using physical input. See [Cinematic Demo Mode](CINEMATIC_DEMO_MODE.md) and the
-[I²C level-shifter GIF](../i2c-level-shifter-demo.gif).
+using physical input. See [Cinematic Demo Mode](CINEMATIC_DEMO_MODE.md), the
+[I²C schematic GIF](../i2c-level-shifter-demo.gif), and the
+[matching PCB GIF](../i2c-level-shifter-pcb-demo.gif).
 
 ## Launch modes
 

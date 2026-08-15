@@ -167,7 +167,11 @@ def check_nets_without_traces(
     for net in snapshot.board.nets:
         endpoint_count = int(net.attributes.get("endpoint_count", 0))
         trace_count = int(net.attributes.get("trace_count", 0))
-        if endpoint_count > 1 and trace_count == 0:
+        has_pour = any(
+            pour.net_id == net.xml_id and pour.attributes.get("poured") is True
+            for pour in snapshot.board.copper_pours
+        )
+        if endpoint_count > 1 and trace_count == 0 and not has_pour:
             findings.append(
                 make_finding(
                     "pcb.net_without_traces",
@@ -641,7 +645,13 @@ def _copper_on_layer(
 @registry.register("pcb.silk_overlap", "silkscreen", "pcb")
 def check_silkscreen_overlap(snapshot: DocumentSnapshot) -> tuple[list[Finding], dict[str, Any]]:
     assert snapshot.board is not None
-    silk = [item for item in snapshot.board.texts if "Silk" in (item.layer or "") and item.bbox]
+    silk = [
+        item
+        for item in snapshot.board.texts
+        if "Silk" in (item.layer or "")
+        and item.bbox
+        and item.attributes.get("Show", "Show") != "Hide"
+    ]
     findings: list[Finding] = []
     for index, item in enumerate(silk):
         assert item.bbox is not None

@@ -274,7 +274,18 @@ def recommend_patterns(
                 features=features,
             )
         )
-    accepted.sort(key=lambda item: (item.score, item.name.casefold(), item.pattern_id))
+    accepted.sort(
+        key=lambda item: (
+            item.score,
+            (
+                item.features.width_mm * item.features.height_mm
+                if item.features.width_mm is not None and item.features.height_mm is not None
+                else math.inf
+            ),
+            item.name.casefold(),
+            item.pattern_id,
+        )
+    )
     rejected.sort(key=lambda item: (item.name.casefold(), item.pattern_id))
     return RecommendationResult(
         requirement=parsed,

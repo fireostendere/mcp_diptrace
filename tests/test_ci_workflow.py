@@ -138,7 +138,7 @@ def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
     jobs = workflow["jobs"]
 
     assert workflow["permissions"] == {"contents": "read"}
-    assert workflow["env"] == {"RELEASE_VERSION": "0.2.1", "RELEASE_TAG": "v0.2.1"}
+    assert workflow["env"] == {"RELEASE_VERSION": "0.3.0", "RELEASE_TAG": "v0.3.0"}
 
     build = jobs["build"]
     build_commands = _job_commands(build)

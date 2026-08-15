@@ -62,6 +62,22 @@ The current layers are:
 
 `pcb_candidate_ensemble.py` creates real Generation-A placement candidates under multiple engineering profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline. Generation B/C facts contribute conservative soft evidence terms, and the existing Generation-D selector chooses the winner with hard safety/mechanical/connectivity/DRC/reference/manufacturing violations lexicographically dominant.
 
+Package-level authoring helpers now cover the default physical presentation
+used by the repository PCB demo:
+
+- `pattern_recommendation.py` prefers the smallest-area equally compatible
+  footprint when geometry was not otherwise constrained;
+- `copper_pours.py` assigns explicit-net pour boundaries and deterministic
+  stitching vias on requested layers, including four-spoke thermal intent;
+- `silkscreen.py` avoids component bodies by default, ignores hidden markings
+  as obstacles/findings and can suppress assembly-only labels;
+- the I²C generator derives a compact symmetric 25×12 mm two-layer example
+  with Top routing, Top/Bottom GND intent and distributed stitching.
+
+These helpers reuse existing normalized geometry and raw-preserving XML paths.
+They remain bounded authoring assistance: DipTrace owns authoritative refill and
+final native DRC/manufacturing behavior.
+
 No SI/PI/thermal/EMI proxy is upgraded into field-solver truth. Unknown stackup/current/edge-rate/reference facts remain unknown or penalized as uncertainty. Real-DipTrace/native-router/solver evidence remains claim-specific.
 
 ## DSN/SES and XML analysis
@@ -92,7 +108,7 @@ Cinematic replay remains a presentation subsystem, not engineering authority.
 
 `cinematic_preflight.py` adds deterministic content identity independent of random session IDs plus bounded checks for cue count, duration/timing consistency, payload bytes, desktop-command count, path points, typed text and hotkey chord size. `cinematic_preflight_cli.py` provides standalone inspection.
 
-The safety boundary is also enforced inside `cinematic_host.py`: `play_manifest()` calls `preflight_cinematic_manifest(manifest)` before any dry-run or real desktop driver action. Exact DipTrace UI macros/calibration remain editor/version/configuration specific. PCB via/layer-transition replay remains fail-closed until staged real-UI macros are validated.
+The safety boundary is also enforced inside `cinematic_host.py`: `play_manifest()` calls `preflight_cinematic_manifest(manifest)` before any dry-run or real desktop driver action. Hidden capture now fits PCB recordings to the complete purple board outline and schematic recordings to their visible design boundary, adds output margin and excludes editor controls. The current repository PCB/Schematic GIF and MP4 examples were operator-accepted on 2026-08-16. Exact macros/calibration remain editor/version/configuration specific, and PCB via/layer-transition replay remains fail-closed until staged real-UI macros are validated.
 
 ## Documentation drift guard
 
@@ -111,6 +127,7 @@ New regression/property coverage includes:
 - Hypothesis XML fingerprint invariants and unknown-XML mutation detection;
 - evidence-report hash/tamper/determinism behavior;
 - cinematic preflight budgets/content identity and mandatory playback invocation;
+- board/schematic boundary detection, stable crop padding and staged path timing;
 - SHA-bound library mutation preview behavior;
 - evergreen documentation-state regression.
 
@@ -121,7 +138,8 @@ Repository CI remains authoritative. The supported-environment combined coverage
 The completed 18-case schematic campaign and the completed 12-gate manual matrix should not be repeated without an impact- or claim-based reason. Remaining manual/native evidence is claim-specific and currently includes:
 
 - current-candidate PCB whole-board/native refill/plane/via quality acceptance where stronger claims are desired;
-- exact UI-profile cinematic replay validation;
+- exact UI-profile cinematic replay validation for additional configurations
+  beyond the accepted repository examples;
 - release-specific Windows/client lifecycle retests only when changed production code/artifacts or a new claim make them relevant;
 - new schematic claims outside the completed campaign scope, such as hierarchy, topology-preserving reroute or automatic rotation/pin-facing behavior;
 - manufacturing output, independent review, regulatory, EMC, PI, thermal or field-solver sign-off.

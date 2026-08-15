@@ -11,6 +11,7 @@ from .domain import ObjectRecord, QuerySelector, StrictModel
 from .errors import CapabilityUnavailableError
 from .geometry import BBox, Point, distance, point_in_polygon
 from .operations import MoveBoardTextsOperation, SemanticOperation
+from .xml_document import DipTraceDocument, RawTreeSnapshot
 
 
 class SilkscreenPlanConfig(StrictModel):
@@ -20,7 +21,7 @@ class SilkscreenPlanConfig(StrictModel):
     grid: float = Field(default=0.25, gt=0.0, le=10.0)
     search_steps: int = Field(default=4, ge=1, le=20)
     include_board_texts: bool = False
-    avoid_component_bodies: bool = False
+    avoid_component_bodies: bool = True
     movement_weight: float = Field(default=1.0, ge=0.0, le=1_000.0)
     association_weight: float = Field(default=0.25, ge=0.0, le=1_000.0)
     orientation_weight: float = Field(default=2.0, ge=0.0, le=1_000.0)
@@ -45,6 +46,28 @@ class _Obstacle:
     side: str | None
     bbox: BBox
     kind: str
+
+
+def hide_assembly_markings(document: DipTraceDocument) -> DipTraceDocument:
+    """Hide component assembly labels so the silk view stays legible."""
+
+    if document.kind != "pcb":
+        raise CapabilityUnavailableError("Assembly markings require a PCB document")
+    working = DipTraceDocument.from_bytes(document.path, document.raw_bytes)
+    raw_tree = RawTreeSnapshot.capture(working)
+    changed = False
+    for component in working.container.findall("./Components/Component"):
+        for marking in component:
+            assembly = marking.find("./Assy") if marking.tag.endswith("Marking") else None
+            if assembly is not None and assembly.get("Show") != "Hide":
+                assembly.set("Show", "Hide")
+                changed = True
+    if not changed:
+        return document
+    return DipTraceDocument.from_bytes(
+        working.path,
+        raw_tree.compile(working.root, working.path),
+    )
 
 
 def plan_silkscreen(
@@ -225,7 +248,11 @@ def _fixed_obstacles(
     assert snapshot.board is not None
     obstacles: list[_Obstacle] = []
     for item in snapshot.board.texts:
-        if item.bbox is None or "Silk" not in (item.layer or ""):
+        if (
+            item.bbox is None
+            or "Silk" not in (item.layer or "")
+            or item.attributes.get("Show", "Show") == "Hide"
+        ):
             continue
         if item.stable_id in selected_ids and not item.locked:
             continue
@@ -236,9 +263,7 @@ def _fixed_obstacles(
     if config.avoid_component_bodies:
         for item in snapshot.board.components:
             if item.bbox is not None:
-                obstacles.append(
-                    _Obstacle(item.stable_id, item.side, BBox(**item.bbox), item.kind)
-                )
+                obstacles.append(_Obstacle(item.stable_id, item.side, BBox(**item.bbox), item.kind))
     return obstacles
 
 

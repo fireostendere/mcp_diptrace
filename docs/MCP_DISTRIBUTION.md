@@ -17,6 +17,11 @@ Published tags/files are immutable. A corrected build requires a new version.
 
 Development on `main` after `v0.2.1` may contain additional internal capabilities that are not present in the published package/bundles. Track those changes in `CHANGELOG_NEXT.md` until the next release is selected.
 
+`v0.3.0` is now the selected source candidate, but it is not yet an immutable
+public distribution. Continue using the `v0.2.1` filenames above until the
+`v0.3.0` checklist, tag-bound workflows and public-download verification are
+complete.
+
 ## Distribution roles
 
 - **PyPI** distributes the cross-platform Python MCP server and packaged skills.

@@ -10,6 +10,7 @@ import diptrace_mcp.geometry_backend as geometry_backend
 import diptrace_mcp.review as review_module
 import diptrace_mcp.routing as routing_module
 from diptrace_mcp.adapters import build_snapshot
+from diptrace_mcp.copper_pours import add_copper_pours
 from diptrace_mcp.errors import RoutingError
 from diptrace_mcp.findings import Finding
 from diptrace_mcp.geometry_backend import shapely_available
@@ -297,3 +298,31 @@ def test_router_fallback_discloses_conservative_aabb(
 
     assert result.metrics["pour_geometry_backend"] == "aabb_approximate"
     assert any("conservative AABB" in item for item in result.warnings)
+
+
+def test_ground_pour_module_assigns_both_layers_and_stitches_them() -> None:
+    original = DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
+
+    result = add_copper_pours(
+        original,
+        net="GND",
+        layers=("Top", "Bottom"),
+        stitch_pitch_mm=5.0,
+    )
+    snapshot = build_snapshot(result.document)
+
+    assert snapshot.board is not None
+    assert result.pour_count == 2
+    assert result.stitch_via_count > 0
+    assert {(item.net_name, item.layer) for item in snapshot.board.copper_pours} == {
+        ("GND", "0"),
+        ("GND", "1"),
+    }
+    assert all(item.net_name == "GND" for item in snapshot.board.vias)
+    assert any(
+        2 < item.position["x"] < 18 and 2 < item.position["y"] < 8 for item in snapshot.board.vias
+    )
+    pours = result.document.container.findall("./CopperPours/CopperPour")
+    assert all(item.get("Spoke") == "4 spoke" for item in pours)
+    assert all(item.get("SpokeWidth") == "0.3" for item in pours)
+    assert all(item.get("ViaDirect") == "Y" for item in pours)

@@ -2,7 +2,7 @@
 
 ## Current baseline
 
-The current source/package version is `0.2.1`. The public MCP contract currently registers 167 tools (165 existing tools plus the read-only built-in-library bridge). `DipTraceService` is the stable public Facade; typed domain implementations live under `src/diptrace_mcp/services/`.
+The current source/package version is `0.3.0`. The public MCP contract currently registers 167 tools (165 existing tools plus the read-only built-in-library bridge). `DipTraceService` is the stable public Facade; typed domain implementations live under `src/diptrace_mcp/services/`.
 
 `v0.2.1` is already published as an unsigned GitHub development prerelease and as `diptrace-mcp==0.2.1` on PyPI. Development on `main` has continued after that immutable release, so a source checkout may contain capabilities not present in the published `v0.2.1` artifacts.
 
@@ -33,6 +33,9 @@ src/diptrace_mcp/
   pcb_physical.py               Generation B physical/PDN/return/via context
   pcb_routing_policy.py         Generation C route policy/observed-route checks
   pcb_joint_optimizer.py        Generation D candidate selector
+  copper_pours.py               bounded pour intent and GND stitching helper
+  pattern_recommendation.py     deterministic compatible-footprint ranking
+  silkscreen.py                 obstacle-aware marking placement/cleanup
 
   cinematic.py                  deterministic presentation timeline
   cinematic_cli.py              capture/compile/ffmpeg helper CLI
@@ -171,7 +174,7 @@ Use the current package version when building release-shaped artifacts:
 .\plugin\build_bridge.ps1 -PythonCommand python -Clean
 .\scripts\build_windows_configurator.ps1 -PythonCommand python -Clean
 .\scripts\build_windows_installer.ps1 `
-  -Version 0.2.1 `
+  -Version 0.3.0 `
   -IsccPath "$env:ISCC_PATH"
 ```
 
@@ -243,9 +246,9 @@ Dated release/acceptance/compliance documents are historical snapshots. Preserve
 
 ## Release work
 
-Current published release record:
+Selected release-candidate record:
 
-- [releases/v0.2.1.md](releases/v0.2.1.md)
+- [releases/v0.3.0.md](releases/v0.3.0.md)
 
 Current generic release procedure:
 

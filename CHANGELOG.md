@@ -1,9 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-08-16
 
-Post-`v0.2.1` development is active on `main` while the next version has not yet
-been selected. The source/package version remains `0.2.1`; these changes are not
+Version `0.3.0` is an unsigned development prerelease. These changes are not
 part of the already-published `v0.2.1` bytes.
 
 ### Added
@@ -23,6 +22,10 @@ part of the already-published `v0.2.1` bytes.
   playback, and MP4/GIF recording helpers.
 - Optional Windows headless GUI worker using an isolated Win32 desktop for
   bounded native open/save/close operations without physical-input fallback.
+- Compact PCB authoring defaults: smallest compatible standard connector
+  preference, explicit-net Top/Bottom pours, four-spoke thermal intent,
+  distributed GND stitching and obstacle-aware silkscreen cleanup.
+- Matching 25×12 mm I²C PCB source and board-framed MP4/GIF demonstration.
 
 ### Changed
 
@@ -38,6 +41,8 @@ part of the already-published `v0.2.1` bytes.
 - Evergreen documentation was reconciled with the published `v0.2.1` state and
   current post-release implementation without rewriting dated release,
   acceptance, or compliance snapshots.
+- The operator accepted the current repository PCB/Schematic examples and both
+  GIF/MP4 outputs in the current DipTrace configuration on 2026-08-16.
 
 See `CHANGELOG_NEXT.md` for the detailed post-`v0.2.1` development record.
 

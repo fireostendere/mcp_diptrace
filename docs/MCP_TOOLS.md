@@ -92,7 +92,9 @@ The PCB design-engine layers remain internal engines:
 They are read-only productized through:
 
 - `compare_pcb_placement_candidates` — generate and rank bounded Generation A-D placement candidates;
-- `recommend_patterns` — deterministic hard-filter and geometry-score ranking of footprint patterns from a pattern library (no model calls);
+- `recommend_patterns` — deterministic hard-filter and geometry-score ranking
+  of footprint patterns from a pattern library, using smallest occupied area as
+  the tie-break between otherwise equal compatible candidates (no model calls);
 - `analyze_release_readiness` — bounded DFM/DFA/DFT findings available from exported XML (supplement, not replacement, of DipTrace sign-off).
 
 See [PCB_DESIGN_ENGINE.md](PCB_DESIGN_ENGINE.md).

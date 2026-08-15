@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, TypeAlias, TypeVar, cast
 
+from .adapter_common import _component_markings_rotate
 from .adapters import DocumentSnapshot, build_snapshot, stable_id
 from .domain import ObjectRecord, QuerySelector
 from .errors import (
@@ -630,7 +631,12 @@ def _apply_rotate_texts(
         after.append({"id": record.stable_id, "rotation_deg": angle})
         if math.isclose(previous, angle, abs_tol=1e-9):
             continue
-        _set_angle_attribute(_resolved_element(snapshot, record), angle)
+        write_angle = angle
+        if record.kind == "component_text" and _component_markings_rotate(document):
+            if not record.parent_id:
+                raise EditError(f"Component text has no parent: {record.stable_id}")
+            write_angle -= snapshot.get_object(record.parent_id).rotation_deg
+        _set_angle_attribute(_resolved_element(snapshot, record), write_angle)
         changed_ids.append(record.stable_id)
         patch_count += 1
     return _operation_preview(index, operation.kind, targets, before, after, document), patch_count
@@ -1265,8 +1271,9 @@ def _board_to_component_local(
     transform = Transform(
         translate_x=parent.position["x"],
         translate_y=parent.position["y"],
-        rotation_deg=parent.rotation_deg,
-        mirror_x=parent.side == "Bottom",
+        rotation_deg=(
+            parent.rotation_deg if _component_markings_rotate(snapshot.document) else 0.0
+        ),
     )
     return transform.inverse().apply_point(board_point)
 

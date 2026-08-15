@@ -74,19 +74,315 @@ def test_printwindow_encoder_accepts_bgra_frames_over_pipe() -> None:
     assert command[command.index("-vf") + 1] == "pad=ceil(iw/2)*2:ceil(ih/2)*2"
 
 
+def test_printwindow_encoder_crops_away_editor_controls() -> None:
+    command = recording._build_printwindow_encode_command(
+        "ffmpeg.exe",
+        "demo.mp4",
+        width=100,
+        height=80,
+        fps=30,
+        crop_box=(10, 12, 90, 72),
+    )
+
+    assert command[command.index("-vf") + 1] == ("crop=80:60:10:12,pad=ceil(iw/2)*2:ceil(ih/2)*2")
+
+
 def test_printwindow_black_frame_check_ignores_alpha() -> None:
     black = bytes((0, 0, 0, 255)) * (32 * 32)
     box = (0, 8, 32, 32)
-    assert recording._frame_has_visible_client_content(
-        black, width=32, client_box=box
-    ) is False
+    assert recording._frame_has_visible_client_content(black, width=32, client_box=box) is False
     visible = bytearray(black)
     for y in range(12, 28):
         for x in range(8, 24):
             visible[(y * 32 + x) * 4] = 255
-    assert recording._frame_has_visible_client_content(
-        bytes(visible), width=32, client_box=box
-    ) is True
+    assert (
+        recording._frame_has_visible_client_content(bytes(visible), width=32, client_box=box)
+        is True
+    )
+
+
+def test_visible_content_bbox_ignores_faint_grid_and_finds_board() -> None:
+    width, height = 64, 48
+    frame = bytearray(bytes((0, 0, 0, 255)) * (width * height))
+    for y in range(0, height, 4):
+        for x in range(0, width, 4):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((24, 24, 24))
+    for y in range(12, 36):
+        for x in range(10, 50):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((80, 240, 240))
+    for x in range(width):
+        frame[(2 * width + x) * 4 : (2 * width + x) * 4 + 3] = bytes((190, 190, 190))
+    for y in range(height):
+        frame[(y * width + 2) * 4 : (y * width + 2) * 4 + 3] = bytes((190, 190, 190))
+
+    assert recording._visible_content_bbox(
+        bytes(frame), width=width, viewport=(0, 0, width, height)
+    ) == (10, 12, 50, 36)
+
+
+def test_purple_outline_bbox_finds_clipped_board_edge() -> None:
+    width, height = 64, 48
+    frame = bytearray(bytes((0, 0, 0, 255)) * (width * height))
+    purple = bytes((189, 0, 128))
+    for y in range(0, 36):
+        for x in (10, 11, 48, 49):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = purple
+    for y in (34, 35):
+        for x in range(10, 50):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = purple
+
+    assert recording._purple_outline_bbox(
+        bytes(frame), width=width, viewport=(0, 0, width, height)
+    ) == (10, 0, 50, 36)
+
+
+def test_content_is_framed_accepts_margin_and_rejects_sliver() -> None:
+    viewport = (0, 0, 1000, 800)
+
+    assert recording._content_is_framed((120, 120, 880, 680), viewport)
+    assert not recording._content_is_framed((0, 398, 1000, 402), viewport)
+
+
+@pytest.mark.parametrize(
+    ("window_title", "expected_keys"),
+    [("DipTrace PCB Layout", [("home",)]), ("DipTrace Schematic", [])],
+)
+def test_fit_content_uses_pcb_native_overview_only(
+    monkeypatch: pytest.MonkeyPatch,
+    window_title: str,
+    expected_keys: list[tuple[str, ...]],
+) -> None:
+    driver = object.__new__(HiddenMessageDesktopDriver)
+    driver.default_window = window_title
+    driver._window = lambda _title: 1
+    driver._drawing_viewport = lambda _window, width, height: (0, 0, width, height)
+    driver._target = lambda _window, _x, _y: (2, (0, 0))
+    keys: list[tuple[str, ...]] = []
+    driver._hotkey = lambda _window, value: keys.append(value)
+    monkeypatch.setattr(recording.time, "sleep", lambda _seconds: None)
+    width = height = 100
+    frame = bytearray(bytes((0, 0, 0, 255)) * (width * height))
+    if "PCB" in window_title:
+        for y in range(20, 80):
+            for x in (14, 15, 84, 85):
+                frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((189, 0, 128))
+        for y in (20, 21, 78, 79):
+            for x in range(14, 86):
+                frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((189, 0, 128))
+    else:
+        for y in range(20, 80):
+            for x in range(14, 86):
+                frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((80, 240, 240))
+
+    crop = driver.fit_content(lambda: bytes(frame), width, height)
+
+    assert keys == expected_keys
+    assert crop == (7, 14, 93, 86)
+
+
+def test_fit_content_scales_small_pcb_and_schematic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(recording.time, "sleep", lambda _seconds: None)
+
+    def pcb_frame(left: int, top: int, right: int, bottom: int) -> bytes:
+        width = height = 100
+        frame = bytearray(bytes((0, 0, 0, 255)) * (width * height))
+        purple = bytes((189, 0, 128))
+        for y in range(top, bottom):
+            for x in (left, left + 1, right - 2, right - 1):
+                frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = purple
+        for y in (top, top + 1, bottom - 2, bottom - 1):
+            for x in range(left, right):
+                frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = purple
+        return bytes(frame)
+
+    pcb = object.__new__(HiddenMessageDesktopDriver)
+    pcb.default_window = "DipTrace PCB Layout"
+    pcb._window = lambda _title: 1
+    pcb._drawing_viewport = lambda _window, width, height: (0, 0, width, height)
+    pcb._target = lambda _window, _x, _y: (2, (0, 0))
+    pcb._hotkey = lambda *_args: None
+    pcb._zoom_edit = lambda _window: 3
+    pcb._zoom_percent = lambda _edit: 100
+    pcb._scrollbars = lambda _window: {}
+    pcb._center_with_scrollbars = lambda *_args: None
+    zooms: list[int] = []
+    pcb._set_zoom = lambda _edit, value: zooms.append(value)
+    frames = iter((pcb_frame(40, 40, 60, 60), pcb_frame(20, 20, 80, 80)))
+
+    assert pcb.fit_content(lambda: next(frames), 100, 100) == (14, 14, 86, 86)
+    assert zooms == [360]
+
+    frames = iter((pcb_frame(40, 40, 60, 60), pcb_frame(0, 0, 100, 100), bytes(40_000)))
+    with pytest.raises(RuntimeError, match="overview was not restored"):
+        pcb.fit_content(lambda: next(frames), 100, 100)
+
+    schematic_frame = bytearray(bytes((0, 0, 0, 255)) * 10_000)
+    for y in range(44, 56):
+        for x in range(44, 56):
+            schematic_frame[(y * 100 + x) * 4 : (y * 100 + x) * 4 + 3] = bytes(
+                (80, 240, 240)
+            )
+    schematic = object.__new__(HiddenMessageDesktopDriver)
+    schematic.default_window = "DipTrace Schematic"
+    schematic._window = lambda _title: 1
+    schematic._drawing_viewport = lambda _window, width, height: (0, 0, width, height)
+    schematic._scrollbars = lambda _window: {}
+    schematic._zoom_edit = lambda _window: 3
+    schematic._center_with_scrollbars = lambda *_args: None
+    schematic._find_visible_bounds = lambda *_args: (44, 44, 56, 56)
+    schematic_zooms: list[int] = []
+    schematic._set_zoom = lambda _edit, value: schematic_zooms.append(value)
+
+    assert schematic.fit_content(lambda: bytes(schematic_frame), 100, 100) == (43, 43, 57, 57)
+    assert schematic_zooms == [100, 600]
+
+    schematic._find_visible_bounds = lambda *_args: None
+    with pytest.raises(RuntimeError, match="bounds were not found"):
+        schematic.fit_content(lambda: bytes(40_000), 100, 100)
+
+
+def test_hidden_driver_discovers_viewport_and_controls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    classes = {
+        1: "TPanel",
+        2: "TPanel",
+        3: "TScrollBar",
+        4: "TScrollBar",
+        5: "Edit",
+        6: "TComboBox",
+        99: "Main",
+    }
+    boxes = {
+        99: (0, 0, 100, 100),
+        1: (0, 10, 100, 100),
+        2: (0, 10, 20, 100),
+        3: (20, 90, 100, 100),
+        4: (90, 10, 100, 90),
+        5: (30, 0, 50, 10),
+    }
+
+    class User32:
+        def GetWindowRect(self, hwnd, pointer):
+            left, top, right, bottom = boxes[hwnd]
+            rect = pointer._obj
+            rect.left, rect.top, rect.right, rect.bottom = left, top, right, bottom
+            return 1
+
+        def GetDpiForWindow(self, _window):
+            return 96
+
+        def EnumChildWindows(self, _window, callback, _lparam):
+            for hwnd in (1, 2, 3, 4, 5):
+                callback(hwnd, 0)
+            return 1
+
+        def GetClassNameW(self, hwnd, value, _length):
+            value.value = classes[hwnd]
+            return len(value.value)
+
+        def GetParent(self, hwnd):
+            return 6 if hwnd == 5 else 99
+
+    monkeypatch.setattr(
+        recording.ctypes,
+        "WINFUNCTYPE",
+        lambda *_types: lambda callback: callback,
+        raising=False,
+    )
+    driver = object.__new__(HiddenMessageDesktopDriver)
+    driver.user32 = User32()
+
+    assert driver._drawing_viewport(99, 100, 100) == (24, 14, 96, 96)
+    assert len(driver._child_controls(99)) == 5
+    assert driver._scrollbars(99) == {0: 3, 1: 4}
+    assert driver._zoom_edit(99) == 5
+
+    sent: list[tuple[object, ...]] = []
+    driver._send = lambda *args: sent.append(args)
+    driver._text = lambda *args: sent.append(args)
+    driver._hotkey = lambda *args: sent.append(args)
+    driver._set_zoom(5, 125)
+    assert sent == [(5, recording._EM_SETSEL, 0, -1), (5, "125%"), (5, ("enter",))]
+
+
+def test_hidden_driver_reads_zoom_and_centers_scrollbars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(recording.time, "sleep", lambda _seconds: None)
+
+    class Message:
+        argtypes = None
+        restype = None
+        valid = True
+
+        def __call__(self, control, message, _wparam, lparam):
+            value = "125%" if self.valid and control != 5 else "bad"
+            if message == 0x000E:
+                return len(value)
+            pointer = recording.ctypes.cast(
+                lparam,
+                recording.ctypes.POINTER(recording.ctypes.c_wchar),
+            )
+            for index, character in enumerate(value + "\0"):
+                pointer[index] = character
+            return len(value)
+
+    positions = {recording._WM_HSCROLL: 0, recording._WM_VSCROLL: 0}
+    user32 = SimpleNamespace(
+        SendMessageW=Message(),
+        GetParent=lambda control: 6 if control == 5 else 99,
+        GetScrollPos=lambda scrollbar, _kind: 0,
+        SetScrollPos=lambda *_args: 1,
+    )
+    driver = object.__new__(HiddenMessageDesktopDriver)
+    driver.user32 = user32
+    assert driver._zoom_percent(5) == 125
+    user32.SendMessageW.valid = False
+    with pytest.raises(RuntimeError, match="zoom value"):
+        driver._zoom_percent(5)
+
+    sent: list[tuple[object, ...]] = []
+    driver._send = lambda *args: sent.append(args)
+    driver._set_scroll_position(10, recording._WM_HSCROLL, -2)
+    assert sent == [(99, recording._WM_HSCROLL, 4 | ((-2 & 0xFFFF) << 16), 10)]
+
+    def set_position(_scrollbar: int, message: int, position: int) -> None:
+        positions[message] = position
+
+    def bounds(_frame: bytes, **_kwargs):
+        x = positions[recording._WM_HSCROLL] * 10
+        y = positions[recording._WM_VSCROLL] * 10
+        return (10 + x, 10 + y, 30 + x, 30 + y)
+
+    driver._set_scroll_position = set_position
+    driver._center_with_scrollbars(
+        lambda: b"frame",
+        100,
+        (0, 0, 100, 100),
+        {0: 10, 1: 20},
+        bounds,
+    )
+    assert positions == {recording._WM_HSCROLL: 3, recording._WM_VSCROLL: 3}
+
+    calls = 0
+
+    def eventually_visible(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        return (1, 1, 2, 2) if calls == 3 else None
+
+    monkeypatch.setattr(recording, "_visible_content_bbox", eventually_visible)
+    assert driver._find_visible_bounds(
+        lambda: b"frame", 100, (0, 0, 100, 100), {0: 10, 1: 20}
+    ) == (1, 1, 2, 2)
+
+    monkeypatch.setattr(recording, "_visible_content_bbox", lambda *_args, **_kwargs: None)
+    assert driver._find_visible_bounds(
+        lambda: b"frame", 100, (0, 0, 100, 100), {0: 10, 1: 20}
+    ) is None
 
 
 def test_printwindow_client_check_rejects_titlebar_only() -> None:
@@ -94,9 +390,12 @@ def test_printwindow_client_check_rejects_titlebar_only() -> None:
     for pixel in range(32 * 8):
         frame[pixel * 4] = 255
 
-    assert recording._frame_has_visible_client_content(
-        bytes(frame), width=32, client_box=(0, 8, 32, 32)
-    ) is False
+    assert (
+        recording._frame_has_visible_client_content(
+            bytes(frame), width=32, client_box=(0, 8, 32, 32)
+        )
+        is False
+    )
 
 
 def test_capture_command_rejects_invalid_inputs() -> None:
@@ -110,6 +409,54 @@ def test_capture_command_rejects_invalid_inputs() -> None:
     ]:
         with pytest.raises(ValueError, match=message):
             build_windows_capture_command("demo.mp4", **kwargs)
+
+
+def test_cinematic_helpers_fail_closed_on_invalid_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for kwargs, message in [
+        ({"width": 0, "height": 10, "fps": 30}, "dimensions"),
+        ({"width": 10, "height": 10, "fps": 0}, "fps"),
+        ({"width": 10, "height": 10, "fps": 30, "crop_box": (0, 0, 11, 10)}, "crop"),
+    ]:
+        with pytest.raises(ValueError, match=message):
+            recording._build_printwindow_encode_command("ffmpeg", "demo.mp4", **kwargs)
+
+    black = bytes((0, 0, 0, 255)) * (16 * 16)
+    assert recording._visible_content_bbox(black, width=16, viewport=(0, 0, 16, 16)) is None
+    assert recording._purple_outline_bbox(black, width=16, viewport=(0, 0, 16, 16)) is None
+
+    preflight = SimpleNamespace(duration_ms=0)
+    assert recording._capture_seconds(
+        {"cues": [None, {"event": None}]}, preflight, 0.0
+    ) == 1.0
+
+    invalid = tmp_path / "invalid.json"
+    invalid.write_text("{", encoding="utf-8")
+    with pytest.raises(ValueError, match="cannot read"):
+        recording._read_manifest(invalid)
+    invalid.write_text("[]", encoding="utf-8")
+    with pytest.raises(ValueError, match="root"):
+        recording._read_manifest(invalid)
+
+    monotonic = iter((0.0, 0.0))
+    monkeypatch.setattr(recording.time, "monotonic", lambda: next(monotonic))
+    monkeypatch.setattr(recording, "_find_window_handle_for_pid", lambda *_args: 7)
+    assert recording._wait_for_window(SimpleNamespace(), 1, "DipTrace", 1.0) == 7
+
+    driver = object.__new__(HiddenMessageDesktopDriver)
+    driver.user32 = SimpleNamespace(GetWindowRect=lambda *_args: 0)
+    assert driver._drawing_viewport(1, 100, 80) == (0, 0, 100, 80)
+    driver._child_controls = lambda _window: []
+    with pytest.raises(RuntimeError, match="zoom field"):
+        driver._zoom_edit(1)
+    driver.user32 = SimpleNamespace(
+        SetScrollPos=lambda *_args: 1,
+        GetParent=lambda _scrollbar: 0,
+    )
+    with pytest.raises(RuntimeError, match="no parent"):
+        driver._set_scroll_position(1, recording._WM_HSCROLL, 0)
 
 
 def test_recording_cli_print_command_is_platform_independent(capsys) -> None:
@@ -286,11 +633,16 @@ def test_capture_seconds_includes_manifest_timing_and_command_pause(tmp_path: Pa
     cues = manifest["cues"]
     assert isinstance(cues, list)
     event = cues[0]["event"]
-    event["payload"]["desktop"]["pause_ms"] = 250
+    desktop = event["payload"]["desktop"]
+    desktop.pop("move_to")
+    desktop["pause_ms"] = 250
+    desktop["path"] = [[0.1, 0.1], [0.2, 0.2]]
     preflight = recording.preflight_cinematic_manifest(manifest)
     seconds = recording._capture_seconds(manifest, preflight, 0.5)
     assert seconds >= 1.0
-    assert seconds >= preflight.duration_ms / 1000 + 0.75
+    assert seconds >= (
+        preflight.duration_ms / 1000 + 0.75 + 2 * recording._PATH_POINT_PAUSE_SECONDS
+    )
 
 
 def test_headless_validation_rejects_overwrite_and_missing_inputs(
@@ -455,6 +807,13 @@ def test_hidden_capture_records_resolved_window_with_printwindow(
     monkeypatch.setattr(recording, "_record_printwindow_video", record)
     monkeypatch.setattr(recording, "play_manifest", lambda *_args: None)
     monkeypatch.setattr(
+        recording,
+        "HiddenMessageDesktopDriver",
+        lambda **_kwargs: SimpleNamespace(
+            fit_content=lambda *_args: None,
+        ),
+    )
+    monkeypatch.setattr(
         recording.ctypes,
         "windll",
         SimpleNamespace(user32=user32),
@@ -471,6 +830,7 @@ def test_hidden_capture_records_resolved_window_with_printwindow(
     assert result.ffmpeg_pid == 11
     assert captured["hwnd"] == 0xCAFE
     assert captured["user32"] is user32
+    assert callable(captured["prepare"])
 
 
 def test_window_lookup_filters_pid_and_title(monkeypatch: pytest.MonkeyPatch) -> None:

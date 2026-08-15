@@ -16,7 +16,7 @@ from diptrace_mcp.manual_acceptance import (
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=Path)
-    parser.add_argument("--version", default="0.2.1")
+    parser.add_argument("--version", default="0.3.0")
     parser.add_argument("--commit", default="0" * 40)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()

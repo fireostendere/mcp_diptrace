@@ -10,6 +10,31 @@ The higher-level generations remain internal engines; the bounded read-only ense
 
 See [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md) for the cross-domain implementation map.
 
+## Default authoring policy
+
+The repository's bounded PCB generators apply these defaults unless explicit
+electrical, mechanical, DRC, datasheet, or manufacturing constraints require a
+different result:
+
+- prefer the smallest simple compatible footprint for an otherwise unspecified
+  standard 2.54 mm connector;
+- derive a compact outline from occupied component geometry and sane edge
+  margin, center the layout, and preserve useful symmetry;
+- on an ordinary two-layer board, keep signals and positive power on Top, keep
+  Bottom effectively continuous GND, and also pour GND on Top;
+- distribute GND stitching vias through every usable region rather than
+  satisfying only a via-count target;
+- use four-spoke thermal reliefs for soldered connector GND pads;
+- keep silkscreen readable and close to its component without entering another
+  component's mounting area or overlapping pads, holes, or vias. Crossing a
+  solder-masked copper trace is allowed.
+
+`pattern_recommendation.py` implements the compact-footprint preference as a
+deterministic area tie-break after compatibility score. `silkscreen.py` avoids
+component bodies by default and can hide assembly-only markings while preserving
+visible silk. These are bounded package helpers, not replacements for a
+footprint datasheet or final DFM review.
+
 ## Architecture
 
 ```text
@@ -59,6 +84,18 @@ Analytical impedance remains preliminary. Current density, voltage drop, via cur
 Observed-route checks report pass/fail/unknown according to available evidence. Missing constraints stay unknown rather than being fabricated.
 
 Strategies involving native poured/plane copper remain subject to real DipTrace refill/geometry evidence before acceptance.
+
+### Copper pours and stitching
+
+`copper_pours.py` can add one full-board pour per requested copper layer, assign
+the explicit net, request four-spoke thermal behavior and place deterministic
+GND stitching vias on a bounded grid after excluding board edges and known
+component/pad/hole/trace/via/keepout/silkscreen obstacles.
+
+The helper owns requested pour boundaries and via placement only. `Poured="Y"`
+and thermal attributes are intent for DipTrace; authoritative refill regions,
+cutouts, islands and spoke geometry remain native-host facts and still require
+DipTrace refill/inspection when those claims matter.
 
 ## Generation D — hard-first whole-board comparison
 
@@ -135,6 +172,12 @@ Automated coverage now includes:
 - reuse of the exact existing Generation-D selection key;
 - deterministic profile deduplication;
 - DSN/SES structural/importability analysis.
+- compact compatible-pattern tie-breaking;
+- two-layer GND-pour assignment, four-spoke thermal attributes and distributed
+  stitching-via generation;
+- silkscreen obstacle handling and assembly-marking suppression;
+- the repository 25×12 mm I²C level-shifter PCB generator and staged media
+  inputs.
 
 Repository CI is authoritative. Synthetic tests do not transfer PASS status to a newer real DipTrace candidate by inference.
 
@@ -152,3 +195,9 @@ The PCB design engine does not currently claim:
 - globally optimal placement/routing.
 
 Real-DipTrace whole-board product-quality acceptance remains appropriate before stronger claims about current A-D candidate quality, native refill, planes or via structures are made.
+
+The repository I²C level-shifter PCB and its board-framed MP4/GIF were visually
+accepted by the operator in the current DipTrace configuration on 2026-08-16.
+That closes presentation acceptance for this example only; it does not promote
+the generic A-D engines or stored copper boundary into authoritative native
+refill/manufacturing proof.

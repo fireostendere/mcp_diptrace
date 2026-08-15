@@ -1,6 +1,9 @@
-# Post-0.2.1 development changes
+# 0.3.0 candidate changes
 
-This development record tracks changes merged after the immutable `v0.2.1` release while the next version has not yet been selected. The source/package version remains `0.2.1`; these items are **not** part of the published `v0.2.1` artifacts unless stated otherwise.
+This development record tracks changes after the immutable `v0.2.1` release.
+Version `0.3.0` is selected as the next unsigned development-prerelease
+candidate but is not published yet; these items are **not** part of the
+published `v0.2.1` artifacts.
 
 ## Added
 
@@ -33,6 +36,14 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 - **Generation D:** bounded whole-board candidate selector with lexicographically dominant hard constraints, decomposed soft metrics and a synthetic engineering-trap benchmark catalog;
 - bounded A-D candidate ensemble generation using multiple real Generation-A placement profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline, with B/C conservative evidence proxies and the existing hard-first Generation-D selector;
 - public MCP tool `compare_pcb_placement_candidates` exposing that ensemble as a read-only comparison.
+- deterministic smallest-area preference between otherwise equally compatible
+  patterns, making compact standard 2.54 mm connectors the default;
+- package-level `copper_pours.py` helper for explicit-net Top/Bottom pour
+  boundaries, four-spoke thermal intent and bounded distributed GND stitching;
+- silkscreen body avoidance enabled by default, hidden-marking filtering and
+  assembly-only label suppression;
+- compact symmetric 25×12 mm I²C level-shifter PCB example with 14 traces, two
+  GND pours and 14 stitching vias.
 
 ### DSN/SES and XML analysis
 
@@ -65,6 +76,10 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 - cinematic manifest preflight with deterministic content fingerprint, timing consistency checks and explicit cue/payload/desktop-command/path/text/hotkey safety budgets.
 - isolated hidden-desktop capture of the real DipTrace project window through `PrintWindow`/bounded `WM_PRINT` BGRA frames piped to ffmpeg, with black/title-bar-only rejection;
 - repository I²C level-shifter source plus MP4/GIF demonstration with one-at-a-time symbol and net reveal.
+- PCB/Schematic design-boundary fitting, purple board-outline detection,
+  control-free crop selection, output padding and one-point-at-a-time route
+  timing;
+- matching PCB source plus board-framed MP4/GIF demonstration.
 
 Cinematic replay is deliberately a presentation path. The XML bridge and normal preview/SHA/transaction/review path remain authoritative for engineering edits and acceptance.
 
@@ -102,6 +117,8 @@ The headless worker is a host-automation boundary, not a second semantic authori
 - Documentation distinguishes current implementation state from immutable release/audit/acceptance snapshots.
 - Installation/release documentation reflects that `v0.2.1` and `diptrace-mcp==0.2.1` are already published; current source hardens the next Windows packaging line without rewriting immutable `v0.2.1` assets.
 - Testing documentation reflects the combined 90% coverage gate and the separate 85% Linux-only floor.
+- The operator accepted the current repository PCB/Schematic designs and both
+  GIF/MP4 examples in the current DipTrace configuration on 2026-08-16.
 
 ## Fixed
 
@@ -122,7 +139,8 @@ The headless worker is a host-automation boundary, not a second semantic authori
 - stronger sheet-level/global schematic congestion scheduling and external/reference motif ingestion remain future work;
 - the completed 18-case schematic campaign supports its tested scope only; new schematic claims such as hierarchy, topology-preserving reroute or automatic rotation/pin-facing behavior still require claim-specific evidence;
 - PCB candidate/whole-board quality remains subject to current-candidate real-DipTrace/native refill/plane/via acceptance where stronger claims are desired;
-- cinematic UI macros and calibration still require real-client verification for the exact DipTrace version/editor configuration;
+- cinematic UI macros and calibration for additional DipTrace
+  version/editor configurations require their own real-client verification;
 - staged cinematic playback of vias/layer transitions remains unsupported;
 - the 12-gate manual matrix is complete for its recorded checkpoints; future Windows/client reruns are impact- or release-claim-based rather than automatically replaying the full matrix;
 - the library mutation request/preview contract remains package-level and unregistered in the public MCP tool snapshot;

@@ -138,6 +138,14 @@ The internal PCB design engine adds higher-level engineering judgement; bounded 
 
 These layers preserve unknown physical facts and do not turn approximate analysis into field-solver/PI/EMC/thermal/manufacturing sign-off. See [PCB_DESIGN_ENGINE.md](PCB_DESIGN_ENGINE.md).
 
+Package-level PCB authoring helpers also provide the repository defaults used
+by the I²C example: smallest-area tie-breaking for equally compatible 2.54 mm
+connectors, compact/symmetric placement, Top/Bottom GND-pour intent, bounded
+distributed stitching vias, four-spoke connector thermals, and silkscreen
+placement that avoids component mounting space, pads, holes and vias. These
+defaults yield to explicit datasheet, DRC, mechanical and manufacturing rules.
+DipTrace still owns authoritative native refill geometry.
+
 ## DSN/SES and XML analysis
 
 `specctra_analysis.py` can inspect bounded DSN/SES structure and route geometry before mutation, including unknown nets/layers and the routes that the current SES import path would import or skip.
@@ -230,7 +238,17 @@ python -m diptrace_mcp.cinematic_recording headless-capture capture `
   --gif "C:\work\demo.gif"
 ```
 
-Hidden capture clears validated output paths before launch, rejects black/title-bar-only frames, and bounds GIF post-processing. PCB trace replay fails closed for via/layer transitions until explicit staged macros exist.
+Hidden capture clears validated output paths before launch, rejects
+black/title-bar-only frames, and bounds GIF post-processing. Before recording,
+it fits PCB content to the complete purple board outline or Schematic content to
+the visible design boundary, preserves about 10% output margin and excludes
+editor controls. PCB trace replay fails closed for via/layer transitions until
+explicit staged macros exist.
+
+The repository contains operator-accepted Schematic and PCB examples:
+
+- [schematic GIF](../i2c-level-shifter-demo.gif) / [MP4](../i2c-level-shifter-demo.mp4);
+- [PCB GIF](../i2c-level-shifter-pcb-demo.gif) / [MP4](../i2c-level-shifter-pcb-demo.mp4).
 
 See [CINEMATIC_DEMO_MODE.md](CINEMATIC_DEMO_MODE.md).
 

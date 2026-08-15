@@ -116,6 +116,21 @@ python -m diptrace_mcp.cinematic_cli ffmpeg raw-demo.mp4 demo --preset cinematic
 
 The visible recorder resolves a title substring to a real HWND and uses Windows ffmpeg `gdigrab`.
 
+## Design-boundary framing
+
+Hidden capture prepares a stable drawing crop before recording:
+
+- PCB capture detects the purple board outline, uses DipTrace's native overview,
+  keeps the complete outline visible and adds about 10% output margin;
+- Schematic capture uses the equivalent visible-design bounds;
+- editor toolbars, side panels and status controls are excluded from the
+  returned recording crop;
+- path vertices receive a short fixed pause so routes appear one point at a
+  time instead of materializing as one machine-fast gesture.
+
+If the complete design boundary cannot be found or disappears while fitting,
+capture fails instead of silently recording a cropped or control-heavy frame.
+
 ## Hidden Win32 desktop capture
 
 The packaged headless helper can run DipTrace and deterministic replay on a separate hidden `WinSta0` desktop. The operator's normal input desktop remains available while the recording is produced.
@@ -162,11 +177,23 @@ For safety, hidden replay currently accepts normalized click/path commands, text
 
 `ffmpeg` must be available on `PATH` for recording/GIF conversion. The helper does not upload frames or send screenshots to a model; MP4/GIF generation is local.
 
-## Repository example
+## Repository examples
+
+### Schematic
 
 [![I2C level-shifter assembly](../i2c-level-shifter-demo.gif)](../i2c-level-shifter-demo.mp4)
 
 The repository example opens [`i2c-level-shifter.dchxml`](../i2c-level-shifter.dchxml) in real DipTrace Schematic. Sixteen symbols appear one at a time, then six nets are added one at a time. Its MP4 is 1280×720 at 30 FPS; the GIF is 960×540 at 18 FPS. This is exact-host evidence only.
+
+### PCB
+
+[![I2C level-shifter PCB](../i2c-level-shifter-pcb-demo.gif)](../i2c-level-shifter-pcb-demo.mp4)
+
+The matching [`i2c-level-shifter-pcb.dipxml`](../i2c-level-shifter-pcb.dipxml)
+shows eight components followed by 14 traces in a human construction order. The
+25×12 mm board remains completely visible with margin around its purple outline;
+the recording excludes editor controls. The operator accepted both repository
+GIF/MP4 examples in the current DipTrace configuration on 2026-08-16.
 
 ## Safety/evidence boundary
 
@@ -194,13 +221,13 @@ Implemented and regression-tested:
 - content fingerprint and mandatory manifest safety preflight;
 - visible HWND recording and MP4/GIF helper commands;
 - hidden `WinSta0` cinematic orchestration with real-window `PrintWindow`/`WM_PRINT` capture piped to ffmpeg;
+- design-boundary fitting and UI-free crop selection for PCB and Schematic;
+- purple-outline detection with output padding for complete-board framing;
 - bounded hidden message replay that does not use global physical-input APIs;
 - stale-output cleanup and bounded GIF post-processing;
 - packaged-helper startup smoke for the cinematic subcommand.
 
-Still requires real-client evidence:
+Still requires real-client evidence beyond the accepted repository examples:
 
-- verified macros for the exact DipTrace PCB/Schematic configuration used for a recording;
-- end-to-end calibration against the real open document;
 - repeat capture evidence for additional Windows/DipTrace configurations beyond the validated host;
 - staged via/layer-transition and other unverified editor gestures.

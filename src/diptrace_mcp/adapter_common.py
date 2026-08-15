@@ -55,6 +55,9 @@ def _pin_stable_id(document: DipTraceDocument, parent_id: str, pin_index: str) -
     return stable_id("pin", document.source_type, parent_id, pin_index)
 def _bool_attr(element: ET.Element, name: str, default: str = "N") -> bool:
     return element.get(name, default).upper() == "Y"
+def _component_markings_rotate(document: DipTraceDocument) -> bool:
+    value = document.container.findtext("./Settings/Markings/CompRotate")
+    return (value or "N").strip().upper() == "Y"
 def _float_attr(
     document: DipTraceDocument,
     element: ET.Element,

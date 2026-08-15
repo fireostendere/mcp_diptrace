@@ -82,8 +82,18 @@ Coverage includes:
 - Generation-D hard-rule dominance and deterministic ranking;
 - multiple real bounded Generation-A placement profiles feeding the existing Generation-D selector;
 - existing-board baseline and profile deduplication.
+- smallest-area tie-breaking between equally compatible patterns;
+- Top/Bottom explicit-net pour assignment and four-spoke thermal attributes;
+- bounded distributed GND stitching after obstacle/edge exclusion;
+- silkscreen body avoidance, hidden-marking filtering and assembly-label
+  suppression.
 
 Generation B/C SI/PI/thermal/EMI terms remain conservative proxies in tests. Synthetic benchmark success does not become native-DipTrace acceptance.
+
+The generated 25×12 mm I²C PCB, schematic and their repository GIF/MP4 outputs
+were additionally inspected by the operator in the current DipTrace
+configuration on 2026-08-16. That manual result is scoped to those examples and
+does not replace native refill, DRC or manufacturing validation.
 
 ## DSN/SES analysis tests
 
@@ -143,8 +153,13 @@ Coverage includes timeline/presets, UI profile persistence/calibration, semantic
 - cue count/index/timing consistency;
 - payload-size budgets;
 - desktop command/path/text/hotkey bounds.
+- purple PCB-outline and visible schematic-content detection;
+- complete-design framing with padding and rejection of clipped/sliver bounds;
+- capture-duration accounting for one-point-at-a-time route replay.
 
-These tests do not prove that a real DipTrace toolbar/profile macro is correct. Exact UI acceptance remains manual/client-specific evidence.
+These tests do not prove that a real DipTrace toolbar/profile macro is correct.
+The current repository PCB/Schematic recordings have operator acceptance;
+additional UI profiles remain manual/client-specific evidence.
 
 ## Evidence classes
 
