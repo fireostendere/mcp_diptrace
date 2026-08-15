@@ -36,6 +36,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
+          ref: "${{ github.event_name == 'workflow_dispatch' && inputs.publish && 'v0.3.0' || github.sha }}"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
@@ -60,17 +61,13 @@ jobs:
           PY
 
           if [[ "${PUBLISH_REQUESTED}" == "true" ]]; then
-            if [[ "${GITHUB_REF}" != "refs/tags/${RELEASE_TAG}" ]]; then
-              echo "Publication requires dispatching this workflow from ${RELEASE_TAG}." >&2
-              exit 1
-            fi
             git fetch --tags --force
             if [[ "$(git cat-file -t "${RELEASE_TAG}")" != "tag" ]]; then
               echo "${RELEASE_TAG} must be an annotated tag." >&2
               exit 1
             fi
-            if [[ "$(git rev-list -n 1 "${RELEASE_TAG}")" != "${GITHUB_SHA}" ]]; then
-              echo "Workflow SHA does not match the annotated tag target." >&2
+            if [[ "$(git rev-list -n 1 "${RELEASE_TAG}")" != "$(git rev-parse HEAD)" ]]; then
+              echo "Checked-out source does not match the annotated tag target." >&2
               exit 1
             fi
           fi
@@ -122,6 +119,6 @@ jobs:
         with:
           name: pypi-distributions
           path: dist
-      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           packages-dir: dist

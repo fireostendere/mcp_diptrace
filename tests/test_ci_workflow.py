@@ -142,11 +142,15 @@ def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
 
     build = jobs["build"]
     build_commands = _job_commands(build)
+    assert build["steps"][0]["with"]["ref"] == (
+        "${{ github.event_name == 'workflow_dispatch' && inputs.publish "
+        "&& 'v0.3.0' || github.sha }}"
+    )
     assert "python -m hatchling build -d dist" in build_commands
     assert "audit_release_artifacts.py --dist-dir dist --check-allowlist" in build_commands
     assert "python -m twine check --strict dist/*" in build_commands
-    assert "refs/tags/${RELEASE_TAG}" in build_commands
     assert "git cat-file -t" in build_commands
+    assert "git rev-parse HEAD" in build_commands
     assert "diptrace_mcp.__version__" in build_commands
 
     publish = jobs["publish"]
@@ -161,7 +165,7 @@ def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
     assert publish["permissions"] == {"contents": "read", "id-token": "write"}
     assert len(publish["steps"]) == 2
     assert publish["steps"][1]["uses"] == (
-        "pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b"
+        "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
     )
     assert "password:" not in workflow_text
     assert "username:" not in workflow_text
