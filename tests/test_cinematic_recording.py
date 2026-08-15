@@ -16,6 +16,7 @@ from diptrace_mcp.cinematic_recording import (
     build_windows_capture_command,
     main,
 )
+from diptrace_mcp.headless_gui import HeadlessGuiError
 
 
 def test_window_capture_command_targets_arbitrary_window() -> None:
@@ -197,7 +198,6 @@ def test_headless_request_and_result_json_contract(tmp_path: Path) -> None:
     )
     assert request.editor == "pcb"
     assert HeadlessCinematicRequest.from_json(request.as_json()) == request
-
     result = HeadlessCinematicResult(
         True,
         "hidden",
@@ -265,13 +265,13 @@ def test_headless_validation_rejects_overwrite_and_missing_inputs(
         lambda _root: SimpleNamespace(root=root),
     )
     request = HeadlessCinematicRequest(root, project, manifest, project, "pcb")
-    with pytest.raises(recording.HeadlessGuiError, match="overwrite"):
+    with pytest.raises(HeadlessGuiError, match="overwrite"):
         recording._validate_headless_request(request)
 
     missing = HeadlessCinematicRequest(
         root, tmp_path / "missing.dip", manifest, tmp_path / "demo.mp4", "pcb"
     )
-    with pytest.raises(recording.HeadlessGuiError, match="project file"):
+    with pytest.raises(HeadlessGuiError, match="project file"):
         recording._validate_headless_request(missing)
 
 
@@ -446,12 +446,12 @@ def test_run_headless_cinematic_guards_platform_and_elevation(
         "pcb",
     )
     monkeypatch.setattr(recording.os, "name", "posix")
-    with pytest.raises(recording.HeadlessGuiError, match="only on Windows"):
+    with pytest.raises(HeadlessGuiError, match="only on Windows"):
         recording.run_headless_cinematic(request)
 
     monkeypatch.setattr(recording.os, "name", "nt")
-    monkeypatch.setattr(recording, "process_is_elevated", lambda: True)
-    with pytest.raises(recording.HeadlessGuiError, match="must not be elevated"):
+    monkeypatch.setattr(recording.hg, "process_is_elevated", lambda: True)
+    with pytest.raises(HeadlessGuiError, match="must not be elevated"):
         recording.run_headless_cinematic(request)
 
 
