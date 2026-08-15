@@ -64,7 +64,7 @@ Do not expose the HTTP transport as a general remote network service unless the 
 
 ## Discover capabilities first
 
-The public MCP contract contains **165 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
+The public MCP contract contains **167 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
 
 Call `get_capabilities` before assuming that a particular write or adapter path is available.
 
@@ -128,7 +128,7 @@ See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
 ## PCB Generations A-D
 
-The internal PCB design engine adds higher-level engineering judgement; bounded read-only candidate comparison is productized as `compare_pcb_placement_candidates` within the 165-tool MCP surface:
+The internal PCB design engine adds higher-level engineering judgement; bounded read-only candidate comparison is productized as `compare_pcb_placement_candidates` within the 167-tool MCP surface:
 
 - Generation A: intent/net intelligence and intent-aware placement;
 - Generation B: physical/stackup/PDN/return-path/noise/via context;
@@ -236,9 +236,24 @@ See [CINEMATIC_DEMO_MODE.md](CINEMATIC_DEMO_MODE.md).
 
 ## Component/Pattern Library boundary
 
+`query_builtin_library_catalog` pages through the installed DipTrace SQLite
+catalog in immutable/read-only mode. Use `kind=library` to browse libraries,
+`kind=component` or `kind=pattern` to browse items, and pass `query` to search.
+Results include a stable `catalog_id`; for example, searching `BSS138` returns
+the installed ON Semiconductor variants.
+
+`place_builtin_component` accepts that component `catalog_id`, a RefDes and
+schematic coordinates. On first use it headlessly asks Component Editor for the
+official `.elixml` representation, verifies that the native `.eli` SHA is
+unchanged, caches the XML, then copies only the selected definition into the
+schematic's private Design Cache. The schematic write still defaults to
+`dry_run=true` and requires the normal preview/expected-SHA commit. Install the
+`headless-gui` extra on Windows for first-use export. Native `.eli`/`.lib` files
+are never writable through these tools.
+
 `library_mutation.py` is the internal raw-preserving mutation core with controlled real-editor round-trip evidence. `library_mutation_api.py` adds an expected-SHA in-memory package-level request/preview contract.
 
-That package API is deliberately **not a public MCP tool**: `public_registration=False`, so the public surface stays at 165 tools. Public registration remains a separate API/product/evidence decision.
+That package API is deliberately **not a public MCP tool**: `public_registration=False`. The two public built-in-catalog tools above are a separate read/copy bridge and do not expose native-library mutation.
 
 ## Evidence capture and reports
 

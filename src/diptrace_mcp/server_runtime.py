@@ -182,6 +182,19 @@ def create_server(
         return service.scan_pattern_libraries(root, recursive)
 
     @mcp.tool()
+    def query_builtin_library_catalog(
+        diptrace_root: str | None = None,
+        kind: Literal["component", "pattern", "library"] = "component",
+        query: str | None = None,
+        offset: int = 0,
+        limit: Annotated[int, Field(ge=1, le=500)] = 100,
+    ) -> dict[str, Any]:
+        """Browse or search the installed DipTrace catalog without modifying native libraries."""
+        return service.query_builtin_library_catalog(
+            diptrace_root, kind, query, offset, limit
+        )
+
+    @mcp.tool()
     def query_library_items(
         path: str,
         query: str | None = None,
@@ -1025,6 +1038,35 @@ def create_server(
             dry_run=dry_run,
             expected_sha256=expected_sha256,
             txid=txid,
+        )
+
+    @mcp.tool()
+    def place_builtin_component(
+        component: str,
+        refdes: str,
+        x: float,
+        y: float,
+        value: str | None = None,
+        sheet: int = 0,
+        angle_deg: float = 0.0,
+        path: str | None = None,
+        diptrace_root: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+    ) -> dict[str, Any]:
+        """Find an installed component by catalog id/name and place a private schematic copy."""
+        return service.place_builtin_component(
+            component,
+            refdes,
+            x,
+            y,
+            value=value,
+            sheet=sheet,
+            angle_deg=angle_deg,
+            path=path,
+            diptrace_root=diptrace_root,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
         )
 
     @mcp.tool()

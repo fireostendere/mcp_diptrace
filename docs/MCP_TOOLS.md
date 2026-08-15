@@ -2,7 +2,7 @@
 
 ## Public contract
 
-DipTrace MCP currently exposes **165 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
+DipTrace MCP currently exposes **167 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
 
 `reference/mcp-tools-list.snapshot.json`
 
@@ -10,8 +10,8 @@ CI regenerates that snapshot through the public in-memory MCP transport and fail
 
 The service contract currently contains:
 
-- 157 public `DipTraceService` methods;
-- 148 explicit Facade-to-domain-service delegations.
+- 159 public `DipTraceService` methods;
+- 150 explicit Facade-to-domain-service delegations.
 
 Internal EDA modules added after `v0.2.1` intentionally do **not** create one public MCP tool per heuristic.
 
@@ -20,7 +20,8 @@ Internal EDA modules added after `v0.2.1` intentionally do **not** create one pu
 The exact names and schemas are in the generated snapshot. Conceptually the public tools cover:
 
 - document discovery/open/read/query;
-- PCB, schematic, Component Library and Pattern Library inspection;
+- PCB, schematic, Component Library and Pattern Library inspection, including
+  read-only installed-catalog search and guarded schematic placement;
 - connectivity, BOM, component/library metadata;
 - DRC/ERC/review/comparison;
 - placement, silkscreen and bounded routing workflows;
@@ -32,7 +33,7 @@ The exact names and schemas are in the generated snapshot. Conceptually the publ
 - bounded external jobs/adapters;
 - release/readiness and other project-owned analysis helpers.
 
-Use MCP introspection rather than copying a manually maintained 165-item list into application code or documentation.
+Use MCP introspection rather than copying a manually maintained 167-item list into application code or documentation.
 
 ## Tool availability
 

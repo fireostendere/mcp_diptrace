@@ -9,7 +9,7 @@ DipTrace MCP is intentionally split into four concerns:
 3. internal EDA intelligence that generates/scores proposals without bypassing safety boundaries;
 4. optional Windows presentation automation for visible replay or isolated hidden capture.
 
-The public MCP surface currently registers **165 tools**; it was intentionally expanded from the earlier frozen 159 to expose bounded EDA intelligence engines as products.
+The public MCP surface currently registers **167 tools**: 165 existing tools plus the read-only built-in-library query and guarded schematic-placement bridge.
 
 ## End-to-end structure
 
@@ -78,7 +78,7 @@ Cinematic replay is presentation automation. It is not a replacement for the gua
 
 Current public contract:
 
-- 165 registered tools.
+- 167 registered tools.
 
 `reference/mcp-tools-list.snapshot.json` and CI guard that surface. New internal heuristics and package-level APIs do not automatically become new tools; public registration is an intentional contract decision.
 
@@ -148,9 +148,16 @@ These analyzers are review/evidence tools; they do not grant compatibility or mu
 
 ## Component and Pattern Library mutation
 
+`services/builtin_library.py` reads DipTrace's installed `compat.db` with SQLite
+`mode=ro&immutable=1`. A selected native `.eli` is converted by Component Editor
+to cached XML on an isolated desktop; SHA evidence proves the source library was
+unchanged. Placement renames private style IDs, converts geometry units when
+needed, and imports only the selected definitions into the schematic Design
+Cache through the existing semantic transaction compiler.
+
 `library_mutation.py` remains the raw-preserving internal Component/Pattern writer core with controlled real-editor evidence.
 
-`library_mutation_api.py` adds a stable expected-SHA package-level request/preview contract around that core. It is intentionally **not registered as a public MCP tool** (`public_registration=False`), so this work does not expand the current 165-tool contract. A future MCP registration requires an intentional API/product decision, snapshot update and claim-specific acceptance rather than happening incidentally.
+`library_mutation_api.py` adds a stable expected-SHA package-level request/preview contract around that core. It is intentionally **not registered as a public MCP tool** (`public_registration=False`); the 167-tool public contract still exposes no native-library write path.
 
 ## Evidence pipeline
 

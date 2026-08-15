@@ -1,8 +1,8 @@
 {
-  "canonical_descriptor_bytes": 148118,
-  "canonical_descriptor_sha256": "582789457e3afb09bee235d60ed76c57b74e2728cf95d7408a9970de7a998b0a",
+  "canonical_descriptor_bytes": 150194,
+  "canonical_descriptor_sha256": "54e8a7443a1a4d23da98f66d1f2f6ab845785624ef3ce879319e73b4c5ff6ed9",
   "format_version": 1,
-  "tool_count": 165,
+  "tool_count": 167,
   "tools": [
     {
       "description": "Abandon stale local session state without applying its working XML.",
@@ -5286,6 +5286,106 @@
       }
     },
     {
+      "description": "Find an installed component by catalog id/name and place a private schematic copy. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
+      "inputSchema": {
+        "properties": {
+          "angle_deg": {
+            "default": 0.0,
+            "title": "Angle Deg",
+            "type": "number"
+          },
+          "component": {
+            "title": "Component",
+            "type": "string"
+          },
+          "diptrace_root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Diptrace Root"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "expected_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Sha256"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          },
+          "refdes": {
+            "title": "Refdes",
+            "type": "string"
+          },
+          "sheet": {
+            "default": 0,
+            "title": "Sheet",
+            "type": "integer"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value"
+          },
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "component",
+          "refdes",
+          "x",
+          "y"
+        ],
+        "title": "place_builtin_componentArguments",
+        "type": "object"
+      },
+      "name": "place_builtin_component",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "place_builtin_componentDictOutput",
+        "type": "object"
+      }
+    },
+    {
       "description": "Place a new schematic part referencing a library ComponentStyle. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
       "inputSchema": {
         "properties": {
@@ -5984,6 +6084,67 @@
       "outputSchema": {
         "additionalProperties": true,
         "title": "preview_transactionDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Browse or search the installed DipTrace catalog without modifying native libraries.",
+      "inputSchema": {
+        "properties": {
+          "diptrace_root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Diptrace Root"
+          },
+          "kind": {
+            "default": "component",
+            "enum": [
+              "component",
+              "pattern",
+              "library"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "limit": {
+            "default": 100,
+            "maximum": 500,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Query"
+          }
+        },
+        "title": "query_builtin_library_catalogArguments",
+        "type": "object"
+      },
+      "name": "query_builtin_library_catalog",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "query_builtin_library_catalogDictOutput",
         "type": "object"
       }
     },

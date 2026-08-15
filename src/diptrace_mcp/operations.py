@@ -469,6 +469,28 @@ class PlacePartOperation(SemanticOperation):
     part_refdes: str | None = Field(default=None, max_length=256)
     part_name: str | None = Field(default=None, max_length=1_000)
     allow_shared_refdes: bool = False
+    library_component_xml: str | None = None
+    library_pattern_xml: list[str] = Field(default_factory=list, max_length=256)
+    library_pad_style_xml: list[str] = Field(default_factory=list, max_length=256)
+
+    @model_validator(mode="after")
+    def validate_library_definitions(self) -> PlacePartOperation:
+        definitions = [
+            *([self.library_component_xml] if self.library_component_xml else []),
+            *self.library_pattern_xml,
+            *self.library_pad_style_xml,
+        ]
+        if self.library_component_xml is None and definitions:
+            raise ValueError("library patterns require a component definition")
+        if sum(len(item) for item in definitions) > 8 * 1024 * 1024:
+            raise ValueError("embedded component definitions exceed 8 MiB")
+        for definition in definitions:
+            reject_forbidden_xml_declarations(
+                definition,
+                error_type=ValueError,
+                context="fragment",
+            )
+        return self
 
 
 class PcbSyncComponent(StrictModel):

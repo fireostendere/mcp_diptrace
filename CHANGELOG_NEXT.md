@@ -4,6 +4,13 @@ This development record tracks changes merged after the immutable `v0.2.1` relea
 
 ## Added
 
+### Read-only built-in library bridge
+
+- public `query_builtin_library_catalog` browsing/search over DipTrace's immutable installed catalog;
+- public `place_builtin_component` for guarded copy-only placement from a returned catalog ID into a schematic Design Cache;
+- isolated Component Editor `.eli` to `.elixml` export with source-SHA preservation, cache reuse, unit conversion and real-DipTrace BSS138 open/save validation;
+- no public mutation path for native `.eli` or `.lib` files.
+
 ### Schematic intelligence
 
 - deterministic schematic design-intent model with functional blocks and provenance-bearing reference motifs;
@@ -84,7 +91,7 @@ The headless worker is a host-automation boundary, not a second semantic authori
 
 ## Changed
 
-- The public MCP contract was intentionally expanded from the frozen 159 to 165 tools to productize bounded intelligence engines; package-level library mutation registration remains intentionally unregistered and the contract snapshot/regeneration gate was updated in the same change.
+- The public MCP contract was intentionally expanded from the frozen 159 to 165 tools for bounded intelligence engines, then to 167 for the read-only built-in-library bridge; package-level native-library mutation remains intentionally unregistered.
 - Existing-wired schematics no longer represent a fundamental placement dead-end: affected explicit wire geometry can now be selectively replanned as one atomic semantic transaction batch. The older conservative placement planners may still refuse existing wires when used directly.
 - The initial real-DipTrace schematic quality campaign is complete: cases 01–18 closed with retained failed/invalid attempts, targeted fixes, operator visual review and native Save/Close/Reopen/re-export evidence. PR #90 merged the bounded fixes into `main`.
 - PCB Generation D can now compare multiple internally generated bounded placement candidates rather than only caller-supplied synthetic examples.

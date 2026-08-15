@@ -247,7 +247,7 @@ Historical dated release/acceptance/audit records remain excluded from current-s
 
 # Public contracts
 
-- 165 registered MCP tools (intentionally expanded from 159 to productize bounded EDA intelligence engines);
+- 167 registered MCP tools (165 existing tools plus the read-only built-in-library bridge);
 - stable structured error envelope;
 - server-owned worker-thread boundary;
 - SHA/policy/backup/atomic-write/session-lease/trust/transaction boundaries.

@@ -287,6 +287,7 @@ src/diptrace_mcp/server_runtime.py
 src/diptrace_mcp/service.py
 src/diptrace_mcp/services/__init__.py
 src/diptrace_mcp/services/bom.py
+src/diptrace_mcp/services/builtin_library.py
 src/diptrace_mcp/services/container.py
 src/diptrace_mcp/services/context.py
 src/diptrace_mcp/services/discovery.py
@@ -355,6 +356,7 @@ tests/test_badges.py
 tests/test_bounded_payloads.py
 tests/test_bridge.py
 tests/test_bridge_edge_coverage.py
+tests/test_builtin_library.py
 tests/test_capability_parity.py
 tests/test_capture_diptrace_evidence.py
 tests/test_check_coverage.py

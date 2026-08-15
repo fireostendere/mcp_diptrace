@@ -283,7 +283,7 @@ def test_every_registered_tool_has_all_boundary_layers(tmp_path: Path) -> None:
     server = create_server(_settings(tmp_path / "registry-state"))
     tools = server._tool_manager._tools
 
-    assert len(tools) == 165
+    assert len(tools) == 167
     for tool in tools.values():
         assert getattr(tool.fn, "__diptrace_mcp_error_boundary__", False), tool.name
         assert getattr(
