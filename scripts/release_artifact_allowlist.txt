@@ -140,6 +140,7 @@ scripts/audit_reference_materials.py
 scripts/audit_release_artifacts.py
 scripts/audit_windows_bundle.py
 scripts/build_evidence_report.py
+scripts/build_i2c_level_shifter_pcb.py
 scripts/build_mcpb.py
 scripts/build_windows_configurator.ps1
 scripts/build_windows_installer.ps1
@@ -251,6 +252,7 @@ src/diptrace_mcp/multirouter.py
 src/diptrace_mcp/numeric_inputs.py
 src/diptrace_mcp/operations.py
 src/diptrace_mcp/pattern_recommendation.py
+src/diptrace_mcp/pcb_autorouter.py
 src/diptrace_mcp/pcb_candidate_ensemble.py
 src/diptrace_mcp/pcb_design_intent.py
 src/diptrace_mcp/pcb_joint_optimizer.py
@@ -421,6 +423,7 @@ tests/test_openems.py
 tests/test_operation_schema.py
 tests/test_pattern_recommendation.py
 tests/test_pattern_validation.py
+tests/test_pcb_autorouter.py
 tests/test_pcb_candidate_ensemble.py
 tests/test_pcb_design_engine.py
 tests/test_pcb_joint_optimizer.py
@@ -483,6 +486,7 @@ tests/test_spec_inventory_integrity.py
 tests/test_specctra.py
 tests/test_specctra_analysis.py
 tests/test_store_identifiers.py
+tests/test_sync_initial_placement.py
 tests/test_synthetic_fixture_pack.py
 tests/test_transaction_recovery.py
 tests/test_trust_model.py

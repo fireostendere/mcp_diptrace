@@ -21,7 +21,7 @@ from .operations import AddTraceOperation, DeleteTraceOperation, SemanticOperati
 from .routing import (
     RouteConnectionConfig,
     resolve_route_clearance,
-    synthesize_route,
+    synthesize_route_min_vias,
 )
 from .semantic_compiler import apply_semantic_operations
 from .xml_document import DipTraceDocument
@@ -96,7 +96,7 @@ def _route_one(
 ) -> tuple[DipTraceDocument, AddTraceOperation, str, dict[str, Any]]:
     snapshot = build_snapshot(document)
     before_ids = _trace_ids(document)
-    result = synthesize_route(snapshot, config)
+    result = synthesize_route_min_vias(snapshot, config)
     updated = _apply(document, [result.operation])
     new_ids = _trace_ids(updated) - before_ids
     if len(new_ids) != 1:
@@ -195,6 +195,7 @@ def _routing_priority(
         ),
     )
     score_terms = {
+        "engineering_priority": config.routing_priority / 10.0,
         "obstacle_count": len(obstacles) * 10.0,
         "corridor_occupancy": occupancy * 5.0,
         "detour_constraint": (1.0 / config.max_detour) * 3.0,
@@ -376,6 +377,8 @@ def synthesize_routes_with_retry(
             "routed_count": len(routed),
             "failed_count": len(still_failed),
             "ripup_count": len(ripups),
+            "total_via_count": sum(int(item.metrics.get("via_count", 0)) for item in routed),
+            "total_length_mm": sum(float(item.metrics.get("length_mm", 0.0)) for item in routed),
             "routed": [
                 {
                     "index": item.index,

@@ -1,0 +1,1364 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Source Type="DipTrace-Schematic" Version="5.3.0.3" Units="inch">
+<Library Type="DipTrace-ComponentLibrary" Units="inch">
+<Library Type="DipTrace-PatternLibrary" Units="inch">
+<PadStyles>
+<PadStyle Name="PadT0" Type="Surface">
+<MainStack Shape="Rectangle" Width="0.022835" Height="0.022835" Corner="25.8621" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0.003543" Y="0" Angle="0" Width="0.009843" Height="0.019685" Corner="0" />
+</Terminals>
+</PadStyle>
+<PadStyle Name="PadT1" Type="Through" HoleType="Round" Hole="0.028005">
+<MainStack Shape="Ellipse" Width="0.05" Height="0.05" XOff="0" YOff="0" />
+</PadStyle>
+<PadStyle Name="PadT2" Type="Surface">
+<MainStack Shape="Rectangle" Width="0.023622" Height="0.022835" Corner="25.8621" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0.003543" Y="0" Angle="0" Width="0.009843" Height="0.019685" Corner="0" />
+</Terminals>
+</PadStyle>
+<PadStyle Name="C52895_PAD" Type="Surface" Side="Top">
+        <MainStack Shape="Rectangle" Width="0.042126" Height="0.023622" XOff="0" YOff="0" />
+      </PadStyle><PadStyle Name="PadT3" Type="Through" HoleType="Round" Hole="0.04252">
+<MainStack Shape="Obround" Width="0.06378" Height="0.06378" XOff="0" YOff="0" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.025" Height="0.025" Corner="0" />
+</Terminals>
+</PadStyle><PadStyle Name="PadT4" Type="Through" HoleType="Round" Hole="0.04252">
+<MainStack Shape="Rectangle" Width="0.06378" Height="0.06378" XOff="0" YOff="0" Corner="0" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.025" Height="0.025" Corner="0" />
+</Terminals>
+</PadStyle></PadStyles>
+<Patterns>
+<Pattern PatternStyle="PatType0" Id="0" Mounting="SMD" Width="0.071654" Height="0.034646" Orientation="0" LockTypeChange="Y" Type="IPC-7351" Float1="0" Float2="0" Float3="0" Int1="1" Int2="0">
+<Name>CAPC100X50X55L25N_AD3</Name>
+<Name_Description>Capacitor, Non-Polarized, Chip, 1mm body length x 0.5mm body width x 0.55mm height, 0.25mm lead length, nominal density, alternative duplicate 3</Name_Description>
+<Name_Unique>FH_0402(1005)</Name_Unique>
+<Manufacturer>FH(Guangdong Fenghua Advanced Tech)</Manufacturer>
+<Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<RecoveryCode Generator="Y" Model="Y">[Y;Chip;1;N;Y;1;0;0;Y;Y;Y;Y;101;Default;|1;;;0.55;;;0.95;1;1.05;0.05;-0.05;0.45;0.5;0.55;0.05;-0.05;0.15;0.25;0.35;0.1;-0.1;;;;;;0.35;0.58;0.58;0.58|0;|;;;;;;;;;0.5;0.5;0.5|||||;;;1|||||||||4934475;15461355;4079359;Y]</RecoveryCode>
+<DefPad Style="PadT0" />
+<Pads>
+<Pad Id="1" Style="PadT0" X="-0.018307" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>1</Number>
+</Pad>
+<Pad Id="2" Style="PadT0" X="0.018307" Y="0" Angle="3.141593" Locked="N" Side="Top">
+<Number>2</Number>
+</Pad>
+</Pads>
+<Shapes>
+<Shape Id="1" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.019685" Y="0.009843" />
+<Point X="0.019685" Y="-0.009843" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Rectangle" Locked="N" Layer="Top Assy" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.020866" Y="0.011024" />
+<Point X="0.020866" Y="-0.011024" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.035827" Y="0.017323" />
+<Point X="0.035827" Y="-0.017323" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="mm" IPC_XOff="0" IPC_YOff="0" AutoHeight="0.021654" AutoColor="4934475" Type="IPC-7351" KeepPins="N">
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0" Y="0" Z="-0.001969" />
+<Zoom X="1" Y="1" Z="1" />
+</Model3D>
+</Pattern>
+<Pattern PatternStyle="PatType1" Id="1" Mounting="Through" Width="0.225" Height="0.24996" Orientation="270" LockTypeChange="Y" Type="Free" Float1="0" Float2="0" Float3="0" Int1="0" Int2="0">
+<Name>LED100</Name>
+<Category Index="0">
+<Name>Sensors &amp; LED</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="0">T- 1 3/4</Type>
+</CategoryType>
+<CategoryType>
+<Type Index="1">Top View</Type>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Origin X="-0.012507" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<DefPad Style="PadT1" />
+<Shapes>
+<Shape Id="1" Type="Line" Locked="N" Layer="Top Silk" AllLayers="N">
+<Points>
+<Point X="-0.1125" Y="-0.074938" />
+<Point X="-0.1125" Y="0.074938" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Arc" Locked="N" Layer="Top Silk" AllLayers="N">
+<Points>
+<Point X="-0.112276" Y="-0.075238" />
+<Point X="0.1125" Y="0" />
+<Point X="-0.112276" Y="0.075238" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="Wings" IPC_XOff="0" IPC_YOff="0" AutoHeight="0" AutoColor="4934475" Type="File" KeepPins="N">
+<Filename>
+<Path>led100.wrl</Path>
+<Var>led100.wrl</Var>
+</Filename>
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0.008" Y="0" Z="0" />
+<Zoom X="1" Y="1" Z="1" />
+</Model3D>
+</Pattern>
+<Pattern PatternStyle="PatType2" Id="2" Mounting="SMD" Width="0.07244" Height="0.034646" Orientation="0" LockTypeChange="Y" Type="IPC-7351" Float1="0" Float2="0" Float3="0" Int1="1" Int2="0">
+<Name>RESC100X50X40L25N_AD1</Name>
+<Name_Description>Resistor, Chip, 1mm body length x 0.5mm body width x 0.4mm height, 0.25mm lead length, nominal density, alternative duplicate 1</Name_Description>
+<Name_Unique>UNI-ROYAL_0402</Name_Unique>
+<Manufacturer>UNI-ROYAL(Uniroyal Elec)</Manufacturer>
+<Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<RecoveryCode Generator="Y" Model="Y">[Y;Chip;1;N;Y;1;0;0;Y;Y;Y;Y;101;Default;|10;;;0.4;;;0.9;1;1.1;0.1;-0.1;0.45;0.5;0.55;0.05;-0.05;0.15;0.25;0.35;0.1;-0.1;;;;;;0.33;0.6;0.58;0.6|0;|;;;;;;;;;0.5;0.5;0.5|||||;;;1|||||||||4934475;15461355;4079359;Y]</RecoveryCode>
+<DefPad Style="PadT2" />
+<Pads>
+<Pad Id="1" Style="PadT2" X="-0.018307" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>1</Number>
+</Pad>
+<Pad Id="2" Style="PadT2" X="0.018307" Y="0" Angle="3.141593" Locked="N" Side="Top">
+<Number>2</Number>
+</Pad>
+</Pads>
+<Shapes>
+<Shape Id="1" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.019685" Y="0.009843" />
+<Point X="0.019685" Y="-0.009843" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Rectangle" Locked="N" Layer="Top Assy" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.021654" Y="0.011024" />
+<Point X="0.021654" Y="-0.011024" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.03622" Y="0.017323" />
+<Point X="0.03622" Y="-0.017323" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="mm" IPC_XOff="0" IPC_YOff="0" AutoHeight="0.015748" AutoColor="4934475" Type="IPC-7351" KeepPins="N">
+<Filename>
+<Path>led100.wrl</Path>
+<Var>led100.wrl</Var>
+</Filename>
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0" Y="0" Z="-0.001969" />
+<Zoom X="1" Y="1" Z="1" />
+</Model3D>
+</Pattern>
+<Pattern PatternStyle="PatType3" Id="3" Mounting="SMD" Width="0.07244" Height="0.034646" Orientation="0" LockTypeChange="Y" Type="IPC-7351" Float1="0" Float2="0" Float3="0" Int1="1" Int2="0">
+<Name>RESC100X50X40L25N_AD1</Name>
+<Name_Description>Resistor, Chip, 1mm body length x 0.5mm body width x 0.4mm height, 0.25mm lead length, nominal density, alternative duplicate 1</Name_Description>
+<Name_Unique>UNI-ROYAL_0402</Name_Unique>
+<Manufacturer>UNI-ROYAL(Uniroyal Elec)</Manufacturer>
+<Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<RecoveryCode Generator="Y" Model="Y">[Y;Chip;1;N;Y;1;0;0;Y;Y;Y;Y;101;Default;|10;;;0.4;;;0.9;1;1.1;0.1;-0.1;0.45;0.5;0.55;0.05;-0.05;0.15;0.25;0.35;0.1;-0.1;;;;;;0.33;0.6;0.58;0.6|0;|;;;;;;;;;0.5;0.5;0.5|||||;;;1|||||||||4934475;15461355;4079359;Y]</RecoveryCode>
+<DefPad Style="PadT2" />
+<Pads>
+<Pad Id="1" Style="PadT2" X="-0.018307" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>1</Number>
+</Pad>
+<Pad Id="2" Style="PadT2" X="0.018307" Y="0" Angle="3.141593" Locked="N" Side="Top">
+<Number>2</Number>
+</Pad>
+</Pads>
+<Shapes>
+<Shape Id="1" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.019685" Y="0.009843" />
+<Point X="0.019685" Y="-0.009843" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Rectangle" Locked="N" Layer="Top Assy" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.021654" Y="0.011024" />
+<Point X="0.021654" Y="-0.011024" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.03622" Y="0.017323" />
+<Point X="0.03622" Y="-0.017323" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="mm" IPC_XOff="0" IPC_YOff="0" AutoHeight="0.015748" AutoColor="4934475" Type="IPC-7351" KeepPins="N">
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0" Y="0" Z="-0.001969" />
+<Zoom X="1" Y="1" Z="1" />
+</Model3D>
+</Pattern>
+<Pattern PatternStyle="PatType99" Id="99" RefDes="Q" Mounting="Surface" Width="0.14" Height="0.14" Orientation="0" LockTypeChange="Y" Type="Free" Float1="0" Float2="0" Float3="0" Int1="0" Int2="0">
+        <Name>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Name>
+        <Name_Unique>EasyEDA_b3b82869fa924bae820e3a6cfb44d689</Name_Unique>
+        <Value>BSS138</Value>
+        <Manufacturer>onsemi</Manufacturer>
+        <Datasheet>https://www.onsemi.com/pdf/datasheet/bss138-d.pdf</Datasheet>
+        <Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+        <DefPad Style="C52895_PAD" />
+        <Pads>
+          <Pad Id="0" Style="C52895_PAD" X="0.048625" Y="-0.037400" Angle="0" Locked="N" Side="Top">
+            <Number>1</Number>
+            <Note />
+          </Pad>
+          <Pad Id="1" Style="C52895_PAD" X="0.048625" Y="0.037400" Angle="0" Locked="N" Side="Top">
+            <Number>2</Number>
+            <Note />
+          </Pad>
+          <Pad Id="2" Style="C52895_PAD" X="-0.048625" Y="0.000000" Angle="0" Locked="N" Side="Top">
+            <Number>3</Number>
+            <Note />
+          </Pad>
+        </Pads>
+        <Shapes>
+          <Shape Id="0" Type="Polyline" LineWidth="0.006000" Locked="N" Layer="Top Silk" AllLayers="N">
+            <Points>
+              <Point X="0.034491" Y="0.060480" />
+              <Point X="-0.034501" Y="0.060480" />
+              <Point X="-0.034501" Y="0.019472" />
+            </Points>
+          </Shape>
+          <Shape Id="1" Type="Polyline" LineWidth="0.006000" Locked="N" Layer="Top Silk" AllLayers="N">
+            <Points>
+              <Point X="0.034491" Y="-0.060480" />
+              <Point X="-0.034501" Y="-0.060480" />
+              <Point X="-0.034501" Y="-0.019472" />
+            </Points>
+          </Shape>
+          <Shape Id="2" Type="Polyline" LineWidth="0.006000" Locked="N" Layer="Top Silk" AllLayers="N">
+            <Points>
+              <Point X="0.034491" Y="0.017929" />
+              <Point X="0.034491" Y="-0.017929" />
+            </Points>
+          </Shape>
+        </Shapes>
+      </Pattern><Pattern PatternStyle="PatType100" Id="100" Mounting="Through" Width="0.439509" Height="0.520748" Orientation="0" LockTypeChange="Y" Type="IPC-7351" Float1="0" Float2="0" Float3="0" Int1="1" Int2="0">
+<Name>HDRRA4W66P254_4X1_1016X508H490_AL1</Name>
+<Name_Description>Header, Right Angle, Non-Shrouded, 4 pin, 0.66mm lead width, 2.54mm in column pitch, 4 columns x 1 rows, 10.16mm body length x 5.08mm body width, 4.902mm height, alternative layer 1</Name_Description>
+<Name_Unique>TE_640453-4</Name_Unique>
+<Manufacturer>TE Connectivity</Manufacturer>
+<Category Index="42">
+<Name>Con Rectangular</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="0">''''''1 Row</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="18">''Horizontal</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="21">'Male</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="12">''''Pitch 2.54mm</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="2">'Headers</Type>
+<SubType Index="17">'''Unshrouded</SubType>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Origin X="-0.140621" Y="0.1475" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<RecoveryCode Generator="N" Model="N">[N;Header (Right Angle, Non-Shrouded);1;N;Y;0;0;0;Y;Y;Y;Y;101;Default;|0;0;0;1;4;1;2.54;;0;0.609;0.635;0.66;0.025;-0.025;10.033;10.16;10.287;0.127;-0.127;4.902;4.902;4.902;0;0;4.826;5.08;5.334;0.254;-0.254;;0;;;;7.239;7.493;7.747;0.254;-0.254;1.08;1.62|0;|;;;;0.5||||||||||||||4934475;15461355;16119285;N]</RecoveryCode>
+<DefPad Style="PadT3" />
+<Pads>
+<Pad Id="1" Style="PadT4" X="-0.140621" Y="0.1475" Angle="3.141593" Locked="N" Side="Top">
+<Number>1</Number>
+</Pad>
+<Pad Id="2" Style="PadT3" X="-0.040621" Y="0.1475" Angle="3.141593" Locked="N" Side="Top">
+<Number>2</Number>
+</Pad>
+<Pad Id="3" Style="PadT3" X="0.059379" Y="0.1475" Angle="3.141593" Locked="N" Side="Top">
+<Number>3</Number>
+</Pad>
+<Pad Id="4" Style="PadT3" X="0.159379" Y="0.1475" Angle="3.141593" Locked="N" Side="Top">
+<Number>4</Number>
+</Pad>
+</Pads>
+<Shapes>
+<Shape Id="1" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.193121" Y="0.2525" />
+<Point X="0.211881" Y="0.0425" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.200995" Y="0.260374" />
+<Point X="0.219755" Y="-0.260374" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Line" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.140621" Y="0.0425" />
+<Point X="-0.140621" Y="-0.2525" />
+</Points>
+</Shape>
+<Shape Id="4" Type="Line" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.040621" Y="0.0425" />
+<Point X="-0.040621" Y="-0.2525" />
+</Points>
+</Shape>
+<Shape Id="5" Type="Line" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="0.059381" Y="0.0425" />
+<Point X="0.059379" Y="-0.2525" />
+</Points>
+</Shape>
+<Shape Id="6" Type="Line" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="0.159379" Y="0.0425" />
+<Point X="0.159379" Y="-0.2525" />
+</Points>
+</Shape>
+<Shape Id="7" Type="FillObround" Locked="N" Layer="Top Silk" LineWidth="0" AllLayers="N">
+<Points>
+<Point X="-0.219755" Y="0.157343" />
+<Point X="-0.20007" Y="0.137657" />
+</Points>
+</Shape>
+<Shape Id="8" Type="Polyline" Locked="N" Layer="Top Assy" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.192982" Y="0.042382" />
+<Point X="-0.192982" Y="0.213248" />
+<Point X="-0.153612" Y="0.252618" />
+<Point X="0.211741" Y="0.252618" />
+<Point X="0.211741" Y="0.042382" />
+<Point X="-0.192982" Y="0.042382" />
+</Points>
+</Shape>
+<Shape Id="9" Type="Rectangle" Locked="N" Layer="Top Silk" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.193121" Y="0.2525" />
+<Point X="0.211881" Y="0.0425" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="mm" IPC_XOff="0.009379" IPC_YOff="0.1475" AutoHeight="0.192992" AutoColor="4934475" Type="File" KeepPins="N">
+<Filename>
+<Path>hdr-1x4th_2.54_10x13.step</Path>
+<Var>hdr-1x4th_2.54_10x13.step</Var>
+</Filename>
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0.15" Y="0" Z="0.07874" />
+<Zoom X="1" Y="1" Z="1" />
+</Model3D>
+</Pattern></Patterns>
+</Library>
+<Categories>
+<Category Index="0">
+<Name>Symbols</Name>
+<Types>
+<Type Index="0">
+<Name>Net Ports</Name>
+<SubTypes />
+</Type>
+</Types>
+</Category>
+</Categories>
+<Components>
+<Component ComponentStyle="CompType0" Id="0">
+<Part Id="0" RefDes="NetPort" PartType="Net Port" ShowNumbers="Hide" Type="Free" Int1="0" Int2="0" Width="0.3" Height="0.1" LockTypeChange="Y">
+<Name>Port_In3</Name>
+<PartName>Part 1</PartName>
+<Origin X="0" Y="0" />
+<SpiceModel Type="SubCkt" />
+<Category Index="0">
+<Name>Symbols</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="0">Net Ports</Type>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Pins>
+<Pin Id="0" X="0.15" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="-1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>1</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Polyline" LineWidth="0.009843">
+<Points>
+<Point X="-0.15" Y="-0.05" />
+<Point X="0.1" Y="-0.05" />
+<Point X="0.15" Y="0" />
+<Point X="0.1" Y="0.05" />
+<Point X="-0.15" Y="0.05" />
+<Point X="-0.15" Y="-0.05" />
+</Points>
+</Shape>
+</Shapes>
+</Part>
+</Component>
+<Component ComponentStyle="CompType1" Id="1">
+<Part Id="0" RefDes="PS" PartType="Net Port" ShowNumbers="Hide" Type="Free" Int1="0" Int2="0" Width="0.2" Height="0.1" LockTypeChange="Y">
+<Name>Port_In2</Name>
+<PartName>Part 1</PartName>
+<LibPath>
+<Path>C:\Program Files\DipTrace\Lib\auto_net_ports.eli</Path>
+<Var>%standardlibs%\auto_net_ports.eli</Var>
+</LibPath>
+<Origin X="0" Y="0" />
+<SpiceModel Type="SubCkt" />
+<Category Index="0">
+<Name>Symbols</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="0">Net Ports</Type>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Pins>
+<Pin Id="0" X="0.1" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="-1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>1</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Polyline" LineWidth="0.009843">
+<Points>
+<Point X="0.1" Y="0" />
+<Point X="0.05" Y="0.05" />
+<Point X="-0.1" Y="0.05" />
+<Point X="-0.1" Y="-0.05" />
+<Point X="0.05" Y="-0.05" />
+<Point X="0.1" Y="0" />
+</Points>
+</Shape>
+</Shapes>
+</Part>
+</Component>
+<Component ComponentStyle="CompType2" Id="2">
+<Part Id="0" RefDes="C" PartType="Normal" Type="Free" Int1="0" Int2="0" Width="0.1" Height="0.15" LockTypeChange="Y">
+<Pattern Style="PatType0" />
+<Name>0402B104K160NT</Name>
+<PartName>Part 1</PartName>
+<LibPath>
+<Path>C:\Program Files\DipTrace\Lib\cap_ceramic_smd.eli</Path>
+<Var>%standardlibs%\cap_ceramic_smd.eli</Var>
+</LibPath>
+<Origin X="0" Y="0" />
+<Datasheet>http://datasheets.diptrace.com/fh/0603F104M500NT_and_series.pdf</Datasheet>
+<SpiceModel Type="SubCkt" />
+<Manufacturer>FH(Guangdong Fenghua Advanced Tech)</Manufacturer>
+<Pins>
+<Pin Id="0" X="-0.05" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="0" PadId="1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>1</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+<Pin Id="1" X="0.05" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="2" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>2</Name>
+<PadNumber>2</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.019252" Y="-0.075" />
+<Point X="-0.019252" Y="0.075" />
+</Points>
+</Shape>
+<Shape Id="1" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="0.019252" Y="-0.075" />
+<Point X="0.019252" Y="0.075" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="0.019252" Y="0" />
+<Point X="0.05" Y="0" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.05" Y="0" />
+<Point X="-0.019252" Y="0" />
+</Points>
+</Shape>
+</Shapes>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>FH_0402(1005)</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text>C41851</Text>
+</AddField>
+</AddFields>
+</Part>
+</Component>
+<Component ComponentStyle="CompType3" Id="3">
+<Part Id="0" PartType="Normal" Type="Free" Int1="0" Int2="0" Width="0.03937" Height="0.03937" LockTypeChange="Y">
+<Name>---Capacitors Ceramic SMD---</Name>
+<PartName>Part 1</PartName>
+<LibPath>
+<Path>C:\Program Files\DipTrace\Lib\y_basic_parts_jlcpcb.eli</Path>
+<Var>%standardlibs%\y_basic_parts_jlcpcb.eli</Var>
+</LibPath>
+<Origin X="0" Y="0" />
+<SpiceModel Type="SubCkt" />
+<Pins />
+<Shapes />
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text />
+</AddField>
+</AddFields>
+</Part>
+</Component>
+<Component ComponentStyle="CompType4" Id="4">
+<Part Id="0" RefDes="PS" PartType="Net Port" ShowNumbers="Hide" Type="Free" Int1="0" Int2="0" Width="0.3" Height="0.1" LockTypeChange="Y">
+<Pattern Style="PatType1" />
+<Name>Port_Out3</Name>
+<PartName>Part 1</PartName>
+<LibPath>
+<Path>C:\Program Files\DipTrace\Lib\auto_net_ports.eli</Path>
+<Var>%standardlibs%\auto_net_ports.eli</Var>
+</LibPath>
+<Origin X="0" Y="0" />
+<SpiceModel Type="SubCkt" />
+<Category Index="0">
+<Name>Symbols</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="0">Net Ports</Type>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Pins>
+<Pin Id="0" X="-0.15" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="0" PadId="-1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>1</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Polyline" LineWidth="0.009843">
+<Points>
+<Point X="-0.15" Y="-0.05" />
+<Point X="0.1" Y="-0.05" />
+<Point X="0.15" Y="0" />
+<Point X="0.1" Y="0.05" />
+<Point X="-0.15" Y="0.05" />
+<Point X="-0.15" Y="-0.05" />
+</Points>
+</Shape>
+</Shapes>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>LED100</Text>
+</AddField>
+</AddFields>
+</Part>
+</Component>
+<Component ComponentStyle="CompType5" Id="5">
+<Part Id="0" RefDes="PS" PartType="Net Port" ShowNumbers="Hide" Type="Free" Int1="0" Int2="0" Width="0.2" Height="0.1" LockTypeChange="Y">
+<Name>Port_Out2</Name>
+<PartName>Part 1</PartName>
+<LibPath>
+<Path>C:\Program Files\DipTrace\Lib\auto_net_ports.eli</Path>
+<Var>%standardlibs%\auto_net_ports.eli</Var>
+</LibPath>
+<Origin X="0" Y="0" />
+<SpiceModel Type="SubCkt" />
+<Category Index="0">
+<Name>Symbols</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="0">Net Ports</Type>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Pins>
+<Pin Id="0" X="-0.1" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="0" PadId="-1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>1</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Polyline" LineWidth="0.009843">
+<Points>
+<Point X="0.1" Y="0" />
+<Point X="0.05" Y="0.05" />
+<Point X="-0.1" Y="0.05" />
+<Point X="-0.1" Y="-0.05" />
+<Point X="0.05" Y="-0.05" />
+<Point X="0.1" Y="0" />
+</Points>
+</Shape>
+</Shapes>
+</Part>
+</Component>
+<Component ComponentStyle="CompType6" Id="6">
+<Part Id="0" RefDes="PS" PartType="Net Port" ShowNumbers="Hide" Type="Free" Int1="0" Int2="0" Width="0.15" Height="0.08" LockTypeChange="Y">
+<Name>GND</Name>
+<PartName>Part 1</PartName>
+<LibPath>
+<Path>C:\Program Files\DipTrace\Lib\auto_net_ports.eli</Path>
+<Var>%standardlibs%\auto_net_ports.eli</Var>
+</LibPath>
+<Origin X="0" Y="0" />
+<SpiceModel Type="SubCkt" />
+<Category Index="0">
+<Name>Symbols</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="0">Net Ports</Type>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Pins>
+<Pin Id="0" X="0" Y="0.04" Locked="N" Type="Default" ElectricType="Power" Orientation="90" PadId="-1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>GND</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.075" Y="0.04" />
+<Point X="0.075" Y="0.04" />
+</Points>
+</Shape>
+<Shape Id="1" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.05" Y="0" />
+<Point X="0.05" Y="0" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.02" Y="-0.04" />
+<Point X="0.02" Y="-0.04" />
+</Points>
+</Shape>
+</Shapes>
+</Part>
+</Component>
+<Component ComponentStyle="CompType7" Id="7">
+<Part Id="0" RefDes="R" PartType="Normal" ShowNumbers="Hide" Type="Free" Int1="0" Int2="0" Width="0.3" Height="0.1" LockTypeChange="Y">
+<Pattern Style="PatType2" />
+<Name>0402WGF1002TCE</Name>
+<PartName>Part 1</PartName>
+<Value>10k</Value>
+<LibPath>
+<Path>C:\Program Files\DipTrace\Lib\auto_net_ports.eli</Path>
+<Var>%standardlibs%\auto_net_ports.eli</Var>
+</LibPath>
+<Origin X="0" Y="0" />
+<Datasheet>http://datasheets.diptrace.com/uni-royal/0805W8F3303T5E_and_series.pdf</Datasheet>
+<SpiceModel Type="SubCkt" />
+<Manufacturer>UNI-ROYAL(Uniroyal Elec)</Manufacturer>
+<Pins>
+<Pin Id="0" X="0.15" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="2" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>2</Name>
+<PadNumber>2</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+<Pin Id="1" X="-0.15" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="0" PadId="1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>1</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="0.125" Y="-0.05" />
+<Point X="0.15" Y="0" />
+</Points>
+</Shape>
+<Shape Id="1" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="0.075" Y="0.05" />
+<Point X="0.125" Y="-0.05" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="0.025" Y="-0.05" />
+<Point X="0.075" Y="0.05" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="0.05" />
+<Point X="0.025" Y="-0.05" />
+</Points>
+</Shape>
+<Shape Id="4" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.075" Y="-0.05" />
+<Point X="-0.025" Y="0.05" />
+</Points>
+</Shape>
+<Shape Id="5" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.125" Y="0.05" />
+<Point X="-0.075" Y="-0.05" />
+</Points>
+</Shape>
+<Shape Id="6" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.15" Y="0" />
+<Point X="-0.125" Y="0.05" />
+</Points>
+</Shape>
+</Shapes>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>UNI-ROYAL_0402</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text>C25744</Text>
+</AddField>
+</AddFields>
+</Part>
+</Component>
+<Component ComponentStyle="CompType8" Id="8">
+<Part Id="0" RefDes="PS" PartType="Net Port" ShowNumbers="Hide" Type="Free" Int1="0" Int2="0" Width="0.2" Height="0.03937" LockTypeChange="Y">
+<Pattern Style="PatType3" />
+<Name>VCC</Name>
+<PartName>Part 1</PartName>
+<LibPath>
+<Path>C:\Program Files\DipTrace\Lib\auto_net_ports.eli</Path>
+<Var>%standardlibs%\auto_net_ports.eli</Var>
+</LibPath>
+<Origin X="0" Y="0" />
+<Datasheet>http://datasheets.diptrace.com/uni-royal/0805W8F3303T5E_and_series.pdf</Datasheet>
+<SpiceModel Type="SubCkt" />
+<Category Index="0">
+<Name>Symbols</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="0">Net Ports</Type>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Pins>
+<Pin Id="0" X="0" Y="0" Locked="N" Type="Default" ElectricType="Power" Orientation="270" PadId="-1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>VCC</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.1" Y="0" />
+<Point X="0.1" Y="0" />
+</Points>
+</Shape>
+</Shapes>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>UNI-ROYAL_0402</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text>C25744</Text>
+</AddField>
+</AddFields>
+</Part>
+</Component>
+<Component ComponentStyle="CompType9" Id="9">
+<Part Id="0" RefDes="NetPort" PartType="Net Port" ShowNumbers="Hide" Type="Free" Int1="0" Int2="0" Width="0.2" Height="0.03937" LockTypeChange="Y">
+<Pattern Style="PatType3" />
+<Name>VCC</Name>
+<PartName>Part 1</PartName>
+<Origin X="0" Y="0" />
+<Datasheet>http://datasheets.diptrace.com/uni-royal/0805W8F3303T5E_and_series.pdf</Datasheet>
+<SpiceModel Type="SubCkt" />
+<Category Index="0">
+<Name>Symbols</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="0">Net Ports</Type>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Pins>
+<Pin Id="0" X="0" Y="0" Locked="N" Type="Default" ElectricType="Power" Orientation="270" PadId="1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>VCC</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.1" Y="0" />
+<Point X="0.1" Y="0" />
+</Points>
+</Shape>
+</Shapes>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>UNI-ROYAL_0402</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text>C25744</Text>
+</AddField>
+</AddFields>
+</Part>
+</Component>
+<Component ComponentStyle="CompType99" Id="99">
+      <Part Id="0" RefDes="Q" PartType="Normal" Type="Free" Int1="0" Int2="0" Width="0.4" Height="0.4" LockTypeChange="Y" ShowNumbers="Show">
+        <Pattern Style="PatType99" />
+        <Name>BSS138</Name>
+        <PartName>Part 1</PartName>
+        <Value>BSS138</Value>
+        <Origin X="0" Y="0" />
+        <SpiceModel Type="SubCkt" />
+        <Manufacturer>onsemi</Manufacturer>
+        <Datasheet>https://www.onsemi.com/pdf/datasheet/bss138-d.pdf</Datasheet>
+        <AddFields>
+          <AddField Type="Text">
+            <Name>MPN</Name>
+            <Text>BSS138</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>LCSC</Name>
+            <Text>C52895</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>Package</Name>
+            <Text>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>EasyEDA Symbol UUID</Name>
+            <Text>1d638380c6a74ae0b0aab17a51b21d35</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>EasyEDA Footprint UUID</Name>
+            <Text>b3b82869fa924bae820e3a6cfb44d689</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>EasyEDA 3D UUID</Name>
+            <Text>7c3db6199fa840ee9a913d70da71e002</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>Source</Name>
+            <Text>Official LCSC/EasyEDA ready model</Text>
+          </AddField>
+        </AddFields>
+        <Pins>
+          <Pin Id="0" X="0.000000" Y="0.200000" Locked="N" Type="Default" ElectricType="Passive" Orientation="90" PadId="0" Length="0.1" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>G</Name>
+            <PadNumber>1</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="1" X="-0.100000" Y="-0.000000" Locked="N" Type="Default" ElectricType="Passive" Orientation="0" PadId="1" Length="0.1" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>S</Name>
+            <PadNumber>2</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="2" X="0.100000" Y="-0.000000" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="2" Length="0.1" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>D</Name>
+            <PadNumber>3</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+        </Pins>
+        <Shapes>
+          <Shape Id="0" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="0.020000" Y="-0.100000" />
+              <Point X="-0.030000" Y="-0.130000" />
+              <Point X="-0.030000" Y="-0.070000" />
+              <Point X="0.020000" Y="-0.100000" />
+            </Points>
+          </Shape>
+          <Shape Id="1" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="0.000000" Y="0.100000" />
+              <Point X="0.020000" Y="0.040000" />
+              <Point X="-0.020000" Y="0.040000" />
+              <Point X="0.000000" Y="0.100000" />
+            </Points>
+          </Shape>
+          <Shape Id="2" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="0.070000" Y="0.100000" />
+              <Point X="0.070000" Y="-0.000000" />
+              <Point X="0.100000" Y="-0.000000" />
+              <Point X="0.100000" Y="-0.100000" />
+              <Point X="0.020000" Y="-0.100000" />
+            </Points>
+          </Shape>
+          <Shape Id="3" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="0.000000" Y="0.100000" />
+              <Point X="0.000000" Y="-0.000000" />
+              <Point X="-0.100000" Y="-0.000000" />
+              <Point X="-0.100000" Y="-0.100000" />
+              <Point X="-0.030000" Y="-0.100000" />
+            </Points>
+          </Shape>
+          <Shape Id="4" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="-0.070000" Y="-0.000000" />
+              <Point X="-0.070000" Y="0.100000" />
+            </Points>
+          </Shape>
+          <Shape Id="5" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="0.090000" Y="0.120000" />
+              <Point X="-0.090000" Y="0.120000" />
+            </Points>
+          </Shape>
+          <Shape Id="6" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="0.090000" Y="0.100000" />
+              <Point X="0.050000" Y="0.100000" />
+            </Points>
+          </Shape>
+          <Shape Id="7" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="-0.020000" Y="0.100000" />
+              <Point X="0.020000" Y="0.100000" />
+            </Points>
+          </Shape>
+          <Shape Id="8" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="-0.090000" Y="0.100000" />
+              <Point X="-0.050000" Y="0.100000" />
+            </Points>
+          </Shape>
+          <Shape Id="9" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="0.000000" Y="0.200000" />
+              <Point X="0.000000" Y="0.120000" />
+            </Points>
+          </Shape>
+          <Shape Id="10" Type="Polyline" LineWidth="0.009843" Locked="N">
+            <Points>
+              <Point X="0.010000" Y="-0.060000" />
+              <Point X="0.020000" Y="-0.070000" />
+              <Point X="0.020000" Y="-0.130000" />
+              <Point X="0.030000" Y="-0.140000" />
+            </Points>
+          </Shape>
+        </Shapes>
+      </Part>
+    </Component><Component Id="100" ComponentStyle="CompType100">
+<Part Id="0" RefDes="J" PartType="Normal" Type="Free" Int1="0" Int2="0" Width="0.4" Height="0.4" LockTypeChange="Y">
+<Pattern Style="PatType100" />
+<Name>640453-4</Name>
+<PartName>Part 1</PartName>
+<Origin X="0" Y="0" />
+<Datasheet>http://datasheets.diptrace.com/con_headers/ENG_CD_640453_Y1.pdf</Datasheet>
+<SpiceModel Type="SubCkt" />
+<Manufacturer>TE Connectivity</Manufacturer>
+<Category Index="2">
+<Name>Connectors</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="22">Rectangular - Headers</Type>
+<SubType Index="0">1 Row</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="22">Rectangular - Headers</Type>
+<SubType Index="4">Horizontal</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="22">Rectangular - Headers</Type>
+<SubType Index="5">Male</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="22">Rectangular - Headers</Type>
+<SubType Index="9">Pitch 2.54mm</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="22">Rectangular - Headers</Type>
+<SubType Index="20">Unshrouded</SubType>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Pins>
+<Pin Id="0" X="0.2" Y="0.15" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="1" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>P1</Name>
+<PadNumber>1</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+<Pin Id="1" X="0.2" Y="0.05" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="2" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>P2</Name>
+<PadNumber>2</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+<Pin Id="2" X="0.2" Y="-0.05" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="3" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>P3</Name>
+<PadNumber>3</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+<Pin Id="3" X="0.2" Y="-0.15" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="4" Length="0.15" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+<Name>P4</Name>
+<PadNumber>4</PadNumber>
+<NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+</Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="0.15" />
+<Point X="0.025" Y="0.2" />
+</Points>
+</Shape>
+<Shape Id="1" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="0.15" />
+<Point X="0.025" Y="0.1" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="0.15" />
+<Point X="0.2" Y="0.15" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="0.05" />
+<Point X="0.025" Y="0.1" />
+</Points>
+</Shape>
+<Shape Id="4" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="0.05" />
+<Point X="0.025" Y="0" />
+</Points>
+</Shape>
+<Shape Id="5" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="0.05" />
+<Point X="0.2" Y="0.05" />
+</Points>
+</Shape>
+<Shape Id="6" Type="Rectangle" LineWidth="0.009843">
+<Points>
+<Point X="-0.2" Y="0.2" />
+<Point X="0.2" Y="-0.2" />
+</Points>
+</Shape>
+<Shape Id="7" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="-0.05" />
+<Point X="0.025" Y="0" />
+</Points>
+</Shape>
+<Shape Id="8" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="-0.05" />
+<Point X="0.025" Y="-0.1" />
+</Points>
+</Shape>
+<Shape Id="9" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="-0.05" />
+<Point X="0.2" Y="-0.05" />
+</Points>
+</Shape>
+<Shape Id="10" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="-0.15" />
+<Point X="0.025" Y="-0.1" />
+</Points>
+</Shape>
+<Shape Id="11" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="-0.15" />
+<Point X="0.025" Y="-0.2" />
+</Points>
+</Shape>
+<Shape Id="12" Type="Line" LineWidth="0.009843">
+<Points>
+<Point X="-0.025" Y="-0.15" />
+<Point X="0.2" Y="-0.15" />
+</Points>
+</Shape>
+</Shapes>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>TE_640453-4</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text>A1917-ND</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text>571-6404534</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text />
+</AddField>
+</AddFields>
+</Part>
+</Component></Components>
+</Library>
+<Schematic>
+<SheetSettings>
+<DisplayTitles>Y</DisplayTitles>
+<DisplaySheet>Y</DisplaySheet>
+<ActiveSheet>0</ActiveSheet>
+<Sheets>
+<Sheet>
+<Id>0</Id>
+<Name>Sheet 1</Name>
+<Type>Normal</Type>
+<XPos>-3.85</XPos>
+<YPos>-1.7</YPos>
+<Scale>1.2</Scale>
+<SheetWidth>11</SheetWidth>
+<SheetHeight>8.5</SheetHeight>
+<LeftMargin>0.5</LeftMargin>
+<TopMargin>0.63</TopMargin>
+<RightMargin>0.5</RightMargin>
+<BottomMargin>0.63</BottomMargin>
+<BorderZones>
+<Visible>Y</Visible>
+<HorzZones>2</HorzZones>
+<VertZones>2</VertZones>
+<Standard>0</Standard>
+<FontName>Arial</FontName>
+<FontSize>10</FontSize>
+<FontSizeFloat>10</FontSizeFloat>
+<FontLineWidth>-2</FontLineWidth>
+<Border>Y</Border>
+<HorzBorderSize>0.38</HorzBorderSize>
+<VertBorderSize>0.25</VertBorderSize>
+</BorderZones>
+</Sheet>
+</Sheets>
+</SheetSettings>
+<Settings>
+<Markings>
+<FontVector>Y</FontVector>
+<FontMono>N</FontMono>
+<FontSize>6</FontSize>
+<FontSizeFloat>6</FontSizeFloat>
+<FontWidth>-2</FontWidth>
+<FontScale>1</FontScale>
+<UsePartFontColor>N</UsePartFontColor>
+<FontColor>0</FontColor>
+<RefDesGlobal Show="Show" ShowPart="Show" Align="Auto" />
+<NameGlobal Show="Hide" ShowPart="Show" Align="Auto" />
+<ValueGlobal Show="Show" Align="Auto" />
+<ManufacturerGlobal Show="Hide" Align="Auto" />
+<DatasheetGlobal Show="Hide" Align="Auto" />
+<AddFieldsGlobal>
+<AddField Show="Hide" Align="Auto">
+<Name>Unique Name</Name>
+<Value>uniquename</Value>
+</AddField>
+<AddField Show="Hide" Align="Auto">
+<Name>Part Number (Digi-Key)</Name>
+<Value>partnumber(digi-key)</Value>
+</AddField>
+<AddField Show="Hide" Align="Auto">
+<Name>Part Number (Mouser)</Name>
+<Value>partnumber(mouser)</Value>
+</AddField>
+<AddField Show="Hide" Align="Auto">
+<Name>Part Number (LCSC)</Name>
+<Value>partnumber(lcsc)</Value>
+</AddField>
+</AddFieldsGlobal>
+</Markings>
+<Grid>
+<Visible>Y</Visible>
+<Snap>Y</Snap>
+<Size>0.05</Size>
+</Grid>
+<Origin>
+<Visible>N</Visible>
+<AxisColor>16711680</AxisColor>
+<X>0</X>
+<Y>0</Y>
+</Origin>
+<LineWidth>
+<Wire>0.003937</Wire>
+<NodeSize>0.03937</NodeSize>
+<Bus>0.026247</Bus>
+<Table>0.013123</Table>
+<Titles>0.013123</Titles>
+</LineWidth>
+<BusConnections>
+<Show>NetName</Show>
+<Position>Above</Position>
+<FontSize>4</FontSize>
+<FontSizeFloat>4</FontSizeFloat>
+</BusConnections>
+<PinNumbers Visible="Y" Font="4" FontSizeFloat="4" />
+<NetName FontSize="4" FontSizeFloat="4" />
+<HidePower>N</HidePower>
+<ProjectDir>C:\Users\fireo\mcp_diptrace\.local\validation\schematic-quality-d742c4a\refdes-value-label-pressure-05</ProjectDir>
+</Settings>
+<ProjectLibs Sorted="N" />
+<DesignCache Count="99" />
+<NetClasses>
+<NetClass Id="0" UpdateId="0" Type="Normal">
+<Name>Default</Name>
+</NetClass>
+</NetClasses>
+<ERC CheckPinType="Y" CheckNotConnected="N" CheckSinglePin="Y" CheckShort="N" CheckPinSuperimpose="Y">
+<VCCTemplate>V*</VCCTemplate>
+<GNDTemplate>GND*</GNDTemplate>
+</ERC>
+<Components>
+
+
+
+
+
+
+
+
+<Part Id="0" UpdateId="100" ComponentStyle="CompType99" ComponentPart="0" PartNumber="0" Sheet="0" X="0.393700787" Y="0.708661417" MarkingFontSize="6" MarkingFontSizeFloat="6" Locked="N" Selected="N"><RefDes>Q1</RefDes><PartRefDes>1</PartRefDes><PartName>Part 1</PartName><Value>BSS138 / C52895</Value><Name>BSS138</Name><Manufacturer>onsemi</Manufacturer><Datasheet>https://www.onsemi.com/pdf/datasheet/bss138-d.pdf</Datasheet><AddFields><AddField Type="Text"><Name>MPN</Name><Text>BSS138</Text></AddField><AddField Type="Text"><Name>LCSC</Name><Text>C52895</Text></AddField><AddField Type="Text"><Name>Package</Name><Text>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Text></AddField><AddField Type="Text"><Name>EasyEDA Symbol UUID</Name><Text>1d638380c6a74ae0b0aab17a51b21d35</Text></AddField><AddField Type="Text"><Name>EasyEDA Footprint UUID</Name><Text>b3b82869fa924bae820e3a6cfb44d689</Text></AddField><AddField Type="Text"><Name>EasyEDA 3D UUID</Name><Text>7c3db6199fa840ee9a913d70da71e002</Text></AddField><AddField Type="Text"><Name>Source</Name><Text>Official LCSC/EasyEDA ready model</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>onsemi</Text></AddField></AddFields><RefDesMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" ShowPart="Common" /><ValueMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Pins><Pin NetId="0" NotConnected="N" /><Pin NetId="2" NotConnected="N" /><Pin NetId="3" NotConnected="N" /></Pins></Part><Part Id="1" UpdateId="101" ComponentStyle="CompType99" ComponentPart="0" PartNumber="0" Sheet="0" X="0.393700787" Y="-1.18110236" MarkingFontSize="6" MarkingFontSizeFloat="6" Locked="N" Selected="N"><RefDes>Q2</RefDes><PartRefDes>1</PartRefDes><PartName>Part 1</PartName><Value>BSS138 / C52895</Value><Name>BSS138</Name><Manufacturer>onsemi</Manufacturer><Datasheet>https://www.onsemi.com/pdf/datasheet/bss138-d.pdf</Datasheet><AddFields><AddField Type="Text"><Name>MPN</Name><Text>BSS138</Text></AddField><AddField Type="Text"><Name>LCSC</Name><Text>C52895</Text></AddField><AddField Type="Text"><Name>Package</Name><Text>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Text></AddField><AddField Type="Text"><Name>EasyEDA Symbol UUID</Name><Text>1d638380c6a74ae0b0aab17a51b21d35</Text></AddField><AddField Type="Text"><Name>EasyEDA Footprint UUID</Name><Text>b3b82869fa924bae820e3a6cfb44d689</Text></AddField><AddField Type="Text"><Name>EasyEDA 3D UUID</Name><Text>7c3db6199fa840ee9a913d70da71e002</Text></AddField><AddField Type="Text"><Name>Source</Name><Text>Official LCSC/EasyEDA ready model</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>onsemi</Text></AddField></AddFields><RefDesMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" ShowPart="Common" /><ValueMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Pins><Pin NetId="0" NotConnected="N" /><Pin NetId="4" NotConnected="N" /><Pin NetId="5" NotConnected="N" /></Pins></Part><Part Id="2" UpdateId="102" ComponentStyle="CompType7" ComponentPart="0" PartNumber="0" Sheet="0" X="-0.866141732" Y="1.04330709" MarkingFontSize="6" MarkingFontSizeFloat="6" Locked="N" Selected="N" Angle="1.57079633"><RefDes>R1</RefDes><PartRefDes>1</PartRefDes><PartName>Part 1</PartName><Value>4.7k</Value><Name>0402WGF1002TCE</Name><Manufacturer>UNI-ROYAL(Uniroyal Elec)</Manufacturer><Datasheet>http://datasheets.diptrace.com/uni-royal/0805W8F3303T5E_and_series.pdf</Datasheet><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>UNI-ROYAL_0402</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text>C25744</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>UNI-ROYAL(Uniroyal Elec)</Text></AddField></AddFields><RefDesMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" ShowPart="Common" /><ValueMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Pins><Pin NetId="0" NotConnected="N" /><Pin NetId="2" NotConnected="N" /></Pins></Part><Part Id="3" UpdateId="103" ComponentStyle="CompType7" ComponentPart="0" PartNumber="0" Sheet="0" X="-0.866141732" Y="-0.846456693" MarkingFontSize="6" MarkingFontSizeFloat="6" Locked="N" Selected="N" Angle="1.57079633"><RefDes>R2</RefDes><PartRefDes>1</PartRefDes><PartName>Part 1</PartName><Value>4.7k</Value><Name>0402WGF1002TCE</Name><Manufacturer>UNI-ROYAL(Uniroyal Elec)</Manufacturer><Datasheet>http://datasheets.diptrace.com/uni-royal/0805W8F3303T5E_and_series.pdf</Datasheet><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>UNI-ROYAL_0402</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text>C25744</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>UNI-ROYAL(Uniroyal Elec)</Text></AddField></AddFields><RefDesMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" ShowPart="Common" /><ValueMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Pins><Pin NetId="0" NotConnected="N" /><Pin NetId="4" NotConnected="N" /></Pins></Part><Part Id="4" UpdateId="104" ComponentStyle="CompType7" ComponentPart="0" PartNumber="0" Sheet="0" X="1.65354331" Y="1.04330709" MarkingFontSize="6" MarkingFontSizeFloat="6" Locked="N" Selected="N" Angle="1.57079633"><RefDes>R3</RefDes><PartRefDes>1</PartRefDes><PartName>Part 1</PartName><Value>4.7k</Value><Name>0402WGF1002TCE</Name><Manufacturer>UNI-ROYAL(Uniroyal Elec)</Manufacturer><Datasheet>http://datasheets.diptrace.com/uni-royal/0805W8F3303T5E_and_series.pdf</Datasheet><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>UNI-ROYAL_0402</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text>C25744</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>UNI-ROYAL(Uniroyal Elec)</Text></AddField></AddFields><RefDesMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" ShowPart="Common" /><ValueMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Pins><Pin NetId="1" NotConnected="N" /><Pin NetId="3" NotConnected="N" /></Pins></Part><Part Id="5" UpdateId="105" ComponentStyle="CompType7" ComponentPart="0" PartNumber="0" Sheet="0" X="1.65354331" Y="-0.846456693" MarkingFontSize="6" MarkingFontSizeFloat="6" Locked="N" Selected="N" Angle="1.57079633"><RefDes>R4</RefDes><PartRefDes>1</PartRefDes><PartName>Part 1</PartName><Value>4.7k</Value><Name>0402WGF1002TCE</Name><Manufacturer>UNI-ROYAL(Uniroyal Elec)</Manufacturer><Datasheet>http://datasheets.diptrace.com/uni-royal/0805W8F3303T5E_and_series.pdf</Datasheet><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>UNI-ROYAL_0402</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text /></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text>C25744</Text></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>UNI-ROYAL(Uniroyal Elec)</Text></AddField></AddFields><RefDesMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" ShowPart="Common" /><ValueMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Pins><Pin NetId="1" NotConnected="N" /><Pin NetId="5" NotConnected="N" /></Pins></Part><Part Id="6" UpdateId="106" ComponentStyle="CompType100" ComponentPart="0" PartNumber="0" Sheet="0" X="-1.77165354" Y="0" MarkingFontSize="6" MarkingFontSizeFloat="6" Locked="N" Selected="N"><RefDes>J1</RefDes><PartRefDes>1</PartRefDes><PartName>Part 1</PartName><Value>I2C LV</Value><Name>640453-4</Name><Manufacturer>TE Connectivity</Manufacturer><Datasheet>http://datasheets.diptrace.com/con_headers/ENG_CD_640453_Y1.pdf</Datasheet><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>TE_640453-4</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text>A1917-ND</Text></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text>571-6404534</Text></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text /></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>TE Connectivity</Text></AddField></AddFields><RefDesMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" ShowPart="Common" /><ValueMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Pins><Pin NetId="6" NotConnected="N" /><Pin NetId="0" NotConnected="N" /><Pin NetId="4" NotConnected="N" /><Pin NetId="2" NotConnected="N" /></Pins></Part><Part Id="7" UpdateId="107" ComponentStyle="CompType100" ComponentPart="0" PartNumber="0" Sheet="0" X="1.77165354" Y="0" MarkingFontSize="6" MarkingFontSizeFloat="6" Locked="N" Selected="N"><RefDes>J2</RefDes><PartRefDes>1</PartRefDes><PartName>Part 1</PartName><Value>I2C HV</Value><Name>640453-4</Name><Manufacturer>TE Connectivity</Manufacturer><Datasheet>http://datasheets.diptrace.com/con_headers/ENG_CD_640453_Y1.pdf</Datasheet><AddFields><AddField Type="Text"><Name>Unique Name</Name><Text>TE_640453-4</Text></AddField><AddField Type="Text"><Name>Part Number (Digi-Key)</Name><Text>A1917-ND</Text></AddField><AddField Type="Text"><Name>Part Number (Mouser)</Name><Text>571-6404534</Text></AddField><AddField Type="Text"><Name>Part Number (LCSC)</Name><Text /></AddField><AddField Type="Text"><Name>Manufacturer</Name><Text>TE Connectivity</Text></AddField></AddFields><RefDesMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" ShowPart="Common" /><ValueMarking Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" /><Pins><Pin NetId="6" NotConnected="N" /><Pin NetId="1" NotConnected="N" /><Pin NetId="5" NotConnected="N" /><Pin NetId="3" NotConnected="N" /></Pins></Part></Components>
+<Nets>
+
+
+
+
+
+<Net Id="0" NetClass="0" Locked="N" Enabled="Y"><Name>3V3</Name><Pins><Item Part="2" Pin="0" /><Item Part="3" Pin="0" /><Item Part="0" Pin="0" /><Item Part="1" Pin="0" /><Item Part="6" Pin="1" /></Pins><Wires /></Net><Net Id="1" NetClass="0" Locked="N" Enabled="Y"><Name>5V</Name><Pins><Item Part="4" Pin="0" /><Item Part="5" Pin="0" /><Item Part="7" Pin="1" /></Pins><Wires /></Net><Net Id="2" NetClass="0" Locked="N" Enabled="Y"><Name>SDA_3V3</Name><Pins><Item Part="0" Pin="1" /><Item Part="2" Pin="1" /><Item Part="6" Pin="3" /></Pins><Wires /></Net><Net Id="3" NetClass="0" Locked="N" Enabled="Y"><Name>SDA_5V</Name><Pins><Item Part="0" Pin="2" /><Item Part="4" Pin="1" /><Item Part="7" Pin="3" /></Pins><Wires /></Net><Net Id="4" NetClass="0" Locked="N" Enabled="Y"><Name>SCL_3V3</Name><Pins><Item Part="1" Pin="1" /><Item Part="3" Pin="1" /><Item Part="6" Pin="2" /></Pins><Wires /></Net><Net Id="5" NetClass="0" Locked="N" Enabled="Y"><Name>SCL_5V</Name><Pins><Item Part="1" Pin="2" /><Item Part="5" Pin="1" /><Item Part="7" Pin="2" /></Pins><Wires /></Net><Net Id="6" NetClass="0" Locked="N" Enabled="Y"><Name>GND</Name><Pins><Item Part="6" Pin="0" /><Item Part="7" Pin="0" /></Pins><Wires /></Net></Nets>
+<Shapes>
+
+
+</Shapes>
+<Simulator Type="None" GndNetId="-1">
+<SmallSignalAC>
+<Variation>#</Variation>
+<NumberOfPoints>#</NumberOfPoints>
+<StartFrequency>#</StartFrequency>
+<StopFrequency>#</StopFrequency>
+</SmallSignalAC>
+<DCTransferFunc>
+<SourceType>#</SourceType>
+<SourceRefDes>#</SourceRefDes>
+<StartValue>#</StartValue>
+<Step>#</Step>
+<StopValue>#</StopValue>
+<SecondSource>-</SecondSource>
+<SecondSourceType>#</SecondSourceType>
+<SecondSourceRefDes>#</SecondSourceRefDes>
+<SecondStartValue>#</SecondStartValue>
+<SecondStep>#</SecondStep>
+<SecondStopValue>#</SecondStopValue>
+</DCTransferFunc>
+<Transient>
+<StartTime>#</StartTime>
+<Step>#</Step>
+<StopTime>#</StopTime>
+</Transient>
+<Noise>
+<OutputNet>#</OutputNet>
+<ReferenceNet>#</ReferenceNet>
+<Source>#</Source>
+<Variation>#</Variation>
+<NumberOfPoints>#</NumberOfPoints>
+<StartFrequency>#</StartFrequency>
+<StopFrequency>#</StopFrequency>
+<PointsPerSummary>#</PointsPerSummary>
+</Noise>
+<Digital>
+<StartTime>#</StartTime>
+<Step>#</Step>
+<StopTime>#</StopTime>
+<Item>-</Item>
+</Digital>
+<OptionsGeneral NoPrintStat="Y" NoPrintModelParams="Y">
+<Temp>27.0</Temp>
+<TempNomMeasure>27.0</TempNomMeasure>
+</OptionsGeneral>
+<OptionsDC ConductanceSteps="25" SkipConductanceStepping="N" Iteration="100" TransferCurveIteration="50" StartFromConductanceStepping="N">
+<AbsCurrentTolerance>1p</AbsCurrentTolerance>
+<MinConductance>1p</MinConductance>
+<PivotRation>1e-3</PivotRation>
+<PivotTolerance>1e-13</PivotTolerance>
+<RelativeError>1e-3</RelativeError>
+<GroundResistor>1T</GroundResistor>
+<VoltageError>1u</VoltageError>
+</OptionsDC>
+<OptionsAC NoOPAnalysis="Y" />
+<OptionsTransient LowIteration="4" PointIteration="10" TotalIteration="5000" SourceStepping="25" MethodMaxOrder="2" Method="1">
+<ChargeTolerance>1e-14</ChargeTolerance>
+<SourceSteppingChange>0</SourceSteppingChange>
+<ErrorTolerance>1</ErrorTolerance>
+<TrapezoidalDampingFactor>0.5</TrapezoidalDampingFactor>
+</OptionsTransient>
+<GndNetName />
+</Simulator>
+</Schematic>
+</Source>
