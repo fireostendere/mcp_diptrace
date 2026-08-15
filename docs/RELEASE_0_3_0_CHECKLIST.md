@@ -7,8 +7,11 @@
 - [x] Release manager is the repository owner under the solo-maintainer
       exception.
 - [x] No independent reviewer is claimed.
-- [ ] Exact candidate commit frozen.
-- [ ] Annotated tag `v0.3.0` created.
+- [x] Candidate commit `2646b12bca9534cdbceec8c1808bcacc09aa26bd`
+      frozen and merged without tree changes at
+      `fbbbda176043c555b04a908bb63f6fc4ac5909cb`.
+- [x] Annotated tag `v0.3.0` created with tag object
+      `82b8beac697ae25a008f4b215e2baf33959367b5`.
 
 ## Documentation and acceptance
 
@@ -23,14 +26,14 @@
 
 ## Automated gates
 
-- [ ] Full exact-candidate CI passes on supported GitHub runners.
-- [ ] 90% combined and 85% geometry-enabled coverage gates pass.
-- [ ] Ruff, strict Mypy, documentation, service/facade and generated snapshot
+- [x] Full exact-candidate CI passes on supported GitHub runners.
+- [x] 90% combined and 85% geometry-enabled coverage gates pass.
+- [x] Ruff, strict Mypy, documentation, service/facade and generated snapshot
       checks pass.
-- [ ] Wheel and source distribution build, audit and clean-install smoke pass.
-- [ ] Windows installer, administrator plug-in installer, portable bundle and
+- [x] Wheel and source distribution build, audit and clean-install smoke pass.
+- [x] Windows installer, administrator plug-in installer, portable bundle and
       MCPB workflows pass.
-- [ ] Smithery lock regenerated only after `0.3.0` is available from PyPI.
+- [x] Smithery lock regenerated after `0.3.0` became available from PyPI.
 
 Local sandbox note: ordinary lint/document checks are usable, but this isolated
 environment does not wake `asyncio.to_thread`/AnyIO worker futures. Thread-offload
@@ -39,12 +42,15 @@ runners rather than a weakened code path or a falsely reported local PASS.
 
 ## Publication
 
-- [ ] Release preparation merged through the protected branch workflow.
-- [ ] Annotated tag points to the exact approved commit.
-- [ ] GitHub development prerelease and immutable assets published.
-- [ ] Public assets redownloaded and SHA-256 verified.
-- [ ] Tag-bound PyPI Trusted Publishing completed.
-- [ ] Public PyPI wheel/sdist installed and smoke-tested.
-- [ ] README and both GIF previews verified on GitHub and PyPI.
-- [ ] Release record updated with exact commit, workflow runs, asset sizes and
+- [x] Release preparation merged through protected PR #108.
+- [x] Annotated tag points to the exact approved merge commit.
+- [x] GitHub development prerelease and immutable assets published.
+- [x] Public assets redownloaded and SHA-256 verified.
+- [x] PyPI Trusted Publishing completed from an exact verified `v0.3.0`
+      checkout in workflow run `31915399966`.
+- [x] Public PyPI wheel/sdist redownloaded byte-for-byte; wheel installed and
+      smoke-tested in a clean environment.
+- [x] Public PyPI metadata contains both GIF references; both tagged GIF assets
+      were redownloaded and decoded successfully.
+- [x] Release record updated with exact commit, workflow runs, asset sizes and
       hashes.

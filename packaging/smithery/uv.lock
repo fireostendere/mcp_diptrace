@@ -241,7 +241,7 @@ wheels = [
 
 [[package]]
 name = "diptrace-mcp"
-version = "0.2.1"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mcp" },
@@ -249,21 +249,21 @@ dependencies = [
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/91/dc514db96793062bbdafe0328144c88668d0f604457b917149f32281b105/diptrace_mcp-0.2.1.tar.gz", hash = "sha256:39cc2658ca0888cc52ef583c0f6940831afc7b3af2472397001cf4e3bc5a29e0", size = 935205, upload-time = "2026-08-05T09:45:37.178Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/1f/3c57b196f5d5f7ab822c3d9e2f740e2bdec6fba73976ceaffe632f44af22/diptrace_mcp-0.3.0.tar.gz", hash = "sha256:71dc9b2ebf971bc12456f92bc637dc03ecbd5734e7d1af4067df9b6e9bb9e4f3", size = 1285170, upload-time = "2026-08-15T23:43:04.185Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/c0/47410fdce688fc26bc8b3a5b5ea983b48f264b6d464c7a023dafb0eca414/diptrace_mcp-0.2.1-py3-none-any.whl", hash = "sha256:325ad8b032f1014d61a5b38e2cc2af3f97105c73246edad06ca1739704e872ea", size = 437696, upload-time = "2026-08-05T09:45:35.698Z" },
+    { url = "https://files.pythonhosted.org/packages/24/24/e8eda52673975aa9b374795f49298767ae5abfe84f7ee8530e93cb1f5d32/diptrace_mcp-0.3.0-py3-none-any.whl", hash = "sha256:5fad30e9770367b17acdf1d289ddc2e2cc94b6a017dcdd79598f5c71f4452243", size = 626344, upload-time = "2026-08-15T23:43:02.595Z" },
 ]
 
 [[package]]
 name = "diptrace-mcp-smithery"
-version = "0.2.1"
+version = "0.3.0"
 source = { virtual = "." }
 dependencies = [
     { name = "diptrace-mcp" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "diptrace-mcp", specifier = "==0.2.1" }]
+requires-dist = [{ name = "diptrace-mcp", specifier = "==0.3.0" }]
 
 [[package]]
 name = "exceptiongroup"

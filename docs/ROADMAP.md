@@ -10,7 +10,9 @@ Implementation never implies universal DipTrace compatibility. Historical eviden
 
 ## Current checkpoint — 2026-08-16
 
-The current source/package version is `0.3.0`. The immutable `v0.2.1` release and PyPI package remain published; `v0.3.0` is the selected unsigned development-prerelease candidate.
+The current source/package version is `0.3.0`. The immutable `v0.3.0` unsigned
+development prerelease and PyPI package are published; older releases remain
+immutable historical identities.
 
 The schematic-quality production fixes were merged by PR #90. The production merge identity is:
 
@@ -285,7 +287,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | PCB Generation B | implemented/bounded |
 | PCB Generation C | implemented/bounded |
 | PCB Generation D | selector + real bounded placement candidate ensemble implemented; read-only `compare_pcb_placement_candidates` tool shipped |
-| PCB product quality | stronger current-candidate real-DipTrace acceptance pending |
+| PCB product quality | compact two-layer example and cinematic output operator-accepted for v0.3.0; stronger native-refill/manufacturing claims remain open |
 | DSN/SES analysis | bounded structural/importability analysis implemented |
 | XML semantic analysis | fingerprint/delta + property tests implemented |
 | evidence reports | deterministic review-only report pipeline implemented |

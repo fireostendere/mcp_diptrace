@@ -1,9 +1,8 @@
-# 0.3.0 candidate changes
+# 0.3.0 detailed release changes
 
-This development record tracks changes after the immutable `v0.2.1` release.
-Version `0.3.0` is selected as the next unsigned development-prerelease
-candidate but is not published yet; these items are **not** part of the
-published `v0.2.1` artifacts.
+This record preserves the detailed changes included in the immutable `v0.3.0`
+unsigned development prerelease. New post-release work belongs in a new section
+above this release record.
 
 ## Added
 
@@ -115,7 +114,8 @@ The headless worker is a host-automation boundary, not a second semantic authori
 - The private/manual Q1 Component Angle campaign is PASS on its accepted production checkpoint; immutable historical release records keep the status that was true when each release was cut.
 - The accepted manual matrix is complete at 12 of 12 blocking gates PASS across its recorded checkpoints. Claude Desktop restart and custom-state preservation are operator-confirmed PASS from a separate machine; their earlier WAIVED/pending states remain historical only.
 - Documentation distinguishes current implementation state from immutable release/audit/acceptance snapshots.
-- Installation/release documentation reflects that `v0.2.1` and `diptrace-mcp==0.2.1` are already published; current source hardens the next Windows packaging line without rewriting immutable `v0.2.1` assets.
+- Installation/release documentation identifies the immutable `v0.3.0`
+  GitHub/PyPI assets and split Windows packaging without rewriting older releases.
 - Testing documentation reflects the combined 90% coverage gate and the separate 85% Linux-only floor.
 - The operator accepted the current repository PCB/Schematic designs and both
   GIF/MP4 examples in the current DipTrace configuration on 2026-08-16.
@@ -138,7 +138,8 @@ The headless worker is a host-automation boundary, not a second semantic authori
 - atomic selective schematic reroute currently rebuilds affected sheet-local explicit nets from resolved pin endpoints; it does not preserve arbitrary pre-existing manual junction topology as a visual constraint;
 - stronger sheet-level/global schematic congestion scheduling and external/reference motif ingestion remain future work;
 - the completed 18-case schematic campaign supports its tested scope only; new schematic claims such as hierarchy, topology-preserving reroute or automatic rotation/pin-facing behavior still require claim-specific evidence;
-- PCB candidate/whole-board quality remains subject to current-candidate real-DipTrace/native refill/plane/via acceptance where stronger claims are desired;
+- PCB candidate/whole-board quality remains subject to claim-specific real-DipTrace
+  native refill/plane/via acceptance where stronger claims are desired;
 - cinematic UI macros and calibration for additional DipTrace
   version/editor configurations require their own real-client verification;
 - staged cinematic playback of vias/layer transitions remains unsupported;
@@ -146,4 +147,5 @@ The headless worker is a host-automation boundary, not a second semantic authori
 - the library mutation request/preview contract remains package-level and unregistered in the public MCP tool snapshot;
 - native manufacturing generation, field-solver/PI/EMC/thermal sign-off, universal compatibility, signed-binary trust, independent review and production readiness are not claimed.
 
-This file should be folded into `CHANGELOG.md` when the next version is selected.
+The concise release summary is in `CHANGELOG.md`; do not rewrite this detailed
+published-release record when later development begins.

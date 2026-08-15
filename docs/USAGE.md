@@ -7,18 +7,21 @@
 Python 3.10 or newer:
 
 ```bash
-python -m pip install diptrace-mcp==0.2.1
+python -m pip install diptrace-mcp==0.3.0
 diptrace-mcp --help
 ```
 
 ### Published Windows assets
 
-Use the immutable `v0.2.1` GitHub prerelease and keep every downloaded file on the same version:
+Use the immutable `v0.3.0` GitHub prerelease and keep every downloaded file on
+the same version:
 
-- `DipTrace-MCP-Setup-0.2.1.exe` — recommended Windows installer;
-- `DipTrace-MCP-Portable-0.2.1.zip` — portable bundle;
-- `DipTrace-MCP-0.2.1-windows.mcpb` — self-contained stdio MCP server for compatible clients;
+- `DipTrace-MCP-Setup-0.3.0.exe` — per-user Windows installer;
+- `DipTrace-MCP-Plugin-Setup-0.3.0.exe` — administrator plug-in installer;
+- `DipTrace-MCP-Portable-0.3.0.zip` — portable bundle;
+- `DipTrace-MCP-0.3.0-windows.mcpb` — self-contained stdio MCP server for compatible clients;
 - `SHA256SUMS.txt` — release checksums.
+- `RELEASE_PROVENANCE.txt` — release identity and workflow provenance.
 
 See [INSTALL_FROM_RELEASE.md](INSTALL_FROM_RELEASE.md).
 

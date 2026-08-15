@@ -2,25 +2,23 @@
 
 ## Current published state
 
-Version `v0.2.1` is the current published unsigned alpha/development prerelease.
+Version `v0.3.0` is the current published unsigned development prerelease.
 
 Published immutable identities:
 
-- GitHub prerelease: `v0.2.1`;
-- PyPI package: `diptrace-mcp==0.2.1`;
-- Windows installer: `DipTrace-MCP-Setup-0.2.1.exe`;
-- portable bundle: `DipTrace-MCP-Portable-0.2.1.zip`;
-- Windows MCPB: `DipTrace-MCP-0.2.1-windows.mcpb`;
+- GitHub prerelease: `v0.3.0`;
+- PyPI package: `diptrace-mcp==0.3.0`;
+- Windows installer: `DipTrace-MCP-Setup-0.3.0.exe`;
+- administrator plug-in installer: `DipTrace-MCP-Plugin-Setup-0.3.0.exe`;
+- portable bundle: `DipTrace-MCP-Portable-0.3.0.zip`;
+- Windows MCPB: `DipTrace-MCP-0.3.0-windows.mcpb`;
 - canonical registry identity: `io.github.fireostendere/diptrace-mcp`.
 
 Published tags/files are immutable. A corrected build requires a new version.
 
-Development on `main` after `v0.2.1` may contain additional internal capabilities that are not present in the published package/bundles. Track those changes in `CHANGELOG_NEXT.md` until the next release is selected.
-
-`v0.3.0` is now the selected source candidate, but it is not yet an immutable
-public distribution. Continue using the `v0.2.1` filenames above until the
-`v0.3.0` checklist, tag-bound workflows and public-download verification are
-complete.
+Development on `main` after `v0.3.0` may contain changes not present in the
+published package/bundles. Track them in `CHANGELOG_NEXT.md` until the next
+release is selected.
 
 ## Distribution roles
 
@@ -33,7 +31,8 @@ The PyPI package and MCPB do not silently install the DipTrace bridge plug-in. L
 
 ## PyPI Trusted Publishing
 
-`0.2.1` was published through the guarded tag-bound GitHub OIDC workflow.
+`0.3.0` was published through the guarded GitHub OIDC workflow after an exact
+annotated-tag checkout and target verification.
 
 Authorized identity:
 
@@ -50,7 +49,7 @@ No long-lived PyPI API token is required. Future versions should preserve the se
 Clean package smoke:
 
 ```bash
-python -m pip install --no-cache-dir diptrace-mcp==0.2.1
+python -m pip install --no-cache-dir diptrace-mcp==0.3.0
 diptrace-mcp --help
 ```
 
@@ -79,7 +78,8 @@ For each future version:
 5. redownload the public bytes and repeat checksum/install/stdio smoke;
 6. record exact public identities in the release record.
 
-The existing `v0.2.1` publication is complete; these are future-release rules, not pending `0.2.1` publication steps.
+The `v0.3.0` publication is complete; these are future-release rules, not
+pending `0.3.0` publication steps.
 
 ## Registry / Smithery metadata
 
@@ -107,8 +107,8 @@ Example acceptance pack preparation:
 
 ```bash
 python scripts/prepare_manual_acceptance.py acceptance \
-  --version 0.2.1 \
-  --commit <exact-40-character-production-commit>
+  --version 0.3.0 \
+  --commit fbbbda176043c555b04a908bb63f6fc4ac5909cb
 ```
 
 Manual evidence must remain tied to the exact candidate/artifacts tested.
@@ -117,9 +117,12 @@ Manual evidence must remain tied to the exact candidate/artifacts tested.
 
 Do not conflate these states:
 
-- `v0.2.1` / PyPI `0.2.1` are immutable published bytes;
-- later `main` includes schematic intelligence, PCB Generations A-D, aggregate 90% coverage and cinematic presentation work;
-- a future release must explicitly package/re-verify those later changes before distribution docs claim they are in published artifacts.
+- `v0.3.0` / PyPI `0.3.0` are immutable published bytes and include the
+  schematic intelligence, PCB Generations A-D, 90% coverage gate and cinematic
+  presentation work described by its release record;
+- later `main` may advance independently;
+- a future release must explicitly package/re-verify later changes before
+  distribution docs claim they are in published artifacts.
 
 ## Immutability rule
 

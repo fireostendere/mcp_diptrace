@@ -2,31 +2,26 @@
 
 ## Current release status
 
-Version `v0.2.1` is the current published unsigned alpha/development prerelease.
-
-Version `v0.3.0` is the selected next unsigned development-prerelease candidate.
-It is not tagged or published yet. Candidate scope, operator confirmation and
-remaining gates are tracked in [RELEASE_0_3_0_CHECKLIST.md](RELEASE_0_3_0_CHECKLIST.md)
-and [releases/v0.3.0.md](releases/v0.3.0.md).
+Version `v0.3.0` is the current published unsigned development prerelease.
+Its completed gates and immutable evidence are tracked in
+[RELEASE_0_3_0_CHECKLIST.md](RELEASE_0_3_0_CHECKLIST.md) and
+[releases/v0.3.0.md](releases/v0.3.0.md).
 
 Immutable/current published identities:
 
-- annotated tag: `v0.2.1`;
-- exact tag target / release merge commit: `1d2b7bef256cd43262b566dc2cd4050248d0145d`;
-- GitHub prerelease: `v0.2.1`;
-- PyPI package: `diptrace-mcp==0.2.1`;
-- Windows installer: `DipTrace-MCP-Setup-0.2.1.exe`;
-- portable bundle: `DipTrace-MCP-Portable-0.2.1.zip`;
-- Windows MCPB: `DipTrace-MCP-0.2.1-windows.mcpb`;
+- annotated tag: `v0.3.0`;
+- exact tag target / release merge commit: `fbbbda176043c555b04a908bb63f6fc4ac5909cb`;
+- GitHub prerelease: `v0.3.0`;
+- PyPI package: `diptrace-mcp==0.3.0`;
+- Windows installer: `DipTrace-MCP-Setup-0.3.0.exe`;
+- administrator plug-in installer: `DipTrace-MCP-Plugin-Setup-0.3.0.exe`;
+- portable bundle: `DipTrace-MCP-Portable-0.3.0.zip`;
+- Windows MCPB: `DipTrace-MCP-0.3.0-windows.mcpb`;
 - registry identity: `io.github.fireostendere/diptrace-mcp`.
 
-The immutable release record is [releases/v0.2.1.md](releases/v0.2.1.md). The old `v0.2.0` tag/assets also remain immutable.
-
-Development on `main` after `v0.2.1` is tracked in `CHANGELOG_NEXT.md` until the next version is selected. Do not describe post-release `main` features as if they were already present in the published `v0.2.1` bytes.
-
-The source/package metadata now identifies the selected `0.3.0` candidate.
-Installation instructions continue to point at `0.2.1` until immutable `0.3.0`
-assets have actually been published and redownload-verified.
+The immutable release record is [releases/v0.3.0.md](releases/v0.3.0.md).
+The older `v0.2.0` and `v0.2.1` tags/assets also remain immutable. Development
+after `v0.3.0` is tracked in `CHANGELOG_NEXT.md` until another version is selected.
 
 Windows executables remain unsigned. CI, SHA-256, PyPI Trusted Publishing and package attestations can establish tested behaviour, byte identity and publication provenance; they do not establish Authenticode trust, universal compatibility, independent review or production readiness.
 
@@ -163,7 +158,7 @@ Only after the reviewed gates pass:
 5. publish them as the appropriate development/prerelease class;
 6. publish notes that distinguish implemented, runtime-available and real-DipTrace-verified capabilities.
 
-Never reuse or move `v0.2.1` or any older tag.
+Never reuse or move an existing release tag.
 
 ## 8. Verify public downloads
 
@@ -173,7 +168,10 @@ Record the immutable release URL/tag SHA, publication date, public asset sizes/h
 
 ## 9. Publish to PyPI
 
-PyPI publication remains a separate explicit action and must use GitHub OIDC Trusted Publishing from the exact authorized tag/workflow/environment identity.
+PyPI publication remains a separate explicit action and must use GitHub OIDC
+Trusted Publishing from the authorized workflow/environment. The build checkout
+must resolve to and verify the exact annotated release-tag target before any
+artifact reaches the minimal publish job.
 
 Current authorized identity:
 

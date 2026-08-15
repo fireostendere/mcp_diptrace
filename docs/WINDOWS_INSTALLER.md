@@ -2,12 +2,9 @@
 
 ## Status
 
-The immutable `v0.2.1` development prerelease remains unchanged. Its published
-Windows assets keep their original identities and checksums.
-
-Current source development has hardened the next Windows packaging line by
-separating the per-user MCP installation from the administrator-only DipTrace
-plug-in installation. A future release built from this source produces:
+The immutable `v0.3.0` development prerelease publishes the hardened split
+Windows packaging line. It separates the per-user MCP installation from the
+administrator-only DipTrace plug-in installation:
 
 - `DipTrace-MCP-Setup-<version>.exe` — per-user server/configurator installer;
 - `DipTrace-MCP-Plugin-Setup-<version>.exe` — administrator-only DipTrace plug-in
@@ -15,9 +12,9 @@ plug-in installation. A future release built from this source produces:
 - `DipTrace-MCP-Portable-<version>.zip`;
 - release checksums/provenance records.
 
-This source change does not rewrite or replace the already published `v0.2.1`
-assets. Development binaries remain unsigned unless a future release satisfies
-the repository signing policy.
+These `v0.3.0` binaries remain unsigned. Older published assets retain their
+original identities and checksums, and a future signed/corrected build requires
+a new version.
 
 ## Design goals
 
@@ -165,7 +162,8 @@ The installer build emits both Inno Setup executables plus the portable ZIP and
 one release checksum manifest covering all three assets.
 
 Use the actual selected future version when preparing a new release. Do not
-rebuild different binaries under the immutable `0.2.1` identity.
+rebuild different binaries under any immutable published identity, including
+`0.3.0`.
 
 ## CI / automated evidence
 
@@ -204,10 +202,10 @@ restarting unrelated historical acceptance campaigns.
 
 ## Installation verification
 
-For a future split-installer build:
+For the published split-installer build:
 
 1. obtain the per-user installer, plug-in installer and `SHA256SUMS.txt` from the
-   same release/candidate;
+   same release/tag;
 2. verify SHA-256;
 3. run the per-user installer normally, without elevation;
 4. run the plug-in installer separately when DipTrace integration is desired;
@@ -216,8 +214,8 @@ For a future split-installer build:
 7. use native open/save/re-export acceptance only when a specific live semantic
    path requires proof.
 
-For the immutable published `v0.2.1`, follow its release-specific instructions
-and checksums. See [INSTALL_FROM_RELEASE.md](INSTALL_FROM_RELEASE.md).
+For immutable `v0.3.0` filenames and checksums, see
+[INSTALL_FROM_RELEASE.md](INSTALL_FROM_RELEASE.md).
 
 ## Boundaries and non-claims
 

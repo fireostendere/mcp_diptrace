@@ -1,6 +1,9 @@
 # EDA Intelligence — Current Implementation
 
-This is the evergreen cross-domain map for higher-level schematic/PCB intelligence after the post-0.2.1 development work. Historical release and acceptance records remain immutable evidence snapshots and must not be rewritten to inherit later capabilities.
+This is the evergreen cross-domain map for the higher-level schematic/PCB
+intelligence published in `v0.3.0` and any later development. Historical release
+and acceptance records remain immutable evidence snapshots and must not be
+rewritten to inherit later capabilities.
 
 ## Safety model
 
