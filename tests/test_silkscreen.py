@@ -10,7 +10,11 @@ from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import Sha256MismatchError
 from diptrace_mcp.service import DipTraceService
-from diptrace_mcp.silkscreen import SilkscreenPlanConfig, plan_silkscreen
+from diptrace_mcp.silkscreen import (
+    SilkscreenPlanConfig,
+    hide_assembly_markings,
+    plan_silkscreen,
+)
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -34,6 +38,20 @@ def _dense_silk_bytes() -> bytes:
             "Vert": "Center",
             "X": "0",
             "Y": "-1.5",
+            "Angle": "0",
+        },
+    )
+    hidden = ET.SubElement(component, "NameMarking")
+    ET.SubElement(
+        hidden,
+        "Silk",
+        {
+            "Show": "Hide",
+            "Align": "Position",
+            "Horz": "Center",
+            "Vert": "Center",
+            "X": "0",
+            "Y": "0",
             "Angle": "0",
         },
     )
@@ -64,7 +82,7 @@ def test_planner_moves_collision_and_never_moves_locked_label(tmp_path: Path) ->
         "locked_count": 1,
         "changed_count": 1,
         "unresolved_count": 0,
-        "fixed_obstacle_count": 2,
+        "fixed_obstacle_count": 4,
     }
     assert len(result.operations) == 1
     locked = next(item for item in result.candidates if item["status"] == "locked_unchanged")
@@ -72,6 +90,17 @@ def test_planner_moves_collision_and_never_moves_locked_label(tmp_path: Path) ->
     moved = next(item for item in result.candidates if item["status"] == "move")
     assert moved["chosen"]["legal"] is True
     assert result.score["total"] > 0
+
+
+def test_hide_assembly_markings_leaves_silk_visible() -> None:
+    document = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+
+    hidden = hide_assembly_markings(document)
+
+    assembly = hidden.container.find("./Components/Component/RefDesMarking/Assy")
+    silk = hidden.container.find("./Components/Component/RefDesMarking/Silk")
+    assert assembly is not None and assembly.get("Show") == "Hide"
+    assert silk is not None and silk.get("Show") == "Show"
 
 
 def test_silkscreen_plan_preview_commit_and_rollback(tmp_path: Path) -> None:
@@ -112,9 +141,7 @@ def test_silkscreen_plan_preview_commit_and_rollback(tmp_path: Path) -> None:
     assert (movable.get("X"), movable.get("Y")) != ("0", "-1.5")
     assert (locked.get("X"), locked.get("Y")) == ("0", "-1.5")
 
-    rolled_back = service.rollback_transaction(
-        committed["transaction"]["txid"], committed_sha
-    )
+    rolled_back = service.rollback_transaction(committed["transaction"]["txid"], committed_sha)
     assert rolled_back["result"]["document_restored"] is True
     assert board.read_bytes() == source
 

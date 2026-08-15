@@ -78,7 +78,7 @@ class PlacementService:
         grid: float = 0.25,
         search_steps: int = 4,
         include_board_texts: bool = False,
-        avoid_component_bodies: bool = False,
+        avoid_component_bodies: bool = True,
     ) -> dict[str, Any]:
         document, target = self.gateway.load(path)
         snapshot = self.context.model_cache.get(document, live_session=target.is_live)

@@ -20,7 +20,12 @@ from typing import Any, cast
 
 from . import headless_gui as hg
 from .cinematic import CinematicEvent
-from .cinematic_host import DesktopCommand, desktop_commands_from_payload, play_manifest
+from .cinematic_host import (
+    _PATH_POINT_PAUSE_SECONDS,
+    DesktopCommand,
+    desktop_commands_from_payload,
+    play_manifest,
+)
 from .cinematic_preflight import CinematicPreflightResult, preflight_cinematic_manifest
 from .diptrace_window import find_window_handle
 from .windows_configurator import ConfiguratorError, validate_diptrace_directory
@@ -29,7 +34,10 @@ _WM_CLOSE = 0x0010
 _WM_KEYDOWN = 0x0100
 _WM_KEYUP = 0x0101
 _WM_CHAR = 0x0102
+_WM_HSCROLL = 0x0114
+_WM_VSCROLL = 0x0115
 _BM_CLICK = 0x00F5
+_EM_SETSEL = 0x00B1
 _WM_MOUSEMOVE = 0x0200
 _WM_PRINT = 0x0317
 _BUTTON_MESSAGES = {
@@ -58,6 +66,8 @@ _CHILD_FLAGS = 0x0001 | 0x0002
 _PW_RENDERFULLCONTENT = 0x00000002
 _PRF_RENDER_ALL = 0x0002 | 0x0004 | 0x0008 | 0x0010
 _CAPTURE_LEAD_SECONDS = 0.35
+_FRAME_PADDING = 0.14
+_OUTPUT_PADDING = 0.1
 _MIN_GIF_TIMEOUT_SECONDS = 300.0
 
 
@@ -164,9 +174,7 @@ class HeadlessCinematicRequest:
             editor=hg._required_string(value, "editor"),
             window_title=hg._optional_string(value.get("window_title")),
             fps=hg._coerce_int(value.get("fps"), 60),
-            startup_timeout_seconds=hg._coerce_float(
-                value.get("startup_timeout_seconds"), 30.0
-            ),
+            startup_timeout_seconds=hg._coerce_float(value.get("startup_timeout_seconds"), 30.0),
             tail_seconds=hg._coerce_float(value.get("tail_seconds"), 0.75),
             gif_output=Path(gif) if gif else None,
             gif_fps=hg._coerce_int(value.get("gif_fps"), 20),
@@ -250,6 +258,347 @@ class HiddenMessageDesktopDriver:
         for command in commands:
             self._execute(command)
 
+    def fit_content(
+        self,
+        capture: Callable[[], bytes],
+        width: int,
+        height: int,
+    ) -> tuple[int, int, int, int]:
+        """Center the drawing and return its UI-free recording crop."""
+
+        window = self._window(self.default_window)
+        viewport = self._drawing_viewport(window, width, height)
+        usable_width = (viewport[2] - viewport[0]) * (1.0 - 2.0 * _FRAME_PADDING)
+        usable_height = (viewport[3] - viewport[1]) * (1.0 - 2.0 * _FRAME_PADDING)
+        is_pcb = "pcb" in self.default_window.casefold()
+        bounds_detector = _purple_outline_bbox if is_pcb else _visible_content_bbox
+        if is_pcb:
+            drawing, _ = self._target(window, 0.65, 0.65)
+            self._hotkey(drawing, ("home",))
+            time.sleep(0.1)
+        current_bounds = bounds_detector(capture(), width=width, viewport=viewport)
+        if current_bounds is not None and is_pcb:
+            scale = min(
+                usable_width / (current_bounds[2] - current_bounds[0]),
+                usable_height / (current_bounds[3] - current_bounds[1]),
+            )
+            if scale > 1.1:
+                zoom_edit = self._zoom_edit(window)
+                source_zoom = self._zoom_percent(zoom_edit)
+                self._set_zoom(
+                    zoom_edit,
+                    min(3200, max(25, round(source_zoom * scale))),
+                )
+                time.sleep(0.1)
+                scrollbars = self._scrollbars(window)
+                self._center_with_scrollbars(capture, width, viewport, scrollbars, bounds_detector)
+                self._center_with_scrollbars(capture, width, viewport, scrollbars, bounds_detector)
+                enlarged = bounds_detector(capture(), width=width, viewport=viewport)
+                if enlarged is not None and (
+                    enlarged[0] > viewport[0] + 16
+                    and enlarged[1] > viewport[1] + 16
+                    and enlarged[2] < viewport[2] - 16
+                    and enlarged[3] < viewport[3] - 16
+                ):
+                    return _padded_content_box(enlarged, viewport)
+                self._hotkey(drawing, ("home",))
+                time.sleep(0.1)
+                current_bounds = bounds_detector(capture(), width=width, viewport=viewport)
+                if current_bounds is None:
+                    raise RuntimeError("DipTrace PCB overview was not restored")
+            return _padded_content_box(current_bounds, viewport)
+        if current_bounds is not None and _content_is_framed(current_bounds, viewport):
+            return _padded_content_box(current_bounds, viewport)
+        scrollbars = self._scrollbars(window)
+        zoom_edit = self._zoom_edit(window)
+        bounds: tuple[int, int, int, int] | None = None
+        source_zoom = 25
+        for source_zoom in (100, 50, 25):
+            self._set_zoom(zoom_edit, source_zoom)
+            time.sleep(0.1)
+            bounds = _visible_content_bbox(capture(), width=width, viewport=viewport)
+            if bounds is None:
+                bounds = self._find_visible_bounds(capture, width, viewport, scrollbars)
+            if bounds is None:
+                continue
+            if (
+                bounds[0] > viewport[0] + 4
+                and bounds[1] > viewport[1] + 4
+                and bounds[2] < viewport[2] - 4
+                and bounds[3] < viewport[3] - 4
+            ):
+                break
+        if bounds is None:
+            raise RuntimeError("DipTrace drawing bounds were not found")
+        scale = min(
+            usable_width / (bounds[2] - bounds[0]),
+            usable_height / (bounds[3] - bounds[1]),
+        )
+        self._center_with_scrollbars(capture, width, viewport, scrollbars, _visible_content_bbox)
+        self._set_zoom(zoom_edit, min(3200, max(25, round(source_zoom * scale))))
+        time.sleep(0.1)
+        self._find_visible_bounds(capture, width, viewport, scrollbars)
+        self._center_with_scrollbars(capture, width, viewport, scrollbars, _visible_content_bbox)
+        final_bounds = _visible_content_bbox(capture(), width=width, viewport=viewport)
+        if final_bounds is None:
+            raise RuntimeError("DipTrace drawing disappeared during framing")
+        return _padded_content_box(final_bounds, viewport)
+
+    def _drawing_viewport(
+        self,
+        window: int,
+        frame_width: int,
+        frame_height: int,
+    ) -> tuple[int, int, int, int]:
+        callback_type: Any = ctypes.__dict__.get("WINFUNCTYPE", ctypes.CFUNCTYPE)(
+            ctypes.c_bool,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+        )
+        window_rect = wintypes.RECT()
+        if not self.user32.GetWindowRect(window, ctypes.byref(window_rect)):
+            return (0, 0, frame_width, frame_height)
+        scale = (
+            max(1.0, float(self.user32.GetDpiForWindow(window)) / 96.0)
+            if hasattr(self.user32, "GetDpiForWindow")
+            else 1.0
+        )
+        panels: list[tuple[int, int, int, int]] = []
+
+        def callback(hwnd: int, _lparam: int) -> bool:
+            value = ctypes.create_unicode_buffer(64)
+            self.user32.GetClassNameW(hwnd, value, len(value))
+            if value.value != "TPanel":
+                return True
+            rect = wintypes.RECT()
+            if self.user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                panels.append(
+                    (
+                        max(0, round((rect.left - window_rect.left) * scale)),
+                        max(0, round((rect.top - window_rect.top) * scale)),
+                        min(
+                            frame_width,
+                            round((rect.right - window_rect.left) * scale),
+                        ),
+                        min(
+                            frame_height,
+                            round((rect.bottom - window_rect.top) * scale),
+                        ),
+                    )
+                )
+            return True
+
+        self.user32.EnumChildWindows(window, callback_type(callback), 0)
+        candidates = [
+            box
+            for box in panels
+            if box[2] - box[0] >= frame_width * 0.45 and box[3] - box[1] >= frame_height * 0.45
+        ]
+        if not candidates:
+            return (0, 0, frame_width, frame_height)
+        viewport = max(
+            candidates,
+            key=lambda box: (box[2] - box[0]) * (box[3] - box[1]),
+        )
+        left, top, right, bottom = viewport
+        for box in panels:
+            if box == viewport:
+                continue
+            overlap = min(bottom, box[3]) - max(top, box[1])
+            if overlap < (bottom - top) * 0.7:
+                continue
+            if box[0] <= left + 4 < box[2]:
+                left = max(left, box[2])
+            elif box[0] < right - 4 <= box[2]:
+                right = min(right, box[0])
+        return (left + 4, top + 4, right - 4, bottom - 4)
+
+    def _zoom_edit(self, window: int) -> int:
+        controls = self._child_controls(window)
+        edits = [
+            (box[0], hwnd)
+            for hwnd, class_name, parent_class, box in controls
+            if class_name == "Edit" and parent_class == "TComboBox"
+        ]
+        if not edits:
+            raise RuntimeError("DipTrace zoom field was not found")
+        return min(edits)[1]
+
+    def _set_zoom(self, edit: int, percent: int) -> None:
+        self._send(edit, _EM_SETSEL, 0, -1)
+        self._text(edit, f"{percent}%")
+        self._hotkey(edit, ("enter",))
+
+    def _zoom_percent(self, edit: int) -> int:
+        self.user32.SendMessageW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        self.user32.SendMessageW.restype = wintypes.LPARAM
+        seen: list[str] = []
+        for control in (edit, int(self.user32.GetParent(edit))):
+            length = int(self.user32.SendMessageW(control, 0x000E, 0, 0))
+            value = ctypes.create_unicode_buffer(length + 1)
+            self.user32.SendMessageW(control, 0x000D, len(value), ctypes.addressof(value))
+            seen.append(value.value)
+            try:
+                return round(float(value.value.strip().removesuffix("%").replace(",", ".")))
+            except ValueError:
+                continue
+        raise RuntimeError(f"DipTrace zoom value is invalid: {seen!r}")
+
+    def _center_with_scrollbars(
+        self,
+        capture: Callable[[], bytes],
+        width: int,
+        viewport: tuple[int, int, int, int],
+        scrollbars: Mapping[int, int],
+        bounds_detector: Callable[..., tuple[int, int, int, int] | None],
+    ) -> None:
+        for axis, message, viewport_center in (
+            (0, _WM_HSCROLL, (viewport[0] + viewport[2]) / 2),
+            (1, _WM_VSCROLL, (viewport[1] + viewport[3]) / 2),
+        ):
+            scrollbar = scrollbars.get(axis)
+            bounds = bounds_detector(capture(), width=width, viewport=viewport)
+            if scrollbar is None or bounds is None:
+                continue
+            current = int(self.user32.GetScrollPos(scrollbar, 2))
+            best_error = abs((bounds[axis] + bounds[axis + 2]) / 2 - viewport_center)
+            best_position = current
+            direction = 0
+            for candidate_direction in (1, -1):
+                candidate = current + candidate_direction
+                self._set_scroll_position(scrollbar, message, candidate)
+                time.sleep(0.05)
+                candidate_bounds = bounds_detector(capture(), width=width, viewport=viewport)
+                if candidate_bounds is None:
+                    continue
+                error = abs(
+                    (candidate_bounds[axis] + candidate_bounds[axis + 2]) / 2 - viewport_center
+                )
+                if error < best_error:
+                    best_error, best_position, direction = error, candidate, candidate_direction
+                    break
+            if not direction:
+                self._set_scroll_position(scrollbar, message, current)
+                time.sleep(0.2)
+                continue
+            for _ in range(99):
+                candidate = best_position + direction
+                if not -100 <= candidate <= 100:
+                    break
+                self._set_scroll_position(scrollbar, message, candidate)
+                time.sleep(0.05)
+                candidate_bounds = bounds_detector(capture(), width=width, viewport=viewport)
+                if candidate_bounds is None:
+                    break
+                error = abs(
+                    (candidate_bounds[axis] + candidate_bounds[axis + 2]) / 2 - viewport_center
+                )
+                if error >= best_error:
+                    break
+                best_error, best_position = error, candidate
+            self._set_scroll_position(scrollbar, message, best_position)
+            time.sleep(0.2)
+
+    def _find_visible_bounds(
+        self,
+        capture: Callable[[], bytes],
+        width: int,
+        viewport: tuple[int, int, int, int],
+        scrollbars: Mapping[int, int],
+    ) -> tuple[int, int, int, int] | None:
+        bounds = _visible_content_bbox(capture(), width=width, viewport=viewport)
+        if bounds is not None or set(scrollbars) != {0, 1}:
+            return bounds
+        original = {
+            axis: int(self.user32.GetScrollPos(scrollbar, 2))
+            for axis, scrollbar in scrollbars.items()
+        }
+        deltas = [0, *(value for step in range(1, 11) for value in (step, -step))]
+        local = sorted(
+            ((dx, dy) for dx in deltas for dy in deltas),
+            key=lambda pair: abs(pair[0]) + abs(pair[1]),
+        )
+        coarse = sorted(
+            (
+                (horizontal - original[0], vertical - original[1])
+                for horizontal in range(-100, 101, 20)
+                for vertical in range(-100, 101, 20)
+            ),
+            key=lambda pair: abs(pair[0]) + abs(pair[1]),
+        )
+        seen: set[tuple[int, int]] = set()
+        for dx, dy in [*local, *coarse]:
+            horizontal = min(100, max(-100, original[0] + dx))
+            vertical = min(100, max(-100, original[1] + dy))
+            if (horizontal, vertical) in seen:
+                continue
+            seen.add((horizontal, vertical))
+            self._set_scroll_position(scrollbars[0], _WM_HSCROLL, horizontal)
+            self._set_scroll_position(scrollbars[1], _WM_VSCROLL, vertical)
+            time.sleep(0.01)
+            bounds = _visible_content_bbox(capture(), width=width, viewport=viewport)
+            if bounds is not None:
+                return bounds
+        self._set_scroll_position(scrollbars[0], _WM_HSCROLL, original[0])
+        self._set_scroll_position(scrollbars[1], _WM_VSCROLL, original[1])
+        return None
+
+    def _scrollbars(self, window: int) -> dict[int, int]:
+        candidates: dict[int, list[tuple[int, int]]] = {0: [], 1: []}
+        for hwnd, class_name, _parent_class, box in self._child_controls(window):
+            if class_name != "TScrollBar":
+                continue
+            control_width, control_height = box[2] - box[0], box[3] - box[1]
+            axis = 0 if control_width > control_height else 1
+            candidates[axis].append((max(control_width, control_height), hwnd))
+        return {axis: max(controls)[1] for axis, controls in candidates.items() if controls}
+
+    def _set_scroll_position(
+        self,
+        scrollbar: int,
+        message: int,
+        position: int,
+    ) -> None:
+        self.user32.SetScrollPos(scrollbar, 2, position, True)
+        parent = int(self.user32.GetParent(scrollbar))
+        if not parent:
+            raise RuntimeError("DipTrace scrollbar has no parent window")
+        self._send(parent, message, 4 | ((position & 0xFFFF) << 16), scrollbar)
+
+    def _child_controls(self, window: int) -> list[tuple[int, str, str, tuple[int, int, int, int]]]:
+        callback_type: Any = ctypes.__dict__.get("WINFUNCTYPE", ctypes.CFUNCTYPE)(
+            ctypes.c_bool,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+        )
+        controls: list[tuple[int, str, str, tuple[int, int, int, int]]] = []
+
+        def class_name(hwnd: int) -> str:
+            value = ctypes.create_unicode_buffer(64)
+            self.user32.GetClassNameW(hwnd, value, len(value))
+            return value.value
+
+        def callback(hwnd: int, _lparam: int) -> bool:
+            rect = wintypes.RECT()
+            if self.user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                controls.append(
+                    (
+                        int(hwnd),
+                        class_name(hwnd),
+                        class_name(int(self.user32.GetParent(hwnd))),
+                        (rect.left, rect.top, rect.right, rect.bottom),
+                    )
+                )
+            return True
+
+        self.user32.EnumChildWindows(window, callback_type(callback), 0)
+        return controls
+
     def _execute(self, command: DesktopCommand) -> None:
         hwnd = self._window(command.window_title_contains)
         if command.hotkey:
@@ -261,6 +610,7 @@ class HiddenMessageDesktopDriver:
                 target, point = self._target(hwnd, x, y)
                 self._send(target, _WM_MOUSEMOVE, 0, _pack_point(*point))
                 self._click(target, point, command.click or "left", command.click_count)
+                time.sleep(_PATH_POINT_PAUSE_SECONDS)
         else:
             target = hwnd
             click_point: tuple[int, int] | None = None
@@ -564,6 +914,7 @@ def _capture_seconds(
     tail: float,
 ) -> float:
     pause_ms = 0
+    path_points = 0
     cues = manifest.get("cues")
     if isinstance(cues, list):
         for cue in cues:
@@ -574,23 +925,27 @@ def _capture_seconds(
                 continue
             payload = event.get("payload")
             if isinstance(payload, Mapping):
-                pause_ms += sum(
-                    command.pause_ms
-                    for command in desktop_commands_from_payload(payload)
-                )
+                commands = desktop_commands_from_payload(payload)
+                pause_ms += sum(command.pause_ms for command in commands)
+                path_points += sum(len(command.path) for command in commands)
     return max(
         1.0,
         _CAPTURE_LEAD_SECONDS
         + preflight.duration_ms / 1000.0
         + pause_ms / 1000.0
+        + path_points * _PATH_POINT_PAUSE_SECONDS
         + tail,
     )
 
 
-def _h264_output_arguments(output: str | Path) -> list[str]:
+def _h264_output_arguments(
+    output: str | Path,
+    *,
+    video_filter: str = "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+) -> list[str]:
     return [
         "-vf",
-        "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+        video_filter,
         "-c:v",
         "libx264",
         "-preset",
@@ -612,11 +967,18 @@ def _build_printwindow_encode_command(
     width: int,
     height: int,
     fps: int,
+    crop_box: tuple[int, int, int, int] | None = None,
 ) -> list[str]:
     if width <= 0 or height <= 0:
         raise ValueError("raw-video dimensions must be positive")
     if not 1 <= fps <= 240:
         raise ValueError("fps must be between 1 and 240")
+    video_filter = "pad=ceil(iw/2)*2:ceil(ih/2)*2"
+    if crop_box is not None:
+        left, top, right, bottom = crop_box
+        if not (0 <= left < right <= width and 0 <= top < bottom <= height):
+            raise ValueError("raw-video crop must be inside the frame")
+        video_filter = f"crop={right - left}:{bottom - top}:{left}:{top}," + video_filter
     return [
         ffmpeg,
         "-y",
@@ -632,8 +994,121 @@ def _build_printwindow_encode_command(
         str(fps),
         "-i",
         "pipe:0",
-        *_h264_output_arguments(output),
+        *_h264_output_arguments(output, video_filter=video_filter),
     ]
+
+
+def _content_is_framed(
+    bounds: tuple[int, int, int, int],
+    viewport: tuple[int, int, int, int],
+) -> bool:
+    viewport_width = viewport[2] - viewport[0]
+    viewport_height = viewport[3] - viewport[1]
+    content_width = bounds[2] - bounds[0]
+    content_height = bounds[3] - bounds[1]
+    fill = max(
+        content_width / (viewport_width * (1.0 - 2.0 * _FRAME_PADDING)),
+        content_height / (viewport_height * (1.0 - 2.0 * _FRAME_PADDING)),
+    )
+    return (
+        bounds[0] >= viewport[0]
+        and bounds[1] >= viewport[1]
+        and bounds[2] <= viewport[2]
+        and bounds[3] <= viewport[3]
+        and min(content_width / viewport_width, content_height / viewport_height) >= 0.2
+        and 0.85 <= fill <= 1.15
+        and abs(bounds[0] + bounds[2] - viewport[0] - viewport[2]) <= viewport_width * 0.12
+        and abs(bounds[1] + bounds[3] - viewport[1] - viewport[3]) <= viewport_height * 0.12
+    )
+
+
+def _padded_content_box(
+    bounds: tuple[int, int, int, int],
+    viewport: tuple[int, int, int, int],
+) -> tuple[int, int, int, int]:
+    padding_x = round((bounds[2] - bounds[0]) * _OUTPUT_PADDING)
+    padding_y = round((bounds[3] - bounds[1]) * _OUTPUT_PADDING)
+    return (
+        max(viewport[0], bounds[0] - padding_x),
+        max(viewport[1], bounds[1] - padding_y),
+        min(viewport[2], bounds[2] + padding_x),
+        min(viewport[3], bounds[3] + padding_y),
+    )
+
+
+def _visible_content_bbox(
+    frame: bytes,
+    *,
+    width: int,
+    viewport: tuple[int, int, int, int],
+) -> tuple[int, int, int, int] | None:
+    """Find non-background drawing content while ignoring faint grid pixels."""
+
+    left, top, right, bottom = viewport
+    if width <= 0 or right - left < 8 or bottom - top < 8:
+        return None
+    sample_step = max(4, min(right - left, bottom - top) // 80)
+    samples: dict[tuple[int, int, int], int] = {}
+    for y in range(top + 2, bottom - 2, sample_step):
+        for x in range(left + 2, right - 2, sample_step):
+            offset = (y * width + x) * 4
+            color = (
+                frame[offset] >> 4,
+                frame[offset + 1] >> 4,
+                frame[offset + 2] >> 4,
+            )
+            samples[color] = samples.get(color, 0) + 1
+    if not samples:
+        return None
+    background_bin = max(samples, key=lambda color: samples[color])
+    background = tuple(channel * 16 + 8 for channel in background_bin)
+    min_x, min_y, max_x, max_y = right, bottom, left, top
+    count = 0
+    for y in range(top + 2, bottom - 2, 2):
+        row = y * width * 4
+        for x in range(left + 2, right - 2, 2):
+            offset = row + x * 4
+            if (
+                max(frame[offset : offset + 3]) < 220
+                or max(abs(frame[offset + index] - background[index]) for index in range(3)) < 48
+            ):
+                continue
+            min_x = min(min_x, x)
+            min_y = min(min_y, y)
+            max_x = max(max_x, x)
+            max_y = max(max_y, y)
+            count += 1
+    if count < 16:
+        return None
+    return (min_x, min_y, max_x + 2, max_y + 2)
+
+
+def _purple_outline_bbox(
+    frame: bytes,
+    *,
+    width: int,
+    viewport: tuple[int, int, int, int],
+) -> tuple[int, int, int, int] | None:
+    """Find DipTrace's purple board outline, including clipped edges."""
+
+    left, top, right, bottom = viewport
+    min_x, min_y, max_x, max_y = right, bottom, left, top
+    count = 0
+    for y in range(top, bottom, 2):
+        row = y * width * 4
+        for x in range(left, right, 2):
+            offset = row + x * 4
+            blue, green, red = frame[offset : offset + 3]
+            if red < 80 or blue < 80 or green > 50 or green + 40 >= min(red, blue):
+                continue
+            min_x = min(min_x, x)
+            min_y = min(min_y, y)
+            max_x = max(max_x, x)
+            max_y = max(max_y, y)
+            count += 1
+    if count < 16:
+        return None
+    return (min_x, min_y, max_x + 2, max_y + 2)
 
 
 def _frame_has_visible_client_content(
@@ -650,15 +1125,8 @@ def _frame_has_visible_client_content(
     xs = range(left, right, max(1, (right - left) // 64))
     ys = range(top, bottom, max(1, (bottom - top) // 32))
     # ponytail: sparse central-client sampling; use a histogram for dark PCB themes.
-    samples = [
-        (y * width + x) * 4
-        for y in ys
-        for x in xs
-    ]
-    visible = sum(
-        max(frame[offset : offset + 3]) > 16
-        for offset in samples
-    )
+    samples = [(y * width + x) * 4 for y in ys for x in xs]
+    visible = sum(max(frame[offset : offset + 3]) > 16 for offset in samples)
     return visible >= max(1, len(samples) // 20)
 
 
@@ -682,9 +1150,7 @@ def build_windows_capture_command(
         raise ValueError("window_handle must be a positive integer")
     if desktop and (window_handle is not None or window_title not in {None, "DipTrace"}):
         raise ValueError("desktop capture cannot also select a window")
-    if not desktop and window_handle is None and (
-        window_title is None or not window_title.strip()
-    ):
+    if not desktop and window_handle is None and (window_title is None or not window_title.strip()):
         raise ValueError("window_title or window_handle is required for window capture")
 
     if desktop:
@@ -720,6 +1186,8 @@ def _record_printwindow_video(
     fps: int,
     duration_seconds: float,
     playback: Callable[[], None],
+    prepare: Callable[[Callable[[], bytes], int, int], tuple[int, int, int, int] | None]
+    | None = None,
 ) -> int:
     windll = getattr(ctypes, "windll", None)
     if windll is None:
@@ -823,11 +1291,53 @@ def _record_printwindow_video(
                 0,
             )
         )
-        if not bitmap or not bits.value:
+        bits_address = bits.value
+        if not bitmap or not bits_address:
             raise RuntimeError("cannot allocate PrintWindow frame buffer")
         previous = int(gdi32.SelectObject(memory_dc, bitmap))
         if previous in {0, ctypes.c_void_p(-1).value}:
             raise RuntimeError("cannot select PrintWindow frame buffer")
+
+        def capture_frame() -> tuple[bytes, bool]:
+            frame: bytes | None = None
+            has_client_content = False
+            for flags in (0, None, _PW_RENDERFULLCONTENT):
+                ctypes.memset(bits_address, 0, frame_size)
+                if flags is None:
+                    message_result = ctypes.c_size_t()
+                    rendered = user32.SendMessageTimeoutW(
+                        hwnd,
+                        _WM_PRINT,
+                        memory_dc,
+                        _PRF_RENDER_ALL,
+                        _SEND_TIMEOUT_FLAGS,
+                        2_000,
+                        ctypes.byref(message_result),
+                    )
+                else:
+                    rendered = user32.PrintWindow(hwnd, memory_dc, flags)
+                if not rendered:
+                    continue
+                gdi32.GdiFlush()
+                candidate = ctypes.string_at(bits_address, frame_size)
+                candidate_has_content = _frame_has_visible_client_content(
+                    candidate,
+                    width=width,
+                    client_box=client_box,
+                )
+                if frame is None or candidate_has_content:
+                    frame = candidate
+                    has_client_content = candidate_has_content
+                if candidate_has_content:
+                    break
+            if frame is None:
+                raise RuntimeError("PrintWindow failed to render DipTrace")
+            return frame, has_client_content
+
+        crop_box = None
+        if prepare is not None:
+            crop_box = prepare(lambda: capture_frame()[0], width, height)
+            time.sleep(0.1)
 
         command = _build_printwindow_encode_command(
             ffmpeg,
@@ -835,6 +1345,7 @@ def _record_printwindow_video(
             width=width,
             height=height,
             fps=fps,
+            crop_box=crop_box,
         )
         stderr_log = resources.enter_context(
             tempfile.TemporaryFile()  # noqa: SIM115 - ExitStack owns this file.
@@ -865,42 +1376,8 @@ def _record_printwindow_video(
             if playback_thread is None and index >= lead_frames:
                 playback_thread = threading.Thread(target=run_playback, daemon=True)
                 playback_thread.start()
-            frame: bytes | None = None
-            has_client_content = False
-            for flags in (0, None, _PW_RENDERFULLCONTENT):
-                ctypes.memset(bits.value, 0, frame_size)
-                if flags is None:
-                    message_result = ctypes.c_size_t()
-                    rendered = user32.SendMessageTimeoutW(
-                        hwnd,
-                        _WM_PRINT,
-                        memory_dc,
-                        _PRF_RENDER_ALL,
-                        _SEND_TIMEOUT_FLAGS,
-                        2_000,
-                        ctypes.byref(message_result),
-                    )
-                else:
-                    rendered = user32.PrintWindow(hwnd, memory_dc, flags)
-                if not rendered:
-                    continue
-                gdi32.GdiFlush()
-                candidate = ctypes.string_at(bits.value, frame_size)
-                candidate_has_content = _frame_has_visible_client_content(
-                    candidate,
-                    width=width,
-                    client_box=client_box,
-                )
-                if frame is None or candidate_has_content:
-                    frame = candidate
-                    has_client_content = candidate_has_content
-                if candidate_has_content:
-                    break
-            if frame is None:
-                raise RuntimeError("PrintWindow failed to render DipTrace")
-            saw_visible_client_content = (
-                saw_visible_client_content or has_client_content
-            )
+            frame, has_client_content = capture_frame()
+            saw_visible_client_content = saw_visible_client_content or has_client_content
             try:
                 written = process.stdin.write(frame)
             except BrokenPipeError as exc:
@@ -1044,14 +1521,10 @@ def _convert_video_to_gif(
                 )
             except subprocess.TimeoutExpired as exc:
                 gif.unlink(missing_ok=True)
-                raise RuntimeError(
-                    f"GIF conversion timed out after {timeout_seconds:g}s"
-                ) from exc
+                raise RuntimeError(f"GIF conversion timed out after {timeout_seconds:g}s") from exc
             if completed.returncode != 0:
                 gif.unlink(missing_ok=True)
-                raise RuntimeError(
-                    f"GIF conversion failed with code {completed.returncode}"
-                )
+                raise RuntimeError(f"GIF conversion failed with code {completed.returncode}")
     if not gif.is_file() or gif.stat().st_size <= 0:
         gif.unlink(missing_ok=True)
         raise RuntimeError("GIF conversion produced no output")
@@ -1131,6 +1604,7 @@ def _perform_hidden_capture(
             fps=request.fps,
             duration_seconds=capture_seconds,
             playback=lambda: play_manifest(manifest, message_driver),
+            prepare=message_driver.fit_content,
         )
         if not request.video_output.is_file() or request.video_output.stat().st_size <= 0:
             raise hg.HeadlessGuiError("headless cinematic capture produced no video")

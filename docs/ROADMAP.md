@@ -8,9 +8,9 @@ This roadmap separates three states:
 
 Implementation never implies universal DipTrace compatibility. Historical evidence stays bound to the production identity that was actually tested.
 
-## Current checkpoint — 2026-08-14
+## Current checkpoint — 2026-08-16
 
-The current source/package version is `0.2.1`. The immutable `v0.2.1` release and PyPI package are published; post-release development is tracked separately.
+The current source/package version is `0.3.0`. The immutable `v0.2.1` release and PyPI package remain published; `v0.3.0` is the selected unsigned development-prerelease candidate.
 
 The schematic-quality production fixes were merged by PR #90. The production merge identity is:
 
@@ -173,6 +173,14 @@ Generation B/C facts contribute conservative proxy/uncertainty terms only. No in
 
 The synthetic engineering-trap catalog remains useful regression coverage but is not native-DipTrace proof. Real acceptance should use generate -> open -> refill where needed -> DRC/review -> save/reopen/re-export -> compare.
 
+The narrower repository I²C demo path is operator-accepted as of 2026-08-16:
+the compact 25×12 mm PCB, matching schematic and board-framed GIF/MP4 outputs
+were inspected in the current DipTrace configuration. The current generator
+also includes compact 2.54 mm headers, two explicit GND-pour boundaries,
+four-spoke thermal intent and 14 distributed GND stitching vias. This does not
+close the broader authoritative-refill/plane/via or manufacturing acceptance
+boundary above.
+
 # DSN/SES and XML analysis track
 
 **Status: implemented bounded analysis layer.**
@@ -211,7 +219,7 @@ It remains `public_registration=false`. A public write tool must be an explicit 
 
 # Cinematic presentation track
 
-**Status: implemented presentation subsystem + bounded whole-manifest preflight; exact-client UI acceptance pending.**
+**Status: implemented presentation subsystem + bounded whole-manifest preflight; repository examples accepted, additional-client UI acceptance remains scoped.**
 
 Implemented:
 
@@ -226,7 +234,9 @@ Implemented:
 
 Still pending real acceptance:
 
-- verified action macros/calibration for the exact editor/version/configuration;
+- repeat action-macro/calibration evidence for additional
+  editor/version/configuration combinations beyond the accepted repository
+  examples;
 - staged via/layer-transition replay and other unverified editor gestures.
 
 # Headless native GUI track

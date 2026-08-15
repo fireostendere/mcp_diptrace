@@ -14,6 +14,8 @@ from typing import Any
 from .cinematic import CinematicEvent
 from .cinematic_preflight import preflight_cinematic_manifest
 
+_PATH_POINT_PAUSE_SECONDS = 0.1
+
 
 @dataclass(frozen=True, slots=True)
 class DesktopCommand:
@@ -228,6 +230,7 @@ class WindowsDesktopDriver:
             for x, y in command.path:
                 self._move_to(hwnd, x, y)
                 self._click(button, command.click_count)
+                time.sleep(_PATH_POINT_PAUSE_SECONDS)
         else:
             if command.move_to is not None:
                 self._move_to(hwnd, *command.move_to)

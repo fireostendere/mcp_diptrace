@@ -116,6 +116,12 @@ fabricator's rule deck, or engineering review.
 | Thermal implementation | Partial | `pcb.thermal_metadata` | Reviews explicit power/thermal-strategy metadata only and skips when power metadata is absent; no temperature or heat-flow calculation is performed. |
 | Panel and output-package manufacturability | Missing | none | Panel parameters can be edited, but no registered check validates the resolved panel, Gerber, NC Drill, stencil, or vendor package. |
 
+The package-level `copper_pours.py` and `silkscreen.py` authoring helpers do not
+change these review classifications. They can request four-spoke thermals,
+place distributed stitching vias and avoid known silkscreen obstacles, but the
+review engine still cannot promote requested attributes into proof of native
+refill/spoke geometry or independently pass `pcb.silk_to_pad`.
+
 ## Schematic Coverage
 
 The schematic registry checks unconnected pins while respecting explicit no-connect

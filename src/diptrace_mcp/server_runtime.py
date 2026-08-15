@@ -1388,7 +1388,7 @@ def create_server(
         grid: float = 0.25,
         search_steps: int = 4,
         include_board_texts: bool = False,
-        avoid_component_bodies: bool = False,
+        avoid_component_bodies: bool = True,
     ) -> dict[str, Any]:
         """Generate and persist a deterministic legal silkscreen placement plan."""
         return service.plan_silkscreen(

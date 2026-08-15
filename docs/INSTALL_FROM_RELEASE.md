@@ -4,6 +4,11 @@
 
 Version `v0.2.1` is the current published distribution line for PyPI and the GitHub development prerelease.
 
+Source metadata may report the selected `0.3.0` candidate during release
+preparation. Do not install or advertise `0.3.0` as published until its annotated
+tag and immutable GitHub/PyPI assets exist; the commands below intentionally
+remain pinned to the current public `0.2.1` bytes.
+
 Keep every downloaded artifact on the same immutable version.
 
 Windows assets:

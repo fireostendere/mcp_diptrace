@@ -55,6 +55,24 @@ def test_geometry_ranking_is_deterministic() -> None:
     assert first.candidates[0].name == "R_0603"
 
 
+def test_unspecified_geometry_prefers_the_smallest_compatible_pattern() -> None:
+    header = next(item for item in _patterns() if item.name == "HDR_1X02")
+    oversized = header.model_copy(
+        update={
+            "stable_id": "library-pattern_oversized",
+            "name": "HDR_1X02_ANGLED",
+            "bbox": {"min_x": -7.0, "min_y": -5.0, "max_x": 7.0, "max_y": 5.0},
+        }
+    )
+
+    result = recommend_patterns(
+        [oversized, header],
+        PatternRequirement(pad_count=2, mounting="Through", pitch_mm=2.54),
+    )
+
+    assert [item.name for item in result.candidates] == ["HDR_1X02", "HDR_1X02_ANGLED"]
+
+
 def test_feedback_store_is_append_only_and_does_not_store_requirement_payload(
     tmp_path: Path,
 ) -> None:

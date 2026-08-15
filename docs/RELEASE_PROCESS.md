@@ -4,6 +4,11 @@
 
 Version `v0.2.1` is the current published unsigned alpha/development prerelease.
 
+Version `v0.3.0` is the selected next unsigned development-prerelease candidate.
+It is not tagged or published yet. Candidate scope, operator confirmation and
+remaining gates are tracked in [RELEASE_0_3_0_CHECKLIST.md](RELEASE_0_3_0_CHECKLIST.md)
+and [releases/v0.3.0.md](releases/v0.3.0.md).
+
 Immutable/current published identities:
 
 - annotated tag: `v0.2.1`;
@@ -18,6 +23,10 @@ Immutable/current published identities:
 The immutable release record is [releases/v0.2.1.md](releases/v0.2.1.md). The old `v0.2.0` tag/assets also remain immutable.
 
 Development on `main` after `v0.2.1` is tracked in `CHANGELOG_NEXT.md` until the next version is selected. Do not describe post-release `main` features as if they were already present in the published `v0.2.1` bytes.
+
+The source/package metadata now identifies the selected `0.3.0` candidate.
+Installation instructions continue to point at `0.2.1` until immutable `0.3.0`
+assets have actually been published and redownload-verified.
 
 Windows executables remain unsigned. CI, SHA-256, PyPI Trusted Publishing and package attestations can establish tested behaviour, byte identity and publication provenance; they do not establish Authenticode trust, universal compatibility, independent review or production readiness.
 
@@ -56,8 +65,6 @@ python -m mypy --no-incremental src/diptrace_mcp plugin
 python scripts/sync_skill_scripts.py --check
 python scripts/generate_pcb_skills.py --check
 python scripts/generate_mcp_tools_snapshot.py --check
-python scripts/check_service_facade_contract.py --check
-python scripts/validate_service_decomposition.py --check
 python scripts/audit_event_loop.py --json
 python scripts/generate_coverage_badge.py --check
 python scripts/extract_spec_inventory.py \

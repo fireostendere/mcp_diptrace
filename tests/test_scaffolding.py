@@ -59,12 +59,8 @@ def test_pcb_scaffold_parses_and_normalizes() -> None:
     assert outline["bbox"] == {"min_x": 0.0, "min_y": 0.0, "max_x": 80.0, "max_y": 60.0}
     stackup = snapshot.board.stackup
     assert stackup.source == "LayerStackItems"
-    dielectrics = [
-        item for item in stackup.layers if item.material.material_type == "dielectric"
-    ]
-    conductors = [
-        item for item in stackup.layers if item.material.material_type == "conductor"
-    ]
+    dielectrics = [item for item in stackup.layers if item.material.material_type == "dielectric"]
+    conductors = [item for item in stackup.layers if item.material.material_type == "conductor"]
     assert len(conductors) == 2
     assert len(dielectrics) == 1
     assert dielectrics[0].material.thickness_mm == pytest.approx(1.6)
@@ -84,9 +80,7 @@ def test_pcb_scaffold_multilayer_names() -> None:
     assert snapshot.board is not None
     assert [layer["name"] for layer in snapshot.board.layers] == ["Top", "L2", "L3", "Bottom"]
     conductors = [
-        item
-        for item in snapshot.board.stackup.layers
-        if item.material.material_type == "conductor"
+        item for item in snapshot.board.stackup.layers if item.material.material_type == "conductor"
     ]
     dielectrics = [
         item
@@ -97,6 +91,7 @@ def test_pcb_scaffold_multilayer_names() -> None:
     assert len(dielectrics) == 3
     via_style = ET.fromstring(raw).find("./Board/ViaStyles/ViaStyle[@Id='0']")
     assert via_style is not None
+    assert (via_style.get("Size"), via_style.get("HoleSize")) == ("0.6", "0.3")
     assert (via_style.get("Lay1"), via_style.get("Lay2")) == ("0", "3")
 
 
@@ -121,9 +116,7 @@ def test_pcb_scaffold_plane_layers_and_custom_rules() -> None:
     snapshot = build_snapshot(_load(raw))
     net_class = snapshot.board.net_classes[0]  # type: ignore[index]
     assert net_class["name"] == "Default"
-    lay_props = ET.fromstring(raw).findall(
-        "./Board/NetClasses/NetClass/LayProperties/LayProperty"
-    )
+    lay_props = ET.fromstring(raw).findall("./Board/NetClasses/NetClass/LayProperties/LayProperty")
     assert len(lay_props) == 3
     assert all(prop.get("Width") == "0.3" for prop in lay_props)
     assert all(prop.get("Clearance") == "0.25" for prop in lay_props)
@@ -163,9 +156,9 @@ def test_create_document_service_round_trip(tmp_path: Path) -> None:
     assert written.exists()
     root = ET.fromstring(written.read_bytes())
     assert root.get("Version") == DEFAULT_FORMAT_VERSION
-    assert {
-        library.get("Version") for library in root.findall("./Library")
-    } == {DEFAULT_FORMAT_VERSION}
+    assert {library.get("Version") for library in root.findall("./Library")} == {
+        DEFAULT_FORMAT_VERSION
+    }
     info = service.document_info("project/board.dip")
     assert info["result"]["kind"] == "pcb"
     assert info["result"]["sha256"] == created["result"]["sha256"]
@@ -214,9 +207,7 @@ def test_create_document_sets_explicit_format_version_on_root_and_libraries(
     assert result["result"]["format_version"] == "5.3.0.2"
     root = ET.fromstring((tmp_path / f"{kind}.xml").read_bytes())
     assert root.get("Version") == "5.3.0.2"
-    assert {library.get("Version") for library in root.findall("./Library")} == {
-        "5.3.0.2"
-    }
+    assert {library.get("Version") for library in root.findall("./Library")} == {"5.3.0.2"}
 
 
 @pytest.mark.parametrize(

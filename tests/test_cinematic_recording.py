@@ -74,19 +74,110 @@ def test_printwindow_encoder_accepts_bgra_frames_over_pipe() -> None:
     assert command[command.index("-vf") + 1] == "pad=ceil(iw/2)*2:ceil(ih/2)*2"
 
 
+def test_printwindow_encoder_crops_away_editor_controls() -> None:
+    command = recording._build_printwindow_encode_command(
+        "ffmpeg.exe",
+        "demo.mp4",
+        width=100,
+        height=80,
+        fps=30,
+        crop_box=(10, 12, 90, 72),
+    )
+
+    assert command[command.index("-vf") + 1] == ("crop=80:60:10:12,pad=ceil(iw/2)*2:ceil(ih/2)*2")
+
+
 def test_printwindow_black_frame_check_ignores_alpha() -> None:
     black = bytes((0, 0, 0, 255)) * (32 * 32)
     box = (0, 8, 32, 32)
-    assert recording._frame_has_visible_client_content(
-        black, width=32, client_box=box
-    ) is False
+    assert recording._frame_has_visible_client_content(black, width=32, client_box=box) is False
     visible = bytearray(black)
     for y in range(12, 28):
         for x in range(8, 24):
             visible[(y * 32 + x) * 4] = 255
-    assert recording._frame_has_visible_client_content(
-        bytes(visible), width=32, client_box=box
-    ) is True
+    assert (
+        recording._frame_has_visible_client_content(bytes(visible), width=32, client_box=box)
+        is True
+    )
+
+
+def test_visible_content_bbox_ignores_faint_grid_and_finds_board() -> None:
+    width, height = 64, 48
+    frame = bytearray(bytes((0, 0, 0, 255)) * (width * height))
+    for y in range(0, height, 4):
+        for x in range(0, width, 4):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((24, 24, 24))
+    for y in range(12, 36):
+        for x in range(10, 50):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((80, 240, 240))
+    for x in range(width):
+        frame[(2 * width + x) * 4 : (2 * width + x) * 4 + 3] = bytes((190, 190, 190))
+    for y in range(height):
+        frame[(y * width + 2) * 4 : (y * width + 2) * 4 + 3] = bytes((190, 190, 190))
+
+    assert recording._visible_content_bbox(
+        bytes(frame), width=width, viewport=(0, 0, width, height)
+    ) == (10, 12, 50, 36)
+
+
+def test_purple_outline_bbox_finds_clipped_board_edge() -> None:
+    width, height = 64, 48
+    frame = bytearray(bytes((0, 0, 0, 255)) * (width * height))
+    purple = bytes((189, 0, 128))
+    for y in range(0, 36):
+        for x in (10, 11, 48, 49):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = purple
+    for y in (34, 35):
+        for x in range(10, 50):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = purple
+
+    assert recording._purple_outline_bbox(
+        bytes(frame), width=width, viewport=(0, 0, width, height)
+    ) == (10, 0, 50, 36)
+
+
+def test_content_is_framed_accepts_margin_and_rejects_sliver() -> None:
+    viewport = (0, 0, 1000, 800)
+
+    assert recording._content_is_framed((120, 120, 880, 680), viewport)
+    assert not recording._content_is_framed((0, 398, 1000, 402), viewport)
+
+
+@pytest.mark.parametrize(
+    ("window_title", "expected_keys"),
+    [("DipTrace PCB Layout", [("home",)]), ("DipTrace Schematic", [])],
+)
+def test_fit_content_uses_pcb_native_overview_only(
+    monkeypatch: pytest.MonkeyPatch,
+    window_title: str,
+    expected_keys: list[tuple[str, ...]],
+) -> None:
+    driver = object.__new__(HiddenMessageDesktopDriver)
+    driver.default_window = window_title
+    driver._window = lambda _title: 1
+    driver._drawing_viewport = lambda _window, width, height: (0, 0, width, height)
+    driver._target = lambda _window, _x, _y: (2, (0, 0))
+    keys: list[tuple[str, ...]] = []
+    driver._hotkey = lambda _window, value: keys.append(value)
+    monkeypatch.setattr(recording.time, "sleep", lambda _seconds: None)
+    width = height = 100
+    frame = bytearray(bytes((0, 0, 0, 255)) * (width * height))
+    if "PCB" in window_title:
+        for y in range(20, 80):
+            for x in (14, 15, 84, 85):
+                frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((189, 0, 128))
+        for y in (20, 21, 78, 79):
+            for x in range(14, 86):
+                frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((189, 0, 128))
+    else:
+        for y in range(20, 80):
+            for x in range(14, 86):
+                frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((80, 240, 240))
+
+    crop = driver.fit_content(lambda: bytes(frame), width, height)
+
+    assert keys == expected_keys
+    assert crop == (7, 14, 93, 86)
 
 
 def test_printwindow_client_check_rejects_titlebar_only() -> None:
@@ -94,9 +185,12 @@ def test_printwindow_client_check_rejects_titlebar_only() -> None:
     for pixel in range(32 * 8):
         frame[pixel * 4] = 255
 
-    assert recording._frame_has_visible_client_content(
-        bytes(frame), width=32, client_box=(0, 8, 32, 32)
-    ) is False
+    assert (
+        recording._frame_has_visible_client_content(
+            bytes(frame), width=32, client_box=(0, 8, 32, 32)
+        )
+        is False
+    )
 
 
 def test_capture_command_rejects_invalid_inputs() -> None:
@@ -286,11 +380,16 @@ def test_capture_seconds_includes_manifest_timing_and_command_pause(tmp_path: Pa
     cues = manifest["cues"]
     assert isinstance(cues, list)
     event = cues[0]["event"]
-    event["payload"]["desktop"]["pause_ms"] = 250
+    desktop = event["payload"]["desktop"]
+    desktop.pop("move_to")
+    desktop["pause_ms"] = 250
+    desktop["path"] = [[0.1, 0.1], [0.2, 0.2]]
     preflight = recording.preflight_cinematic_manifest(manifest)
     seconds = recording._capture_seconds(manifest, preflight, 0.5)
     assert seconds >= 1.0
-    assert seconds >= preflight.duration_ms / 1000 + 0.75
+    assert seconds >= (
+        preflight.duration_ms / 1000 + 0.75 + 2 * recording._PATH_POINT_PAUSE_SECONDS
+    )
 
 
 def test_headless_validation_rejects_overwrite_and_missing_inputs(
@@ -455,6 +554,13 @@ def test_hidden_capture_records_resolved_window_with_printwindow(
     monkeypatch.setattr(recording, "_record_printwindow_video", record)
     monkeypatch.setattr(recording, "play_manifest", lambda *_args: None)
     monkeypatch.setattr(
+        recording,
+        "HiddenMessageDesktopDriver",
+        lambda **_kwargs: SimpleNamespace(
+            fit_content=lambda *_args: None,
+        ),
+    )
+    monkeypatch.setattr(
         recording.ctypes,
         "windll",
         SimpleNamespace(user32=user32),
@@ -471,6 +577,7 @@ def test_hidden_capture_records_resolved_window_with_printwindow(
     assert result.ffmpeg_pid == 11
     assert captured["hwnd"] == 0xCAFE
     assert captured["user32"] is user32
+    assert callable(captured["prepare"])
 
 
 def test_window_lookup_filters_pid_and_title(monkeypatch: pytest.MonkeyPatch) -> None:

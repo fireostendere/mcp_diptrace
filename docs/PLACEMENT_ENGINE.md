@@ -73,6 +73,13 @@ Generation A placement can:
 
 Generation A preserves unknown physical values and uses bounded proximity/intent proxies where exact physics are unavailable.
 
+Repository PCB generators additionally prefer compact outlines derived from
+occupied component geometry, center the finished layout and preserve visual
+symmetry when doing so does not worsen electrical/mechanical legality. Standard
+2.54 mm connectors use the smallest equally compatible pattern by default.
+These are deterministic soft preferences; locked locations, courtyards, edge
+clearance, routing and explicit constraints remain dominant.
+
 ## PCB Generations B-D interaction
 
 The old statement that stackup, PDN, routing policy and whole-board optimisation are merely future placement work is no longer correct. They exist as sibling/later internal layers:
