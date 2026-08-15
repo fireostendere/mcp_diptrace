@@ -83,13 +83,14 @@ is not yet published.
 
 ## What it provides
 
-The public MCP surface currently registers 165 tools. Runtime
+The public MCP surface currently registers 167 tools. Runtime
 `get_capabilities` remains authoritative for the active
 installation and document.
 
 Main public capability groups:
 
-- PCB, schematic, Component Library, and Pattern Library reading and modelling;
+- PCB, schematic, Component Library, and Pattern Library reading and modelling,
+  including the installed DipTrace catalog through a read-only bridge;
 - structured DRC/ERC, connectivity, BOM, assembly, DFM/DFA/DFT, comparison, and
   signal-integrity assistance;
 - guarded component, schematic, NetClass, text, trace, via, panelisation,
@@ -132,10 +133,13 @@ Missing current, edge rate, impedance, stackup authority, current density and
 other physical facts remain explicit unknowns. PCB Generation D still requires
 real-DipTrace product acceptance before stronger native-host claims are made.
 
-An internal raw-preserving Component/Pattern Library mutation core now exists
-and has controlled real Component Editor/Pattern Editor round-trip evidence.
-That does not create a public native-library MCP write contract; public
-registration remains a separate API/product decision.
+`query_builtin_library_catalog` browses/searches DipTrace's installed read-only
+catalog. `place_builtin_component` resolves one returned `catalog_id`, exports
+that source through Component Editor on an isolated desktop, and copies only the
+selected component/pattern definitions into the target schematic through the
+normal preview/expected-SHA transaction path. It never writes the source
+`.eli`/`.lib` file. The separate native Component/Pattern Library mutation core
+remains internal and is not a public MCP write contract.
 
 The cinematic subsystem can replay already-planned schematic/PCB actions through
 a calibrated visible DipTrace UI and capture MP4/GIF demonstrations. It is a

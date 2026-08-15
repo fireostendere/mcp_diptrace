@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import sys
@@ -606,6 +607,47 @@ def test_save_window_fails_when_post_message_fails(
 
     with pytest.raises(headless_gui.HeadlessGuiError, match="PostMessageW failed"):
         headless_gui._save_window(Window(), "File->Save")
+
+
+def test_save_dialog_selects_xml_and_submits_without_physical_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[tuple[int, int, int, int]] = []
+    posted: list[tuple[int, int, int, int]] = []
+
+    class User32:
+        def SendMessageW(
+            self, handle: int, message: int, wparam: int, lparam: int
+        ) -> int:
+            sent.append((handle, message, wparam, lparam))
+            if message == headless_gui._CB_GETCOUNT:
+                return 2
+            if message == headless_gui._CB_GETLBTEXT:
+                value = "Component Libraries XML (*.elixml)" if wparam == 1 else "*.eli"
+                buffer = (ctypes.c_wchar * 1024).from_address(lparam)
+                buffer.value = value
+            return 0
+
+        def PostMessageW(
+            self, handle: int, message: int, wparam: int, lparam: int
+        ) -> bool:
+            posted.append((handle, message, wparam, lparam))
+            return True
+
+    class Api:
+        user32 = User32()
+
+    monkeypatch.setattr(headless_gui, "_Win32Api", Api)
+    monkeypatch.setattr(headless_gui, "_save_dialog_controls", lambda _handle: (10, 20))
+    monkeypatch.setattr(headless_gui.time, "sleep", lambda _seconds: None)
+
+    headless_gui._save_dialog_as_xml(30, tmp_path / "library.elixml")
+
+    assert (20, headless_gui._CB_SETCURSEL, 1, 0) in sent
+    assert posted[-1] == (30, headless_gui._WM_COMMAND, 1, 0)
+    assert {message for _handle, message, _wparam, _lparam in posted} == {
+        headless_gui._WM_COMMAND
+    }
 
 
 def test_worker_roundtrip_posts_fifo_close_and_fails_when_exit_is_forced(

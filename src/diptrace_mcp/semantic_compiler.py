@@ -2597,6 +2597,75 @@ def _apply_add_sheet(
     ), 1
 
 
+def _import_place_part_library(
+    document: DipTraceDocument,
+    operation: PlacePartOperation,
+) -> int:
+    if operation.library_component_xml is None:
+        return 0
+    library = document.root.find("./Library[@Type='DipTrace-ComponentLibrary']")
+    if library is None:
+        raise EditError("Schematic has no embedded component library")
+    components = library.find("./Components")
+    if components is None:
+        components = ET.SubElement(library, "Components")
+    component = parse_xml_definition(operation.library_component_xml)
+    if component.tag != "Component":
+        raise EditError("Built-in component definition must be <Component>")
+    style = component.get("ComponentStyle")
+    if style != operation.component_style:
+        raise EditError("Built-in component style does not match place_part")
+    if any(
+        item.get("ComponentStyle", "").casefold() == style.casefold()
+        for item in components.findall("./Component")
+    ):
+        raise EditError(f"Embedded component style already exists: {style}")
+
+    pattern_library = library.find("./Library[@Type='DipTrace-PatternLibrary']")
+    if pattern_library is None:
+        pattern_library = ET.Element(
+            "Library", {"Type": "DipTrace-PatternLibrary", "Units": document.units}
+        )
+        library.insert(0, pattern_library)
+    pad_styles = pattern_library.find("./PadStyles")
+    if pad_styles is None:
+        pad_styles = ET.SubElement(pattern_library, "PadStyles")
+    patterns = pattern_library.find("./Patterns")
+    if patterns is None:
+        patterns = ET.SubElement(pattern_library, "Patterns")
+    existing_pad_styles = {
+        item.get("Name", "").casefold() for item in pad_styles.findall("./PadStyle")
+    }
+    existing_patterns = {
+        item.get("PatternStyle", "").casefold()
+        for item in patterns.findall("./Pattern")
+    }
+    parsed_pad_styles: list[ET.Element] = []
+    for raw in operation.library_pad_style_xml:
+        item = parse_xml_definition(raw)
+        name = item.get("Name", "")
+        if item.tag != "PadStyle" or not name or name.casefold() in existing_pad_styles:
+            raise EditError("Built-in component contains an invalid or duplicate PadStyle")
+        existing_pad_styles.add(name.casefold())
+        parsed_pad_styles.append(item)
+    parsed_patterns: list[ET.Element] = []
+    for raw in operation.library_pattern_xml:
+        item = parse_xml_definition(raw)
+        pattern_style = item.get("PatternStyle", "")
+        if (
+            item.tag != "Pattern"
+            or not pattern_style
+            or pattern_style.casefold() in existing_patterns
+        ):
+            raise EditError("Built-in component contains an invalid or duplicate Pattern")
+        existing_patterns.add(pattern_style.casefold())
+        parsed_patterns.append(item)
+    pad_styles.extend(parsed_pad_styles)
+    patterns.extend(parsed_patterns)
+    components.append(component)
+    return 1 + len(parsed_pad_styles) + len(parsed_patterns)
+
+
 def _apply_place_part(
     index: int,
     document: DipTraceDocument,
@@ -2616,6 +2685,7 @@ def _apply_place_part(
             f"RefDes already exists: {operation.refdes}",
             object_ids=[item.stable_id for item in existing],
         )
+    library_patch_count = _import_place_part_library(document, operation)
     library_part = next(
         (
             part
@@ -2732,7 +2802,7 @@ def _apply_place_part(
             }
         ],
         document,
-    ), 1
+    ), 1 + library_patch_count
 
 
 def _apply_connect_pins(

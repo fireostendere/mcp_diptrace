@@ -15,6 +15,7 @@ from .preview import PREVIEW_COPPER_POINT_LIMIT, PREVIEW_COPPER_RECORD_LIMIT
 from .previews import RawPreviewStore
 from .provenance_registry import TrustedProvenanceRegistry
 from .services.bom import BomService
+from .services.builtin_library import BuiltinLibraryService, CatalogKind
 from .services.container import build_service_container
 from .services.context import DocumentTarget, validate_page
 from .services.discovery import DiscoveryService
@@ -122,6 +123,11 @@ class DipTraceService:
             self._document_gateway,
             self._run_semantic_write,
             self._run_semantic_operations,
+        )
+        self._builtin_library_service = BuiltinLibraryService(
+            self._service_context,
+            self._document_gateway,
+            self._run_semantic_write,
         )
         self._external_jobs_service = ExternalJobsService(
             self._service_context,
@@ -554,6 +560,47 @@ class DipTraceService:
         recursive: bool = True,
     ) -> dict[str, Any]:
         return self._discovery_service._scan_libraries("DipTrace-PatternLibrary", root, recursive)
+
+    def query_builtin_library_catalog(
+        self,
+        diptrace_root: str | None = None,
+        kind: CatalogKind = "component",
+        query: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        return self._builtin_library_service.query(
+            diptrace_root, kind, query, offset, limit
+        )
+
+    def place_builtin_component(
+        self,
+        component: str,
+        refdes: str,
+        x: float,
+        y: float,
+        *,
+        value: str | None = None,
+        sheet: int = 0,
+        angle_deg: float = 0.0,
+        path: str | None = None,
+        diptrace_root: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+    ) -> dict[str, Any]:
+        return self._builtin_library_service.place_component(
+            component,
+            refdes,
+            x,
+            y,
+            value=value,
+            sheet=sheet,
+            angle_deg=angle_deg,
+            path=path,
+            diptrace_root=diptrace_root,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+        )
 
     def preview_transaction(self, txid: str) -> dict[str, Any]:
         return self._transaction_service.preview_transaction(txid)
