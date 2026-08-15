@@ -1,9 +1,10 @@
 # Headless GUI worker on Windows
 
-DipTrace MCP can isolate the remaining native GUI operations from the user's normal
-Windows desktop without requiring a virtual machine. The worker creates a separate
-Win32 desktop object inside the current interactive Windows session and launches a
-small helper process there. DipTrace is then started as a child of that helper.
+DipTrace MCP can keep bounded native GUI operations away from the operator's normal
+input desktop without requiring a virtual machine. Hidden mode creates a separate,
+randomly named Win32 desktop object inside the current interactive Windows session
+and launches a small helper there. Native mode is an explicit opt-in that runs on
+the verified current `WinSta0` input desktop so the operator can see the editor.
 
 This is **not** the Windows 10/11 Virtual Desktops feature. It uses Win32 desktop
 objects under `WinSta0`, for example:
@@ -11,8 +12,11 @@ objects under `WinSta0`, for example:
 ```text
 WinSta0
 ├── Default              <- the user's visible desktop
-└── DipTraceMCP-...      <- isolated DipTrace worker desktop
+└── DipTraceMCP-...      <- separate hidden DipTrace worker desktop
 ```
+
+Desktop separation prevents UI interference with the operator's input desktop. It
+is **not** a process, filesystem, network, token, privilege, or malware sandbox.
 
 The implementation deliberately never calls `SwitchDesktop`, `SendInput`,
 `SetCursorPos`, `mouse_event` or `keybd_event`. If a native action cannot be
@@ -22,20 +26,23 @@ stealing the user's physical keyboard or mouse.
 ## Scope
 
 The primary authoring path remains DipTrace XML plus semantic MCP operations. The
-headless GUI worker is only for host actions that require a real DipTrace process.
+Windows GUI worker is only for host actions that require a real DipTrace process.
 The first supported native operation is a bounded round trip:
 
-1. create a private Win32 desktop;
-2. launch the worker on that desktop;
+1. choose `hidden` or explicit `native` desktop mode;
+2. launch the worker on the verified target desktop;
 3. launch the requested DipTrace editor and open an existing project;
 4. invoke `File -> Save` through the Win32 automation backend;
 5. close the editor;
-6. return structured evidence including PIDs, desktop names and file SHA-256 before
-   and after the operation.
+6. return structured evidence including PIDs, desktop/window-station/session
+   identity and file SHA-256 before and after the operation.
 
-The same isolation layer is intended for later verified host actions such as
-exports, ERC/DRC, refill/generation commands and other operations that cannot be
-completed safely from XML alone. Those actions should be added only after the
+Hidden mode is the default. Native mode is refused when the worker is elevated,
+when the input desktop cannot be resolved, when the process is not attached to
+`WinSta0`, or when the worker lands in a different Windows session.
+
+The same worker can later support verified host actions such as exports, ERC/DRC
+and refill/generation commands. Those actions should be added only after the
 corresponding DipTrace controls have been verified on a real host.
 
 ## Requirements
@@ -64,7 +71,7 @@ console entry point. Invoke the maintained module directly:
 py -m diptrace_mcp.headless_gui --help
 ```
 
-## Isolation smoke test
+## Hidden isolation smoke test
 
 Run this before testing DipTrace itself:
 
@@ -72,12 +79,30 @@ Run this before testing DipTrace itself:
 py -m diptrace_mcp.headless_gui smoke
 ```
 
-A successful result is JSON with `"ok": true`. The test creates a private desktop,
-starts a child process there, verifies that the child reports the expected desktop
-name, and verifies that the physical input desktop did not change when Windows
-allows it to be queried.
+A successful result is JSON with `"ok": true`. The test creates a separate hidden
+desktop, starts a child process there, verifies that the child reports the expected
+desktop name, and verifies that the physical input desktop did not change when
+Windows allows it to be queried.
 
 The test does not require DipTrace.
+
+## Native desktop security smoke
+
+The native launch primitive has a separate no-DipTrace probe:
+
+```powershell
+py -m diptrace_mcp.headless_gui native-smoke
+```
+
+It launches only the bundled probe process and verifies:
+
+- the child's thread desktop matches the current input desktop;
+- both processes are attached to `WinSta0`;
+- the child remains in the same Windows session.
+
+This probe may run on an elevated CI runner because it performs no DipTrace or UI
+mutation. A real `roundtrip --desktop native` still fails closed when the caller
+has an elevated token.
 
 ## Readiness check
 
@@ -100,7 +125,8 @@ The report includes:
 - hidden desktop smoke result;
 - resolved DipTrace installation root;
 - whether `pywinauto` is available;
-- `physical_input_fallback: false` as an explicit safety invariant.
+- `physical_input_fallback: false`;
+- `desktop_is_security_sandbox: false`.
 
 ## Native open/save/close round trip
 
@@ -123,19 +149,16 @@ py -m diptrace_mcp.headless_gui roundtrip `
 ```
 
 Available editor identifiers are `pcb`, `schematic`, `component` and `pattern`.
-The command returns JSON. `ok: false` is a bounded failure and should be treated as
-host evidence, not silently retried with coordinate/mouse automation.
+The command returns JSON. `ok: false` is bounded failure evidence and must not be
+silently retried with coordinate/mouse automation.
 
-## Launch mode
+## Launch modes
 
-The worker supports two launch modes, selected with `--desktop`:
+The worker supports two modes selected with `--desktop`:
 
-- `hidden` (default): the editor starts on a private Win32 desktop under `WinSta0`
-  and stays invisible to the operator. This is the original isolation behaviour.
-- `native`: the editor starts directly on the operator's current interactive desktop
-  and remains visible. Use this when an operator wants to watch the round trip, or
-  when a sandbox/VM already provides isolation and the extra hidden desktop is
-  undesirable.
+- `hidden` (default): the editor starts on a separate randomly named Win32 desktop
+  under `WinSta0` and stays invisible to the operator;
+- `native`: the editor starts visibly on the verified current input desktop.
 
 Native example:
 
@@ -147,17 +170,27 @@ py -m diptrace_mcp.headless_gui roundtrip `
   --desktop native
 ```
 
-In `native` mode the worker inherits the current desktop, so the window is visible
-and the worker verifies it landed on the expected (`before`) input desktop. If the
-current input desktop cannot be determined, the operation fails closed with
-`native launch declined` instead of guessing. All other safety invariants
-(no `SwitchDesktop`, no synthesized input, bounded timeouts) apply unchanged. The
-evidence JSON reports the chosen `desktop_mode` so a caller can distinguish the two.
+Native launch does not rely on an unspecified inherited desktop. The launcher sets
+`STARTUPINFO.lpDesktop` explicitly to `WinSta0\<current-input-desktop>`, verifies
+the child session, and the worker verifies its desktop, window station and session
+again before performing DipTrace work.
+
+Native mode fails closed when:
+
+- the input desktop cannot be resolved;
+- the process window station is not `WinSta0`;
+- the caller/worker is elevated;
+- the worker is attached to an unexpected desktop/window station/session.
+
+If the input desktop changes after a Save may already have occurred, the caller
+does not discard the result. It returns `ok: false` with
+`desktop_changed: true` and retains PID/SHA/evidence fields so an operator can
+review the side effect without unsafe automatic retry.
 
 ## Bundled Windows build
 
-`scripts/build_windows_server.ps1` now builds the helper together with the normal
-standalone MCP server. The helper is placed under the server distribution at:
+`scripts/build_windows_server.ps1` builds the helper with the standalone MCP
+server. The helper is placed under:
 
 ```text
 diptrace_mcp_server\
@@ -166,9 +199,9 @@ diptrace_mcp_server\
         └── diptrace_mcp_headless_gui.exe
 ```
 
-Because the existing Windows installer copies the complete standalone server
-folder, the same helper is included in the normal installer/portable artifact.
-No separate Python installation is required for that packaged executable.
+The Windows build runs both the hidden-desktop test and the real native desktop
+security probe without requiring DipTrace. The packaged helper is included with
+the per-user server installer and portable artifact.
 
 Example after installation:
 
@@ -176,28 +209,47 @@ Example after installation:
 & "<install-root>\app\tools\diptrace_mcp_headless_gui\diptrace_mcp_headless_gui.exe" smoke
 ```
 
+## Installer privilege boundary
+
+Windows distribution deliberately separates the per-user MCP installation from
+the administrator-only DipTrace plug-in installation:
+
+- `DipTrace-MCP-Setup-<version>.exe` uses `PrivilegesRequired=lowest`, installs
+  the server/configurator under the user's selected/per-user path, and never
+  contains or launches a privileged plug-in installation path;
+- `DipTrace-MCP-Plugin-Setup-<version>.exe` uses
+  `PrivilegesRequired=admin`, contains its bridge/settings payload inside that
+  installer, and writes only the bounded `Plugins\<module>\DipTraceMCP`
+  integration plus its own administrator-owned uninstall metadata.
+
+The elevated plug-in installer does **not** execute scripts or copy executable
+payload from `%LOCALAPPDATA%` or from the per-user MCP installation. It does not
+modify Codex/Claude configuration, workspace, state, or user profiles.
+
 ## Safety invariants
 
 The implementation must retain all of these properties:
 
 - never switch the user's input desktop;
-- never synthesize physical mouse or keyboard input from the hidden worker;
+- never synthesize physical mouse or keyboard input;
 - never fall back from a failed control operation to screen coordinates;
 - keep XML/semantic operations as the default authoring path;
 - validate the selected DipTrace installation and project before starting the host;
+- refuse visible/native DipTrace work from an elevated token;
+- explicitly verify desktop, `WinSta0` window station and session identity;
 - use bounded timeouts and terminate a stuck worker rather than block indefinitely;
-- return structured failure evidence;
-- do not expand the public MCP tool contract merely to expose implementation
-  details of the Windows worker.
+- retain structured evidence when a post-side-effect desktop change is detected;
+- keep the admin plug-in payload separate from user-writable installer payload;
+- do not expand the public MCP tool contract merely to expose Windows-worker details.
 
 ## CI and real-host evidence
 
-The normal Windows CI suite contains a real Win32 hidden-desktop smoke test. It
-verifies desktop creation/process attachment without requiring DipTrace to be
-installed on the hosted runner. The Windows packaging workflow also builds the
-frozen helper and starts it with `--help`.
+Windows CI contains real Win32 hidden-desktop and native-desktop process probes.
+They verify desktop creation/targeting, `WinSta0` attachment and session identity
+without requiring DipTrace. The Windows packaging workflow also builds and tests
+the split per-user/admin installer boundary.
 
-A real DipTrace open/save/reopen validation is still a real-host acceptance gate:
-hosted GitHub runners do not provide the licensed/local DipTrace installation used
-for product acceptance. Passing CI therefore proves the isolation primitive and
+A real DipTrace open/save/reopen validation remains real-host evidence: hosted
+GitHub runners do not provide the licensed/local DipTrace installation used for
+product acceptance. Passing CI proves the bounded Windows primitives and
 packaging, not universal DipTrace UI compatibility.
