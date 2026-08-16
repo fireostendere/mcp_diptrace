@@ -101,8 +101,9 @@ def main() -> int:
             ROOT / f".github/workflows/release-v{version}.yml",
         ):
             if path.exists():
+                relative = path.relative_to(ROOT)
                 failures.append(
-                    f"{path.relative_to(ROOT)}: completed version-specific publication workflow remains"
+                    f"{relative}: completed version-specific publication workflow remains"
                 )
 
     if failures:
