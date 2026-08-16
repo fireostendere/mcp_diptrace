@@ -1,0 +1,106 @@
+name: Verify published release
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/verify-published-release.yml"
+      - "release.json"
+      - "tests/test_ci_workflow.py"
+      - "scripts/release_artifact_allowlist.txt"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  public-redownload:
+    name: Public redownload and PyPI smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Download public GitHub assets and verify recorded digests
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p public-release
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import urllib.request
+
+          root = pathlib.Path('.')
+          release = json.loads((root / 'release.json').read_text(encoding='utf-8'))
+          if not str(release.get('release_status', '')).startswith('published-'):
+              raise SystemExit('release.json is not in a published state')
+          tag = release['tag']
+          repository = os.environ['REPOSITORY']
+          output = root / 'public-release'
+          output.mkdir(exist_ok=True)
+
+          for name, expected in release['assets'].items():
+              url = f'https://github.com/{repository}/releases/download/{tag}/{name}'
+              request = urllib.request.Request(url, headers={'User-Agent': 'diptrace-mcp-release-verifier'})
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  data = response.read()
+              actual = hashlib.sha256(data).hexdigest()
+              if actual != expected:
+                  raise SystemExit(f'{name}: public SHA-256 {actual} != recorded {expected}')
+              (output / name).write_bytes(data)
+              print(f'OK {name} {actual}')
+
+          manifest = (output / 'SHA256SUMS.txt').read_text(encoding='utf-8-sig')
+          entries = {}
+          for line in manifest.splitlines():
+              if not line.strip():
+                  continue
+              digest, filename = line.split(None, 1)
+              entries[pathlib.Path(filename.strip()).name] = digest.lower()
+          for name, expected in release['assets'].items():
+              if name == 'SHA256SUMS.txt':
+                  continue
+              if entries.get(name) != expected:
+                  raise SystemExit(f'{name}: public checksum manifest is inconsistent with release.json')
+          PY
+      - name: Verify public PyPI JSON identity and digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import pathlib
+          import urllib.request
+
+          release = json.loads(pathlib.Path('release.json').read_text(encoding='utf-8'))
+          project = release['pypi_project']
+          version = release['version']
+          url = f'https://pypi.org/pypi/{project}/{version}/json'
+          request = urllib.request.Request(url, headers={'User-Agent': 'diptrace-mcp-release-verifier'})
+          with urllib.request.urlopen(request, timeout=60) as response:
+              metadata = json.load(response)
+          if metadata['info']['version'] != version:
+              raise SystemExit('PyPI JSON version does not match release.json')
+          public = {item['filename']: item['digests']['sha256'] for item in metadata['urls']}
+          for name, expected in release['pypi_artifacts'].items():
+              actual = public.get(name)
+              if actual != expected:
+                  raise SystemExit(f'{name}: PyPI SHA-256 {actual} != recorded {expected}')
+              print(f'OK {name} {actual}')
+          PY
+      - name: Clean-install the published PyPI package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python -c 'import json; print(json.load(open("release.json", encoding="utf-8"))["version"])')"
+          python -m venv public-pypi-venv
+          public-pypi-venv/bin/python -m pip install --no-cache-dir --index-url https://pypi.org/simple "diptrace-mcp==${version}"
+          public-pypi-venv/bin/diptrace-mcp --help
+          public-pypi-venv/bin/python -c "import diptrace_mcp; assert diptrace_mcp.__version__ == '${version}'"
