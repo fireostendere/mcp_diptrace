@@ -176,17 +176,29 @@ def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
     assert "username:" not in workflow_text
 
 
-def test_generic_github_release_workflow_is_exact_tag_and_immutable_safe() -> None:
+def test_generic_github_release_workflow_is_exact_tag_immutable_and_self_verifying() -> None:
     workflow_path = ROOT / ".github/workflows/release.yml"
     workflow_text = workflow_path.read_text(encoding="utf-8")
     workflow = yaml.safe_load(workflow_text)
     jobs = workflow["jobs"]
 
     assert "workflow_dispatch:" in workflow_text
+    assert "schedule:" in workflow_text
     assert "windows_run_id:" in workflow_text
     assert "v0.4.0" not in workflow_text
     assert not (ROOT / ".github/workflows/release-v0.4.0.yml").exists()
     assert not (ROOT / ".github/workflows/tag-v0.4.0-on-main.yml").exists()
+
+    verify = jobs["verify-published"]
+    verify_commands = _job_commands(verify)
+    assert "github.event_name == 'pull_request'" in verify["if"]
+    assert "github.event_name == 'schedule'" in verify["if"]
+    assert "release.json" in verify_commands
+    assert "releases/download" in verify_commands
+    assert "SHA-256" in verify_commands
+    assert "pypi.org/pypi/" in verify_commands
+    assert "--no-cache-dir" in verify_commands
+    assert "diptrace_mcp.__version__" in verify_commands
 
     publish = jobs["publish"]
     assert publish["permissions"] == {"contents": "write", "actions": "read"}
