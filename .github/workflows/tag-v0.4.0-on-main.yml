@@ -1,0 +1,35 @@
+name: Create annotated v0.4.0 tag
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/tag-v0.4.0-on-main.yml
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+
+      - name: Create exact annotated tag once
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          if git show-ref --verify --quiet refs/tags/v0.4.0; then
+            echo 'v0.4.0 already exists; refusing to move it.' >&2
+            exit 1
+          fi
+          git config user.name fireostendere
+          git config user.email 87851878+fireostendere@users.noreply.github.com
+          git tag -a v0.4.0 "${GITHUB_SHA}" -m 'DipTrace MCP v0.4.0'
+          test "$(git cat-file -t v0.4.0)" = tag
+          test "$(git rev-list -n 1 v0.4.0)" = "${GITHUB_SHA}"
+          git push origin refs/tags/v0.4.0
