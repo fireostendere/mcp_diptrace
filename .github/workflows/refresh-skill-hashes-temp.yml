@@ -1,0 +1,37 @@
+name: Refresh skill source hashes
+
+on:
+  push:
+    branches:
+      - agent/implement-project-roadmap
+    paths:
+      - .github/workflows/refresh-skill-hashes-temp.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          ref: agent/implement-project-roadmap
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Refresh and verify generated skill hashes
+        run: |
+          set -euo pipefail
+          python scripts/generate_pcb_skills.py
+          python scripts/generate_pcb_skills.py --check
+          git diff --check
+      - name: Commit generated manifest
+        run: |
+          set -euo pipefail
+          git config user.name fireostendere
+          git config user.email 87851878+fireostendere@users.noreply.github.com
+          git add skills/SOURCES.sha256
+          git commit -s -m "build: refresh skill source hashes for v0.4.0"
+          git push origin HEAD:agent/implement-project-roadmap
