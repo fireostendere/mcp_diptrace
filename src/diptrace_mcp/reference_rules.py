@@ -236,3 +236,121 @@ def ingest_engineering_rule_pack(
             ),
         ],
     )
+
+
+class SourcedRuleDocument(StrictModel):
+    source_id: str = Field(min_length=1, max_length=128)
+    kind: Literal["datasheet", "reference_design", "project"]
+    title: str = Field(min_length=1, max_length=512)
+    revision: str = Field(min_length=1, max_length=256)
+    locator: str = Field(min_length=1, max_length=2_048)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    redistribution_allowed: bool = False
+
+
+class SourcedRuleFact(StrictModel):
+    fact_id: str = Field(min_length=1, max_length=128)
+    source_id: str = Field(min_length=1, max_length=128)
+    source_revision: str = Field(min_length=1, max_length=256)
+    source_locator: str = Field(min_length=1, max_length=2_048)
+    rule_kind: Literal["schematic_motif", "pcb_component", "pcb_net"]
+    units: str = Field(min_length=1, max_length=64)
+    limit_type: Literal["min", "typ", "max", "exact", "range", "qualitative"]
+    conditions: str = Field(min_length=1, max_length=2_048)
+    applicability: str = Field(min_length=1, max_length=2_048)
+    payload: dict[str, Any]
+
+
+class SourceToRulePackResult(StrictModel):
+    schema_version: Literal["diptrace-source-to-rule-pack-v1"] = "diptrace-source-to-rule-pack-v1"
+    pack: EngineeringRulePack
+    fact_metadata: list[SourcedRuleFact]
+    source_bytes_retained: Literal[False] = False
+    claim_eligible: Literal[False] = False
+    required_manual_gate: Literal["M3"] = "M3"
+    warnings: list[str] = Field(default_factory=list)
+
+
+def build_engineering_rule_pack_from_sourced_facts(
+    source_bytes: Mapping[str, bytes],
+    documents: list[SourcedRuleDocument],
+    facts: list[SourcedRuleFact],
+) -> SourceToRulePackResult:
+    """Build a strict draft rule pack from hash-bound, caller-supplied facts.
+
+    This is deliberately not a PDF/LLM extractor.  It accepts only structured
+    proposed facts whose source bytes, revision and locator are explicit, and
+    it never promotes them to an engineering claim without manual gate M3.
+    """
+
+    by_id = {item.source_id: item for item in documents}
+    if len(by_id) != len(documents):
+        raise ValueError("sourced rule document source_id values must be unique")
+    fact_ids = [item.fact_id for item in facts]
+    if len(fact_ids) != len(set(fact_ids)):
+        raise ValueError("sourced rule fact_id values must be unique")
+    for source_id, document in by_id.items():
+        try:
+            raw = source_bytes[source_id]
+        except KeyError as exc:
+            raise ValueError(f"missing source bytes for {source_id}") from exc
+        actual = hashlib.sha256(raw).hexdigest()
+        if actual != document.sha256:
+            raise ValueError(
+                f"source SHA-256 mismatch for {source_id}: expected {document.sha256}, got {actual}"
+            )
+    motif_rules: list[SchematicMotifRule] = []
+    component_rules: list[PCBComponentRule] = []
+    net_rules: list[PCBNetRule] = []
+    for fact in facts:
+        try:
+            document = by_id[fact.source_id]
+        except KeyError as exc:
+            raise ValueError(
+                f"sourced rule fact references unknown source: {fact.source_id}"
+            ) from exc
+        if fact.source_revision != document.revision:
+            raise ValueError(
+                f"source revision mismatch for fact {fact.fact_id}: "
+                f"{fact.source_revision!r} != {document.revision!r}"
+            )
+        if fact.source_locator != document.locator:
+            raise ValueError(f"source locator mismatch for fact {fact.fact_id}")
+        payload = {"source_id": fact.source_id, **fact.payload}
+        if fact.rule_kind == "schematic_motif":
+            motif_rules.append(SchematicMotifRule.model_validate(payload))
+        elif fact.rule_kind == "pcb_component":
+            component_rules.append(PCBComponentRule.model_validate(payload))
+        else:
+            net_rules.append(PCBNetRule.model_validate(payload))
+    pack = EngineeringRulePack(
+        sources=[
+            EngineeringRuleSource(
+                source_id=item.source_id,
+                kind=item.kind,
+                title=f"{item.title} [revision {item.revision}]",
+                locator=item.locator,
+                sha256=item.sha256,
+                redistribution_allowed=item.redistribution_allowed,
+            )
+            for item in documents
+        ],
+        schematic_motifs=motif_rules,
+        pcb_components=component_rules,
+        pcb_nets=net_rules,
+    )
+    warnings = [
+        "Draft pack is hash-bound but not engineering-claim eligible until manual M3 review."
+    ]
+    nonredistributable = sorted(
+        item.source_id for item in documents if not item.redistribution_allowed
+    )
+    if nonredistributable:
+        warnings.append(
+            "Source bytes must remain outside the repository for: " + ", ".join(nonredistributable)
+        )
+    return SourceToRulePackResult(
+        pack=pack,
+        fact_metadata=facts,
+        warnings=warnings,
+    )

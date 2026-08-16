@@ -2,46 +2,41 @@
 
 ## Scope
 
-The PCB design engine turns normalized board connectivity plus explicit engineering facts into deterministic, explainable placement/routing policy and bounded candidate selection. It remains layered above the XML adapters, geometry legalizer, routing compiler, review engine and guarded semantic transaction path.
+The PCB design engine turns normalized board connectivity plus explicit engineering facts
+into deterministic, explainable placement/routing policy and bounded candidate selection.
+It remains layered above the XML adapters, geometry legalizer, routing compiler, review
+engine and guarded semantic transaction path.
 
-It does not claim globally optimal PCB layout or replace a field solver/autorouter. Unknown edge rate, current, impedance, stackup or datasheet facts remain unknown until supplied or supported by authoritative project evidence.
+It does not claim globally optimal PCB layout or replace a field solver/autorouter.
+Unknown edge rate, current, impedance, stackup, material, temperature or datasheet facts
+remain unknown until explicitly supplied and source-bound.
 
-The higher-level generations remain internal engines; the bounded read-only ensemble comparison is productized as the `compare_pcb_placement_candidates` tool. The public MCP contract currently registers 167 tools.
-
-See [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md) for the cross-domain implementation map.
+The higher-level generations remain internal engines; the public MCP contract remains at
+167 tools.
 
 ## Default authoring policy
 
-The repository's bounded PCB generators apply these defaults unless explicit
-electrical, mechanical, DRC, datasheet, or manufacturing constraints require a
-different result:
+The bounded PCB generators prefer compact, centered, explainable layouts while preserving
+explicit electrical, mechanical, DRC, datasheet and manufacturing constraints. Current
+project defaults include:
 
-- prefer the smallest simple compatible footprint for an otherwise unspecified
-  standard 2.54 mm connector;
-- derive a compact outline from occupied component geometry and sane edge
-  margin, center the layout, and preserve useful symmetry;
-- on an ordinary two-layer board, keep signals and positive power on Top, keep
-  Bottom effectively continuous GND, and also pour GND on Top;
-- distribute GND stitching vias through every usable region rather than
-  satisfying only a via-count target;
-- use four-spoke thermal reliefs for soldered connector GND pads;
-- keep silkscreen readable and close to its component without entering another
-  component's mounting area or overlapping pads, holes, or vias. Crossing a
-  solder-masked copper trace is allowed.
+- smallest-area equally compatible simple footprint when geometry is otherwise unconstrained;
+- compact centered outline with sane edge margin and useful symmetry;
+- ordinary two-layer strategy with signals/positive power on Top and an effectively
+  continuous Bottom GND reference plus useful Top GND;
+- distributed GND stitching rather than count-only placement;
+- four-spoke thermal intent on soldered connector GND pads;
+- readable silkscreen kept away from bodies, pads, holes and vias.
 
-`pattern_recommendation.py` implements the compact-footprint preference as a
-deterministic area tie-break after compatibility score. `silkscreen.py` avoids
-component bodies by default and can hide assembly-only markings while preserving
-visible silk. These are bounded package helpers, not replacements for a
-footprint datasheet or final DFM review.
+These are bounded authoring preferences, not permission to override hard rules or final DFM.
 
 ## Architecture
 
 ```text
-normalized PCB + explicit project/operator facts
+normalized PCB + explicit/source-bound facts
         |
         v
-Generation A: design intent + bounded placement candidates
+Generation A: intent + bounded placement candidates
         |
         v
 Generation B: stackup / PDN / return-path / noise context
@@ -50,203 +45,166 @@ Generation B: stackup / PDN / return-path / noise context
 Generation C: routing policy / observed-route checks / copper strategy
         |
         v
-candidate-specific physical/layout review
+candidate-specific deterministic quality review
         |
         v
-Generation D: hard-first whole-board candidate selection
+Generation D: hard-first candidate selection
         |
         v
-guarded semantic plan -> preview -> expected SHA -> transaction -> review
+whole-board composition
+        |
+        v
+guarded source-SHA/candidate-SHA plan -> preview -> apply -> rollback/review
 ```
 
 ## Generation A — electronics intent and placement
 
-`pcb_design_intent.py` builds typed component roles, functional blocks, multi-role nets, criticality, explicit electrical constraints and conservative power/ground topology intent.
+`pcb_design_intent.py` builds typed component roles, functional blocks, multi-role nets,
+criticality and explicit electrical constraints.
 
-`pcb_placement.py` produces deterministic bounded placement candidates and ordinary `MoveComponentsOperation` objects. It does not write XML directly.
-
-Its score now keeps compactness, board centering, simple repeated-pair symmetry
-and topology-backed high-di/dt loop span visible as separate terms. These are
-preferences, not permissions to violate clearance, locked-placement or explicit
-electrical/mechanical rules.
-
-Conservative defaults remain intentional: ordinary ground prefers continuity, switch nodes remain local-copper-minimized candidates, sense nets become Kelvin candidates, and star grounding is never invented automatically.
+`pcb_placement.py` produces deterministic bounded placement candidates and ordinary
+`MoveComponentsOperation` objects. Compactness, centering, symmetry and topology-backed
+high-di/dt loop span remain separate disclosed score terms. Locked placement and explicit
+hard constraints dominate these preferences.
 
 ## Generation B — physical context
 
-`pcb_physical.py` consumes Generation-A intent plus exported stackup/geometry/via evidence and provides:
+`pcb_physical.py` consumes intent plus exported stackup/geometry/via evidence and provides
+preliminary reference candidates, PDN topology proxies, regulator hot-loop candidates,
+bounded return-path analysis, timing-dependent aggressor/victim triage and semantic via
+roles.
 
-- preliminary reference candidates;
-- PDN source/load/decoupling candidates;
-- regulator hot-loop candidates;
-- bounded return-path analysis;
-- aggressor/victim triage only when timing evidence exists;
-- semantic via roles.
+No missing current density, voltage-drop, via-current, thermal or EMI fact is guessed.
 
-Analytical impedance remains preliminary. Current density, voltage drop, via current capacity, thermal behavior and EMI compliance remain unknown without sufficient physical evidence.
+### Physics knowledge and provenance
 
-### Physics knowledge boundary
+`pcb_physics_knowledge.py` carries only bounded qualitative principles such as continuous
+reference paths, small high-di/dt loops and short decoupling loops. A principle without
+complete source binding is not claim-eligible.
 
-`pcb_physics_knowledge.py` carries a small source-linked catalog of qualitative
-principles used by the deterministic reviewer: preserve continuous reference
-planes/short return paths, minimize high-di/dt loop area, and keep decoupling
-loops short. The catalog intentionally contains no invented current, impedance,
-temperature or spacing thresholds.
+`reference_rules.py` requires source SHA-256, revision, locator, units/limit semantics,
+conditions and applicability for claim-eligible engineering facts. Model memory cannot
+stand in for a missing source.
 
-`pcb_quality.py` applies those principles only where the normalized topology and
-supplied physical facts support them. Unknown facts are returned explicitly for
-the reviewer/operator instead of being filled from model memory. The language
-model may interpret intent and rank trade-offs; hard geometry/connectivity,
-explicit constraints and sourced rules remain dominant.
+## Generation C — routing policy
 
-## Generation C — intentional routing policy
+`pcb_routing_policy.py` produces deterministic per-net routing policy including priority,
+known width/spacing/layer constraints, via budget, impedance/skew/length constraints when
+known, reference requirements and copper strategy.
 
-`pcb_routing_policy.py` produces deterministic per-net routing policy including priority/order, known spacing/width/layer constraints, via budget, impedance/skew/length constraints when known, reference requirements and copper strategy.
+Observed-route checks return pass/fail/unknown according to available evidence. Native
+poured copper remains subject to real DipTrace refill/inspection.
 
-Observed-route checks report pass/fail/unknown according to available evidence. Missing constraints stay unknown rather than being fabricated.
+## Generation D — hard-first candidate comparison
 
-Strategies involving native poured/plane copper remain subject to real DipTrace refill/geometry evidence before acceptance.
+`pcb_joint_optimizer.py` ranks bounded candidates lexicographically by hard dimensions
+before any soft score.
 
-### Copper pours and stitching
+Hard dimensions remain separate: safety, mechanical, connectivity, DRC, reference path and
+manufacturing. Soft terms remain disclosed tie-breaks: placement, routing, vias, SI/PI
+proxies, return path, EMI risk, thermal risk and manufacturing preference.
 
-`copper_pours.py` can add one full-board pour per requested copper layer, assign
-the explicit net, request four-spoke thermal behavior and place deterministic
-GND stitching vias on a bounded grid after excluding board edges and known
-component/pad/hole/trace/via/keepout/silkscreen obstacles.
+Synthetic benchmark catalogs remain regression-only and never become native DipTrace proof.
 
-The helper owns requested pour boundaries and via placement only. `Poured="Y"`
-and thermal attributes are intent for DipTrace; authoritative refill regions,
-cutouts, islands and spoke geometry remain native-host facts and still require
-DipTrace refill/inspection when those claims matter.
+## Candidate ensemble
 
-## Generation D — hard-first whole-board comparison
+`pcb_candidate_ensemble.py` generates multiple real Generation-A alternatives under
+bounded engineering profiles plus an existing-board baseline. Each candidate is applied to
+an in-memory document before B/C/quality analysis, so alternatives are not accidentally
+scored against unchanged baseline geometry.
 
-`pcb_joint_optimizer.py` ranks bounded candidates lexicographically by hard violations before any soft score.
+Quality errors feed hard dimensions. Compactness, centering, symmetry, plane, stitching,
+thermal, silkscreen and loop metrics feed disclosed soft comparison. Candidate selection
+never invents traces, vias, stackup facts, current ratings or solver results.
 
-Hard dimensions remain separate:
+## Whole-board pipeline and guarded apply
 
-- safety;
-- mechanical;
-- connectivity;
-- DRC;
-- reference path;
-- manufacturing.
+`pcb_whole_board.py` composes the existing bounded stages:
 
-Soft dimensions remain decomposed:
-
-- placement;
-- routing;
-- vias;
-- signal integrity;
-- power integrity;
-- return path;
-- EMI risk;
-- thermal risk;
-- manufacturing.
-
-The soft total is only a deterministic tie-break between equal hard-violation vectors.
-
-The Generation-D benchmark catalog remains `synthetic_regression_only` and explicitly requires real-DipTrace acceptance for native copper/plane/via claims.
-
-## A-D candidate ensemble
-
-`pcb_candidate_ensemble.py` closes the previous gap where Generation D had a strong selector but did not itself receive a useful family of internally generated whole-board candidates.
-
-The ensemble now generates actual bounded Generation-A placement plans under multiple disclosed engineering profiles:
-
-- `balanced` — existing default weights;
-- `critical_nets` — stronger critical-connection pressure;
-- `noise_aware` — stronger aggressor/sensitive separation pressure;
-- `support_compact` — stronger local support-component/block cohesion pressure;
-- `existing_board` — unchanged-board baseline for comparison.
-
-Every non-baseline candidate comes from the existing bounded placement planner. Generation B/C output contributes conservative evidence-proxy score terms. The existing Generation-D `select_pcb_candidate` remains the sole selector and keeps hard violations dominant.
-
-Each candidate's placement operations are now applied to an in-memory copy
-before routing/physical/quality evaluation. This prevents the reviewer from
-scoring every alternative against the unchanged baseline board. Quality errors
-feed hard dimensions; disclosed compactness, centering, symmetry, plane,
-stitching, thermal, silkscreen and loop metrics feed soft comparison.
-
-This is deliberately not an invented autorouter. Candidate scoring may penalize unresolved routing/reference evidence, but it does not synthesize traces, vias, stackup facts, current ratings or solver output.
-
-Every selected candidate still requires ordinary semantic application,
-review/DRC and claim-specific real DipTrace evidence.
-
-## Whole-board pipeline
-
-`pcb_whole_board.py` is the minimal package-level composition layer. It reuses
-the ensemble, routing compiler, raw-preserving semantic operations,
-`copper_pours.py` and `silkscreen.py` to build this non-committing sequence:
-
-1. select a bounded placement candidate;
+1. select placement candidate;
 2. apply placement and planned routes in memory;
 3. compact an unlocked simple rectangular outline around occupied geometry;
-4. request Top/Bottom GND pours and distributed stitching for ordinary
-   two-layer boards;
+4. request Top/Bottom GND pours and distributed stitching for ordinary two-layer boards;
 5. repair/normalize silkscreen;
 6. run final deterministic quality review.
 
-The result retains per-stage operation kinds for one-action-at-a-time cinematic
-replay. The caller still owns preview, expected SHA, commit and native refill/DRC.
+The roadmap closure adds a guarded package-level plan/apply contract around that composition.
+The plan records:
+
+- exact source SHA-256;
+- exact candidate SHA-256;
+- deterministic plan identity and stage list;
+- semantic/connectivity deltas, warnings and assumptions;
+- final `PCBQualityReview` and native-required/refill-required status.
+
+Apply rechecks stale source identity and hard review blockers, writes through the existing
+backup/transaction boundary, validates post-write identity and rolls back on bounded failure.
+Preview and commit are tied to the same planned result identity.
+
+Authoritative DipTrace refill, real thermal spoke geometry, plane connectivity and native DRC
+are not fabricated by the package layer. M1 remains required before stronger whole-board
+native-quality/refill claims or default public mutation.
+
+## Quantitative engineering estimates
+
+`physics_estimates.py` adds bounded explicit-input calculations for:
+
+- trace DC resistance;
+- via DC resistance;
+- voltage drop;
+- aggregate loss budget;
+- first-order thermal estimates.
+
+Every result records exact inputs, formula/method identity, source revision/SHA/locator,
+assumptions, limitations and sensitivity terms. Missing geometry, material, current or source
+facts return `unknown`; there are no silent typical-value substitutions.
+
+M3 governs source applicability. M8 governs physical correlation/sign-off. These helpers are
+engineering estimates, not field-solver or laboratory proof.
+
+## Copper pours and stitching
+
+`copper_pours.py` can request explicit-net pour boundaries, four-spoke thermal intent and
+bounded stitching vias after excluding known obstacles. It owns requested boundary/via
+intent only. DipTrace remains authoritative for refill regions, cutouts, islands and actual
+thermal-spoke geometry.
 
 ## DSN/SES integration
 
-The existing DSN exporter, SES parser and bounded semantic SES importer remain authoritative for Specctra exchange.
-
-`specctra_analysis.py` adds non-mutating screening before import:
-
-- bounded S-expression root/token/depth/scope inventory;
-- route net/wire/via/segment counts;
-- route length and width range;
-- used layers;
-- duplicate SES nets;
-- unknown target PCB nets/layers;
-- importable/skipped classification using the existing importer itself.
-
-A clean pre-import analysis does not replace post-import connectivity/DRC/native round-trip validation.
+The existing DSN exporter, SES parser and bounded importer remain the Specctra exchange
+path. `specctra_analysis.py` adds non-mutating structure/importability screening. A clean
+pre-import analysis does not replace post-import connectivity/DRC/native round-trip
+validation.
 
 ## Testing
 
-Automated coverage now includes:
+Automated coverage includes:
 
-- Generation-A intent/placement and unknown-physics preservation;
-- Generation-B stackup/PDN/return-path/noise/via-role behavior;
-- Generation-C routing policy and observed-route behavior;
-- Generation-D hard-rule dominance and deterministic ranking;
-- deterministic generation of multiple A-D ensemble profiles;
-- candidate-specific in-memory quality review and hard-finding propagation;
-- reuse of the exact existing Generation-D selection key;
-- deterministic profile deduplication;
-- DSN/SES structural/importability analysis.
-- compact compatible-pattern tie-breaking;
-- two-layer GND-pour assignment, four-spoke thermal attributes and distributed
-  stitching-via generation;
-- silkscreen obstacle handling and assembly-marking suppression;
-- compact outline composition and the whole-board operation sequence;
-- sourced physics-principle IDs plus explicit unknown-fact reporting;
-- the repository 25×12 mm I²C level-shifter PCB generator and staged media
-  inputs.
+- A-D intent/placement/physical/routing/hard-first selection;
+- candidate-specific in-memory quality review;
+- compact pattern selection, GND-pour/stitching and silkscreen helpers;
+- whole-board staged composition;
+- source-SHA/candidate-SHA guarded plan/apply and stale-input/rollback paths;
+- source-bound physics principles and explicit unknown facts;
+- quantitative resistance/voltage-drop/loss/thermal estimates;
+- DSN/SES structure/importability analysis;
+- the repository compact I2C level-shifter demo path.
 
-Repository CI is authoritative. Synthetic tests do not transfer PASS status to a newer real DipTrace candidate by inference.
+Repository CI remains authoritative for code behavior. Synthetic tests do not transfer PASS
+status to a newer real DipTrace candidate by inference.
 
 ## Non-claims / remaining acceptance
 
-The PCB design engine does not currently claim:
+The PCB design engine does not claim:
 
-- field-solver accuracy;
-- PDN/PI sign-off;
-- EMC compliance;
-- thermodynamic/CFD analysis;
-- authoritative native copper refill geometry;
+- globally optimal placement/routing;
+- authoritative native refill geometry;
+- field-solver, PDN/PI, SI, EMC or thermal sign-off;
 - proof that a plane/star/Kelvin topology is electrically optimal;
-- manufacturing/fabrication sign-off;
-- globally optimal placement/routing.
+- manufacturing/fabrication acceptance.
 
-Real-DipTrace whole-board product-quality acceptance remains appropriate before stronger claims about current A-D candidate quality, native refill, planes or via structures are made.
-
-The repository I²C level-shifter PCB and its board-framed MP4/GIF were visually
-accepted by the operator in the current DipTrace configuration on 2026-08-16.
-That closes presentation acceptance for this example only; it does not promote
-the generic A-D engines or stored copper boundary into authoritative native
-refill/manufacturing proof.
+The repository I2C example and cinematic output have scoped operator acceptance. Stronger
+whole-board native refill/DRC claims require M1. Source applicability and physical-performance
+claims require M3/M8. Trigger-based P2 work such as push-and-shove or broader global
+optimization should start only after measured real-project failures show the bounded engine
+is the limiting factor.

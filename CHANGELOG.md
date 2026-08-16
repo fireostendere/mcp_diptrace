@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.4.0 - 2026-08-16
+
+Version `0.4.0` is the current unsigned development release candidate.
+
+### Added
+
+- A1-A8 roadmap closure: bounded transport regression, guarded whole-board PCB
+  plan/apply, provider-neutral reviewer evaluation, source-bound rule ingestion,
+  topology-preserving schematic reroute, confidence-gated rotation candidates,
+  source-bound bounded physics estimates, and deterministic evidence campaigns.
+- One-command Linux installation with real DipTrace GUI under Wine and private-Xvfb
+  headless automation.
+- One-command macOS installation using the official DipTrace.app bundled Wine
+  runtime, with visible GUI and hidden-Win32-desktop automation on Apple Silicon
+  and Intel.
+- Permanent Linux/macOS clean-install release gates.
+
+### Changed
+
+- Public MCP contract remains frozen at 167 tools.
+- Current project-level manual evidence remains 12 of 12 blocking gates PASS across
+  accepted checkpoints; the later Claude Desktop restart PASS remains separate-
+  machine evidence from a machine where Codex was not installed.
+- Release documentation separates exact host/runtime evidence from stronger native
+  project-roundtrip or universal-compatibility claims.
+
 ## 0.3.0 - 2026-08-16
 
 Version `0.3.0` is a published unsigned development prerelease following the

@@ -7,6 +7,14 @@ GitHub development prerelease.
 
 Keep every downloaded artifact on the same immutable version.
 
+
+> **v0.4.0 release-candidate boundary:** the repository currently prepares
+> `v0.4.0`, including Windows 0.4.0 artifacts and the Linux/macOS one-command
+> installers. Until the v0.4.0 tag, GitHub release assets, and PyPI publication
+> actually exist and pass post-publication verification, this page intentionally
+> keeps its install commands pinned to immutable published `v0.3.0`. Do not
+> substitute `0.4.0` into the published-release commands prematurely.
+
 Windows assets:
 
 ```text

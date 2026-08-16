@@ -344,12 +344,12 @@
         "pkg:pypi/tomli",
         "pkg:pypi/typing-extensions"
       ],
-      "ref": "pkg:pypi/diptrace-mcp@0.3.0"
+      "ref": "pkg:pypi/diptrace-mcp@0.4.0"
     }
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pkg:pypi/diptrace-mcp@0.3.0",
+      "bom-ref": "pkg:pypi/diptrace-mcp@0.4.0",
       "licenses": [
         {
           "license": {
@@ -358,9 +358,9 @@
         }
       ],
       "name": "diptrace-mcp",
-      "purl": "pkg:pypi/diptrace-mcp@0.3.0",
+      "purl": "pkg:pypi/diptrace-mcp@0.4.0",
       "type": "application",
-      "version": "0.3.0"
+      "version": "0.4.0"
     },
     "properties": [
       {

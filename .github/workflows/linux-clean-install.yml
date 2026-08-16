@@ -1,0 +1,162 @@
+name: Linux one-command install
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/linux-clean-install.yml
+      - scripts/install_linux.sh
+      - scripts/build_windows_server.ps1
+      - plugin/**
+      - src/diptrace_mcp/headless_gui.py
+  pull_request:
+    paths:
+      - .github/workflows/linux-clean-install.yml
+      - scripts/install_linux.sh
+      - scripts/build_windows_server.ps1
+      - plugin/**
+      - src/diptrace_mcp/headless_gui.py
+
+permissions:
+  contents: read
+
+jobs:
+  build-current-runtime:
+    name: Build current portable runtime
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build current server and GUI helper
+        shell: pwsh
+        run: .\scripts\build_windows_server.ps1 -PythonCommand python -OutputDir dist\linux-runtime-server -Clean
+      - name: Build current bridge
+        shell: pwsh
+        run: .\plugin\build_bridge.ps1 -PythonCommand python -Clean
+      - name: Assemble portable runtime for Linux installer test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $PWD 'dist\linux-portable'
+          Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path "$root\app", "$root\bridge", "$root\settings-templates" | Out-Null
+          Copy-Item -Path '.\dist\linux-runtime-server\diptrace_mcp_server\*' -Destination "$root\app" -Recurse -Force
+          Copy-Item -LiteralPath '.\plugin\dist\diptrace_mcp_bridge.exe' -Destination "$root\bridge\diptrace_mcp_bridge.exe" -Force
+          Copy-Item -LiteralPath '.\plugin\settings\pcb.settings.xml' -Destination "$root\settings-templates\pcb.settings.xml"
+          Copy-Item -LiteralPath '.\plugin\settings\schematic.settings.xml' -Destination "$root\settings-templates\schematic.settings.xml"
+          Copy-Item -LiteralPath '.\plugin\settings\component.settings.xml' -Destination "$root\settings-templates\component.settings.xml"
+          Copy-Item -LiteralPath '.\plugin\settings\pattern.settings.xml' -Destination "$root\settings-templates\pattern.settings.xml"
+          $lines = Get-ChildItem -LiteralPath $root -File -Recurse | Sort-Object FullName | ForEach-Object {
+            $relative = $_.FullName.Substring($root.Length + 1).Replace('\', '/')
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $relative"
+          }
+          $manifest = ($lines -join "`n") + "`n"
+          [IO.File]::WriteAllText((Join-Path $root 'SHA256SUMS.txt'), $manifest, [Text.UTF8Encoding]::new($false))
+          $zip = Join-Path $PWD 'dist\DipTrace-MCP-Portable-0.4.0.zip'
+          Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
+          Compress-Archive -Path "$root\*" -DestinationPath $zip -CompressionLevel Optimal
+          if (-not (Test-Path -LiteralPath $zip)) { throw 'portable runtime zip was not created' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: linux-current-portable-runtime
+          path: dist/DipTrace-MCP-Portable-0.4.0.zip
+          if-no-files-found: error
+
+  clean-install:
+    needs: build-current-runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: linux-current-portable-runtime
+          path: ${{ runner.temp }}/runtime
+
+      - name: Shell syntax
+        shell: bash
+        run: bash -n scripts/install_linux.sh
+
+      - name: One-command clean install
+        shell: bash
+        env:
+          DIPTRACE_MCP_BUNDLE_PATH: ${{ runner.temp }}/runtime/DipTrace-MCP-Portable-0.4.0.zip
+        run: bash scripts/install_linux.sh --accept-diptrace-license --no-desktop
+
+      - name: Frozen MCP stdio smoke through Wine wrapper
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp tests/fixtures/pcb.xml "$HOME/DipTrace/pcb.xml"
+          python scripts/frozen_server_smoke.py \
+            --server "$HOME/.local/bin/diptrace-mcp" \
+            --workspace "$HOME/DipTrace" \
+            --document pcb.xml \
+            --timeout 60
+
+      - name: Bridge shared-prefix smoke
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp tests/fixtures/schematic.xml "$HOME/DipTrace/live.xml"
+          export WINEPREFIX="$HOME/.local/share/diptrace-mcp/wineprefix"
+          export WINEARCH=win64
+          export WINEDEBUG=-all
+          win_exchange="$(winepath -w "$HOME/DipTrace/live.xml" | tr -d '\r')"
+          set +e
+          "$HOME/.local/bin/diptrace-mcp-bridge" "$win_exchange" --headless --timeout 3
+          bridge_rc=$?
+          set -e
+          test "$bridge_rc" -eq 2
+          test -n "$(find "$HOME/.local/state/diptrace-mcp" -type f -name '*.json' -print -quit)"
+
+      - name: Visible GUI launcher starts real DipTrace
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export WINEPREFIX="$HOME/.local/share/diptrace-mcp/wineprefix"
+          export WINEARCH=win64
+          # The previous bridge smoke intentionally uses the same prefix but a
+          # headless process context. Start the visible-GUI proof with a clean
+          # Wine server so the X11 session belongs to the private Xvfb below.
+          WINEPREFIX="$WINEPREFIX" wineserver -k || true
+          xvfb-run -a -s '-screen 0 1920x1080x24 -nolisten tcp' bash -c '
+            set -euxo pipefail
+            "$HOME/.local/bin/diptrace-schematic" >"$RUNNER_TEMP/schematic.out" 2>"$RUNNER_TEMP/schematic.err" &
+            launcher=$!
+            sleep 15
+            wine tasklist >"$RUNNER_TEMP/tasklist.txt"
+            cat "$RUNNER_TEMP/tasklist.txt"
+            grep -i "Schematic.exe" "$RUNNER_TEMP/tasklist.txt"
+            wine taskkill /IM Schematic.exe /F || true
+            wait "$launcher" || true
+          '
+          WINEPREFIX="$WINEPREFIX" wineserver -k || true
+
+      - name: Headless GUI worker uses private Xvfb
+        shell: bash
+        run: |
+          set -euxo pipefail
+          "$HOME/.local/bin/diptrace-gui-headless" native-smoke --timeout 20
+          DIPTRACE_MCP_HEADLESS_SCREEN=1280x720x24 \
+            "$HOME/.local/bin/diptrace-gui-headless" native-smoke --timeout 20
+          WINEPREFIX="$HOME/.local/share/diptrace-mcp/wineprefix" wineserver -k || true
+
+      - name: Idempotent reinstall without DipTrace download
+        shell: bash
+        env:
+          DIPTRACE_MCP_BUNDLE_PATH: ${{ runner.temp }}/runtime/DipTrace-MCP-Portable-0.4.0.zip
+        run: |
+          set -euxo pipefail
+          bash scripts/install_linux.sh --skip-diptrace --no-desktop
+          "$HOME/.local/bin/diptrace-mcp-doctor"

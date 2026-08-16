@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish the exact annotated v0.3.0 tag to PyPI
+        description: Publish the exact annotated v0.4.0 tag to PyPI
         required: true
         default: false
         type: boolean
@@ -25,8 +25,8 @@ permissions:
   contents: read
 
 env:
-  RELEASE_VERSION: "0.3.0"
-  RELEASE_TAG: "v0.3.0"
+  RELEASE_VERSION: "0.4.0"
+  RELEASE_TAG: "v0.4.0"
 
 jobs:
   build:
@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
-          ref: "${{ github.event_name == 'workflow_dispatch' && inputs.publish && 'v0.3.0' || github.sha }}"
+          ref: "${{ github.event_name == 'workflow_dispatch' && inputs.publish && 'v0.4.0' || github.sha }}"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
@@ -55,7 +55,7 @@ jobs:
 
           data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
           actual = data["project"]["version"]
-          expected = "0.3.0"
+          expected = "0.4.0"
           if actual != expected:
               raise SystemExit(f"project version {actual!r} does not match {expected!r}")
           PY
@@ -99,12 +99,12 @@ jobs:
         with:
           name: pypi-distributions
           path: |
-            dist/diptrace_mcp-0.3.0-py3-none-any.whl
-            dist/diptrace_mcp-0.3.0.tar.gz
+            dist/diptrace_mcp-0.4.0-py3-none-any.whl
+            dist/diptrace_mcp-0.4.0.tar.gz
           if-no-files-found: error
 
   publish:
-    name: Publish v0.3.0 to PyPI
+    name: Publish v0.4.0 to PyPI
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}
     needs: build
     runs-on: ubuntu-latest

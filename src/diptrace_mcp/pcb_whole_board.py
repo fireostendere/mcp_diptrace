@@ -1,16 +1,23 @@
 from __future__ import annotations
 
+import difflib
+import hashlib
+import json
 import math
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import cast
+from pathlib import Path
+from typing import Any, cast
 
 from pydantic import Field
 
 from .adapters import build_snapshot
+from .backups import BackupStore
+from .config import Settings
 from .copper_pours import CopperPourResult, add_copper_pours
 from .domain import StrictModel
-from .errors import CapabilityUnavailableError, EditError
+from .errors import CapabilityUnavailableError, EditError, Sha256MismatchError
 from .geometry import BBox, Point, from_mm, to_mm
 from .pcb_autorouter import PCBRoutePlan, PCBRouterConfig, plan_pcb_routes
 from .pcb_candidate_ensemble import (
@@ -23,9 +30,17 @@ from .pcb_candidate_ensemble import (
 from .pcb_design_intent import PCBIntentOverrides, build_pcb_design_intent
 from .pcb_placement import plan_pcb_placement_v2
 from .pcb_quality import PCBQualityConfig, PCBQualityReview, review_pcb_quality
+from .plans import PlanStore
+from .policy import Policy
+from .preview import render_preview_json, render_preview_svg
 from .semantic_compiler import apply_semantic_operations
 from .silkscreen import SilkscreenPlanConfig, SilkscreenPlanningResult, plan_silkscreen
-from .xml_document import DipTraceDocument, RawTreeSnapshot
+from .xml_analysis import compare_xml_semantics
+from .xml_document import (
+    DipTraceDocument,
+    RawTreeSnapshot,
+    atomic_write_bytes,
+)
 
 
 class PCBWholeBoardConfig(StrictModel):
@@ -140,8 +155,10 @@ def compact_rectangular_board_outline(
     points = working.container.find("./BoardOutline/Points")
     assert points is not None
     points.clear()
+
     def unit(value: float) -> str:
         return f"{from_mm(value, working.units):.9g}"
+
     for point in (
         Point(after.min_x, after.min_y),
         Point(after.max_x, after.min_y),
@@ -296,3 +313,310 @@ def optimize_pcb_whole_board(
             ),
         ],
     )
+
+
+def _whole_board_connectivity_sha256(document: DipTraceDocument) -> str:
+    snapshot = build_snapshot(document)
+    if snapshot.board is None:
+        raise CapabilityUnavailableError("Whole-board planning requires a PCB document")
+    payload = [
+        (
+            net.name or net.net_name or net.stable_id,
+            tuple(sorted(str(item) for item in net.relationships.get("endpoints", []))),
+        )
+        for net in snapshot.board.nets
+    ]
+    raw = json.dumps(sorted(payload), ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _whole_board_identity_payload(
+    *,
+    source_sha256: str,
+    candidate_sha256: str,
+    config: PCBWholeBoardConfig,
+    stage_operation_kinds: list[str],
+) -> dict[str, Any]:
+    return {
+        "schema_version": "diptrace-pcb-whole-board-plan-v1",
+        "source_sha256": source_sha256,
+        "candidate_sha256": candidate_sha256,
+        "config": config.model_dump(mode="json"),
+        "stages": list(stage_operation_kinds),
+    }
+
+
+def _whole_board_plan_identity(payload: dict[str, Any]) -> str:
+    raw = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _whole_board_candidate_path(plan_store: PlanStore, plan_id: str) -> Path:
+    plan_dir = plan_store.plan_dir(plan_id)
+    resolved = plan_dir.resolve(strict=True)
+    candidate = resolved / "candidate.xml"
+    if candidate.parent != resolved:
+        raise EditError("Whole-board candidate escaped its plan directory")
+    return candidate
+
+
+def plan_pcb_whole_board_guarded(
+    document: DipTraceDocument,
+    plan_store: PlanStore,
+    *,
+    target_path: Path | None = None,
+    overrides: PCBIntentOverrides | None = None,
+    config: PCBWholeBoardConfig | None = None,
+) -> dict[str, Any]:
+    """Create an immutable SHA-bound whole-board candidate and preview.
+
+    This intentionally stays below the public MCP surface.  It reuses the
+    existing plan store and records native refill/DRC as unresolved rather
+    than treating exported pour boundaries as authoritative copper.
+    """
+
+    if document.kind != "pcb":
+        raise CapabilityUnavailableError("Whole-board planning requires a PCB document")
+    config = config or PCBWholeBoardConfig()
+    result = optimize_pcb_whole_board(document, overrides=overrides, config=config)
+    candidate = result.document
+    source_snapshot = build_snapshot(document)
+    candidate_snapshot = build_snapshot(candidate)
+    semantic_delta = compare_xml_semantics(document, candidate)
+    source_connectivity = _whole_board_connectivity_sha256(document)
+    candidate_connectivity = _whole_board_connectivity_sha256(candidate)
+    identity_payload = _whole_board_identity_payload(
+        source_sha256=document.sha256,
+        candidate_sha256=candidate.sha256,
+        config=config,
+        stage_operation_kinds=result.stage_operation_kinds,
+    )
+    identity = _whole_board_plan_identity(identity_payload)
+    no_changes = candidate.sha256 == document.sha256
+    unresolved = [
+        {
+            "code": "native_refill_and_drc_required",
+            "message": (
+                "Authoritative DipTrace copper refill, plane connectivity, thermal "
+                "geometry and native DRC remain a manual M1 gate."
+            ),
+        }
+    ]
+    record = plan_store.create(
+        plan_type="pcb_whole_board",
+        document_id=source_snapshot.info.document_id,
+        source_sha256=document.sha256,
+        target_path=target_path or document.path,
+        config=config.model_dump(mode="json"),
+        operations=[],
+        changed_ids=[],
+        unresolved=unresolved,
+        candidates=[
+            {
+                "candidate_sha256": candidate.sha256,
+                "plan_identity_sha256": identity,
+                "stage_operation_kinds": result.stage_operation_kinds,
+            }
+        ],
+        score={"hard_error_count": float(result.quality.hard_error_count)},
+        metrics={
+            "schema_version": "diptrace-pcb-whole-board-plan-v1",
+            "candidate_sha256": candidate.sha256,
+            "plan_identity_sha256": identity,
+            "source_connectivity_sha256": source_connectivity,
+            "candidate_connectivity_sha256": candidate_connectivity,
+            "connectivity_preserved": source_connectivity == candidate_connectivity,
+            "semantic_delta": semantic_delta.model_dump(mode="json"),
+            "quality": result.quality.model_dump(mode="json"),
+            "stage_operation_kinds": result.stage_operation_kinds,
+            "native_refill_required": True,
+            "native_drc_required": True,
+        },
+        assumptions=result.quality.assumptions,
+        warnings=result.warnings,
+        limitations=result.limitations,
+    )
+    candidate_path = _whole_board_candidate_path(plan_store, record.plan_id)
+    atomic_write_bytes(candidate_path, candidate.raw_bytes)
+    changed_ids = sorted(
+        set(source_snapshot.objects).symmetric_difference(candidate_snapshot.objects)
+        | {
+            key
+            for key in set(source_snapshot.objects) & set(candidate_snapshot.objects)
+            if source_snapshot.objects[key] != candidate_snapshot.objects[key]
+        }
+    )
+    diff = "".join(
+        difflib.unified_diff(
+            document.raw_bytes.decode(document.encoding, errors="replace").splitlines(True),
+            candidate.raw_bytes.decode(candidate.encoding, errors="replace").splitlines(True),
+            fromfile="source.xml",
+            tofile="candidate.xml",
+        )
+    )
+    resources = plan_store.store_preview(
+        record.plan_id,
+        svg=render_preview_svg(source_snapshot, candidate_snapshot, changed_ids),
+        geometry={
+            **render_preview_json(source_snapshot, candidate_snapshot, changed_ids),
+            "plan_id": record.plan_id,
+            "candidate_sha256": candidate.sha256,
+            "plan_identity_sha256": identity,
+            "quality": result.quality.model_dump(mode="json"),
+            "native_refill_required": True,
+        },
+        diff=diff,
+    )
+    if no_changes:
+        record = plan_store.update(record.plan_id, status="noop", transaction_id=None)
+    else:
+        record = plan_store.read(record.plan_id)
+    return {
+        "ok": True,
+        "plan": record.model_dump(mode="json"),
+        "candidate_sha256": candidate.sha256,
+        "plan_identity_sha256": identity,
+        "no_changes": no_changes,
+        "hard_error_count": result.quality.hard_error_count,
+        "connectivity_preserved": source_connectivity == candidate_connectivity,
+        "resources": resources,
+        "limitations": result.limitations,
+    }
+
+
+def apply_pcb_whole_board_plan_guarded(
+    plan_store: PlanStore,
+    backups: BackupStore,
+    policy: Policy,
+    settings: Settings,
+    plan_id: str,
+    *,
+    dry_run: bool = True,
+    expected_sha256: str | None = None,
+    invalidate_trust: Callable[[Path, str], None] | None = None,
+) -> dict[str, Any]:
+    """Preview or atomically commit a stored whole-board candidate.
+
+    Commit is fail-closed: source SHA, candidate SHA, deterministic plan
+    identity, hard review findings and post-write parsing are revalidated.
+    Any post-write/trust-invalidation failure restores the exact backup.
+    """
+
+    policy.require_write(dry_run=dry_run, operation="pcb_whole_board_plan")
+    plan = plan_store.read(plan_id)
+    if plan.plan_type != "pcb_whole_board":
+        raise EditError("Unexpected plan type for whole-board apply")
+    target = settings.resolve_allowed_path(plan.target_path)
+    current = DipTraceDocument.load(target, settings.max_document_bytes)
+    if current.sha256 != plan.source_sha256:
+        plan_store.update(plan_id, status="obsolete", transaction_id=plan.transaction_id)
+        raise Sha256MismatchError(
+            "Document changed after the whole-board plan was generated",
+            details={
+                "plan_sha256": plan.source_sha256,
+                "current_sha256": current.sha256,
+            },
+        )
+    if expected_sha256 is not None and expected_sha256 != plan.source_sha256:
+        raise Sha256MismatchError(
+            "Provided SHA does not match the whole-board plan source",
+            details={
+                "plan_sha256": plan.source_sha256,
+                "provided_sha256": expected_sha256,
+            },
+        )
+    if plan.status == "noop":
+        return {
+            "ok": True,
+            "changed": False,
+            "plan": plan.model_dump(mode="json"),
+            "candidate_sha256": plan.source_sha256,
+        }
+    candidate_path = _whole_board_candidate_path(plan_store, plan_id)
+    try:
+        candidate_bytes = candidate_path.read_bytes()
+    except OSError as exc:
+        raise EditError("Whole-board candidate artifact is unavailable") from exc
+    candidate = DipTraceDocument.from_bytes(target, candidate_bytes)
+    recorded_candidate_sha = str(plan.metrics.get("candidate_sha256") or "")
+    if not recorded_candidate_sha or candidate.sha256 != recorded_candidate_sha:
+        raise Sha256MismatchError(
+            "Stored whole-board candidate no longer matches its plan",
+            details={
+                "recorded_candidate_sha256": recorded_candidate_sha,
+                "actual_candidate_sha256": candidate.sha256,
+            },
+        )
+    identity_payload = _whole_board_identity_payload(
+        source_sha256=plan.source_sha256,
+        candidate_sha256=candidate.sha256,
+        config=PCBWholeBoardConfig.model_validate(plan.config),
+        stage_operation_kinds=[str(item) for item in plan.metrics.get("stage_operation_kinds", [])],
+    )
+    identity = _whole_board_plan_identity(identity_payload)
+    if identity != plan.metrics.get("plan_identity_sha256"):
+        raise Sha256MismatchError("Whole-board plan identity no longer matches")
+    quality = plan.metrics.get("quality")
+    hard_error_count = int(quality.get("hard_error_count", 0)) if isinstance(quality, dict) else 0
+    if hard_error_count:
+        raise EditError(
+            "Whole-board candidate contains hard quality findings and cannot be committed",
+            code="drc_regression",
+            details={"hard_error_count": hard_error_count},
+        )
+    if dry_run:
+        return {
+            "ok": True,
+            "changed": True,
+            "dry_run": True,
+            "source_sha256": plan.source_sha256,
+            "candidate_sha256": candidate.sha256,
+            "plan_identity_sha256": identity,
+            "native_refill_required": True,
+            "plan": plan.model_dump(mode="json"),
+        }
+    backup = backups.write_with_backup(
+        target,
+        candidate_bytes,
+        expected_sha256=plan.source_sha256,
+    )
+    try:
+        written = DipTraceDocument.load(target, settings.max_document_bytes)
+        if written.sha256 != candidate.sha256:
+            raise Sha256MismatchError("Post-write whole-board SHA validation failed")
+        if invalidate_trust is not None:
+            invalidate_trust(target, written.sha256)
+    except Exception as exc:
+        try:
+            atomic_write_bytes(target, backup.read_bytes())
+            restored = DipTraceDocument.load(target, settings.max_document_bytes)
+            if restored.sha256 != plan.source_sha256:
+                raise EditError("Rollback restored unexpected document bytes")
+        except Exception as rollback_exc:
+            raise EditError(
+                "Whole-board commit failed and rollback could not restore source bytes",
+                code="rollback_failed",
+                details={"target": str(target)},
+            ) from rollback_exc
+        raise EditError(
+            "Whole-board commit failed validation; exact source bytes were restored",
+            code="write_validation_failed",
+            details={"target": str(target)},
+        ) from exc
+    updated = plan_store.update(plan_id, status="committed", transaction_id=None)
+    return {
+        "ok": True,
+        "changed": True,
+        "dry_run": False,
+        "source_sha256": plan.source_sha256,
+        "candidate_sha256": candidate.sha256,
+        "plan_identity_sha256": identity,
+        "backup_path": str(backup),
+        "native_refill_required": True,
+        "plan": updated.model_dump(mode="json"),
+    }

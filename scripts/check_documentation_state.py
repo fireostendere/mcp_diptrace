@@ -24,10 +24,37 @@ FEATURE_DOCS: dict[str, tuple[str, ...]] = {
         "docs/EDA_INTELLIGENCE.md",
         "docs/SCHEMATIC_LAYOUT_ENGINE.md",
     ),
+    "schematic_topology.py": (
+        "docs/EDA_INTELLIGENCE.md",
+        "docs/SCHEMATIC_LAYOUT_ENGINE.md",
+        "docs/ARCHITECTURE.md",
+    ),
+    "schematic_rotation.py": (
+        "docs/EDA_INTELLIGENCE.md",
+        "docs/SCHEMATIC_LAYOUT_ENGINE.md",
+        "docs/ARCHITECTURE.md",
+    ),
     "pcb_candidate_ensemble.py": (
         "docs/EDA_INTELLIGENCE.md",
         "docs/PCB_DESIGN_ENGINE.md",
     ),
+    "pcb_whole_board.py": (
+        "docs/EDA_INTELLIGENCE.md",
+        "docs/PCB_DESIGN_ENGINE.md",
+        "docs/ARCHITECTURE.md",
+    ),
+    "physics_estimates.py": (
+        "docs/EDA_INTELLIGENCE.md",
+        "docs/PCB_DESIGN_ENGINE.md",
+        "docs/ARCHITECTURE.md",
+        "docs/ROADMAP.md",
+    ),
+    "evidence_campaign.py": (
+        "docs/EDA_INTELLIGENCE.md",
+        "docs/ARCHITECTURE.md",
+        "docs/ROADMAP.md",
+    ),
+    "advanced_review.py": ("docs/EDA_INTELLIGENCE.md",),
     "specctra_analysis.py": ("docs/EDA_INTELLIGENCE.md",),
     "xml_analysis.py": ("docs/EDA_INTELLIGENCE.md",),
     "evidence_report.py": ("docs/EDA_INTELLIGENCE.md",),
@@ -78,6 +105,21 @@ CURRENT_ACCEPTANCE_MARKERS = (
     "12 of 12 blocking manual gates pass",
 )
 
+CLIENT_EVIDENCE_DOCS = (
+    "README.md",
+    "docs/AUTOMATABLE_ROADMAP_CLOSURE.md",
+    "docs/EDA_INTELLIGENCE.md",
+)
+
+CLIENT_EVIDENCE_MARKER_GROUPS = (
+    ("separate machine",),
+    (
+        "codex was not installed",
+        "did not have codex installed",
+        "without codex installed",
+    ),
+)
+
 GLOBAL_STALE_ACCEPTANCE_PHRASES = (
     "claude desktop restart is waived",
     "claude desktop restart remains waived",
@@ -87,6 +129,14 @@ GLOBAL_STALE_ACCEPTANCE_PHRASES = (
     "custom_state_preservation` is next",
     "next campaign gate is `custom_state_preservation`",
 )
+
+PLATFORM_DOC_MARKERS: dict[str, tuple[str, ...]] = {
+    "README.md": ("0.4.0", "docs/LINUX.md", "docs/MACOS.md"),
+    "docs/LINUX.md": ("v0.4.0", "private Xvfb", "Ubuntu 24.04"),
+    "docs/MACOS.md": ("v0.4.0", "Apple Silicon", "Intel", "hidden Win32 desktop"),
+    "docs/HEADLESS_GUI.md": ("private Xvfb", "macOS hidden-desktop backend"),
+    "docs/RELEASE_PROCESS.md": ("v0.4.0", "RELEASE_0_4_0_CHECKLIST.md"),
+}
 
 STALE_PHRASES: dict[str, tuple[str, ...]] = {
     "CHANGELOG_NEXT.md": (
@@ -99,6 +149,14 @@ STALE_PHRASES: dict[str, tuple[str, ...]] = {
     "docs/ARCHITECTURE.md": (
         "selective atomic reroute of existing schematic wires after placement repair "
         "is not implemented",
+        "the fuller iterative objective-history loop remain incomplete",
+    ),
+    "docs/EDA_INTELLIGENCE.md": (
+        "arbitrary hand-authored multi-junction topology is not reconstructed",
+    ),
+    "docs/SCHEMATIC_LAYOUT_ENGINE.md": (
+        "arbitrary hand-authored multi-junction topology and full steiner-tree optimization "
+        "are still not reconstructed",
     ),
     "docs/USAGE.md": (
         "Selective atomic placement + affected-wire replacement remains future work",
@@ -119,6 +177,10 @@ def _read_text(root: Path, relative: str, errors: list[str]) -> str:
     except OSError as exc:
         errors.append(f"{relative}: cannot read: {exc}")
         return ""
+
+
+def _normalized(text: str) -> str:
+    return " ".join(text.casefold().split())
 
 
 def _snapshot_tool_count(root: Path, errors: list[str]) -> int | None:
@@ -163,30 +225,47 @@ def check_documentation_state(root: Path) -> list[str]:
 
     for relative, markers in SEMANTIC_DOC_MARKERS.items():
         text = _read_text(root, relative, errors)
-        folded = text.casefold()
+        normalized = _normalized(text)
         for marker in markers:
-            if marker.casefold() not in folded:
+            if _normalized(marker) not in normalized:
                 errors.append(f"{relative}: missing current-state marker: {marker}")
 
     for relative in CURRENT_ACCEPTANCE_DOCS:
         text = _read_text(root, relative, errors)
-        folded = text.casefold()
-        if not any(marker in folded for marker in CURRENT_ACCEPTANCE_MARKERS):
+        normalized = _normalized(text)
+        if not any(_normalized(marker) in normalized for marker in CURRENT_ACCEPTANCE_MARKERS):
             errors.append(
                 f"{relative}: does not record the completed 12/12 blocking manual matrix"
             )
         for phrase in GLOBAL_STALE_ACCEPTANCE_PHRASES:
-            if phrase in folded:
+            if _normalized(phrase) in normalized:
                 errors.append(
                     f"{relative}: contains stale current acceptance claim: {phrase}"
                 )
 
+    for relative in CLIENT_EVIDENCE_DOCS:
+        text = _read_text(root, relative, errors)
+        normalized = _normalized(text)
+        for alternatives in CLIENT_EVIDENCE_MARKER_GROUPS:
+            if not any(_normalized(marker) in normalized for marker in alternatives):
+                errors.append(
+                    f"{relative}: missing current Claude client evidence marker: "
+                    f"one of {', '.join(alternatives)}"
+                )
+
     for relative, phrases in STALE_PHRASES.items():
         text = _read_text(root, relative, errors)
-        folded = text.casefold()
+        normalized = _normalized(text)
         for phrase in phrases:
-            if phrase.casefold() in folded:
+            if _normalized(phrase) in normalized:
                 errors.append(f"{relative}: contains stale current-state claim: {phrase}")
+
+    for relative, markers in PLATFORM_DOC_MARKERS.items():
+        text = _read_text(root, relative, errors)
+        normalized = _normalized(text)
+        for marker in markers:
+            if _normalized(marker) not in normalized:
+                errors.append(f"{relative}: missing platform/release marker: {marker}")
 
     headless_doc = _read_text(root, "docs/HEADLESS_GUI.md", errors)
     headless_folded = headless_doc.casefold()

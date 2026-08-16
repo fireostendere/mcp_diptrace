@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "0.2.0",
+    [string]$Version = "0.4.0",
     [string]$PythonCommand = "py",
     [string]$BridgePath,
     [string]$IsccPath,

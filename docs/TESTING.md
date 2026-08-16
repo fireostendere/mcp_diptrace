@@ -206,3 +206,17 @@ For a PR/release decision, GitHub Actions at the exact head SHA is authoritative
 ## Historical records
 
 Dated code-review/live-acceptance/release/compliance/manual records intentionally preserve what was true at the time. Do not rewrite their historical counts/statuses merely because current code changed.
+
+
+## v0.4.0 platform installation gates
+
+Publication requires the ordinary Linux/macOS/Windows Python/bridge matrix plus
+dedicated host-installation workflows. `linux-clean-install.yml` starts from fresh
+Ubuntu 24.04 x86-64 and proves the one-command Wine install, frozen MCP, shared
+bridge state, real Schematic GUI liveness on private Xvfb, headless worker and
+idempotent reinstall. `macos-clean-install.yml` builds the current frozen Windows
+runtime, then exercises the one-command installer on both macOS 15 Apple Silicon
+and Intel, including bundled-Wine MCP/bridge, real GUI liveness, hidden Win32
+desktop isolation, native-worker smoke, doctor and reinstall. Windows retains its
+split installer/lifecycle/artifact audit. These are release blockers, not optional
+informational jobs.

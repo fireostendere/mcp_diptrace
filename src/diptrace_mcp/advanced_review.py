@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from collections import Counter
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
+
+from pydantic import Field
 
 from .adapters import DocumentSnapshot
+from .domain import StrictModel
 from .findings import Finding, make_finding
 from .geometry import Point, segment_distance
 from .lengths import analyze_differential_pair
@@ -38,11 +43,7 @@ def _trace_board_clearance(snapshot: DocumentSnapshot) -> dict[str, float]:
         if raw is None and details is not None:
             raw = details.get("TraceToBoard")
         if raw is not None:
-            source = (
-                details
-                if item.get("TraceToBoard") is None and details is not None
-                else item
-            )
+            source = details if item.get("TraceToBoard") is None and details is not None else item
             result[item.get("Lay", "")] = xml_number_mm(
                 snapshot.document,
                 source,
@@ -197,8 +198,7 @@ def check_trace_board_edge(
                         "manufacturing",
                         "error",
                         "Trace is too close to the board outline",
-                        f"Copper-to-edge distance is {measured:g} mm; "
-                        f"{required:g} mm is required.",
+                        f"Copper-to-edge distance is {measured:g} mm; {required:g} mm is required.",
                         object_ids=[trace.stable_id],
                         net_ids=[trace.parent_id] if trace.parent_id else [],
                         layer=layer,
@@ -206,8 +206,7 @@ def check_trace_board_edge(
                         required=required,
                         units="mm",
                         rule_source=(
-                            "DRC/LayClearances/LayClearance/"
-                            "ClearanceDetails.TraceToBoard"
+                            "DRC/LayClearances/LayClearance/ClearanceDetails.TraceToBoard"
                         ),
                     )
                 )
@@ -270,9 +269,7 @@ def check_differential_pairs(
                     f"{pair.name}: measured {check['measured']:g} {check['unit']}; "
                     f"required {check['required']:g}.",
                     net_ids=[
-                        value
-                        for value in [pair.positive_net_id, pair.negative_net_id]
-                        if value
+                        value for value in [pair.positive_net_id, pair.negative_net_id] if value
                     ],
                     measured=float(check["measured"]),
                     required=float(check["required"]),
@@ -294,9 +291,7 @@ def check_testpoint_coverage(
     snapshot: DocumentSnapshot,
 ) -> tuple[list[Finding], dict[str, Any]]:
     assert snapshot.board is not None
-    covered_xml_ids = {
-        item.net_id for item in snapshot.board.testpoints if item.net_id is not None
-    }
+    covered_xml_ids = {item.net_id for item in snapshot.board.testpoints if item.net_id is not None}
     findings: list[Finding] = []
     eligible = 0
     for net in snapshot.board.nets:
@@ -361,13 +356,11 @@ def check_bom_identity(
             ),
             "",
         )
-        manufacturer = fields.get("manufacturer") or str(
-            item.attributes.get("manufacturer", "")
-        ).strip()
+        manufacturer = (
+            fields.get("manufacturer") or str(item.attributes.get("manufacturer", "")).strip()
+        )
         missing = [
-            label
-            for label, value in (("manufacturer", manufacturer), ("MPN", mpn))
-            if not value
+            label for label, value in (("manufacturer", manufacturer), ("MPN", mpn)) if not value
         ]
         if missing:
             findings.append(
@@ -468,10 +461,7 @@ def check_schematic_duplicate_units(
             part.stable_id
             for part in snapshot.schematic.parts
             if (part.refdes or "").casefold() == refdes
-            and str(
-                part.attributes.get("part_number")
-                or part.attributes.get("component_part")
-            )
+            and str(part.attributes.get("part_number") or part.attributes.get("component_part"))
             == unit
         ]
         findings.append(
@@ -510,8 +500,7 @@ def check_schematic_electrical_conflicts(
             pin
             for pin in pins
             if str(
-                pin.attributes.get("ElectricType")
-                or pin.attributes.get("ElectricalType")
+                pin.attributes.get("ElectricType") or pin.attributes.get("ElectricalType")
             ).casefold()
             in {"output", "power output"}
         ]
@@ -573,3 +562,199 @@ def register_advanced_checks(registry: _Registry) -> None:
     )
     for check_id, category, source_kind, function in registrations:
         registry.register(check_id, category, source_kind)(function)
+
+
+class ReviewerEvaluationCase(StrictModel):
+    schema_version: Literal["diptrace-reviewer-case-v1"] = "diptrace-reviewer-case-v1"
+    case_id: str = Field(min_length=1, max_length=128)
+    domain: Literal["pcb", "schematic"]
+    input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    ground_truth_status: Literal["pending_m11", "approved_m11"] = "pending_m11"
+    expected_hard_findings: list[str] = Field(default_factory=list)
+    acceptable_extra_hard_findings: list[str] = Field(default_factory=list)
+    known_facts: dict[str, Any] = Field(default_factory=dict)
+    required_unknowns: list[str] = Field(default_factory=list)
+    allowed_source_ids: list[str] = Field(default_factory=list)
+    acceptable_rankings: list[list[str]] = Field(default_factory=list)
+    connectivity_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+
+class ReviewerEvaluationResponse(StrictModel):
+    schema_version: Literal["diptrace-reviewer-response-v1"] = "diptrace-reviewer-response-v1"
+    case_id: str
+    hard_findings: list[str] = Field(default_factory=list)
+    soft_findings: list[str] = Field(default_factory=list)
+    facts: dict[str, Any] = Field(default_factory=dict)
+    unknowns: list[str] = Field(default_factory=list)
+    source_ids: list[str] = Field(default_factory=list)
+    candidate_ranking: list[str] = Field(default_factory=list)
+    output_connectivity_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+
+class ReviewerCaseAdjudication(StrictModel):
+    case_id: str
+    missed_hard_findings: list[str] = Field(default_factory=list)
+    false_hard_findings: list[str] = Field(default_factory=list)
+    invented_facts: list[str] = Field(default_factory=list)
+    missing_unknowns: list[str] = Field(default_factory=list)
+    rule_source_mistakes: list[str] = Field(default_factory=list)
+    connectivity_regression: bool = False
+    ranking_accepted: bool | None = None
+    passed: bool
+
+
+class ReviewerEvaluationReport(StrictModel):
+    schema_version: Literal["diptrace-reviewer-evaluation-v1"] = "diptrace-reviewer-evaluation-v1"
+    corpus_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    response_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    model: str
+    provider: str
+    prompt_version: str
+    rule_pack_version: str
+    case_count: int = Field(ge=0)
+    metrics: dict[str, float | int]
+    adjudications: list[ReviewerCaseAdjudication]
+    ranking_stability: float | None = None
+    limitations: list[str] = Field(default_factory=list)
+
+
+def _reviewer_eval_sha(value: Any) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def adjudicate_reviewer_response(
+    case: ReviewerEvaluationCase,
+    response: ReviewerEvaluationResponse,
+    *,
+    require_approved_labels: bool = True,
+) -> ReviewerCaseAdjudication:
+    """Adjudicate stored reviewer output with no provider/network dependency."""
+
+    if response.case_id != case.case_id:
+        raise ValueError("reviewer response case_id does not match evaluation case")
+    if require_approved_labels and case.ground_truth_status != "approved_m11":
+        raise ValueError(
+            "reviewer case labels are not M11-approved; scoring is intentionally blocked"
+        )
+    expected = set(case.expected_hard_findings)
+    actual = set(response.hard_findings)
+    allowed_extra = set(case.acceptable_extra_hard_findings)
+    missed = sorted(expected - actual)
+    false = sorted(actual - expected - allowed_extra)
+    invented = sorted(
+        key
+        for key, value in response.facts.items()
+        if key not in case.known_facts or case.known_facts[key] != value
+    )
+    missing_unknowns = sorted(set(case.required_unknowns) - set(response.unknowns))
+    source_mistakes = sorted(set(response.source_ids) - set(case.allowed_source_ids))
+    connectivity_regression = bool(
+        case.connectivity_sha256 is not None
+        and response.output_connectivity_sha256 is not None
+        and response.output_connectivity_sha256 != case.connectivity_sha256
+    )
+    ranking_accepted: bool | None = None
+    if case.acceptable_rankings:
+        ranking_accepted = response.candidate_ranking in case.acceptable_rankings
+    passed = (
+        not any(
+            (
+                missed,
+                false,
+                invented,
+                missing_unknowns,
+                source_mistakes,
+            )
+        )
+        and not connectivity_regression
+        and ranking_accepted is not False
+    )
+    return ReviewerCaseAdjudication(
+        case_id=case.case_id,
+        missed_hard_findings=missed,
+        false_hard_findings=false,
+        invented_facts=invented,
+        missing_unknowns=missing_unknowns,
+        rule_source_mistakes=source_mistakes,
+        connectivity_regression=connectivity_regression,
+        ranking_accepted=ranking_accepted,
+        passed=passed,
+    )
+
+
+def build_reviewer_evaluation_report(
+    cases: list[ReviewerEvaluationCase],
+    responses: list[ReviewerEvaluationResponse],
+    *,
+    model: str,
+    provider: str,
+    prompt_version: str,
+    rule_pack_version: str,
+    require_approved_labels: bool = True,
+) -> ReviewerEvaluationReport:
+    """Build a deterministic regression report from stored reviewer responses."""
+
+    case_by_id = {item.case_id: item for item in cases}
+    if len(case_by_id) != len(cases):
+        raise ValueError("evaluation case_id values must be unique")
+    response_by_id = {item.case_id: item for item in responses}
+    if len(response_by_id) != len(responses):
+        raise ValueError("reviewer response case_id values must be unique")
+    if set(response_by_id) != set(case_by_id):
+        raise ValueError("evaluation cases and stored responses must have identical ids")
+    adjudications = [
+        adjudicate_reviewer_response(
+            case_by_id[case_id],
+            response_by_id[case_id],
+            require_approved_labels=require_approved_labels,
+        )
+        for case_id in sorted(case_by_id)
+    ]
+    hard_total = sum(len(item.expected_hard_findings) for item in cases)
+    hard_missed = sum(len(item.missed_hard_findings) for item in adjudications)
+    hard_recall = 1.0 if hard_total == 0 else (hard_total - hard_missed) / hard_total
+    false_alarms = sum(len(item.false_hard_findings) for item in adjudications)
+    invented = sum(len(item.invented_facts) for item in adjudications)
+    source_mistakes = sum(len(item.rule_source_mistakes) for item in adjudications)
+    connectivity_regressions = sum(item.connectivity_regression for item in adjudications)
+    ranked = [item.ranking_accepted for item in adjudications if item.ranking_accepted is not None]
+    ranking_stability = sum(bool(item) for item in ranked) / len(ranked) if ranked else None
+    corpus_payload = [item.model_dump(mode="json") for item in cases]
+    response_payload = [item.model_dump(mode="json") for item in responses]
+    return ReviewerEvaluationReport(
+        corpus_sha256=_reviewer_eval_sha(corpus_payload),
+        response_sha256=_reviewer_eval_sha(response_payload),
+        model=model,
+        provider=provider,
+        prompt_version=prompt_version,
+        rule_pack_version=rule_pack_version,
+        case_count=len(cases),
+        metrics={
+            "hard_failure_recall": hard_recall,
+            "missed_hard_defects": hard_missed,
+            "false_alarms": false_alarms,
+            "invented_facts": invented,
+            "rule_source_mistakes": source_mistakes,
+            "connectivity_regressions": connectivity_regressions,
+            "passed_cases": sum(item.passed for item in adjudications),
+        },
+        adjudications=adjudications,
+        ranking_stability=ranking_stability,
+        limitations=[
+            "This harness adjudicates stored structured responses; it does not call a provider.",
+            "Ground-truth labels require the separate M11 human trust-promotion gate.",
+            "A model/prompt/rule-pack version becomes default only through M12.",
+        ],
+    )

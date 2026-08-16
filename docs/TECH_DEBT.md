@@ -19,15 +19,14 @@ Repository tests prove deterministic bounded behaviour, not that complete real s
 
 `schematic_atomic_reroute.py` closes the former dangerous gap where moving a symbol could leave stale existing wire geometry. Remaining optimisation debt is broader rather than transactional:
 
-- global same-net Steiner-tree/junction optimisation beyond the current bounded
-  existing-junction reuse and MST-edge planning;
+- global same-net Steiner-tree optimisation beyond the current bounded endpoint selection and literal multi-junction preservation for proven acyclic existing wire graphs;
 - arbitrary PDF/application-note extraction beyond the validated structured
   engineering-rule-pack boundary;
 - broader real-project tuning without hiding score terms.
 
 ### 3. Schematic rotation/pin-facing authority
 
-Pin geometry can be resolved conservatively from the embedded Design Cache, but non-zero part rotation remains evidence-sensitive. Automatic pin-facing rotation decisions should stay conservative until exact real-host rotation semantics are validated for the affected path.
+Pin geometry can be resolved conservatively from the embedded Design Cache. Confidence-gated cardinal rotation candidates and atomic delete/rotate/rebuild planning now exist at package level, but automatic enabling remains evidence-sensitive and M2-gated until exact real-host rotation semantics are validated for the affected path.
 
 ### 4. PCB Generations A-D real-host evidence boundary
 
@@ -110,7 +109,7 @@ The following should no longer be listed as open technical debt:
 - schematic selective affected-net reroute transaction — implemented by `schematic_atomic_reroute.py` and ordinary guarded semantic transactions;
 - basic schematic motif/congestion candidate ensemble — implemented by `schematic_ensemble.py`;
 - bounded schematic global interconnect strategy, iterative objective history and
-  conservative intentional-junction reuse — implemented;
+  topology-preserving reroute for proven acyclic multi-junction wire graphs — implemented;
 - SHA-bound external engineering-rule ingestion with provenance/redistribution
   controls — implemented by `reference_rules.py`;
 - PCB Generation B physical-context implementation — implemented;

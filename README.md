@@ -51,29 +51,27 @@ DipTrace compatibility, authoritative refill geometry, or engineering sign-off.
 
 ## Current status
 
-Version `0.3.0` is the current published unsigned development prerelease:
-[`v0.3.0` on GitHub](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.3.0)
-and [`diptrace-mcp==0.3.0` on PyPI](https://pypi.org/project/diptrace-mcp/0.3.0/).
-Its immutable assets include:
+Version `0.4.0` is the current unsigned development release candidate. Until
+publication, [`v0.3.0` on GitHub](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.3.0)
+and [`diptrace-mcp==0.3.0` on PyPI](https://pypi.org/project/diptrace-mcp/0.3.0/)
+remain the latest immutable public release.
 
-- `DipTrace-MCP-Setup-0.3.0.exe`;
-- `DipTrace-MCP-Plugin-Setup-0.3.0.exe`;
-- `DipTrace-MCP-Portable-0.3.0.zip`;
-- `DipTrace-MCP-0.3.0-windows.mcpb`;
-- wheel, source distribution, checksum manifest and provenance record.
+The v0.4.0 candidate keeps the public MCP contract frozen at 167 tools and adds
+the A1-A8 roadmap closure, Linux one-command deployment with private-Xvfb GUI
+isolation, and macOS one-command deployment using the official DipTrace.app bundled
+Wine runtime with hidden-Win32-desktop automation on Apple Silicon and Intel.
 
-The `0.3.0` release adds the schematic layout/placement-routing foundation,
-PCB Generations A-D, compact-footprint preference, bounded two-layer GND-pour
-and stitching helpers, silkscreen cleanup, the 90% combined
-supported-environment coverage gate, and board-framed cinematic replay. The
-initial 18-case real-DipTrace schematic authoring/readability campaign is
-complete.
+Expected v0.4.0 release assets include:
 
-The previous [`v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0)
-and [`v0.2.1`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.1)
-release identities remain immutable. Existing tags and published files are
-never replaced.
+- `DipTrace-MCP-Setup-0.4.0.exe`;
+- `DipTrace-MCP-Plugin-Setup-0.4.0.exe`;
+- `DipTrace-MCP-Portable-0.4.0.zip`;
+- `DipTrace-MCP-0.4.0-windows.mcpb`;
+- wheel, source distribution, checksum manifest and provenance record;
+- `scripts/install_linux.sh` and `scripts/install_macos.sh` as repository/tag bootstrap paths.
 
+The immutable v0.3.0, v0.2.1 and earlier release identities are not rewritten or
+replaced by this candidate.
 The Windows executables are unsigned. CI, SHA-256, PyPI Trusted Publishing, and
 package attestations establish tested behaviour, byte identity, and publication
 provenance. They do not create a trusted Authenticode signature, universal
@@ -120,15 +118,17 @@ Main public capability groups:
 
 Internal EDA development deliberately does not expand that public tool surface
 one heuristic at a time. The current schematic stack includes design intent and
-reference motifs, hierarchical and bounded multi-candidate placement,
-conservative pin-geometry resolution, non-mutating wire planning, pin-aware
-joint placement/routing scoring, bounded placement repair, and selective atomic
-replacement of affected existing wire geometry. `schematic_atomic_reroute.py`
-rebuilds only affected explicit sheet-local nets as one dependency-safe
-`delete_wire -> move_components -> add_wire` semantic batch while preserving
-unaffected explicit geometry and the existing guarded transaction boundary.
-The current ensemble adds bounded iterative repair with objective history,
-global wire/label/bus/power strategy and conservative existing-junction reuse.
+reference motifs, bounded multi-candidate placement, conservative pin-geometry
+resolution, non-mutating wire planning, pin-aware joint placement/routing
+scoring, bounded placement repair, literal existing-wire topology proof,
+confidence-gated cardinal rotation candidates, and selective atomic replacement
+of affected existing wire geometry. `schematic_atomic_reroute.py` rebuilds only
+affected explicit sheet-local nets as one dependency-safe
+`delete wires -> rotate/move parts -> rebuild wires` semantic batch while
+preserving unaffected explicit geometry and the existing guarded transaction
+boundary. Proven connected acyclic multi-junction topology is preserved;
+cyclic, free-leaf, incomplete or ambiguous topology fails closed. Automatic
+rotation remains disabled by default pending focused M2 real-host evidence.
 
 The initial 18-case real-DipTrace schematic authoring/readability campaign is
 complete. The final repaired stress schematic contained 22 parts, 48 pins,
@@ -149,16 +149,21 @@ The PCB design engine is implemented through four internal bounded generations:
 - Generation D: lexicographically safe whole-board candidate selection and a
   synthetic engineering-trap benchmark catalog.
 
-Candidate selection now reviews every hypothetical layout in memory for
-compactness, centering, symmetry, return planes, GND stitching/thermals,
-silkscreen clearance, high-di/dt loops and decoupling span. A package-level
-whole-board pipeline composes the existing placement, routing, compact-outline,
-copper and silkscreen stages. Optional SHA-bound engineering-rule packs carry
-sourced datasheet/reference facts into both schematic and PCB ranking.
+Candidate selection reviews hypothetical layouts in memory for compactness,
+centering, symmetry, return planes, GND stitching/thermals, silkscreen clearance,
+high-di/dt loops and decoupling span. A package-level whole-board pipeline
+composes placement, routing, compact-outline, copper and silkscreen stages and is
+wrapped in a guarded source-SHA/candidate-SHA plan/apply contract with deterministic
+plan identity, stale-input checks, hard-review blocking, backup and rollback.
+Optional source-bound engineering-rule packs carry reviewed datasheet/reference
+facts into schematic and PCB ranking. `physics_estimates.py` adds explicit-input
+trace/via resistance, voltage-drop, loss and first-order thermal estimates while
+keeping missing physical facts `unknown`.
 
 Missing current, edge rate, impedance, stackup authority, current density and
-other physical facts remain explicit unknowns. PCB Generation D still requires
-real-DipTrace product acceptance before stronger native-host claims are made.
+other physical facts remain explicit unknowns. PCB Generation D and whole-board
+planning still require claim-specific real-DipTrace acceptance before stronger
+native-host/refill claims are made.
 
 `query_builtin_library_catalog` browses/searches DipTrace's installed read-only
 catalog. `place_builtin_component` resolves one returned `catalog_id`, exports
@@ -182,12 +187,44 @@ accuracy, PI/EMC sign-off, or globally optimal schematic/PCB layout.
 
 ## Installation
 
-### PyPI
+### Linux: one command, visible GUI, and headless GUI
 
-Python 3.10 or newer is required:
+After reviewing the DipTrace license, the validated x86-64 Debian/Ubuntu path is:
 
 ```bash
-python -m pip install diptrace-mcp==0.3.0
+curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/main/scripts/install_linux.sh \
+  | bash -s -- --accept-diptrace-license
+```
+
+The script installs the validated Wine and 32-bit GUI runtime, DipTrace Freeware
+5.3.0.3, the pinned portable MCP bundle, bridge plug-ins, visible Linux launchers,
+and the private-Xvfb headless GUI worker. Python is not required for this path.
+Use `diptrace-schematic` / `diptrace-pcb` for the ordinary GUI and
+`diptrace-gui-headless` for bounded GUI work without a physical display. See
+[Linux installation and GUI modes](docs/LINUX.md).
+
+### macOS: one command, visible GUI, and headless GUI
+
+The macOS path uses the Wine runtime bundled inside the official DipTrace 5.3.0.3
+application. No separate Homebrew Wine or XQuartz installation is required:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/main/scripts/install_macos.sh \
+  | bash -s -- --accept-diptrace-license
+```
+
+Apple Silicon uses Rosetta for DipTrace's bundled x86-64 Wine runtime. If Rosetta
+is missing, the installer fails closed unless `--accept-rosetta-license` is supplied
+after reviewing Apple's terms. Headless mode uses the packaged private hidden Win32
+desktop worker without physical mouse/keyboard fallback. See
+[macOS installation and GUI modes](docs/MACOS.md).
+
+### PyPI
+
+Python 3.10 or newer is required. After v0.4.0 publication:
+
+```bash
+python -m pip install diptrace-mcp==0.4.0
 diptrace-mcp --help
 ```
 
@@ -198,12 +235,12 @@ published package.
 
 ### Windows installer
 
-1. Download `DipTrace-MCP-Setup-0.3.0.exe` and `SHA256SUMS.txt` from the same
-   `v0.3.0` GitHub Release.
+1. After publication, download `DipTrace-MCP-Setup-0.4.0.exe` and `SHA256SUMS.txt` from the same
+   `v0.4.0` GitHub Release.
 2. Verify the SHA-256 value.
 3. Run the installer and select the DipTrace location, workspace, state
    directory, and optional Codex/Claude configuration.
-4. Run `DipTrace-MCP-Plugin-Setup-0.3.0.exe` with administrator privileges when
+4. Run `DipTrace-MCP-Plugin-Setup-0.4.0.exe` with administrator privileges when
    machine-wide DipTrace integration is required.
 5. Restart DipTrace and the MCP client.
 6. Call `get_capabilities`.
@@ -212,7 +249,7 @@ Windows may show a SmartScreen warning because the binaries are unsigned.
 
 ### Portable Windows bundle
 
-Download and verify `DipTrace-MCP-Portable-0.3.0.zip`, extract it to a stable
+Download and verify `DipTrace-MCP-Portable-0.4.0.zip`, extract it to a stable
 location, read its `README_FIRST.txt`, and use the included helper tools.
 
 ### Python source installation
@@ -231,8 +268,9 @@ complete path.
 
 ## MCPB, Registry, and Smithery
 
-Version `0.3.0` GitHub/PyPI assets are published. The distribution route also
-provides:
+The v0.4.0 release candidate preserves the Windows MCPB/Registry/Smithery route
+and adds Linux/macOS host installers without changing the 167-tool MCP contract. The
+distribution route provides:
 
 - deterministic Windows MCPB packaging;
 - canonical Registry identity `io.github.fireostendere/diptrace-mcp`;
@@ -261,8 +299,9 @@ MCP client (Codex / Claude / other)
                  |
                  +--> typed domain services
                  +--> internal EDA intelligence
-                 |       +--> schematic layout / joint scoring / repair
-                 |       +--> PCB Generations A-D
+                 |       +--> schematic layout / topology / rotation / repair
+                 |       +--> PCB Generations A-D / whole-board planning
+                 |       +--> reviewer evaluation / physics / evidence campaigns
                  +--> shared stores, policy, cache, document gateway
                  |
                  v
@@ -310,10 +349,12 @@ The main write invariants are:
 The private/manual Q1 Component Angle GUI/re-export campaign is PASS on DipTrace
 PCB Layout 5.3.0.3. Package-owned public evidence/trust promotion remains a
 separate reviewed contract, and the immutable `v0.2.1` release record correctly
-retains its earlier `NOT_RUN` release-time status. Real Codex restart and an
-operator-confirmed Claude Desktop restart on a separate machine are PASS.
-The initial 18-case schematic product-quality campaign is PASS for its recorded
-scope. All 12 blocking manual gates are PASS across the accepted checkpoints.
+retains its earlier `NOT_RUN` release-time status. Real Codex restart is PASS on
+its recorded host. Claude Desktop restart is also PASS, but it was confirmed on
+a **separate machine where Codex was not installed**; it is therefore independent
+Claude client evidence rather than a same-host client comparison. The initial
+18-case schematic product-quality campaign is PASS for its recorded scope. All
+12 blocking manual gates are PASS across the accepted checkpoints.
 
 ## Data Handling
 

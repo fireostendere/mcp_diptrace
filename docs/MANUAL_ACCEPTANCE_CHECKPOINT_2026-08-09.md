@@ -1,6 +1,6 @@
-# Manual Acceptance Checkpoint — 2026-08-09, updated 2026-08-14
+# Manual Acceptance Checkpoint — 2026-08-09, updated 2026-08-16
 
-> **Historical checkpoint with later completion record.** The eight-gate state below is the exact formal snapshot bound to `main@0bb09b4...`; it remains valid historical evidence. Subsequent accepted checkpoints completed the remaining Windows/client lifecycle work, including operator-confirmed Claude Desktop restart and custom-state preservation on a separate machine. The project-level blocking manual matrix is now **12 of 12 PASS** across the recorded accepted checkpoints. Do not reinterpret the older eight-gate identities as evidence collected on later code.
+> **Historical checkpoint with later completion record.** The eight-gate state below is the exact formal snapshot bound to `main@0bb09b4...`; it remains valid historical evidence. Subsequent accepted checkpoints completed the remaining Windows/client lifecycle work, including operator-confirmed Claude Desktop restart and custom-state preservation on a separate machine. The Claude restart machine had Claude Desktop and DipTrace MCP but **did not have Codex installed**, so that gate is independent Claude client/host evidence rather than a same-host Codex-vs-Claude comparison. The project-level blocking manual matrix is now **12 of 12 PASS** across the recorded accepted checkpoints. Do not reinterpret the older eight-gate identities as evidence collected on later code.
 
 This file is the durable recovery checkpoint for the real-system acceptance campaign.
 Its purpose is to prevent already completed manual gates from being repeated after an interrupted
@@ -58,14 +58,14 @@ PASS. The historical table is preserved below exactly as a record of that stage:
 | `diptrace_mask_paste_courtyard_common_semantics` | **PASS** | MASK, PASTE, COURTYARD and COMMON all accepted. |
 | `diptrace_q1_component_angle` | **PASS** | Real DipTrace PCB Layout 5.3.0.3 angle/side semantics accepted on `0bb09b4...`. |
 | `codex_real_client_restart` | **PASS** | Real Codex Desktop restart/configuration/`get_capabilities` accepted on `0bb09b4...`. |
-| `claude_desktop_real_client_restart` | **WAIVED at this historical stage** | The gate was not run at this checkpoint; direct Claude evidence was collected later on a separate machine. |
+| `claude_desktop_real_client_restart` | **WAIVED at this historical stage** | The gate was not run at this checkpoint; direct Claude evidence was collected later on a separate machine without Codex installed. |
 
 Later accepted checkpoints completed:
 
 - `windows_clean_install_repair_uninstall` — **PASS**, including an operator-confirmed from-zero run on a separate new Windows machine;
 - `elevated_plugin_install_profile_preservation` — **PASS** on exact candidate `9af6da2`, Windows 11 build `26200`, DipTrace `5.3.0.2`;
 - `custom_state_preservation` — **PASS**, operator-confirmed from a separate machine;
-- `claude_desktop_real_client_restart` — **PASS**, operator-confirmed from a separate machine.
+- `claude_desktop_real_client_restart` — **PASS**, operator-confirmed on a separate machine with Claude Desktop and DipTrace MCP and without Codex installed.
 
 Therefore the project-level blocking manual matrix is **12 of 12 PASS across the accepted checkpoints**.
 The repository validator continues to require the Claude gate; the later direct evidence satisfies that
@@ -158,6 +158,8 @@ while schematic product-quality validation took priority.
 That historical waiver remains part of the chronology and must not be relabelled as if the Claude
 check had been run on `0bb09b4...`. Later operator confirmation from a separate machine supplied
 direct Claude Desktop restart evidence, so the gate is now **PASS across the accepted checkpoints**.
+The Claude machine did **not** have Codex installed; this was a direct Claude Desktop + DipTrace MCP
+restart/configuration checkpoint, not a same-host comparison against Codex.
 
 ## Schematic authoring/readability campaign — COMPLETE
 
@@ -207,7 +209,7 @@ When resuming work from this checkpoint:
 - do not replay the completed 12-gate manual matrix without an impact- or release-claim-based reason;
 - treat `0bb09b4...` as the accepted production-code identity for the eight historical formal PASS gates;
 - treat `6bfb656...` as the production merge identity for the closed schematic-quality fixes;
-- preserve the historical Claude waiver as chronology while treating the later direct Claude evidence as PASS on its own accepted checkpoint;
+- preserve the historical Claude waiver as chronology while treating the later direct Claude evidence as PASS on its own accepted checkpoint; the Claude checkpoint was collected on a separate machine without Codex installed;
 - if relevant production code changes, record the new candidate explicitly and rerun only the evidence plausibly affected by that code change;
 - keep historical FAIL/QUALITY FAIL/SEMANTIC FAIL/INVALID ATTEMPT records immutable;
 - distinguish operator/path/seed mistakes from product defects;

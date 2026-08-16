@@ -2,129 +2,152 @@
 
 ## Status
 
-The intelligent schematic track is implemented as a bounded deterministic pipeline. Bounded placement repair plus selective atomic reroute and deterministic ensemble ranking are productized as public tools (`plan_schematic_placement_repair`, `apply_schematic_placement_repair_plan`, `rank_schematic_placement_candidates`); the remaining engines stay internal. None of it bypasses the existing semantic-operation, preview, expected-SHA, transaction or real-DipTrace evidence boundaries.
-
-On wired schematics the repair route scorer and the atomic reroute planner share one affected-wire model: exactly the wire geometry the reroute would replace for the candidate's moved parts is removed from the scored snapshot, unaffected nets keep their existing geometry as obstacles and are not re-scored as hypothetical replacements. Operator-fixed placements (`moves`) and locked parts are immutable repair constraints; a group containing one is never moved.
+The schematic intelligence track is a bounded deterministic pipeline behind the existing
+semantic-operation, preview, expected-SHA, transaction and real-DipTrace evidence
+boundaries. Public placement/repair tools remain intentionally narrow; the newer topology
+and rotation helpers are package-level and do not expand the 167-tool MCP contract.
 
 Current modules:
 
-- `schematic_layout.py` — design intent, functional blocks, provenance-bearing motifs and readability metrics;
-- `schematic_optimizer.py` — bounded multi-candidate placement search and first-stage interconnect scoring;
+- `schematic_layout.py` — design intent, functional blocks, provenance-bearing motifs and
+  readability metrics;
+- `schematic_optimizer.py` — bounded placement candidates and first-stage interconnect
+  scoring;
 - `schematic_pin_geometry.py` — conservative embedded Design Cache pin resolution;
-- `schematic_wire_planner.py` — non-mutating wire candidate scoring and placement feedback;
-- `schematic_joint_optimizer.py` — pin-aware hypothetical placement/routing scoring;
-- `schematic_placement_repair.py` — bounded placement repair driven by route feedback;
-- `schematic_ensemble.py` — motif + route + congestion ranking, bounded
-  multi-iteration repair and global interconnect strategy;
-- `schematic_atomic_reroute.py` — selective existing-wire replacement for nets touched by moved parts.
+- `schematic_wire_planner.py` — non-mutating wire candidates and route-quality feedback;
+- `schematic_joint_optimizer.py` — pin-aware placement/routing scoring;
+- `schematic_placement_repair.py` — bounded route-feedback-driven placement repair;
+- `schematic_ensemble.py` — motif, route, congestion and iterative objective-history
+  ranking;
+- `schematic_topology.py` — literal existing-wire graph recovery and validation;
+- `schematic_rotation.py` — confidence-gated cardinal rotation candidates;
+- `schematic_atomic_reroute.py` — atomic placement/rotation plus affected-net rebuild.
 
-See [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md) for the cross-domain implementation map.
+See [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md) for the cross-domain map.
 
 ## Design intent and motifs
 
-Intent inference uses normalized schematic facts: RefDes/names/values, pin/net connectivity, multipart identity and explicit caller/reference data. It does not infer a datasheet from a part name.
+Intent inference uses normalized schematic facts: RefDes/names/values, pin/net
+connectivity, multipart identity and explicit caller/reference data. It does not infer a
+datasheet from a part name.
 
-Reference motifs express relative constraints such as `near`, left/right, above/below, same-row and same-column. Every motif retains provenance and confidence.
+Reference motifs express relative constraints such as `near`, left/right, above/below,
+same-row and same-column. Every motif retains provenance and confidence.
 
-`reference_rules.py` accepts strict SHA-bound structured engineering-rule packs
-and maps their schematic rules into the same motif model. Source IDs, source
-hashes, locators, source kinds and redistribution policy are validated before a
-rule reaches placement scoring. A reviewer may extract a pack from a datasheet
-or reference design, but the deterministic engine never treats that extraction
-as authoritative without the recorded provenance.
+`reference_rules.py` accepts strict source-bound engineering-rule packs. Engineering facts
+must retain source SHA-256, revision and locator metadata before they can become
+claim-eligible. Missing or ambiguous provenance remains explicit and cannot be supplied
+from model memory.
 
-`schematic_ensemble.py` also derives conservative builtin readability motifs from already-inferred roles. These are explicitly labelled `source_kind="builtin"` and their source identifies them as deterministic heuristics. They are never presented as datasheet/reference-design evidence.
+Builtin readability motifs remain deterministic heuristics and are never presented as
+manufacturer/reference-design approval.
 
-## Placement and first-stage scoring
+## Placement, pin geometry and route scoring
 
-Placement candidate generation remains bounded and deterministic. Candidates vary functional-block order, support packing and sheet compactness while preserving locked parts and grid policy.
+Placement search remains bounded and deterministic. Locked parts, operator-fixed moves
+and unresolved geometry remain fail-closed constraints.
 
-The disclosed first-stage score includes layout/readability terms, estimated future interconnect, connector-flow pressure and movement cost. This score is a candidate heuristic, not a claim of globally optimal placement.
+Pin geometry is resolved from the embedded Component Library Design Cache only when
+identity is sufficiently strong. Missing or ambiguous pin ownership is not guessed.
 
-## Pin-aware route scoring
+Route defects are lexicographically more important than aesthetic placement scores.
+Source XML and normalized source objects are not mutated during candidate scoring.
 
-`schematic_pin_geometry.py` resolves pin geometry from the embedded Component Library Design Cache when identity is sufficiently strong. Ambiguity remains unresolved rather than guessed.
+## Confidence-gated rotation
 
-`schematic_joint_optimizer.py` virtually moves candidate parts, groups connectivity per `(net, sheet)`, applies explicit ground/power routing policy, decomposes included net groups into deterministic MST endpoint edges and evaluates each edge through the existing bounded wire planner.
+`schematic_rotation.py` generates 0/90/180/270-degree candidates only when the target part
+is unlocked and the complete pin geometry reaches the configured confidence threshold.
+Orientation contributes to pin-facing and route/readability scoring.
 
-Hard route defects are lexicographically more important than the first-stage placement score. Source XML and normalized source objects are not mutated during scoring.
+The engine deliberately separates source pin geometry from post-rotation geometry:
+source geometry is used to prove the existing hand-authored topology, while rotated
+geometry is used only to construct replacement endpoints. This prevents a rotation
+candidate from retroactively becoming evidence for the topology it is about to change.
 
-## Placement repair
+Automatic rotation remains disabled by default. Enabling a symbol/editor family or making
+an exact DipTrace rotation/pin-facing claim still requires the focused M2 real-host gate.
 
-`schematic_placement_repair.py` translates explicit route feedback into bounded hypothetical moves such as endpoint convergence, row/column alignment and routing-corridor opening. Functional blocks move as rigid groups when appropriate; locked/unresolved groups fail closed.
+## Topology-preserving atomic reroute
 
-Every unique repair is rescored. A repair is selected only when its joint rank is strictly better than the original candidate.
+`schematic_topology.py` reconstructs the literal existing wire graph for each affected
+sheet-local net before mutation. A graph is eligible for topology-preserving reroute only
+when it is connected, acyclic and unambiguous and all relevant pin/junction ownership is
+resolved.
 
-## Congestion-aware ensemble
+For eligible branched nets, every proven junction on the affected pin-to-pin paths is
+preserved. The planner no longer flattens a valid multi-junction tree merely because it
+contains more than one intentional junction.
 
-`schematic_ensemble.py` adds a bounded placement-grid congestion model:
+The planner fails closed for:
 
-- occupied cells;
-- hotspot cells;
-- maximum cell occupancy;
-- local neighboring pressure;
-- overall content span.
+- cyclic existing-wire graphs;
+- unexplained free-leaf branches;
+- incomplete pin/junction ownership;
+- ambiguous topology;
+- locked affected parts;
+- excessive bounded scope or other hard transaction preconditions.
 
-Route rejection/obstacle/overlap/crossing/self-intersection/diagonal defects remain dominant over congestion and compactness. Congestion is a scheduling/readability proxy, not a physical solver.
+`plan_atomic_schematic_placement_reroute` composes one dependency-safe semantic batch:
 
-For the highest-ranked seeds, the ensemble now performs a bounded
-generate -> score -> repair loop. Every iteration records its objective, accepts
-only strict improvement and stops when no better candidate is found or the
-configured iteration limit is reached.
+`DeleteWireOperation* -> RotateComponentsOperation*/MoveComponentsOperation* -> AddWireOperation*`
 
-The returned sheet-level interconnect plan prioritizes nets globally and assigns
-an explicit strategy: direct wire, net label, indexed bus, or power symbol.
-Indexed sibling groups of at least three nets can be grouped as a bus; this is a
-readability plan and does not silently mutate connectivity.
+Only actually affected explicit wire geometry is removed. Unaffected explicit geometry is
+preserved and remains an obstacle during replanning. Unwired nets are not silently turned
+into page-spanning explicit wires.
 
-## Atomic placement + selective reroute
+The planner itself never writes XML. Applying the complete operation list through the
+existing transaction layer provides one preview/SHA/commit/rollback boundary, so delete,
+rotate/move and rebuild are all-or-nothing.
 
-The previous major gap — moving parts in an already-wired schematic without leaving stale wire geometry — now has an internal transaction planner.
+Readability defects may remain as explicit quality feedback when connectivity can still be
+rebuilt safely; destructive replacement is refused when connectivity/topology evidence is
+not sufficient.
 
-`plan_atomic_schematic_placement_reroute`:
+## Placement repair and ensemble
 
-1. compares a selected placement candidate with the current schematic and identifies actually moved parts;
-2. identifies explicit sheet-local wire groups whose nets touch those moved parts;
-3. refuses locked moved parts, invalid sheet data, excessive scope or unresolved affected endpoints;
-4. virtually removes only the affected explicit wire geometry;
-5. virtually applies the selected placement;
-6. resolves moved pin endpoints and replans every affected group through the existing bounded wire planner;
-7. keeps connectivity/safety failures fail-closed, while obstacle/crossing/overlap/detour/readability threshold failures are retained as explicit per-group `quality_feedback` and plan warnings when a valid endpoint-to-endpoint replacement can still be authored;
-8. returns one dependency-safe semantic batch:
+`schematic_placement_repair.py` translates route feedback into bounded hypothetical moves.
+Functional blocks can move as rigid groups; locked/unresolved groups remain immutable.
+A repair is selected only when its joint rank strictly improves.
 
-`DeleteWireOperation* -> MoveComponentsOperation* -> AddWireOperation*`.
-
-This distinction is deliberate. The wire planner's readability acceptance is still used by scoring/repair, but an already-imperfect schematic is not made uneditable merely because its safe replacement remains visually imperfect. Atomic reroute only refuses destructive replacement when connectivity cannot be reconstructed safely, required endpoint evidence is unresolved, bounds are exceeded, or another hard transaction precondition fails.
-
-The planner itself never writes XML. Applying the whole returned list through the existing semantic-operation transaction service gives one preview/SHA/commit boundary, so placement and replacement wires are all-or-nothing from the caller's transaction perspective.
-
-Unwired nets are not automatically turned into explicit page wires by default. Unaffected wire geometry is not rewritten.
-
-Affected explicit nets are rebuilt from resolved pin endpoints using
-deterministic MST edges. Nearby existing degree-three junctions are reused when
-doing so stays within the configured detour bound. Arbitrary hand-authored
-multi-junction topology and full Steiner-tree optimization are still not
-reconstructed.
+`schematic_ensemble.py` combines motif, route and bounded grid-congestion signals, records
+objective history and stops when no strict improvement is available or the configured
+iteration limit is reached. It also returns explicit wire/label/bus/power-symbol strategy
+without silently mutating connectivity.
 
 ## Existing direct-planner refusal
 
-The older placement-only planners may still refuse an already-wired schematic when used directly. That behavior remains correct: a placement-only operation cannot safely move symbols while leaving wire geometry behind. Existing-wire support belongs to the atomic selective-reroute planner above.
+Older placement-only planners may still refuse already-wired schematics. That remains
+correct: placement-only mutation cannot safely leave stale wire geometry behind. Existing
+wire support belongs to the atomic selective-reroute path.
 
 ## Testing and real-host evidence
 
-Repository tests cover deterministic candidate generation/ranking, pin resolution, route scoring, repair budgets, selective reroute scope, locked-part refusal, unresolved-endpoint refusal, explicit readability feedback, source immutability and semantic replay.
+Repository tests cover:
 
-The initial real-host schematic authoring/readability campaign is complete in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md`. Cases 01–18 covered small circuits, reference-style composition, incremental edits, failed-operation safety, single- and multi-net atomic reroute, obstacle/readability repairs and a repaired 22-part stress schematic. The final representative artifacts were operator-accepted and survived real DipTrace Save/Close/Reopen/re-export with all 12 required semantic categories preserved.
+- deterministic candidate generation/ranking and pin resolution;
+- source immutability and affected-net scope;
+- multi-junction tree preservation;
+- cycle/free-leaf/ambiguous-topology refusal;
+- locked and unresolved-part refusal;
+- confidence-gated cardinal rotation and stale-candidate refusal;
+- atomic `delete -> rotate/move -> rebuild` ordering;
+- rollback/transaction invariants and explicit route-quality feedback.
 
-PR #90 merged the bounded fixes found by that campaign without expanding the 159-tool MCP contract. This closes the initial schematic product-quality gate for its tested scope. It does not prove global optimality, arbitrary hierarchy/topology handling or universal DipTrace compatibility. Later real-host retests should be impact-based or tied to new claims.
+The initial real-DipTrace authoring/readability campaign (cases 01–18) remains PASS for its
+recorded scope. It must not be reinterpreted as evidence for the newly added topology and
+rotation claim scope. M2 is required before enabling or claiming those newer families in a
+real DipTrace host.
 
 ## Remaining work
 
-- stronger global/sheet-level congestion scheduling beyond the current bounded placement-grid proxy;
-- arbitrary PDF/application-note extraction beyond the validated SHA-bound
-  structured rule-pack interface;
-- global same-net Steiner-tree/junction optimization beyond bounded reuse of an
-  existing intentional junction;
-- real-host validation before automatic symbol-rotation/pin-facing decisions are enabled by default;
-- broader real-project tuning of the bounded iterative repair/interconnect
-  strategy without hiding objective terms.
+The intentionally unimplemented work is broader optimization, not transactional safety:
+
+- global same-net Steiner-tree optimization beyond preservation of proven literal acyclic
+  topology;
+- broader global/sheet-level optimization when measured benchmarks show the bounded local
+  search is the limiting factor;
+- arbitrary document/application-note extraction beyond the strict source-bound rule-pack
+  workflow;
+- automatic symbol rotation/pin-facing enabling for symbol/editor families that have not
+  passed focused M2 evidence;
+- broader real-project tuning without hiding objective terms.
