@@ -1,6 +1,10 @@
-# Unreleased
+# 0.4.0 release candidate
 
 ## Added
+
+- one-command Linux and macOS host installation, with real visible DipTrace GUI,
+  Linux private-Xvfb headless automation, macOS hidden-Win32-desktop automation,
+  and permanent fresh-host CI gates for the bounded release claim;
 
 - candidate-specific PCB quality review covering compactness, centering,
   symmetry, return planes, GND pours/stitching, thermal-relief intent,

@@ -153,9 +153,7 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert registry["trusted_entry_count"] == 0
             assert registry["high_trust_currently_available"] is False
             assert (
-                caps.structuredContent["trust_model"]["trusted_registry"][
-                    "trusted_entry_count"
-                ]
+                caps.structuredContent["trust_model"]["trusted_registry"]["trusted_entry_count"]
                 == 0
             )
             schema_resource = await session.read_resource("diptrace://schemas/tool-inputs")
@@ -199,8 +197,7 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             }
             assert all(item.description for item in prompts.prompts)
             assert {
-                item["name"]
-                for item in caps.structuredContent["workflow_prompts"]
+                item["name"] for item in caps.structuredContent["workflow_prompts"]
             } == prompt_names
 
             prompt = await session.get_prompt(
@@ -223,3 +220,45 @@ def test_http_host_and_port_are_applied_at_server_construction(tmp_path: Path) -
 
     assert server.settings.host == "0.0.0.0"
     assert server.settings.port == 9187
+
+
+def test_mcp_transport_repeated_calls_and_teardown_fit_existing_budget(tmp_path: Path) -> None:
+    async def verify() -> None:
+        settings = Settings(
+            workspace=FIXTURES,
+            allowed_roots=(FIXTURES,),
+            state_dir=tmp_path,
+        )
+        timings: list[dict[str, float]] = []
+        for _ in range(2):
+            server = create_server(settings)
+            loop = asyncio.get_running_loop()
+            opened = loop.time()
+            async with create_connected_server_and_client_session(
+                server,
+                read_timeout_seconds=timedelta(seconds=5),
+            ) as session:
+                list_started = loop.time()
+                tools = await session.list_tools()
+                list_elapsed = loop.time() - list_started
+                assert any(item.name == "summarize_design" for item in tools.tools)
+                call_started = loop.time()
+                result = await session.call_tool(
+                    "summarize_design",
+                    {"path": "pcb.xml"},
+                )
+                call_elapsed = loop.time() - call_started
+                assert not result.isError
+                assert call_elapsed < 5.0
+                timings.append(
+                    {
+                        "list_seconds": list_elapsed,
+                        "call_seconds": call_elapsed,
+                    }
+                )
+            teardown_elapsed = loop.time() - opened
+            assert teardown_elapsed < 5.0
+        assert len(timings) == 2
+        assert all(item["list_seconds"] < 5.0 for item in timings)
+
+    asyncio.run(verify())

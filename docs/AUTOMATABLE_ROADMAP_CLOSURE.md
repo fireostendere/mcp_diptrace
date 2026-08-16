@@ -1,43 +1,79 @@
 # Automatable Roadmap Closure
 
-This document records the repository-only closure work that preceded the current product-intelligence tracks. It is no longer the complete description of current `main`; use `ROADMAP.md` for the live roadmap.
+This document records repository-only closure work. It is not the live roadmap; use
+[ROADMAP.md](ROADMAP.md) for current priorities and
+[MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md)
+for the durable real-host evidence chronology.
 
 ## Repository-only closure delivered
 
-The closure line implemented:
+The repository now has deterministic, guarded implementation for the current automated
+roadmap scope:
 
-- trust invalidation regression coverage for stored-plan apply, SES import, schematic-to-PCB sync and live-session apply fail-closed behavior;
-- deterministic synthetic PCB/Schematic/Component Library/Pattern Library/DSN/SES fixture generation and validation;
-- raw-preserving internal Component/Pattern mutation core with collision/replacement and pin-to-pad validation;
-- deterministic pattern recommendation with hard filters, geometry ranking, privacy-bounded feedback and held-out metrics;
-- deterministic DFM/DFA/DFT release-readiness supplement;
-- manual acceptance evidence generator/validator;
-- release/distribution/roadmap cleanup after the already-published `v0.2.1`.
-
-Subsequent work on `main` went further:
-
-- the internal library mutation core gained controlled real Component Editor / Pattern Editor round-trip evidence;
-- aggregate supported-environment coverage reached an enforced 90% gate;
-- the schematic layout track gained bounded placement, routing, joint scoring/repair and selective atomic reroute foundations;
-- the initial 18-case real-DipTrace schematic authoring/readability campaign completed, including incremental edits, transaction-failure safety, single- and multi-net atomic reroute, obstacle/readability repair, native round-trip reuse and a repaired 22-part stress schematic;
-- PCB Generations A-D were implemented as internal engineering-intelligence layers;
-- cinematic DipTrace UI calibration/replay/recording was merged as a separate presentation subsystem.
+- expected-SHA, policy, backup, transaction, rollback and live-session fail-closed
+  boundaries;
+- deterministic synthetic PCB/Schematic/Component Library/Pattern Library/DSN/SES
+  fixture generation and validation;
+- raw-preserving internal Component/Pattern mutation with collision/replacement and
+  pin-to-pad validation;
+- bounded schematic placement, route scoring, iterative repair and selective atomic
+  reroute;
+- literal preservation of proven connected acyclic multi-junction schematic wire
+  topology, with fail-closed refusal for cyclic, free-leaf, incomplete or ambiguous
+  hand-authored topology;
+- confidence-gated cardinal schematic rotation candidates and atomic
+  `delete -> rotate/move -> rebuild` planning, kept disabled by default until the
+  relevant M2 real-host evidence exists;
+- PCB Generations A-D plus guarded package-level whole-board preview/apply planning;
+- SHA/revision/locator-bound engineering-rule ingestion and explicit unknown physical
+  facts;
+- provider-neutral reviewer evaluation, bounded quantitative engineering estimates and
+  deterministic evidence-campaign aggregation without automatic trust/PASS;
+- combined supported-environment coverage, frozen MCP discovery contract, release
+  artifact allowlist/audit and documentation-state checks;
+- cinematic DipTrace UI calibration/replay/recording and isolated hidden Win32 desktop
+  support.
 
 ## Safety boundary
 
-The original architectural constraints still apply:
+The architectural constraints remain unchanged:
 
 - internal EDA work does not automatically add public MCP tools;
-- synthetic fixture packs never become DipTrace export/open-save/round-trip evidence merely because they parse or inverse-round-trip;
-- internal Component/Pattern mutation remains below the public native-library write-tool boundary until a deliberate API decision;
-- manufacturing, assembly, thermal, EMC/PI, legal and other external conclusions remain explicitly scoped;
-- real-host/client PASS results stay bound to the exact candidate and tested path on which they were collected;
-- cinematic UI replay is presentation automation and not an alternate semantic write authority.
+- synthetic fixtures never become native DipTrace evidence merely because they parse;
+- internal Component/Pattern mutation remains below the public native-library write
+  boundary until an explicit product/API decision;
+- manufacturing, assembly, SI/PI/thermal/EMC, legal and independent-review conclusions
+  remain claim-specific manual gates;
+- real-host/client PASS results stay bound to the exact accepted checkpoint and tested
+  path;
+- cinematic/UI replay is presentation automation, not a second semantic write authority;
+- model output cannot waive deterministic hard violations or invent missing physical
+  values.
+
+## Manual acceptance chronology
+
+**All 12 blocking manual gates are PASS across the recorded accepted checkpoints.** The
+historical `0bb09b4...` checkpoint itself contained eight PASS gates and a Claude Desktop
+waiver; that older waiver remains part of the chronology only.
+
+`claude_desktop_real_client_restart` was completed later and is **PASS** on a separate
+machine. That machine had Claude Desktop and DipTrace MCP but **did not have Codex
+installed**, so the Claude evidence is an independent client/host checkpoint rather than
+a same-host Codex-vs-Claude comparison.
+
+The initial 18-case real-DipTrace schematic authoring/readability campaign is also
+complete for its recorded scope. Historical PASS/FAIL/WAIVED records remain immutable;
+future reruns are impact- or claim-based rather than blanket repetition.
 
 ## Current interpretation
 
-The statement “no unresolved repository-only blocker” applied to the closure campaign that produced the manual acceptance matrix. It should not be read as “there is no more repository product work.”
+There is no unresolved repository-only blocker in the automated A0-A8 roadmap scope on
+the PR #112 candidate. Remaining work is either:
 
-The first schematic product-quality campaign is now closed. Its detailed evidence remains in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md`; PR #90 merged the bounded fixes into `main`. Future schematic retests are impact-based rather than a restart of cases 01–18.
+- claim-specific manual evidence (for example M1/M2/M3/M8/M11/M12);
+- trigger-based P2 work such as push-and-shove, broader global optimization or remote
+  authentication, which starts only after a measured product/benchmark/security need;
+- future product/API choices that deliberately expand the public contract.
 
-Current unresolved product work is described in `ROADMAP.md`, `PCB_DESIGN_ENGINE.md` and `CINEMATIC_DEMO_MODE.md`. All 12 blocking manual gates are PASS across the accepted checkpoints, including operator-confirmed custom-state preservation and Claude Desktop restart on a separate machine.
+Passing repository tests does not itself grant native DipTrace, fabrication, physical,
+legal or independent-review authority.

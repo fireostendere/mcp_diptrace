@@ -1,0 +1,173 @@
+name: macOS one-command install
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/macos-clean-install.yml
+      - scripts/install_macos.sh
+      - scripts/build_windows_server.ps1
+      - plugin/**
+      - src/diptrace_mcp/headless_gui.py
+  pull_request:
+    paths:
+      - .github/workflows/macos-clean-install.yml
+      - scripts/install_macos.sh
+      - scripts/build_windows_server.ps1
+      - plugin/**
+      - src/diptrace_mcp/headless_gui.py
+
+permissions:
+  contents: read
+
+jobs:
+  build-current-runtime:
+    name: Build current portable runtime
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build current server and GUI helper
+        shell: pwsh
+        run: .\scripts\build_windows_server.ps1 -PythonCommand python -OutputDir dist\mac-runtime-server -Clean
+      - name: Build current bridge
+        shell: pwsh
+        run: .\plugin\build_bridge.ps1 -PythonCommand python -Clean
+      - name: Assemble portable runtime for macOS installer test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $PWD 'dist\mac-portable'
+          Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path "$root\app", "$root\bridge", "$root\settings-templates" | Out-Null
+          Copy-Item -Path '.\dist\mac-runtime-server\diptrace_mcp_server\*' -Destination "$root\app" -Recurse -Force
+          Copy-Item -LiteralPath '.\plugin\dist\diptrace_mcp_bridge.exe' -Destination "$root\bridge\diptrace_mcp_bridge.exe" -Force
+          Copy-Item -LiteralPath '.\plugin\settings\pcb.settings.xml' -Destination "$root\settings-templates\pcb.settings.xml"
+          Copy-Item -LiteralPath '.\plugin\settings\schematic.settings.xml' -Destination "$root\settings-templates\schematic.settings.xml"
+          Copy-Item -LiteralPath '.\plugin\settings\component.settings.xml' -Destination "$root\settings-templates\component.settings.xml"
+          Copy-Item -LiteralPath '.\plugin\settings\pattern.settings.xml' -Destination "$root\settings-templates\pattern.settings.xml"
+          $lines = Get-ChildItem -LiteralPath $root -File -Recurse | Sort-Object FullName | ForEach-Object {
+            $relative = $_.FullName.Substring($root.Length + 1).Replace('\', '/')
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $relative"
+          }
+          $lines | Set-Content -LiteralPath "$root\SHA256SUMS.txt" -Encoding ascii
+          $zip = Join-Path $PWD 'dist\DipTrace-MCP-Portable-0.4.0.zip'
+          Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
+          Compress-Archive -Path "$root\*" -DestinationPath $zip -CompressionLevel Optimal
+          if (-not (Test-Path -LiteralPath $zip)) { throw 'portable runtime zip was not created' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: macos-current-portable-runtime
+          path: dist/DipTrace-MCP-Portable-0.4.0.zip
+          if-no-files-found: error
+
+  clean-install:
+    name: clean-install (${{ matrix.runner }})
+    needs: build-current-runtime
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: macos-current-portable-runtime
+          path: ${{ runner.temp }}/runtime
+
+      - name: System Bash syntax
+        shell: bash
+        run: /bin/bash -n scripts/install_macos.sh
+
+      - name: One-command clean install
+        shell: bash
+        env:
+          DIPTRACE_MCP_BUNDLE_PATH: ${{ runner.temp }}/runtime/DipTrace-MCP-Portable-0.4.0.zip
+          DIPTRACE_APP_PATH: ${{ runner.temp }}/Applications/DipTrace.app
+          DIPTRACE_MCP_INSTALL_ROOT: ${{ runner.temp }}/DipTrace MCP
+          DIPTRACE_MCP_WORKSPACE: ${{ runner.temp }}/DipTrace Workspace
+          DIPTRACE_MCP_STATE_DIR: ${{ runner.temp }}/DipTrace MCP/state
+          DIPTRACE_MCP_BIN_DIR: ${{ runner.temp }}/bin
+          DIPTRACE_MCP_CACHE_DIR: ${{ runner.temp }}/DipTrace Cache
+        run: /bin/bash scripts/install_macos.sh --accept-diptrace-license --accept-rosetta-license
+
+      - name: Frozen MCP stdio smoke through bundled Wine
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp tests/fixtures/pcb.xml "$RUNNER_TEMP/DipTrace Workspace/pcb.xml"
+          python scripts/frozen_server_smoke.py \
+            --server "$RUNNER_TEMP/bin/diptrace-mcp" \
+            --workspace "$RUNNER_TEMP/DipTrace Workspace" \
+            --document pcb.xml \
+            --timeout 75
+
+      - name: Bridge shared-prefix smoke
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp tests/fixtures/schematic.xml "$RUNNER_TEMP/DipTrace Workspace/live.xml"
+          source "$RUNNER_TEMP/DipTrace MCP/macos-runtime-env.sh"
+          win_exchange="$($WINE winepath -w "$RUNNER_TEMP/DipTrace Workspace/live.xml" | tr -d '\r')"
+          set +e
+          "$RUNNER_TEMP/bin/diptrace-mcp-bridge" "$win_exchange" --headless --timeout 3
+          bridge_rc=$?
+          set -e
+          test "$bridge_rc" -eq 2
+          test -n "$(find "$RUNNER_TEMP/DipTrace MCP/state" -type f -name '*.json' -print -quit)"
+
+      - name: Visible GUI launcher starts real DipTrace
+        shell: bash
+        run: |
+          set -euxo pipefail
+          "$RUNNER_TEMP/bin/diptrace-schematic" >"$RUNNER_TEMP/schematic.out" 2>"$RUNNER_TEMP/schematic.err" &
+          launcher=$!
+          sleep 15
+          source "$RUNNER_TEMP/DipTrace MCP/macos-runtime-env.sh"
+          "$WINE" tasklist >"$RUNNER_TEMP/tasklist.txt"
+          cat "$RUNNER_TEMP/tasklist.txt"
+          grep -i 'Schematic.exe' "$RUNNER_TEMP/tasklist.txt"
+          "$WINE" taskkill /IM Schematic.exe /F || true
+          wait "$launcher" || true
+
+      - name: Hidden GUI worker isolates the real Win32 desktop
+        shell: bash
+        run: |
+          set -euxo pipefail
+          "$RUNNER_TEMP/bin/diptrace-gui-headless" smoke | tee "$RUNNER_TEMP/hidden.json"
+          grep -Eq '"ok"[[:space:]]*:[[:space:]]*true' "$RUNNER_TEMP/hidden.json"
+          grep -Eq '"input_desktop_before"[[:space:]]*:[[:space:]]*"Default"' "$RUNNER_TEMP/hidden.json"
+          grep -Eq '"input_desktop_after"[[:space:]]*:[[:space:]]*"Default"' "$RUNNER_TEMP/hidden.json"
+          "$RUNNER_TEMP/bin/diptrace-gui-headless" native-smoke | tee "$RUNNER_TEMP/native.json"
+          grep -Eq '"ok"[[:space:]]*:[[:space:]]*true' "$RUNNER_TEMP/native.json"
+
+      - name: Automation doctor
+        shell: bash
+        run: "$RUNNER_TEMP/bin/diptrace-mcp-doctor"
+
+      - name: Idempotent reinstall without another DipTrace download
+        shell: bash
+        env:
+          DIPTRACE_MCP_BUNDLE_PATH: ${{ runner.temp }}/runtime/DipTrace-MCP-Portable-0.4.0.zip
+          DIPTRACE_APP_PATH: ${{ runner.temp }}/Applications/DipTrace.app
+          DIPTRACE_MCP_INSTALL_ROOT: ${{ runner.temp }}/DipTrace MCP
+          DIPTRACE_MCP_WORKSPACE: ${{ runner.temp }}/DipTrace Workspace
+          DIPTRACE_MCP_STATE_DIR: ${{ runner.temp }}/DipTrace MCP/state
+          DIPTRACE_MCP_BIN_DIR: ${{ runner.temp }}/bin
+          DIPTRACE_MCP_CACHE_DIR: ${{ runner.temp }}/DipTrace Cache
+        run: |
+          set -euxo pipefail
+          /bin/bash scripts/install_macos.sh --skip-diptrace
+          "$RUNNER_TEMP/bin/diptrace-mcp-doctor"

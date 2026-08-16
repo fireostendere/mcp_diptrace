@@ -2,6 +2,13 @@
 
 ## Current release status
 
+`v0.4.0` is the current release candidate. Publication is blocked on the
+exact-candidate Windows, Linux, macOS, documentation, package and contract gates in
+[RELEASE_0_4_0_CHECKLIST.md](RELEASE_0_4_0_CHECKLIST.md). The host claim covers
+Windows, Ubuntu 24.04 x86-64, and macOS 15 on Apple Silicon and Intel only at
+the bounded levels recorded in [releases/v0.4.0.md](releases/v0.4.0.md).
+
+
 Version `v0.3.0` is the current published unsigned development prerelease.
 Its completed gates and immutable evidence are tracked in
 [RELEASE_0_3_0_CHECKLIST.md](RELEASE_0_3_0_CHECKLIST.md) and

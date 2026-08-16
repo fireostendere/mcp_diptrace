@@ -6,6 +6,8 @@
 .github/pull_request_template.md
 .github/workflows/ci.yml
 .github/workflows/deep-compliance-audit.yml
+.github/workflows/linux-clean-install.yml
+.github/workflows/macos-clean-install.yml
 .github/workflows/mcpb.yml
 .github/workflows/pypi.yml
 .github/workflows/windows-installer.yml
@@ -41,8 +43,10 @@ docs/HEADLESS_GUI.md
 docs/IMPEDANCE_AND_SI.md
 docs/INSTALL_FROM_RELEASE.md
 docs/LICENSE_DECISION.md
+docs/LINUX.md
 docs/LIVE_ACCEPTANCE_2026-07-31.md
 docs/LIVE_EXCHANGE_PATHS.md
+docs/MACOS.md
 docs/MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md
 docs/MCP_DISTRIBUTION.md
 docs/MCP_TOOLS.md
@@ -55,6 +59,7 @@ docs/REFERENCE_MATERIALS_AUDIT.md
 docs/RELEASE_0_2_0_CHECKLIST.md
 docs/RELEASE_0_2_1_CHECKLIST.md
 docs/RELEASE_0_3_0_CHECKLIST.md
+docs/RELEASE_0_4_0_CHECKLIST.md
 docs/RELEASE_PROCESS.md
 docs/REVIEW_ENGINE.md
 docs/ROADMAP.md
@@ -99,6 +104,7 @@ docs/releases/v0.1.2.md
 docs/releases/v0.2.0.md
 docs/releases/v0.2.1.md
 docs/releases/v0.3.0.md
+docs/releases/v0.4.0.md
 examples/claude_desktop_config.json
 examples/codex-config.toml
 installer/DipTraceMCP.iss
@@ -168,6 +174,8 @@ scripts/gitleaks.toml
 scripts/hatch_build.py
 scripts/headless_gui_entry.py
 scripts/ingest_fixtures.py
+scripts/install_linux.sh
+scripts/install_macos.sh
 scripts/make_probe_pack.py
 scripts/mcp_smoke.py
 scripts/measure_mcp_surface.py
@@ -232,6 +240,7 @@ src/diptrace_mcp/diptrace_window.py
 src/diptrace_mcp/domain.py
 src/diptrace_mcp/error_boundary.py
 src/diptrace_mcp/errors.py
+src/diptrace_mcp/evidence_campaign.py
 src/diptrace_mcp/evidence_report.py
 src/diptrace_mcp/evidence_status.py
 src/diptrace_mcp/exports.py
@@ -265,6 +274,7 @@ src/diptrace_mcp/pcb_placement.py
 src/diptrace_mcp/pcb_quality.py
 src/diptrace_mcp/pcb_routing_policy.py
 src/diptrace_mcp/pcb_whole_board.py
+src/diptrace_mcp/physics_estimates.py
 src/diptrace_mcp/placement.py
 src/diptrace_mcp/plans.py
 src/diptrace_mcp/policy.py
@@ -288,6 +298,8 @@ src/diptrace_mcp/schematic_layout.py
 src/diptrace_mcp/schematic_optimizer.py
 src/diptrace_mcp/schematic_pin_geometry.py
 src/diptrace_mcp/schematic_placement_repair.py
+src/diptrace_mcp/schematic_rotation.py
+src/diptrace_mcp/schematic_topology.py
 src/diptrace_mcp/schematic_wire_planner.py
 src/diptrace_mcp/semantic_compiler.py
 src/diptrace_mcp/server.py
@@ -394,6 +406,7 @@ tests/test_documentation_links.py
 tests/test_documentation_state.py
 tests/test_error_boundary.py
 tests/test_event_loop_responsiveness.py
+tests/test_evidence_campaign.py
 tests/test_evidence_mcp.py
 tests/test_evidence_report.py
 tests/test_exports.py
@@ -438,6 +451,7 @@ tests/test_pcb_physical.py
 tests/test_pcb_quality.py
 tests/test_pcb_routing_policy.py
 tests/test_phase4.py
+tests/test_physics_estimates.py
 tests/test_placement.py
 tests/test_plugin_settings.py
 tests/test_policy.py
@@ -473,6 +487,8 @@ tests/test_schematic_optimizer.py
 tests/test_schematic_pcb_sync.py
 tests/test_schematic_pin_geometry.py
 tests/test_schematic_placement_repair.py
+tests/test_schematic_rotation.py
+tests/test_schematic_topology.py
 tests/test_schematic_wire_planner.py
 tests/test_schematic_wire_quality.py
 tests/test_semantic_dispatch.py

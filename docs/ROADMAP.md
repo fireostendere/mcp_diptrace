@@ -10,9 +10,10 @@ Implementation never implies universal DipTrace compatibility. Historical eviden
 
 ## Current checkpoint — 2026-08-16
 
-The current source/package version is `0.3.0`. The immutable `v0.3.0` unsigned
-development prerelease and PyPI package are published; older releases remain
-immutable historical identities.
+The current source/package version is `0.4.0`. Version `v0.4.0` is the current
+unsigned development release candidate. The immutable `v0.3.0` prerelease and
+PyPI package remain the latest published identity until this candidate is released;
+older releases remain immutable historical identities.
 
 The schematic-quality production fixes were merged by PR #90. The production merge identity is:
 
@@ -85,7 +86,7 @@ Implemented:
 - readability/interconnect/movement scoring;
 - ordinary `MoveComponentsOperation` output.
 
-Still pending: real-host-backed automatic rotation/pin-facing decisions and broader externally sourced motif generation.
+Cardinal rotation/pin-facing candidate generation is implemented as a confidence-gated package layer and remains disabled by default until focused real-host M2 evidence exists for the exact symbol/editor path. Broader externally sourced motif generation remains review-driven.
 
 ## Phase 29 — human-readable interconnect planning
 
@@ -122,14 +123,12 @@ Implemented:
 - no rewriting of unaffected explicit wire geometry;
 - bounded multi-iteration repair of top candidates with objective history and a
   strict-improvement stopping rule;
-- conservative reuse of nearby intentional degree-three junctions when the
-  detour remains bounded;
+- literal reconstruction of unambiguous connected acyclic existing-wire graphs, preserving every proven junction on affected pin-to-pin paths;
+- fail-closed refusal of cyclic, free-leaf, incomplete or ambiguous hand-authored branched topology instead of silently rewriting it;
+- confidence-gated cardinal symbol rotation can be composed into the same delete -> rotate/move -> rebuild semantic batch, but remains disabled by default pending M2 native evidence;
 - no automatic page-spanning explicit wiring of previously unwired nets by default.
 
-Current limitation: affected explicit nets are rebuilt from resolved pin
-endpoints through deterministic MST edges. One nearby intentional junction can
-be reused conservatively; arbitrary hand-authored multi-junction topology and
-global Steiner-tree optimization are not reconstructed.
+Current boundary: ordinary affected endpoint selection remains bounded and deterministic, but branched existing nets are no longer flattened merely because they contain multiple intentional junctions. The planner preserves all proven junctions on an unambiguous connected acyclic literal wire graph. Cyclic, free-leaf, incomplete and ambiguous topology fails closed. Global Steiner-tree optimization is still intentionally outside the bounded planner.
 
 ## Phase 31 — schematic quality gate
 
@@ -139,7 +138,7 @@ Cases 01–18 in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md` are complete. Th
 
 The final representative schematic was operator-accepted and survived real DipTrace Save/Close/Reopen/re-export with all 12 required schematic semantic categories preserved. PR #90 merged the bounded fixes without expanding the public MCP contract.
 
-This gate is not a universal claim. New capabilities outside the tested scope — hierarchy, automatic symbol rotation/pin-facing, topology-preserving reroute, broader datasheet/reference ingestion, or materially changed production code — require focused new evidence.
+This gate is not a universal claim. Topology-preserving reroute and confidence-gated rotation planning now exist at package level, but their new claim scope is not inherited from the historical 18-case campaign. Hierarchy, automatic enabling of symbol rotation/pin-facing, broader datasheet/reference ingestion, or materially changed production code requires focused new evidence.
 
 # PCB track — Generations A-D
 
@@ -205,6 +204,18 @@ four-spoke thermal intent and 14 distributed GND stitching vias. This does not
 close the broader authoritative-refill/plane/via or manufacturing acceptance
 boundary above.
 
+# Quantitative engineering-estimate track
+
+**Status: bounded package-level implementation.**
+
+`physics_estimates.py` provides explicit-input analytical trace/via DC resistance,
+voltage-drop, aggregate-loss and first-order thermal estimates. Missing material,
+geometry, current or source facts remain `unknown`; no typical value is substituted.
+Each estimate records the exact inputs, method identity, source revision/SHA/locator,
+assumptions, sensitivity terms and limitations. These calculations are engineering
+assistance only: M3 governs source applicability and M8 governs any physical
+measurement/correlation claim.
+
 # DSN/SES and XML analysis track
 
 **Status: implemented bounded analysis layer.**
@@ -232,7 +243,7 @@ Existing `capture_diptrace_evidence.py` owns source/open-save/re-export capture,
 - surface missing/tampered artifacts and review blockers;
 - never grant PASS/provenance/fixture/release trust automatically.
 
-Further automation may aggregate multiple candidate reports into campaign dashboards, but trust promotion must remain a separate reviewed decision.
+`evidence_campaign.py` now aggregates multiple candidate reports, exact-hash media/frame metrics, exported geometry/manufacturing deltas, explicitly untrusted visual-review findings and promotion/rejection requests into one deterministic campaign identity. It never grants PASS, native-refill authority or trust; promotion remains the separate human M11 decision.
 
 # Component/Pattern mutation API track
 
@@ -303,9 +314,9 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | --- | --- |
 | manual acceptance | all 12 blocking gates PASS across the accepted checkpoints |
 | schematic intent/motifs | implemented + builtin heuristics + SHA-bound external rule packs |
-| schematic placement | bounded implementation |
+| schematic placement | bounded implementation + confidence-gated rotation candidates; automatic rotation remains M2-gated |
 | schematic route/joint repair | bounded iterative implementation with objective history and junction reuse; public repair/reroute plan tools shipped |
-| schematic selective atomic reroute | implemented for affected explicit sheet-local nets; shipped via `plan_schematic_placement_repair` |
+| schematic selective atomic reroute | placement/rotation batch implemented with multi-junction topology preservation for proven acyclic graphs; rotation remains M2-gated |
 | schematic product quality | **PASS for initial 18-case real-DipTrace campaign; future work impact/claim-based** |
 | PCB Generation A | implemented |
 | PCB Generation B | implemented/bounded |
@@ -314,7 +325,8 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | PCB product quality | compact two-layer example and cinematic output operator-accepted for v0.3.0; stronger native-refill/manufacturing claims remain open |
 | DSN/SES analysis | bounded structural/importability analysis implemented |
 | XML semantic analysis | fingerprint/delta + property tests implemented |
-| evidence reports | deterministic review-only report with domain/connectivity fingerprints implemented |
+| bounded physics estimates | explicit-input trace/via resistance, voltage drop, loss budget and first-order thermal; M3/M8 claim gates retained |
+| evidence reports | deterministic candidate + campaign aggregation with hash-bound media/deltas and no automatic trust |
 | library mutation public API | package-level request/preview prepared; public MCP registration pending |
 | cinematic | presentation + mandatory preflight + hidden MP4/GIF capture implemented; exact UI acceptance remains configuration-specific |
 | headless GUI | hidden Win32 desktop helper implemented with selectable `hidden`/`native` open -> Save -> close plus isolated cinematic capture; real DipTrace actions remain claim-specific evidence |

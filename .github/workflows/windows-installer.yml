@@ -102,7 +102,7 @@ jobs:
           "ISCC_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build unsigned per-user installer, admin plug-in installer, and portable fallback
         shell: pwsh
-        run: .\scripts\build_windows_installer.ps1 -Version 0.3.0 -PythonCommand python -BridgePath .\plugin\dist\diptrace_mcp_bridge.exe -IsccPath "$env:ISCC_PATH" -OutputDir dist\windows-artifacts -SkipBuild
+        run: .\scripts\build_windows_installer.ps1 -Version 0.4.0 -PythonCommand python -BridgePath .\plugin\dist\diptrace_mcp_bridge.exe -IsccPath "$env:ISCC_PATH" -OutputDir dist\windows-artifacts -SkipBuild
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: diptrace-windows-artifacts

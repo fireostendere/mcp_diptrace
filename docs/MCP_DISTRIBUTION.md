@@ -127,3 +127,19 @@ Do not conflate these states:
 ## Immutability rule
 
 Do not replace bytes under an existing GitHub tag, PyPI version, Registry version or directory release. If a material issue is found, document affected identities, preserve original bytes, withdraw/yank only where appropriate and publish a corrected new version.
+
+
+## v0.4.0 host installers
+
+The v0.4.0 release candidate adds two host bootstrap paths alongside the existing
+Windows installer/portable/MCPB route:
+
+- `install_linux.sh`: Ubuntu/Debian x86-64 bootstrap for pinned Wine/DipTrace,
+  release-checksummed portable MCP runtime, bridge and private-Xvfb GUI worker;
+- `install_macos.sh`: macOS bootstrap for the official DipTrace.app, its bundled
+  Wine prefix, release-checksummed portable MCP runtime, bridge and hidden-Win32-
+  desktop GUI worker. The release gate covers macOS 15 Apple Silicon and Intel.
+
+These scripts install or integrate third-party DipTrace only after explicit license
+acceptance. They do not redistribute the DipTrace installer/application as a
+DipTrace MCP release asset.

@@ -59,14 +59,10 @@ def test_return_path_reports_missing_reference_pour_without_false_full_wave_clai
 
 
 def test_reference_net_stable_identity_wins_over_duplicate_name() -> None:
-    snapshot = build_snapshot(
-        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
-    )
+    snapshot = build_snapshot(DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000))
     assert snapshot.board is not None
     reference = next(net for net in snapshot.board.nets if net.name == "GND")
-    duplicate = reference.model_copy(
-        update={"stable_id": "duplicate_gnd", "xml_id": "99"}
-    )
+    duplicate = reference.model_copy(update={"stable_id": "duplicate_gnd", "xml_id": "99"})
     snapshot.board.nets.append(duplicate)
     snapshot.objects[duplicate.stable_id] = duplicate
 
@@ -81,9 +77,7 @@ def test_reference_net_stable_identity_wins_over_duplicate_name() -> None:
 
 
 def test_equal_rank_reference_layers_are_reported_unknown() -> None:
-    snapshot = build_snapshot(
-        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
-    )
+    snapshot = build_snapshot(DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000))
     assert snapshot.board is not None
     top, dielectric, bottom = snapshot.board.stackup.layers
     right_dielectric = dielectric.model_copy(update={"index": 3})
@@ -111,9 +105,7 @@ def test_equal_rank_reference_layers_are_reported_unknown() -> None:
 
 
 def test_observed_layer_change_is_not_hidden_when_normalized_via_is_missing() -> None:
-    snapshot = build_snapshot(
-        DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000)
-    )
+    snapshot = build_snapshot(DipTraceDocument.load(FIXTURES / "diff_pair_pcb.xml", 10_000_000))
     assert snapshot.board is not None
     trace = snapshot.board.traces[0]
     trace.attributes["points"] = [
@@ -131,12 +123,10 @@ def test_observed_layer_change_is_not_hidden_when_normalized_via_is_missing() ->
     )
 
     assert result.transition_count == 1
-    assert {
-        (item["check_id"], item["reason"]) for item in result.skipped
-    } >= {("return_path.layer_transition", "normalized_signal_via_missing")}
-    assert any(
-        item.issue_type == "transition_without_return_via" for item in result.issues
-    )
+    assert {(item["check_id"], item["reason"]) for item in result.skipped} >= {
+        ("return_path.layer_transition", "normalized_signal_via_missing")
+    }
+    assert any(item.issue_type == "transition_without_return_via" for item in result.issues)
 
 
 def test_advanced_review_checks_diff_pair_and_manufacturing_rules() -> None:
@@ -157,9 +147,7 @@ def test_advanced_review_checks_diff_pair_and_manufacturing_rules() -> None:
 
 
 def test_bom_deduplicates_schematic_units_and_groups_exact_identity() -> None:
-    schematic = build_snapshot(
-        DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
-    )
+    schematic = build_snapshot(DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000))
     records = extract_bom(schematic)
 
     assert len(records) == 2
@@ -170,9 +158,7 @@ def test_bom_deduplicates_schematic_units_and_groups_exact_identity() -> None:
 
 
 def test_schematic_pcb_comparison_is_structured() -> None:
-    schematic = build_snapshot(
-        DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
-    )
+    schematic = build_snapshot(DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000))
     pcb = build_snapshot(DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000))
 
     result = compare_schematic_to_pcb(schematic, pcb)
@@ -214,9 +200,9 @@ def test_partial_differential_pair_checks_reduce_review_completeness(
     review = service.run_review("diff_pair_pcb.xml", profile="default")
 
     assert review["result"]["summary"]["completeness"] < 1.0
-    assert {
-        item["check_id"] for item in review["result"]["skipped_checks"]
-    } >= {"pcb.differential_pair_rules"}
+    assert {item["check_id"] for item in review["result"]["skipped_checks"]} >= {
+        "pcb.differential_pair_rules"
+    }
 
 
 def test_partial_differential_pair_review_keeps_evaluated_findings() -> None:
@@ -232,10 +218,70 @@ def test_partial_differential_pair_review_keeps_evaluated_findings() -> None:
 
     findings, metrics, skipped, _count = run_checks(build_snapshot(document))
 
-    assert any(
-        finding.check_id == "diff_pair.length_tolerance" for finding in findings
-    )
+    assert any(finding.check_id == "diff_pair.length_tolerance" for finding in findings)
     assert metrics["pcb.differential_pair_rules"]["skipped_checks"]
-    assert {
-        item["check_id"] for item in skipped
-    } >= {"pcb.differential_pair_rules"}
+    assert {item["check_id"] for item in skipped} >= {"pcb.differential_pair_rules"}
+
+
+def test_provider_neutral_reviewer_harness_scores_stored_responses() -> None:
+    from diptrace_mcp.advanced_review import (
+        ReviewerEvaluationCase,
+        ReviewerEvaluationResponse,
+        build_reviewer_evaluation_report,
+    )
+
+    case = ReviewerEvaluationCase(
+        case_id="pcb-hard-001",
+        domain="pcb",
+        input_sha256="a" * 64,
+        ground_truth_status="approved_m11",
+        expected_hard_findings=["plane-gap"],
+        known_facts={"voltage_v": 3.3},
+        required_unknowns=["load_current_a"],
+        allowed_source_ids=["rule-pack-1"],
+        acceptable_rankings=[["candidate-b", "candidate-a"]],
+        connectivity_sha256="b" * 64,
+    )
+    response = ReviewerEvaluationResponse(
+        case_id=case.case_id,
+        hard_findings=["plane-gap"],
+        facts={"voltage_v": 3.3},
+        unknowns=["load_current_a"],
+        source_ids=["rule-pack-1"],
+        candidate_ranking=["candidate-b", "candidate-a"],
+        output_connectivity_sha256="b" * 64,
+    )
+    report = build_reviewer_evaluation_report(
+        [case],
+        [response],
+        model="stored-fixture",
+        provider="offline",
+        prompt_version="p1",
+        rule_pack_version="r1",
+    )
+    assert report.metrics["hard_failure_recall"] == 1.0
+    assert report.metrics["invented_facts"] == 0
+    assert report.metrics["connectivity_regressions"] == 0
+    assert report.ranking_stability == 1.0
+    assert report.adjudications[0].passed is True
+
+
+def test_reviewer_harness_blocks_unapproved_ground_truth() -> None:
+    import pytest
+
+    from diptrace_mcp.advanced_review import (
+        ReviewerEvaluationCase,
+        ReviewerEvaluationResponse,
+        adjudicate_reviewer_response,
+    )
+
+    case = ReviewerEvaluationCase(
+        case_id="pending",
+        domain="schematic",
+        input_sha256="c" * 64,
+    )
+    with pytest.raises(ValueError, match="M11-approved"):
+        adjudicate_reviewer_response(
+            case,
+            ReviewerEvaluationResponse(case_id="pending"),
+        )

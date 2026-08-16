@@ -1,5 +1,39 @@
-# Headless GUI worker on Windows
+# Headless GUI worker
 
+## Linux: private Xvfb + Wine
+
+The validated Linux deployment uses the same bundled Win32 automation helper as
+Windows, but isolates it at the X-server boundary. `diptrace-gui-headless`
+creates a fresh Xvfb display with TCP listening disabled, starts the helper under
+the shared Wine prefix, and forces the helper verified `native` Win32 desktop
+mode inside that virtual display. The real DipTrace GUI therefore exists and can
+be automated without appearing on the operator physical desktop.
+
+This is intentionally not a second Linux automation implementation: the same
+bounded Win32/UI operations, failure rules, project validation, and no-physical-
+input invariants remain authoritative. The Linux wrapper translates ordinary
+Linux project paths to Wine paths and owns `--diptrace-root` / `--desktop` so a
+caller cannot accidentally escape the private-display boundary.
+
+```bash
+diptrace-gui-headless native-smoke --timeout 20
+
+diptrace-gui-headless roundtrip \
+  --editor schematic \
+  --project "$HOME/DipTrace/design.dch" \
+  --timeout 30
+```
+
+The virtual display defaults to `1920x1080x24`; override it with
+`DIPTRACE_MCP_HEADLESS_SCREEN`, for example `2560x1440x24`. Full installation and
+clean-host acceptance details are in [Linux installation and GUI modes](LINUX.md).
+
+Hosted Linux CI verifies a fresh one-command install, real `Schematic.exe` GUI
+liveness under Xvfb, the bundled Win32 worker on the same private display, MCP
+stdio, bridge state, and idempotent reinstall. This proves the GUI runtime and
+worker plumbing, not every possible DipTrace dialog or future native action.
+
+## Windows: isolated Win32 desktop
 DipTrace MCP can keep bounded native GUI operations away from the operator's normal
 input desktop without requiring a virtual machine. Hidden mode creates a separate,
 randomly named Win32 desktop object inside the current interactive Windows session
@@ -275,3 +309,18 @@ The repository includes one real-host I²C schematic capture and controlled
 open/save/reopen evidence. Hosted GitHub runners do not provide the licensed/local
 DipTrace installation used for that evidence. Passing CI proves the bounded
 Windows primitives and packaging, not universal DipTrace UI compatibility.
+
+
+## macOS hidden-desktop backend
+
+The v0.4.0 macOS path reuses the packaged Win32 GUI worker inside the Wine runtime
+bundled with the official DipTrace 5.3.0.3 `DipTrace.app`. Unlike Linux, macOS does
+not require Xvfb or XQuartz for headless automation. The helper creates a private
+randomly named Win32 desktop inside the bundled Wine prefix and keeps the input
+desktop `Default` before and after the worker run.
+
+The permanent macOS clean-install gate covers macOS 15 on Apple Silicon and Intel,
+real Schematic GUI liveness, hidden/native worker smokes, automation doctor, MCP
+stdio, shared-prefix bridge state and idempotent reinstall. Apple Silicon uses
+Rosetta for the official bundle's x86-64 Wine runtime. No physical-input fallback is
+enabled. See `docs/MACOS.md` for the exact installation and evidence boundary.

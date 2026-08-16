@@ -1,165 +1,170 @@
 # EDA Intelligence — Current Implementation
 
-This is the evergreen cross-domain map for the higher-level schematic/PCB
-intelligence published in `v0.3.0` and any later development. Historical release
-and acceptance records remain immutable evidence snapshots and must not be
-rewritten to inherit later capabilities.
+This is the evergreen cross-domain map for the higher-level schematic/PCB intelligence.
+Historical release and acceptance records remain immutable evidence snapshots and do not
+inherit later capabilities automatically.
 
 ## Safety model
 
-The intelligence modules generate facts, candidates, scores, feedback, or ordinary semantic operations. They do not bypass the existing allowed-root, expected-SHA, policy, preview, transaction, backup/recovery, live-session, or review boundaries.
+The intelligence modules generate facts, candidates, scores, feedback or ordinary semantic
+operations. They do not bypass allowed-root, expected-SHA, policy, preview, transaction,
+backup/recovery, live-session or review boundaries.
 
-The intelligence productization expanded the public contract from 159 to 165 tools; the separate read-only built-in-library bridge brings the current total to **167 registered tools** (see [MCP_TOOLS.md](MCP_TOOLS.md)). All other modules in this document remain internal/package-level unless a public tool is explicitly added and the tools/list snapshot is intentionally updated.
+The public MCP surface remains **167 registered tools**. New roadmap modules in this document
+are package-level unless explicitly productized and added to the frozen public contract.
 
-The project-level manual acceptance matrix is also complete for its recorded scope: **all 12 blocking manual gates are PASS across the accepted checkpoints**. That evidence remains bound to those exact checkpoints and is not inherited automatically by later release bytes.
+**All 12 blocking manual gates are PASS across the accepted checkpoints.** The Claude
+Desktop restart was completed later than the historical `0bb09b4...` checkpoint: it is
+PASS on a separate machine that had Claude Desktop and DipTrace MCP but **did not have
+Codex installed**. Therefore it is independent client/host evidence, not a same-host
+Codex-vs-Claude comparison. The older Claude waiver remains only as historical chronology
+for the earlier checkpoint.
 
 ## Schematic pipeline
 
-The current deterministic pipeline is:
+The current deterministic pipeline includes:
 
-1. `schematic_layout.py` — functional blocks, part/net roles, provenance-bearing reference motifs and readability metrics;
-2. `schematic_optimizer.py` — bounded placement candidate generation and first-stage interconnect/readability scoring;
-3. `schematic_pin_geometry.py` — conservative pin geometry resolution from the embedded Component Library Design Cache;
-4. `schematic_wire_planner.py` — bounded non-mutating wire candidate cleanup/scoring with explicit placement feedback;
-5. `schematic_joint_optimizer.py` — pin-aware placement + route scoring over sheet-local net groups;
-6. `schematic_placement_repair.py` — bounded placement changes driven by route feedback;
-7. `schematic_ensemble.py` — deterministic motif + route + congestion ranking,
-   bounded iterative repair and global interconnect strategy;
-8. `schematic_atomic_reroute.py` — selective existing-wire replacement for nets touched by moved parts.
+1. `schematic_layout.py` — functional blocks, part/net roles, provenance-bearing motifs and
+   readability metrics;
+2. `schematic_optimizer.py` — bounded placement candidates and first-stage scoring;
+3. `schematic_pin_geometry.py` — conservative Design Cache pin geometry;
+4. `schematic_wire_planner.py` — bounded non-mutating wire planning and quality feedback;
+5. `schematic_joint_optimizer.py` — pin-aware placement/route scoring;
+6. `schematic_placement_repair.py` — bounded repair driven by route feedback;
+7. `schematic_ensemble.py` — deterministic motif/route/congestion ranking and iterative
+   objective history;
+8. `schematic_topology.py` — literal existing-wire graph recovery;
+9. `schematic_rotation.py` — confidence-gated cardinal rotation candidates;
+10. `schematic_atomic_reroute.py` — atomic affected-net delete/rotate-or-move/rebuild.
 
 ### Atomic selective reroute
 
-`plan_atomic_schematic_placement_reroute` removes only explicit wire geometry for affected `(net, sheet)` groups, virtually applies the selected placement, resolves the new endpoints, replans each affected net with the existing bounded wire planner, and fails the whole plan if any affected route cannot be safely rebuilt.
+The atomic planner removes only affected explicit sheet-local wire geometry, proves the
+source topology before mutation, applies the selected placement/rotation virtually,
+resolves replacement endpoints and rebuilds the affected groups.
 
-The returned operation order is dependency-safe:
+For proven connected acyclic existing-wire graphs, all intentional junctions on affected
+pin-to-pin paths are preserved. Cyclic, free-leaf, incomplete or ambiguous hand-authored
+topology fails closed instead of being silently flattened or converted to an unrelated MST.
 
-`DeleteWireOperation* -> MoveComponentsOperation* -> AddWireOperation*`
+The dependency-safe batch is:
 
-Passing the complete operation list to the existing semantic transaction path gives one preview/SHA/commit boundary for placement and replacement wires. The planner itself is non-mutating. Unwired nets are not turned into page-spanning explicit wires by default, and unaffected existing wire geometry is not rewritten.
+`DeleteWireOperation* -> RotateComponentsOperation*/MoveComponentsOperation* -> AddWireOperation*`
 
-Affected explicit nets are rebuilt from resolved pin endpoints through
-deterministic MST edges. The planner conservatively reuses a nearby existing
-degree-three junction when the detour is bounded; arbitrary hand-authored
-multi-junction topology is not reconstructed.
+The complete batch uses the existing semantic transaction path for one
+preview/SHA/commit/rollback boundary. Unaffected explicit geometry is not rewritten and
+unwired nets are not silently converted to page-spanning explicit wires.
 
-### Motifs and congestion
+### Rotation authority
 
-Builtin motifs are explicitly labelled `source_kind="builtin"` and describe only deterministic readability heuristics inferred from normalized roles. They never masquerade as datasheet/reference-design evidence.
+Cardinal 0/90/180/270 candidates are produced only for unlocked parts with complete
+high-confidence pin geometry. Source pin geometry and post-rotation geometry are kept
+separate so rotated endpoints cannot become circular evidence for the original topology.
+Automatic rotation remains disabled by default and requires focused M2 real-host evidence
+before a symbol/editor family is enabled or claimed.
 
-The schematic ensemble adds a bounded congestion estimate using placement-grid occupancy, hotspot cells, local neighboring pressure and sheet span. Route defects remain lexicographically more important than congestion/compactness.
+### Motifs and sourced rules
 
-`reference_rules.py` now validates SHA-bound structured rule packs for
-project/datasheet/reference-design facts and maps their per-rule provenance into
-schematic motifs or PCB intent overrides. Arbitrary PDF interpretation remains
-reviewer work; source bytes, locators, redistribution policy and hashes remain
-explicit rather than inferred.
+Builtin motifs remain deterministic heuristics and never masquerade as datasheet or
+reference-design evidence.
 
-### Real-DipTrace schematic quality checkpoint
+`reference_rules.py` validates source-bound engineering rule packs. Claim-eligible facts
+must carry source SHA-256, revision, exact locator, units/limit semantics, conditions and
+applicability. Missing or ambiguous provenance remains explicit; model memory is not a
+source.
 
-The initial product-quality campaign in `SCHEMATIC_AUTHORING_VALIDATION_2026-08-10.md` is complete. Cases 01–18 exercised real DipTrace authoring/readability, incremental edits, transaction safety, single- and multi-net atomic reroute, obstacle/readability repair, native Save/Close/Reopen/re-export and a repaired 22-part stress schematic.
+## Reviewer evaluation
 
-The final repaired stress case was operator-accepted and all 12 required schematic semantic categories survived native round-trip. PR #90 merged the bounded production fixes while preserving the frozen 159-tool public contract. This is evidence for the tested campaign scope, not a universal DipTrace-layout or global-optimality claim.
+`advanced_review.py` now includes a provider-neutral reviewer evaluation contract for
+versioned PCB/schematic cases and replayed structured responses. Scoring keeps deterministic
+hard-rule adjudication authoritative and reports hard-defect recall, false alarms,
+hallucinated facts, source mistakes, connectivity regressions and ranking stability.
 
-Future schematic real-host work is impact-based: rerun only cases plausibly affected by later production changes, or add new cases for genuinely new claims such as hierarchy, external motif ingestion, topology preservation or automatic symbol rotation.
+Ground-truth cases marked `pending_m11` cannot be treated as approved evaluation truth.
+M11 remains the human trust/promotion gate.
 
 ## PCB Generations A-D
 
-The current layers are:
+The PCB layers remain:
 
-- **Generation A:** `pcb_design_intent.py` and `pcb_placement.py` — roles, blocks, multi-role nets, explicit operator constraints and bounded intent-aware placement;
-- **Generation B:** `pcb_physical.py` — exported stackup/reference context, PDN topology proxies, hot-loop candidates, return-path/noise/via-role analysis;
-- **Generation C:** `pcb_routing_policy.py` — deterministic net routing policy/order and conservative observed-route checks;
-- **Generation D:** `pcb_joint_optimizer.py` — hard-first bounded candidate comparison.
+- **Generation A:** engineering intent and bounded placement;
+- **Generation B:** stackup/reference/PDN/return-path/noise context;
+- **Generation C:** routing policy and observed-route checks;
+- **Generation D:** hard-first bounded candidate comparison.
 
-`pcb_physics_knowledge.py` and `pcb_quality.py` add the deterministic review
-layer: sourced qualitative return-path/high-di/dt/decoupling principles,
-candidate-specific compactness/centering/symmetry/plane/stitching/thermal/silk
-checks, and explicit unknown physical facts. `pcb_whole_board.py` composes the
-existing placement, routing, outline, copper and silkscreen stages without
-committing workspace bytes.
+`pcb_candidate_ensemble.py` generates bounded in-memory alternatives for Generation-D
+selection. `pcb_physics_knowledge.py` and `pcb_quality.py` add deterministic source-linked
+qualitative review and explicit unknown physical facts. `pcb_whole_board.py` composes
+placement, routing, outline, copper and silkscreen stages.
 
-`pcb_candidate_ensemble.py` creates real Generation-A placement candidates under multiple engineering profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline. Each alternative is applied to an in-memory document before physical/routing/quality analysis. Generation B/C facts and quality metrics contribute conservative soft evidence terms, and the existing Generation-D selector chooses the winner with hard safety/mechanical/connectivity/DRC/reference/manufacturing violations lexicographically dominant.
+The whole-board path now has a guarded package-level preview/apply contract bound to source
+SHA, candidate SHA and deterministic plan identity. Apply rechecks stale input, hard review
+findings and post-write identity and uses the existing backup/rollback safety boundary.
+Authoritative DipTrace refill/native DRC remains unresolved until M1 evidence is collected
+for the exact candidate/claim.
 
-Package-level authoring helpers now cover the default physical presentation
-used by the repository PCB demo:
+## Quantitative engineering estimates
 
-- `pattern_recommendation.py` prefers the smallest-area equally compatible
-  footprint when geometry was not otherwise constrained;
-- `copper_pours.py` assigns explicit-net pour boundaries and deterministic
-  stitching vias on requested layers, including four-spoke thermal intent;
-- `silkscreen.py` avoids component bodies by default, ignores hidden markings
-  as obstacles/findings and can suppress assembly-only labels;
-- the I²C generator derives a compact symmetric 25×12 mm two-layer example
-  with Top routing, Top/Bottom GND intent and distributed stitching.
+`physics_estimates.py` provides bounded explicit-input analytical helpers for trace/via DC
+resistance, voltage drop, aggregate loss and first-order thermal estimates. Results record
+exact inputs, method/source identity, assumptions, limitations and sensitivity. Missing
+geometry/material/current/source facts remain `unknown`; typical values are never inserted
+silently.
 
-These helpers reuse existing normalized geometry and raw-preserving XML paths.
-They remain bounded authoring assistance: DipTrace owns authoritative refill and
-final native DRC/manufacturing behavior.
-
-No SI/PI/thermal/EMI proxy is upgraded into field-solver truth. Unknown stackup/current/edge-rate/reference facts remain unknown or penalized as uncertainty. Real-DipTrace/native-router/solver evidence remains claim-specific.
+M3 governs source applicability and M8 governs physical correlation/sign-off. Calculator
+output is not SI/PI/thermal/EMC proof.
 
 ## DSN/SES and XML analysis
 
-`specctra_analysis.py` adds non-mutating pre-import analysis on top of the bounded Specctra path: structural inventory, route net/wire/via/segment counts, total route length/width range, route layer inventory, duplicate SES net detection, unknown target-board nets/layers and semantic import-planner classification into importable/skipped nets.
-
-`xml_analysis.py` provides a deterministic semantic fingerprint/inventory for parsed XML, including unknown elements. Attribute order and outer text whitespace do not change the fingerprint; element order remains significant. A companion delta reports local structural additions/removals and tag/attribute-count changes. This supplements, but does not replace, domain-level connectivity comparison.
+`specctra_analysis.py` provides bounded non-mutating DSN/SES structure/importability
+analysis. `xml_analysis.py` provides deterministic semantic fingerprints and structural
+deltas including unknown XML. Neither grants compatibility or mutates a project by itself.
 
 ## Evidence automation
 
-The existing operator capture pipeline still owns `source -> open/save -> re-export`, hashes, attestations and quarantine/candidate creation.
+`capture_diptrace_evidence.py` remains the trust-neutral source/open-save/re-export capture
+boundary. `evidence_report.py` produces deterministic per-candidate reports and rechecks
+artifact hashes.
 
-`evidence_report.py` and `scripts/build_evidence_report.py` can turn a finalized review-only candidate into deterministic JSON/Markdown while rechecking artifact SHA-256 bindings and computing XML semantic fingerprints/deltas, domain summaries and connectivity fingerprints.
+`evidence_campaign.py` aggregates multiple candidate reports, exact-hash media/frame
+metrics, exported geometry/manufacturing deltas, explicitly untrusted AI visual findings and
+promotion/rejection requests under a deterministic campaign identity. It cannot grant PASS,
+provenance trust, fixture trust, native refill authority or registry promotion. Those remain
+separate human decisions under M11 and the relevant claim gate.
 
-The report builder cannot grant PASS, provenance trust, fixture trust or release acceptance. Operator claims remain labelled as operator-supplied facts. Trust promotion continues to require a separate reviewed action.
+## Component/Pattern mutation
 
-## Component/Pattern mutation API preparation
+`library_mutation.py` remains the internal raw-preserving writer core.
+`library_mutation_api.py` provides an expected-SHA package-level preview contract and remains
+`public_registration=False`. A public native-library write tool still requires an explicit
+M12 product/API decision and intentional frozen-contract update.
 
-`library_mutation.py` remains the internal raw-preserving writer core with real-editor evidence for its controlled scope.
+## Cinematic and hidden GUI
 
-`library_mutation_api.py` adds a stable expected-SHA-bound package contract around that core: `LibraryMutationRequest`, in-memory mutation/validation, deterministic result SHA, XML semantic delta/fingerprint, explicit pin/pad mapping errors and `public_registration=False` in the preview.
-
-This is API preparation, not a new public MCP tool. Registering native-library writes publicly remains a deliberate product/API decision and must update the public contract snapshot and claim/evidence documentation.
-
-## Cinematic hardening
-
-Cinematic replay remains a presentation subsystem, not engineering authority.
-
-`cinematic_preflight.py` adds deterministic content identity independent of random session IDs plus bounded checks for cue count, duration/timing consistency, payload bytes, desktop-command count, path points, typed text and hotkey chord size. `cinematic_preflight_cli.py` provides standalone inspection.
-
-The safety boundary is also enforced inside `cinematic_host.py`: `play_manifest()` calls `preflight_cinematic_manifest(manifest)` before any dry-run or real desktop driver action. Hidden capture now fits PCB recordings to the complete purple board outline and schematic recordings to their visible design boundary, adds output margin and excludes editor controls. The current repository PCB/Schematic GIF and MP4 examples were operator-accepted on 2026-08-16. Exact macros/calibration remain editor/version/configuration specific, and PCB via/layer-transition replay remains fail-closed until staged real-UI macros are validated.
+Cinematic replay remains presentation automation rather than engineering authority.
+`cinematic_preflight.py` enforces deterministic preflight before replay; calibrated UI
+profiles, visible/hidden capture and the hidden Win32 desktop helper remain separate
+presentation infrastructure. Exact editor/version/profile gestures remain
+configuration-specific evidence and unverified via/layer-transition gestures fail closed.
 
 ## Documentation drift guard
 
-`scripts/check_documentation_state.py` compares evergreen current-state docs with the implemented module set and frozen public-tools snapshot, checks that cinematic playback still enforces preflight and library mutation remains package-only, and rejects known stale current-state acceptance/reroute/headless-CLI claims. `tests/test_documentation_state.py` executes that contract in the normal CI test matrix.
+`scripts/check_documentation_state.py` and `tests/test_documentation_state.py` protect
+current-state claims against known stale public-tool, reroute, cinematic, headless and
+acceptance wording. Historical dated evidence/release records remain excluded from evergreen
+freshness assertions.
 
-Historical dated evidence/release records are intentionally excluded from current-state freshness assertions.
+## Testing and evidence boundaries
 
-## Testing
+Repository tests cover the automated roadmap layers, including transport responsiveness,
+guarded whole-board planning, reviewer evaluation, source-bound rules, topology preservation,
+rotation gating, quantitative estimates and evidence campaigns. CI remains authoritative for
+repository behavior.
 
-New regression/property coverage includes:
+The initial 18-case real-DipTrace schematic campaign remains PASS for its recorded scope. New
+topology-preserving reroute and automatic rotation claims do **not** inherit that evidence;
+focused M2 validation is still required before enabling or claiming them.
 
-- selective reroute scope, source immutability and locked-part refusal;
-- deterministic schematic motif/congestion ensemble behavior;
-- deterministic PCB ensemble generation and Generation-D ranking reuse;
-- candidate-specific PCB quality and composed whole-board pipeline behavior;
-- SHA-bound engineering-rule ingestion/provenance validation;
-- DSN/SES structure/importability analysis;
-- Hypothesis XML fingerprint invariants and unknown-XML mutation detection;
-- evidence-report hash/tamper/determinism/domain-connectivity behavior;
-- cinematic preflight budgets/content identity and mandatory playback invocation;
-- board/schematic boundary detection, stable crop padding and staged path timing;
-- SHA-bound library mutation preview behavior;
-- evergreen documentation-state regression.
-
-Repository CI remains authoritative. The supported-environment combined coverage gate remains 90%; the geometry-enabled Linux-only floor remains 85%.
-
-## What still needs real hardware/software/operator evidence
-
-The completed 18-case schematic campaign and the completed 12-gate manual matrix should not be repeated without an impact- or claim-based reason. Remaining manual/native evidence is claim-specific and currently includes:
-
-- current-candidate PCB whole-board/native refill/plane/via quality acceptance where stronger claims are desired;
-- exact UI-profile cinematic replay validation for additional configurations
-  beyond the accepted repository examples;
-- release-specific Windows/client lifecycle retests only when changed production code/artifacts or a new claim make them relevant;
-- new schematic claims outside the completed campaign scope, such as hierarchy, topology-preserving reroute or automatic rotation/pin-facing behavior;
-- manufacturing output, independent review, regulatory, EMC, PI, thermal or field-solver sign-off.
+Remaining real-host/human evidence is claim-specific, including stronger whole-board
+refill/DRC claims (M1), engineering-source applicability (M3), physical correlation/sign-off
+(M8), evidence promotion (M11) and new public/default product decisions (M12).

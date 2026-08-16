@@ -2,9 +2,12 @@
 
 ## Status
 
-The immutable `v0.3.0` development prerelease publishes the hardened split
-Windows packaging line. It separates the per-user MCP installation from the
-administrator-only DipTrace plug-in installation:
+The immutable `v0.3.0` development prerelease is still the latest published
+Windows distribution. The current `v0.4.0` release candidate keeps the same
+hardened split privilege architecture and now builds its Windows artifacts with
+`0.4.0` identity alongside the new Linux/macOS host paths. The Windows packaging
+line separates the per-user MCP installation from the administrator-only
+DipTrace plug-in installation:
 
 - `DipTrace-MCP-Setup-<version>.exe` — per-user server/configurator installer;
 - `DipTrace-MCP-Plugin-Setup-<version>.exe` — administrator-only DipTrace plug-in
@@ -12,9 +15,10 @@ administrator-only DipTrace plug-in installation:
 - `DipTrace-MCP-Portable-<version>.zip`;
 - release checksums/provenance records.
 
-These `v0.3.0` binaries remain unsigned. Older published assets retain their
-original identities and checksums, and a future signed/corrected build requires
-a new version.
+The published `v0.3.0` binaries and the `v0.4.0` candidate Windows binaries
+remain unsigned. Older published assets retain their original identities and
+checksums; `v0.4.0` must be published as new immutable assets rather than
+replacing any `v0.3.0` bytes.
 
 ## Design goals
 
@@ -154,16 +158,17 @@ Typical source build commands on Windows:
 .\plugin\build_bridge.ps1 -PythonCommand python -Clean
 .\scripts\build_windows_configurator.ps1 -PythonCommand python -Clean
 .\scripts\build_windows_installer.ps1 `
-  -Version <next-version> `
+  -Version 0.4.0 `
   -IsccPath "$env:ISCC_PATH"
 ```
 
 The installer build emits both Inno Setup executables plus the portable ZIP and
 one release checksum manifest covering all three assets.
 
-Use the actual selected future version when preparing a new release. Do not
+The current workflow and installer-script default are aligned to `0.4.0` for
+this release candidate. Future releases must select their own new version. Do not
 rebuild different binaries under any immutable published identity, including
-`0.3.0`.
+`0.3.0` or, after publication, `0.4.0`.
 
 ## CI / automated evidence
 
