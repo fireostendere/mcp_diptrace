@@ -125,13 +125,18 @@ jobs:
         run: |
           set -euxo pipefail
           export WINEPREFIX="$HOME/.local/share/diptrace-mcp/wineprefix"
-          set +e
-          timeout 15s xvfb-run -a -s '-screen 0 1920x1080x24 -nolisten tcp' \
-            "$HOME/.local/bin/diptrace-schematic"
-          schematic_rc=$?
-          set -e
+          xvfb-run -a -s '-screen 0 1920x1080x24 -nolisten tcp' bash -c '
+            set -euxo pipefail
+            "$HOME/.local/bin/diptrace-schematic" >"$RUNNER_TEMP/schematic.out" 2>"$RUNNER_TEMP/schematic.err" &
+            launcher=$!
+            sleep 15
+            wine tasklist >"$RUNNER_TEMP/tasklist.txt"
+            cat "$RUNNER_TEMP/tasklist.txt"
+            grep -i "Schematic.exe" "$RUNNER_TEMP/tasklist.txt"
+            wine taskkill /IM Schematic.exe /F || true
+            wait "$launcher" || true
+          '
           WINEPREFIX="$WINEPREFIX" wineserver -k || true
-          test "$schematic_rc" -eq 124
 
       - name: Headless GUI worker uses private Xvfb
         shell: bash
