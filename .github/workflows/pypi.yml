@@ -1,4 +1,3 @@
-# v0.4.0 tag pushes and successful exact-tag verification are publication events; pull requests remain validation-only.
 name: PyPI release
 
 on:
@@ -16,26 +15,21 @@ on:
       - "tests/test_release_artifacts.py"
   push:
     tags:
-      - "v0.4.0"
-  workflow_run:
-    workflows:
-      - "Create annotated v0.4.0 tag"
-    types:
-      - completed
+      - "v*"
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish the exact annotated v0.4.0 tag to PyPI
+        description: Publish the supplied exact annotated tag to PyPI
         required: true
         default: false
         type: boolean
+      tag:
+        description: Annotated release tag, for example v0.5.0
+        required: false
+        type: string
 
 permissions:
   contents: read
-
-env:
-  RELEASE_VERSION: "0.4.0"
-  RELEASE_TAG: "v0.4.0"
 
 jobs:
   build:
@@ -45,37 +39,43 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
-          ref: "${{ (github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') || (github.event_name == 'workflow_dispatch' && inputs.publish)) && 'v0.4.0' || github.sha }}"
+          ref: "${{ github.event_name == 'push' && github.ref_name || (github.event_name == 'workflow_dispatch' && inputs.publish && inputs.tag) || github.sha }}"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
           cache: pip
       - name: Install release validation environment
         run: python -m pip install -e ".[dev]" "twine>=6,<8"
-      - name: Verify release identity and publication ref
+      - name: Resolve and verify release identity
         shell: bash
         env:
-          PUBLISH_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') || inputs.publish }}
+          PUBLISH_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+          REQUESTED_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
         run: |
           set -euo pipefail
-          python - <<'PY'
+          version="$(python - <<'PY'
           import pathlib
           import tomllib
 
-          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
-          actual = data["project"]["version"]
-          expected = "0.4.0"
-          if actual != expected:
-              raise SystemExit(f"project version {actual!r} does not match {expected!r}")
+          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))
+          print(data['project']['version'])
           PY
+          )"
+          release_tag="v${version}"
+          echo "RELEASE_VERSION=${version}" >> "${GITHUB_ENV}"
+          echo "RELEASE_TAG=${release_tag}" >> "${GITHUB_ENV}"
 
           if [[ "${PUBLISH_REQUESTED}" == "true" ]]; then
-            git fetch --tags --force
-            if [[ "$(git cat-file -t "${RELEASE_TAG}")" != "tag" ]]; then
-              echo "${RELEASE_TAG} must be an annotated tag." >&2
+            if [[ -z "${REQUESTED_TAG}" || "${REQUESTED_TAG}" != "${release_tag}" ]]; then
+              echo "Requested tag ${REQUESTED_TAG:-<empty>} does not match project version ${release_tag}." >&2
               exit 1
             fi
-            if [[ "$(git rev-list -n 1 "${RELEASE_TAG}")" != "$(git rev-parse HEAD)" ]]; then
+            git fetch --tags --force
+            if [[ "$(git cat-file -t "${REQUESTED_TAG}")" != "tag" ]]; then
+              echo "${REQUESTED_TAG} must be an annotated tag." >&2
+              exit 1
+            fi
+            if [[ "$(git rev-list -n 1 "${REQUESTED_TAG}")" != "$(git rev-parse HEAD)" ]]; then
               echo "Checked-out source does not match the annotated tag target." >&2
               exit 1
             fi
@@ -107,14 +107,12 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pypi-distributions
-          path: |
-            dist/diptrace_mcp-0.4.0-py3-none-any.whl
-            dist/diptrace_mcp-0.4.0.tar.gz
+          path: dist/
           if-no-files-found: error
 
   publish:
-    name: Publish v0.4.0 to PyPI
-    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
+    name: Publish release to PyPI
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
     needs: build
     runs-on: ubuntu-latest
     environment:
