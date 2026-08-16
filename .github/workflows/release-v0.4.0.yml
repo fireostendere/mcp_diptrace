@@ -4,31 +4,39 @@ on:
   push:
     tags:
       - "v0.4.0"
+  workflow_run:
+    workflows:
+      - "Create annotated v0.4.0 tag"
+    types:
+      - completed
 
 permissions:
   contents: write
   actions: read
 
 env:
+  RELEASE_TARGET_SHA: "b4c0132283ff16a0bca81567df6704d1f6a73c7f"
   WINDOWS_RUN_ID: "31974338063"
   WINDOWS_SOURCE_SHA: "72750d195e204cf0c11c04d71364055ca7634c6b"
 
 jobs:
   publish-release:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           fetch-depth: 0
+          ref: v0.4.0
 
       - name: Verify exact annotated release tag
         shell: bash
         run: |
           set -euo pipefail
-          test "${GITHUB_REF_NAME}" = "v0.4.0"
           git fetch --tags --force
           test "$(git cat-file -t v0.4.0)" = tag
-          test "$(git rev-list -n 1 v0.4.0)" = "$(git rev-parse HEAD)"
+          test "$(git rev-list -n 1 v0.4.0)" = "${RELEASE_TARGET_SHA}"
+          test "$(git rev-parse HEAD)" = "${RELEASE_TARGET_SHA}"
 
       - name: Download validated Windows release assets
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093

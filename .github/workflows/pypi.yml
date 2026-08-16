@@ -1,4 +1,4 @@
-# v0.4.0 tag pushes are publication events; pull requests remain validation-only.
+# v0.4.0 tag pushes and successful exact-tag verification are publication events; pull requests remain validation-only.
 name: PyPI release
 
 on:
@@ -17,6 +17,11 @@ on:
   push:
     tags:
       - "v0.4.0"
+  workflow_run:
+    workflows:
+      - "Create annotated v0.4.0 tag"
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       publish:
@@ -40,7 +45,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
-          ref: "${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && 'v0.4.0' || github.sha }}"
+          ref: "${{ (github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') || (github.event_name == 'workflow_dispatch' && inputs.publish)) && 'v0.4.0' || github.sha }}"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
@@ -50,7 +55,7 @@ jobs:
       - name: Verify release identity and publication ref
         shell: bash
         env:
-          PUBLISH_REQUESTED: ${{ github.event_name == 'push' || inputs.publish }}
+          PUBLISH_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') || inputs.publish }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -109,7 +114,7 @@ jobs:
 
   publish:
     name: Publish v0.4.0 to PyPI
-    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
     needs: build
     runs-on: ubuntu-latest
     environment:
