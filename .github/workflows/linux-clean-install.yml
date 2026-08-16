@@ -126,66 +126,18 @@ jobs:
           set -euxo pipefail
           export WINEPREFIX="$HOME/.local/share/diptrace-mcp/wineprefix"
           export WINEARCH=win64
-          export DIPTRACE_DIR="$WINEPREFIX/drive_c/Program Files/DipTrace"
           xvfb-run -a -s '-screen 0 1920x1080x24 -nolisten tcp' bash -c '
-            set -uo pipefail
-            check_schematic() {
-              wine tasklist >"$RUNNER_TEMP/tasklist.txt" 2>&1 || true
-              cat "$RUNNER_TEMP/tasklist.txt"
-              grep -qi "Schematic.exe" "$RUNNER_TEMP/tasklist.txt"
-            }
-            cleanup_schematic() {
-              wine taskkill /IM Schematic.exe /F >/dev/null 2>&1 || true
-              wineserver -k >/dev/null 2>&1 || true
-            }
-
-            echo "=== wrapper launch ==="
-            "$HOME/.local/bin/diptrace-schematic" >"$RUNNER_TEMP/wrapper.out" 2>"$RUNNER_TEMP/wrapper.err" &
-            wrapper_pid=$!
+            set -euxo pipefail
+            "$HOME/.local/bin/diptrace-schematic" >"$RUNNER_TEMP/schematic.out" 2>"$RUNNER_TEMP/schematic.err" &
+            launcher=$!
             sleep 15
-            if check_schematic; then
-              cleanup_schematic
-              wait "$wrapper_pid" || true
-              exit 0
-            fi
-            wait "$wrapper_pid" || wrapper_rc=$?
-            echo "wrapper rc=${wrapper_rc:-0}"
-            cat "$RUNNER_TEMP/wrapper.out" || true
-            cat "$RUNNER_TEMP/wrapper.err" || true
-            cleanup_schematic
-
-            echo "=== raw Wine launch from DipTrace directory ==="
-            cd "$DIPTRACE_DIR"
-            WINEDEBUG=warn+all wine ./Schematic.exe >"$RUNNER_TEMP/raw.out" 2>"$RUNNER_TEMP/raw.err" &
-            raw_pid=$!
-            sleep 15
-            if check_schematic; then
-              cleanup_schematic
-              wait "$raw_pid" || true
-              echo "RAW_WINE_LAUNCH_WORKS"
-              exit 1
-            fi
-            wait "$raw_pid" || raw_rc=$?
-            echo "raw rc=${raw_rc:-0}"
-            cat "$RUNNER_TEMP/raw.out" || true
-            tail -n 200 "$RUNNER_TEMP/raw.err" || true
-            cleanup_schematic
-
-            echo "=== Wine start /unix launch ==="
-            WINEDEBUG=warn+all wine start /unix "$DIPTRACE_DIR/Schematic.exe" >"$RUNNER_TEMP/start.out" 2>"$RUNNER_TEMP/start.err" || start_rc=$?
-            echo "start rc=${start_rc:-0}"
-            sleep 15
-            if check_schematic; then
-              cleanup_schematic
-              echo "WINE_START_LAUNCH_WORKS"
-              exit 1
-            fi
-            cat "$RUNNER_TEMP/start.out" || true
-            tail -n 200 "$RUNNER_TEMP/start.err" || true
-            cleanup_schematic
-            echo "NO_VISIBLE_LAUNCH_MODE_WORKED"
-            exit 1
+            wine tasklist >"$RUNNER_TEMP/tasklist.txt"
+            cat "$RUNNER_TEMP/tasklist.txt"
+            grep -i "Schematic.exe" "$RUNNER_TEMP/tasklist.txt"
+            wine taskkill /IM Schematic.exe /F || true
+            wait "$launcher" || true
           '
+          WINEPREFIX="$WINEPREFIX" wineserver -k || true
 
       - name: Headless GUI worker uses private Xvfb
         shell: bash
