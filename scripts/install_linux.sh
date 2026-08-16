@@ -275,12 +275,36 @@ EOF
     chmod 0755 "$output"
 }
 
+write_diptrace_gui_wrapper() {
+    local output="$1"
+    local executable_name="$2"
+    cat >"$output" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+export WINEPREFIX=$(printf '%q' "$WINEPREFIX")
+export WINEARCH=win64
+export WINEDEBUG=-all
+WORKSPACE_LINUX=\${DIPTRACE_MCP_LINUX_WORKSPACE:-$(printf '%q' "$WORKSPACE")}
+STATE_LINUX=\${DIPTRACE_MCP_LINUX_STATE_DIR:-$(printf '%q' "$STATE_DIR")}
+mkdir -p "\$WORKSPACE_LINUX" "\$STATE_LINUX"
+win_workspace=\$(winepath -w "\$WORKSPACE_LINUX" | tr -d '\r')
+win_state=\$(winepath -w "\$STATE_LINUX" | tr -d '\r')
+win_profile=\$(wine cmd /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')
+export DIPTRACE_MCP_WORKSPACE="\$win_workspace"
+export DIPTRACE_MCP_STATE_DIR="\$win_state"
+export DIPTRACE_MCP_ALLOWED_ROOTS="\$win_workspace;\$win_profile"
+cd $(printf '%q' "$DIPTRACE_DIR")
+exec wine ./$(printf '%q' "$executable_name") "\$@"
+EOF
+    chmod 0755 "$output"
+}
+
 write_runtime_wrapper "$BIN_DIR/diptrace-mcp" "$CURRENT_RUNTIME/app/diptrace_mcp_server.exe"
 write_runtime_wrapper "$BIN_DIR/diptrace-mcp-bridge" "$CURRENT_RUNTIME/bridge/diptrace_mcp_bridge.exe"
-write_runtime_wrapper "$BIN_DIR/diptrace-pcb" "$DIPTRACE_DIR/Pcb.exe"
-write_runtime_wrapper "$BIN_DIR/diptrace-schematic" "$DIPTRACE_DIR/Schematic.exe"
-write_runtime_wrapper "$BIN_DIR/diptrace-component-editor" "$DIPTRACE_DIR/CompEdit.exe"
-write_runtime_wrapper "$BIN_DIR/diptrace-pattern-editor" "$DIPTRACE_DIR/PattEdit.exe"
+write_diptrace_gui_wrapper "$BIN_DIR/diptrace-pcb" Pcb.exe
+write_diptrace_gui_wrapper "$BIN_DIR/diptrace-schematic" Schematic.exe
+write_diptrace_gui_wrapper "$BIN_DIR/diptrace-component-editor" CompEdit.exe
+write_diptrace_gui_wrapper "$BIN_DIR/diptrace-pattern-editor" PattEdit.exe
 
 cat >"$BIN_DIR/diptrace-gui-headless" <<EOF
 #!/usr/bin/env bash
