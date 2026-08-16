@@ -139,12 +139,17 @@ def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
 
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["env"] == {"RELEASE_VERSION": "0.4.0", "RELEASE_TAG": "v0.4.0"}
+    assert "workflow_run:" in workflow_text
+    assert 'Create annotated v0.4.0 tag' in workflow_text
 
     build = jobs["build"]
     build_commands = _job_commands(build)
     assert build["steps"][0]["with"]["ref"] == (
-        "${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' "
-        "&& inputs.publish)) && 'v0.4.0' || github.sha }}"
+        "${{ (github.event_name == 'push' || (github.event_name == 'workflow_run' "
+        "&& github.event.workflow_run.conclusion == 'success' "
+        "&& github.event.workflow_run.head_branch == 'main') || "
+        "(github.event_name == 'workflow_dispatch' && inputs.publish)) "
+        "&& 'v0.4.0' || github.sha }}"
     )
     assert "python -m hatchling build -d dist" in build_commands
     assert "audit_release_artifacts.py --dist-dir dist --check-allowlist" in build_commands
@@ -155,8 +160,10 @@ def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
 
     publish = jobs["publish"]
     assert publish["if"] == (
-        "${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' "
-        "&& inputs.publish == true) }}"
+        "${{ github.event_name == 'push' || (github.event_name == 'workflow_run' "
+        "&& github.event.workflow_run.conclusion == 'success' "
+        "&& github.event.workflow_run.head_branch == 'main') || "
+        "(github.event_name == 'workflow_dispatch' && inputs.publish == true) }}"
     )
     assert publish["needs"] == "build"
     assert publish["environment"] == {
