@@ -28,6 +28,8 @@ jobs:
           set -euo pipefail
           python scripts/post_release_sync_temp.py
           sed -i 's/assert "gh release create" in commands/assert "release create" in commands/' tests/test_ci_workflow.py
+          sed -i 's/Python 3.10 or newer is required\. $/Python 3.10 or newer is required./' README.md
+          sed -i 's/[[:space:]]*$//' docs/RELEASE_0_4_0_CHECKLIST.md
       - name: Validate synchronized state
         shell: bash
         run: |
