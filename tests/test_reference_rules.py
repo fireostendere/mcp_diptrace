@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from diptrace_mcp.reference_rules import ingest_engineering_rule_pack
+from diptrace_mcp.reference_rules import EngineeringRulePack, ingest_engineering_rule_pack
 
 
 def _payload() -> bytes:
@@ -88,3 +88,16 @@ def test_rule_pack_fails_closed_on_hash_or_unknown_source() -> None:
     value["pcb_nets"][0]["source_id"] = "missing"
     with pytest.raises(ValueError, match="unknown sources"):
         ingest_engineering_rule_pack(value)
+
+
+def test_rule_pack_keeps_discovery_schema_compact_without_weakening_validation() -> None:
+    schema = EngineeringRulePack.model_json_schema()
+
+    assert schema["type"] == "object"
+    assert "$defs" not in schema
+    assert "diptrace-engineering-rules-v1" in schema["description"]
+
+    validated = EngineeringRulePack.model_validate(json.loads(_payload()))
+    assert validated.sources[0].source_id == "device-ds"
+    with pytest.raises(ValueError):
+        EngineeringRulePack.model_validate({"sources": []})
