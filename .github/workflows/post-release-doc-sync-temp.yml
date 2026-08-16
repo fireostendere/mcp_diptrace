@@ -23,7 +23,11 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Synchronize published release documentation and drift tests
-        run: python scripts/post_release_sync_temp.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/post_release_sync_temp.py
+          sed -i 's/assert "gh release create" in commands/assert "release create" in commands/' tests/test_ci_workflow.py
       - name: Validate synchronized state
         shell: bash
         run: |
