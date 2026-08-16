@@ -138,13 +138,13 @@ def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
     jobs = workflow["jobs"]
 
     assert workflow["permissions"] == {"contents": "read"}
-    assert workflow["env"] == {"RELEASE_VERSION": "0.3.0", "RELEASE_TAG": "v0.3.0"}
+    assert workflow["env"] == {"RELEASE_VERSION": "0.4.0", "RELEASE_TAG": "v0.4.0"}
 
     build = jobs["build"]
     build_commands = _job_commands(build)
     assert build["steps"][0]["with"]["ref"] == (
         "${{ github.event_name == 'workflow_dispatch' && inputs.publish "
-        "&& 'v0.3.0' || github.sha }}"
+        "&& 'v0.4.0' || github.sha }}"
     )
     assert "python -m hatchling build -d dist" in build_commands
     assert "audit_release_artifacts.py --dist-dir dist --check-allowlist" in build_commands
