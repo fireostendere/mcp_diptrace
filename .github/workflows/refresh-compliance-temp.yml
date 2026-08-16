@@ -1,0 +1,38 @@
+name: Refresh v0.4.0 compliance outputs
+
+on:
+  push:
+    branches:
+      - agent/implement-project-roadmap
+    paths:
+      - .github/workflows/refresh-compliance-temp.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: agent/implement-project-roadmap
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Regenerate deterministic compliance outputs
+        run: |
+          python scripts/generate_compliance_inventory.py --write --inspected-commit dc9bb244c17fdbe2578e255e0231c97cb3ea260d --inspected-date 2026-08-16
+          python scripts/generate_compliance_inventory.py --check
+          git diff --check
+      - name: Commit generated outputs
+        run: |
+          git config user.name fireostendere
+          git config user.email 87851878+fireostendere@users.noreply.github.com
+          git add docs/compliance/dependency-inventory.json docs/compliance/sbom.cdx.json docs/compliance/THIRD_PARTY_NOTICES.md
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -s -m "chore: refresh v0.4.0 compliance outputs"
+          git push origin HEAD:agent/implement-project-roadmap
