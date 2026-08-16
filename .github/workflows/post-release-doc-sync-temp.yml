@@ -44,7 +44,5 @@ jobs:
             echo "Nothing to commit."
             exit 0
           fi
-          git commit -m "Synchronize v0.4.0 published state
-
-Signed-off-by: fireostendere <87851878+fireostendere@users.noreply.github.com>"
+          git commit -m "Synchronize v0.4.0 published state" -m "Signed-off-by: fireostendere <87851878+fireostendere@users.noreply.github.com>"
           git push origin HEAD:agent/post-release-hardening
