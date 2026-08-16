@@ -1,0 +1,74 @@
+name: GitHub Release v0.4.0
+
+on:
+  push:
+    tags:
+      - "v0.4.0"
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  WINDOWS_RUN_ID: "31974338063"
+  WINDOWS_SOURCE_SHA: "72750d195e204cf0c11c04d71364055ca7634c6b"
+
+jobs:
+  publish-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact annotated release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "v0.4.0"
+          git fetch --tags --force
+          test "$(git cat-file -t v0.4.0)" = tag
+          test "$(git rev-list -n 1 v0.4.0)" = "$(git rev-parse HEAD)"
+
+      - name: Download validated Windows release assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: diptrace-windows-artifacts
+          path: release/windows
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.WINDOWS_RUN_ID }}
+
+      - name: Verify validated release payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f release/windows/SHA256SUMS.txt
+          test -f release/windows/portable/DipTrace-MCP-Portable-0.4.0.zip
+          test -n "$(find release/windows/installer -maxdepth 1 -type f -name 'DipTrace-MCP-Setup-0.4.0*.exe' ! -name '*Plugin*' -print -quit)"
+          test -n "$(find release/windows/installer -maxdepth 1 -type f -name 'DipTrace-MCP-Plugin-Setup-0.4.0*.exe' -print -quit)"
+          grep -q 'DipTrace-MCP-Setup-' release/windows/SHA256SUMS.txt
+          grep -q 'DipTrace-MCP-Plugin-Setup-' release/windows/SHA256SUMS.txt
+          grep -q 'DipTrace-MCP-Portable-0.4.0.zip' release/windows/SHA256SUMS.txt
+          find release/windows -maxdepth 3 -type f -print | sort
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v0.4.0 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload v0.4.0 --repo "${GITHUB_REPOSITORY}" --clobber \
+              release/windows/SHA256SUMS.txt \
+              release/windows/installer/*.exe \
+              release/windows/portable/*.zip
+          else
+            gh release create v0.4.0 --repo "${GITHUB_REPOSITORY}" \
+              --verify-tag \
+              --title "DipTrace MCP v0.4.0" \
+              --generate-notes \
+              release/windows/SHA256SUMS.txt \
+              release/windows/installer/*.exe \
+              release/windows/portable/*.zip
+          fi
