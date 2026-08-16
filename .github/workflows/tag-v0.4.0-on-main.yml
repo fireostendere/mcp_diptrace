@@ -8,7 +8,10 @@ on:
       - .github/workflows/tag-v0.4.0-on-main.yml
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  RELEASE_TARGET_SHA: "b4c0132283ff16a0bca81567df6704d1f6a73c7f"
 
 jobs:
   tag:
@@ -18,18 +21,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create exact annotated tag once
+      - name: Verify exact annotated tag without moving it
         shell: bash
         run: |
           set -euo pipefail
           git fetch --tags --force
-          if git show-ref --verify --quiet refs/tags/v0.4.0; then
-            echo 'v0.4.0 already exists; refusing to move it.' >&2
+          if ! git show-ref --verify --quiet refs/tags/v0.4.0; then
+            echo 'v0.4.0 is missing; refusing to recreate it from a post-release commit.' >&2
             exit 1
           fi
-          git config user.name fireostendere
-          git config user.email 87851878+fireostendere@users.noreply.github.com
-          git tag -a v0.4.0 "${GITHUB_SHA}" -m 'DipTrace MCP v0.4.0'
           test "$(git cat-file -t v0.4.0)" = tag
-          test "$(git rev-list -n 1 v0.4.0)" = "${GITHUB_SHA}"
-          git push origin refs/tags/v0.4.0
+          test "$(git rev-list -n 1 v0.4.0)" = "${RELEASE_TARGET_SHA}"
+          echo "v0.4.0 is an annotated tag targeting ${RELEASE_TARGET_SHA}."
