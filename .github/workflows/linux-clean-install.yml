@@ -126,6 +126,10 @@ jobs:
           set -euxo pipefail
           export WINEPREFIX="$HOME/.local/share/diptrace-mcp/wineprefix"
           export WINEARCH=win64
+          # The previous bridge smoke intentionally uses the same prefix but a
+          # headless process context. Start the visible-GUI proof with a clean
+          # Wine server so the X11 session belongs to the private Xvfb below.
+          WINEPREFIX="$WINEPREFIX" wineserver -k || true
           xvfb-run -a -s '-screen 0 1920x1080x24 -nolisten tcp' bash -c '
             set -euxo pipefail
             "$HOME/.local/bin/diptrace-schematic" >"$RUNNER_TEMP/schematic.out" 2>"$RUNNER_TEMP/schematic.err" &
