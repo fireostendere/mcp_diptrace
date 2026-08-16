@@ -44,7 +44,7 @@ def test_packaging_constraints_pin_pyinstaller_and_geometry_inputs() -> None:
 
 
 def test_server_version_contract_is_stable() -> None:
-    assert __version__ == "0.3.0"
+    assert __version__ == "0.4.0"
 
 
 def test_runtime_registry_is_json_and_spec_does_not_collect_forbidden_sources() -> None:
