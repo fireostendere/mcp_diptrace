@@ -1,0 +1,156 @@
+name: Publish GitHub release
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "scripts/release_artifact_allowlist.txt"
+      - "tests/test_ci_workflow.py"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Exact annotated release tag, for example v0.5.0
+        required: true
+        type: string
+      windows_run_id:
+        description: Successful Windows one-click installer workflow run built from the tag target
+        required: true
+        type: string
+      prerelease:
+        description: Publish the GitHub release as a prerelease
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate reusable release workflow
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Verify no version-specific publication workflow is required
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .github/workflows/release.yml
+          test -f .github/workflows/pypi.yml
+
+  publish:
+    name: Publish immutable GitHub release
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+      - name: Verify tag, project version, and Windows artifact source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          WINDOWS_RUN_ID: ${{ inputs.windows_run_id }}
+        run: |
+          set -euo pipefail
+          version="$(python - <<'PY'
+          import pathlib
+          import tomllib
+
+          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))
+          print(data['project']['version'])
+          PY
+          )"
+          expected_tag="v${version}"
+          if [[ "${RELEASE_TAG}" != "${expected_tag}" ]]; then
+            echo "Tag ${RELEASE_TAG} does not match project version ${expected_tag}." >&2
+            exit 1
+          fi
+
+          git fetch --tags --force
+          test "$(git cat-file -t "${RELEASE_TAG}")" = tag
+          tag_target="$(git rev-list -n 1 "${RELEASE_TAG}")"
+          test "${tag_target}" = "$(git rev-parse HEAD)"
+
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${WINDOWS_RUN_ID}")"
+          run_sha="$(python -c 'import json,sys; print(json.load(sys.stdin)["head_sha"])' <<<"${run_json}")"
+          run_name="$(python -c 'import json,sys; print(json.load(sys.stdin)["name"])' <<<"${run_json}")"
+          run_conclusion="$(python -c 'import json,sys; print(json.load(sys.stdin)["conclusion"])' <<<"${run_json}")"
+          test "${run_name}" = "Windows one-click installer"
+          test "${run_conclusion}" = "success"
+          if [[ "${run_sha}" != "${tag_target}" ]]; then
+            echo "Windows run ${WINDOWS_RUN_ID} was built from ${run_sha}, not tag target ${tag_target}." >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=${version}" >> "${GITHUB_ENV}"
+      - name: Download validated Windows release assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: diptrace-windows-artifacts
+          path: release/windows
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.windows_run_id }}
+      - name: Verify release payload and checksum manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          sums="release/windows/SHA256SUMS.txt"
+          portable="release/windows/portable/DipTrace-MCP-Portable-${RELEASE_VERSION}.zip"
+          setup="$(find release/windows/installer -maxdepth 1 -type f -name "DipTrace-MCP-Setup-${RELEASE_VERSION}*.exe" ! -name '*Plugin*' -print -quit)"
+          plugin="$(find release/windows/installer -maxdepth 1 -type f -name "DipTrace-MCP-Plugin-Setup-${RELEASE_VERSION}*.exe" -print -quit)"
+          test -f "${sums}"
+          test -f "${portable}"
+          test -n "${setup}"
+          test -n "${plugin}"
+          python - "${sums}" "${setup}" "${plugin}" "${portable}" <<'PY'
+          import hashlib
+          import pathlib
+          import sys
+
+          sums_path = pathlib.Path(sys.argv[1])
+          expected = {}
+          for line in sums_path.read_text(encoding='utf-8-sig').splitlines():
+              if not line.strip():
+                  continue
+              digest, name = line.split(None, 1)
+              expected[name.strip()] = digest.lower()
+          for raw in sys.argv[2:]:
+              path = pathlib.Path(raw)
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              wanted = expected.get(path.name)
+              if wanted != actual:
+                  raise SystemExit(f'{path.name}: {actual} != {wanted}')
+          PY
+      - name: Publish new GitHub release without replacing existing bytes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release ${RELEASE_TAG} already exists; refusing to replace published bytes." >&2
+            exit 1
+          fi
+          args=(
+            release create "${RELEASE_TAG}"
+            --repo "${GITHUB_REPOSITORY}"
+            --verify-tag
+            --title "DipTrace MCP ${RELEASE_TAG}"
+            --generate-notes
+          )
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+          gh "${args[@]}" \
+            release/windows/SHA256SUMS.txt \
+            release/windows/installer/*.exe \
+            release/windows/portable/*.zip
