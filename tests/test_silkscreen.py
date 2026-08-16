@@ -81,6 +81,7 @@ def test_planner_moves_collision_and_never_moves_locked_label(tmp_path: Path) ->
         "movable_count": 1,
         "locked_count": 1,
         "changed_count": 1,
+        "rotated_count": 0,
         "unresolved_count": 0,
         "fixed_obstacle_count": 4,
     }

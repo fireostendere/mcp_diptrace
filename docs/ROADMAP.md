@@ -59,19 +59,23 @@ The historical wire-only acceptance was strengthened by an 18-case real-host cam
 
 ## Phase 27 — design intent and reference motifs
 
-**Status: implemented foundation + bounded builtin motif generation.**
+**Status: implemented, including bounded external rule-pack ingestion.**
 
 Implemented:
 
 - conservative part/net roles and functional blocks;
 - provenance-bearing project/datasheet/reference/builtin motif model;
-- deterministic builtin readability motifs that are explicitly labelled as heuristics rather than external evidence.
+- deterministic builtin readability motifs that are explicitly labelled as heuristics rather than external evidence;
+- strict SHA-bound project/datasheet/reference rule packs with per-source and
+  per-rule provenance plus redistribution metadata.
 
-Still pending: automatic external datasheet/reference-design ingestion with provenance/redistribution controls.
+Arbitrary PDF interpretation remains reviewer work: the deterministic engine
+accepts only validated structured facts and never treats filenames or model
+memory as provenance.
 
 ## Phase 28 — placement engine v2
 
-**Status: bounded implementation complete for current scope.**
+**Status: bounded global strategy implemented for current scope.**
 
 Implemented:
 
@@ -94,9 +98,12 @@ Implemented:
 - explicit placement feedback;
 - conservative Design Cache pin geometry;
 - configurable ground/power policy;
-- deterministic motif + route + placement-grid congestion ensemble ranking.
+- deterministic motif + route + placement-grid congestion ensemble ranking;
+- sheet-level net priorities and explicit wire/net-label/bus/power-symbol
+  strategy, including indexed sibling groups suitable for buses.
 
-Still pending: stronger global/sheet-level congestion scheduling, same-net junction optimization and automatic label/bus strategy.
+Full global Steiner-tree/junction optimisation remains outside the bounded
+planner.
 
 ## Phase 30 — joint placement/routing + existing-wire transaction
 
@@ -113,11 +120,16 @@ Implemented:
 - fail-closed refusal if any affected endpoint/route cannot be rebuilt;
 - fail-closed rejection of stale/geometrically inconsistent Wire segment references;
 - no rewriting of unaffected explicit wire geometry;
+- bounded multi-iteration repair of top candidates with objective history and a
+  strict-improvement stopping rule;
+- conservative reuse of nearby intentional degree-three junctions when the
+  detour remains bounded;
 - no automatic page-spanning explicit wiring of previously unwired nets by default.
 
-Current limitation: affected explicit nets are rebuilt from resolved pin endpoints through deterministic MST edges; arbitrary hand-authored junction topology is not preserved as a visual constraint.
-
-Next refinement: optional intentional-junction preservation and bounded iterative generate -> score -> repair -> reroute convergence with objective history/stopping criteria.
+Current limitation: affected explicit nets are rebuilt from resolved pin
+endpoints through deterministic MST edges. One nearby intentional junction can
+be reused conservatively; arbitrary hand-authored multi-junction topology and
+global Steiner-tree optimization are not reconstructed.
 
 ## Phase 31 — schematic quality gate
 
@@ -155,7 +167,7 @@ Native copper refill remains a real-host evidence boundary.
 
 ## Generation D — whole-board selection
 
-**Status: selector + internally generated candidate ensemble implemented.**
+**Status: selector + candidate-specific physical review + bounded whole-board pipeline implemented.**
 
 `pcb_joint_optimizer.py` retains lexicographically dominant hard safety/mechanical/connectivity/DRC/reference/manufacturing dimensions over decomposed soft placement/routing/via/SI/PI/return/EMI/thermal/manufacturing metrics.
 
@@ -168,6 +180,16 @@ Native copper refill remains a real-host evidence boundary.
 - unchanged `existing_board` baseline.
 
 Generation B/C facts contribute conservative proxy/uncertainty terms only. No invented autorouter traces or solver facts are introduced.
+
+`pcb_quality.py` evaluates each hypothetically applied candidate rather than
+reusing baseline geometry. Its hard findings feed Generation D; compactness,
+centering, symmetry, hot-loop/decoupling span, plane continuity, GND
+stitching/thermals and silkscreen clearance remain separately explainable.
+
+`pcb_whole_board.py` composes the existing stages into one non-committing plan:
+candidate selection -> routing -> compact rectangular outline -> two-layer GND
+pours/stitching -> silkscreen -> final review. Stage operation kinds are kept so
+the existing cinematic path can replay them one at a time.
 
 ### Real-DipTrace product acceptance
 
@@ -205,6 +227,7 @@ Existing `capture_diptrace_evidence.py` owns source/open-save/re-export capture,
 
 - recheck candidate artifact SHA bindings;
 - compute XML semantic fingerprints/deltas;
+- compute domain counts and connectivity fingerprints/deltas;
 - emit deterministic JSON/Markdown;
 - surface missing/tampered artifacts and review blockers;
 - never grant PASS/provenance/fixture/release trust automatically.
@@ -270,7 +293,8 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 
 1. Keep the completed schematic cases 01–18 closed unless an impact-based production change requires a focused rerun.
 2. Keep the completed 12-gate manual matrix closed unless an impact-based production change requires a focused rerun.
-3. Continue PCB whole-board/native quality work when stronger PCB claims are the active product priority.
+3. Gather real-DipTrace native refill/DRC evidence for the new whole-board PCB
+   pipeline when stronger PCB claims are the active product priority.
 4. Treat cinematic exact-UI acceptance, headless native-action expansion and any future public library-write API as separate claim/product tracks.
 
 # Phase summary
@@ -278,19 +302,19 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | Area | Current status |
 | --- | --- |
 | manual acceptance | all 12 blocking gates PASS across the accepted checkpoints |
-| schematic intent/motifs | implemented + builtin heuristic motifs |
+| schematic intent/motifs | implemented + builtin heuristics + SHA-bound external rule packs |
 | schematic placement | bounded implementation |
-| schematic route/joint repair | bounded implementation; public repair/reroute plan tools shipped |
+| schematic route/joint repair | bounded iterative implementation with objective history and junction reuse; public repair/reroute plan tools shipped |
 | schematic selective atomic reroute | implemented for affected explicit sheet-local nets; shipped via `plan_schematic_placement_repair` |
 | schematic product quality | **PASS for initial 18-case real-DipTrace campaign; future work impact/claim-based** |
 | PCB Generation A | implemented |
 | PCB Generation B | implemented/bounded |
 | PCB Generation C | implemented/bounded |
-| PCB Generation D | selector + real bounded placement candidate ensemble implemented; read-only `compare_pcb_placement_candidates` tool shipped |
+| PCB Generation D | candidate-specific physical review + bounded whole-board plan implemented; read-only `compare_pcb_placement_candidates` tool shipped |
 | PCB product quality | compact two-layer example and cinematic output operator-accepted for v0.3.0; stronger native-refill/manufacturing claims remain open |
 | DSN/SES analysis | bounded structural/importability analysis implemented |
 | XML semantic analysis | fingerprint/delta + property tests implemented |
-| evidence reports | deterministic review-only report pipeline implemented |
+| evidence reports | deterministic review-only report with domain/connectivity fingerprints implemented |
 | library mutation public API | package-level request/preview prepared; public MCP registration pending |
 | cinematic | presentation + mandatory preflight + hidden MP4/GIF capture implemented; exact UI acceptance remains configuration-specific |
 | headless GUI | hidden Win32 desktop helper implemented with selectable `hidden`/`native` open -> Save -> close plus isolated cinematic capture; real DipTrace actions remain claim-specific evidence |

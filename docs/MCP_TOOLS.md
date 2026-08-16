@@ -74,7 +74,7 @@ The public tool surface is not permission to bypass those boundaries.
 
 Schematic design intent / functional blocks / reference motifs, bounded multi-candidate placement optimization, non-mutating wire quality planning/feedback, conservative pin-geometry resolution, and pin-aware joint route/placement scoring remain internal engines. They are now productized through bounded public tools:
 
-- `rank_schematic_placement_candidates` — deterministic ensemble ranking of placement candidates by route quality, readable motifs and congestion (unwired schematics only; the joint route scorer models hypothetical wires);
+- `rank_schematic_placement_candidates` — deterministic ensemble ranking of placement candidates by route quality, readable motifs and congestion (unwired schematics only; the joint route scorer models hypothetical wires). Optional `engineering_rules` supplies validated SHA-bound external motifs;
 - `plan_schematic_placement_repair` — bounded route-feedback placement repair combined with selective atomic affected-net reroute, stored as one dependency-safe plan. Works on already-wired schematics: the repair scorer models the same world the reroute applies (it removes exactly the affected wire geometry the reroute replaces and keeps unaffected nets as obstacles), affected explicit wires are deleted and selectively replanned, and a clean wired schematic produces an explicit no-op plan instead of spurious motion. `moves` are operator-fixed constraints resolved on the current placement: a part is selected by stable object ID or by unambiguous case-insensitive RefDes (a RefDes shared by several parts, e.g. a multi-part component, is refused fail-closed), duplicate moves for one part are refused, and repair search can never displace the requested positions;
 - `apply_schematic_placement_repair_plan` — stages or commits that stored plan through the ordinary expected-SHA transaction path (`dry_run` defaults to true). Plans exceeding the 100-operation transaction limit are rejected at planning time, not only at apply time. Applying a stored no-op plan (`status="noop"`) is an idempotent success: `ok=true`, `changed=false`, no transaction, document SHA unchanged.
 
@@ -91,7 +91,7 @@ The PCB design-engine layers remain internal engines:
 
 They are read-only productized through:
 
-- `compare_pcb_placement_candidates` — generate and rank bounded Generation A-D placement candidates;
+- `compare_pcb_placement_candidates` — generate and rank bounded Generation A-D placement candidates after candidate-specific physical/layout review. Optional `engineering_rules` supplies validated SHA-bound PCB intent overrides;
 - `recommend_patterns` — deterministic hard-filter and geometry-score ranking
   of footprint patterns from a pattern library, using smallest occupied area as
   the tie-break between otherwise equal compatible candidates (no model calls);

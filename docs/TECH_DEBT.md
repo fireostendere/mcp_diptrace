@@ -8,7 +8,10 @@ This document tracks remaining engineering limitations in the current implementa
 
 ### 1. Schematic real-world quality acceptance
 
-The schematic stack now includes intent, bounded placement, pin-aware route scoring, placement repair, deterministic motif/congestion ensemble ranking and atomic selective affected-net reroute planning.
+The schematic stack now includes intent, bounded placement, pin-aware route
+scoring, bounded iterative repair with objective history, global interconnect
+strategy, deterministic motif/congestion ensemble ranking and atomic selective
+affected-net reroute planning with conservative junction reuse.
 
 Repository tests prove deterministic bounded behaviour, not that complete real schematics consistently look good to engineers. Remaining product evidence should cover representative real circuits and measure connectivity/ERC non-regression, collisions, crossings/overlaps/bends/detour, block cohesion, compactness, signal-flow readability, native open/save/reopen/re-export preservation and human review of representative before/after results.
 
@@ -16,10 +19,10 @@ Repository tests prove deterministic bounded behaviour, not that complete real s
 
 `schematic_atomic_reroute.py` closes the former dangerous gap where moving a symbol could leave stale existing wire geometry. Remaining optimisation debt is broader rather than transactional:
 
-- stronger sheet-level congestion-aware net scheduling;
-- global same-net junction/tree optimisation instead of independent MST-edge planning;
-- richer project/reference motif ingestion;
-- a fuller bounded generate -> score -> repair -> reroute loop with objective history and explicit stopping criteria;
+- global same-net Steiner-tree/junction optimisation beyond the current bounded
+  existing-junction reuse and MST-edge planning;
+- arbitrary PDF/application-note extraction beyond the validated structured
+  engineering-rule-pack boundary;
 - broader real-project tuning without hiding score terms.
 
 ### 3. Schematic rotation/pin-facing authority
@@ -28,7 +31,10 @@ Pin geometry can be resolved conservatively from the embedded Design Cache, but 
 
 ### 4. PCB Generations A-D real-host evidence boundary
 
-PCB Generations A-D plus the bounded `pcb_candidate_ensemble.py` are implemented internal engineering layers. Remaining debt is authoritative evidence around native physics/geometry that the model cannot own:
+PCB Generations A-D, candidate-specific `pcb_quality.py` review and the bounded
+`pcb_whole_board.py` pipeline are implemented internal engineering layers.
+Remaining debt is authoritative evidence around native physics/geometry that
+neither deterministic heuristics nor a language-model reviewer can own:
 
 - poured copper/refill geometry;
 - plane/reference behaviour;
@@ -91,7 +97,11 @@ The 167-tool MCP surface includes the bounded intelligence engines and read-only
 
 ### 11. Evidence review automation depth
 
-`evidence_report.py` now turns finalized capture candidates into deterministic SHA-checked XML semantic reports without granting trust/PASS. Remaining debt is richer claim-specific comparison: connectivity, visual/geometry assertions and manufacturing-specific review must remain explicit rather than being inferred from a generic semantic fingerprint.
+`evidence_report.py` now turns finalized capture candidates into deterministic
+SHA-checked XML semantic reports with domain summaries and connectivity
+fingerprints without granting trust/PASS. Remaining debt is richer
+claim-specific visual/geometry and manufacturing review; connectivity equality
+still does not imply electrical or native-layout acceptance.
 
 ## Resolved / superseded debt
 
@@ -99,10 +109,16 @@ The following should no longer be listed as open technical debt:
 
 - schematic selective affected-net reroute transaction — implemented by `schematic_atomic_reroute.py` and ordinary guarded semantic transactions;
 - basic schematic motif/congestion candidate ensemble — implemented by `schematic_ensemble.py`;
+- bounded schematic global interconnect strategy, iterative objective history and
+  conservative intentional-junction reuse — implemented;
+- SHA-bound external engineering-rule ingestion with provenance/redistribution
+  controls — implemented by `reference_rules.py`;
 - PCB Generation B physical-context implementation — implemented;
 - PCB Generation C routing-policy implementation — implemented;
 - PCB Generation D bounded joint candidate selection — implemented;
 - multi-profile bounded A-D candidate generation — implemented by `pcb_candidate_ensemble.py`;
+- candidate-specific PCB physical/layout review and composed whole-board planning
+  — implemented by `pcb_quality.py` and `pcb_whole_board.py`;
 - DSN/SES pre-import structural/route analysis absence — implemented by `specctra_analysis.py`;
 - XML semantic fingerprint/delta absence — implemented by `xml_analysis.py` with property regression coverage;
 - evidence report assembly being entirely manual — deterministic review-only report generation exists;

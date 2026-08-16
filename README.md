@@ -127,6 +127,8 @@ replacement of affected existing wire geometry. `schematic_atomic_reroute.py`
 rebuilds only affected explicit sheet-local nets as one dependency-safe
 `delete_wire -> move_components -> add_wire` semantic batch while preserving
 unaffected explicit geometry and the existing guarded transaction boundary.
+The current ensemble adds bounded iterative repair with objective history,
+global wire/label/bus/power strategy and conservative existing-junction reuse.
 
 The initial 18-case real-DipTrace schematic authoring/readability campaign is
 complete. The final repaired stress schematic contained 22 parts, 48 pins,
@@ -146,6 +148,13 @@ The PCB design engine is implemented through four internal bounded generations:
   checks, copper strategy and placement feedback;
 - Generation D: lexicographically safe whole-board candidate selection and a
   synthetic engineering-trap benchmark catalog.
+
+Candidate selection now reviews every hypothetical layout in memory for
+compactness, centering, symmetry, return planes, GND stitching/thermals,
+silkscreen clearance, high-di/dt loops and decoupling span. A package-level
+whole-board pipeline composes the existing placement, routing, compact-outline,
+copper and silkscreen stages. Optional SHA-bound engineering-rule packs carry
+sourced datasheet/reference facts into both schematic and PCB ranking.
 
 Missing current, edge rate, impedance, stackup authority, current density and
 other physical facts remain explicit unknowns. PCB Generation D still requires

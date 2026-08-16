@@ -14,7 +14,8 @@ Current modules:
 - `schematic_wire_planner.py` — non-mutating wire candidate scoring and placement feedback;
 - `schematic_joint_optimizer.py` — pin-aware hypothetical placement/routing scoring;
 - `schematic_placement_repair.py` — bounded placement repair driven by route feedback;
-- `schematic_ensemble.py` — motif + route + congestion ranking;
+- `schematic_ensemble.py` — motif + route + congestion ranking, bounded
+  multi-iteration repair and global interconnect strategy;
 - `schematic_atomic_reroute.py` — selective existing-wire replacement for nets touched by moved parts.
 
 See [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md) for the cross-domain implementation map.
@@ -24,6 +25,13 @@ See [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md) for the cross-domain implementati
 Intent inference uses normalized schematic facts: RefDes/names/values, pin/net connectivity, multipart identity and explicit caller/reference data. It does not infer a datasheet from a part name.
 
 Reference motifs express relative constraints such as `near`, left/right, above/below, same-row and same-column. Every motif retains provenance and confidence.
+
+`reference_rules.py` accepts strict SHA-bound structured engineering-rule packs
+and maps their schematic rules into the same motif model. Source IDs, source
+hashes, locators, source kinds and redistribution policy are validated before a
+rule reaches placement scoring. A reviewer may extract a pack from a datasheet
+or reference design, but the deterministic engine never treats that extraction
+as authoritative without the recorded provenance.
 
 `schematic_ensemble.py` also derives conservative builtin readability motifs from already-inferred roles. These are explicitly labelled `source_kind="builtin"` and their source identifies them as deterministic heuristics. They are never presented as datasheet/reference-design evidence.
 
@@ -59,6 +67,16 @@ Every unique repair is rescored. A repair is selected only when its joint rank i
 
 Route rejection/obstacle/overlap/crossing/self-intersection/diagonal defects remain dominant over congestion and compactness. Congestion is a scheduling/readability proxy, not a physical solver.
 
+For the highest-ranked seeds, the ensemble now performs a bounded
+generate -> score -> repair loop. Every iteration records its objective, accepts
+only strict improvement and stops when no better candidate is found or the
+configured iteration limit is reached.
+
+The returned sheet-level interconnect plan prioritizes nets globally and assigns
+an explicit strategy: direct wire, net label, indexed bus, or power symbol.
+Indexed sibling groups of at least three nets can be grouped as a bus; this is a
+readability plan and does not silently mutate connectivity.
+
 ## Atomic placement + selective reroute
 
 The previous major gap — moving parts in an already-wired schematic without leaving stale wire geometry — now has an internal transaction planner.
@@ -82,7 +100,11 @@ The planner itself never writes XML. Applying the whole returned list through th
 
 Unwired nets are not automatically turned into explicit page wires by default. Unaffected wire geometry is not rewritten.
 
-Current limitation: affected explicit nets are rebuilt from resolved pin endpoints using deterministic MST edges. Arbitrary hand-authored junction topology is not preserved as a visual constraint. A future topology-preservation layer may improve that without weakening the current fail-closed connectivity boundary.
+Affected explicit nets are rebuilt from resolved pin endpoints using
+deterministic MST edges. Nearby existing degree-three junctions are reused when
+doing so stays within the configured detour bound. Arbitrary hand-authored
+multi-junction topology and full Steiner-tree optimization are still not
+reconstructed.
 
 ## Existing direct-planner refusal
 
@@ -99,7 +121,10 @@ PR #90 merged the bounded fixes found by that campaign without expanding the 159
 ## Remaining work
 
 - stronger global/sheet-level congestion scheduling beyond the current bounded placement-grid proxy;
-- automatic ingestion of externally sourced/datasheet motifs with explicit provenance and redistribution policy;
-- optional preservation/reuse of existing intentional junction topology during affected-net reroute;
+- arbitrary PDF/application-note extraction beyond the validated SHA-bound
+  structured rule-pack interface;
+- global same-net Steiner-tree/junction optimization beyond bounded reuse of an
+  existing intentional junction;
 - real-host validation before automatic symbol-rotation/pin-facing decisions are enabled by default;
-- bounded multi-iteration generate -> score -> repair -> reroute convergence with explicit objective history and stopping criteria.
+- broader real-project tuning of the bounded iterative repair/interconnect
+  strategy without hiding objective terms.

@@ -50,6 +50,9 @@ Generation B: stackup / PDN / return-path / noise context
 Generation C: routing policy / observed-route checks / copper strategy
         |
         v
+candidate-specific physical/layout review
+        |
+        v
 Generation D: hard-first whole-board candidate selection
         |
         v
@@ -61,6 +64,11 @@ guarded semantic plan -> preview -> expected SHA -> transaction -> review
 `pcb_design_intent.py` builds typed component roles, functional blocks, multi-role nets, criticality, explicit electrical constraints and conservative power/ground topology intent.
 
 `pcb_placement.py` produces deterministic bounded placement candidates and ordinary `MoveComponentsOperation` objects. It does not write XML directly.
+
+Its score now keeps compactness, board centering, simple repeated-pair symmetry
+and topology-backed high-di/dt loop span visible as separate terms. These are
+preferences, not permissions to violate clearance, locked-placement or explicit
+electrical/mechanical rules.
 
 Conservative defaults remain intentional: ordinary ground prefers continuity, switch nodes remain local-copper-minimized candidates, sense nets become Kelvin candidates, and star grounding is never invented automatically.
 
@@ -76,6 +84,20 @@ Conservative defaults remain intentional: ordinary ground prefers continuity, sw
 - semantic via roles.
 
 Analytical impedance remains preliminary. Current density, voltage drop, via current capacity, thermal behavior and EMI compliance remain unknown without sufficient physical evidence.
+
+### Physics knowledge boundary
+
+`pcb_physics_knowledge.py` carries a small source-linked catalog of qualitative
+principles used by the deterministic reviewer: preserve continuous reference
+planes/short return paths, minimize high-di/dt loop area, and keep decoupling
+loops short. The catalog intentionally contains no invented current, impedance,
+temperature or spacing thresholds.
+
+`pcb_quality.py` applies those principles only where the normalized topology and
+supplied physical facts support them. Unknown facts are returned explicitly for
+the reviewer/operator instead of being filled from model memory. The language
+model may interpret intent and rank trade-offs; hard geometry/connectivity,
+explicit constraints and sourced rules remain dominant.
 
 ## Generation C — intentional routing policy
 
@@ -140,10 +162,33 @@ The ensemble now generates actual bounded Generation-A placement plans under mul
 
 Every non-baseline candidate comes from the existing bounded placement planner. Generation B/C output contributes conservative evidence-proxy score terms. The existing Generation-D `select_pcb_candidate` remains the sole selector and keeps hard violations dominant.
 
+Each candidate's placement operations are now applied to an in-memory copy
+before routing/physical/quality evaluation. This prevents the reviewer from
+scoring every alternative against the unchanged baseline board. Quality errors
+feed hard dimensions; disclosed compactness, centering, symmetry, plane,
+stitching, thermal, silkscreen and loop metrics feed soft comparison.
+
 This is deliberately not an invented autorouter. Candidate scoring may penalize unresolved routing/reference evidence, but it does not synthesize traces, vias, stackup facts, current ratings or solver output.
 
 Every selected candidate still requires ordinary semantic application,
 review/DRC and claim-specific real DipTrace evidence.
+
+## Whole-board pipeline
+
+`pcb_whole_board.py` is the minimal package-level composition layer. It reuses
+the ensemble, routing compiler, raw-preserving semantic operations,
+`copper_pours.py` and `silkscreen.py` to build this non-committing sequence:
+
+1. select a bounded placement candidate;
+2. apply placement and planned routes in memory;
+3. compact an unlocked simple rectangular outline around occupied geometry;
+4. request Top/Bottom GND pours and distributed stitching for ordinary
+   two-layer boards;
+5. repair/normalize silkscreen;
+6. run final deterministic quality review.
+
+The result retains per-stage operation kinds for one-action-at-a-time cinematic
+replay. The caller still owns preview, expected SHA, commit and native refill/DRC.
 
 ## DSN/SES integration
 
@@ -170,6 +215,7 @@ Automated coverage now includes:
 - Generation-C routing policy and observed-route behavior;
 - Generation-D hard-rule dominance and deterministic ranking;
 - deterministic generation of multiple A-D ensemble profiles;
+- candidate-specific in-memory quality review and hard-finding propagation;
 - reuse of the exact existing Generation-D selection key;
 - deterministic profile deduplication;
 - DSN/SES structural/importability analysis.
@@ -177,6 +223,8 @@ Automated coverage now includes:
 - two-layer GND-pour assignment, four-spoke thermal attributes and distributed
   stitching-via generation;
 - silkscreen obstacle handling and assembly-marking suppression;
+- compact outline composition and the whole-board operation sequence;
+- sourced physics-principle IDs plus explicit unknown-fact reporting;
 - the repository 25×12 mm I²C level-shifter PCB generator and staged media
   inputs.
 

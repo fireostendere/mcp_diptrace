@@ -64,13 +64,15 @@ def test_evidence_report_verifies_hashes_and_semantic_deltas(tmp_path: Path) -> 
     assert report.report_status == "complete_review_only"
     assert report.trust_grant == "none"
     assert all(item.integrity == "verified" for item in report.stages)
-    comparisons = {
-        (item.first_stage, item.second_stage): item for item in report.comparisons
-    }
+    comparisons = {(item.first_stage, item.second_stage): item for item in report.comparisons}
     assert comparisons[("source", "open_save")].delta is not None
     assert comparisons[("source", "open_save")].delta.semantic_equal is True
+    assert comparisons[("source", "open_save")].connectivity_equal is True
     assert comparisons[("source", "reexport")].delta is not None
     assert comparisons[("source", "reexport")].delta.semantic_equal is False
+    assert comparisons[("source", "reexport")].connectivity_equal is True
+    assert report.summary["connectivity_changed_pairs"] == []
+    assert all(item.domain_summary["kind"] == "pcb" for item in report.stages)
     assert report.summary["all_required_checklist_yes"] is True
 
 

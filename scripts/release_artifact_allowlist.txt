@@ -260,8 +260,11 @@ src/diptrace_mcp/pcb_candidate_ensemble.py
 src/diptrace_mcp/pcb_design_intent.py
 src/diptrace_mcp/pcb_joint_optimizer.py
 src/diptrace_mcp/pcb_physical.py
+src/diptrace_mcp/pcb_physics_knowledge.py
 src/diptrace_mcp/pcb_placement.py
+src/diptrace_mcp/pcb_quality.py
 src/diptrace_mcp/pcb_routing_policy.py
+src/diptrace_mcp/pcb_whole_board.py
 src/diptrace_mcp/placement.py
 src/diptrace_mcp/plans.py
 src/diptrace_mcp/policy.py
@@ -270,6 +273,7 @@ src/diptrace_mcp/previews.py
 src/diptrace_mcp/provenance_registry.py
 src/diptrace_mcp/record_ids.py
 src/diptrace_mcp/record_store.py
+src/diptrace_mcp/reference_rules.py
 src/diptrace_mcp/release_readiness.py
 src/diptrace_mcp/retention.py
 src/diptrace_mcp/return_path.py
@@ -431,6 +435,7 @@ tests/test_pcb_candidate_ensemble.py
 tests/test_pcb_design_engine.py
 tests/test_pcb_joint_optimizer.py
 tests/test_pcb_physical.py
+tests/test_pcb_quality.py
 tests/test_pcb_routing_policy.py
 tests/test_phase4.py
 tests/test_placement.py
@@ -445,6 +450,7 @@ tests/test_provenance_registry.py
 tests/test_public_compliance.py
 tests/test_record_ids_edge_coverage.py
 tests/test_record_store_base.py
+tests/test_reference_rules.py
 tests/test_release_artifacts.py
 tests/test_release_readiness.py
 tests/test_repository_language.py

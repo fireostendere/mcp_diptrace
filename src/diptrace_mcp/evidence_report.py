@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
+from .adapters import build_snapshot
 from .domain import StrictModel
 from .xml_analysis import (
     XMLSemanticDelta,
@@ -27,6 +28,7 @@ class EvidenceStageReport(StrictModel):
     integrity: Literal["verified", "missing", "mismatch"]
     artifact_path: str
     inventory: XMLSemanticInventory | None = None
+    domain_summary: dict[str, Any] = Field(default_factory=dict)
     operator_attestations: dict[str, bool] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
@@ -35,6 +37,8 @@ class EvidenceComparisonReport(StrictModel):
     first_stage: str
     second_stage: str
     delta: XMLSemanticDelta | None = None
+    connectivity_equal: bool | None = None
+    domain_count_delta: dict[str, int] = Field(default_factory=dict)
     status: Literal["available", "unavailable"]
 
 
@@ -100,6 +104,55 @@ def _safe_relative(root: Path, relative: str) -> Path:
     return resolved
 
 
+def _domain_summary(document: DipTraceDocument) -> dict[str, Any]:
+    snapshot = build_snapshot(document)
+    if snapshot.board is not None:
+        connectivity = sorted(
+            (
+                net.name or net.net_name or net.stable_id,
+                tuple(sorted(net.relationships.get("endpoints", []))),
+            )
+            for net in snapshot.board.nets
+        )
+        counts = {
+            "components": len(snapshot.board.components),
+            "pads": len(snapshot.board.pads),
+            "nets": len(snapshot.board.nets),
+            "traces": len(snapshot.board.traces),
+            "vias": len(snapshot.board.vias),
+            "copper_pours": len(snapshot.board.copper_pours),
+            "silkscreen_texts": sum(
+                "Silk" in (item.layer or "") and item.attributes.get("Show", "Show") != "Hide"
+                for item in snapshot.board.texts
+            ),
+        }
+        kind = "pcb"
+    elif snapshot.schematic is not None:
+        connectivity = sorted(
+            (
+                net.name or net.net_name or net.stable_id,
+                tuple(sorted(net.relationships.get("endpoints", []))),
+            )
+            for net in snapshot.schematic.nets
+        )
+        counts = {
+            "parts": len(snapshot.schematic.parts),
+            "pins": len(snapshot.schematic.pins),
+            "nets": len(snapshot.schematic.nets),
+            "wires": len(snapshot.schematic.wires),
+            "buses": len(snapshot.schematic.buses),
+        }
+        kind = "schematic"
+    else:
+        return {"kind": document.kind, "counts": {}, "connectivity_sha256": None}
+    payload = json.dumps(connectivity, ensure_ascii=False, separators=(",", ":"))
+    return {
+        "kind": kind,
+        "counts": counts,
+        "connectivity_sha256": _sha256(payload.encode("utf-8")),
+    }
+
+
 def _stage_report(
     root: Path,
     stage: str,
@@ -135,9 +188,12 @@ def _stage_report(
         "verified" if actual_sha == recorded_sha else "mismatch"
     )
     inventory = None
+    domain_summary: dict[str, Any] = {}
     if integrity == "verified":
         try:
-            inventory = analyze_xml_semantics(DipTraceDocument.from_bytes(path, raw))
+            document = DipTraceDocument.from_bytes(path, raw)
+            inventory = analyze_xml_semantics(document)
+            domain_summary = _domain_summary(document)
         except Exception:
             warnings.append(
                 "Artifact bytes passed SHA binding but could not be analyzed "
@@ -150,6 +206,7 @@ def _stage_report(
         integrity=integrity,
         artifact_path=relative,
         inventory=inventory,
+        domain_summary=domain_summary,
         operator_attestations=normalized_attestations,
         warnings=warnings,
     )
@@ -179,10 +236,26 @@ def _comparison(
             second_stage=second.stage,
             status="unavailable",
         )
+    first_counts = _mapping(first.domain_summary.get("counts"))
+    second_counts = _mapping(second.domain_summary.get("counts"))
+    count_delta = {
+        key: int(second_counts.get(key, 0)) - int(first_counts.get(key, 0))
+        for key in sorted(set(first_counts) | set(second_counts))
+        if int(second_counts.get(key, 0)) != int(first_counts.get(key, 0))
+    }
+    first_connectivity = first.domain_summary.get("connectivity_sha256")
+    second_connectivity = second.domain_summary.get("connectivity_sha256")
+    connectivity_equal = (
+        first_connectivity == second_connectivity
+        if first_connectivity is not None and second_connectivity is not None
+        else None
+    )
     return EvidenceComparisonReport(
         first_stage=first.stage,
         second_stage=second.stage,
         delta=delta,
+        connectivity_equal=connectivity_equal,
+        domain_count_delta=count_delta,
         status="available",
     )
 
@@ -246,6 +319,11 @@ def build_evidence_report(
         and item.delta is not None
         and not item.delta.semantic_equal
     ]
+    connectivity_changed_pairs = [
+        f"{item.first_stage}->{item.second_stage}"
+        for item in comparisons
+        if item.connectivity_equal is False
+    ]
     blockers_value = candidate.get("review_blockers")
     review_blockers = (
         [str(item) for item in blockers_value]
@@ -273,6 +351,7 @@ def build_evidence_report(
             "integrity_failures": integrity_failures,
             "semantic_equal_pairs": semantic_equal_pairs,
             "semantic_changed_pairs": changed_pairs,
+            "connectivity_changed_pairs": connectivity_changed_pairs,
             "all_required_checklist_yes": all(
                 isinstance(item, dict)
                 and (not item.get("required") or item.get("answer") == "yes")
@@ -337,8 +416,10 @@ def render_evidence_report_markdown(report: EvidenceReport) -> str:
         lines.append(
             f"- `{comparison.first_stage} -> {comparison.second_stage}`: "
             f"semantic_equal=`{str(delta.semantic_equal).lower()}`, "
+            f"connectivity_equal=`{str(comparison.connectivity_equal).lower()}`, "
             f"added_local_records={delta.added_local_records}, "
-            f"removed_local_records={delta.removed_local_records}"
+            f"removed_local_records={delta.removed_local_records}, "
+            f"domain_count_delta={comparison.domain_count_delta}"
         )
     if report.review_blockers:
         lines.extend(["", "## Review blockers", ""])

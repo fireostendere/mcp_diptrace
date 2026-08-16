@@ -204,8 +204,12 @@ def test_board_planner_moves_functional_block_only_when_route_score_improves() -
     )
 
     assert plan.selected_candidate == "block_placement"
-    assert plan.changed_component_ids
-    assert [item.kind for item in plan.operations] == ["move_components", "add_trace"]
+    assert len(plan.changed_component_ids) == 2
+    assert [item.kind for item in plan.operations] == [
+        "move_components",
+        "move_components",
+        "add_trace",
+    ]
     assert plan.width_resolutions[0].effective_width_mm == pytest.approx(0.4)
     candidates = {item["name"]: item for item in plan.metrics["candidates"]}
     assert (

@@ -10,7 +10,7 @@ from .adapters import DocumentSnapshot
 from .domain import ObjectRecord, QuerySelector, StrictModel
 from .errors import CapabilityUnavailableError
 from .geometry import BBox, Point, distance, point_in_polygon
-from .operations import MoveBoardTextsOperation, SemanticOperation
+from .operations import MoveBoardTextsOperation, RotateBoardTextsOperation, SemanticOperation
 from .xml_document import DipTraceDocument, RawTreeSnapshot
 
 
@@ -22,8 +22,9 @@ class SilkscreenPlanConfig(StrictModel):
     search_steps: int = Field(default=4, ge=1, le=20)
     include_board_texts: bool = False
     avoid_component_bodies: bool = True
-    movement_weight: float = Field(default=1.0, ge=0.0, le=1_000.0)
-    association_weight: float = Field(default=0.25, ge=0.0, le=1_000.0)
+    normalize_readable_rotation: bool = True
+    movement_weight: float = Field(default=0.25, ge=0.0, le=1_000.0)
+    association_weight: float = Field(default=1.0, ge=0.0, le=1_000.0)
     orientation_weight: float = Field(default=2.0, ge=0.0, le=1_000.0)
 
 
@@ -104,6 +105,7 @@ def plan_silkscreen(
         "orientation": 0.0,
         "total": 0.0,
     }
+    rotated_count = 0
 
     for item in sorted(locked, key=lambda record: record.stable_id):
         assert item.bbox is not None
@@ -139,7 +141,7 @@ def plan_silkscreen(
         parent = snapshot.objects.get(item.parent_id or "")
         evaluated: list[dict[str, Any]] = []
         for point in _candidate_points(item, parent, config):
-            candidate_box = current_box.translate(point.x - current.x, point.y - current.y)
+            candidate_box = _candidate_box(item, current_box, point, config)
             legal, reasons = _candidate_is_legal(
                 candidate_box, item.side, occupied, snapshot, config
             )
@@ -201,6 +203,17 @@ def plan_silkscreen(
                     absolute_y=chosen_point.y,
                 )
             )
+        readable_rotation = _readable_rotation(item, config)
+        if readable_rotation is not None:
+            operations.append(
+                RotateBoardTextsOperation(
+                    selector=QuerySelector(ids=[item.stable_id]),
+                    angle_deg=readable_rotation,
+                    mode="absolute",
+                )
+            )
+            rotated_count += 1
+        if moved or readable_rotation is not None:
             changed_ids.append(item.stable_id)
         for key in score_totals:
             score_totals[key] += float(chosen["score"][key])
@@ -227,12 +240,16 @@ def plan_silkscreen(
             "movable_count": len(movable),
             "locked_count": len(locked),
             "changed_count": len(changed_ids),
+            "rotated_count": rotated_count,
             "unresolved_count": len(unresolved),
             "fixed_obstacle_count": len(obstacles),
         },
         assumptions=[
             "Candidate generation is deterministic and uses normalized millimetres.",
-            "Label rotations are preserved; the planner does not silently rotate or hide text.",
+            (
+                "Unreadable quarter-turn labels are normalized to zero degrees when "
+                "normalize_readable_rotation is enabled; labels are never hidden."
+            ),
             "Candidate legality is checked against same-side axis-aligned obstacle bounds.",
         ],
         warnings=[],
@@ -353,7 +370,7 @@ def _candidate_score(
     association = 0.0
     if parent is not None and parent.position is not None:
         association = distance(Point(**parent.position), point) * config.association_weight
-    angle = item.rotation_deg % 360.0
+    angle = 0.0 if _readable_rotation(item, config) is not None else item.rotation_deg % 360.0
     readable_delta = min(abs(angle), abs(angle - 180.0), abs(angle - 360.0))
     orientation = (readable_delta / 180.0) * config.orientation_weight
     return {
@@ -362,3 +379,33 @@ def _candidate_score(
         "orientation": orientation,
         "total": movement + association + orientation,
     }
+
+
+def _readable_rotation(
+    item: ObjectRecord,
+    config: SilkscreenPlanConfig,
+) -> float | None:
+    if not config.normalize_readable_rotation:
+        return None
+    angle = item.rotation_deg % 360.0
+    readable_delta = min(abs(angle), abs(angle - 180.0), abs(angle - 360.0))
+    return 0.0 if readable_delta > 45.0 else None
+
+
+def _candidate_box(
+    item: ObjectRecord,
+    current_box: BBox,
+    point: Point,
+    config: SilkscreenPlanConfig,
+) -> BBox:
+    if item.position is None:
+        return current_box
+    if _readable_rotation(item, config) is None:
+        current = Point(**item.position)
+        return current_box.translate(point.x - current.x, point.y - current.y)
+    return BBox(
+        point.x - current_box.height / 2.0,
+        point.y - current_box.width / 2.0,
+        point.x + current_box.height / 2.0,
+        point.y + current_box.width / 2.0,
+    )

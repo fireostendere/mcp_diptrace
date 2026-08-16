@@ -119,13 +119,23 @@ Current internal schematic modules can:
 - resolve pin geometry conservatively from the embedded Design Cache;
 - plan/evaluate bounded wire candidates without mutation;
 - jointly score placement candidates using pin-aware routes;
-- generate bounded placement repairs when routes explicitly request them;
+- iterate bounded placement repairs with objective history and strict stopping;
+- plan sheet-level direct-wire/net-label/bus/power-symbol strategy;
 - identify only explicit sheet-local wire groups affected by moved parts;
+- conservatively reuse a nearby intentional junction where bounded;
 - rebuild those affected routes and return one dependency-safe `delete wire -> move part -> add wire` semantic-operation batch.
 
 `schematic_atomic_reroute.py` therefore closes the former already-wired placement gap. If affected pin endpoints or replacement routes cannot be resolved safely, planning fails closed before any source mutation. The returned operation list becomes atomic only when previewed/committed as one unit through the normal guarded semantic transaction path.
 
-`schematic_ensemble.py` adds deterministic motif/congestion pressure to the existing route-aware candidate ranking. It remains bounded and does not claim a global optimum.
+`schematic_ensemble.py` adds deterministic motif/congestion pressure, iterative
+repair and an explicit interconnect plan to the route-aware candidate ranking.
+It remains bounded and does not claim a global optimum.
+
+`rank_schematic_placement_candidates` and
+`compare_pcb_placement_candidates` accept an optional strict
+`engineering_rules` pack. `reference_rules.py` validates source/rule SHA-256
+provenance and redistribution metadata before mapping facts into schematic
+motifs or PCB intent overrides.
 
 See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
@@ -137,7 +147,10 @@ The internal PCB design engine adds higher-level engineering judgement; bounded 
 - Generation B: physical/stackup/PDN/return-path/noise/via context;
 - Generation C: routing policy and observed-route engineering checks;
 - Generation D: bounded hard-first whole-board candidate selection;
-- `pcb_candidate_ensemble.py`: multiple bounded Generation-A placements using different engineering weight profiles, conservative B/C evidence terms and Generation-D selection, with the existing board as an optional baseline.
+- `pcb_candidate_ensemble.py`: multiple bounded Generation-A placements using different engineering weight profiles, candidate-specific physical/quality review and Generation-D selection, with the existing board as an optional baseline;
+- `pcb_whole_board.py`: package-level non-committing composition of placement,
+  routing, compact outline, two-layer GND pours/stitching, silkscreen and final
+  review.
 
 These layers preserve unknown physical facts and do not turn approximate analysis into field-solver/PI/EMC/thermal/manufacturing sign-off. See [PCB_DESIGN_ENGINE.md](PCB_DESIGN_ENGINE.md).
 

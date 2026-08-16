@@ -8,6 +8,7 @@ from ..errors import CapabilityUnavailableError, DocumentError
 from ..library_adapters import get_library_model
 from ..pattern_recommendation import PatternRequirement, recommend_patterns
 from ..pcb_candidate_ensemble import PCBEnsembleConfig, build_pcb_candidate_ensemble
+from ..reference_rules import EngineeringRulePack, ingest_engineering_rule_pack
 from ..release_readiness import run_release_readiness
 from ..schematic_ensemble import rank_schematic_ensemble
 from .context import DocumentGateway, ServiceContext, read_success
@@ -43,13 +44,29 @@ class IntelligenceService:
         self.context = context
         self.gateway = gateway
 
-    def rank_schematic_placement_candidates(self, path: str | None = None) -> dict[str, Any]:
+    def rank_schematic_placement_candidates(
+        self,
+        path: str | None = None,
+        *,
+        engineering_rules: EngineeringRulePack | None = None,
+    ) -> dict[str, Any]:
         document, target = self.gateway.load(path)
         snapshot = self.context.model_cache.get(document, live_session=target.is_live)
-        result = rank_schematic_ensemble(document)
+        ingestion = (
+            ingest_engineering_rule_pack(engineering_rules.model_dump(mode="json"))
+            if engineering_rules is not None
+            else None
+        )
+        result = rank_schematic_ensemble(
+            document,
+            motifs=ingestion.motifs if ingestion is not None else None,
+        )
+        payload = result.model_dump(mode="json")
+        if ingestion is not None:
+            payload["engineering_rules"] = ingestion.model_dump(mode="json")
         return read_success(
             snapshot.info,
-            result.model_dump(mode="json"),
+            payload,
             limitations=list(_RANK_LIMITATIONS),
         )
 
@@ -59,16 +76,29 @@ class IntelligenceService:
         *,
         profiles: list[str] | None = None,
         include_existing_board: bool = True,
+        engineering_rules: EngineeringRulePack | None = None,
     ) -> dict[str, Any]:
         document, target = self.gateway.load(path)
         snapshot = self.context.model_cache.get(document, live_session=target.is_live)
         overrides: dict[str, Any] = {"profiles": profiles} if profiles else {}
         overrides["include_existing_board"] = include_existing_board
         config = PCBEnsembleConfig.model_validate(overrides)
-        result = build_pcb_candidate_ensemble(snapshot, config=config)
+        ingestion = (
+            ingest_engineering_rule_pack(engineering_rules.model_dump(mode="json"))
+            if engineering_rules is not None
+            else None
+        )
+        result = build_pcb_candidate_ensemble(
+            snapshot,
+            overrides=ingestion.pcb_overrides if ingestion is not None else None,
+            config=config,
+        )
+        payload = result.model_dump(mode="json")
+        if ingestion is not None:
+            payload["engineering_rules"] = ingestion.model_dump(mode="json")
         return read_success(
             snapshot.info,
-            result.model_dump(mode="json"),
+            payload,
             limitations=list(_PCB_ENSEMBLE_LIMITATIONS),
         )
 

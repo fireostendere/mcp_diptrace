@@ -81,3 +81,6 @@ def test_schematic_ensemble_is_bounded_deterministic_and_route_first() -> None:
         first.candidates,
         key=lambda item: (tuple(item.rank_key), item.candidate.candidate_id),
     )
+    assert first.interconnect_plan.scheduled_nets
+    assert all(item.objective_history for item in first.candidates)
+    assert all(item.objective_history[-1] == item.rank_key for item in first.candidates)

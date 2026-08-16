@@ -143,6 +143,31 @@ def test_content_is_framed_accepts_margin_and_rejects_sliver() -> None:
     assert not recording._content_is_framed((0, 398, 1000, 402), viewport)
 
 
+def test_frame_quality_measures_purple_boundary_and_ten_percent_crop() -> None:
+    width, height = 100, 80
+    frame = bytearray(bytes((0, 0, 0, 255)) * (width * height))
+    purple = bytes((189, 0, 128))
+    for y in range(15, 65):
+        for x in (20, 21, 78, 79):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = purple
+    for y in (15, 16, 63, 64):
+        for x in range(20, 80):
+            frame[(y * width + x) * 4 : (y * width + x) * 4 + 3] = purple
+
+    quality = recording.assess_design_frame(
+        bytes(frame),
+        width=width,
+        viewport=(0, 0, width, height),
+        domain="pcb",
+    )
+
+    assert quality.boundary_detected is True
+    assert quality.framed is True
+    assert quality.controls_excluded is True
+    assert quality.minimum_horizontal_margin_ratio is not None
+    assert quality.minimum_horizontal_margin_ratio >= 0.08
+
+
 @pytest.mark.parametrize(
     ("window_title", "expected_keys"),
     [("DipTrace PCB Layout", [("home",)]), ("DipTrace Schematic", [])],
@@ -221,9 +246,7 @@ def test_fit_content_scales_small_pcb_and_schematic(
     schematic_frame = bytearray(bytes((0, 0, 0, 255)) * 10_000)
     for y in range(44, 56):
         for x in range(44, 56):
-            schematic_frame[(y * 100 + x) * 4 : (y * 100 + x) * 4 + 3] = bytes(
-                (80, 240, 240)
-            )
+            schematic_frame[(y * 100 + x) * 4 : (y * 100 + x) * 4 + 3] = bytes((80, 240, 240))
     schematic = object.__new__(HiddenMessageDesktopDriver)
     schematic.default_window = "DipTrace Schematic"
     schematic._window = lambda _title: 1
@@ -375,14 +398,17 @@ def test_hidden_driver_reads_zoom_and_centers_scrollbars(
         return (1, 1, 2, 2) if calls == 3 else None
 
     monkeypatch.setattr(recording, "_visible_content_bbox", eventually_visible)
-    assert driver._find_visible_bounds(
-        lambda: b"frame", 100, (0, 0, 100, 100), {0: 10, 1: 20}
-    ) == (1, 1, 2, 2)
+    assert driver._find_visible_bounds(lambda: b"frame", 100, (0, 0, 100, 100), {0: 10, 1: 20}) == (
+        1,
+        1,
+        2,
+        2,
+    )
 
     monkeypatch.setattr(recording, "_visible_content_bbox", lambda *_args, **_kwargs: None)
-    assert driver._find_visible_bounds(
-        lambda: b"frame", 100, (0, 0, 100, 100), {0: 10, 1: 20}
-    ) is None
+    assert (
+        driver._find_visible_bounds(lambda: b"frame", 100, (0, 0, 100, 100), {0: 10, 1: 20}) is None
+    )
 
 
 def test_printwindow_client_check_rejects_titlebar_only() -> None:
@@ -428,9 +454,7 @@ def test_cinematic_helpers_fail_closed_on_invalid_edges(
     assert recording._purple_outline_bbox(black, width=16, viewport=(0, 0, 16, 16)) is None
 
     preflight = SimpleNamespace(duration_ms=0)
-    assert recording._capture_seconds(
-        {"cues": [None, {"event": None}]}, preflight, 0.0
-    ) == 1.0
+    assert recording._capture_seconds({"cues": [None, {"event": None}]}, preflight, 0.0) == 1.0
 
     invalid = tmp_path / "invalid.json"
     invalid.write_text("{", encoding="utf-8")

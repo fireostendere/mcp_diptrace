@@ -128,7 +128,9 @@ The Generation D benchmark catalog is synthetic-regression-only until the docume
 ## Current limitations
 
 - no globally optimal placer claim;
-- atomic affected-net reroute is implemented, but arbitrary hand-authored junction topology is not preserved as a visual constraint when an affected explicit net is rebuilt;
+- atomic affected-net reroute conservatively reuses one nearby intentional
+  junction when bounded, but arbitrary hand-authored multi-junction topology is
+  not reconstructed;
 - schematic automatic rotation/pin-facing is evidence-limited;
 - Generation A proximity/noise/thermal/current-return terms are not field/thermal/PI simulation;
 - Generations B-D are bounded evidence-aware layers, not manufacturing/EMC sign-off;

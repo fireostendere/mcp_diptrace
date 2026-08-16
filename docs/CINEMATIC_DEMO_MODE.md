@@ -131,6 +131,11 @@ Hidden capture prepares a stable drawing crop before recording:
 If the complete design boundary cannot be found or disappears while fitting,
 capture fails instead of silently recording a cropped or control-heavy frame.
 
+`assess_design_frame()` provides the same deterministic final-frame gate to
+tests and evidence tooling. It reports the UI-free padded crop, design fill
+ratio, minimum horizontal/vertical margin, whether controls were excluded and
+whether the complete PCB/Schematic design remains framed.
+
 ## Hidden Win32 desktop capture
 
 The packaged headless helper can run DipTrace and deterministic replay on a separate hidden `WinSta0` desktop. The operator's normal input desktop remains available while the recording is produced.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -8,11 +9,13 @@ from pydantic import Field
 from .adapters import build_snapshot
 from .domain import QuerySelector, StrictModel
 from .errors import CapabilityUnavailableError
+from .geometry import Point, distance
 from .operations import (
     AddWireOperation,
     DeleteWireOperation,
     SemanticOperation,
     WireEndpoint,
+    WirePathPoint,
 )
 from .schematic_joint_optimizer import (
     _affected_groups,
@@ -47,6 +50,8 @@ class SchematicAtomicRerouteConfig(StrictModel):
     max_deleted_wires: int = Field(default=2_048, ge=1, le=50_000)
     max_added_wires: int = Field(default=2_048, ge=1, le=50_000)
     include_unwired_affected_nets: bool = False
+    preserve_intentional_junctions: bool = True
+    maximum_junction_detour_ratio: float = Field(default=2.5, ge=1.0, le=20.0)
     wire_planner: SchematicWirePlannerConfig = Field(
         default_factory=SchematicWirePlannerConfig
     )
@@ -60,6 +65,7 @@ class SchematicAffectedNetGroup(StrictModel):
     pin_ids: list[str] = Field(default_factory=list)
     deleted_wire_ids: list[str] = Field(default_factory=list)
     replacement_edge_count: int = Field(ge=0)
+    preserved_junction_count: int = Field(default=0, ge=0)
     quality_feedback: list[str] = Field(default_factory=list)
 
 
@@ -114,6 +120,58 @@ def _readability_feedback(
         "replacement is retained for the atomic transaction; readability remains "
         "explicit review/repair feedback."
     )
+
+
+def _intentional_junctions(snapshot: Any, wire_ids: list[str]) -> list[Point]:
+    if snapshot.schematic is None:
+        return []
+    selected = {
+        item.stable_id: item for item in snapshot.schematic.wires if item.stable_id in set(wire_ids)
+    }
+    degree: dict[tuple[float, float], int] = {}
+    for wire in selected.values():
+        points = [Point(**item) for item in wire.attributes.get("points", [])]
+        for first, second in zip(points, points[1:], strict=False):
+            for point in (first, second):
+                key = (round(point.x, 9), round(point.y, 9))
+                degree[key] = degree.get(key, 0) + 1
+    return [Point(*key) for key, value in sorted(degree.items()) if value >= 3]
+
+
+def _points_via_preserved_junction(
+    start: Point,
+    end: Point,
+    junctions: list[Point],
+    *,
+    maximum_detour_ratio: float,
+) -> tuple[list[WirePathPoint], Point | None]:
+    if not junctions:
+        return _initial_points(start, end), None
+    junction = min(
+        junctions,
+        key=lambda item: (distance(start, item) + distance(item, end), item.x, item.y),
+    )
+    direct = max(distance(start, end), _EPS)
+    detour = distance(start, junction) + distance(junction, end)
+    if detour > direct * maximum_detour_ratio:
+        return _initial_points(start, end), None
+    raw = [
+        start,
+        Point(junction.x, start.y),
+        junction,
+        Point(end.x, junction.y),
+        end,
+    ]
+    points: list[WirePathPoint] = []
+    for point in raw:
+        if (
+            points
+            and math.isclose(points[-1].x, point.x, abs_tol=_EPS)
+            and math.isclose(points[-1].y, point.y, abs_tol=_EPS)
+        ):
+            continue
+        points.append(WirePathPoint(x=point.x, y=point.y))
+    return points, junction
 
 
 def plan_atomic_schematic_placement_reroute(
@@ -241,11 +299,28 @@ def plan_atomic_schematic_placement_reroute(
         net_name = net_names.get(net_id, net_id)
         group_plans = []
         group_quality_feedback: list[str] = []
+        state = group_state[(net_id, sheet)]
+        junctions = (
+            _intentional_junctions(snapshot, state["deleted_wire_ids"])
+            if config.preserve_intentional_junctions
+            else []
+        )
+        used_junctions: set[tuple[float, float]] = set()
         for route_index, (start, end) in enumerate(edges, 1):
+            points, preserved_junction = _points_via_preserved_junction(
+                start.point,
+                end.point,
+                junctions,
+                maximum_detour_ratio=config.maximum_junction_detour_ratio,
+            )
+            if preserved_junction is not None:
+                used_junctions.add(
+                    (round(preserved_junction.x, 9), round(preserved_junction.y, 9))
+                )
             operation = AddWireOperation(
                 net=net_name,
                 sheet=sheet,
-                points=_initial_points(start.point, end.point),
+                points=points,
                 start=WireEndpoint(
                     type="Pin",
                     part_id=start.part.stable_id,
@@ -277,7 +352,6 @@ def plan_atomic_schematic_placement_reroute(
             _append_completed_net_routes(virtual, [(net_id, sheet, plan)])
 
         pin_ids = sorted(item.pin.stable_id for item in endpoints)
-        state = group_state[(net_id, sheet)]
         reports.append(
             SchematicAffectedNetGroup(
                 net_id=net_id,
@@ -287,6 +361,7 @@ def plan_atomic_schematic_placement_reroute(
                 pin_ids=pin_ids,
                 deleted_wire_ids=sorted(state["deleted_wire_ids"]),
                 replacement_edge_count=len(group_plans),
+                preserved_junction_count=len(used_junctions),
                 quality_feedback=group_quality_feedback,
             )
         )
@@ -310,9 +385,10 @@ def plan_atomic_schematic_placement_reroute(
                 "is left byte-semantically untouched by the plan."
             ),
             (
-                "Affected wire geometry is rebuilt from resolved pin endpoints using "
-                "deterministic MST edges; existing manual junction topology is not "
-                "preserved as a visual constraint."
+                "Affected wire geometry uses deterministic MST endpoint edges. "
+                "Existing degree-three junction coordinates are reused when they stay "
+                "within the bounded detour ratio; more complex hand-authored topology "
+                "is not reconstructed."
             ),
             (
                 "Unresolved or insufficient endpoints remain fail-closed. Readability "
