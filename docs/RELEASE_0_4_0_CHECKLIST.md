@@ -49,8 +49,10 @@ Release manager: `fireostendere` (solo-maintainer exception)
   (workflow `31976705280`).
 - [x] PyPI returned HTTP `200 OK` for wheel and sdist and generated attestations.
 - [x] GitHub API release metadata confirms uploaded asset digests.
-- [ ] Independent public-byte redownload plus reinstall/smoke from a separate
-  network path is not yet recorded.
+- [x] Independent public-byte redownload plus PyPI clean-install/smoke passed on a
+  separate GitHub-hosted Ubuntu runner (workflow `31979666091`).
+- [x] Public GitHub asset bytes, `SHA256SUMS.txt`, public PyPI JSON digests and
+  `diptrace-mcp==0.4.0` no-cache install were all reverified.
 - [x] Immutable publication fields are filled in `docs/releases/v0.4.0.md`.
 
 ## Publication boundary
