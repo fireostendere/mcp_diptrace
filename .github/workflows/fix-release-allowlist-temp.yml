@@ -1,0 +1,45 @@
+name: Fix release workflow allowlist
+
+on:
+  push:
+    branches:
+      - release/v0.4.0-prep
+    paths:
+      - .github/workflows/fix-release-allowlist-temp.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: release/v0.4.0-prep
+          fetch-depth: 0
+      - name: Synchronize release allowlist and remove this helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/release_artifact_allowlist.txt')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          additions = [
+              '.github/workflows/release-v0.4.0.yml',
+              '.github/workflows/tag-v0.4.0-on-main.yml',
+          ]
+          for entry in additions:
+              if entry not in lines:
+                  lines.append(entry)
+          lines.sort()
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          git rm .github/workflows/fix-release-allowlist-temp.yml
+          git diff --check
+          git config user.name fireostendere
+          git config user.email 87851878+fireostendere@users.noreply.github.com
+          git add scripts/release_artifact_allowlist.txt
+          git commit -s -m 'ci: allowlist v0.4.0 release workflows'
+          git push origin HEAD:release/v0.4.0-prep
