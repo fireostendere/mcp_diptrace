@@ -10,8 +10,7 @@
 .github/workflows/macos-clean-install.yml
 .github/workflows/mcpb.yml
 .github/workflows/pypi.yml
-.github/workflows/release-v0.4.0.yml
-.github/workflows/tag-v0.4.0-on-main.yml
+.github/workflows/release.yml
 .github/workflows/windows-installer.yml
 .github/workflows/windows-signing.yml
 .gitignore

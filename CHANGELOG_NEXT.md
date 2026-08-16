@@ -1,4 +1,7 @@
-# 0.4.0 release candidate
+# Post-v0.4.0 development
+
+The immutable `v0.4.0` GitHub release and PyPI package were published on 2026-08-16.
+Changes in this section are later development and are not silently part of those released bytes.
 
 ## Added
 

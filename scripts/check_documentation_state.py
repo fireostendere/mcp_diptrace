@@ -135,8 +135,25 @@ PLATFORM_DOC_MARKERS: dict[str, tuple[str, ...]] = {
     "docs/LINUX.md": ("v0.4.0", "private Xvfb", "Ubuntu 24.04"),
     "docs/MACOS.md": ("v0.4.0", "Apple Silicon", "Intel", "hidden Win32 desktop"),
     "docs/HEADLESS_GUI.md": ("private Xvfb", "macOS hidden-desktop backend"),
-    "docs/RELEASE_PROCESS.md": ("v0.4.0", "RELEASE_0_4_0_CHECKLIST.md"),
+    "docs/RELEASE_PROCESS.md": ("v0.4.0", "published", ".github/workflows/release.yml"),
 }
+
+PUBLISHED_RELEASE_DOCS = (
+    "README.md",
+    "CHANGELOG.md",
+    "docs/ROADMAP.md",
+    "docs/RELEASE_PROCESS.md",
+    "docs/MCP_DISTRIBUTION.md",
+    "docs/INSTALL_FROM_RELEASE.md",
+    "docs/WINDOWS_INSTALLER.md",
+)
+
+PUBLISHED_RELEASE_STALE_PHRASES = (
+    "version `v0.3.0` is the current published",
+    "version `0.4.0` is the current unsigned development release candidate",
+    "`v0.4.0` is the current release candidate",
+    "release candidate — not yet published",
+)
 
 STALE_PHRASES: dict[str, tuple[str, ...]] = {
     "CHANGELOG_NEXT.md": (
@@ -266,6 +283,24 @@ def check_documentation_state(root: Path) -> list[str]:
         for marker in markers:
             if _normalized(marker) not in normalized:
                 errors.append(f"{relative}: missing platform/release marker: {marker}")
+
+    try:
+        release_state = json.loads((root / "release.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        errors.append(f"release.json: cannot parse published state: {exc}")
+        release_state = {}
+    if str(release_state.get("release_status", "")).startswith("published-"):
+        version = str(release_state.get("version", ""))
+        for relative in PUBLISHED_RELEASE_DOCS:
+            text = _read_text(root, relative, errors)
+            normalized = _normalized(text)
+            if version and version not in text:
+                errors.append(f"{relative}: published release version {version} is missing")
+            if "published" not in normalized:
+                errors.append(f"{relative}: published release state is not documented")
+            for phrase in PUBLISHED_RELEASE_STALE_PHRASES:
+                if _normalized(phrase) in normalized:
+                    errors.append(f"{relative}: contains stale published-release claim: {phrase}")
 
     headless_doc = _read_text(root, "docs/HEADLESS_GUI.md", errors)
     headless_folded = headless_doc.casefold()

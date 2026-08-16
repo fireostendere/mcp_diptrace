@@ -2,23 +2,26 @@
 
 ## Current published state
 
-Version `v0.3.0` is the current published unsigned development prerelease.
+Version `v0.4.0` is the current published unsigned development release.
 
 Published immutable identities:
 
-- GitHub prerelease: `v0.3.0`;
-- PyPI package: `diptrace-mcp==0.3.0`;
-- Windows installer: `DipTrace-MCP-Setup-0.3.0.exe`;
-- administrator plug-in installer: `DipTrace-MCP-Plugin-Setup-0.3.0.exe`;
-- portable bundle: `DipTrace-MCP-Portable-0.3.0.zip`;
-- Windows MCPB: `DipTrace-MCP-0.3.0-windows.mcpb`;
-- canonical registry identity: `io.github.fireostendere/diptrace-mcp`.
+- GitHub release: `v0.4.0` (ID `371451484`);
+- PyPI package: `diptrace-mcp==0.4.0`;
+- Windows installer: `DipTrace-MCP-Setup-0.4.0.exe`;
+- administrator plug-in installer: `DipTrace-MCP-Plugin-Setup-0.4.0.exe`;
+- portable bundle: `DipTrace-MCP-Portable-0.4.0.zip`;
+- checksum manifest: `SHA256SUMS.txt`;
+- Linux/macOS host bootstrap: the `v0.4.0` installer scripts.
+
+No `DipTrace-MCP-0.4.0-windows.mcpb` asset was published. The candidate MCPB and
+registry workflow passed as preparation evidence only; the latest published MCPB
+line remains historical and must not be mixed with v0.4.0 runtime/bridge claims.
 
 Published tags/files are immutable. A corrected build requires a new version.
-
-Development on `main` after `v0.3.0` may contain changes not present in the
-published package/bundles. Track them in `CHANGELOG_NEXT.md` until the next
-release is selected.
+Development on `main` after `v0.4.0` may contain changes not present in the
+published package/bundles; track them in `CHANGELOG_NEXT.md` until the next
+version is selected.
 
 ## Distribution roles
 
@@ -31,7 +34,7 @@ The PyPI package and MCPB do not silently install the DipTrace bridge plug-in. L
 
 ## PyPI Trusted Publishing
 
-`0.3.0` was published through the guarded GitHub OIDC workflow after an exact
+`0.4.0` was published through the guarded GitHub OIDC workflow after an exact
 annotated-tag checkout and target verification.
 
 Authorized identity:
@@ -49,7 +52,7 @@ No long-lived PyPI API token is required. Future versions should preserve the se
 Clean package smoke:
 
 ```bash
-python -m pip install --no-cache-dir diptrace-mcp==0.3.0
+python -m pip install --no-cache-dir diptrace-mcp==0.4.0
 diptrace-mcp --help
 ```
 
@@ -78,8 +81,8 @@ For each future version:
 5. redownload the public bytes and repeat checksum/install/stdio smoke;
 6. record exact public identities in the release record.
 
-The `v0.3.0` publication is complete; these are future-release rules, not
-pending `0.3.0` publication steps.
+The `v0.4.0` publication is complete; these are future-release rules, not
+pending `0.4.0` publication steps.
 
 ## Registry / Smithery metadata
 
@@ -107,8 +110,8 @@ Example acceptance pack preparation:
 
 ```bash
 python scripts/prepare_manual_acceptance.py acceptance \
-  --version 0.3.0 \
-  --commit fbbbda176043c555b04a908bb63f6fc4ac5909cb
+  --version 0.4.0 \
+  --commit b4c0132283ff16a0bca81567df6704d1f6a73c7f
 ```
 
 Manual evidence must remain tied to the exact candidate/artifacts tested.
@@ -117,9 +120,9 @@ Manual evidence must remain tied to the exact candidate/artifacts tested.
 
 Do not conflate these states:
 
-- `v0.3.0` / PyPI `0.3.0` are immutable published bytes and include the
-  schematic intelligence, PCB Generations A-D, 90% coverage gate and cinematic
-  presentation work described by its release record;
+- `v0.4.0` / PyPI `0.4.0` are immutable published bytes with the A1-A8 roadmap
+  closure and bounded Windows/Linux/macOS host paths described by its release
+  record;
 - later `main` may advance independently;
 - a future release must explicitly package/re-verify later changes before
   distribution docs claim they are in published artifacts.
@@ -129,9 +132,9 @@ Do not conflate these states:
 Do not replace bytes under an existing GitHub tag, PyPI version, Registry version or directory release. If a material issue is found, document affected identities, preserve original bytes, withdraw/yank only where appropriate and publish a corrected new version.
 
 
-## v0.4.0 host installers
+## v0.4.0 published host installers
 
-The v0.4.0 release candidate adds two host bootstrap paths alongside the existing
+The published v0.4.0 release adds two host bootstrap paths alongside the existing
 Windows installer/portable/MCPB route:
 
 - `install_linux.sh`: Ubuntu/Debian x86-64 bootstrap for pinned Wine/DipTrace,
