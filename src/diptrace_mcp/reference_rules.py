@@ -5,7 +5,8 @@ import json
 from collections.abc import Mapping
 from typing import Any, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, GetJsonSchemaHandler, model_validator
+from pydantic_core import CoreSchema
 
 from .domain import StrictModel
 from .pcb_design_intent import (
@@ -66,6 +67,24 @@ class EngineeringRulePack(StrictModel):
         max_length=256,
     )
     pcb_nets: list[PCBNetRule] = Field(default_factory=list, max_length=256)
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls,
+        _core_schema: CoreSchema,
+        _handler: GetJsonSchemaHandler,
+    ) -> dict[str, Any]:
+        # FastMCP embeds this schema in every tool that accepts a rule pack. The
+        # complete nested schema duplicates large PCB-intent and schematic-motif
+        # definitions and can dominate tools/list. Runtime validation still uses
+        # the full Pydantic core schema; only discovery metadata is compacted.
+        return {
+            "type": "object",
+            "description": (
+                "Strict diptrace-engineering-rules-v1 object with sources, "
+                "schematic_motifs, pcb_components, and pcb_nets; validated fully at runtime."
+            ),
+        }
 
     @model_validator(mode="after")
     def validate_sources(self) -> EngineeringRulePack:
