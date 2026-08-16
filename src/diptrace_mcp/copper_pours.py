@@ -60,8 +60,14 @@ def add_copper_pours(
 
     components = board.find("./Components")
     pours = board.find("./CopperPours")
-    if components is None or pours is None:
-        raise EditError("PCB document is missing Components or CopperPours")
+    if components is None:
+        raise EditError("PCB document is missing Components")
+    if pours is None:
+        pours = ET.Element("CopperPours")
+        nets = board.find("./Nets")
+        if nets is None:
+            raise EditError("PCB document is missing Nets")
+        board.insert(list(board).index(nets) + 1, pours)
     for component in list(components):
         if component.findtext("./Name") == _STITCH_VIA_NAME:
             components.remove(component)

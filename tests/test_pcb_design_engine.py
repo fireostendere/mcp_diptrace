@@ -68,9 +68,7 @@ def test_generation_a_builds_engineering_intent_and_support_blocks() -> None:
     assert nets["VCC"].component_ids == sorted(
         [components["R1"].component_id, components["U1"].component_id]
     )
-    assert {item.strategy for item in intent.power_ground} == {
-        "local_plane_or_pour_candidate"
-    }
+    assert {item.strategy for item in intent.power_ground} == {"local_plane_or_pour_candidate"}
     assert 0.0 < intent_confidence(intent) <= 1.0
     assert any("never infers a split/star ground" in item for item in intent.assumptions)
 
@@ -125,9 +123,7 @@ def test_generation_a_ground_policy_prefers_continuous_plane_without_auto_split(
 ) -> None:
     board = tmp_path / "ground.xml"
     board.write_bytes(_board_with_names(first_net="AGND", second_net="ADC_REF"))
-    intent = build_pcb_design_intent(
-        build_snapshot(DipTraceDocument.load(board, 10_000_000))
-    )
+    intent = build_pcb_design_intent(build_snapshot(DipTraceDocument.load(board, 10_000_000)))
     nets = {item.name: item for item in intent.nets}
     strategies = {item.name: item.strategy for item in intent.power_ground}
 
@@ -169,9 +165,7 @@ def test_generation_a_special_return_domains_are_not_flattened(
 ) -> None:
     board = tmp_path / f"{expected_role}.xml"
     board.write_bytes(_board_with_names(first_net=first_net, second_net="GPIO1"))
-    intent = build_pcb_design_intent(
-        build_snapshot(DipTraceDocument.load(board, 10_000_000))
-    )
+    intent = build_pcb_design_intent(build_snapshot(DipTraceDocument.load(board, 10_000_000)))
     net = next(item for item in intent.nets if item.name == first_net)
     topology = next(item for item in intent.power_ground if item.net_id == net.net_id)
 
@@ -232,6 +226,10 @@ def test_placement_v2_analysis_exposes_decomposed_score() -> None:
         + analysis.score.support_adjacency
         + analysis.score.critical_connection
         + analysis.score.noise_coupling
+        + analysis.score.compactness
+        + analysis.score.centering
+        + analysis.score.symmetry
+        + analysis.score.hot_loop
     )
     assert analysis.limitations
     assert "field or thermal solver" in analysis.assumptions[0]

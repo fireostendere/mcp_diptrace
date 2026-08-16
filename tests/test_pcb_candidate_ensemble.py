@@ -32,6 +32,9 @@ def test_pcb_candidate_ensemble_generates_distinct_engineering_profiles() -> Non
     assert result.selected_profile in profiles
     assert result.limitations
     assert all(item.routing_unknown_count >= 0 for item in result.candidates)
+    assert all(item.quality.physics_principles for item in result.candidates)
+    selected = next(item for item in result.candidates if item.profile == result.selected_profile)
+    assert result.selected_quality == selected.quality
 
 
 def test_pcb_candidate_ensemble_uses_existing_hard_first_generation_d_selector() -> None:

@@ -29,6 +29,7 @@ from .operations import (
 )
 from .pattern_recommendation import PatternRequirement
 from .placement import PlacementProposal
+from .reference_rules import EngineeringRulePack
 from .routing import RouteConnectionConfig
 from .scaffolding import (
     DEFAULT_FORMAT_VERSION,
@@ -1556,9 +1557,15 @@ def create_server(
         )
 
     @mcp.tool()
-    def rank_schematic_placement_candidates(path: str | None = None) -> dict[str, Any]:
-        """Rank bounded schematic placement candidates by route quality, motifs and congestion."""
-        return service.rank_schematic_placement_candidates(path)
+    def rank_schematic_placement_candidates(
+        path: str | None = None,
+        engineering_rules: EngineeringRulePack | None = None,
+    ) -> dict[str, Any]:
+        """Rank schematic candidates with optional sourced engineering rules."""
+        return service.rank_schematic_placement_candidates(
+            path,
+            engineering_rules=engineering_rules,
+        )
 
     @mcp.tool()
     def plan_schematic_placement_repair(
@@ -1594,12 +1601,14 @@ def create_server(
         ]
         | None = None,
         include_existing_board: bool = True,
+        engineering_rules: EngineeringRulePack | None = None,
     ) -> dict[str, Any]:
-        """Generate and rank bounded PCB Generation A-D placement candidates."""
+        """Rank PCB A-D candidates with physics and optional sourced rules."""
         return service.compare_pcb_placement_candidates(
             path,
             profiles=profiles,
             include_existing_board=include_existing_board,
+            engineering_rules=engineering_rules,
         )
 
     @mcp.tool()

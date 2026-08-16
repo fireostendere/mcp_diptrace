@@ -9,7 +9,7 @@ from pydantic import Field
 from .adapters import DocumentSnapshot
 from .domain import ObjectRecord, QuerySelector, StrictModel
 from .errors import CapabilityUnavailableError, PlacementError
-from .geometry import Point, distance
+from .geometry import BBox, Point, distance
 from .operations import MoveComponentsOperation, SemanticOperation
 from .pcb_design_intent import PCBDesignIntent, PCBIntentOverrides, build_pcb_design_intent
 from .placement import PlacementConfig, PlacementProposal, score_placement_proposal
@@ -21,6 +21,10 @@ class PCBPlacementV2Weights(StrictModel):
     support_adjacency: float = Field(default=1.5, ge=0.0)
     critical_connection: float = Field(default=0.8, ge=0.0)
     noise_coupling: float = Field(default=2.0, ge=0.0)
+    compactness: float = Field(default=0.02, ge=0.0)
+    centering: float = Field(default=1.0, ge=0.0)
+    symmetry: float = Field(default=0.5, ge=0.0)
+    hot_loop: float = Field(default=1.5, ge=0.0)
 
 
 class PCBPlacementV2Config(StrictModel):
@@ -39,6 +43,10 @@ class PCBPlacementV2Score(StrictModel):
     support_adjacency: float = Field(ge=0.0)
     critical_connection: float = Field(ge=0.0)
     noise_coupling: float = Field(ge=0.0)
+    compactness: float = Field(ge=0.0)
+    centering: float = Field(ge=0.0)
+    symmetry: float = Field(ge=0.0)
+    hot_loop: float = Field(ge=0.0)
     total: float = Field(ge=0.0)
 
 
@@ -164,6 +172,79 @@ def _electrical_terms(
     }
 
 
+def _layout_terms(
+    snapshot: DocumentSnapshot,
+    intent: PCBDesignIntent,
+    components: dict[str, ObjectRecord],
+    positions: dict[str, Point],
+) -> dict[str, float]:
+    assert snapshot.board is not None
+    boxes: list[tuple[str, Any]] = []
+    for component_id, component in components.items():
+        if component.bbox is None or component.position is None or component_id not in positions:
+            continue
+        original = Point(**component.position)
+        target = positions[component_id]
+        boxes.append(
+            (
+                component_id,
+                BBox(**component.bbox).translate(
+                    target.x - original.x,
+                    target.y - original.y,
+                ),
+            )
+        )
+    occupied = (
+        BBox(
+            min(box.min_x for _component_id, box in boxes),
+            min(box.min_y for _component_id, box in boxes),
+            max(box.max_x for _component_id, box in boxes),
+            max(box.max_y for _component_id, box in boxes),
+        )
+        if boxes
+        else None
+    )
+    outline = snapshot.board.outline
+    board_center = (
+        BBox(**outline["bbox"]).center
+        if outline is not None and outline.get("bbox")
+        else occupied.center
+        if occupied is not None
+        else Point(0.0, 0.0)
+    )
+
+    component_intents = {item.component_id: item for item in intent.components}
+    symmetry_groups: dict[tuple[str, str, str], list[str]] = {}
+    for component_id, component in components.items():
+        classified = component_intents.get(component_id)
+        if classified is None or component_id not in positions:
+            continue
+        pattern = str(component.attributes.get("pattern_style") or component.name or "")
+        symmetry_groups.setdefault((classified.block_id, classified.role, pattern), []).append(
+            component_id
+        )
+    symmetry = 0.0
+    for ids in symmetry_groups.values():
+        if len(ids) != 2:
+            continue
+        first, second = (positions[item] for item in sorted(ids))
+        symmetry += min(abs(first.x - second.x), abs(first.y - second.y))
+
+    hot_loop = 0.0
+    for net in intent.nets:
+        if "switching_node" not in net.roles:
+            continue
+        points = [positions[item] for item in net.component_ids if item in positions]
+        if len(points) >= 2:
+            hot_loop += max(distance(first, second) for first in points for second in points)
+    return {
+        "compactness": occupied.area if occupied is not None else 0.0,
+        "centering": distance(occupied.center, board_center) if occupied is not None else 0.0,
+        "symmetry": symmetry,
+        "hot_loop": hot_loop,
+    }
+
+
 def _score(
     snapshot: DocumentSnapshot,
     intent: PCBDesignIntent,
@@ -175,10 +256,10 @@ def _score(
         proposals,
         _base_config(config),
     )
-    electrical = _electrical_terms(
-        intent,
-        _positions(_components(snapshot), proposals),
-    )
+    components = _components(snapshot)
+    positions = _positions(components, proposals)
+    electrical = _electrical_terms(intent, positions)
+    layout = _layout_terms(snapshot, intent, components, positions)
     weighted = {
         "geometry": geometry["total"] * config.weights.geometry,
         "block_cohesion": (
@@ -193,6 +274,10 @@ def _score(
         "noise_coupling": (
             electrical["noise_coupling"] * config.weights.noise_coupling
         ),
+        "compactness": layout["compactness"] * config.weights.compactness,
+        "centering": layout["centering"] * config.weights.centering,
+        "symmetry": layout["symmetry"] * config.weights.symmetry,
+        "hot_loop": layout["hot_loop"] * config.weights.hot_loop,
     }
     return (
         PCBPlacementV2Score(**weighted, total=math.fsum(weighted.values())),
@@ -219,8 +304,8 @@ def analyze_pcb_placement_v2(
         geometry_violations=violations,
         assumptions=[
             (
-                "Generation A uses deterministic electrical-intent proxies, not a "
-                "field or thermal solver."
+                "Generation A uses deterministic geometry, compactness, symmetry and "
+                "electrical-intent proxies, not a field or thermal solver."
             ),
             (
                 "Existing placement geometry/DRC legality remains authoritative for "

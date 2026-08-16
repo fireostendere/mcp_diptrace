@@ -23,7 +23,8 @@ The current deterministic pipeline is:
 4. `schematic_wire_planner.py` — bounded non-mutating wire candidate cleanup/scoring with explicit placement feedback;
 5. `schematic_joint_optimizer.py` — pin-aware placement + route scoring over sheet-local net groups;
 6. `schematic_placement_repair.py` — bounded placement changes driven by route feedback;
-7. `schematic_ensemble.py` — deterministic motif + route + congestion ranking across placement candidates;
+7. `schematic_ensemble.py` — deterministic motif + route + congestion ranking,
+   bounded iterative repair and global interconnect strategy;
 8. `schematic_atomic_reroute.py` — selective existing-wire replacement for nets touched by moved parts.
 
 ### Atomic selective reroute
@@ -36,7 +37,10 @@ The returned operation order is dependency-safe:
 
 Passing the complete operation list to the existing semantic transaction path gives one preview/SHA/commit boundary for placement and replacement wires. The planner itself is non-mutating. Unwired nets are not turned into page-spanning explicit wires by default, and unaffected existing wire geometry is not rewritten.
 
-Current limitation: affected explicit nets are rebuilt from resolved pin endpoints through deterministic MST edges; arbitrary hand-authored junction topology is not preserved as a visual constraint.
+Affected explicit nets are rebuilt from resolved pin endpoints through
+deterministic MST edges. The planner conservatively reuses a nearby existing
+degree-three junction when the detour is bounded; arbitrary hand-authored
+multi-junction topology is not reconstructed.
 
 ### Motifs and congestion
 
@@ -44,7 +48,11 @@ Builtin motifs are explicitly labelled `source_kind="builtin"` and describe only
 
 The schematic ensemble adds a bounded congestion estimate using placement-grid occupancy, hotspot cells, local neighboring pressure and sheet span. Route defects remain lexicographically more important than congestion/compactness.
 
-External/project/datasheet motifs can still be supplied explicitly with provenance. Automatic external motif ingestion remains separate work.
+`reference_rules.py` now validates SHA-bound structured rule packs for
+project/datasheet/reference-design facts and maps their per-rule provenance into
+schematic motifs or PCB intent overrides. Arbitrary PDF interpretation remains
+reviewer work; source bytes, locators, redistribution policy and hashes remain
+explicit rather than inferred.
 
 ### Real-DipTrace schematic quality checkpoint
 
@@ -63,7 +71,14 @@ The current layers are:
 - **Generation C:** `pcb_routing_policy.py` — deterministic net routing policy/order and conservative observed-route checks;
 - **Generation D:** `pcb_joint_optimizer.py` — hard-first bounded candidate comparison.
 
-`pcb_candidate_ensemble.py` creates real Generation-A placement candidates under multiple engineering profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline. Generation B/C facts contribute conservative soft evidence terms, and the existing Generation-D selector chooses the winner with hard safety/mechanical/connectivity/DRC/reference/manufacturing violations lexicographically dominant.
+`pcb_physics_knowledge.py` and `pcb_quality.py` add the deterministic review
+layer: sourced qualitative return-path/high-di/dt/decoupling principles,
+candidate-specific compactness/centering/symmetry/plane/stitching/thermal/silk
+checks, and explicit unknown physical facts. `pcb_whole_board.py` composes the
+existing placement, routing, outline, copper and silkscreen stages without
+committing workspace bytes.
+
+`pcb_candidate_ensemble.py` creates real Generation-A placement candidates under multiple engineering profiles (`balanced`, `critical_nets`, `noise_aware`, `support_compact`) plus the existing-board baseline. Each alternative is applied to an in-memory document before physical/routing/quality analysis. Generation B/C facts and quality metrics contribute conservative soft evidence terms, and the existing Generation-D selector chooses the winner with hard safety/mechanical/connectivity/DRC/reference/manufacturing violations lexicographically dominant.
 
 Package-level authoring helpers now cover the default physical presentation
 used by the repository PCB demo:
@@ -93,7 +108,7 @@ No SI/PI/thermal/EMI proxy is upgraded into field-solver truth. Unknown stackup/
 
 The existing operator capture pipeline still owns `source -> open/save -> re-export`, hashes, attestations and quarantine/candidate creation.
 
-`evidence_report.py` and `scripts/build_evidence_report.py` can turn a finalized review-only candidate into deterministic JSON/Markdown while rechecking artifact SHA-256 bindings and computing XML semantic fingerprints/deltas.
+`evidence_report.py` and `scripts/build_evidence_report.py` can turn a finalized review-only candidate into deterministic JSON/Markdown while rechecking artifact SHA-256 bindings and computing XML semantic fingerprints/deltas, domain summaries and connectivity fingerprints.
 
 The report builder cannot grant PASS, provenance trust, fixture trust or release acceptance. Operator claims remain labelled as operator-supplied facts. Trust promotion continues to require a separate reviewed action.
 
@@ -126,9 +141,11 @@ New regression/property coverage includes:
 - selective reroute scope, source immutability and locked-part refusal;
 - deterministic schematic motif/congestion ensemble behavior;
 - deterministic PCB ensemble generation and Generation-D ranking reuse;
+- candidate-specific PCB quality and composed whole-board pipeline behavior;
+- SHA-bound engineering-rule ingestion/provenance validation;
 - DSN/SES structure/importability analysis;
 - Hypothesis XML fingerprint invariants and unknown-XML mutation detection;
-- evidence-report hash/tamper/determinism behavior;
+- evidence-report hash/tamper/determinism/domain-connectivity behavior;
 - cinematic preflight budgets/content identity and mandatory playback invocation;
 - board/schematic boundary detection, stable crop padding and staged path timing;
 - SHA-bound library mutation preview behavior;

@@ -1,3 +1,34 @@
+# Unreleased
+
+## Added
+
+- candidate-specific PCB quality review covering compactness, centering,
+  symmetry, return planes, GND pours/stitching, thermal-relief intent,
+  silkscreen mounting-space clearance, hot-loop span and decoupling span;
+- a bounded whole-board PCB pipeline that reuses placement, routing, rectangular
+  outline compaction, two-layer GND pours/stitching and silkscreen operations;
+- source-linked qualitative PCB physics principles and explicit unknown-fact
+  reporting instead of guessed current, impedance, thermal or EMC limits;
+- SHA-bound structured engineering-rule packs for project, datasheet and
+  reference-design facts, with per-rule provenance and redistribution metadata;
+- iterative schematic placement repair with objective history, a global
+  interconnect strategy (wire/label/bus/power symbol), and conservative reuse of
+  intentional existing junctions;
+- evidence-report domain summaries/connectivity fingerprints and deterministic
+  design-frame quality assessment for PCB/Schematic recording crops.
+
+## Changed
+
+- PCB ensemble candidates are now reviewed after their hypothetical operations
+  are applied in memory, so hard physical/layout findings affect selection;
+- PCB placement scoring now includes board compactness, centering, simple
+  repeated-pair symmetry and topology-backed high-di/dt-loop span;
+- silkscreen labels prefer closer association, normalize unreadable quarter-turn
+  text, may cross solder-masked traces, and still avoid foreign mounting areas,
+  pads, holes and vias;
+- the two public candidate-ranking tools accept optional validated engineering
+  rule packs without adding another MCP tool.
+
 # 0.3.0 detailed release changes
 
 This record preserves the detailed changes included in the immutable `v0.3.0`

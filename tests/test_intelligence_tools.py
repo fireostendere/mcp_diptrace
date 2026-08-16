@@ -17,6 +17,7 @@ from diptrace_mcp.errors import (
 )
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.pattern_recommendation import PatternRequirement
+from diptrace_mcp.reference_rules import EngineeringRulePack
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.server_runtime import create_server
 from diptrace_mcp.service import DipTraceService
@@ -475,6 +476,45 @@ def test_compare_pcb_placement_candidates_ranks_profiles(tmp_path: Path) -> None
     assert payload["selected_profile"]
     assert {item["profile"] for item in payload["candidates"]} >= {payload["selected_profile"]}
     assert payload["limitations"]
+
+
+def test_candidate_tools_accept_sha_bound_engineering_rule_pack(tmp_path: Path) -> None:
+    service, workspace = _service(tmp_path)
+    rules = EngineeringRulePack.model_validate(
+        {
+            "sources": [
+                {
+                    "source_id": "project",
+                    "kind": "project",
+                    "title": "Project constraints",
+                    "locator": "project://constraints/rev-a",
+                    "sha256": "b" * 64,
+                    "redistribution_allowed": True,
+                }
+            ],
+            "pcb_nets": [
+                {
+                    "source_id": "project",
+                    "override": {
+                        "selector": "VCC",
+                        "roles": ["power"],
+                        "constraints": {"current_a": 0.75},
+                    },
+                }
+            ],
+        }
+    )
+
+    result = service.compare_pcb_placement_candidates(
+        str(workspace / "pcb.xml"),
+        engineering_rules=rules,
+    )
+
+    assert result["ok"] is True
+    ingested = result["result"]["engineering_rules"]
+    assert ingested["pack_sha256"]
+    assert ingested["pcb_overrides"]["nets"][0]["constraints"]["current_a"] == 0.75
+    assert ingested["provenance"][0]["source_sha256"] == "b" * 64
 
 
 def test_recommend_patterns_applies_hard_filters(tmp_path: Path) -> None:

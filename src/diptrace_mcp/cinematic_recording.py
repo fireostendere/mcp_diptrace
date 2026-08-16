@@ -1111,6 +1111,77 @@ def _purple_outline_bbox(
     return (min_x, min_y, max_x + 2, max_y + 2)
 
 
+@dataclass(frozen=True, slots=True)
+class FrameQualityAssessment:
+    domain: str
+    boundary_detected: bool
+    framed: bool
+    controls_excluded: bool
+    fill_ratio: float | None
+    minimum_horizontal_margin_ratio: float | None
+    minimum_vertical_margin_ratio: float | None
+    boundary: tuple[int, int, int, int] | None
+    crop: tuple[int, int, int, int] | None
+
+
+def assess_design_frame(
+    frame: bytes,
+    *,
+    width: int,
+    viewport: tuple[int, int, int, int],
+    domain: str,
+) -> FrameQualityAssessment:
+    """Measure boundary-fit and the UI-free 10% output crop for one frame."""
+
+    if width <= 0 or len(frame) % (width * 4) != 0:
+        raise ValueError("frame must contain complete BGRA rows")
+    normalized_domain = domain.strip().casefold()
+    if normalized_domain not in {"pcb", "schematic"}:
+        raise ValueError("domain must be pcb or schematic")
+    detector = _purple_outline_bbox if normalized_domain == "pcb" else _visible_content_bbox
+    bounds = detector(frame, width=width, viewport=viewport)
+    if bounds is None:
+        return FrameQualityAssessment(
+            domain=normalized_domain,
+            boundary_detected=False,
+            framed=False,
+            controls_excluded=False,
+            fill_ratio=None,
+            minimum_horizontal_margin_ratio=None,
+            minimum_vertical_margin_ratio=None,
+            boundary=None,
+            crop=None,
+        )
+    crop = _padded_content_box(bounds, viewport)
+    content_width = bounds[2] - bounds[0]
+    content_height = bounds[3] - bounds[1]
+    crop_width = crop[2] - crop[0]
+    crop_height = crop[3] - crop[1]
+    horizontal_margin = min(bounds[0] - crop[0], crop[2] - bounds[2]) / content_width
+    vertical_margin = min(bounds[1] - crop[1], crop[3] - bounds[3]) / content_height
+    controls_excluded = (
+        crop[0] >= viewport[0]
+        and crop[1] >= viewport[1]
+        and crop[2] <= viewport[2]
+        and crop[3] <= viewport[3]
+    )
+    return FrameQualityAssessment(
+        domain=normalized_domain,
+        boundary_detected=True,
+        framed=(
+            _content_is_framed(bounds, viewport)
+            and horizontal_margin >= 0.08
+            and vertical_margin >= 0.08
+        ),
+        controls_excluded=controls_excluded,
+        fill_ratio=max(content_width / crop_width, content_height / crop_height),
+        minimum_horizontal_margin_ratio=horizontal_margin,
+        minimum_vertical_margin_ratio=vertical_margin,
+        boundary=bounds,
+        crop=crop,
+    )
+
+
 def _frame_has_visible_client_content(
     frame: bytes,
     *,

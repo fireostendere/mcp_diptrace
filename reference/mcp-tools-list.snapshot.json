@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 150193,
-  "canonical_descriptor_sha256": "8ac7c0820162e63409fc9291c50753e54b94e3784f7aa4c0fdc0073ef032e0ec",
+  "canonical_descriptor_bytes": 150777,
+  "canonical_descriptor_sha256": "6b111fd9e1197b6bed901e7141c1d077195f4bde1a12929c97d31c98bd66f526",
   "format_version": 1,
   "tool_count": 167,
   "tools": [
@@ -2158,9 +2158,26 @@
       }
     },
     {
-      "description": "Generate and rank bounded PCB Generation A-D placement candidates.",
+      "description": "Rank PCB A-D candidates with physics and optional sourced rules.",
       "inputSchema": {
+        "$defs": {
+          "EngineeringRulePack": {
+            "description": "Strict diptrace-engineering-rules-v1 object with sources, schematic_motifs, pcb_components, and pcb_nets; validated fully at runtime.",
+            "type": "object"
+          }
+        },
         "properties": {
+          "engineering_rules": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EngineeringRulePack"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "include_existing_board": {
             "default": true,
             "title": "Include Existing Board",
@@ -6249,9 +6266,26 @@
       }
     },
     {
-      "description": "Rank bounded schematic placement candidates by route quality, motifs and congestion.",
+      "description": "Rank schematic candidates with optional sourced engineering rules.",
       "inputSchema": {
+        "$defs": {
+          "EngineeringRulePack": {
+            "description": "Strict diptrace-engineering-rules-v1 object with sources, schematic_motifs, pcb_components, and pcb_nets; validated fully at runtime.",
+            "type": "object"
+          }
+        },
         "properties": {
+          "engineering_rules": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EngineeringRulePack"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "path": {
             "anyOf": [
               {
