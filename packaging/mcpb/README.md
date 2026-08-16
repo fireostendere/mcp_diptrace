@@ -1,6 +1,8 @@
 # MCPB packaging
 
-This directory contains the deterministic Windows MCP Bundle build source. Version `0.2.1` has already been published as `DipTrace-MCP-0.2.1-windows.mcpb`; future builds must use a new version and must not replace the published `v0.2.1` bytes.
+This directory contains the deterministic Windows MCP Bundle build source.
+Version `0.3.0` is published as `DipTrace-MCP-0.3.0-windows.mcpb`; future builds
+must use a new version and must not replace published bytes.
 
 Build the standalone Windows server first, then run:
 

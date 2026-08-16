@@ -51,27 +51,28 @@ DipTrace compatibility, authoritative refill geometry, or engineering sign-off.
 
 ## Current status
 
-The selected source/package candidate is `0.3.0`; it is not published yet. The
-annotated `v0.2.1` GitHub development prerelease and `diptrace-mcp==0.2.1` on
-PyPI remain the current published distribution, released on 2026-08-05 with:
+Version `0.3.0` is the current published unsigned development prerelease:
+[`v0.3.0` on GitHub](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.3.0)
+and [`diptrace-mcp==0.3.0` on PyPI](https://pypi.org/project/diptrace-mcp/0.3.0/).
+Its immutable assets include:
 
-- `DipTrace-MCP-Setup-0.2.1.exe`;
-- `DipTrace-MCP-Portable-0.2.1.zip`;
-- `DipTrace-MCP-0.2.1-windows.mcpb`;
-- wheel, source distribution, checksums, SBOM, dependency, notice, provenance,
-  and release records.
+- `DipTrace-MCP-Setup-0.3.0.exe`;
+- `DipTrace-MCP-Plugin-Setup-0.3.0.exe`;
+- `DipTrace-MCP-Portable-0.3.0.zip`;
+- `DipTrace-MCP-0.3.0-windows.mcpb`;
+- wheel, source distribution, checksum manifest and provenance record.
 
-The `0.3.0` candidate adds the schematic layout/placement-routing foundation,
+The `0.3.0` release adds the schematic layout/placement-routing foundation,
 PCB Generations A-D, compact-footprint preference, bounded two-layer GND-pour
 and stitching helpers, silkscreen cleanup, the 90% combined
 supported-environment coverage gate, and board-framed cinematic replay. The
 initial 18-case real-DipTrace schematic authoring/readability campaign is
-complete. These later source features are not retroactively part of the
-published `v0.2.1` bytes.
+complete.
 
 The previous [`v0.2.0`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.0)
-and current `v0.2.1` release identities remain immutable. Existing tags and
-published files are never replaced.
+and [`v0.2.1`](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.2.1)
+release identities remain immutable. Existing tags and published files are
+never replaced.
 
 The Windows executables are unsigned. CI, SHA-256, PyPI Trusted Publishing, and
 package attestations establish tested behaviour, byte identity, and publication
@@ -177,7 +178,7 @@ accuracy, PI/EMC sign-off, or globally optimal schematic/PCB layout.
 Python 3.10 or newer is required:
 
 ```bash
-python -m pip install diptrace-mcp==0.2.1
+python -m pip install diptrace-mcp==0.3.0
 diptrace-mcp --help
 ```
 
@@ -188,19 +189,21 @@ published package.
 
 ### Windows installer
 
-1. Download `DipTrace-MCP-Setup-0.2.1.exe` and `SHA256SUMS.txt` from the same
-   `v0.2.1` GitHub Release.
+1. Download `DipTrace-MCP-Setup-0.3.0.exe` and `SHA256SUMS.txt` from the same
+   `v0.3.0` GitHub Release.
 2. Verify the SHA-256 value.
 3. Run the installer and select the DipTrace location, workspace, state
    directory, and optional Codex/Claude configuration.
-4. Restart DipTrace and the MCP client.
-5. Call `get_capabilities`.
+4. Run `DipTrace-MCP-Plugin-Setup-0.3.0.exe` with administrator privileges when
+   machine-wide DipTrace integration is required.
+5. Restart DipTrace and the MCP client.
+6. Call `get_capabilities`.
 
 Windows may show a SmartScreen warning because the binaries are unsigned.
 
 ### Portable Windows bundle
 
-Download and verify `DipTrace-MCP-Portable-0.2.1.zip`, extract it to a stable
+Download and verify `DipTrace-MCP-Portable-0.3.0.zip`, extract it to a stable
 location, read its `README_FIRST.txt`, and use the included helper tools.
 
 ### Python source installation
@@ -219,7 +222,8 @@ complete path.
 
 ## MCPB, Registry, and Smithery
 
-Version `0.2.1` is already published through the prepared distribution route:
+Version `0.3.0` GitHub/PyPI assets are published. The distribution route also
+provides:
 
 - deterministic Windows MCPB packaging;
 - canonical Registry identity `io.github.fireostendere/diptrace-mcp`;
@@ -230,7 +234,7 @@ Version `0.2.1` is already published through the prepared distribution route:
 
 The MCPB contains the self-contained Windows stdio server. It does not silently
 install the DipTrace bridge plug-in. Live exchange requires the matching bridge
-and settings from the same GitHub release/source candidate.
+and settings from the same GitHub release/tag.
 
 See [MCP distribution and package publication](docs/MCP_DISTRIBUTION.md).
 
@@ -349,8 +353,8 @@ See [Testing](docs/TESTING.md) and [Development](docs/DEVELOPMENT.md).
 - [Security and policy](docs/SECURITY_AND_POLICY.md)
 - [Transactions](docs/TRANSACTIONS.md)
 - [Release process](docs/RELEASE_PROCESS.md)
-- [v0.3.0 candidate checklist](docs/RELEASE_0_3_0_CHECKLIST.md)
-- [v0.3.0 candidate record](docs/releases/v0.3.0.md)
+- [v0.3.0 release checklist](docs/RELEASE_0_3_0_CHECKLIST.md)
+- [v0.3.0 release record](docs/releases/v0.3.0.md)
 - [v0.2.1 release checklist](docs/RELEASE_0_2_1_CHECKLIST.md)
 - [v0.2.1 release record](docs/releases/v0.2.1.md)
 

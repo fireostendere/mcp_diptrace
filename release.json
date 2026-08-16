@@ -1,7 +1,7 @@
 {
   "pypi_project": "diptrace-mcp",
-  "pypi_workflow_run": null,
-  "release_status": "candidate-unpublished-development-prerelease",
+  "pypi_workflow_run": 31915399966,
+  "release_status": "published-unsigned-development-prerelease",
   "tag": "v0.3.0",
   "version": "0.3.0"
 }

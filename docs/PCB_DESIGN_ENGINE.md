@@ -142,7 +142,8 @@ Every non-baseline candidate comes from the existing bounded placement planner. 
 
 This is deliberately not an invented autorouter. Candidate scoring may penalize unresolved routing/reference evidence, but it does not synthesize traces, vias, stackup facts, current ratings or solver output.
 
-The selected candidate still requires ordinary semantic application, review/DRC and claim-specific real DipTrace evidence.
+Every selected candidate still requires ordinary semantic application,
+review/DRC and claim-specific real DipTrace evidence.
 
 ## DSN/SES integration
 

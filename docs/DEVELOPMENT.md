@@ -4,7 +4,9 @@
 
 The current source/package version is `0.3.0`. The public MCP contract currently registers 167 tools (165 existing tools plus the read-only built-in-library bridge). `DipTraceService` is the stable public Facade; typed domain implementations live under `src/diptrace_mcp/services/`.
 
-`v0.2.1` is already published as an unsigned GitHub development prerelease and as `diptrace-mcp==0.2.1` on PyPI. Development on `main` has continued after that immutable release, so a source checkout may contain capabilities not present in the published `v0.2.1` artifacts.
+`v0.3.0` is published as an unsigned GitHub development prerelease and as
+`diptrace-mcp==0.3.0` on PyPI. Development on `main` continues after that
+immutable release, so use the tag when exact released bytes matter.
 
 ## Repository structure
 

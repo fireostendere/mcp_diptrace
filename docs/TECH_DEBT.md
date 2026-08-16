@@ -117,7 +117,10 @@ Historical records that said otherwise remain valid snapshots of their original 
 
 ## Documentation/evidence state policy
 
-Dated release/audit/acceptance/compliance records preserve historical facts. Evergreen docs describe current implementation and explicitly link to historical evidence. `CHANGELOG_NEXT.md` tracks post-`v0.2.1` development until the next release is selected.
+Dated release/audit/acceptance/compliance records preserve historical facts.
+Evergreen docs describe current implementation and explicitly link to historical
+evidence. `CHANGELOG_NEXT.md` tracks post-`v0.3.0` development until the next
+release is selected.
 
 `scripts/check_documentation_state.py` guards key current-state relationships against code and the frozen public-tools snapshot. It intentionally does not rewrite or reinterpret immutable historical records.
 

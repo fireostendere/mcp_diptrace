@@ -2,8 +2,8 @@
 
 ## 0.3.0 - 2026-08-16
 
-Version `0.3.0` is an unsigned development prerelease. These changes are not
-part of the already-published `v0.2.1` bytes.
+Version `0.3.0` is a published unsigned development prerelease following the
+immutable `v0.2.1` release.
 
 ### Added
 
@@ -38,13 +38,12 @@ part of the already-published `v0.2.1` bytes.
   its recorded checkpoints. Claude Desktop restart and custom-state preservation
   are operator-confirmed PASS from a separate machine; their earlier
   WAIVED/pending states remain historical only.
-- Evergreen documentation was reconciled with the published `v0.2.1` state and
-  current post-release implementation without rewriting dated release,
-  acceptance, or compliance snapshots.
+- Evergreen documentation records the transition from `v0.2.1` to published
+  `v0.3.0` without rewriting dated release, acceptance or compliance snapshots.
 - The operator accepted the current repository PCB/Schematic examples and both
   GIF/MP4 outputs in the current DipTrace configuration on 2026-08-16.
 
-See `CHANGELOG_NEXT.md` for the detailed post-`v0.2.1` development record.
+See `CHANGELOG_NEXT.md` for the detailed `v0.3.0` release record.
 
 ## 0.2.1 - 2026-08-05
 
