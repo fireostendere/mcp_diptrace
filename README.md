@@ -51,31 +51,38 @@ DipTrace compatibility, authoritative refill geometry, or engineering sign-off.
 
 ## Current status
 
-Version `0.4.0` is the current unsigned development release candidate. Until
-publication, [`v0.3.0` on GitHub](https://github.com/fireostendere/mcp_diptrace/releases/tag/v0.3.0)
-and [`diptrace-mcp==0.3.0` on PyPI](https://pypi.org/project/diptrace-mcp/0.3.0/)
-remain the latest immutable public release.
+Version `0.4.0` is the current published unsigned development release. The
+immutable GitHub release is `v0.4.0`, and the matching Python package is
+`diptrace-mcp==0.4.0` on PyPI.
 
-The v0.4.0 candidate keeps the public MCP contract frozen at 167 tools and adds
-the A1-A8 roadmap closure, Linux one-command deployment with private-Xvfb GUI
-isolation, and macOS one-command deployment using the official DipTrace.app bundled
-Wine runtime with hidden-Win32-desktop automation on Apple Silicon and Intel.
+The published release keeps the public MCP contract frozen at 167 tools and
+contains the A1-A8 roadmap closure plus tested cross-platform host paths:
 
-Expected v0.4.0 release assets include:
+- Windows split per-user/admin installers and portable bundle;
+- Ubuntu 24.04 x86-64 one-command deployment with Wine and private-Xvfb GUI
+  isolation;
+- macOS 15 one-command deployment on Apple Silicon and Intel using the official
+  DipTrace.app bundled Wine runtime and hidden-Win32-desktop automation.
+
+Published `v0.4.0` GitHub assets are:
 
 - `DipTrace-MCP-Setup-0.4.0.exe`;
 - `DipTrace-MCP-Plugin-Setup-0.4.0.exe`;
 - `DipTrace-MCP-Portable-0.4.0.zip`;
-- `DipTrace-MCP-0.4.0-windows.mcpb`;
-- wheel, source distribution, checksum manifest and provenance record;
-- `scripts/install_linux.sh` and `scripts/install_macos.sh` as repository/tag bootstrap paths.
+- `SHA256SUMS.txt`.
 
-The immutable v0.3.0, v0.2.1 and earlier release identities are not rewritten or
-replaced by this candidate.
-The Windows executables are unsigned. CI, SHA-256, PyPI Trusted Publishing, and
-package attestations establish tested behaviour, byte identity, and publication
+The v0.4.0 MCPB/registry preparation gate passed before release, but no v0.4.0
+MCPB was attached to the public GitHub release. Do not infer an unpublished
+bundle from preparation-only CI evidence; the older published MCPB identity
+remains a separate historical distribution line.
+
+The Windows executables are unsigned. CI, SHA-256, PyPI Trusted Publishing and
+package attestations establish tested behaviour, byte identity and publication
 provenance. They do not create a trusted Authenticode signature, universal
-compatibility, independent review, or production readiness.
+compatibility, independent review or production readiness.
+
+`main` may contain post-release hardening that is not part of immutable
+`v0.4.0`; use the tag when reproducibility matters.
 
 ## Public Release Status
 
@@ -192,7 +199,7 @@ accuracy, PI/EMC sign-off, or globally optimal schematic/PCB layout.
 After reviewing the DipTrace license, the validated x86-64 Debian/Ubuntu path is:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/main/scripts/install_linux.sh \
+curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/v0.4.0/scripts/install_linux.sh \
   | bash -s -- --accept-diptrace-license
 ```
 
@@ -209,7 +216,7 @@ The macOS path uses the Wine runtime bundled inside the official DipTrace 5.3.0.
 application. No separate Homebrew Wine or XQuartz installation is required:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/main/scripts/install_macos.sh \
+curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/v0.4.0/scripts/install_macos.sh \
   | bash -s -- --accept-diptrace-license
 ```
 
@@ -221,8 +228,7 @@ desktop worker without physical mouse/keyboard fallback. See
 
 ### PyPI
 
-Python 3.10 or newer is required. After v0.4.0 publication:
-
+Python 3.10 or newer is required.
 ```bash
 python -m pip install diptrace-mcp==0.4.0
 diptrace-mcp --help

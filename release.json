@@ -1,7 +1,23 @@
 {
-  "pypi_project": "diptrace-mcp",
-  "pypi_workflow_run": null,
-  "release_status": "release-candidate",
+  "version": "0.4.0",
   "tag": "v0.4.0",
-  "version": "0.4.0"
+  "release_status": "published-unsigned-development-release",
+  "published_at": "2026-08-16T22:34:44Z",
+  "validated_candidate_sha": "72750d195e204cf0c11c04d71364055ca7634c6b",
+  "tag_target_sha": "b4c0132283ff16a0bca81567df6704d1f6a73c7f",
+  "tag_object_sha": "3794c32c7d94456aec2ed358326e953e21e3fa21",
+  "github_release_id": 371451484,
+  "github_release_workflow_run": 31976705266,
+  "pypi_project": "diptrace-mcp",
+  "pypi_workflow_run": 31976705280,
+  "assets": {
+    "DipTrace-MCP-Setup-0.4.0.exe": "c4b9ae77028c85131c0c9ffb145d21b6eb55e86e9fdc0c7e43ec8025b7a96a37",
+    "DipTrace-MCP-Plugin-Setup-0.4.0.exe": "b5862f45dc9b188e64a9f7b4ee56dc204fef5a3d06d89f14a77af4281a6ca0a2",
+    "DipTrace-MCP-Portable-0.4.0.zip": "5eda04ab86e6b99a3ca4edad17f8e868142d8b1176c9d7d01842f8c887db0e79",
+    "SHA256SUMS.txt": "ab5b4066ffa7e0f95a15e43ccecbb7d84841e679f12af3051517c281eb3a741d"
+  },
+  "pypi_artifacts": {
+    "diptrace_mcp-0.4.0-py3-none-any.whl": "5e0aa2c4a15252ee299093c9e169e813c9bc07f54e6358c742760caa6fafcabc",
+    "diptrace_mcp-0.4.0.tar.gz": "2704fbf47d43dccad7726a9effd4ae954e38e007430895c21e615e48f38e5b8d"
+  }
 }

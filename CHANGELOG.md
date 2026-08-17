@@ -2,7 +2,17 @@
 
 ## 0.4.0 - 2026-08-16
 
-Version `0.4.0` is the current unsigned development release candidate.
+Version `0.4.0` is the current published unsigned development release.
+
+### Publication
+
+- Published as annotated tag `v0.4.0` with GitHub release ID `371451484`.
+- Published `diptrace-mcp==0.4.0` to PyPI through OIDC Trusted Publishing; both
+  wheel and source distribution returned `200 OK` and received attestations.
+- Published Windows per-user installer, administrator plug-in installer,
+  portable bundle and `SHA256SUMS.txt`; a v0.4.0 MCPB was not attached.
+- Linux/macOS release installation is bootstrapped from the immutable v0.4.0
+  installer scripts rather than from moving `main`.
 
 ### Added
 

@@ -2,23 +2,17 @@
 
 ## Status
 
-The immutable `v0.3.0` development prerelease is still the latest published
-Windows distribution. The current `v0.4.0` release candidate keeps the same
-hardened split privilege architecture and now builds its Windows artifacts with
-`0.4.0` identity alongside the new Linux/macOS host paths. The Windows packaging
-line separates the per-user MCP installation from the administrator-only
-DipTrace plug-in installation:
+The immutable `v0.4.0` unsigned development release is the current published
+Windows distribution. It preserves the hardened split-privilege architecture:
 
-- `DipTrace-MCP-Setup-<version>.exe` — per-user server/configurator installer;
-- `DipTrace-MCP-Plugin-Setup-<version>.exe` — administrator-only DipTrace plug-in
+- `DipTrace-MCP-Setup-0.4.0.exe` — per-user server/configurator installer;
+- `DipTrace-MCP-Plugin-Setup-0.4.0.exe` — administrator-only DipTrace plug-in
   installer with a self-contained bridge/settings payload;
-- `DipTrace-MCP-Portable-<version>.zip`;
-- release checksums/provenance records.
+- `DipTrace-MCP-Portable-0.4.0.zip`;
+- `SHA256SUMS.txt`.
 
-The published `v0.3.0` binaries and the `v0.4.0` candidate Windows binaries
-remain unsigned. Older published assets retain their original identities and
-checksums; `v0.4.0` must be published as new immutable assets rather than
-replacing any `v0.3.0` bytes.
+The Windows binaries remain unsigned. Older published assets retain their own
+immutable identities/checksums and are never replaced by later versions.
 
 ## Design goals
 
@@ -165,8 +159,8 @@ Typical source build commands on Windows:
 The installer build emits both Inno Setup executables plus the portable ZIP and
 one release checksum manifest covering all three assets.
 
-The current workflow and installer-script default are aligned to `0.4.0` for
-this release candidate. Future releases must select their own new version. Do not
+The published v0.4.0 workflow/build identity remains immutable. Future releases
+must select a new version and produce a new exact-tag artifact run. Do not
 rebuild different binaries under any immutable published identity, including
 `0.3.0` or, after publication, `0.4.0`.
 

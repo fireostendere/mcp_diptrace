@@ -8,12 +8,22 @@ This roadmap separates three states:
 
 Implementation never implies universal DipTrace compatibility. Historical evidence stays bound to the production identity that was actually tested.
 
-## Current checkpoint — 2026-08-16
+## Current checkpoint — 2026-08-17
 
-The current source/package version is `0.4.0`. Version `v0.4.0` is the current
-unsigned development release candidate. The immutable `v0.3.0` prerelease and
-PyPI package remain the latest published identity until this candidate is released;
-older releases remain immutable historical identities.
+The current source/package version is `0.4.0`. Version `v0.4.0` is the current published
+unsigned development release. Its annotated tag targets
+`b4c0132283ff16a0bca81567df6704d1f6a73c7f`; the GitHub release and
+`diptrace-mcp==0.4.0` PyPI package are public immutable identities.
+
+The exact pre-release cross-platform candidate
+`72750d195e204cf0c11c04d71364055ca7634c6b` passed the Windows, Linux, macOS,
+PyPI-validation, MCPB/registry-preparation and repository-CI gates before the
+release/tag sequence. Preparation-only MCPB evidence did not publish a v0.4.0
+MCPB asset.
+
+Current `main` may contain post-release documentation/release-pipeline hardening
+that is intentionally not part of the immutable `v0.4.0` bytes. Historical
+release and acceptance evidence stays bound to the identity actually tested.
 
 The schematic-quality production fixes were merged by PR #90. The production merge identity is:
 

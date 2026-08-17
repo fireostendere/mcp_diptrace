@@ -2,35 +2,45 @@
 
 ## Current release status
 
-`v0.4.0` is the current release candidate. Publication is blocked on the
-exact-candidate Windows, Linux, macOS, documentation, package and contract gates in
-[RELEASE_0_4_0_CHECKLIST.md](RELEASE_0_4_0_CHECKLIST.md). The host claim covers
-Windows, Ubuntu 24.04 x86-64, and macOS 15 on Apple Silicon and Intel only at
-the bounded levels recorded in [releases/v0.4.0.md](releases/v0.4.0.md).
-
-
-Version `v0.3.0` is the current published unsigned development prerelease.
-Its completed gates and immutable evidence are tracked in
-[RELEASE_0_3_0_CHECKLIST.md](RELEASE_0_3_0_CHECKLIST.md) and
-[releases/v0.3.0.md](releases/v0.3.0.md).
+`v0.4.0` is the current published unsigned development release.
 
 Immutable/current published identities:
 
-- annotated tag: `v0.3.0`;
-- exact tag target / release merge commit: `fbbbda176043c555b04a908bb63f6fc4ac5909cb`;
-- GitHub prerelease: `v0.3.0`;
-- PyPI package: `diptrace-mcp==0.3.0`;
-- Windows installer: `DipTrace-MCP-Setup-0.3.0.exe`;
-- administrator plug-in installer: `DipTrace-MCP-Plugin-Setup-0.3.0.exe`;
-- portable bundle: `DipTrace-MCP-Portable-0.3.0.zip`;
-- Windows MCPB: `DipTrace-MCP-0.3.0-windows.mcpb`;
-- registry identity: `io.github.fireostendere/diptrace-mcp`.
+- annotated tag: `v0.4.0`;
+- tag object: `3794c32c7d94456aec2ed358326e953e21e3fa21`;
+- exact tag target: `b4c0132283ff16a0bca81567df6704d1f6a73c7f`;
+- exact pre-release candidate: `72750d195e204cf0c11c04d71364055ca7634c6b`;
+- GitHub release ID: `371451484`;
+- PyPI package: `diptrace-mcp==0.4.0`;
+- PyPI publish workflow run: `31976705280`;
+- Windows installer: `DipTrace-MCP-Setup-0.4.0.exe`;
+- administrator plug-in installer: `DipTrace-MCP-Plugin-Setup-0.4.0.exe`;
+- portable bundle: `DipTrace-MCP-Portable-0.4.0.zip`;
+- Linux/macOS bootstrap scripts: immutable `v0.4.0` tag paths.
 
-The immutable release record is [releases/v0.3.0.md](releases/v0.3.0.md).
-The older `v0.2.0` and `v0.2.1` tags/assets also remain immutable. Development
-after `v0.3.0` is tracked in `CHANGELOG_NEXT.md` until another version is selected.
+A v0.4.0 MCPB was not attached to the GitHub release. The MCPB/registry workflow
+for the candidate was a preparation/validation gate only and must not be
+represented as published v0.4.0 bytes.
 
-Windows executables remain unsigned. CI, SHA-256, PyPI Trusted Publishing and package attestations can establish tested behaviour, byte identity and publication provenance; they do not establish Authenticode trust, universal compatibility, independent review or production readiness.
+The completed release checklist and publication evidence are recorded in
+[RELEASE_0_4_0_CHECKLIST.md](RELEASE_0_4_0_CHECKLIST.md) and
+[releases/v0.4.0.md](releases/v0.4.0.md). Older release records remain immutable
+historical identities.
+
+Future releases use two reusable boundaries instead of version-specific one-shot
+workflows:
+
+- `.github/workflows/pypi.yml` accepts an annotated `v*` tag only when it exactly
+  matches the version in `pyproject.toml`, builds/audits wheel+sdist separately,
+  then publishes through the protected `pypi` environment and OIDC;
+- `.github/workflows/release.yml` is an explicit dispatch that requires the exact
+  annotated tag plus a successful `Windows one-click installer` run whose
+  `head_sha` equals the tag target. It refuses to replace an existing release.
+
+Windows executables remain unsigned. CI, SHA-256, PyPI Trusted Publishing and
+package attestations establish tested behaviour, byte identity and publication
+provenance; they do not establish Authenticode trust, universal compatibility,
+independent review or production readiness.
 
 ## Historical release evidence versus current manual evidence
 

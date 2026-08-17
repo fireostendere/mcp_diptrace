@@ -138,33 +138,30 @@ def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
     jobs = workflow["jobs"]
 
     assert workflow["permissions"] == {"contents": "read"}
-    assert workflow["env"] == {"RELEASE_VERSION": "0.4.0", "RELEASE_TAG": "v0.4.0"}
-    assert "workflow_run:" in workflow_text
-    assert 'Create annotated v0.4.0 tag' in workflow_text
+    assert '      - "v*"' in workflow_text
+    assert "workflow_run:" not in workflow_text
+    assert 'RELEASE_VERSION: "0.4.0"' not in workflow_text
+    assert 'RELEASE_TAG: "v0.4.0"' not in workflow_text
 
     build = jobs["build"]
     build_commands = _job_commands(build)
-    assert build["steps"][0]["with"]["ref"] == (
-        "${{ (github.event_name == 'push' || (github.event_name == 'workflow_run' "
-        "&& github.event.workflow_run.conclusion == 'success' "
-        "&& github.event.workflow_run.head_branch == 'main') || "
-        "(github.event_name == 'workflow_dispatch' && inputs.publish)) "
-        "&& 'v0.4.0' || github.sha }}"
-    )
+    checkout_ref = build["steps"][0]["with"]["ref"]
+    assert "github.ref_name" in checkout_ref
+    assert "inputs.tag" in checkout_ref
+    assert "tomllib" in build_commands
+    assert "RELEASE_VERSION" in build_commands
+    assert "RELEASE_TAG" in build_commands
+    assert "git cat-file -t" in build_commands
+    assert "git rev-parse HEAD" in build_commands
     assert "python -m hatchling build -d dist" in build_commands
     assert "audit_release_artifacts.py --dist-dir dist --check-allowlist" in build_commands
     assert "python -m twine check --strict dist/*" in build_commands
-    assert "git cat-file -t" in build_commands
-    assert "git rev-parse HEAD" in build_commands
     assert "diptrace_mcp.__version__" in build_commands
 
     publish = jobs["publish"]
-    assert publish["if"] == (
-        "${{ github.event_name == 'push' || (github.event_name == 'workflow_run' "
-        "&& github.event.workflow_run.conclusion == 'success' "
-        "&& github.event.workflow_run.head_branch == 'main') || "
-        "(github.event_name == 'workflow_dispatch' && inputs.publish == true) }}"
-    )
+    assert "workflow_run" not in publish["if"]
+    assert "github.event_name == 'push'" in publish["if"]
+    assert "inputs.publish == true" in publish["if"]
     assert publish["needs"] == "build"
     assert publish["environment"] == {
         "name": "pypi",
@@ -177,3 +174,45 @@ def test_pypi_workflow_builds_before_a_minimal_oidc_publish_job() -> None:
     )
     assert "password:" not in workflow_text
     assert "username:" not in workflow_text
+
+
+def test_generic_github_release_workflow_is_exact_tag_immutable_and_self_verifying() -> None:
+    workflow_path = ROOT / ".github/workflows/release.yml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+    jobs = workflow["jobs"]
+
+    assert "workflow_dispatch:" in workflow_text
+    assert "schedule:" in workflow_text
+    assert "windows_run_id:" in workflow_text
+    assert "v0.4.0" not in workflow_text
+    assert not (ROOT / ".github/workflows/release-v0.4.0.yml").exists()
+    assert not (ROOT / ".github/workflows/tag-v0.4.0-on-main.yml").exists()
+
+    verify = jobs["verify-published"]
+    verify_commands = _job_commands(verify)
+    assert "github.event_name == 'pull_request'" in verify["if"]
+    assert "github.event_name == 'schedule'" in verify["if"]
+    assert "release.json" in verify_commands
+    assert "releases/download" in verify_commands
+    assert "SHA-256" in verify_commands
+    assert "pypi.org/pypi/" in verify_commands
+    assert "--no-cache-dir" in verify_commands
+    assert "diptrace_mcp.__version__" in verify_commands
+
+    publish = jobs["publish"]
+    assert publish["permissions"] == {"contents": "write", "actions": "read"}
+    commands = _job_commands(publish)
+    assert "git cat-file -t" in commands
+    assert "pyproject.toml" in commands
+    assert "head_sha" in commands
+    assert "Windows one-click installer" in commands
+    assert "release create" in commands
+    assert "already exists; refusing to replace published bytes" in commands
+    assert "--clobber" not in commands
+
+    download_step = next(
+        step for step in publish["steps"]
+        if isinstance(step, dict) and step.get("uses", "").startswith("actions/download-artifact@")
+    )
+    assert download_step["with"]["run-id"] == "${{ inputs.windows_run_id }}"
