@@ -9,6 +9,11 @@ def _main() -> int:
 
         return headless_main(sys.argv[2:])
 
+    if len(sys.argv) > 1 and sys.argv[1] == "pcb-acceptance":
+        from diptrace_mcp.pcb_native_acceptance import main
+
+        return main(sys.argv[2:])
+
     from diptrace_mcp.headless_gui import main
 
     return main()

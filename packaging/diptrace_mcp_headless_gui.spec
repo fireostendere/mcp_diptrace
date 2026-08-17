@@ -24,6 +24,7 @@ hiddenimports = [
     "diptrace_mcp.diptrace_window",
     "diptrace_mcp.domain",
     "diptrace_mcp.headless_gui",
+    "diptrace_mcp.pcb_native_acceptance",
     "diptrace_mcp.windows_configurator",
 ]
 

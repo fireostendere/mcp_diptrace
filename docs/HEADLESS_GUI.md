@@ -61,7 +61,7 @@ stealing the user's physical keyboard or mouse.
 
 The primary authoring path remains DipTrace XML plus semantic MCP operations. The
 Windows GUI worker is only for host actions that require a real DipTrace process.
-The first supported native operation is a bounded round trip:
+The base supported native operation is a bounded round trip:
 
 1. choose `hidden` or explicit `native` desktop mode;
 2. launch the worker on the verified target desktop;
@@ -75,9 +75,16 @@ Hidden mode is the default. Native mode is refused when the worker is elevated,
 when the input desktop cannot be resolved, when the process is not attached to
 `WinSta0`, or when the worker lands in a different Windows session.
 
-The same worker can later support verified host actions such as exports, ERC/DRC
-and refill/generation commands. Those actions should be added only after the
-corresponding DipTrace controls have been verified on a real host.
+A bounded PCB evidence profile now composes the same primitives for a verified
+native-action sequence: copper-pour refill, DRC, Save/Close/Reopen and PCB XML
+Save As. It is intentionally an evidence workflow rather than a new MCP tool.
+Unknown or localized controls fail closed or return `HUMAN_REVIEW_REQUIRED`;
+they never trigger coordinate or physical-input fallback. See
+[DipTrace evidence capture](EVIDENCE_CAPTURE.md).
+
+Other editors/actions still require their own verified control profile before
+they can be added. In particular, this PCB profile does not imply generic ERC,
+manufacturing-output generation, or arbitrary DipTrace-dialog automation.
 
 ## Requirements
 
@@ -103,6 +110,12 @@ console entry point. Invoke the maintained module directly:
 
 ```powershell
 py -m diptrace_mcp.headless_gui --help
+```
+
+The native PCB evidence profile is likewise module-invoked from a source install:
+
+```powershell
+py -m diptrace_mcp.pcb_native_acceptance --help
 ```
 
 ## Hidden isolation smoke test
@@ -197,6 +210,36 @@ Save and `WM_CLOSE` are posted to the same target window queue in that order.
 The result is successful only when DipTrace exits normally. A timeout requires
 forced termination and is returned as `ok: false`, so a posted-but-unprocessed
 Save cannot be reported as a completed round trip.
+
+## Native PCB evidence profile
+
+The Windows source-install entry point is:
+
+```powershell
+py -m diptrace_mcp.pcb_native_acceptance run `
+  --diptrace-root "C:\Program Files\DipTrace" `
+  --project "C:\work\board.dipxml" `
+  --output-xml "C:\work\evidence\board.native.dipxml"
+```
+
+The bundled helper exposes the same profile through its internal dispatcher:
+
+```powershell
+& "<helper>\diptrace_mcp_headless_gui.exe" pcb-acceptance run `
+  --diptrace-root "C:\Program Files\DipTrace" `
+  --project "C:\work\board.dipxml" `
+  --output-xml "C:\work\evidence\board.native.dipxml"
+```
+
+The profile records the native menu paths actually used, DRC dialog texts,
+project/export hashes, whole-board structural summaries, XML semantic delta,
+PIDs and Win32 isolation identity in a `*.native-evidence.json` sidecar. A binary
+`.dip` project needs `--baseline-xml` for an automatic semantic verdict.
+
+`PASS` is deliberately strict: successful native execution alone is insufficient.
+A known DRC success result and exact semantic equality with the immutable baseline
+are also required. Structurally stable but unexplained native canonicalization is
+`HUMAN_REVIEW_REQUIRED`, not PASS.
 
 ## Hidden cinematic capture
 
@@ -305,10 +348,15 @@ They verify desktop creation/targeting, `WinSta0` attachment and session identit
 without requiring DipTrace. The Windows packaging workflow also builds and tests
 the split per-user/admin installer boundary.
 
+Unit/packaging CI validates the native PCB evidence state machine, bounded verdict
+rules and frozen-helper dispatch, but hosted GitHub runners still do not provide
+the licensed/local DipTrace installation needed to prove the actual PCB 5.3 menu
+profile. The first target-host run therefore remains required before that profile
+is treated as real-host validated.
+
 The repository includes one real-host I²C schematic capture and controlled
-open/save/reopen evidence. Hosted GitHub runners do not provide the licensed/local
-DipTrace installation used for that evidence. Passing CI proves the bounded
-Windows primitives and packaging, not universal DipTrace UI compatibility.
+open/save/reopen evidence. Passing hosted CI proves the bounded Windows primitives
+and packaging, not universal DipTrace UI compatibility.
 
 
 ## macOS hidden-desktop backend
