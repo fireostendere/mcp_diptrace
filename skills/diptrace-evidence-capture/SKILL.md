@@ -1,16 +1,55 @@
 ---
 name: diptrace-evidence-capture
-description: Guide a human operator through quarantined DipTrace source, open-save, and re-export capture, dry-run ingest, MCP validation, explicit confirmation, and metadata recording. Use when the user says “Guide an operator through a reviewable DipTrace round-trip capture.”
+description: Collect reviewable DipTrace evidence with native headless PCB acceptance when supported, otherwise guide a human operator through quarantined source/open-save/re-export capture, dry-run ingest, MCP validation, explicit confirmation, and metadata recording. Use when the user says “Guide an operator through a reviewable DipTrace round-trip capture.”
 ---
 
 # DipTrace evidence capture
 
-Collect a reviewable candidate without promoting operator claims to trusted provenance. Read
-[`references/operator-workflow.md`](references/operator-workflow.md) before running commands.
-Use public `tools/list` for exact callable names and `get_capabilities` for session, document, and
-feature availability.
+Prefer the most deterministic available evidence path without promoting runtime or operator claims
+to trusted provenance. For current whole-board PCB validation on a real Windows DipTrace host, use
+the native headless profile first. For unsupported native actions, editors, format probes, or human
+visual questions, use the legacy operator workflow in
+[`references/operator-workflow.md`](references/operator-workflow.md).
 
-## Mandatory stage order
+Use public `tools/list` for exact callable names and `get_capabilities` for session, document,
+and feature availability. Native host orchestration is a local helper and does not expand the MCP
+tool contract.
+
+## Native PCB acceptance first
+
+Run the bounded native PCB rail when the task is refill/DRC/save/reopen/XML round-trip evidence:
+
+```powershell
+py -m diptrace_mcp.pcb_native_acceptance run `
+  --diptrace-root "C:\Program Files\DipTrace" `
+  --project "C:\work\board.dipxml" `
+  --output-xml "C:\work\evidence\board.native.dipxml"
+```
+
+For a binary `.dip` project, provide `--baseline-xml expected.dipxml`. The helper snapshots the
+baseline before GUI mutation, runs the real PCB editor on the isolated Win32 desktop by default,
+invokes the bounded `diptrace-5.3-en-v1` menu profile, saves/closes/reopens, exports distinct XML,
+and writes a `*.native-evidence.json` sidecar.
+
+Interpret the result exactly:
+
+- `PASS` / exit `0`: DRC matched a verified success token, structural invariants stayed equal, and
+  the full XML semantic fingerprint equals the immutable baseline.
+- `FAIL` / exit `1`: the native pipeline failed, DRC exposed a positive error count, structural
+  invariants changed, or desktop/window-station/session safety evidence changed.
+- `HUMAN_REVIEW_REQUIRED` / exit `2`: native transport completed but a locale/dialog is unknown,
+  no immutable baseline exists, or a full semantic delta remains after stable structural checks.
+
+Do not reinterpret `HUMAN_REVIEW_REQUIRED` as PASS. Do not recover from an unknown menu/dialog by
+coordinate clicks, `SendInput`, physical cursor movement, or synthesized keyboard shortcuts. A new
+DipTrace build/locale must first establish a reviewed native profile or fall back to operator
+capture.
+
+The native summary binds components, nets/endpoints, traces/points, vias, copper and plane layers,
+via styles, copper pours, ratlines, unresolved multi-pad nets, duplicate IDs, hashes, PIDs and
+Win32 desktop/session identity. It does not prove electrical correctness or grant fixture trust.
+
+## Legacy mandatory stage order
 
 1. **Candidate capture:** choose a committed question recipe and initialize an operator-owned
    allowed root. Record three distinct roles in order: `source`, `open_save`, `reexport`. Each role
@@ -37,26 +76,26 @@ registry entries.
 
 ## Quantitative and provenance boundaries
 
-- Required capture roles: exactly three named stages; paths must be distinct even when bytes are
-  identical.
-- Supported XML source types: PCB, Schematic, Component Library, and Pattern Library.
-- Supported document units recorded literally: `mm`, `inch`, and `mil`.
-- Each XML input is bounded at 128 MiB; DTD and entity declarations are refused.
+- Native XML and legacy XML inputs are bounded at 128 MiB; DTD and entity declarations are refused.
+- Legacy capture requires exactly 3 distinct role paths: `source`, `open_save`, and `reexport`.
+- Supported XML source types are PCB, Schematic, Component Library, and Pattern Library.
+- Supported document units are recorded literally as `mm`, `inch`, and `mil`.
 - Optional private inputs are bounded to 32 files of 128 MiB each and must remain under the allowed
   root, outside `.diptrace-capture`, with no symlink, junction, or hard-link alias.
-- A SHA-256 is exactly 64 lowercase hexadecimal characters and is rechecked at every handoff.
-- Private-input metadata is exactly `role`, `name`, `path`, `sha256`, and `size_bytes`. Hash binding
-  remains operator-supplied and grants no authorship, DipTrace-use, or redistribution claim.
+- A SHA-256 is exactly 64 lowercase hexadecimal characters and is rechecked at each evidence
+  handoff.
+- Native `PASS` is an execution/round-trip verdict only. Trust promotion remains a separate reviewed
+  registry/fixture action.
 
-The packaged scripts are byte-identical mirrors of
+The packaged legacy scripts are byte-identical mirrors of
 [`../../scripts/capture_diptrace_evidence.py`](scripts/capture_diptrace_evidence.py) and
 [`../../scripts/ingest_fixtures.py`](scripts/ingest_fixtures.py); their hashes are pinned in
 [`../SOURCES.sha256`](../SOURCES.sha256).
 
 ## Result
 
-Return [`../shared/result.schema.json`](../shared/result.schema.json). Label GUI attestations
-`operator`, parsed identities and hashes `document`, semantic comparison `analytical` only when it
-is deterministic code output, and planning advice `heuristic`. Any missing role, hash mismatch,
-unresolved checklist item, changed or unavailable private input, path alias, failed comparison, or
-absent explicit confirmation prevents `completed`.
+Return [`../shared/result.schema.json`](../shared/result.schema.json). Label native GUI execution
+facts and exact hashes as `document` evidence, deterministic XML comparison as `analytical`, human
+visual judgements as `operator`, and planning advice as `heuristic`. Missing artifacts, hash
+mismatches, unknown native UI state, unresolved checklist items, changed private inputs, path
+aliases, failed comparisons, or absent required confirmation prevent a trusted completion claim.

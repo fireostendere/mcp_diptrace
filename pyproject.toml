@@ -86,6 +86,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "src/diptrace_mcp/diptrace_window.py" = ["B009"]
 "src/diptrace_mcp/library_mutation.py" = ["E501"]
 "src/diptrace_mcp/manual_acceptance.py" = ["E501", "I001"]
+"src/diptrace_mcp/pcb_native_acceptance.py" = ["SIM117"]
 "src/diptrace_mcp/release_readiness.py" = ["E501"]
 "src/diptrace_mcp/synthetic_fixture_pack.py" = ["E501", "I001"]
 "tests/test_manual_acceptance.py" = ["E501"]
@@ -117,3 +118,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "diptrace_mcp.headless_gui"
 disable_error_code = ["attr-defined"]
+
+[[tool.mypy.overrides]]
+module = "diptrace_mcp.pcb_native_acceptance"
+disable_error_code = ["redundant-cast"]
