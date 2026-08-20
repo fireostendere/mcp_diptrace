@@ -187,6 +187,24 @@ def test_offset_shape_parametric_and_unavailable_fallback(monkeypatch: pytest.Mo
     assert offset_shape(incomplete, 1.0) is None
 
     monkeypatch.setattr(geometry_backend, "_to_shapely", lambda _shape: None)
+    box = GeometryShape(
+        kind="polygon",
+        points=[
+            {"x": 0.0, "y": 0.0},
+            {"x": 2.0, "y": 0.0},
+            {"x": 2.0, "y": 1.0},
+            {"x": 0.0, "y": 1.0},
+        ],
+    )
+    inset = offset_shape(box, -0.25)
+    assert inset is not None
+    assert inset.points == [
+        {"x": 0.25, "y": 0.25},
+        {"x": 1.75, "y": 0.25},
+        {"x": 1.75, "y": 0.75},
+        {"x": 0.25, "y": 0.75},
+    ]
+
     polygon = GeometryShape(
         kind="polygon",
         points=[{"x": 0.0, "y": 0.0}, {"x": 1.0, "y": 0.0}, {"x": 0.0, "y": 1.0}],

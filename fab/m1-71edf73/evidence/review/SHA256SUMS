@@ -1,0 +1,16 @@
+6b4850004e8de5b1aded782cf4b9f23747706508c7e3565a4cfb279e193dc65a  .local/physical-validation/phase-a/review/00-review-sheet.png
+7d0e6448fcdd7760362ab1f724a04f4cd003c1774cef455d499ae2749832b6fe  .local/physical-validation/phase-a/review/01-native-top-active-ui.png
+c361081088dc7fc776d040789bbb76c715162cc21da886f2cb3a15fc365270c7  .local/physical-validation/phase-a/review/02-native-bottom-active-ui.png
+f1eadc485bdc44754f25d815438ba07f3c0915fb0541e1251a0e1e16fbf3e663  .local/physical-validation/phase-a/review/03-native-top-overview.png
+02a74d787ff8044ef0cddc069c735d391833f380c3fd6ab3814c4155d06b6417  .local/physical-validation/phase-a/review/04-native-bottom-plane.png
+60094027b4f58537ee06a49cea9841f5c9f7efcdac90a893cc56137781058235  .local/physical-validation/phase-a/review/05-j1-gnd-thermal.png
+f6429caff95dd5c6131587a3f56d421e4d99d05fdfdc8ad1e773655205921683  .local/physical-validation/phase-a/review/06-j2-gnd-thermal.png
+5d2e2ac49b6d034adc15de3a2b2d71b4346d727848f7aab322da3673c5d7a936  .local/physical-validation/phase-a/review/07-native-drc-pass.png
+988c2bca2d57381e00b09de23b248f3183b2467eac861ae777f54fbad5505539  .local/physical-validation/phase-a/review/08-media-stage-contact-sheet.png
+0c62c3e49757246846c056628c2155663a97c43c2e4a4c3ab5f9dfc985a02923  .local/physical-validation/phase-a/review/09-physical-fit-1to1-A4.pdf
+8e9e3d0bdd5f71db756dfc4068ef6705d5ad06339ef05f71c27bc927da252ac2  .local/physical-validation/phase-a/review/09-physical-fit-1to1-preview.png
+72f865d0ee94734abebcaf81a534c0ca6d440a65eade449e4a22648fe417312d  .local/physical-validation/phase-a/i2c-level-shifter.final10-native-evidence.json
+928e9047390504fdc48e6db4e91266379af17fe4df711d376003899aa407afcf  .local/physical-validation/phase-a/i2c-level-shifter.final10-native.dipxml
+a272793597e556e87250e9b703a878182629995d2d20dbacf03c897f060fc118  i2c-level-shifter-pcb.dipxml
+30c4765e7e0e47948b35ba8de6686df95ada3397eae8752dd4cb622c0b9bfcc4  i2c-level-shifter-pcb-demo.mp4
+05716de6e42220069287aa6d3c8ebd3ea019ac482ff7497991b432f3394d83ba  i2c-level-shifter-pcb-demo.gif

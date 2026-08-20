@@ -1,0 +1,179 @@
+{
+  "schema_version": "diptrace-pcb-native-acceptance-v1",
+  "ui_profile": "diptrace-5.3-en-v1",
+  "verdict": "HUMAN_REVIEW_REQUIRED",
+  "completed": true,
+  "project": "C:\\Users\\fireo\\mcp_diptrace\\.local\\physical-validation\\phase-a\\i2c-level-shifter.final9-native.dipxml",
+  "output_xml": "C:\\Users\\fireo\\mcp_diptrace\\.local\\physical-validation\\phase-a\\i2c-level-shifter.final10-native.dipxml",
+  "baseline_xml": "C:\\Users\\fireo\\mcp_diptrace\\.local\\physical-validation\\phase-a\\i2c-level-shifter.final9-native.dipxml",
+  "project_sha256_before": "9e4c803e30919da9c270fd903eb1a73ff6eb7ebb1760f3fdf11743a509ba4056",
+  "project_sha256_after": "9e4c803e30919da9c270fd903eb1a73ff6eb7ebb1760f3fdf11743a509ba4056",
+  "output_xml_sha256": "928e9047390504fdc48e6db4e91266379af17fe4df711d376003899aa407afcf",
+  "drc_status": "pass",
+  "drc_texts": [
+    "PCB Layout - i2c-level-shifter.final9-native.dipxml",
+    "OK"
+  ],
+  "structural_before": {
+    "source_type": "DipTrace-PCB",
+    "version": "5.3.0.3",
+    "units": "inch",
+    "document_sha256": "9e4c803e30919da9c270fd903eb1a73ff6eb7ebb1760f3fdf11743a509ba4056",
+    "semantic_sha256": "7a5bb47f228bd15d5a18e1e1447c584309df705f3c033dcea7dda9212b35a1e2",
+    "components": 25,
+    "nets": 7,
+    "net_endpoints": 20,
+    "traces": 14,
+    "trace_points": 99,
+    "vias": 0,
+    "copper_layers": 2,
+    "plane_layers": 0,
+    "via_styles": 1,
+    "copper_pours": 2,
+    "ratlines": 1,
+    "unrouted_multi_pad_nets": 0,
+    "duplicate_tag_id_pairs": [
+      "Pad#1 x28",
+      "Pad#2 x11",
+      "Pad#3 x6",
+      "Pad#4 x3",
+      "Point#0 x14",
+      "Point#1 x14",
+      "Point#2 x14",
+      "Point#3 x14",
+      "Point#4 x13",
+      "Point#5 x13",
+      "Point#6 x8",
+      "Point#7 x4",
+      "Point#8 x3",
+      "Shape#1 x3",
+      "Shape#2 x3",
+      "Shape#3 x3",
+      "Trace#0 x6",
+      "Trace#1 x6"
+    ]
+  },
+  "structural_after": {
+    "source_type": "DipTrace-PCB",
+    "version": "5.3.0.3",
+    "units": "inch",
+    "document_sha256": "928e9047390504fdc48e6db4e91266379af17fe4df711d376003899aa407afcf",
+    "semantic_sha256": "a9f395469f3cc8d27c1d383a4c382ee91e59fafbd2a8943ca502d28a3089ef9b",
+    "components": 25,
+    "nets": 7,
+    "net_endpoints": 20,
+    "traces": 14,
+    "trace_points": 99,
+    "vias": 0,
+    "copper_layers": 2,
+    "plane_layers": 0,
+    "via_styles": 1,
+    "copper_pours": 2,
+    "ratlines": 1,
+    "unrouted_multi_pad_nets": 0,
+    "duplicate_tag_id_pairs": [
+      "Pad#1 x28",
+      "Pad#2 x11",
+      "Pad#3 x6",
+      "Pad#4 x3",
+      "Point#0 x14",
+      "Point#1 x14",
+      "Point#2 x14",
+      "Point#3 x14",
+      "Point#4 x13",
+      "Point#5 x13",
+      "Point#6 x8",
+      "Point#7 x4",
+      "Point#8 x3",
+      "Shape#1 x3",
+      "Shape#2 x3",
+      "Shape#3 x3",
+      "Trace#0 x6",
+      "Trace#1 x6"
+    ]
+  },
+  "structural_delta": {},
+  "semantic_delta": {
+    "source_type_changed": false,
+    "root_tag_changed": false,
+    "semantic_equal": false,
+    "before_sha256": "7a5bb47f228bd15d5a18e1e1447c584309df705f3c033dcea7dda9212b35a1e2",
+    "after_sha256": "a9f395469f3cc8d27c1d383a4c382ee91e59fafbd2a8943ca502d28a3089ef9b",
+    "added_local_records": 20,
+    "removed_local_records": 20,
+    "tag_count_delta": {},
+    "attribute_count_delta": {},
+    "limitations": [
+      "The semantic fingerprint ignores XML attribute order and outer text whitespace, but preserves element order because DipTrace collections can be order-sensitive.",
+      "Local-record delta counts summarize structural change; they are not a replacement for domain-level PCB/schematic connectivity comparison.",
+      "Unknown XML is fingerprinted and counted even when the normalized domain model does not interpret its meaning."
+    ]
+  },
+  "native_steps": [
+    {
+      "name": "open",
+      "status": "completed",
+      "pid": 36536
+    },
+    {
+      "name": "refill_copper",
+      "status": "posted",
+      "menu": "#3->#14"
+    },
+    {
+      "name": "run_drc",
+      "status": "completed",
+      "menu": "#7->#0",
+      "drc_status": "pass",
+      "dialog_class": "TFMyMessage",
+      "dialog_texts": [
+        "PCB Layout - i2c-level-shifter.final9-native.dipxml",
+        "OK"
+      ]
+    },
+    {
+      "name": "save",
+      "status": "completed",
+      "menu": "File->Save",
+      "temporary_xml_sha256": "928e9047390504fdc48e6db4e91266379af17fe4df711d376003899aa407afcf"
+    },
+    {
+      "name": "close",
+      "status": "completed"
+    },
+    {
+      "name": "reopen",
+      "status": "completed",
+      "pid": 18920
+    },
+    {
+      "name": "export_xml",
+      "status": "completed",
+      "menu": "#0->#4",
+      "output_sha256": "928e9047390504fdc48e6db4e91266379af17fe4df711d376003899aa407afcf"
+    },
+    {
+      "name": "close_reopened",
+      "status": "completed"
+    }
+  ],
+  "worker_pid": 31932,
+  "diptrace_pids": [
+    36536,
+    18920
+  ],
+  "automation_backend": "pywinauto-win32-message",
+  "desktop_mode": "native",
+  "desktop_name": "Default",
+  "input_desktop_before": "Default",
+  "input_desktop_after": "Default",
+  "window_station_name": "WinSta0",
+  "session_id": 1,
+  "forced_termination": false,
+  "manual_review_reasons": [
+    "Native refill/save/re-export changed the full XML semantic fingerprint; the stable structural invariants still require bounded review."
+  ],
+  "error": null,
+  "ok": false,
+  "evidence_json": "C:\\Users\\fireo\\mcp_diptrace\\.local\\physical-validation\\phase-a\\i2c-level-shifter.final10-native-evidence.json"
+}

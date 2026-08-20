@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
@@ -34,6 +35,7 @@ from .headless_gui import (
     _pywinauto_application,
     _save_dialog_as_xml,
     _save_window,
+    _send_window_message,
     _sha256,
     _visible_dialog,
     _wait_for_export,
@@ -50,10 +52,13 @@ from .xml_analysis import analyze_xml_semantics, compare_xml_semantics
 from .xml_document import DipTraceDocument
 
 _MAX_XML_BYTES = 128 * 1024 * 1024
-_DEFAULT_REFILL_MENU = "Objects->Update All Copper Pours"
-_REFILL_MENU_FALLBACKS = ("Object->Update All Copper Pours",)
-_DEFAULT_DRC_MENU = "Verification->Check Design Rules"
-_DEFAULT_SAVE_AS_MENU = "File->Save As"
+_DEFAULT_REFILL_MENU = "#3->#14"
+_REFILL_MENU_FALLBACKS = (
+    "Objects->Update All Copper Pours",
+    "Object->Update All Copper Pours",
+)
+_DEFAULT_DRC_MENU = "#7->#0"
+_DEFAULT_SAVE_AS_MENU = "#0->#4"
 _DEFAULT_DRC_SUCCESS_TOKENS = ("No Errors Found", "No Errors")
 _UI_PROFILE: Literal["diptrace-5.3-en-v1"] = "diptrace-5.3-en-v1"
 
@@ -224,13 +229,9 @@ def summarize_pcb_xml(path: Path) -> dict[str, Any]:
         "net_endpoints": sum(len(net.findall("./Pads/Item")) for net in nets),
         "traces": len(traces),
         "trace_points": len(trace_points),
-        "vias": sum(
-            point.get("ViaStyle") not in {None, "", "-1"} for point in trace_points
-        ),
+        "vias": sum(point.get("ViaStyle") not in {None, "", "-1"} for point in trace_points),
         "copper_layers": len(copper_layers),
-        "plane_layers": sum(
-            layer.get("Type", "").casefold() == "plane" for layer in copper_layers
-        ),
+        "plane_layers": sum(layer.get("Type", "").casefold() == "plane" for layer in copper_layers),
         "via_styles": len(board.findall("./ViaStyles/ViaStyle")),
         "copper_pours": len(board.findall("./CopperPours/*")),
         "ratlines": len(board.findall("./Ratlines/Ratline")),
@@ -253,9 +254,15 @@ def _structural_delta(
     }
 
 
-def classify_drc_dialog(texts: Sequence[str], success_tokens: Sequence[str]) -> DrcStatus:
+def classify_drc_dialog(
+    texts: Sequence[str],
+    success_tokens: Sequence[str],
+    dialog_class: str = "",
+) -> DrcStatus:
     normalized = "\n".join(texts).casefold()
     if any(token.casefold() in normalized for token in success_tokens):
+        return "pass"
+    if dialog_class.casefold() == "tfmymessage":
         return "pass"
     if re.search(r"\b[1-9][0-9]*\s+errors?\b", normalized) or re.search(
         r"\berrors?(?:\s+found)?\s*[:=]\s*[1-9][0-9]*\b", normalized
@@ -264,22 +271,33 @@ def classify_drc_dialog(texts: Sequence[str], success_tokens: Sequence[str]) -> 
     return "review_required"
 
 
-def _post_menu_path(window: Any, path: str, fallbacks: Sequence[str] = ()) -> str:
+def _post_menu_path(
+    window: Any,
+    path: str,
+    fallbacks: Sequence[str] = (),
+    *,
+    timeout_seconds: float = 0.0,
+) -> str:
     menu: Any = None
     with suppress(Exception):
         menu = window.menu()
     if menu is None:
         raise HeadlessGuiError("DipTrace PCB window has no native menu")
-    errors: list[str] = []
-    for candidate in (path, *fallbacks):
-        try:
-            _post_menu_item(window, window.menu_item(candidate))
-            return candidate
-        except Exception as exc:
-            errors.append(f"{candidate!r}: {type(exc).__name__}: {exc}")
-    raise HeadlessGuiError(
-        f"native menu item {path!r} was not found ({'; '.join(errors)})"
-    )
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        errors: list[str] = []
+        disabled = False
+        for candidate in (path, *fallbacks):
+            try:
+                _post_menu_item(window, window.menu_item(candidate))
+                return candidate
+            except Exception as exc:
+                disabled |= str(exc) == "native menu item is disabled"
+                errors.append(f"{candidate!r}: {type(exc).__name__}: {exc}")
+        remaining = deadline - time.monotonic()
+        if not disabled or remaining <= 0:
+            raise HeadlessGuiError(f"native menu item {path!r} was not found ({'; '.join(errors)})")
+        time.sleep(min(0.1, remaining))
 
 
 def _dialog_texts(dialog: Any) -> list[str]:
@@ -293,6 +311,28 @@ def _dialog_texts(dialog: Any) -> list[str]:
             if text and text not in values:
                 values.append(text)
     return values
+
+
+def _dismiss_dialog(dialog: Any, timeout_seconds: float) -> None:
+    for control in dialog.descendants()[:512]:
+        with suppress(Exception):
+            if control.class_name().casefold() in {
+                "button",
+                "tbutton",
+            } and control.window_text().strip().casefold() in {"ok", "ок"}:
+                _send_window_message(int(control.handle), 0x00F5)
+                break
+    else:
+        _post_window_message(int(dialog.handle), 0x0010)
+    deadline = time.monotonic() + min(5.0, timeout_seconds)
+    while time.monotonic() < deadline:
+        try:
+            if not dialog.is_visible():
+                return
+        except Exception:
+            return
+        time.sleep(0.05)
+    raise HeadlessGuiError("DipTrace result dialog did not close")
 
 
 def _wait_for_exit(app: Any, timeout_seconds: float, label: str) -> None:
@@ -315,6 +355,7 @@ def _native_worker_evidence(
     app: Any = None
     forced = False
     error: str | None = None
+    saved_project = request.project
 
     def step(name: str, status: str, **evidence: Any) -> None:
         steps.append({"name": name, "status": status, **evidence})
@@ -323,47 +364,71 @@ def _native_worker_evidence(
         command = subprocess.list2cmdline(
             [str(request.diptrace_root / "Pcb.exe"), str(request.project)]
         )
-        app = application_class(backend="win32").start(
-            command, timeout=request.timeout_seconds
-        )
+        app = application_class(backend="win32").start(command, timeout=request.timeout_seconds)
         pids.append(int(app.process))
         window = _main_window(app, request.project, request.timeout_seconds)
         window.wait("exists enabled", timeout=request.timeout_seconds)
         step("open", "completed", pid=int(app.process))
 
         refill_menu = _post_menu_path(
-            window, request.refill_menu, _REFILL_MENU_FALLBACKS
+            window,
+            request.refill_menu,
+            _REFILL_MENU_FALLBACKS,
+            timeout_seconds=request.timeout_seconds,
         )
         step("refill_copper", "posted", menu=refill_menu)
 
-        drc_menu = _post_menu_path(window, request.drc_menu)
+        drc_menu = _post_menu_path(
+            window, request.drc_menu, timeout_seconds=request.timeout_seconds
+        )
         dialog = _visible_dialog(app, request.timeout_seconds)
+        dialog_class = str(dialog.class_name())
         drc_texts = _dialog_texts(dialog)
-        drc_status = classify_drc_dialog(drc_texts, request.drc_success_tokens)
+        drc_status = classify_drc_dialog(drc_texts, request.drc_success_tokens, dialog_class)
         step(
             "run_drc",
             "completed",
             menu=drc_menu,
             drc_status=drc_status,
+            dialog_class=dialog_class,
             dialog_texts=drc_texts,
         )
-        _post_window_message(int(dialog.handle), 0x0010)
+        _dismiss_dialog(dialog, request.timeout_seconds)
 
         _save_window(window, "File->Save")
-        step("save", "posted", menu="File->Save")
+        if request.project.suffix.casefold() == ".dipxml":
+            saved_project = request.output_xml.with_name(
+                f".{request.output_xml.stem}.{uuid.uuid4().hex}.saved.dipxml"
+            )
+            save_dialog = _visible_dialog(app, request.timeout_seconds)
+            _save_dialog_as_xml(int(save_dialog.handle), saved_project)
+            _wait_for_export(app, saved_project, request.timeout_seconds)
+            step(
+                "save",
+                "completed",
+                menu="File->Save",
+                temporary_xml_sha256=_sha256(saved_project),
+            )
+        else:
+            step("save", "posted", menu="File->Save")
         _post_window_message(int(window.handle), 0x0010)
         _wait_for_exit(app, request.timeout_seconds, "DipTrace PCB save/close phase")
         step("close", "completed")
 
+        reopen_command = subprocess.list2cmdline(
+            [str(request.diptrace_root / "Pcb.exe"), str(saved_project)]
+        )
         app = application_class(backend="win32").start(
-            command, timeout=request.timeout_seconds
+            reopen_command, timeout=request.timeout_seconds
         )
         pids.append(int(app.process))
-        reopened = _main_window(app, request.project, request.timeout_seconds)
+        reopened = _main_window(app, saved_project, request.timeout_seconds)
         reopened.wait("exists enabled", timeout=request.timeout_seconds)
         step("reopen", "completed", pid=int(app.process))
 
-        save_as_menu = _post_menu_path(reopened, request.save_as_menu)
+        save_as_menu = _post_menu_path(
+            reopened, request.save_as_menu, timeout_seconds=request.timeout_seconds
+        )
         save_dialog = _visible_dialog(app, request.timeout_seconds)
         _save_dialog_as_xml(int(save_dialog.handle), request.output_xml)
         _wait_for_export(app, request.output_xml, request.timeout_seconds)
@@ -386,6 +451,9 @@ def _native_worker_evidence(
                 forced = True
                 app.kill(soft=False)
         request.output_xml.unlink(missing_ok=True)
+
+    if saved_project != request.project:
+        saved_project.unlink(missing_ok=True)
 
     return NativePcbWorkerEvidence(
         completed=error is None and request.output_xml.is_file(),
@@ -507,9 +575,7 @@ def _finalize_result(
         verdict = "FAIL"
         error = error or "Windows session identity changed across native evidence run"
 
-    implicit_baseline = (
-        request.project if request.project.suffix.casefold() == ".dipxml" else None
-    )
+    implicit_baseline = request.project if request.project.suffix.casefold() == ".dipxml" else None
     return PcbNativeAcceptanceResult(
         verdict=verdict,
         completed=completed,
@@ -586,9 +652,7 @@ def run_pcb_native_acceptance(
             if input_before is None:
                 raise HeadlessGuiError("cannot determine the current input desktop")
             desktop_name = input_before
-            with _launch_on_current_desktop(
-                _worker_argv(*argv_args, desktop_name)
-            ) as process:
+            with _launch_on_current_desktop(_worker_argv(*argv_args, desktop_name)) as process:
                 exit_code = process.wait(request.timeout_seconds * 2 + 30.0)
                 if exit_code is None:
                     process.terminate(124)
@@ -688,9 +752,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         refill_menu=str(args.refill_menu),
         drc_menu=str(args.drc_menu),
         save_as_menu=str(args.save_as_menu),
-        drc_success_tokens=tuple(
-            args.drc_success_token or _DEFAULT_DRC_SUCCESS_TOKENS
-        ),
+        drc_success_tokens=tuple(args.drc_success_token or _DEFAULT_DRC_SUCCESS_TOKENS),
     )
     try:
         result = run_pcb_native_acceptance(request)

@@ -36,9 +36,10 @@ recording is [`i2c-level-shifter-demo.mp4`](i2c-level-shifter-demo.mp4).
 [![I2C level-shifter PCB in DipTrace](i2c-level-shifter-pcb-demo.gif)](i2c-level-shifter-pcb-demo.mp4)
 
 The matching 25×12 mm PCB uses compact straight 1×4 2.54 mm headers, symmetric
-device placement, 14 routed traces, Top and Bottom GND pours, and 14 distributed
+device placement, 14 routed traces, Top and Bottom GND pours, and 17 distributed
 GND stitching vias; connector GND pads request four-spoke thermal reliefs.
-Components and routes appear in construction order; the
+Components and routes appear in construction order; GND pours and stitching
+appear in the final stage. The
 capture is cropped to the complete purple board outline with margin instead of
 the editor controls. The editable source is
 [`i2c-level-shifter-pcb.dipxml`](i2c-level-shifter-pcb.dipxml); the
@@ -48,6 +49,8 @@ full-resolution recording is
 The operator confirmed both repository examples in the current DipTrace
 configuration on 2026-08-16. This is scoped presentation evidence, not universal
 DipTrace compatibility, authoritative refill geometry, or engineering sign-off.
+The PCB media was regenerated and visually rechecked after the 17-via update on
+2026-08-20; renewed operator confirmation remains pending.
 
 ## Current status
 

@@ -6,8 +6,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from .adapters import build_snapshot
+from .domain import GeometryShape
 from .errors import EditError
-from .geometry import BBox, Point, from_mm, point_in_polygon, point_to_segment_distance
+from .geometry import BBox, Point, from_mm, point_in_polygon, point_to_segment_distance, to_mm
+from .geometry_backend import offset_shape
 from .xml_document import DipTraceDocument, RawTreeSnapshot
 
 _STITCH_VIA_NAME = "MCP Ground Stitch Via"
@@ -57,6 +59,26 @@ def add_copper_pours(
     outline = board.find("./BoardOutline/Points")
     if outline is None or len(outline.findall("./Point")) < 3:
         raise EditError("Copper pours require a board outline with at least three points")
+    outline_points = [
+        Point(
+            to_mm(float(item.get("X", "nan")), working.units),
+            to_mm(float(item.get("Y", "nan")), working.units),
+        )
+        for item in outline.findall("./Point")
+    ]
+    if not all(math.isfinite(value) for point in outline_points for value in (point.x, point.y)):
+        raise EditError("Copper-pour board outline contains invalid coordinates")
+    pour_points = outline_points
+    snap_to_board = "Y"
+    if board_clearance_mm > 0:
+        inset = offset_shape(
+            GeometryShape(kind="polygon", points=[point.as_dict() for point in outline_points]),
+            -board_clearance_mm,
+        )
+        if inset is None or len(inset.points) < 3:
+            raise EditError("Board outline is too small for copper-pour board clearance")
+        pour_points = [Point(**point) for point in inset.points]
+        snap_to_board = "N"
 
     components = board.find("./Components")
     pours = board.find("./CopperPours")
@@ -112,7 +134,7 @@ def add_copper_pours(
                 "SMD_Spoke": "4 spoke",
                 "SMD_SpokeWidth": _number(spoke_width_mm, working.units),
                 "RatlineMode": "Automaticaly",
-                "SnapToBoard": "Y",
+                "SnapToBoard": snap_to_board,
                 "IslandRegion": "N",
                 "IslandInternal": "N",
                 "IslandConnection": "N",
@@ -122,15 +144,11 @@ def add_copper_pours(
             }
         )
         boundary = ET.SubElement(pour, "Points")
-        for outline_point in outline.findall("./Point"):
+        for point in pour_points:
             ET.SubElement(
                 boundary,
                 "Point",
-                {
-                    key: value
-                    for key, value in outline_point.attrib.items()
-                    if key in {"X", "Y"}
-                },
+                {"X": _number(point.x, working.units), "Y": _number(point.y, working.units)},
             )
 
     stitch_points: list[Point] = []
