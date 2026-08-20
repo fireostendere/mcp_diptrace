@@ -11,3 +11,6 @@
 *.ses -text
 *.json -text
 *.svg -text
+
+# Production packages and their manifests are byte/checksum-bound artifacts.
+fab/** -text

@@ -1,6 +1,6 @@
 # План физической валидации I²C level-shifter PCB
 
-Статус: `IN PROGRESS — M1 OPERATOR PASS; FREEZE COMMIT PENDING`
+Статус: `IN PROGRESS — M1 FROZEN; M6-LITE MACHINE PACKAGE PASS; MANUAL CAM/DFM PENDING`
 
 Цель: получить честное физическое подтверждение для **одной точной ревизии**
 демонстрационной платы 3,3 В ↔ 5 В, а не объявить универсально проверенным весь
@@ -31,10 +31,10 @@ PCB-генератор.
 | Размер платы по XML | 25 × 12 мм |
 | Слои | 2, сигналы и питание Top, GND pours Top/Bottom |
 | Состав | Q1/Q2 BSS138; R1–R4 pull-up; J1/J2 1×4, 2,54 мм |
-| Аппаратный кандидат | `PV-0 / 4,7 кОм; worktree не закоммичен` |
+| Аппаратный кандидат | `PV-0 / 4,7 кОм; freeze m1-71edf73` |
 | PCB SHA-256 кандидата | `a272793597e556e87250e9b703a878182629995d2d20dbacf03c897f060fc118` |
 | Schematic SHA-256 кандидата | `bb34fca9fb7e6ee9108b77d84be5bd101df9ec32c987e91d8c23a00b5295dd7e` |
-| Финальный commit | `TBD после M1/freeze; base commit 2506ca1` |
+| Финальный commit | `71edf73` (base commit `2506ca1`) |
 | DipTrace build/profile | `5.3.0.3 / diptrace-5.3-en-v1` |
 | Изготовитель, заказ, stackup | `TBD` |
 | Серийные номера образцов | `TBD` |
@@ -46,8 +46,8 @@ PCB-генератор.
 
 Закрыто 2026-08-20: R1–R4 зафиксированы как **4,7 кОм ±1 %**, MPN
 `0402WGF4701TCE`, LCSC `C25900`; XML разбирается, старые `0402WGF1002TCE` и
-`C25744` отсутствуют в физических schematic/PCB-артефактах. Заказ всё ещё
-запрещён до успешного M1 и фиксации commit.
+`C25744` отсутствуют в физических schematic/PCB-артефактах. M1 и freeze
+завершены; до заказа остаётся ручное принятие CAM/DFM изготовителя.
 
 ## 2. Источники критериев
 
@@ -111,7 +111,7 @@ Q1/Q2 Gate подключены к 3V3.
   распределённых GND stitching vias.
 - [x] PCB, MP4 и GIF повторно сгенерированы 2026-08-20; проверены
   первый/средний/последний кадры и contact sheet 26 стадий.
-- [ ] Записаны commit и SHA-256 исходного PCB-кандидата.
+- [x] Записаны freeze commit `71edf73` и SHA-256 исходного PCB-кандидата.
 - [x] `pcb_native_acceptance` запущен из этого же source commit/editable install,
   а не из опубликованного `v0.4.0`, где post-release модуль ещё отсутствовал;
   окружение: `.venv-win-tests/Scripts/python.exe`, текущий `src` через
@@ -199,8 +199,9 @@ py -m diptrace_mcp.pcb_native_acceptance run `
   Полный реестр находится в `review/SHA256SUMS`.
 - Оператор 2026-08-20 подтвердил `PASS` физической примерки и просмотра фото;
   замечаний не заявил. Численные размеры отдельно не переданы.
-- Verdict: проверки M1 — `PASS`. Формальный freeze M1 завершится после записи
-  финального commit и его SHA-256 в идентичность кандидата.
+- Verdict: проверки M1 — `PASS`. Формальный freeze M1 завершён commit
+  `71edf73`; исходный PCB-кандидат сохранён с SHA-256
+  `a272793597e556e87250e9b703a878182629995d2d20dbacf03c897f060fc118`.
 
 **Стоп:** любой DRC error, необъяснённая ratline/island, неверный pin mapping,
 потерянный thermal или semantic/connectivity delta возвращает плату на
@@ -211,10 +212,13 @@ py -m diptrace_mcp.pcb_native_acceptance run `
 - [ ] Зафиксированы: PCB revision, BOM, footprint list, 2-layer stackup, copper
   weight, finish, solder-mask, board thickness и правила выбранного
   изготовителя. Значения изготовителя: `___`.
-- [ ] Gerber/NC Drill и, если нужна сборка, BOM/CPL экспортированы штатным
+- [x] Gerber/NC Drill и BOM/CPL экспортированы штатным
   DipTrace/проверенным экспортёром из **native-saved** файла. Репозиторий не
   считается самостоятельным авторитетным Gerber-генератором.
-- [ ] SHA-256 производственного ZIP: `___`.
+- [x] SHA-256 Gerber ZIP:
+  `8484362236f943a0e9df33283e0a4fa7754b5f8f27441673f79285052f934b26`;
+  полного производственного ZIP:
+  `7c5712ddbb6d4a5d26082fbac6a57806d6d8f5da0dd94ceb2ec27920735d1289`.
 - [ ] В независимом CAM viewer просмотрены outline, оба copper, mask, silk и
   drill; mirrored/missing/duplicate layers отсутствуют.
 - [ ] Проверены 0,3-мм finished via holes, annular rings, header holes, mask
@@ -224,6 +228,23 @@ py -m diptrace_mcp.pcb_native_acceptance run `
   четыре spokes на обоих GND header pads.
 - [ ] Изготовитель закрыл DFM без blocking warning; waiver ledger: `___`.
 - [ ] Сохранены CAM screenshots, DRC, DFM report, order ID и точный package hash.
+
+### Журнал M6-lite — 2026-08-20
+
+- Пакет: `fab/m1-71edf73/`; точный source — native-saved PCB SHA-256
+  `928e9047390504fdc48e6db4e91266379af17fe4df711d376003899aa407afcf`.
+- DipTrace 5.3.0.3 нативно экспортировал 8 метрических Gerber-слоёв и
+  метрический Excellon PTH. Проверены X2 `FileFunction`, EOF, профиль
+  25 × 12 мм, инструменты 0,30 мм ×17 и 1,08 мм ×8; NPTH в дизайне нет.
+- JLC SMT BOM содержит две групповые строки с заполненными `C52895` и
+  `C25900`; CPL содержит совпадающие 6 позиций `Q1/Q2/R1–R4` в миллиметрах.
+  Выводные J1/J2 без LCSC сознательно исключены из машинной сборки и оставлены
+  для ручной установки; полные native BOM/CPL сохранены как evidence.
+- Проверка ZIP и обоих SHA-256 manifests — PASS. Основной визуальный лист:
+  `fab/m1-71edf73/evidence/review/00-review-sheet.png`.
+- Verdict машинной части M6-lite: `PASS — READY FOR FABRICATOR PREVIEW`.
+  Независимый CAM, JLC placement preview, реальные параметры заказа, live stock
+  под выбранный тираж, DFM warnings/waivers и order ID остаются ручными воротами.
 
 Минимальный физический proof допускает ручную сборку одного экземпляра. Claim
 готовности к серийной PCBA требует отдельно принятого BOM/CPL и сборочного DFM.

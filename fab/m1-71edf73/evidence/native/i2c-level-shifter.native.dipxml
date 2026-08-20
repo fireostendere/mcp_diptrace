@@ -1,0 +1,1491 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Source Type="DipTrace-PCB" Version="5.3.0.3" Units="inch">
+<Library Type="DipTrace-ComponentLibrary" Units="inch">
+<Library Type="DipTrace-PatternLibrary" Units="inch">
+<PadStyles>
+<PadStyle Name="PadT0" Type="Through" HoleType="Round" Hole="0.04252">
+<MainStack Shape="Obround" Width="0.06378" Height="0.06378" XOff="0" YOff="0" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.025" Height="0.025" Corner="0" />
+</Terminals>
+</PadStyle>
+<PadStyle Name="PadT1" Type="Through" HoleType="Round" Hole="0.04252">
+<MainStack Shape="Rectangle" Width="0.06378" Height="0.06378" XOff="0" YOff="0" Corner="0" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.025" Height="0.025" Corner="0" />
+</Terminals>
+</PadStyle>
+<PadStyle Name="PadT2" Type="Surface">
+<MainStack Shape="Rectangle" Width="0.042126" Height="0.023622" Corner="0" />
+</PadStyle>
+<PadStyle Name="PadT3" Type="Surface">
+<MainStack Shape="Rectangle" Width="0.023622" Height="0.022835" Corner="25.8621" />
+<Terminals>
+<Terminal Shape="Rectangle" X="0.003543" Y="0" Angle="0" Width="0.009843" Height="0.019685" Corner="0" />
+</Terminals>
+</PadStyle>
+</PadStyles>
+<Patterns>
+<Pattern PatternStyle="PatType0" Id="0" RefDes="J" Mounting="Through" Width="0.42" Height="0.12" Orientation="0" LockTypeChange="Y" Type="Free" Float1="0" Float2="0" Float3="0" Int1="1" Int2="0">
+<Name>HDR_1X04_P2.54_STRAIGHT_COMPACT</Name>
+<Name_Description>Compact straight 1x4 through-hole header, 2.54 mm pitch</Name_Description>
+<Name_Unique>GENERIC_HDR_1X04_P2.54_COMPACT</Name_Unique>
+<Value>I2C LV</Value>
+<Manufacturer>TE Connectivity</Manufacturer>
+<Category Index="0">
+<Name>Con Rectangular</Name>
+<CategoryTypes>
+<CategoryType>
+<Type Index="0">'Headers</Type>
+</CategoryType>
+<CategoryType>
+<Type Index="0">'Headers</Type>
+<SubType Index="0">''''''1 Row</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="0">'Headers</Type>
+<SubType Index="1">''Horizontal</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="0">'Headers</Type>
+<SubType Index="2">'Male</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="0">'Headers</Type>
+<SubType Index="3">''''Pitch 2.54mm</SubType>
+</CategoryType>
+<CategoryType>
+<Type Index="0">'Headers</Type>
+<SubType Index="4">'''Unshrouded</SubType>
+</CategoryType>
+</CategoryTypes>
+</Category>
+<Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>TE_640453-4</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text>A1917-ND</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text>571-6404534</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text/>
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>TE Connectivity</Text>
+</AddField>
+</AddFields>
+<DefPad Style="PadT0" />
+<Pads>
+<Pad Id="1" Style="PadT1" X="-0.15" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>1</Number>
+</Pad>
+<Pad Id="2" Style="PadT0" X="-0.05" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>2</Number>
+</Pad>
+<Pad Id="3" Style="PadT0" X="0.05" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>3</Number>
+</Pad>
+<Pad Id="4" Style="PadT0" X="0.15" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>4</Number>
+</Pad>
+</Pads>
+<Shapes>
+<Shape Id="1" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.2" Y="-0.05" />
+<Point X="0.2" Y="0.05" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.21" Y="-0.06" />
+<Point X="0.21" Y="0.06" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Rectangle" Locked="N" Layer="Top Silk" LineWidth="0.005906" AllLayers="N">
+<Points>
+<Point X="-0.2" Y="-0.05" />
+<Point X="0.2" Y="0.05" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="mm" IPC_XOff="0" IPC_YOff="0" AutoHeight="0" AutoColor="0" Type="File" KeepPins="N">
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0" Y="0" Z="0" />
+<Zoom X="0" Y="0" Z="0" />
+</Model3D>
+</Pattern>
+<Pattern PatternStyle="PatType1" Id="1" RefDes="Q" Mounting="None" Width="0.139376" Height="0.12096" Orientation="0" LockTypeChange="Y" Type="Free" Float1="0" Float2="0" Float3="0" Int1="0" Int2="0">
+<Name>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Name>
+<Name_Unique>EasyEDA_b3b82869fa924bae820e3a6cfb44d689</Name_Unique>
+<Value>BSS138 / C52895</Value>
+<Manufacturer>onsemi</Manufacturer>
+<Datasheet>https://www.onsemi.com/pdf/datasheet/bss138-d.pdf</Datasheet>
+<Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<AddFields>
+<AddField Type="Text">
+<Name>MPN</Name>
+<Text>BSS138</Text>
+</AddField>
+<AddField Type="Text">
+<Name>LCSC</Name>
+<Text>C52895</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Package</Name>
+<Text>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Text>
+</AddField>
+<AddField Type="Text">
+<Name>EasyEDA Symbol UUID</Name>
+<Text>1d638380c6a74ae0b0aab17a51b21d35</Text>
+</AddField>
+<AddField Type="Text">
+<Name>EasyEDA Footprint UUID</Name>
+<Text>b3b82869fa924bae820e3a6cfb44d689</Text>
+</AddField>
+<AddField Type="Text">
+<Name>EasyEDA 3D UUID</Name>
+<Text>7c3db6199fa840ee9a913d70da71e002</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Source</Name>
+<Text>Official LCSC/EasyEDA ready model</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>onsemi</Text>
+</AddField>
+</AddFields>
+<DefPad Style="PadT2" />
+<Pads>
+<Pad Id="1" Style="PadT2" X="0.048625" Y="-0.0374" Angle="0" Locked="N" Side="Top">
+<Number>1</Number>
+</Pad>
+<Pad Id="2" Style="PadT2" X="0.048625" Y="0.0374" Angle="0" Locked="N" Side="Top">
+<Number>2</Number>
+</Pad>
+<Pad Id="3" Style="PadT2" X="-0.048625" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>3</Number>
+</Pad>
+</Pads>
+<Shapes>
+<Shape Id="1" Type="Polyline" Locked="N" Layer="Top Silk" LineWidth="0.006" AllLayers="N">
+<Points>
+<Point X="0.034491" Y="0.06048" />
+<Point X="-0.034501" Y="0.06048" />
+<Point X="-0.034501" Y="0.019472" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Polyline" Locked="N" Layer="Top Silk" LineWidth="0.006" AllLayers="N">
+<Points>
+<Point X="0.034491" Y="-0.06048" />
+<Point X="-0.034501" Y="-0.06048" />
+<Point X="-0.034501" Y="-0.019472" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Polyline" Locked="N" Layer="Top Silk" LineWidth="0.006" AllLayers="N">
+<Points>
+<Point X="0.034491" Y="0.017929" />
+<Point X="0.034491" Y="-0.017929" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="mm" IPC_XOff="0" IPC_YOff="0" AutoHeight="0" AutoColor="0" Type="File" KeepPins="N">
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0" Y="0" Z="0" />
+<Zoom X="0" Y="0" Z="0" />
+</Model3D>
+</Pattern>
+<Pattern PatternStyle="PatType2" Id="2" RefDes="R" Mounting="SMD" Width="0.07244" Height="0.034646" Orientation="0" LockTypeChange="Y" Type="IPC-7351" Float1="0" Float2="0" Float3="0" Int1="1" Int2="0">
+<Name>RESC100X50X40L25N_AD1</Name>
+<Name_Description>Resistor, Chip, 1mm body length x 0.5mm body width x 0.4mm height, 0.25mm lead length, nominal density, alternative duplicate 1</Name_Description>
+<Name_Unique>UNI-ROYAL_0402</Name_Unique>
+<Value>4.7k</Value>
+<Manufacturer>UNI-ROYAL(Uniroyal Elec)</Manufacturer>
+<Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+<RecoveryCode Generator="Y" Model="Y">[Y;Chip;1;N;Y;1;0;0;Y;Y;Y;Y;101;Default;|10;;;0.4;;;0.9;1;1.1;0.1;-0.1;0.45;0.5;0.55;0.05;-0.05;0.15;0.25;0.35;0.1;-0.1;;;;;;0.33;0.6;0.58;0.6|0;|;;;;;;;;;0.5;0.5;0.5|||||;;;1|||||||||4934475;15461355;4079359;Y]</RecoveryCode>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>UNI-ROYAL_0402</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text/>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text/>
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text>C25900</Text>
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>UNI-ROYAL(Uniroyal Elec)</Text>
+</AddField>
+</AddFields>
+<DefPad Style="PadT3" />
+<Pads>
+<Pad Id="1" Style="PadT3" X="-0.018307" Y="0" Angle="0" Locked="N" Side="Top">
+<Number>1</Number>
+</Pad>
+<Pad Id="2" Style="PadT3" X="0.018307" Y="0" Angle="3.141593" Locked="N" Side="Top">
+<Number>2</Number>
+</Pad>
+</Pads>
+<Shapes>
+<Shape Id="1" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.019685" Y="0.009843" />
+<Point X="0.019685" Y="-0.009843" />
+</Points>
+</Shape>
+<Shape Id="2" Type="Rectangle" Locked="N" Layer="Top Assy" LineWidth="0.004724" AllLayers="N">
+<Points>
+<Point X="-0.021654" Y="0.011024" />
+<Point X="0.021654" Y="-0.011024" />
+</Points>
+</Shape>
+<Shape Id="3" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.001969" AllLayers="N">
+<Points>
+<Point X="-0.03622" Y="0.017323" />
+<Point X="0.03622" Y="-0.017323" />
+</Points>
+</Shape>
+</Shapes>
+<Model3D Mirror="N" NoSearch="N" Units="mm" IPC_XOff="0" IPC_YOff="0" AutoHeight="0.015748" AutoColor="4934475" Type="IPC-7351" KeepPins="N">
+<Filename>
+<Path>led100.wrl</Path>
+<Var>led100.wrl</Var>
+</Filename>
+<Rotate X="0" Y="0" Z="0" />
+<Offset X="0" Y="0" Z="-0.001969" />
+<Zoom X="1" Y="1" Z="1" />
+</Model3D>
+</Pattern>
+</Patterns>
+</Library>
+<Components />
+</Library>
+<Board>
+<BoardOutline>
+<Points>
+<Point X="0" Y="0" Arc="N" />
+<Point X="0.984252" Y="0" Arc="N" />
+<Point X="0.984252" Y="0.472441" Arc="N" />
+<Point X="0" Y="0.472441" Arc="N" />
+</Points>
+</BoardOutline>
+<Panel Type="V-Scoring" Columns="1" Rows="1" ColumnSpacing="0.094488" RowSpacing="0.094488" PanelizeSingle="N" RailShow="N" RailLeft="0" RailRight="0" RailTop="0" RailBottom="0" LeftGap="7.2" RightGap="7.2" TopGap="7.2" BottomGap="7.2" TabWidth="13.5" TabRadius="3.6" TabStep="225" HoleDiam="2.4" HoleStep="3.6" HoleInset="0.03" HoleKeepout="3" TabsDone="N" CombinedRadius="3.6" KeepMaterial="N" BorderTabs="0" />
+<SheetSettings>
+<DisplayTitles>N</DisplayTitles>
+<DisplaySheet>N</DisplaySheet>
+<Xpos>0</Xpos>
+<Ypos>0</Ypos>
+<Scale>300</Scale>
+<SheetWidth>8.264764</SheetWidth>
+<SheetHeight>11.690039</SheetHeight>
+<LeftMargin>0.787402</LeftMargin>
+<TopMargin>0.19685</TopMargin>
+<RightMargin>0.19685</RightMargin>
+<BottomMargin>0.19685</BottomMargin>
+<BorderZones>
+<Visible>N</Visible>
+<HorzZones>4</HorzZones>
+<VertZones>4</VertZones>
+<Standard>0</Standard>
+<FontName>Tahoma</FontName>
+<FontSize>10</FontSize>
+<FontLineWidth>-2</FontLineWidth>
+<Border>N</Border>
+<HorzBorderSize>0.19685</HorzBorderSize>
+<VertBorderSize>0.19685</VertBorderSize>
+</BorderZones>
+</SheetSettings>
+<Settings>
+<Markings>
+<CompRotate>N</CompRotate>
+<FontVector>Y</FontVector>
+<FontMono>N</FontMono>
+<FontName>Tahoma</FontName>
+<FontSize>3</FontSize>
+<FontSizeFloat>3</FontSizeFloat>
+<FontWidth>-2</FontWidth>
+<FontScale>1</FontScale>
+<RefDesGlobal SilkShow="Show" SilkAlign="Auto" AssyShow="Common" AssyAlign="Auto" />
+<NameGlobal SilkShow="Common" SilkAlign="Auto" AssyShow="Common" AssyAlign="Auto" />
+<ValueGlobal SilkShow="Common" SilkAlign="Auto" AssyShow="Common" AssyAlign="Auto" />
+<PatternGlobal SilkShow="Common" SilkAlign="Auto" AssyShow="Common" AssyAlign="Auto" />
+<ManufacturerGlobal SilkShow="Common" SilkAlign="Auto" AssyShow="Common" AssyAlign="Auto" />
+<DatasheetGlobal SilkShow="Common" SilkAlign="Auto" AssyShow="Common" AssyAlign="Auto" />
+<AddFieldsGlobal>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>Unique Name</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>Part Number (Digi-Key)</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>Part Number (Mouser)</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>Part Number (LCSC)</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>Manufacturer</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>MPN</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>LCSC</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>Package</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>EasyEDA Symbol UUID</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>EasyEDA Footprint UUID</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>EasyEDA 3D UUID</Name>
+</AddField>
+<AddField SilkShow="Hide" SilkAlign="Auto" AssyShow="Hide" AssyAlign="Auto">
+<Name>Source</Name>
+</AddField>
+</AddFieldsGlobal>
+</Markings>
+<Grid>
+<Visible>N</Visible>
+<Snap>Y</Snap>
+<Size>0.019685</Size>
+<YSize>0.025</YSize>
+<YIdentical>Y</YIdentical>
+</Grid>
+<Origin>
+<Visible>N</Visible>
+<AxisColor>16711680</AxisColor>
+<X>0</X>
+<Y>0</Y>
+</Origin>
+<Assembly>
+<Pads>N</Pads>
+<Silk>N</Silk>
+<CompBorders>N</CompBorders>
+<BoardOutline>N</BoardOutline>
+</Assembly>
+<LayerDisplayMode>Contrast</LayerDisplayMode>
+<EditInactiveLayer>N</EditInactiveLayer>
+<LineWidth>
+<Silk>0.005</Silk>
+<Table>0.009843</Table>
+<Titles>0.009843</Titles>
+<BoardOutline>0.005</BoardOutline>
+<Assembly>0.005</Assembly>
+<CompOutline>0.001969</CompOutline>
+<Courtyard>0.001969</Courtyard>
+</LineWidth>
+<Routing>
+<Router>Shape</Router>
+<TraceWidth>0.009843</TraceWidth>
+<TraceClearance>0.007874</TraceClearance>
+<BoardClearance>0.03</BoardClearance>
+<ViaSize>0.023622</ViaSize>
+<ViaHole>0.011811</ViaHole>
+<FanoutLength>0.013333</FanoutLength>
+</Routing>
+<StackLength>N</StackLength>
+<SignalDelayLength>N</SignalDelayLength>
+<SolderMaskSwell>0.001969</SolderMaskSwell>
+<PasteMaskShrink>0.001969</PasteMaskShrink>
+<ShowCompFiducials>N</ShowCompFiducials>
+<LayerPanel TopAssy="Y" TopMask="N" TopPaste="N" BotAssy="Y" BotMask="N" BotPaste="N" TopTerminals="N" BotTerminals="N" TopCourtyard="N" BotCourtyard="N" TopOutline="N" BotOutline="N" TopDimensions="Y" BotDimensions="Y" />
+<RelatedSchem>
+<Path/>
+<Var/>
+</RelatedSchem>
+<SchemNetClasses>N</SchemNetClasses>
+<TopComponentLock>N</TopComponentLock>
+<BottomComponentLock>N</BottomComponentLock>
+<LockNetStructure>N</LockNetStructure>
+<FlipTextAuto>Y</FlipTextAuto>
+<JumperLayer>Silk</JumperLayer>
+<ProjectDir>C:\Users\fireo\mcp_diptrace\.local\physical-validation\phase-a</ProjectDir>
+</Settings>
+<ProjectLibs Sorted="N" />
+<CopperLayers>
+<Lay Id="0" Type="Signal" PlanePad="By Pads" PlaneRing="0.007874" Color="11206655">
+<Name>Top</Name>
+</Lay>
+<Lay Id="1" Type="Signal" PlanePad="By Pads" PlaneRing="0.007874" Color="11206655">
+<Name>Bottom</Name>
+</Lay>
+</CopperLayers>
+<LayerStackName>Custom</LayerStackName>
+<LayerStackItems>
+<LayerStackItem Lay="0">
+<Material Type="Conductor" VariableThickness="N" Thickness="0.001378" Constant="0" TraceWidth="0.009843">
+<Name>Copper</Name>
+</Material>
+</LayerStackItem>
+<LayerStackItem Lay="-1">
+<Material Type="Dielectric" VariableThickness="N" Thickness="0.062992" Constant="4.5" TraceWidth="0">
+<Name>Core</Name>
+</Material>
+</LayerStackItem>
+<LayerStackItem Lay="1">
+<Material Type="Conductor" VariableThickness="N" Thickness="0.001378" Constant="0" TraceWidth="0.009843">
+<Name>Copper</Name>
+</Material>
+</LayerStackItem>
+</LayerStackItems>
+<ViaStyles>
+<ViaStyle Id="0" Size="0.023622" HoleSize="0.011811">
+<Name>Default</Name>
+</ViaStyle>
+</ViaStyles>
+<NetClasses>
+<NetClass Id="0" UpdateId="0" Type="Normal" AllLayers="Y" CheckLength="N" AllVias="Y" PerformDRC="Y" Phase="0.07874" Phase_ErrorLength="0.19685" LengthDelta="0.1" FixedLength="0" MaxUncoupledLength="0.393701" Tolerance="0.07874">
+<Name>Default</Name>
+<LayProperties>
+<LayProperty Width="0.009843" MinWidth="0.005906" MaxWidth="0.07874" Clearance="0.007874">
+<ClearanceDetails />
+</LayProperty>
+</LayProperties>
+<Autorouting RoutePriority="N" PriorityValue="1" RouteMaxVias="N" MaxViasValue="10000" RouteMaxIncorrectWay="N" MaxIncorrectWayValue="30000" RouteAllLayers="Y" />
+</NetClass>
+</NetClasses>
+<ClassToClass Enabled="N" />
+<DRC AllLayers="Y" CheckClearance="Y" CheckSize="N" CheckJumpers="Y" CheckCopperPours="Y" CheckClassToClass="Y" CheckSilk="Y" CheckLength="Y" CheckKeepouts="N" CheckSameNet="N" CheckSameComponentPads="Y" CheckCourtyard="N" SilkClearance="0">
+<ShowList>Y</ShowList>
+<RealTimeMode>0</RealTimeMode>
+<DRCDone>Y</DRCDone>
+<LayClearances>
+<LayClearance Lay="0" SameTraceToTrace="0" SameSmdToVia="0" SameSmdToPad="0" SameSmdToSmd="0">
+<ClearanceDetails TraceToTrace="-0.013123" TraceToVia="-0.013123" TraceToPad="-0.013123" TraceToSmd="-0.013123" TraceToCopper="-0.013123" TraceToDrill="-0.013123" TraceToBoard="-0.013123" ViaToVia="-0.013123" ViaToPad="-0.013123" ViaToSmd="-0.013123" ViaToCopper="-0.013123" ViaToDrill="-0.013123" ViaToBoard="-0.013123" PadToPad="-0.013123" PadToSmd="-0.013123" PadToCopper="-0.013123" PadToDrill="-0.013123" PadToBoard="-0.013123" SmdToSmd="-0.013123" SmdToCopper="-0.013123" SmdToDrill="-0.013123" SmdToBoard="-0.013123" CopperToCopper="-0.013123" CopperToDrill="-0.013123" CopperToBoard="-0.013123" DrillToDrill="-0.013123" DrillToBoard="-0.013123" />
+</LayClearance>
+</LayClearances>
+<LaySizes>
+<LaySize Lay="0" MinTrace="0.005906" MinDrill="0.007874" MinRing="0.003937" MaxRing="2.001312" MaxPlatedHole="0.2" MaxNonPlatedHole="0.2" />
+</LaySizes>
+</DRC>
+<ConnectivityCheck Traces="Y" Shapes="Y" CopperPours="Y" />
+<MainLengthRule Type="By User" Delta="0" AnyError="N" NetClass="-1">
+<Name/>
+</MainLengthRule>
+<Components>
+<Component Id="0" UpdateId="-1" Type="Via" ViaStyle="0" X="0.200787" Y="0.043307">
+<RefDes>GNDV1</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="1" UpdateId="-1" Type="Via" ViaStyle="0" X="0.200787" Y="0.429134">
+<RefDes>GNDV2</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="2" UpdateId="-1" Type="Via" ViaStyle="0" X="0.279528" Y="0.043307">
+<RefDes>GNDV3</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="3" UpdateId="-1" Type="Via" ViaStyle="0" X="0.358268" Y="0.043307">
+<RefDes>GNDV4</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="4" UpdateId="-1" Type="Via" ViaStyle="0" X="0.358268" Y="0.122047">
+<RefDes>GNDV5</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="5" UpdateId="-1" Type="Via" ViaStyle="0" X="0.437008" Y="0.043307">
+<RefDes>GNDV6</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="6" UpdateId="-1" Type="Via" ViaStyle="0" X="0.515748" Y="0.043307">
+<RefDes>GNDV7</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="7" UpdateId="-1" Type="Via" ViaStyle="0" X="0.594488" Y="0.043307">
+<RefDes>GNDV8</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="8" UpdateId="-1" Type="Via" ViaStyle="0" X="0.594488" Y="0.122047">
+<RefDes>GNDV9</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="9" UpdateId="-1" Type="Via" ViaStyle="0" X="0.594488" Y="0.279528">
+<RefDes>GNDV10</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="10" UpdateId="-1" Type="Via" ViaStyle="0" X="0.594488" Y="0.429134">
+<RefDes>GNDV11</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="11" UpdateId="-1" Type="Via" ViaStyle="0" X="0.673228" Y="0.043307">
+<RefDes>GNDV12</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="12" UpdateId="-1" Type="Via" ViaStyle="0" X="0.673228" Y="0.429134">
+<RefDes>GNDV13</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="13" UpdateId="-1" Type="Via" ViaStyle="0" X="0.751969" Y="0.043307">
+<RefDes>GNDV14</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="14" UpdateId="-1" Type="Via" ViaStyle="0" X="0.751969" Y="0.429134">
+<RefDes>GNDV15</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="15" UpdateId="-1" Type="Via" ViaStyle="0" X="0.830709" Y="0.043307">
+<RefDes>GNDV16</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="16" UpdateId="-1" Type="Via" ViaStyle="0" X="0.830709" Y="0.429134">
+<RefDes>GNDV17</RefDes>
+<Name>MCP Ground Stitch Via</Name>
+<Value/>
+<Pads>
+<Pad Id="1" NetId="2" />
+</Pads>
+</Component>
+<Component Id="17" UpdateId="100" PatternStyle="PatType0" X="0.068898" Y="0.23622" Angle="1.570796" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad">
+<RefDes>J1</RefDes>
+<Name>HDR_1X04_P2.54</Name>
+<Value>I2C LV</Value>
+<LibPath>
+<Path/>
+<Var/>
+</LibPath>
+<RefDesMarking>
+<Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0.098425" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.087559" Angle="0" />
+</RefDesMarking>
+<NameMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.087559" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.087559" Angle="0" />
+</NameMarking>
+<ValueMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.146614" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.146614" Angle="0" />
+</ValueMarking>
+<PatternMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</PatternMarking>
+<ManufacturerMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</ManufacturerMarking>
+<DatasheetMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</DatasheetMarking>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>TE_640453-4</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text>A1917-ND</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text>571-6404534</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>TE Connectivity</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+</AddFields>
+<Pads>
+<Pad Id="1" NetId="2" InternalConnection="-1" />
+<Pad Id="2" NetId="0" InternalConnection="-1" />
+<Pad Id="3" NetId="3" InternalConnection="-1" />
+<Pad Id="4" NetId="5" InternalConnection="-1" />
+</Pads>
+</Component>
+<Component Id="18" UpdateId="101" PatternStyle="PatType0" X="0.915354" Y="0.23622" Angle="1.570796" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad">
+<RefDes>J2</RefDes>
+<Name>HDR_1X04_P2.54</Name>
+<Value>I2C HV</Value>
+<LibPath>
+<Path/>
+<Var/>
+</LibPath>
+<RefDesMarking>
+<Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="-0.098425" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.087559" Angle="0" />
+</RefDesMarking>
+<NameMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.087559" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.087559" Angle="0" />
+</NameMarking>
+<ValueMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.146614" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.146614" Angle="0" />
+</ValueMarking>
+<PatternMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</PatternMarking>
+<ManufacturerMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</ManufacturerMarking>
+<DatasheetMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</DatasheetMarking>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>TE_640453-4</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text>A1917-ND</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text>571-6404534</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>TE Connectivity</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+</AddFields>
+<Pads>
+<Pad Id="1" NetId="2" InternalConnection="-1" />
+<Pad Id="2" NetId="1" InternalConnection="-1" />
+<Pad Id="3" NetId="4" InternalConnection="-1" />
+<Pad Id="4" NetId="6" InternalConnection="-1" />
+</Pads>
+</Component>
+<Component Id="19" UpdateId="102" PatternStyle="PatType1" X="0.492126" Y="0.344488" Angle="3.141593" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad">
+<RefDes>Q1</RefDes>
+<Name>BSS138</Name>
+<Value>BSS138 / C52895</Value>
+<LibPath>
+<Path/>
+<Var/>
+</LibPath>
+<RefDesMarking>
+<Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.088583" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.097559" Angle="0" />
+</RefDesMarking>
+<NameMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.097559" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.097559" Angle="0" />
+</NameMarking>
+<ValueMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.156614" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.156614" Angle="0" />
+</ValueMarking>
+<PatternMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</PatternMarking>
+<ManufacturerMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</ManufacturerMarking>
+<DatasheetMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</DatasheetMarking>
+<AddFields>
+<AddField Type="Text">
+<Name>MPN</Name>
+<Text>BSS138</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>LCSC</Name>
+<Text>C52895</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Package</Name>
+<Text>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>EasyEDA Symbol UUID</Name>
+<Text>1d638380c6a74ae0b0aab17a51b21d35</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>EasyEDA Footprint UUID</Name>
+<Text>b3b82869fa924bae820e3a6cfb44d689</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>EasyEDA 3D UUID</Name>
+<Text>7c3db6199fa840ee9a913d70da71e002</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Source</Name>
+<Text>Official LCSC/EasyEDA ready model</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>onsemi</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+</AddFields>
+<Pads>
+<Pad Id="1" NetId="0" InternalConnection="-1" />
+<Pad Id="2" NetId="5" InternalConnection="-1" />
+<Pad Id="3" NetId="6" InternalConnection="-1" />
+</Pads>
+</Component>
+<Component Id="20" UpdateId="103" PatternStyle="PatType1" X="0.492126" Y="0.187008" Angle="3.141593" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad">
+<RefDes>Q2</RefDes>
+<Name>BSS138</Name>
+<Value>BSS138 / C52895</Value>
+<LibPath>
+<Path/>
+<Var/>
+</LibPath>
+<RefDesMarking>
+<Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.088583" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.097559" Angle="0" />
+</RefDesMarking>
+<NameMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.097559" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.097559" Angle="0" />
+</NameMarking>
+<ValueMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.156614" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.156614" Angle="0" />
+</ValueMarking>
+<PatternMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</PatternMarking>
+<ManufacturerMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</ManufacturerMarking>
+<DatasheetMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</DatasheetMarking>
+<AddFields>
+<AddField Type="Text">
+<Name>MPN</Name>
+<Text>BSS138</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>LCSC</Name>
+<Text>C52895</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Package</Name>
+<Text>SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>EasyEDA Symbol UUID</Name>
+<Text>1d638380c6a74ae0b0aab17a51b21d35</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>EasyEDA Footprint UUID</Name>
+<Text>b3b82869fa924bae820e3a6cfb44d689</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>EasyEDA 3D UUID</Name>
+<Text>7c3db6199fa840ee9a913d70da71e002</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Source</Name>
+<Text>Official LCSC/EasyEDA ready model</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>onsemi</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+</AddFields>
+<Pads>
+<Pad Id="1" NetId="0" InternalConnection="-1" />
+<Pad Id="2" NetId="3" InternalConnection="-1" />
+<Pad Id="3" NetId="4" InternalConnection="-1" />
+</Pads>
+</Component>
+<Component Id="21" UpdateId="104" PatternStyle="PatType2" X="0.324803" Y="0.344488" Angle="4.712389" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad">
+<RefDes>R1</RefDes>
+<Name>0402WGF4701TCE</Name>
+<Value>4.7k</Value>
+<LibPath>
+<Path/>
+<Var/>
+</LibPath>
+<RefDesMarking>
+<Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="-0.049213" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.059055" Angle="0" />
+</RefDesMarking>
+<NameMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.059055" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.059055" Angle="0" />
+</NameMarking>
+<ValueMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.11811" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.11811" Angle="0" />
+</ValueMarking>
+<PatternMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</PatternMarking>
+<ManufacturerMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</ManufacturerMarking>
+<DatasheetMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</DatasheetMarking>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>UNI-ROYAL_0402</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text>C25900</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>UNI-ROYAL(Uniroyal Elec)</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+</AddFields>
+<Pads>
+<Pad Id="1" NetId="0" InternalConnection="-1" />
+<Pad Id="2" NetId="5" InternalConnection="-1" />
+</Pads>
+</Component>
+<Component Id="22" UpdateId="105" PatternStyle="PatType2" X="0.324803" Y="0.187008" Angle="4.712389" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad">
+<RefDes>R2</RefDes>
+<Name>0402WGF4701TCE</Name>
+<Value>4.7k</Value>
+<LibPath>
+<Path/>
+<Var/>
+</LibPath>
+<RefDesMarking>
+<Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="-0.049213" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.059055" Angle="0" />
+</RefDesMarking>
+<NameMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.059055" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.059055" Angle="0" />
+</NameMarking>
+<ValueMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.11811" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.11811" Angle="0" />
+</ValueMarking>
+<PatternMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</PatternMarking>
+<ManufacturerMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</ManufacturerMarking>
+<DatasheetMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</DatasheetMarking>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>UNI-ROYAL_0402</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text>C25900</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>UNI-ROYAL(Uniroyal Elec)</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+</AddFields>
+<Pads>
+<Pad Id="1" NetId="0" InternalConnection="-1" />
+<Pad Id="2" NetId="3" InternalConnection="-1" />
+</Pads>
+</Component>
+<Component Id="23" UpdateId="106" PatternStyle="PatType2" X="0.659449" Y="0.344488" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad">
+<RefDes>R3</RefDes>
+<Name>0402WGF4701TCE</Name>
+<Value>4.7k</Value>
+<LibPath>
+<Path/>
+<Var/>
+</LibPath>
+<RefDesMarking>
+<Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0.068898" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.059055" Angle="0" />
+</RefDesMarking>
+<NameMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.059055" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.059055" Angle="0" />
+</NameMarking>
+<ValueMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.11811" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.11811" Angle="0" />
+</ValueMarking>
+<PatternMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</PatternMarking>
+<ManufacturerMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</ManufacturerMarking>
+<DatasheetMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</DatasheetMarking>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>UNI-ROYAL_0402</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text>C25900</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>UNI-ROYAL(Uniroyal Elec)</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+</AddFields>
+<Pads>
+<Pad Id="1" NetId="1" InternalConnection="-1" />
+<Pad Id="2" NetId="6" InternalConnection="-1" />
+</Pads>
+</Component>
+<Component Id="24" UpdateId="107" PatternStyle="PatType2" X="0.659449" Y="0.187008" Side="Top" MarkingFontSize="10" MarkingFontSizeFloat="10" GridAlign="Pad">
+<RefDes>R4</RefDes>
+<Name>0402WGF4701TCE</Name>
+<Value>4.7k</Value>
+<LibPath>
+<Path/>
+<Var/>
+</LibPath>
+<RefDesMarking>
+<Silk Show="Show" Align="Position" Horz="Center" Vert="Center" X="0.068898" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="-0.059055" Angle="0" />
+</RefDesMarking>
+<NameMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.059055" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.059055" Angle="0" />
+</NameMarking>
+<ValueMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.11811" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0.11811" Angle="0" />
+</ValueMarking>
+<PatternMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</PatternMarking>
+<ManufacturerMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</ManufacturerMarking>
+<DatasheetMarking>
+<Silk Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Hide" Align="Position" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</DatasheetMarking>
+<AddFields>
+<AddField Type="Text">
+<Name>Unique Name</Name>
+<Text>UNI-ROYAL_0402</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Digi-Key)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (Mouser)</Name>
+<Text/>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Part Number (LCSC)</Name>
+<Text>C25900</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+<AddField Type="Text">
+<Name>Manufacturer</Name>
+<Text>UNI-ROYAL(Uniroyal Elec)</Text>
+<Silk Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+<Assy Show="Common" Align="Common" Horz="Center" Vert="Center" X="0" Y="0" Angle="0" />
+</AddField>
+</AddFields>
+<Pads>
+<Pad Id="1" NetId="1" InternalConnection="-1" />
+<Pad Id="2" NetId="4" InternalConnection="-1" />
+</Pads>
+</Component>
+</Components>
+<Ratlines>
+<Ratline Id="0" Hidden="Y" X1="-0.081102" Y1="0.23622" X2="0.765354" Y2="0.23622" Comp1="17" Pad1="1" Comp2="18" Pad2="1" />
+</Ratlines>
+<Nets>
+<Net Id="0" HiddenId="0" NetClass="0">
+<Name>3V3</Name>
+<Pads>
+<Item Comp="19" Pad="1" />
+<Item Comp="20" Pad="1" />
+<Item Comp="21" Pad="1" />
+<Item Comp="22" Pad="1" />
+<Item Comp="17" Pad="2" />
+</Pads>
+<Traces>
+<Trace Id="0" Connected1="Pad" Object1="19" SubObject1="1" Point1="-1" Connected2="Pad" Object2="20" SubObject2="1" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.443501" Y="0.381888" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.442913" Y="0.381888" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.442913" Y="0.369094" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.408465" Y="0.334646" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.408465" Y="0.260827" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.442913" Y="0.226378" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="6" X="0.442913" Y="0.224408" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="7" X="0.443501" Y="0.224408" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+<Trace Id="1" Connected1="Pad" Object1="21" SubObject1="1" Point1="-1" Connected2="Pad" Object2="22" SubObject2="1" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.324803" Y="0.362795" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.324803" Y="0.359252" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.354331" Y="0.359252" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.354331" Y="0.23622" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.324803" Y="0.206693" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.324803" Y="0.205315" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="6" X="0.324803" Y="0.205315" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+<Trace Id="2" Connected1="Pad" Object1="21" SubObject1="1" Point1="-1" Connected2="Pad" Object2="19" SubObject2="1" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.324803" Y="0.362795" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.324803" Y="0.364173" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.42815" Y="0.364173" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.442913" Y="0.378937" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.442913" Y="0.381888" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.443501" Y="0.381888" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+<Trace Id="3" Connected1="Pad" Object1="22" SubObject1="1" Point1="-1" Connected2="Pad" Object2="17" SubObject2="2" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.324803" Y="0.205315" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.324803" Y="0.206693" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.093504" Y="0.206693" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.073819" Y="0.187008" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.068898" Y="0.187008" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.068898" Y="0.18622" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+</Traces>
+</Net>
+<Net Id="1" HiddenId="1" NetClass="0">
+<Name>5V</Name>
+<Pads>
+<Item Comp="23" Pad="1" />
+<Item Comp="24" Pad="1" />
+<Item Comp="18" Pad="2" />
+</Pads>
+<Traces>
+<Trace Id="0" Connected1="Pad" Object1="23" SubObject1="1" Point1="-1" Connected2="Pad" Object2="24" SubObject2="1" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.641142" Y="0.344488" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.639764" Y="0.344488" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.639764" Y="0.187008" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.641142" Y="0.187008" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+<Trace Id="1" Connected1="Pad" Object1="24" SubObject1="1" Point1="-1" Connected2="Pad" Object2="18" SubObject2="2" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.641142" Y="0.187008" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.644685" Y="0.187008" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.644685" Y="0.216535" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.885827" Y="0.216535" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.915354" Y="0.187008" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.915354" Y="0.18622" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="6" X="0.915354" Y="0.18622" Lay="0" Width="0.011811" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+</Traces>
+</Net>
+<Net Id="2" HiddenId="6" NetClass="0">
+<Name>GND</Name>
+</Net>
+<Net Id="3" HiddenId="4" NetClass="0">
+<Name>SCL_3V3</Name>
+<Pads>
+<Item Comp="20" Pad="2" />
+<Item Comp="22" Pad="2" />
+<Item Comp="17" Pad="3" />
+</Pads>
+<Traces>
+<Trace Id="0" Connected1="Pad" Object1="20" SubObject1="2" Point1="-1" Connected2="Pad" Object2="22" SubObject2="2" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.443501" Y="0.149608" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.443501" Y="0.152559" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.344488" Y="0.152559" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.329724" Y="0.167323" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.324803" Y="0.167323" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.324803" Y="0.168701" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+<Trace Id="1" Connected1="Pad" Object1="22" SubObject1="2" Point1="-1" Connected2="Pad" Object2="17" SubObject2="3" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.324803" Y="0.168701" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.324803" Y="0.167323" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.142717" Y="0.167323" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.113189" Y="0.137795" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.019685" Y="0.137795" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.019685" Y="0.23622" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="6" X="0.068898" Y="0.285433" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="7" X="0.068898" Y="0.285433" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="8" X="0.068898" Y="0.28622" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+</Traces>
+</Net>
+<Net Id="4" HiddenId="5" NetClass="0">
+<Name>SCL_5V</Name>
+<Pads>
+<Item Comp="20" Pad="3" />
+<Item Comp="24" Pad="2" />
+<Item Comp="18" Pad="3" />
+</Pads>
+<Traces>
+<Trace Id="0" Connected1="Pad" Object1="20" SubObject1="3" Point1="-1" Connected2="Pad" Object2="24" SubObject2="2" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.540751" Y="0.187008" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.540751" Y="0.187008" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.590551" Y="0.187008" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.615157" Y="0.162402" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.674213" Y="0.162402" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.674213" Y="0.187008" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="6" X="0.677756" Y="0.187008" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+<Trace Id="1" Connected1="Pad" Object1="24" SubObject1="2" Point1="-1" Connected2="Pad" Object2="18" SubObject2="3" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.677756" Y="0.187008" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.677756" Y="0.187008" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.82185" Y="0.187008" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.871063" Y="0.137795" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.964567" Y="0.137795" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.964567" Y="0.23622" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="6" X="0.915354" Y="0.285433" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="7" X="0.915354" Y="0.28622" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="8" X="0.915354" Y="0.28622" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+</Traces>
+</Net>
+<Net Id="5" HiddenId="2" NetClass="0">
+<Name>SDA_3V3</Name>
+<Pads>
+<Item Comp="21" Pad="2" />
+<Item Comp="17" Pad="4" />
+<Item Comp="19" Pad="2" />
+</Pads>
+<Traces>
+<Trace Id="0" Connected1="Pad" Object1="21" SubObject1="2" Point1="-1" Connected2="Pad" Object2="17" SubObject2="4" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.324803" Y="0.326181" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.324803" Y="0.324803" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.127953" Y="0.324803" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.068898" Y="0.383858" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.068898" Y="0.383858" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.068898" Y="0.38622" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+<Trace Id="1" Connected1="Pad" Object1="19" SubObject1="2" Point1="-1" Connected2="Pad" Object2="21" SubObject2="2" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.443501" Y="0.307088" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.443501" Y="0.310039" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.457677" Y="0.310039" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.477362" Y="0.329724" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.477362" Y="0.408465" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.319882" Y="0.408465" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="6" X="0.300197" Y="0.38878" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="7" X="0.300197" Y="0.329724" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="8" X="0.324803" Y="0.329724" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="9" X="0.324803" Y="0.326181" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="10" X="0.324803" Y="0.326181" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+</Traces>
+</Net>
+<Net Id="6" HiddenId="3" NetClass="0">
+<Name>SDA_5V</Name>
+<Pads>
+<Item Comp="19" Pad="3" />
+<Item Comp="23" Pad="2" />
+<Item Comp="18" Pad="4" />
+</Pads>
+<Traces>
+<Trace Id="0" Connected1="Pad" Object1="19" SubObject1="3" Point1="-1" Connected2="Pad" Object2="23" SubObject2="2" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.540751" Y="0.344488" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.540751" Y="0.344488" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.590551" Y="0.344488" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.615157" Y="0.369094" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.674213" Y="0.369094" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.674213" Y="0.344488" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="6" X="0.677756" Y="0.344488" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+<Trace Id="1" Connected1="Pad" Object1="23" SubObject1="2" Point1="-1" Connected2="Pad" Object2="18" SubObject2="4" Point2="-1" PairSeparateTrace="-1">
+<Points>
+<Point Id="0" X="0.677756" Y="0.344488" Lay="0" Width="0" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="1" X="0.677756" Y="0.344488" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="2" X="0.871063" Y="0.344488" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="3" X="0.910433" Y="0.383858" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="4" X="0.910433" Y="0.38622" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+<Point Id="5" X="0.915354" Y="0.38622" Lay="0" Width="0.009843" ShieldGroup="-1" PairPoint="0" PairSubPoint="0" />
+</Points>
+</Trace>
+</Traces>
+</Net>
+</Nets>
+<CopperPours>
+<CopperPour Id="0" NetId="2" Lay="0" Priority="0" Poured="Y" Type="Solid" Clearance="0.007874" UseNetClearance="N" BoardClearance="0.007874" LineWidth="0.003937" LineSpacing="0.003937" MinimumArea="0.00155" Spoke="4 spoke" SpokeWidth="0.011811" ViaDirect="Y" SMD_Separate="N" SMD_Spoke="4 spoke" SMD_SpokeWidth="0.011811" RatlineMode="Automaticaly" SnapToBoard="N" IslandRegion="N" IslandInternal="N" IslandConnection="N" RegionsDone="Y">
+<Points>
+<Point X="0.007874" Y="0.007874" />
+<Point X="0.007874" Y="0.464567" />
+<Point X="0.976378" Y="0.464567" />
+<Point X="0.976378" Y="0.007874" />
+</Points>
+</CopperPour>
+<CopperPour Id="1" NetId="2" Lay="1" Priority="0" Poured="Y" Type="Solid" Clearance="0.007874" UseNetClearance="N" BoardClearance="0.007874" LineWidth="0.003937" LineSpacing="0.003937" MinimumArea="0.00155" Spoke="4 spoke" SpokeWidth="0.011811" ViaDirect="Y" SMD_Separate="N" SMD_Spoke="4 spoke" SMD_SpokeWidth="0.011811" RatlineMode="Automaticaly" SnapToBoard="N" IslandRegion="N" IslandInternal="N" IslandConnection="N" RegionsDone="Y">
+<Points>
+<Point X="0.007874" Y="0.007874" />
+<Point X="0.007874" Y="0.464567" />
+<Point X="0.976378" Y="0.464567" />
+<Point X="0.976378" Y="0.007874" />
+</Points>
+</CopperPour>
+</CopperPours>
+<CopperPourFills>
+<Fill Id="0">
+<L>0.010238 0.458793 0.974016 0.458793 6 0.010238 0.454987 0.974016 0.454987 6 0.010238 0.451181 0.974016 0.451181 6 0.010238 0.447375 0.974016 0.447375 6 0.010238 0.44357 0.974016 0.44357 6 0.010238 0.439764 0.974016 0.439764 6 0.010238 0.435958 0.974016 0.435958 6 0.010238 0.432152 0.974016 0.432152 6 0.010238 0.428347 0.974016 0.428347 6 0.010238 0.424541 0.051781 0.424541 6 0.086018 0.424541 0.898236 0.424541 6 0.932473 0.424541 0.974016 0.424541 6 0.010238 0.420735 0.044907 0.420735 6 0.092892 0.420735 0.311135 0.420735 6 0.486108 0.420735 0.891362 0.420735 6 0.939347 0.420735 0.974016 0.420735 6 0.010238 0.416929 0.040132 0.416929 6 0.097667 0.416929 0.306963 0.416929 6 0.489949 0.416929 0.886587 0.416929 6 0.944122 0.416929 0.974016 0.416929 6 0.010238 0.413124 0.036498 0.413124 6 0.101297 0.413124 0.303157 0.413124 6 0.491848 0.413124 0.882953 0.413124 6 0.947755 0.413124 0.974016 0.413124 6 0.010238 0.409318 0.033653 0.409318 6 0.104146 0.409318 0.299351 0.409318 6 0.492574 0.409318 0.880108 0.409318 6 0.950601 0.409318 0.974016 0.409318 6 0.010238 0.405512 0.031412 0.405512 6 0.106387 0.405512 0.295545 0.405512 6 0.492598 0.405512 0.877867 0.405512 6 0.952842 0.405512 0.974016 0.405512 6 0.010238 0.401706 0.029666 0.401706 6 0.108129 0.401706 0.291738 0.401706 6 0.492598 0.401706 0.876121 0.401706 6 0.954584 0.401706 0.974016 0.401706 6 0.010238 0.3979 0.028359 0.3979 6 0.10944 0.3979 0.288093 0.3979 6 0.492598 0.3979 0.874814 0.3979 6 0.955895 0.3979 0.974016 0.3979 6 0.010238 0.394095 0.02744 0.394095 6 0.110355 0.394095 0.285944 0.394095 6 0.492598 0.394095 0.873899 0.394095 6 0.95681 0.394095 0.974016 0.394095 6 0.010238 0.390289 0.02689 0.390289 6 0.110905 0.390289 0.285037 0.390289 6 0.323091 0.390289 0.412124 0.390289 4 0.492598 0.390289 0.873349 0.390289 6 0.95736 0.390289 0.974016 0.390289 6 0.010238 0.386483 0.026694 0.386483 6 0.111101 0.386483 0.28496 0.386483 6 0.319285 0.386483 0.412124 0.386483 4 0.492598 0.386483 0.873149 0.386483 6 0.95756 0.386483 0.974016 0.386483 6 0.010238 0.382677 0.026844 0.382677 6 0.110951 0.382677 0.28496 0.382677 6 0.338136 0.382677 0.412124 0.382677 4 0.492598 0.382677 0.608778 0.382677 6 0.680589 0.382677 0.873299 0.382677 6 0.95741 0.382677 0.974016 0.382677 6 0.010238 0.378872 0.027344 0.378872 6 0.110451 0.378872 0.28496 0.378872 6 0.492598 0.378872 0.603549 0.378872 6 0.685772 0.378872 0.873799 0.378872 6 0.95691 0.378872 0.974016 0.378872 6 0.010238 0.375066 0.028209 0.375066 6 0.109586 0.375066 0.28496 0.375066 6 0.492598 0.375066 0.599743 0.375066 6 0.688194 0.375066 0.874664 0.375066 6 0.956045 0.375066 0.974016 0.375066 6 0.010238 0.37126 0.029463 0.37126 6 0.108336 0.37126 0.28496 0.37126 6 0.492598 0.37126 0.595937 0.37126 6 0.68929 0.37126 0.875918 0.37126 6 0.954791 0.37126 0.974016 0.37126 6 0.010238 0.367454 0.031143 0.367454 6 0.106687 0.367454 0.28496 0.367454 6 0.492598 0.367454 0.592134 0.367454 6 0.689451 0.367454 0.872646 0.367454 6 0.953111 0.367454 0.974016 0.367454 6 0.010238 0.363649 0.033307 0.363649 6 0.110493 0.363649 0.28496 0.363649 6 0.492598 0.363649 0.509373 0.363649 6 0.57213 0.363649 0.588328 0.363649 6 0.69207 0.363649 0.868839 0.363649 6 0.950943 0.363649 0.974016 0.363649 6 0.010238 0.359843 0.036064 0.359843 6 0.114299 0.359843 0.28496 0.359843 6 0.45615 0.359843 0.462125 0.359843 3 0.492598 0.359843 0.509373 0.359843 6 0.57213 0.359843 0.584522 0.359843 6 0.696449 0.359843 0.865033 0.359843 6 0.94819 0.359843 0.974016 0.359843 6 0.010238 0.356037 0.03957 0.356037 6 0.118102 0.356037 0.28496 0.356037 6 0.452632 0.356037 0.462125 0.356037 3 0.492598 0.356037 0.509373 0.356037 6 0.944684 0.356037 0.974016 0.356037 6 0.010238 0.352231 0.044153 0.352231 6 0.121908 0.352231 0.28496 0.352231 6 0.448825 0.352231 0.462125 0.352231 3 0.492598 0.352231 0.509373 0.352231 6 0.940097 0.352231 0.974016 0.352231 6 0.010238 0.348426 0.050624 0.348426 6 0.125714 0.348426 0.28496 0.348426 6 0.445019 0.348426 0.462125 0.348426 3 0.492598 0.348426 0.509373 0.348426 6 0.615875 0.348426 0.619017 0.348426 6 0.93363 0.348426 0.974016 0.348426 6 0.010238 0.34462 0.064311 0.34462 6 0.073488 0.34462 0.086753 0.34462 6 0.129521 0.34462 0.28496 0.34462 6 0.370551 0.34462 0.395784 0.34462 6 0.441217 0.34462 0.462125 0.34462 3 0.492598 0.34462 0.509373 0.34462 6 0.612069 0.34462 0.619017 0.34462 6 0.89258 0.34462 0.910766 0.34462 6 0.919943 0.34462 0.974016 0.34462 6 0.010238 0.340814 0.090559 0.340814 6 0.133327 0.340814 0.28496 0.340814 6 0.370551 0.340814 0.393497 0.340814 6 0.43741 0.340814 0.462125 0.340814 3 0.492598 0.340814 0.509373 0.340814 6 0.608262 0.340814 0.619017 0.340814 6 0.888774 0.340814 0.974016 0.340814 6 0.010238 0.337008 0.094362 0.337008 6 0.370551 0.337008 0.39242 0.337008 6 0.433604 0.337008 0.462125 0.337008 3 0.492598 0.337008 0.509373 0.337008 6 0.604456 0.337008 0.61914 0.337008 6 0.884967 0.337008 0.974016 0.337008 6 0.010238 0.333202 0.098168 0.333202 6 0.370551 0.333202 0.392243 0.333202 6 0.429798 0.333202 0.459457 0.333202 3 0.492598 0.333202 0.509373 0.333202 6 0.600584 0.333202 0.620105 0.333202 6 0.881096 0.333202 0.974016 0.333202 6 0.010238 0.329397 0.101974 0.329397 6 0.370551 0.329397 0.392243 0.329397 6 0.425991 0.329397 0.45565 0.329397 3 0.492594 0.329397 0.509373 0.329397 6 0.57213 0.329397 0.622242 0.329397 6 0.696653 0.329397 0.974016 0.329397 6 0.010238 0.325591 0.05443 0.325591 6 0.083369 0.325591 0.10578 0.325591 6 0.370551 0.325591 0.392243 0.325591 6 0.492013 0.325591 0.509373 0.325591 6 0.57213 0.325591 0.623542 0.325591 6 0.655983 0.325591 0.663012 0.325591 6 0.6925 0.325591 0.900885 0.325591 6 0.929824 0.325591 0.974016 0.325591 6 0.010238 0.321785 0.046522 0.321785 6 0.091277 0.321785 0.109587 0.321785 6 0.370551 0.321785 0.392243 0.321785 6 0.490298 0.321785 0.623542 0.321785 6 0.655983 0.321785 0.892977 0.321785 6 0.937732 0.321785 0.974016 0.321785 6 0.010238 0.317979 0.041312 0.317979 6 0.096487 0.317979 0.113393 0.317979 6 0.370551 0.317979 0.392243 0.317979 6 0.487003 0.317979 0.623542 0.317979 6 0.655983 0.317979 0.887767 0.317979 6 0.942942 0.317979 0.974016 0.317979 6 0.010238 0.314174 0.03741 0.314174 6 0.100385 0.314174 0.117199 0.314174 6 0.370551 0.314174 0.392243 0.314174 6 0.483197 0.314174 0.623542 0.314174 6 0.655983 0.314174 0.883868 0.314174 6 0.94684 0.314174 0.974016 0.314174 6 0.010238 0.310368 0.034372 0.310368 6 0.103427 0.310368 0.124104 0.310368 6 0.370551 0.310368 0.392243 0.310368 6 0.479391 0.310368 0.623542 0.310368 6 0.655983 0.310368 0.880827 0.310368 6 0.949882 0.310368 0.974016 0.310368 6 0.010238 0.306562 0.031977 0.306562 6 0.105822 0.306562 0.310996 0.306562 6 0.370551 0.306562 0.392243 0.306562 6 0.475585 0.306562 0.623542 0.306562 6 0.655983 0.306562 0.878432 0.306562 6 0.952277 0.306562 0.974016 0.306562 6 0.010238 0.302756 0.030101 0.302756 6 0.107694 0.302756 0.338109 0.302756 6 0.370551 0.302756 0.392243 0.302756 6 0.474877 0.302756 0.623542 0.302756 6 0.655983 0.302756 0.87656 0.302756 6 0.954149 0.302756 0.974016 0.302756 6 0.010238 0.298951 0.028678 0.298951 6 0.109117 0.298951 0.338109 0.298951 6 0.370551 0.298951 0.392243 0.298951 6 0.474877 0.298951 0.623542 0.298951 6 0.655983 0.298951 0.875133 0.298951 6 0.955576 0.298951 0.974016 0.298951 6 0.010238 0.295145 0.027656 0.295145 6 0.110139 0.295145 0.338109 0.295145 6 0.370551 0.295145 0.392243 0.295145 6 0.474877 0.295145 0.623542 0.295145 6 0.655983 0.295145 0.874114 0.295145 6 0.956594 0.295145 0.974016 0.295145 6 0.010238 0.291339 0.027006 0.291339 6 0.110789 0.291339 0.338109 0.291339 6 0.370551 0.291339 0.392243 0.291339 6 0.474877 0.291339 0.623542 0.291339 6 0.655983 0.291339 0.873465 0.291339 6 0.957244 0.291339 0.974016 0.291339 6 0.010238 0.287533 0.026714 0.287533 6 0.111081 0.287533 0.338109 0.287533 6 0.370551 0.287533 0.392243 0.287533 6 0.474877 0.287533 0.623542 0.287533 6 0.655983 0.287533 0.873169 0.287533 6 0.957536 0.287533 0.974016 0.287533 6 0.010238 0.283727 0.026767 0.283727 6 0.111028 0.283727 0.338109 0.283727 6 0.370551 0.283727 0.392243 0.283727 6 0.424684 0.283727 0.623542 0.283727 6 0.655983 0.283727 0.873222 0.283727 6 0.957486 0.283727 0.974016 0.283727 6 0.010238 0.279922 0.027171 0.279922 6 0.110628 0.279922 0.338109 0.279922 6 0.370551 0.279922 0.392243 0.279922 6 0.424684 0.279922 0.623542 0.279922 6 0.655983 0.279922 0.873626 0.279922 6 0.957083 0.279922 0.974016 0.279922 6 0.010238 0.276116 0.027932 0.276116 6 0.109863 0.276116 0.338109 0.276116 6 0.370551 0.276116 0.392243 0.276116 6 0.424684 0.276116 0.623542 0.276116 6 0.655983 0.276116 0.874387 0.276116 6 0.956322 0.276116 0.974016 0.276116 6 0.010238 0.27231 0.029074 0.27231 6 0.108721 0.27231 0.338109 0.27231 6 0.370551 0.27231 0.392243 0.27231 6 0.424684 0.27231 0.623542 0.27231 6 0.655983 0.27231 0.875529 0.27231 6 0.955176 0.27231 0.974016 0.27231 6 0.010238 0.268504 0.030585 0.268504 6 0.107164 0.268504 0.338109 0.268504 6 0.370551 0.268504 0.392243 0.268504 6 0.424684 0.268504 0.623542 0.268504 6 0.655983 0.268504 0.877086 0.268504 6 0.953669 0.268504 0.974016 0.268504 6 0.010238 0.264699 0.026779 0.264699 6 0.105138 0.264699 0.338109 0.264699 6 0.370551 0.264699 0.392243 0.264699 6 0.427368 0.264699 0.623542 0.264699 6 0.655983 0.264699 0.879112 0.264699 6 0.957471 0.264699 0.974016 0.264699 6 0.010238 0.260893 0.022973 0.260893 6 0.102558 0.260893 0.338109 0.260893 6 0.370551 0.260893 0.392243 0.260893 6 0.431174 0.260893 0.623542 0.260893 6 0.655983 0.260893 0.881692 0.260893 6 0.961277 0.260893 0.974016 0.260893 6 0.010238 0.257087 0.019166 0.257087 6 0.099282 0.257087 0.338109 0.257087 6 0.370551 0.257087 0.392693 0.257087 6 0.43498 0.257087 0.623542 0.257087 6 0.655983 0.257087 0.884968 0.257087 6 0.965084 0.257087 0.974016 0.257087 6 0.010238 0.253281 0.01536 0.253281 6 0.095045 0.253281 0.338109 0.253281 6 0.370551 0.253281 0.394158 0.253281 6 0.438787 0.253281 0.623542 0.253281 6 0.655983 0.253281 0.889209 0.253281 6 0.96889 0.253281 0.974016 0.253281 6 0.010238 0.249476 0.011558 0.249476 6 0.089243 0.249476 0.338109 0.249476 6 0.370551 0.249476 0.397041 0.249476 6 0.442593 0.249476 0.623542 0.249476 6 0.655983 0.249476 0.89501 0.249476 6 0.972696 0.249476 0.974016 0.249476 6 0.050519 0.24567 0.058313 0.24567 6 0.079482 0.24567 0.338109 0.24567 6 0.370551 0.24567 0.400848 0.24567 6 0.474877 0.24567 0.623542 0.24567 6 0.655983 0.24567 0.904768 0.24567 6 0.92594 0.24567 0.933731 0.24567 6 0.046713 0.241864 0.337198 0.241864 6 0.370551 0.241864 0.40465 0.241864 6 0.474877 0.241864 0.623542 0.241864 6 0.655983 0.241864 0.937537 0.241864 6 0.042907 0.238058 0.333392 0.238058 6 0.370551 0.238058 0.408456 0.238058 6 0.474877 0.238058 0.623542 0.238058 6 0.655983 0.238058 0.941343 0.238058 6 0.0391 0.234253 0.329586 0.234253 6 0.370427 0.234253 0.412124 0.234253 6 0.474877 0.234253 0.623542 0.234253 6 0.655983 0.234253 0.94515 0.234253 6 0.035298 0.230447 0.325779 0.230447 6 0.369462 0.230447 0.412124 0.230447 6 0.474877 0.230447 0.623542 0.230447 6 0.893768 0.230447 0.948956 0.230447 6 0.034921 0.226641 0.057814 0.226641 6 0.079985 0.226641 0.315333 0.226641 6 0.367325 0.226641 0.412124 0.226641 6 0.474877 0.226641 0.623542 0.226641 6 0.898497 0.226641 0.904269 0.226641 6 0.92644 0.226641 0.949329 0.226641 6 0.034921 0.222835 0.048317 0.222835 6 0.089478 0.222835 0.308148 0.222835 6 0.363722 0.222835 0.412124 0.222835 6 0.474877 0.222835 0.623542 0.222835 6 0.935933 0.222835 0.949329 0.222835 6 0.034921 0.219029 0.042588 0.219029 6 0.359916 0.219029 0.412124 0.219029 6 0.474877 0.219029 0.623542 0.219029 6 0.941665 0.219029 0.949329 0.219029 6 0.034921 0.215224 0.03839 0.215224 6 0.35611 0.215224 0.412124 0.215224 6 0.474877 0.215224 0.623542 0.215224 6 0.945864 0.215224 0.949329 0.215224 6 0.352303 0.211418 0.412124 0.211418 6 0.474877 0.211418 0.623542 0.211418 6 0.348497 0.207612 0.412124 0.207612 6 0.474877 0.207612 0.509373 0.207612 6 0.57213 0.207612 0.623542 0.207612 6 0.346536 0.203806 0.412124 0.203806 6 0.474877 0.203806 0.509373 0.203806 6 0.57213 0.203806 0.623542 0.203806 6 0.346536 0.200001 0.509373 0.200001 6 0.59812 0.200001 0.620897 0.200001 6 0.829419 0.200001 0.875487 0.200001 2 0.346206 0.196195 0.509373 0.196195 6 0.602749 0.196195 0.619447 0.196195 6 0.834048 0.196195 0.874357 0.196195 2 0.344895 0.192389 0.509373 0.192389 6 0.606555 0.192389 0.619017 0.192389 6 0.837854 0.192389 0.873607 0.192389 2 0.111035 0.188583 0.307352 0.188583 5 0.342253 0.188583 0.509373 0.188583 6 0.610361 0.188583 0.619017 0.188583 6 0.84166 0.188583 0.873215 0.188583 2 0.111078 0.184778 0.306771 0.184778 5 0.342834 0.184778 0.509373 0.184778 6 0.614168 0.184778 0.619017 0.184778 6 0.845467 0.184778 0.873172 0.184778 2 0.110774 0.180972 0.136492 0.180972 5 0.345198 0.180972 0.509373 0.180972 6 0.849269 0.180972 0.87348 0.180972 2 0.110113 0.177166 0.131175 0.177166 5 0.346329 0.177166 0.509373 0.177166 6 0.853075 0.177166 0.874141 0.177166 2 0.109075 0.17336 0.127368 0.17336 5 0.346536 0.17336 0.509373 0.17336 6 0.856882 0.17336 0.875175 0.17336 2 0.107637 0.169554 0.123562 0.169554 5 0.348878 0.169554 0.412124 0.169554 6 0.474877 0.169554 0.509373 0.169554 6 0.57213 0.169554 0.586621 0.169554 6 0.694442 0.169554 0.81792 0.169554 6 0.860688 0.169554 0.876613 0.169554 2 0.105749 0.165749 0.11976 0.165749 5 0.474877 0.165749 0.509373 0.165749 6 0.57213 0.165749 0.590427 0.165749 6 0.689451 0.165749 0.821726 0.165749 6 0.864494 0.165749 0.878505 0.165749 2 0.103334 0.161943 0.115953 0.161943 5 0.474877 0.161943 0.59423 0.161943 6 0.689444 0.161943 0.825532 0.161943 6 0.8683 0.161943 0.88092 0.161943 2 0.034921 0.158137 0.037529 0.158137 0 0.100266 0.158137 0.112147 0.158137 5 0.474877 0.158137 0.598036 0.158137 6 0.688825 0.158137 0.829335 0.158137 6 0.872107 0.158137 0.883984 0.158137 2 0.946725 0.158137 0.949329 0.158137 1 0.034921 0.154331 0.041462 0.154331 0 0.096333 0.154331 0.108341 0.154331 5 0.474877 0.154331 0.601842 0.154331 6 0.687064 0.154331 0.833141 0.154331 6 0.875913 0.154331 0.887917 0.154331 2 0.942792 0.154331 0.949329 0.154331 1 0.147303 0.150526 0.308901 0.150526 6 0.474877 0.150526 0.60586 0.150526 6 0.683511 0.150526 0.836947 0.150526 6 0.1435 0.14672 0.328944 0.14672 6 0.474877 0.14672 0.840754 0.14672 6 0.139694 0.142914 0.33275 0.142914 6 0.474877 0.142914 0.84456 0.142914 6 0.135888 0.139108 0.337817 0.139108 6 0.474877 0.139108 0.848366 0.139108 6 0.132081 0.135303 0.412124 0.135303 6 0.474877 0.135303 0.852172 0.135303 6 0.128275 0.131497 0.412124 0.131497 6 0.474877 0.131497 0.855975 0.131497 6 0.124469 0.127691 0.859781 0.127691 6 0.010238 0.123885 0.014111 0.123885 6 0.118763 0.123885 0.865491 0.123885 6 0.970139 0.123885 0.974016 0.123885 6 0.010238 0.12008 0.026694 0.12008 6 0.111105 0.12008 0.873149 0.12008 6 0.95756 0.12008 0.974016 0.12008 6 0.010238 0.116274 0.026694 0.116274 6 0.111105 0.116274 0.873149 0.116274 6 0.95756 0.116274 0.974016 0.116274 6 0.010238 0.112468 0.026694 0.112468 6 0.111105 0.112468 0.873149 0.112468 6 0.95756 0.112468 0.974016 0.112468 6 0.010238 0.108662 0.026694 0.108662 6 0.111105 0.108662 0.873149 0.108662 6 0.95756 0.108662 0.974016 0.108662 6 0.010238 0.104856 0.026694 0.104856 6 0.111105 0.104856 0.873149 0.104856 6 0.95756 0.104856 0.974016 0.104856 6 0.010238 0.101051 0.026694 0.101051 6 0.111105 0.101051 0.873149 0.101051 6 0.95756 0.101051 0.974016 0.101051 6 0.010238 0.097245 0.026694 0.097245 6 0.111105 0.097245 0.873149 0.097245 6 0.95756 0.097245 0.974016 0.097245 6 0.010238 0.093439 0.026694 0.093439 6 0.111105 0.093439 0.873149 0.093439 6 0.95756 0.093439 0.974016 0.093439 6 0.010238 0.089633 0.026694 0.089633 6 0.111105 0.089633 0.873149 0.089633 6 0.95756 0.089633 0.974016 0.089633 6 0.010238 0.085828 0.026694 0.085828 6 0.111105 0.085828 0.873149 0.085828 6 0.95756 0.085828 0.974016 0.085828 6 0.010238 0.082022 0.026694 0.082022 6 0.111105 0.082022 0.873149 0.082022 6 0.95756 0.082022 0.974016 0.082022 6 0.010238 0.078216 0.026694 0.078216 6 0.111105 0.078216 0.873149 0.078216 6 0.95756 0.078216 0.974016 0.078216 6 0.010238 0.07441 0.026694 0.07441 6 0.111105 0.07441 0.873149 0.07441 6 0.95756 0.07441 0.974016 0.07441 6 0.010238 0.070605 0.026694 0.070605 6 0.111105 0.070605 0.873149 0.070605 6 0.95756 0.070605 0.974016 0.070605 6 0.010238 0.066799 0.026694 0.066799 6 0.111105 0.066799 0.873149 0.066799 6 0.95756 0.066799 0.974016 0.066799 6 0.010238 0.062993 0.026694 0.062993 6 0.111105 0.062993 0.873149 0.062993 6 0.95756 0.062993 0.974016 0.062993 6 0.010238 0.059187 0.026694 0.059187 6 0.111105 0.059187 0.873149 0.059187 6 0.95756 0.059187 0.974016 0.059187 6 0.010238 0.055381 0.026694 0.055381 6 0.111105 0.055381 0.873149 0.055381 6 0.95756 0.055381 0.974016 0.055381 6 0.010238 0.051576 0.026694 0.051576 6 0.111105 0.051576 0.873149 0.051576 6 0.95756 0.051576 0.974016 0.051576 6 0.010238 0.04777 0.026694 0.04777 6 0.111105 0.04777 0.873149 0.04777 6 0.95756 0.04777 0.974016 0.04777 6 0.010238 0.043964 0.974016 0.043964 6 0.010238 0.040158 0.974016 0.040158 6 0.010238 0.036353 0.974016 0.036353 6 0.010238 0.032547 0.974016 0.032547 6 0.010238 0.028741 0.974016 0.028741 6 0.010238 0.024935 0.974016 0.024935 6 0.010238 0.02113 0.974016 0.02113 6 0.010238 0.017324 0.974016 0.017324 6 0.010238 0.013518 0.974016 0.013518 6</L>
+<P r="0">0.044003 0.152639 0.043614 0.15292 0.042069 0.154151 0.040585 0.155454 0.039164 0.156825 0.037809 0.158262 0.036523 0.159762 0.03531 0.16132 0.034528 0.162428 0.034528 0.152638 0.043988 0.152638</P>
+<P r="1">0.949725 0.162425 0.949529 0.162131 0.948353 0.160544 0.947104 0.159015 0.945784 0.157546 0.944395 0.156141 0.942943 0.154803 0.941428 0.153535 0.940247 0.152638 0.949723 0.152638 0.949724 0.162411</P>
+<P r="2">0.890459 0.152639 0.89007 0.15292 0.888525 0.154151 0.887041 0.155454 0.88562 0.156825 0.884265 0.158262 0.882979 0.159762 0.881766 0.16132 0.880627 0.162934 0.879566 0.1646 0.878585 0.166314 0.877686 0.168073 0.876871 0.169872 0.876142 0.171707 0.875501 0.173575 0.874948 0.175471 0.874485 0.177392 0.874114 0.179331 0.873835 0.181287 0.873648 0.183253 0.873555 0.185226 0.873554 0.187201 0.873647 0.189174 0.873833 0.19114 0.874112 0.193095 0.874483 0.195035 0.874944 0.196956 0.875497 0.198852 0.876133 0.200707 0.827559 0.200708 0.828023 0.200506 0.829753 0.199572 0.831345 0.198416 0.832345 0.197503 0.877212 0.152637 0.890445 0.152638</P>
+<P r="3">0.462519 0.360156 0.455975 0.360156 0.455712 0.359784 0.454458 0.358268 0.454104 0.357903 0.425021 0.328819 0.455468 0.32882 0.462519 0.335872 0.462519 0.360157</P>
+<P r="4">0.412517 0.38 0.412517 0.393622 0.326032 0.393622 0.316725 0.384317 0.316823 0.384334 0.318782 0.384519 0.319291 0.384527 0.330315 0.384527 0.332278 0.384405 0.334211 0.38404 0.336084 0.383438 0.337868 0.382609 0.339535 0.381564 0.341061 0.38032 0.342465 0.38 0.412518 0.38</P>
+<P r="5">0.30818 0.185877 0.306866 0.18441 0.305745 0.182791 0.305385 0.182166 0.142731 0.182166 0.140906 0.182055 0.138974 0.181686 0.137108 0.181065 0.13534 0.180203 0.133702 0.179114 0.132222 0.177818 0.107042 0.152638 0.093791 0.152638 0.094972 0.153535 0.096487 0.154803 0.097939 0.156141 0.099328 0.157546 0.100648 0.159015 0.101897 0.160544 0.103073 0.162131 0.104172 0.163772 0.105193 0.165463 0.106133 0.1672 0.106989 0.16898 0.107761 0.170798 0.108446 0.17265 0.109043 0.174533 0.10955 0.176442 0.109966 0.178373 0.110291 0.180321 0.110523 0.182282 0.110663 0.184252 0.110709 0.186227 0.110662 0.188201 0.110522 0.190171 0.110439 0.190867 0.305966 0.190866 0.306731 0.18978 0.308024 0.188295</P>
+<P r="6">0.341582 0.185721 0.342875 0.184236 0.343973 0.182603 0.34486 0.180847 0.345521 0.178994 0.345948 0.177074 0.346134 0.175115 0.346142 0.174606 0.346142 0.171898 0.350637 0.167401 0.405523 0.167402 0.412517 0.167401 0.412517 0.17134 0.474485 0.17134 0.474485 0.127876 0.412517 0.127876 0.412517 0.137716 0.344502 0.137716 0.344028 0.137723 0.34207 0.137914 0.340155 0.138363 0.338315 0.139061 0.336585 0.139995 0.334993 0.141151 0.333993 0.142064 0.329086 0.146969 0.319291 0.146969 0.317328 0.147091 0.315395 0.147456 0.313522 0.148058 0.311738 0.148887 0.310071 0.149932 0.308545 0.151176 0.307289 0.15248 0.148863 0.15248 0.123694 0.127309 0.123354 0.126979 0.121835 0.12573 0.120163 0.124693 0.118369 0.123885 0.116485 0.123323 0.114542 0.123014 0.113189 0.122952 0.110709 0.122952 0.110709 0.044409 0.027087 0.044409 0.027087 0.122952 0.019378 0.122955 0.017419 0.123126 0.015499 0.123555 0.013652 0.124233 0.011912 0.12515 0.010307 0.12629 0.009843 0.125985 0.009843 0.009842 0.141732 0.009843 0.974409 0.009843 0.974409 0.126686 0.97346 0.125911 0.97181 0.12484 0.970034 0.123996 0.968161 0.123394 0.966223 0.123045 0.964554 0.122952 0.957165 0.122952 0.957165 0.044409 0.873543 0.044409 0.873543 0.122952 0.871063 0.122952 0.8691 0.123083 0.867172 0.123471 0.865312 0.124112 0.863553 0.124992 0.861925 0.126099 0.860558 0.127309 0.815702 0.172165 0.696447 0.172165 0.695282 0.170751 0.693859 0.169393 0.692279 0.168221 0.690564 0.167254 0.689056 0.166616 0.689056 0.162402 0.688925 0.160439 0.688537 0.158511 0.687896 0.156651 0.687016 0.154892 0.68591 0.153265 0.684599 0.151799 0.683106 0.150518 0.681456 0.149447 0.67968 0.148603 0.677807 0.148001 0.675869 0.147652 0.6742 0.147559 0.615157 0.147559 0.613194 0.14769 0.611266 0.148078 0.609406 0.148719 0.607647 0.149599 0.606019 0.150706 0.604652 0.151916 0.584404 0.172165 0.571735 0.172163 0.571735 0.165276 0.509767 0.165276 0.509767 0.20874 0.571735 0.20874 0.571735 0.201852 0.590551 0.201851 0.592514 0.201721 0.594442 0.201332 0.596302 0.200692 0.598061 0.199811 0.599689 0.198704 0.601096 0.197454 0.619618 0.178932 0.619603 0.179028 0.619418 0.180987 0.61941 0.181496 0.61941 0.19252 0.619532 0.194483 0.619897 0.196416 0.620499 0.198289 0.621328 0.200073 0.622373 0.20174 0.623617 0.203266 0.623937 0.204725 0.623937 0.327892 0.622676 0.329347 0.621578 0.330979 0.620692 0.332736 0.62003 0.334588 0.619603 0.336509 0.619418 0.338467 0.61941 0.338976 0.61941 0.35 0.619532 0.351965 0.618718 0.351664 0.601046 0.333993 0.599566 0.332697 0.597928 0.331608 0.59616 0.330746 0.594294 0.330125 0.59236 0.329756 0.590538 0.329645 0.571735 0.329643 0.571735 0.322756 0.509767 0.322756 0.509767 0.36622 0.571735 0.36622 0.571735 0.359332 0.584403 0.359331 0.604651 0.379579 0.604992 0.37991 0.606512 0.381159 0.608183 0.382196 0.609977 0.383004 0.611862 0.383566 0.613804 0.383875 0.615157 0.383937 0.67452 0.383934 0.67648 0.383763 0.678399 0.383334 0.680246 0.382656 0.681986 0.381739 0.68359 0.3806 0.685029 0.379259 0.686278 0.377739 0.687315 0.376068 0.688123 0.374274 0.688685 0.372389 0.688994 0.370447 0.689056 0.369094 0.689056 0.364881 0.690104 0.364456 0.691847 0.363545 0.693465 0.362425 0.69493 0.361113 0.696223 0.359628 0.697445 0.359331 0.864916 0.359331 0.876469 0.370885 0.876142 0.371707 0.875501 0.373575 0.874948 0.375471 0.874485 0.377392 0.874114 0.379331 0.873835 0.381287 0.873648 0.383253 0.873555 0.385226 0.873554 0.387201 0.873647 0.389174 0.873833 0.39114 0.874112 0.393095 0.874483 0.395035 0.874945 0.396956 0.875497 0.398852 0.876138 0.40072 0.876866 0.402556 0.87768 0.404355 0.878579 0.406114 0.879559 0.407829 0.88062 0.409495 0.881758 0.411109 0.882971 0.412668 0.884256 0.414168 0.88561 0.415605 0.887031 0.416977 0.888515 0.41828 0.890059 0.419512 0.89166 0.420669 0.893313 0.42175 0.895015 0.422751 0.896763 0.423671 0.898552 0.424507 0.900379 0.425258 0.90224 0.425921 0.904129 0.426496 0.906044 0.426981 0.907979 0.427376 0.909931 0.427678 0.911895 0.427888 0.913866 0.428005 0.915841 0.428028 0.917815 0.427959 0.919783 0.427796 0.921742 0.42754 0.923686 0.427193 0.925612 0.426753 0.927514 0.426224 0.92939 0.425605 0.931234 0.424898 0.933043 0.424105 0.934812 0.423227 0.936538 0.422267 0.938217 0.421227 0.939845 0.420108 0.941418 0.418914 0.942933 0.417646 0.944386 0.416309 0.945774 0.414904 0.947095 0.413436 0.948345 0.411906 0.949521 0.41032 0.950621 0.408679 0.951642 0.406989 0.952583 0.405252 0.95344 0.403473 0.954212 0.401655 0.954898 0.399802 0.955495 0.39792 0.956003 0.396011 0.95642 0.394081 0.956745 0.392133 0.956978 0.390171 0.957118 0.388201 0.957165 0.38622 0.957119 0.384252 0.956979 0.382282 0.956747 0.380321 0.956422 0.378373 0.956006 0.376442 0.955499 0.374533 0.954902 0.37265 0.954217 0.370798 0.953445 0.36898 0.952589 0.3672 0.951649 0.365463 0.950628 0.363772 0.949529 0.362131 0.948353 0.360544 0.947104 0.359015 0.945784 0.357546 0.944396 0.356141 0.942943 0.354803 0.941428 0.353535 0.939856 0.35234 0.938228 0.351221 0.93655 0.35018 0.934824 0.349219 0.933055 0.348341 0.931247 0.347547 0.929403 0.34684 0.927527 0.34622 0.925625 0.34569 0.923699 0.34525 0.921755 0.344902 0.919797 0.344645 0.917828 0.344482 0.915855 0.344412 0.91388 0.344435 0.911908 0.344551 0.909944 0.34476 0.907992 0.345062 0.906057 0.345456 0.904142 0.34594 0.902252 0.346515 0.900392 0.347178 0.898565 0.347928 0.896775 0.348763 0.896483 0.348917 0.881558 0.333993 0.880078 0.332697 0.87844 0.331608 0.876672 0.330746 0.874806 0.330125 0.872872 0.329756 0.87105 0.329645 0.696445 0.329645 0.695282 0.328231 0.693859 0.326873 0.692279 0.325701 0.690566 0.324734 0.688746 0.323988 0.686847 0.323473 0.684897 0.323198 0.683636 0.323149 0.671864 0.323149 0.671121 0.323166 0.669166 0.323379 0.667251 0.323832 0.665408 0.32452 0.663665 0.325431 0.662047 0.326551 0.66058 0.327864 0.65816 0.327707 0.656675 0.326414 0.655591 0.325655 0.655591 0.232362 0.885938 0.232361 0.8879 0.232225 0.889831 0.231847 0.891699 0.231232 0.893477 0.23039 0.895137 0.229334 0.896653 0.22808 0.897018 0.227726 0.899746 0.224997 0.900379 0.225258 0.902239 0.225921 0.904129 0.226496 0.906044 0.226981 0.907979 0.227376 0.909931 0.227678 0.911895 0.227888 0.913866 0.228005 0.915841 0.228028 0.917815 0.227959 0.919783 0.227796 0.921742 0.22754 0.923686 0.227193 0.925611 0.226753 0.927514 0.226224 0.92939 0.225605 0.931234 0.224898 0.933043 0.224105 0.934812 0.223227 0.936538 0.222267 0.938217 0.221227 0.939845 0.220108 0.941418 0.218914 0.942932 0.217646 0.944386 0.216309 0.945774 0.214904 0.947095 0.213436 0.948345 0.211906 0.949521 0.21032 0.949724 0.210017 0.949724 0.23007 0.931952 0.247844 0.931247 0.247547 0.929403 0.24684 0.927527 0.24622 0.925625 0.24569 0.923699 0.24525 0.921755 0.244902 0.919797 0.244645 0.917828 0.244482 0.915855 0.244412 0.91388 0.244435 0.911908 0.244551 0.909944 0.24476 0.907992 0.245062 0.906057 0.245456 0.904142 0.24594 0.902252 0.246515 0.900392 0.247178 0.898565 0.247928 0.896775 0.248763 0.895027 0.249682 0.893324 0.250683 0.891671 0.251763 0.89007 0.25292 0.888525 0.254151 0.887041 0.255454 0.88562 0.256825 0.884265 0.258262 0.882979 0.259762 0.881766 0.26132 0.880627 0.262934 0.879566 0.2646 0.878585 0.266314 0.877686 0.268073 0.876871 0.269872 0.876142 0.271707 0.875501 0.273575 0.874948 0.275471 0.874485 0.277392 0.874114 0.279331 0.873835 0.281287 0.873648 0.283253 0.873555 0.285226 0.873554 0.287201 0.873647 0.289174 0.873833 0.29114 0.874112 0.293095 0.874483 0.295035 0.874945 0.296956 0.875497 0.298852 0.876138 0.30072 0.876866 0.302556 0.87768 0.304355 0.878579 0.306114 0.879559 0.307829 0.88062 0.309495 0.881758 0.311109 0.882971 0.312668 0.884256 0.314168 0.88561 0.315605 0.887031 0.316977 0.888515 0.31828 0.890059 0.319512 0.89166 0.320669 0.893313 0.32175 0.895015 0.322751 0.896763 0.323671 0.898552 0.324507 0.900379 0.325258 0.90224 0.325921 0.904129 0.326496 0.906044 0.326981 0.907979 0.327376 0.909931 0.327678 0.911895 0.327888 0.913866 0.328005 0.915841 0.328028 0.917815 0.327959 0.919783 0.327796 0.921742 0.32754 0.923686 0.327193 0.925612 0.326753 0.927514 0.326224 0.92939 0.325605 0.931234 0.324898 0.933043 0.324105 0.934812 0.323227 0.936538 0.322267 0.938217 0.321227 0.939845 0.320108 0.941418 0.318914 0.942932 0.317646 0.944386 0.316309 0.945774 0.314904 0.947095 0.313436 0.948345 0.311906 0.949521 0.31032 0.950621 0.308679 0.951642 0.306989 0.952583 0.305252 0.95344 0.303473 0.954212 0.301655 0.954898 0.299802 0.955495 0.29792 0.956003 0.296011 0.95642 0.294081 0.956745 0.292133 0.956978 0.290171 0.957118 0.288201 0.957165 0.28622 0.957119 0.284252 0.956979 0.282282 0.956747 0.280321 0.956422 0.278373 0.956006 0.276442 0.955499 0.274533 0.954902 0.27265 0.954217 0.270798 0.953445 0.26898 0.953235 0.268544 0.974411 0.247367 0.974409 0.295275 0.974409 0.462599 0.834646 0.462598 0.009843 0.462598 0.009843 0.247369 0.031018 0.268542 0.030415 0.269872 0.029686 0.271707 0.029045 0.273575 0.028492 0.275471 0.028029 0.277392 0.027658 0.279331 0.027379 0.281287 0.027192 0.283253 0.027099 0.285226 0.027098 0.287201 0.027191 0.289174 0.027377 0.29114 0.027656 0.293095 0.028027 0.295035 0.028489 0.296956 0.029041 0.298852 0.029682 0.30072 0.03041 0.302556 0.031224 0.304355 0.032123 0.306114 0.033103 0.307829 0.034164 0.309495 0.035302 0.311109 0.036515 0.312668 0.0378 0.314168 0.039154 0.315605 0.040575 0.316977 0.042059 0.31828 0.043603 0.319512 0.045204 0.320669 0.046857 0.32175 0.048559 0.322751 0.050307 0.323671 0.052096 0.324507 0.053923 0.325258 0.055784 0.325921 0.057673 0.326496 0.059588 0.326981 0.061523 0.327376 0.063475 0.327678 0.065439 0.327888 0.06741 0.328005 0.069385 0.328028 0.071359 0.327959 0.073327 0.327796 0.075286 0.32754 0.07723 0.327193 0.079156 0.326753 0.081058 0.326224 0.082934 0.325605 0.084778 0.324898 0.086587 0.324105 0.088356 0.323227 0.090082 0.322267 0.091761 0.321227 0.093389 0.320108 0.094962 0.318914 0.096476 0.317646 0.09793 0.316309 0.099318 0.314904 0.100639 0.313436 0.101889 0.311906 0.103065 0.31032 0.104165 0.308679 0.105186 0.306989 0.106127 0.305252 0.106984 0.303473 0.107756 0.301655 0.108442 0.299802 0.109039 0.29792 0.109547 0.296011 0.109964 0.294081 0.110289 0.292133 0.110522 0.290171 0.110662 0.288201 0.110709 0.28622 0.110663 0.284252 0.110523 0.282282 0.110291 0.280321 0.109966 0.278373 0.10955 0.276442 0.109043 0.274533 0.108446 0.27265 0.107761 0.270798 0.106989 0.26898 0.106133 0.2672 0.105193 0.265463 0.104172 0.263772 0.103073 0.262131 0.101897 0.260544 0.100648 0.259015 0.099328 0.257546 0.09794 0.256141 0.096487 0.254803 0.094972 0.253535 0.0934 0.25234 0.091772 0.251221 0.090094 0.25018 0.088368 0.249219 0.086599 0.248341 0.084791 0.247547 0.082947 0.24684 0.081071 0.24622 0.079169 0.24569 0.077243 0.24525 0.075299 0.244902 0.073341 0.244645 0.071372 0.244482 0.069399 0.244412 0.067424 0.244435 0.065452 0.244551 0.063488 0.24476 0.061536 0.245062 0.059601 0.245456 0.057686 0.24594 0.055796 0.246515 0.053936 0.247178 0.052303 0.247848 0.034527 0.230071 0.034527 0.21001 0.035302 0.211109 0.036515 0.212668 0.0378 0.214168 0.039154 0.215605 0.040575 0.216977 0.042059 0.21828 0.043603 0.219512 0.045203 0.220669 0.046857 0.22175 0.048559 0.222751 0.050307 0.223671 0.052096 0.224507 0.053923 0.225258 0.055783 0.225921 0.057673 0.226496 0.059588 0.226981 0.061523 0.227376 0.063475 0.227678 0.065439 0.227888 0.06741 0.228005 0.069385 0.228028 0.071359 0.227959 0.073327 0.227796 0.075286 0.22754 0.07723 0.227193 0.079155 0.226753 0.081058 0.226224 0.082934 0.225605 0.084778 0.224898 0.086587 0.224105 0.088356 0.223227 0.090082 0.222267 0.090228 0.222177 0.090928 0.222309 0.092887 0.222508 0.095464 0.22252 0.30821 0.22252 0.309662 0.223781 0.311294 0.224878 0.31305 0.225765 0.314903 0.226427 0.316823 0.226854 0.318782 0.227039 0.319291 0.227047 0.322776 0.227047 0.338505 0.242776 0.338504 0.30673 0.338312 0.306618 0.336556 0.305731 0.334703 0.305069 0.332783 0.304642 0.330824 0.304457 0.330315 0.304449 0.319291 0.304449 0.317328 0.304571 0.315395 0.304936 0.313522 0.305538 0.311738 0.306367 0.310071 0.307412 0.308545 0.308656 0.307288 0.30996 0.127966 0.30996 0.127493 0.309967 0.125535 0.310158 0.12362 0.310607 0.12178 0.311304 0.12005 0.312239 0.118458 0.313395 0.117458 0.314308 0.084378 0.347389 0.082947 0.34684 0.081071 0.34622 0.079169 0.34569 0.077243 0.34525 0.075299 0.344902 0.073341 0.344645 0.071372 0.344482 0.069399 0.344412 0.067424 0.344435 0.065452 0.344551 0.063488 0.34476 0.061536 0.345062 0.059601 0.345456 0.057686 0.34594 0.055796 0.346515 0.053936 0.347178 0.052109 0.347928 0.050319 0.348763 0.048571 0.349682 0.046868 0.350683 0.045215 0.351763 0.043614 0.35292 0.04207 0.354151 0.040585 0.355454 0.039164 0.356825 0.037809 0.358262 0.036523 0.359762 0.03531 0.36132 0.034171 0.362934 0.03311 0.3646 0.032129 0.366314 0.03123 0.368073 0.030415 0.369872 0.029686 0.371707 0.029045 0.373575 0.028492 0.375471 0.028029 0.377392 0.027658 0.379331 0.027379 0.381287 0.027192 0.383253 0.027099 0.385226 0.027098 0.387201 0.027191 0.389174 0.027377 0.39114 0.027656 0.393095 0.028027 0.395035 0.028489 0.396956 0.029041 0.398852 0.029682 0.40072 0.03041 0.402556 0.031224 0.404355 0.032123 0.406114 0.033103 0.407829 0.034164 0.409495 0.035302 0.411109 0.036515 0.412668 0.0378 0.414168 0.039154 0.415605 0.040575 0.416977 0.042059 0.41828 0.043603 0.419512 0.045204 0.420669 0.046857 0.42175 0.048559 0.422751 0.050307 0.423671 0.052096 0.424507 0.053923 0.425258 0.055784 0.425921 0.057673 0.426496 0.059588 0.426981 0.061523 0.427376 0.063475 0.427678 0.065439 0.427888 0.06741 0.428005 0.069385 0.428028 0.071359 0.427959 0.073327 0.427796 0.075286 0.42754 0.07723 0.427193 0.079156 0.426753 0.081058 0.426224 0.082934 0.425605 0.084778 0.424898 0.086587 0.424105 0.088356 0.423227 0.090082 0.422267 0.091761 0.421227 0.093389 0.420108 0.094962 0.418914 0.096477 0.417646 0.09793 0.416309 0.099318 0.414904 0.100639 0.413436 0.101889 0.411906 0.103065 0.41032 0.104165 0.408679 0.105186 0.406989 0.106127 0.405252 0.106984 0.403473 0.107756 0.401655 0.108442 0.399802 0.109039 0.39792 0.109547 0.396011 0.109964 0.394081 0.110289 0.392133 0.110522 0.390171 0.110662 0.388201 0.110709 0.38622 0.110663 0.384252 0.110523 0.382282 0.110291 0.380321 0.109966 0.378373 0.10955 0.376442 0.109043 0.374533 0.108446 0.37265 0.107761 0.370798 0.106989 0.36898 0.106267 0.36748 0.134102 0.339645 0.190945 0.339646 0.285354 0.339646 0.285354 0.38878 0.285484 0.390743 0.285873 0.392671 0.286513 0.394531 0.287394 0.39629 0.288501 0.397918 0.289711 0.399285 0.309386 0.418961 0.310867 0.420256 0.312505 0.421345 0.314273 0.422207 0.316139 0.422828 0.318073 0.423197 0.319895 0.423308 0.477362 0.423308 0.479325 0.423178 0.481253 0.422789 0.483113 0.422148 0.484872 0.421268 0.486499 0.420162 0.487965 0.418851 0.489246 0.417358 0.490317 0.415709 0.491161 0.413932 0.491763 0.412059 0.492112 0.410121 0.492205 0.408452 0.492205 0.329724 0.492075 0.327761 0.491686 0.325833 0.491045 0.323973 0.490165 0.322214 0.489058 0.320586 0.487848 0.319219 0.474485 0.305858 0.474485 0.285356 0.42429 0.285356 0.424292 0.267383 0.445534 0.246139 0.474485 0.24614 0.474485 0.202676 0.412517 0.202676 0.412517 0.234393 0.397274 0.249636 0.395972 0.251111 0.394863 0.252736 0.393964 0.254486 0.39329 0.256334 0.392849 0.258251 0.39265 0.26021 0.392638 0.26277 0.392638 0.334646 0.392761 0.336609 0.393125 0.338543 0.393727 0.340415 0.394557 0.342199 0.395601 0.343866 0.396846 0.345392 0.398599 0.347162 0.399783 0.348346 0.370159 0.348346 0.370158 0.282527 0.370157 0.236109 0.370021 0.234147 0.369643 0.232216 0.369028 0.230348 0.368186 0.22857 0.36713 0.22691 0.365876 0.225394 0.365522 0.225029 0.346142 0.205647 0.346142 0.199423 0.346125 0.19868 0.345912 0.196725 0.345459 0.19481 0.344771 0.192967 0.34386 0.191224 0.34274 0.189606 0.341427 0.188139</P>
+<S>0.027094 0.08622 0.110702 0.08622 0.011811 6 0.068898 0.044416 0.068898 0.08622 0.011811 6 0.87355 0.08622 0.957158 0.08622 0.011811 6 0.915354 0.044416 0.915354 0.08622 0.011811 6</S>
+</Fill>
+<Fill Id="1">
+<L>0.010238 0.458793 0.974016 0.458793 0 0.010238 0.454987 0.974016 0.454987 0 0.010238 0.451181 0.974016 0.451181 0 0.010238 0.447375 0.974016 0.447375 0 0.010238 0.44357 0.974016 0.44357 0 0.010238 0.439764 0.974016 0.439764 0 0.010238 0.435958 0.974016 0.435958 0 0.010238 0.432152 0.974016 0.432152 0 0.010238 0.428347 0.974016 0.428347 0 0.010238 0.424541 0.051781 0.424541 0 0.086018 0.424541 0.898236 0.424541 0 0.932473 0.424541 0.974016 0.424541 0 0.010238 0.420735 0.044907 0.420735 0 0.092892 0.420735 0.891362 0.420735 0 0.939347 0.420735 0.974016 0.420735 0 0.010238 0.416929 0.040132 0.416929 0 0.097667 0.416929 0.886587 0.416929 0 0.944122 0.416929 0.974016 0.416929 0 0.010238 0.413124 0.036498 0.413124 0 0.101297 0.413124 0.882953 0.413124 0 0.947755 0.413124 0.974016 0.413124 0 0.010238 0.409318 0.033653 0.409318 0 0.104146 0.409318 0.880108 0.409318 0 0.950601 0.409318 0.974016 0.409318 0 0.010238 0.405512 0.031412 0.405512 0 0.106387 0.405512 0.877867 0.405512 0 0.952842 0.405512 0.974016 0.405512 0 0.010238 0.401706 0.029666 0.401706 0 0.108129 0.401706 0.876121 0.401706 0 0.954584 0.401706 0.974016 0.401706 0 0.010238 0.3979 0.028359 0.3979 0 0.10944 0.3979 0.874814 0.3979 0 0.955895 0.3979 0.974016 0.3979 0 0.010238 0.394095 0.02744 0.394095 0 0.110355 0.394095 0.873899 0.394095 0 0.95681 0.394095 0.974016 0.394095 0 0.010238 0.390289 0.02689 0.390289 0 0.110905 0.390289 0.873349 0.390289 0 0.95736 0.390289 0.974016 0.390289 0 0.010238 0.386483 0.026694 0.386483 0 0.111101 0.386483 0.873149 0.386483 0 0.95756 0.386483 0.974016 0.386483 0 0.010238 0.382677 0.026844 0.382677 0 0.110951 0.382677 0.873299 0.382677 0 0.95741 0.382677 0.974016 0.382677 0 0.010238 0.378872 0.027344 0.378872 0 0.110451 0.378872 0.873799 0.378872 0 0.95691 0.378872 0.974016 0.378872 0 0.010238 0.375066 0.028209 0.375066 0 0.109586 0.375066 0.874664 0.375066 0 0.956045 0.375066 0.974016 0.375066 0 0.010238 0.37126 0.029463 0.37126 0 0.108336 0.37126 0.875918 0.37126 0 0.954791 0.37126 0.974016 0.37126 0 0.010238 0.367454 0.031143 0.367454 0 0.106656 0.367454 0.877598 0.367454 0 0.953111 0.367454 0.974016 0.367454 0 0.010238 0.363649 0.033307 0.363649 0 0.104488 0.363649 0.879766 0.363649 0 0.950943 0.363649 0.974016 0.363649 0 0.010238 0.359843 0.036064 0.359843 0 0.101731 0.359843 0.882519 0.359843 0 0.94819 0.359843 0.974016 0.359843 0 0.010238 0.356037 0.03957 0.356037 0 0.098225 0.356037 0.886025 0.356037 0 0.944684 0.356037 0.974016 0.356037 0 0.010238 0.352231 0.044153 0.352231 0 0.093642 0.352231 0.890608 0.352231 0 0.940097 0.352231 0.974016 0.352231 0 0.010238 0.348426 0.050624 0.348426 0 0.087175 0.348426 0.897079 0.348426 0 0.93363 0.348426 0.974016 0.348426 0 0.010238 0.34462 0.064311 0.34462 0 0.073488 0.34462 0.910766 0.34462 0 0.919943 0.34462 0.974016 0.34462 0 0.010238 0.340814 0.974016 0.340814 0 0.010238 0.337008 0.974016 0.337008 0 0.010238 0.333202 0.974016 0.333202 0 0.010238 0.329397 0.974016 0.329397 0 0.010238 0.325591 0.05443 0.325591 0 0.083369 0.325591 0.900885 0.325591 0 0.929824 0.325591 0.974016 0.325591 0 0.010238 0.321785 0.046522 0.321785 0 0.091277 0.321785 0.892977 0.321785 0 0.937732 0.321785 0.974016 0.321785 0 0.010238 0.317979 0.041312 0.317979 0 0.096487 0.317979 0.887767 0.317979 0 0.942942 0.317979 0.974016 0.317979 0 0.010238 0.314174 0.03741 0.314174 0 0.100385 0.314174 0.883868 0.314174 0 0.94684 0.314174 0.974016 0.314174 0 0.010238 0.310368 0.034372 0.310368 0 0.103427 0.310368 0.880827 0.310368 0 0.949882 0.310368 0.974016 0.310368 0 0.010238 0.306562 0.031977 0.306562 0 0.105822 0.306562 0.878432 0.306562 0 0.952277 0.306562 0.974016 0.306562 0 0.010238 0.302756 0.030101 0.302756 0 0.107694 0.302756 0.87656 0.302756 0 0.954149 0.302756 0.974016 0.302756 0 0.010238 0.298951 0.028678 0.298951 0 0.109117 0.298951 0.875133 0.298951 0 0.955576 0.298951 0.974016 0.298951 0 0.010238 0.295145 0.027656 0.295145 0 0.110139 0.295145 0.874114 0.295145 0 0.956594 0.295145 0.974016 0.295145 0 0.010238 0.291339 0.027006 0.291339 0 0.110789 0.291339 0.873465 0.291339 0 0.957244 0.291339 0.974016 0.291339 0 0.010238 0.287533 0.026714 0.287533 0 0.111081 0.287533 0.873169 0.287533 0 0.957536 0.287533 0.974016 0.287533 0 0.010238 0.283727 0.026767 0.283727 0 0.111028 0.283727 0.873222 0.283727 0 0.957486 0.283727 0.974016 0.283727 0 0.010238 0.279922 0.027171 0.279922 0 0.110628 0.279922 0.873626 0.279922 0 0.957083 0.279922 0.974016 0.279922 0 0.010238 0.276116 0.027932 0.276116 0 0.109863 0.276116 0.874387 0.276116 0 0.956322 0.276116 0.974016 0.276116 0 0.010238 0.27231 0.029074 0.27231 0 0.108721 0.27231 0.875529 0.27231 0 0.955176 0.27231 0.974016 0.27231 0 0.010238 0.268504 0.030631 0.268504 0 0.107164 0.268504 0.877086 0.268504 0 0.953619 0.268504 0.974016 0.268504 0 0.010238 0.264699 0.032657 0.264699 0 0.105138 0.264699 0.879112 0.264699 0 0.951596 0.264699 0.974016 0.264699 0 0.010238 0.260893 0.035237 0.260893 0 0.102558 0.260893 0.881692 0.260893 0 0.949017 0.260893 0.974016 0.260893 0 0.010238 0.257087 0.038513 0.257087 0 0.099282 0.257087 0.884968 0.257087 0 0.945737 0.257087 0.974016 0.257087 0 0.010238 0.253281 0.04275 0.253281 0 0.095045 0.253281 0.889209 0.253281 0 0.9415 0.253281 0.974016 0.253281 0 0.010238 0.249476 0.048555 0.249476 0 0.089243 0.249476 0.89501 0.249476 0 0.935698 0.249476 0.974016 0.249476 0 0.010238 0.24567 0.058313 0.24567 0 0.079482 0.24567 0.904768 0.24567 0 0.92594 0.24567 0.974016 0.24567 0 0.010238 0.241864 0.974016 0.241864 0 0.010238 0.238058 0.974016 0.238058 0 0.010238 0.234253 0.974016 0.234253 0 0.010238 0.230447 0.974016 0.230447 0 0.010238 0.226641 0.057814 0.226641 0 0.079985 0.226641 0.904269 0.226641 0 0.92644 0.226641 0.974016 0.226641 0 0.010238 0.222835 0.048317 0.222835 0 0.089478 0.222835 0.894772 0.222835 0 0.935933 0.222835 0.974016 0.222835 0 0.010238 0.219029 0.042588 0.219029 0 0.09521 0.219029 0.889043 0.219029 0 0.941665 0.219029 0.974016 0.219029 0 0.010238 0.215224 0.03839 0.215224 0 0.099409 0.215224 0.884845 0.215224 0 0.945864 0.215224 0.974016 0.215224 0 0.010238 0.211418 0.035137 0.211418 0 0.102658 0.211418 0.881596 0.211418 0 0.949113 0.211418 0.974016 0.211418 0 0.010238 0.207612 0.032581 0.207612 0 0.105214 0.207612 0.879036 0.207612 0 0.951673 0.207612 0.974016 0.207612 0 0.010238 0.203806 0.03057 0.203806 0 0.107225 0.203806 0.877029 0.203806 0 0.95368 0.203806 0.974016 0.203806 0 0.010238 0.200001 0.029028 0.200001 0 0.108767 0.200001 0.875487 0.200001 0 0.955222 0.200001 0.974016 0.200001 0 0.010238 0.196195 0.027902 0.196195 0 0.109897 0.196195 0.874357 0.196195 0 0.956352 0.196195 0.974016 0.196195 0 0.010238 0.192389 0.027152 0.192389 0 0.110647 0.192389 0.873607 0.192389 0 0.957102 0.192389 0.974016 0.192389 0 0.010238 0.188583 0.02676 0.188583 0 0.111035 0.188583 0.873215 0.188583 0 0.95749 0.188583 0.974016 0.188583 0 0.010238 0.184778 0.026717 0.184778 0 0.111078 0.184778 0.873172 0.184778 0 0.957533 0.184778 0.974016 0.184778 0 0.010238 0.180972 0.027025 0.180972 0 0.110774 0.180972 0.87348 0.180972 0 0.957229 0.180972 0.974016 0.180972 0 0.010238 0.177166 0.027686 0.177166 0 0.110113 0.177166 0.874141 0.177166 0 0.956568 0.177166 0.974016 0.177166 0 0.010238 0.17336 0.02872 0.17336 0 0.109075 0.17336 0.875175 0.17336 0 0.955533 0.17336 0.974016 0.17336 0 0.010238 0.169554 0.030158 0.169554 0 0.107637 0.169554 0.876613 0.169554 0 0.954095 0.169554 0.974016 0.169554 0 0.010238 0.165749 0.032046 0.165749 0 0.105749 0.165749 0.878505 0.165749 0 0.952204 0.165749 0.974016 0.165749 0 0.010238 0.161943 0.034465 0.161943 0 0.103334 0.161943 0.88092 0.161943 0 0.949789 0.161943 0.974016 0.161943 0 0.010238 0.158137 0.037529 0.158137 0 0.100266 0.158137 0.883984 0.158137 0 0.946725 0.158137 0.974016 0.158137 0 0.010238 0.154331 0.041462 0.154331 0 0.096333 0.154331 0.887917 0.154331 0 0.942792 0.154331 0.974016 0.154331 0 0.010238 0.150526 0.046729 0.150526 0 0.091066 0.150526 0.893188 0.150526 0 0.937521 0.150526 0.974016 0.150526 0 0.010238 0.14672 0.054795 0.14672 0 0.083 0.14672 0.90125 0.14672 0 0.929455 0.14672 0.974016 0.14672 0 0.010238 0.142914 0.974016 0.142914 0 0.010238 0.139108 0.974016 0.139108 0 0.010238 0.135303 0.974016 0.135303 0 0.010238 0.131497 0.974016 0.131497 0 0.010238 0.127691 0.026694 0.127691 0 0.111105 0.127691 0.873149 0.127691 0 0.95756 0.127691 0.974016 0.127691 0 0.010238 0.123885 0.026694 0.123885 0 0.111105 0.123885 0.873149 0.123885 0 0.95756 0.123885 0.974016 0.123885 0 0.010238 0.12008 0.026694 0.12008 0 0.111105 0.12008 0.873149 0.12008 0 0.95756 0.12008 0.974016 0.12008 0 0.010238 0.116274 0.026694 0.116274 0 0.111105 0.116274 0.873149 0.116274 0 0.95756 0.116274 0.974016 0.116274 0 0.010238 0.112468 0.026694 0.112468 0 0.111105 0.112468 0.873149 0.112468 0 0.95756 0.112468 0.974016 0.112468 0 0.010238 0.108662 0.026694 0.108662 0 0.111105 0.108662 0.873149 0.108662 0 0.95756 0.108662 0.974016 0.108662 0 0.010238 0.104856 0.026694 0.104856 0 0.111105 0.104856 0.873149 0.104856 0 0.95756 0.104856 0.974016 0.104856 0 0.010238 0.101051 0.026694 0.101051 0 0.111105 0.101051 0.873149 0.101051 0 0.95756 0.101051 0.974016 0.101051 0 0.010238 0.097245 0.026694 0.097245 0 0.111105 0.097245 0.873149 0.097245 0 0.95756 0.097245 0.974016 0.097245 0 0.010238 0.093439 0.026694 0.093439 0 0.111105 0.093439 0.873149 0.093439 0 0.95756 0.093439 0.974016 0.093439 0 0.010238 0.089633 0.026694 0.089633 0 0.111105 0.089633 0.873149 0.089633 0 0.95756 0.089633 0.974016 0.089633 0 0.010238 0.085828 0.026694 0.085828 0 0.111105 0.085828 0.873149 0.085828 0 0.95756 0.085828 0.974016 0.085828 0 0.010238 0.082022 0.026694 0.082022 0 0.111105 0.082022 0.873149 0.082022 0 0.95756 0.082022 0.974016 0.082022 0 0.010238 0.078216 0.026694 0.078216 0 0.111105 0.078216 0.873149 0.078216 0 0.95756 0.078216 0.974016 0.078216 0 0.010238 0.07441 0.026694 0.07441 0 0.111105 0.07441 0.873149 0.07441 0 0.95756 0.07441 0.974016 0.07441 0 0.010238 0.070605 0.026694 0.070605 0 0.111105 0.070605 0.873149 0.070605 0 0.95756 0.070605 0.974016 0.070605 0 0.010238 0.066799 0.026694 0.066799 0 0.111105 0.066799 0.873149 0.066799 0 0.95756 0.066799 0.974016 0.066799 0 0.010238 0.062993 0.026694 0.062993 0 0.111105 0.062993 0.873149 0.062993 0 0.95756 0.062993 0.974016 0.062993 0 0.010238 0.059187 0.026694 0.059187 0 0.111105 0.059187 0.873149 0.059187 0 0.95756 0.059187 0.974016 0.059187 0 0.010238 0.055381 0.026694 0.055381 0 0.111105 0.055381 0.873149 0.055381 0 0.95756 0.055381 0.974016 0.055381 0 0.010238 0.051576 0.026694 0.051576 0 0.111105 0.051576 0.873149 0.051576 0 0.95756 0.051576 0.974016 0.051576 0 0.010238 0.04777 0.026694 0.04777 0 0.111105 0.04777 0.873149 0.04777 0 0.95756 0.04777 0.974016 0.04777 0 0.010238 0.043964 0.974016 0.043964 0 0.010238 0.040158 0.974016 0.040158 0 0.010238 0.036353 0.974016 0.036353 0 0.010238 0.032547 0.974016 0.032547 0 0.010238 0.028741 0.974016 0.028741 0 0.010238 0.024935 0.974016 0.024935 0 0.010238 0.02113 0.974016 0.02113 0 0.010238 0.017324 0.974016 0.017324 0 0.010238 0.013518 0.974016 0.013518 0</L>
+<P r="0">0.027743 0.128031 0.110709 0.128031 0.110709 0.044409 0.027087 0.044409 0.027087 0.128031 0.027743 0.128031</P>
+<P r="0">0.110663 0.184252 0.110523 0.182282 0.110291 0.180321 0.109966 0.178373 0.10955 0.176442 0.109043 0.174533 0.108446 0.17265 0.107761 0.170798 0.106989 0.16898 0.106133 0.1672 0.105193 0.165463 0.104172 0.163772 0.103073 0.162131 0.101897 0.160544 0.100648 0.159015 0.099328 0.157546 0.097939 0.156141 0.096487 0.154803 0.094972 0.153535 0.0934 0.15234 0.091772 0.151221 0.090094 0.15018 0.088368 0.149219 0.086599 0.148341 0.084791 0.147547 0.082947 0.14684 0.081071 0.14622 0.079169 0.14569 0.077243 0.14525 0.075299 0.144902 0.073341 0.144645 0.071372 0.144482 0.069399 0.144412 0.067424 0.144435 0.065452 0.144551 0.063488 0.14476 0.061536 0.145062 0.059601 0.145456 0.057686 0.14594 0.055796 0.146515 0.053936 0.147178 0.052109 0.147928 0.050319 0.148763 0.048571 0.149682 0.046868 0.150683 0.045215 0.151763 0.043614 0.15292 0.042069 0.154151 0.040585 0.155454 0.039164 0.156825 0.037809 0.158262 0.036523 0.159762 0.03531 0.16132 0.034171 0.162934 0.03311 0.1646 0.032129 0.166314 0.03123 0.168073 0.030415 0.169872 0.029686 0.171707 0.029045 0.173575 0.028492 0.175471 0.028029 0.177392 0.027658 0.179331 0.027379 0.181287 0.027192 0.183253 0.027099 0.185226 0.027098 0.187201 0.027191 0.189174 0.027377 0.19114 0.027656 0.193095 0.028027 0.195035 0.028488 0.196956 0.029041 0.198852 0.029682 0.20072 0.03041 0.202556 0.031224 0.204355 0.032123 0.206114 0.033103 0.207829 0.034164 0.209495 0.035302 0.211109 0.036515 0.212668 0.0378 0.214168 0.039154 0.215605 0.040575 0.216977 0.042059 0.21828 0.043603 0.219512 0.045203 0.220669 0.046857 0.22175 0.048559 0.222751 0.050307 0.223671 0.052096 0.224507 0.053923 0.225258 0.055783 0.225921 0.057673 0.226496 0.059588 0.226981 0.061523 0.227376 0.063475 0.227678 0.065439 0.227888 0.06741 0.228005 0.069385 0.228028 0.071359 0.227959 0.073327 0.227796 0.075286 0.22754 0.07723 0.227193 0.079155 0.226753 0.081058 0.226224 0.082934 0.225605 0.084778 0.224898 0.086587 0.224105 0.088356 0.223227 0.090082 0.222267 0.091761 0.221227 0.093389 0.220108 0.094962 0.218914 0.096476 0.217646 0.09793 0.216309 0.099318 0.214904 0.100639 0.213436 0.101889 0.211906 0.103065 0.21032 0.104165 0.208679 0.105186 0.206989 0.106127 0.205252 0.106984 0.203473 0.107756 0.201655 0.108442 0.199802 0.109039 0.19792 0.109547 0.196011 0.109964 0.194081 0.110289 0.192133 0.110522 0.190171 0.110662 0.188201 0.110709 0.18622 0.110663 0.184252</P>
+<P r="0">0.110663 0.284252 0.110523 0.282282 0.110291 0.280321 0.109966 0.278373 0.10955 0.276442 0.109043 0.274533 0.108446 0.27265 0.107761 0.270798 0.106989 0.26898 0.106133 0.2672 0.105193 0.265463 0.104172 0.263772 0.103073 0.262131 0.101897 0.260544 0.100648 0.259015 0.099328 0.257546 0.09794 0.256141 0.096487 0.254803 0.094972 0.253535 0.0934 0.25234 0.091772 0.251221 0.090094 0.25018 0.088368 0.249219 0.086599 0.248341 0.084791 0.247547 0.082947 0.24684 0.081071 0.24622 0.079169 0.24569 0.077243 0.24525 0.075299 0.244902 0.073341 0.244645 0.071372 0.244482 0.069399 0.244412 0.067424 0.244435 0.065452 0.244551 0.063488 0.24476 0.061536 0.245062 0.059601 0.245456 0.057686 0.24594 0.055796 0.246515 0.053936 0.247178 0.052109 0.247928 0.050319 0.248763 0.048571 0.249682 0.046868 0.250683 0.045215 0.251763 0.043614 0.25292 0.042069 0.254151 0.040585 0.255454 0.039164 0.256825 0.037809 0.258262 0.036523 0.259762 0.03531 0.26132 0.034171 0.262934 0.03311 0.2646 0.032129 0.266314 0.03123 0.268073 0.030415 0.269872 0.029686 0.271707 0.029045 0.273575 0.028492 0.275471 0.028029 0.277392 0.027658 0.279331 0.027379 0.281287 0.027192 0.283253 0.027099 0.285226 0.027098 0.287201 0.027191 0.289174 0.027377 0.29114 0.027656 0.293095 0.028027 0.295035 0.028489 0.296956 0.029041 0.298852 0.029682 0.30072 0.03041 0.302556 0.031224 0.304355 0.032123 0.306114 0.033103 0.307829 0.034164 0.309495 0.035302 0.311109 0.036515 0.312668 0.0378 0.314168 0.039154 0.315605 0.040575 0.316977 0.042059 0.31828 0.043603 0.319512 0.045204 0.320669 0.046857 0.32175 0.048559 0.322751 0.050307 0.323671 0.052096 0.324507 0.053923 0.325258 0.055784 0.325921 0.057673 0.326496 0.059588 0.326981 0.061523 0.327376 0.063475 0.327678 0.065439 0.327888 0.06741 0.328005 0.069385 0.328028 0.071359 0.327959 0.073327 0.327796 0.075286 0.32754 0.07723 0.327193 0.079156 0.326753 0.081058 0.326224 0.082934 0.325605 0.084778 0.324898 0.086587 0.324105 0.088356 0.323227 0.090082 0.322267 0.091761 0.321227 0.093389 0.320108 0.094962 0.318914 0.096476 0.317646 0.09793 0.316309 0.099318 0.314904 0.100639 0.313436 0.101889 0.311906 0.103065 0.31032 0.104165 0.308679 0.105186 0.306989 0.106127 0.305252 0.106984 0.303473 0.107756 0.301655 0.108442 0.299802 0.109039 0.29792 0.109547 0.296011 0.109964 0.294081 0.110289 0.292133 0.110522 0.290171 0.110662 0.288201 0.110709 0.28622 0.110663 0.284252</P>
+<P r="0">0.110663 0.384252 0.110523 0.382282 0.110291 0.380321 0.109966 0.378373 0.10955 0.376442 0.109043 0.374533 0.108446 0.37265 0.107761 0.370798 0.106989 0.36898 0.106133 0.3672 0.105193 0.365463 0.104172 0.363772 0.103073 0.362131 0.101897 0.360544 0.100648 0.359015 0.099328 0.357546 0.09794 0.356141 0.096487 0.354803 0.094972 0.353535 0.0934 0.35234 0.091772 0.351221 0.090094 0.35018 0.088368 0.349219 0.086599 0.348341 0.084791 0.347547 0.082947 0.34684 0.081071 0.34622 0.079169 0.34569 0.077243 0.34525 0.075299 0.344902 0.073341 0.344645 0.071372 0.344482 0.069399 0.344412 0.067424 0.344435 0.065452 0.344551 0.063488 0.34476 0.061536 0.345062 0.059601 0.345456 0.057686 0.34594 0.055796 0.346515 0.053936 0.347178 0.052109 0.347928 0.050319 0.348763 0.048571 0.349682 0.046868 0.350683 0.045215 0.351763 0.043614 0.35292 0.04207 0.354151 0.040585 0.355454 0.039164 0.356825 0.037809 0.358262 0.036523 0.359762 0.03531 0.36132 0.034171 0.362934 0.03311 0.3646 0.032129 0.366314 0.03123 0.368073 0.030415 0.369872 0.029686 0.371707 0.029045 0.373575 0.028492 0.375471 0.028029 0.377392 0.027658 0.379331 0.027379 0.381287 0.027192 0.383253 0.027099 0.385226 0.027098 0.387201 0.027191 0.389174 0.027377 0.39114 0.027656 0.393095 0.028027 0.395035 0.028489 0.396956 0.029041 0.398852 0.029682 0.40072 0.03041 0.402556 0.031224 0.404355 0.032123 0.406114 0.033103 0.407829 0.034164 0.409495 0.035302 0.411109 0.036515 0.412668 0.0378 0.414168 0.039154 0.415605 0.040575 0.416977 0.042059 0.41828 0.043603 0.419512 0.045204 0.420669 0.046857 0.42175 0.048559 0.422751 0.050307 0.423671 0.052096 0.424507 0.053923 0.425258 0.055784 0.425921 0.057673 0.426496 0.059588 0.426981 0.061523 0.427376 0.063475 0.427678 0.065439 0.427888 0.06741 0.428005 0.069385 0.428028 0.071359 0.427959 0.073327 0.427796 0.075286 0.42754 0.07723 0.427193 0.079156 0.426753 0.081058 0.426224 0.082934 0.425605 0.084778 0.424898 0.086587 0.424105 0.088356 0.423227 0.090082 0.422267 0.091761 0.421227 0.093389 0.420108 0.094962 0.418914 0.096477 0.417646 0.09793 0.416309 0.099318 0.414904 0.100639 0.413436 0.101889 0.411906 0.103065 0.41032 0.104165 0.408679 0.105186 0.406989 0.106127 0.405252 0.106984 0.403473 0.107756 0.401655 0.108442 0.399802 0.109039 0.39792 0.109547 0.396011 0.109964 0.394081 0.110289 0.392133 0.110522 0.390171 0.110662 0.388201 0.110709 0.38622 0.110663 0.384252</P>
+<P r="0">0.874199 0.128031 0.957165 0.128031 0.957165 0.044409 0.873543 0.044409 0.873543 0.128031 0.874199 0.128031</P>
+<P r="0">0.957119 0.184252 0.956979 0.182282 0.956747 0.180321 0.956422 0.178373 0.956006 0.176442 0.955499 0.174533 0.954902 0.17265 0.954217 0.170798 0.953445 0.16898 0.952589 0.1672 0.951649 0.165463 0.950628 0.163772 0.949529 0.162131 0.948353 0.160544 0.947104 0.159015 0.945784 0.157546 0.944395 0.156141 0.942943 0.154803 0.941428 0.153535 0.939856 0.15234 0.938228 0.151221 0.93655 0.15018 0.934824 0.149219 0.933055 0.148341 0.931247 0.147547 0.929403 0.14684 0.927527 0.14622 0.925625 0.14569 0.923699 0.14525 0.921755 0.144902 0.919797 0.144645 0.917828 0.144482 0.915855 0.144412 0.91388 0.144435 0.911908 0.144551 0.909944 0.14476 0.907992 0.145062 0.906057 0.145456 0.904142 0.14594 0.902252 0.146515 0.900392 0.147178 0.898565 0.147928 0.896775 0.148763 0.895027 0.149682 0.893324 0.150683 0.891671 0.151763 0.89007 0.15292 0.888525 0.154151 0.887041 0.155454 0.88562 0.156825 0.884265 0.158262 0.882979 0.159762 0.881766 0.16132 0.880627 0.162934 0.879566 0.1646 0.878585 0.166314 0.877686 0.168073 0.876871 0.169872 0.876142 0.171707 0.875501 0.173575 0.874948 0.175471 0.874485 0.177392 0.874114 0.179331 0.873835 0.181287 0.873648 0.183253 0.873555 0.185226 0.873554 0.187201 0.873647 0.189174 0.873833 0.19114 0.874112 0.193095 0.874483 0.195035 0.874944 0.196956 0.875497 0.198852 0.876138 0.20072 0.876866 0.202556 0.87768 0.204355 0.878579 0.206114 0.879559 0.207829 0.88062 0.209495 0.881758 0.211109 0.882971 0.212668 0.884256 0.214168 0.88561 0.215605 0.887031 0.216977 0.888515 0.21828 0.890059 0.219512 0.891659 0.220669 0.893313 0.22175 0.895015 0.222751 0.896763 0.223671 0.898552 0.224507 0.900379 0.225258 0.902239 0.225921 0.904129 0.226496 0.906044 0.226981 0.907979 0.227376 0.909931 0.227678 0.911895 0.227888 0.913866 0.228005 0.915841 0.228028 0.917815 0.227959 0.919783 0.227796 0.921742 0.22754 0.923686 0.227193 0.925611 0.226753 0.927514 0.226224 0.92939 0.225605 0.931234 0.224898 0.933043 0.224105 0.934812 0.223227 0.936538 0.222267 0.938217 0.221227 0.939845 0.220108 0.941418 0.218914 0.942932 0.217646 0.944386 0.216309 0.945774 0.214904 0.947095 0.213436 0.948345 0.211906 0.949521 0.21032 0.950621 0.208679 0.951642 0.206989 0.952583 0.205252 0.95344 0.203473 0.954212 0.201655 0.954898 0.199802 0.955495 0.19792 0.956003 0.196011 0.95642 0.194081 0.956745 0.192133 0.956978 0.190171 0.957118 0.188201 0.957165 0.18622 0.957119 0.184252</P>
+<P r="0">0.957119 0.284252 0.956979 0.282282 0.956747 0.280321 0.956422 0.278373 0.956006 0.276442 0.955499 0.274533 0.954902 0.27265 0.954217 0.270798 0.953445 0.26898 0.952589 0.2672 0.951649 0.265463 0.950628 0.263772 0.949529 0.262131 0.948353 0.260544 0.947104 0.259015 0.945784 0.257546 0.944396 0.256141 0.942943 0.254803 0.941428 0.253535 0.939856 0.25234 0.938228 0.251221 0.93655 0.25018 0.934824 0.249219 0.933055 0.248341 0.931247 0.247547 0.929403 0.24684 0.927527 0.24622 0.925625 0.24569 0.923699 0.24525 0.921755 0.244902 0.919797 0.244645 0.917828 0.244482 0.915855 0.244412 0.91388 0.244435 0.911908 0.244551 0.909944 0.24476 0.907992 0.245062 0.906057 0.245456 0.904142 0.24594 0.902252 0.246515 0.900392 0.247178 0.898565 0.247928 0.896775 0.248763 0.895027 0.249682 0.893324 0.250683 0.891671 0.251763 0.89007 0.25292 0.888525 0.254151 0.887041 0.255454 0.88562 0.256825 0.884265 0.258262 0.882979 0.259762 0.881766 0.26132 0.880627 0.262934 0.879566 0.2646 0.878585 0.266314 0.877686 0.268073 0.876871 0.269872 0.876142 0.271707 0.875501 0.273575 0.874948 0.275471 0.874485 0.277392 0.874114 0.279331 0.873835 0.281287 0.873648 0.283253 0.873555 0.285226 0.873554 0.287201 0.873647 0.289174 0.873833 0.29114 0.874112 0.293095 0.874483 0.295035 0.874945 0.296956 0.875497 0.298852 0.876138 0.30072 0.876866 0.302556 0.87768 0.304355 0.878579 0.306114 0.879559 0.307829 0.88062 0.309495 0.881758 0.311109 0.882971 0.312668 0.884256 0.314168 0.88561 0.315605 0.887031 0.316977 0.888515 0.31828 0.890059 0.319512 0.89166 0.320669 0.893313 0.32175 0.895015 0.322751 0.896763 0.323671 0.898552 0.324507 0.900379 0.325258 0.90224 0.325921 0.904129 0.326496 0.906044 0.326981 0.907979 0.327376 0.909931 0.327678 0.911895 0.327888 0.913866 0.328005 0.915841 0.328028 0.917815 0.327959 0.919783 0.327796 0.921742 0.32754 0.923686 0.327193 0.925612 0.326753 0.927514 0.326224 0.92939 0.325605 0.931234 0.324898 0.933043 0.324105 0.934812 0.323227 0.936538 0.322267 0.938217 0.321227 0.939845 0.320108 0.941418 0.318914 0.942932 0.317646 0.944386 0.316309 0.945774 0.314904 0.947095 0.313436 0.948345 0.311906 0.949521 0.31032 0.950621 0.308679 0.951642 0.306989 0.952583 0.305252 0.95344 0.303473 0.954212 0.301655 0.954898 0.299802 0.955495 0.29792 0.956003 0.296011 0.95642 0.294081 0.956745 0.292133 0.956978 0.290171 0.957118 0.288201 0.957165 0.28622 0.957119 0.284252</P>
+<P r="0">0.957119 0.384252 0.956979 0.382282 0.956747 0.380321 0.956422 0.378373 0.956006 0.376442 0.955499 0.374533 0.954902 0.37265 0.954217 0.370798 0.953445 0.36898 0.952589 0.3672 0.951649 0.365463 0.950628 0.363772 0.949529 0.362131 0.948353 0.360544 0.947104 0.359015 0.945784 0.357546 0.944396 0.356141 0.942943 0.354803 0.941428 0.353535 0.939856 0.35234 0.938228 0.351221 0.93655 0.35018 0.934824 0.349219 0.933055 0.348341 0.931247 0.347547 0.929403 0.34684 0.927527 0.34622 0.925625 0.34569 0.923699 0.34525 0.921755 0.344902 0.919797 0.344645 0.917828 0.344482 0.915855 0.344412 0.91388 0.344435 0.911908 0.344551 0.909944 0.34476 0.907992 0.345062 0.906057 0.345456 0.904142 0.34594 0.902252 0.346515 0.900392 0.347178 0.898565 0.347928 0.896775 0.348763 0.895027 0.349682 0.893324 0.350683 0.891671 0.351763 0.89007 0.35292 0.888526 0.354151 0.887041 0.355454 0.88562 0.356825 0.884265 0.358262 0.882979 0.359762 0.881766 0.36132 0.880627 0.362934 0.879566 0.3646 0.878585 0.366314 0.877686 0.368073 0.876871 0.369872 0.876142 0.371707 0.875501 0.373575 0.874948 0.375471 0.874485 0.377392 0.874114 0.379331 0.873835 0.381287 0.873648 0.383253 0.873555 0.385226 0.873554 0.387201 0.873647 0.389174 0.873833 0.39114 0.874112 0.393095 0.874483 0.395035 0.874945 0.396956 0.875497 0.398852 0.876138 0.40072 0.876866 0.402556 0.87768 0.404355 0.878579 0.406114 0.879559 0.407829 0.88062 0.409495 0.881758 0.411109 0.882971 0.412668 0.884256 0.414168 0.88561 0.415605 0.887031 0.416977 0.888515 0.41828 0.890059 0.419512 0.89166 0.420669 0.893313 0.42175 0.895015 0.422751 0.896763 0.423671 0.898552 0.424507 0.900379 0.425258 0.90224 0.425921 0.904129 0.426496 0.906044 0.426981 0.907979 0.427376 0.909931 0.427678 0.911895 0.427888 0.913866 0.428005 0.915841 0.428028 0.917815 0.427959 0.919783 0.427796 0.921742 0.42754 0.923686 0.427193 0.925612 0.426753 0.927514 0.426224 0.92939 0.425605 0.931234 0.424898 0.933043 0.424105 0.934812 0.423227 0.936538 0.422267 0.938217 0.421227 0.939845 0.420108 0.941418 0.418914 0.942933 0.417646 0.944386 0.416309 0.945774 0.414904 0.947095 0.413436 0.948345 0.411906 0.949521 0.41032 0.950621 0.408679 0.951642 0.406989 0.952583 0.405252 0.95344 0.403473 0.954212 0.401655 0.954898 0.399802 0.955495 0.39792 0.956003 0.396011 0.95642 0.394081 0.956745 0.392133 0.956978 0.390171 0.957118 0.388201 0.957165 0.38622 0.957119 0.384252</P>
+<P r="0">0.009843 0.462597 0.009843 0.009842 0.179134 0.009843 0.974409 0.009843 0.974409 0.462599 0.793307 0.462598 0.009843 0.462598</P>
+<S>0.027094 0.08622 0.110702 0.08622 0.011811 0 0.068898 0.044416 0.068898 0.128024 0.011811 0 0.87355 0.08622 0.957158 0.08622 0.011811 0 0.915354 0.044416 0.915354 0.128024 0.011811 0</S>
+</Fill>
+</CopperPourFills>
+</Board>
+</Source>
