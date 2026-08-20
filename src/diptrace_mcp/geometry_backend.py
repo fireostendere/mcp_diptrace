@@ -99,6 +99,30 @@ def offset_shape(shape: GeometryShape, offset: float) -> GeometryShape | None:
         return shape.model_copy(update={"width": width, "height": height})
     geometry = _to_shapely(shape)
     if geometry is None:
+        points = [Point(**item) for item in shape.points]
+        if shape.kind == "polygon" and len(points) == 4:
+            bounds = BBox.from_points(points)
+            corners = {
+                (bounds.min_x, bounds.min_y),
+                (bounds.min_x, bounds.max_y),
+                (bounds.max_x, bounds.min_y),
+                (bounds.max_x, bounds.max_y),
+            }
+            if {(point.x, point.y) for point in points} == corners:
+                if bounds.width + 2.0 * offset <= 0.0 or bounds.height + 2.0 * offset <= 0.0:
+                    return None
+                expanded = bounds.expand(offset)
+                return shape.model_copy(
+                    update={
+                        "points": [
+                            {
+                                "x": expanded.min_x if point.x == bounds.min_x else expanded.max_x,
+                                "y": expanded.min_y if point.y == bounds.min_y else expanded.max_y,
+                            }
+                            for point in points
+                        ]
+                    }
+                )
         return None
     buffered = geometry.buffer(offset, join_style="round")
     if buffered.is_empty or buffered.geom_type != "Polygon":

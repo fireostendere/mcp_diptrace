@@ -80,6 +80,7 @@ docs/WINDOWS_INSTALLER.md
 docs/WINDOWS_WSL_LOCK_INTEROP.md
 docs/XML_COMPATIBILITY.md
 docs/badges/coverage.svg
+docs/bringup-i2c-level-shifter.md
 docs/compliance/BASELINE_AUDIT.md
 docs/compliance/BRANCH_PROTECTION_STATUS.md
 docs/compliance/DIPTRACE_MATERIALS_STATUS.md
