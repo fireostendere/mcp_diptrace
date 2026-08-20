@@ -157,7 +157,7 @@ def _placement_stage(document: DipTraceDocument, refdes: set[str]) -> DipTraceDo
         raise RuntimeError("PCB components container is missing")
     visible_ids: set[str] = set()
     for component in list(components):
-        if component.get("Type") == "Via" or component.findtext("./RefDes") in refdes:
+        if component.findtext("./RefDes") in refdes:
             visible_ids.add(component.get("Id", ""))
         else:
             components.remove(component)
@@ -173,6 +173,10 @@ def _placement_stage(document: DipTraceDocument, refdes: set[str]) -> DipTraceDo
     ratlines = working.container.find("./Ratlines")
     if ratlines is not None:
         ratlines.clear()
+    for tag in ("CopperPours", "CopperPourFills"):
+        container = working.container.find(f"./{tag}")
+        if container is not None:
+            container.clear()
     return DipTraceDocument.from_bytes(
         working.path,
         raw_tree.compile(working.root, working.path),

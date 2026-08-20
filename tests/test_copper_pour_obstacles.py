@@ -326,3 +326,9 @@ def test_ground_pour_module_assigns_both_layers_and_stitches_them() -> None:
     assert all(item.get("Spoke") == "4 spoke" for item in pours)
     assert all(item.get("SpokeWidth") == "0.3" for item in pours)
     assert all(item.get("ViaDirect") == "Y" for item in pours)
+    assert all(item.get("SnapToBoard") == "N" for item in pours)
+    for pour in pours:
+        points = pour.findall("./Points/Point")
+        xs = [float(point.get("X", "nan")) for point in points]
+        ys = [float(point.get("Y", "nan")) for point in points]
+        assert (min(xs), min(ys), max(xs), max(ys)) == pytest.approx((0.2, 0.2, 19.8, 9.8))

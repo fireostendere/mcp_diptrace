@@ -133,14 +133,10 @@ def test_builtin_component_definition_is_copied_only_into_schematic() -> None:
     root = ET.fromstring(applied.raw_bytes)
 
     style = str(definitions["component_style"])
-    assert root.find(
-        f"./Library/Components/Component[@ComponentStyle='{style}']"
-    ) is not None
+    assert root.find(f"./Library/Components/Component[@ComponentStyle='{style}']") is not None
     assert root.find("./Schematic/Components/Part[RefDes='Q9']") is not None
     assert len(root.findall("./Schematic/Components/Part[RefDes='Q9']/Pins/Pin")) == 3
-    copied_component = root.find(
-        f"./Library/Components/Component[@ComponentStyle='{style}']"
-    )
+    copied_component = root.find(f"./Library/Components/Component[@ComponentStyle='{style}']")
     assert copied_component is not None
     copied_pin = copied_component.find("./Part/Pins/Pin")
     assert copied_pin is not None and copied_pin.get("X") == "2.54"
@@ -196,9 +192,7 @@ def test_catalog_location_connect_and_helpers_fail_closed(
     assert builtin._library_path(location, r"C:\elsewhere\foo.eli").name == "foo.eli"
     escaped = builtin._like_query(r"A%_\B")
     assert r"\%" in escaped and r"\_" in escaped
-    assert builtin._next_numeric_id(
-        [ET.Element("X", Id="2"), ET.Element("X", Id="9")]
-    ) == 10
+    assert builtin._next_numeric_id([ET.Element("X", Id="2"), ET.Element("X", Id="9")]) == 10
     style, next_index = builtin._next_style("PadT", {"padt0", "padt1"}, 0)
     assert (style, next_index) == ("PadT2", 3)
 
@@ -226,21 +220,13 @@ def test_component_definition_validation_and_missing_pattern() -> None:
     pcb = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
 
     with pytest.raises(DocumentError, match="component library"):
-        builtin._component_definitions(
-            pcb, schematic, {"library_index": 0, "name": "x"}
-        )
+        builtin._component_definitions(pcb, schematic, {"library_index": 0, "name": "x"})
     with pytest.raises(DocumentError, match="schematics"):
-        builtin._component_definitions(
-            source, pcb, {"library_index": 0, "name": "BSS138"}
-        )
+        builtin._component_definitions(source, pcb, {"library_index": 0, "name": "BSS138"})
     with pytest.raises(DocumentError, match="outside"):
-        builtin._component_definitions(
-            source, schematic, {"library_index": 8, "name": "x"}
-        )
+        builtin._component_definitions(source, schematic, {"library_index": 8, "name": "x"})
     with pytest.raises(DocumentError, match="does not match"):
-        builtin._component_definitions(
-            source, schematic, {"library_index": 0, "name": "BAD"}
-        )
+        builtin._component_definitions(source, schematic, {"library_index": 0, "name": "BAD"})
 
     missing_pattern = DipTraceDocument.from_bytes(
         Path("missing.elixml"),
@@ -284,9 +270,7 @@ def test_export_cache_and_semantic_place_delegate(
     service = BuiltinLibraryService(context, Gateway(), semantic_write)  # type: ignore[arg-type]
     calls: list[Path] = []
 
-    def fake_export(
-        _root: Path, _source: Path, target_path: Path
-    ) -> dict[str, object]:
+    def fake_export(_root: Path, _source: Path, target_path: Path) -> dict[str, object]:
         calls.append(target_path)
         target_path.write_bytes(_component_library().raw_bytes)
         return {"ok": True}
@@ -374,9 +358,7 @@ def test_library_export_validation_and_top_level_lifecycle(
         lambda *_args: (root, source, target),
     )
     monkeypatch.setattr(headless_gui, "input_desktop_name", lambda: "Default")
-    monkeypatch.setattr(
-        headless_gui, "process_window_station_name", lambda: "WinSta0"
-    )
+    monkeypatch.setattr(headless_gui, "process_window_station_name", lambda: "WinSta0")
     monkeypatch.setattr(headless_gui, "process_session_id", lambda pid=None: 3)
 
     state: dict[str, object] = {"payload": {"ok": True}, "timeout": False}
@@ -425,13 +407,9 @@ def test_library_export_validation_and_top_level_lifecycle(
 
     state["timeout"] = True
     with pytest.raises(headless_gui.HeadlessGuiError, match="timed out"):
-        headless_gui.export_component_library_xml(
-            root, source, target, timeout_seconds=1
-        )
+        headless_gui.export_component_library_xml(root, source, target, timeout_seconds=1)
     with pytest.raises(ValueError, match="timeout_seconds"):
-        headless_gui.export_component_library_xml(
-            root, source, target, timeout_seconds=0
-        )
+        headless_gui.export_component_library_xml(root, source, target, timeout_seconds=0)
 
 
 def test_native_menu_dialog_wait_and_worker_helpers(
@@ -441,9 +419,7 @@ def test_native_menu_dialog_wait_and_worker_helpers(
     monkeypatch.setattr(
         headless_gui,
         "_post_window_message",
-        lambda hwnd, message, wparam=0, lparam=0: posted.append(
-            (hwnd, message, wparam, lparam)
-        ),
+        lambda hwnd, message, wparam=0, lparam=0: posted.append((hwnd, message, wparam, lparam)),
     )
 
     class Menu:
@@ -477,20 +453,17 @@ def test_native_menu_dialog_wait_and_worker_helpers(
     with pytest.raises(headless_gui.HeadlessGuiError, match="disabled"):
         headless_gui._post_menu_item(window, Disabled())
 
-    dialog = SimpleNamespace(class_name=lambda: "#32770", is_visible=lambda: True)
-    app = SimpleNamespace(windows=lambda **_kwargs: [dialog])
-    assert headless_gui._visible_dialog(app, 1) is dialog
+    for class_name in ("#32770", "TFMyMessage", "TForm60"):
+        dialog = SimpleNamespace(class_name=lambda value=class_name: value, is_visible=lambda: True)
+        app = SimpleNamespace(windows=lambda dialog=dialog, **_kwargs: [dialog])
+        assert headless_gui._visible_dialog(app, 1) is dialog
     with pytest.raises(headless_gui.HeadlessGuiError, match="not found"):
-        headless_gui._visible_dialog(
-            SimpleNamespace(windows=lambda **_kwargs: []), 0
-        )
+        headless_gui._visible_dialog(SimpleNamespace(windows=lambda **_kwargs: []), 0)
 
     target = tmp_path / "done.elixml"
     target.write_bytes(b"xml")
     monkeypatch.setattr(headless_gui.time, "sleep", lambda _seconds: None)
-    headless_gui._wait_for_export(
-        SimpleNamespace(windows=lambda **_kwargs: []), target, 1
-    )
+    headless_gui._wait_for_export(SimpleNamespace(windows=lambda **_kwargs: []), target, 1)
     with pytest.raises(headless_gui.HeadlessGuiError, match="timed out"):
         headless_gui._wait_for_export(
             SimpleNamespace(windows=lambda **_kwargs: []),
@@ -526,9 +499,7 @@ def test_perform_library_export_worker_success_and_failure(
             assert soft is False
 
     app = App()
-    monkeypatch.setattr(
-        headless_gui, "_pywinauto_application", lambda: lambda **_kwargs: app
-    )
+    monkeypatch.setattr(headless_gui, "_pywinauto_application", lambda: lambda **_kwargs: app)
     window = SimpleNamespace(
         handle=99,
         wait=lambda *_args, **_kwargs: None,
@@ -543,17 +514,13 @@ def test_perform_library_export_worker_success_and_failure(
     )
     monkeypatch.setattr(headless_gui, "_save_dialog_as_xml", lambda *_args: None)
     monkeypatch.setattr(headless_gui, "_post_window_message", lambda *_args: None)
-    monkeypatch.setattr(
-        headless_gui, "_window_titles", lambda _app: ["Component Editor"]
-    )
+    monkeypatch.setattr(headless_gui, "_window_titles", lambda _app: ["Component Editor"])
 
     def finish(_app, target_path: Path, _timeout: float) -> None:
         target_path.write_bytes(b"<Library Type='DipTrace-ComponentLibrary'/>")
 
     monkeypatch.setattr(headless_gui, "_wait_for_export", finish)
-    result = headless_gui._perform_library_export_worker(
-        root, source, target, 2, "Hidden"
-    )
+    result = headless_gui._perform_library_export_worker(root, source, target, 2, "Hidden")
     assert result["ok"] is True
     assert result["diptrace_pid"] == 4242
     assert result["source_sha256"] == result["source_sha256_after"]
@@ -565,9 +532,7 @@ def test_perform_library_export_worker_success_and_failure(
         raise headless_gui.HeadlessGuiError("boom")
 
     monkeypatch.setattr(headless_gui, "_main_window", fail_main)
-    failed = headless_gui._perform_library_export_worker(
-        root, source, target, 2, "Hidden"
-    )
+    failed = headless_gui._perform_library_export_worker(root, source, target, 2, "Hidden")
     assert failed["ok"] is False
     assert "boom" in str(failed["error"])
     assert not target.exists()
@@ -591,13 +556,9 @@ def test_cmd_library_export_worker_identity_guards(
         ),
         encoding="utf-8",
     )
-    args = argparse.Namespace(
-        request=str(request), result=str(result), desktop_name="Hidden"
-    )
+    args = argparse.Namespace(request=str(request), result=str(result), desktop_name="Hidden")
     monkeypatch.setattr(headless_gui, "thread_desktop_name", lambda: "Hidden")
-    monkeypatch.setattr(
-        headless_gui, "process_window_station_name", lambda: "WinSta0"
-    )
+    monkeypatch.setattr(headless_gui, "process_window_station_name", lambda: "WinSta0")
     monkeypatch.setattr(headless_gui, "process_session_id", lambda pid=None: 5)
     monkeypatch.setattr(
         headless_gui,

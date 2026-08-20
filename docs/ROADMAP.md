@@ -210,7 +210,7 @@ The narrower repository I²C demo path is operator-accepted as of 2026-08-16:
 the compact 25×12 mm PCB, matching schematic and board-framed GIF/MP4 outputs
 were inspected in the current DipTrace configuration. The current generator
 also includes compact 2.54 mm headers, two explicit GND-pour boundaries,
-four-spoke thermal intent and 14 distributed GND stitching vias. This does not
+four-spoke thermal intent and 17 distributed GND stitching vias. This does not
 close the broader authoritative-refill/plane/via or manufacturing acceptance
 boundary above.
 

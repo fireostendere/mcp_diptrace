@@ -163,9 +163,7 @@ class RoundtripResult:
             project=_string_or_default(value.get("project"), ""),
             worker_pid=_coerce_int(value.get("worker_pid"), 0),
             diptrace_pid=_optional_int(value.get("diptrace_pid")),
-            automation_backend=_string_or_default(
-                value.get("automation_backend"), "unknown"
-            ),
+            automation_backend=_string_or_default(value.get("automation_backend"), "unknown"),
             desktop_name=_string_or_default(value.get("desktop_name"), "unknown"),
             input_desktop_before=_optional_string(value.get("input_desktop_before")),
             input_desktop_after=_optional_string(value.get("input_desktop_after")),
@@ -577,9 +575,7 @@ def process_is_elevated() -> bool:
 def _interactive_context() -> tuple[str, str, int]:
     desktop = input_desktop_name()
     if desktop is None:
-        raise HeadlessGuiError(
-            "cannot determine the current input desktop; native launch declined"
-        )
+        raise HeadlessGuiError("cannot determine the current input desktop; native launch declined")
     _validate_desktop_name(desktop)
     station = process_window_station_name()
     if station.casefold() != _INTERACTIVE_WINDOW_STATION.casefold():
@@ -602,9 +598,7 @@ def _launch_process_on_desktop(
         raise ValueError("qualified desktop must include a window station")
     api = _Win32Api()
     application = str(argv[0])
-    command = ctypes.create_unicode_buffer(
-        subprocess.list2cmdline([str(item) for item in argv])
-    )
+    command = ctypes.create_unicode_buffer(subprocess.list2cmdline([str(item) for item in argv]))
     desktop_buffer = ctypes.create_unicode_buffer(qualified_desktop)
     startup = _STARTUPINFOW()
     startup.cb = ctypes.sizeof(_STARTUPINFOW)
@@ -649,9 +643,7 @@ def _launch_on_current_desktop(
     try:
         child_session = process_session_id(child.pid)
         if child_session != session:
-            raise HeadlessGuiError(
-                f"native child session mismatch: {child_session} != {session}"
-            )
+            raise HeadlessGuiError(f"native child session mismatch: {child_session} != {session}")
         return child
     except Exception:
         with suppress(Exception):
@@ -756,9 +748,7 @@ def desktop_smoke_test(*, timeout_seconds: float = 15.0) -> DesktopSmokeResult:
     )
 
 
-def native_desktop_smoke_test(
-    *, timeout_seconds: float = 15.0
-) -> NativeDesktopSmokeResult:
+def native_desktop_smoke_test(*, timeout_seconds: float = 15.0) -> NativeDesktopSmokeResult:
     if os.name != "nt":
         return NativeDesktopSmokeResult(
             False, None, None, None, None, None, None, None, "Windows is required"
@@ -779,9 +769,7 @@ def native_desktop_smoke_test(
             # This probe performs no DipTrace or UI mutation. It may run on an
             # elevated CI runner so the Win32 desktop/session primitive is still
             # exercised there; real native round-trips remain non-elevated only.
-            with _launch_on_current_desktop(
-                argv, require_non_elevated=False
-            ) as child:
+            with _launch_on_current_desktop(argv, require_non_elevated=False) as child:
                 child_exit = child.wait(timeout_seconds)
                 if child_exit is None:
                     child.terminate(124)
@@ -997,9 +985,7 @@ def run_native_roundtrip(request: RoundtripRequest) -> RoundtripResult:
                         worker.wait(2.0)
                         raise HeadlessGuiError("headless DipTrace worker timed out")
         if not result_path.is_file():
-            raise HeadlessGuiError(
-                f"headless worker exited with code {exit_code} without a result"
-            )
+            raise HeadlessGuiError(f"headless worker exited with code {exit_code} without a result")
         result = RoundtripResult.from_json(_load_json(result_path))
 
     after = input_desktop_name()
@@ -1010,8 +996,7 @@ def run_native_roundtrip(request: RoundtripRequest) -> RoundtripResult:
     if before is not None and after is not None and before != after:
         desktop_changed = True
         evidence_error = (
-            f"input desktop changed unexpectedly after worker side effects: "
-            f"{before!r} -> {after!r}"
+            f"input desktop changed unexpectedly after worker side effects: {before!r} -> {after!r}"
         )
     elif request.desktop_mode == "native" and after is None:
         evidence_error = (
@@ -1083,9 +1068,7 @@ def _main_window(app: Any, project: Path, timeout_seconds: float) -> Any:
         if remaining <= 0:
             if fallback_handle is not None:
                 return app.window(handle=fallback_handle)
-            raise HeadlessGuiError(
-                f"DipTrace main window for {project.name!r} was not found"
-            )
+            raise HeadlessGuiError(f"DipTrace main window for {project.name!r} was not found")
         time.sleep(min(0.1, remaining))
 
 
@@ -1093,6 +1076,10 @@ def _post_window_message(hwnd: int, message: int, wparam: int = 0, lparam: int =
     api = _Win32Api()
     if not api.user32.PostMessageW(hwnd, message, wparam, lparam):
         raise api.error("PostMessageW")
+
+
+def _send_window_message(hwnd: int, message: int, wparam: int = 0, lparam: int = 0) -> int:
+    return int(_Win32Api().user32.SendMessageW(hwnd, message, wparam, lparam))
 
 
 def _post_menu_item(window: Any, item: Any) -> None:
@@ -1137,7 +1124,10 @@ def _visible_dialog(app: Any, timeout_seconds: float) -> Any:
     while True:
         for window in app.windows(visible_only=False, enabled_only=True):
             with suppress(Exception):
-                if window.class_name() == "#32770" and window.is_visible():
+                if (
+                    window.class_name() in {"#32770", "TFMyMessage", "TForm60"}
+                    and window.is_visible()
+                ):
                     return window
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -1375,23 +1365,18 @@ def _cmd_worker(args: argparse.Namespace) -> int:
             raise HeadlessGuiError(
                 f"worker connected to unexpected desktop: {actual!r} != {desktop_name!r}"
             )
-        expected_station = _required_string(
-            request_payload, "_expected_window_station"
-        )
+        expected_station = _required_string(request_payload, "_expected_window_station")
         actual_station = process_window_station_name()
         if actual_station.casefold() != expected_station.casefold():
             raise HeadlessGuiError(
                 f"worker connected to unexpected window station: "
                 f"{actual_station!r} != {expected_station!r}"
             )
-        expected_session = _coerce_int(
-            request_payload.get("_expected_session_id"), -1
-        )
+        expected_session = _coerce_int(request_payload.get("_expected_session_id"), -1)
         actual_session = process_session_id()
         if expected_session < 0 or actual_session != expected_session:
             raise HeadlessGuiError(
-                f"worker connected to unexpected session: "
-                f"{actual_session} != {expected_session}"
+                f"worker connected to unexpected session: {actual_session} != {expected_session}"
             )
         if request.desktop_mode == "native" and process_is_elevated():
             raise HeadlessGuiError("native worker unexpectedly has an elevated token")
@@ -1424,9 +1409,7 @@ def _cmd_worker(args: argparse.Namespace) -> int:
             None,
             None,
             error=f"{type(exc).__name__}: {exc}",
-            desktop_mode=_string_or_default(
-                request_payload.get("desktop_mode"), "hidden"
-            ),
+            desktop_mode=_string_or_default(request_payload.get("desktop_mode"), "hidden"),
             window_station_name=current_station,
             session_id=current_session,
         )
@@ -1542,9 +1525,7 @@ def _cmd_roundtrip(args: argparse.Namespace) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="diptrace-mcp-headless-gui",
-        description=(
-            "Run bounded DipTrace GUI work; hidden mode uses an isolated Win32 desktop."
-        ),
+        description=("Run bounded DipTrace GUI work; hidden mode uses an isolated Win32 desktop."),
     )
     subs = parser.add_subparsers(dest="command", required=True)
 

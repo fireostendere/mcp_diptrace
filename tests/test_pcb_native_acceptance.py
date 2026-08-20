@@ -50,9 +50,7 @@ def test_request_normalizes_and_roundtrips_json(tmp_path: Path) -> None:
 
     assert request.desktop_mode == "hidden"
     assert request.drc_success_tokens == ("No Errors Found", "No Errors")
-    restored = native.PcbNativeAcceptanceRequest.model_validate_json(
-        request.model_dump_json()
-    )
+    restored = native.PcbNativeAcceptanceRequest.model_validate_json(request.model_dump_json())
     assert restored == request
 
 
@@ -71,26 +69,49 @@ def test_request_rejects_non_dipxml_output_and_same_path(tmp_path: Path) -> None
 
 
 def test_drc_dialog_classification_is_fail_closed() -> None:
-    assert native.classify_drc_dialog(
-        ["Design Rules Check", "No Errors Found"],
-        ("No Errors Found",),
-    ) == "pass"
-    assert native.classify_drc_dialog(
-        ["Design Rules Check", "2 Errors"],
-        ("No Errors Found",),
-    ) == "fail"
-    assert native.classify_drc_dialog(
-        ["Design Rules Check", "Errors found: 3"],
-        ("No Errors Found",),
-    ) == "fail"
-    assert native.classify_drc_dialog(
-        ["Design Rules Check", "Errors: 0"],
-        ("No Errors Found",),
-    ) == "review_required"
-    assert native.classify_drc_dialog(
-        ["Design Rules Check", "Проверка завершена"],
-        ("No Errors Found",),
-    ) == "review_required"
+    assert (
+        native.classify_drc_dialog(
+            ["Design Rules Check", "No Errors Found"],
+            ("No Errors Found",),
+        )
+        == "pass"
+    )
+    assert (
+        native.classify_drc_dialog(
+            ["Design Rules Check", "2 Errors"],
+            ("No Errors Found",),
+        )
+        == "fail"
+    )
+    assert (
+        native.classify_drc_dialog(
+            ["Design Rules Check", "Errors found: 3"],
+            ("No Errors Found",),
+        )
+        == "fail"
+    )
+    assert (
+        native.classify_drc_dialog(
+            ["Design Rules Check", "Errors: 0"],
+            ("No Errors Found",),
+        )
+        == "review_required"
+    )
+    assert (
+        native.classify_drc_dialog(
+            ["Design Rules Check", "Проверка завершена"],
+            ("No Errors Found",),
+        )
+        == "review_required"
+    )
+    assert (
+        native.classify_drc_dialog(
+            ["PCB Layout - board.dipxml", "OK"],
+            ("No Errors Found",),
+            "TFMyMessage",
+        )
+        == "pass"
+    )
 
 
 def test_pcb_summary_exposes_whole_board_native_invariants() -> None:
@@ -170,7 +191,7 @@ def test_structural_change_or_drc_error_fails(tmp_path: Path) -> None:
     baseline.write_bytes(_FIXTURE.read_bytes())
     changed = _FIXTURE.read_text(encoding="utf-8").replace(
         "</Components>",
-        "<Component Id=\"99\"><RefDes>X1</RefDes></Component></Components>",
+        '<Component Id="99"><RefDes>X1</RefDes></Component></Components>',
         1,
     )
     output.write_text(changed, encoding="utf-8")
@@ -276,8 +297,9 @@ def test_parser_exposes_native_run_contract() -> None:
         ]
     )
     assert args.desktop == "hidden"
-    assert args.refill_menu == "Objects->Update All Copper Pours"
-    assert args.drc_menu == "Verification->Check Design Rules"
+    assert args.refill_menu == "#3->#14"
+    assert args.drc_menu == "#7->#0"
+    assert args.save_as_menu == "#0->#4"
     assert args.evidence_json is None
 
 
@@ -357,6 +379,30 @@ def test_menu_dialog_and_exit_helpers_fail_closed(monkeypatch: pytest.MonkeyPatc
             return [TextControl("child"), TextControl("child"), TextControl("")]
 
     assert native._dialog_texts(Dialog("dialog")) == ["dialog", "child"]
+
+    class Button(TextControl):
+        handle = 42
+
+        def class_name(self) -> str:
+            return "TButton"
+
+    button = Button("OK")
+
+    class ResultDialog(Dialog):
+        def descendants(self) -> list[TextControl]:
+            return [button]
+
+        def is_visible(self) -> bool:
+            return False
+
+    sent: list[tuple[int, int]] = []
+    monkeypatch.setattr(
+        native,
+        "_send_window_message",
+        lambda hwnd, message: sent.append((hwnd, message)),
+    )
+    native._dismiss_dialog(ResultDialog("result"), 2.0)
+    assert sent == [(42, 0x00F5)]
 
     class App:
         def wait_for_process_exit(self, *, timeout: float) -> None:
