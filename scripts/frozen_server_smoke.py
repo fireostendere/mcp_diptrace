@@ -42,7 +42,25 @@ def _read_message(output: queue.Queue[str], timeout: float) -> dict[str, Any]:
     return message
 
 
-def run_smoke(server: Path, workspace: Path, document: str, timeout: float) -> dict[str, Any]:
+def _stop_process(process: subprocess.Popen[str], shutdown_timeout: float) -> None:
+    """Close stdin, then bound graceful shutdown before force-killing a hung child."""
+    if process.stdin is not None:
+        with contextlib.suppress(OSError):
+            process.stdin.close()
+    try:
+        process.wait(timeout=shutdown_timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=shutdown_timeout)
+
+
+def run_smoke(
+    server: Path,
+    workspace: Path,
+    document: str,
+    timeout: float,
+    shutdown_timeout: float = 5.0,
+) -> dict[str, Any]:
     if not server.is_file():
         raise SmokeError(f"server executable is missing: {server}")
     server = server.resolve()
@@ -143,13 +161,7 @@ def run_smoke(server: Path, workspace: Path, document: str, timeout: float) -> d
                 .get("geometry_backend"),
             }
         finally:
-            with contextlib.suppress(OSError):
-                process.stdin.close()
-            try:
-                process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=timeout)
+            _stop_process(process, shutdown_timeout)
             diagnostics: list[str] = []
             while True:
                 try:
@@ -169,11 +181,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workspace", type=Path, required=True)
     parser.add_argument("--document", default="pcb.xml")
     parser.add_argument("--timeout", type=float, default=45.0)
+    parser.add_argument(
+        "--shutdown-timeout",
+        type=float,
+        default=5.0,
+        help="Seconds to allow graceful server shutdown before force-killing it.",
+    )
     args = parser.parse_args(argv)
     try:
         print(
             json.dumps(
-                run_smoke(args.server, args.workspace, args.document, args.timeout), sort_keys=True
+                run_smoke(
+                    args.server,
+                    args.workspace,
+                    args.document,
+                    args.timeout,
+                    args.shutdown_timeout,
+                ),
+                sort_keys=True,
             )
         )
     except (OSError, SmokeError) as exc:
