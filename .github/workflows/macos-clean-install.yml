@@ -108,11 +108,24 @@ jobs:
         run: |
           set -euxo pipefail
           cp tests/fixtures/pcb.xml "$RUNNER_TEMP/DipTrace Workspace/pcb.xml"
-          python scripts/frozen_server_smoke.py \
-            --server "$RUNNER_TEMP/bin/diptrace-mcp" \
-            --workspace "$RUNNER_TEMP/DipTrace Workspace" \
-            --document pcb.xml \
-            --timeout 75
+          smoke() {
+            python scripts/frozen_server_smoke.py \
+              --server "$RUNNER_TEMP/bin/diptrace-mcp" \
+              --workspace "$RUNNER_TEMP/DipTrace Workspace" \
+              --document pcb.xml \
+              --timeout "$1" \
+              --shutdown-timeout 5
+          }
+          if ! smoke 60; then
+            source "$RUNNER_TEMP/DipTrace MCP/macos-runtime-env.sh"
+            wineserver="$(dirname "$WINE")/wineserver"
+            if [[ -x "$wineserver" ]]; then
+              "$wineserver" -k || true
+              "$wineserver" -w || true
+            fi
+            sleep 2
+            smoke 75
+          fi
 
       - name: Bridge shared-prefix smoke
         shell: bash
