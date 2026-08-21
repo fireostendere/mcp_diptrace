@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import math
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -11,9 +13,18 @@ from .clearance import clearance_rule_status, clearance_source_label, resolve_cl
 from .domain import ObjectRecord
 from .errors import CapabilityUnavailableError, NetClassResolutionError
 from .findings import Finding, make_finding
-from .geometry import BBox, Point, point_in_polygon, segment_distance
+from .geometry import (
+    BBox,
+    Point,
+    distance,
+    point_in_polygon,
+    segment_distance,
+    segment_intersects_bbox,
+)
 from .geometry_backend import line_to_shape_distance, shapely_available
 from .numeric_inputs import xml_number_mm
+from .schematic_layout import infer_schematic_design_intent, schematic_sheet_usable_bounds
+from .services.schematic_wire_quality import _text_bbox
 from .spatial import SpatialIndex
 
 CheckFunction = Callable[[DocumentSnapshot], tuple[list[Finding], dict[str, Any]]]
@@ -696,6 +707,373 @@ def check_unconnected_pins(snapshot: DocumentSnapshot) -> tuple[list[Finding], d
                 )
             )
     return findings, {"pins_checked": len(snapshot.schematic.pins)}
+
+
+@registry.register("schematic.anonymous_net_name", "connectivity", "schematic")
+def check_anonymous_net_names(
+    snapshot: DocumentSnapshot,
+) -> tuple[list[Finding], dict[str, Any]]:
+    assert snapshot.schematic is not None
+    anonymous = [
+        net
+        for net in snapshot.schematic.nets
+        if re.fullmatch(r"Net\s+\d+", (net.name or "").strip(), re.IGNORECASE)
+    ]
+    return [
+        make_finding(
+            "schematic.anonymous_net_name",
+            "connectivity",
+            "error",
+            "Schematic net lost its intended name",
+            f"{net.name!r} is an auto-generated DipTrace net name.",
+            object_ids=[net.stable_id],
+            net_ids=[net.stable_id],
+            confidence=1.0,
+            suggested_actions=[
+                "Connect every participating sheet through native named Net Port parts."
+            ],
+        )
+        for net in anonymous
+    ], {"nets_checked": len(snapshot.schematic.nets), "anonymous_nets": len(anonymous)}
+
+
+@registry.register("schematic.sheet_containment", "placement", "schematic")
+def check_schematic_sheet_containment(
+    snapshot: DocumentSnapshot,
+) -> tuple[list[Finding], dict[str, Any]]:
+    assert snapshot.schematic is not None
+    bounds = schematic_sheet_usable_bounds(snapshot)
+    if not bounds:
+        return [], {"skipped": "schematic_sheet_geometry_unavailable"}
+    missing_sheets = [
+        str(sheet.get("index", index))
+        for index, sheet in enumerate(snapshot.schematic.sheets)
+        if str(sheet.get("index", index)) not in bounds
+    ]
+
+    checked = 0
+    outside: list[tuple[str, str | None, str, BBox]] = []
+    for record in [*snapshot.schematic.parts, *snapshot.schematic.wires]:
+        sheet = str(record.attributes.get("sheet", "0"))
+        bound = bounds.get(sheet)
+        if bound is None or record.bbox is None:
+            continue
+        checked += 1
+        box = BBox(**record.bbox)
+        if not bound.contains_bbox(box):
+            outside.append((sheet, record.stable_id, record.label, box))
+
+    for shape in snapshot.document.container.findall("./Shapes/Shape"):
+        if shape.get("Enabled", "Y") != "Y":
+            continue
+        sheet = shape.get("Sheet", "0")
+        bound = bounds.get(sheet)
+        if bound is None:
+            continue
+        if shape.get("Type") == "Text":
+            box = _text_bbox(snapshot.document, shape, margin_mm=0.0)
+        else:
+            points = [
+                Point(
+                    xml_number_mm(snapshot.document, point, "X"),
+                    xml_number_mm(snapshot.document, point, "Y"),
+                )
+                for point in shape.findall("./Points/Point")
+            ]
+            box = BBox.from_points(points) if points else None
+        if box is None:
+            continue
+        checked += 1
+        if not bound.contains_bbox(box):
+            outside.append((sheet, None, f"shape {shape.get('Id', '?')}", box))
+
+    sheet_names = {
+        str(sheet.get("index", index)): str(sheet.get("name", sheet.get("id", index)))
+        for index, sheet in enumerate(snapshot.schematic.sheets)
+    }
+    findings = [
+        make_finding(
+            "schematic.sheet_containment",
+            "placement",
+            "error",
+            "Schematic content is outside the working sheet",
+            f"{label} is outside the usable boundary of sheet {sheet_names.get(sheet, sheet)!r}.",
+            object_ids=[object_id] if object_id is not None else [],
+            bbox=box.as_dict(),
+            confidence=0.9,
+            suggested_actions=[
+                "Move or center the complete functional block inside the sheet margins."
+            ],
+        )
+        for sheet, object_id, label, box in outside
+    ]
+    metrics: dict[str, Any] = {
+        "sheets_checked": len(bounds),
+        "objects_checked": checked,
+        "objects_outside": len(outside),
+    }
+    if missing_sheets:
+        metrics["partial_skipped"] = "schematic_sheet_geometry_unavailable"
+        metrics["sheets_without_geometry"] = missing_sheets
+    return findings, metrics
+
+
+@registry.register("schematic.label_support_overlap", "placement", "schematic")
+def check_schematic_label_support_overlap(
+    snapshot: DocumentSnapshot,
+) -> tuple[list[Finding], dict[str, Any]]:
+    assert snapshot.schematic is not None
+    support_ids = {
+        part.part_id
+        for part in infer_schematic_design_intent(snapshot).parts
+        if part.role == "support"
+    }
+    supports = [
+        part
+        for part in snapshot.schematic.parts
+        if part.stable_id in support_ids and part.bbox is not None
+    ]
+    findings: list[Finding] = []
+    labels_checked = 0
+    pairs_checked = 0
+    for shape in snapshot.document.container.findall("./Shapes/Shape"):
+        if (
+            shape.get("Enabled", "Y") != "Y"
+            or shape.get("Type") != "Text"
+            or shape.get("NetId", "-1") == "-1"
+        ):
+            continue
+        label_box = _text_bbox(snapshot.document, shape, margin_mm=0.0)
+        if label_box is None:
+            continue
+        labels_checked += 1
+        sheet = shape.get("Sheet", "0")
+        corridor = label_box.expand(1.27)
+        for part in supports:
+            if str(part.attributes.get("sheet", "0")) != sheet:
+                continue
+            pairs_checked += 1
+            part_box = BBox(**part.bbox)
+            overlap = corridor.intersection(part_box)
+            if overlap is None or overlap.area <= 1e-9:
+                continue
+            findings.append(
+                make_finding(
+                    "schematic.label_support_overlap",
+                    "placement",
+                    "error",
+                    "Net label collides with a support component corridor",
+                    f"Net label {shape.findtext('./TextLines/TextLine')!r} overlaps the "
+                    f"reading corridor around {part.refdes or part.label}.",
+                    object_ids=[part.stable_id],
+                    bbox=overlap.as_dict(),
+                    confidence=min(0.9, part.confidence),
+                    suggested_actions=[
+                        "Move the support component out of the label corridor "
+                        "or align the label away."
+                    ],
+                )
+            )
+    return findings, {
+        "labels_checked": labels_checked,
+        "support_parts_checked": len(supports),
+        "pairs_checked": pairs_checked,
+        "overlaps": len(findings),
+    }
+
+
+@registry.register("schematic.text_collision", "placement", "schematic")
+def check_schematic_text_collisions(
+    snapshot: DocumentSnapshot,
+) -> tuple[list[Finding], dict[str, Any]]:
+    assert snapshot.schematic is not None
+    text_entries = [
+        (shape, shape.get("Sheet", "0"), _text_bbox(snapshot.document, shape, margin_mm=0.0))
+        for shape in snapshot.document.container.findall("./Shapes/Shape")
+        if shape.get("Enabled", "Y") == "Y" and shape.get("Type") == "Text"
+    ]
+    unmeasured = [(shape, sheet) for shape, sheet, box in text_entries if box is None]
+    texts = [(shape, sheet, box) for shape, sheet, box in text_entries if box is not None]
+    findings = [
+        make_finding(
+            "schematic.text_collision",
+            "placement",
+            "error",
+            "Schematic text cannot be measured safely",
+            f"Text shape {shape.get('Id', '?')} on sheet {sheet} has no safe font bounds.",
+            confidence=1.0,
+            suggested_actions=[
+                "Use a supported ASCII vector font or provide native TextWidth/TextHeight."
+            ],
+        )
+        for shape, sheet in unmeasured
+    ]
+    part_collisions = 0
+    text_collisions = 0
+    foreign_wire_collisions = 0
+    same_net_wire_collisions = 0
+
+    for shape, sheet, text_box in texts:
+        label = shape.findtext("./TextLines/TextLine") or f"shape {shape.get('Id', '?')}"
+        for part in snapshot.schematic.parts:
+            if str(part.attributes.get("sheet", "0")) != sheet or part.bbox is None:
+                continue
+            overlap = text_box.intersection(BBox(**part.bbox))
+            if overlap is None:
+                continue
+            part_collisions += 1
+            findings.append(
+                make_finding(
+                    "schematic.text_collision",
+                    "placement",
+                    "error",
+                    "Schematic text overlaps a component",
+                    f"Text {label!r} overlaps {part.refdes or part.label}.",
+                    object_ids=[part.stable_id],
+                    bbox=overlap.as_dict(),
+                    confidence=min(0.9, part.confidence),
+                    suggested_actions=["Move the text or component until both remain readable."],
+                )
+            )
+
+    for index, (first_shape, first_sheet, first_box) in enumerate(texts):
+        first_label = first_shape.findtext("./TextLines/TextLine") or "text"
+        for second_shape, second_sheet, second_box in texts[index + 1 :]:
+            if first_sheet != second_sheet:
+                continue
+            overlap = first_box.intersection(second_box)
+            if overlap is None:
+                continue
+            second_label = second_shape.findtext("./TextLines/TextLine") or "text"
+            text_collisions += 1
+            findings.append(
+                make_finding(
+                    "schematic.text_collision",
+                    "placement",
+                    "error",
+                    "Schematic texts overlap",
+                    f"Texts {first_label!r} and {second_label!r} overlap.",
+                    bbox=overlap.as_dict(),
+                    confidence=0.85,
+                    suggested_actions=["Move one text label until both remain readable."],
+                )
+            )
+
+    for shape, sheet, text_box in texts:
+        net_id = shape.get("NetId", "-1")
+        label = shape.findtext("./TextLines/TextLine") or f"shape {shape.get('Id', '?')}"
+        for wire in snapshot.schematic.wires:
+            if str(wire.attributes.get("sheet", "0")) != sheet:
+                continue
+            points = [
+                Point(float(item["x"]), float(item["y"]))
+                for item in wire.attributes.get("points", [])
+                if isinstance(item, dict) and "x" in item and "y" in item
+            ]
+            same_net = net_id != "-1" and wire.net_id == net_id
+            collision_box = (
+                BBox(
+                    text_box.min_x + 1e-6,
+                    text_box.min_y + 1e-6,
+                    text_box.max_x - 1e-6,
+                    text_box.max_y - 1e-6,
+                )
+                if same_net
+                else text_box
+            )
+            if not any(
+                segment_intersects_bbox(first, second, collision_box)
+                for first, second in zip(points, points[1:], strict=False)
+            ):
+                continue
+            if same_net:
+                same_net_wire_collisions += 1
+            else:
+                foreign_wire_collisions += 1
+            findings.append(
+                make_finding(
+                    "schematic.text_collision",
+                    "placement",
+                    "error",
+                    "Wire crosses schematic text",
+                    f"{wire.label} crosses schematic text {label!r}.",
+                    object_ids=[wire.stable_id],
+                    net_ids=list(wire.relationships.get("net", [])),
+                    bbox=text_box.as_dict(),
+                    confidence=0.9,
+                    suggested_actions=["Move the text or reroute the foreign wire."],
+                )
+            )
+
+    return findings, {
+        "texts_checked": len(texts),
+        "unmeasured_texts": len(unmeasured),
+        "part_collisions": part_collisions,
+        "text_collisions": text_collisions,
+        "foreign_wire_collisions": foreign_wire_collisions,
+        "same_net_wire_collisions": same_net_wire_collisions,
+        "wire_collisions": foreign_wire_collisions + same_net_wire_collisions,
+        "collisions": len(findings),
+    }
+
+
+@registry.register("schematic.excessive_wire_detour", "placement", "schematic")
+def check_schematic_wire_detours(
+    snapshot: DocumentSnapshot,
+) -> tuple[list[Finding], dict[str, Any]]:
+    assert snapshot.schematic is not None
+    findings: list[Finding] = []
+    for wire in snapshot.schematic.wires:
+        points = [
+            Point(float(item["x"]), float(item["y"]))
+            for item in wire.attributes.get("points", [])
+            if isinstance(item, dict) and "x" in item and "y" in item
+        ]
+        segments = [
+            (first, second)
+            for first, second in zip(points, points[1:], strict=False)
+            if first != second
+        ]
+        if not segments:
+            continue
+        directions = [
+            "h"
+            if math.isclose(first.y, second.y, abs_tol=1e-6)
+            else "v"
+            if math.isclose(first.x, second.x, abs_tol=1e-6)
+            else "d"
+            for first, second in segments
+        ]
+        bends = sum(
+            first != second for first, second in zip(directions, directions[1:], strict=False)
+        )
+        length = sum(distance(first, second) for first, second in segments)
+        direct = abs(points[-1].x - points[0].x) + abs(points[-1].y - points[0].y)
+        detour_ratio = length / direct if direct > 1e-9 else math.inf
+        if bends <= 3 and detour_ratio <= 1.5:
+            continue
+        findings.append(
+            make_finding(
+                "schematic.excessive_wire_detour",
+                "placement",
+                "error",
+                "Schematic wire has an excessive detour",
+                f"{wire.label} uses {bends} bend(s) and a {detour_ratio:.2f}x detour.",
+                object_ids=[wire.stable_id],
+                net_ids=list(wire.relationships.get("net", [])),
+                bbox=wire.bbox,
+                confidence=1.0,
+                suggested_actions=[
+                    "Move the connected component first, then redraw the wire "
+                    "with at most two bends."
+                ],
+            )
+        )
+    return findings, {
+        "wires_checked": len(snapshot.schematic.wires),
+        "excessive_detours": len(findings),
+        "compact_three_bend_max_detour_ratio": 1.5,
+    }
 
 
 @registry.register("schematic.missing_value", "metadata", "schematic")

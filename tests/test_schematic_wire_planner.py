@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -11,7 +12,7 @@ from diptrace_mcp.geometry import Point
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.schematic_wire_planner import plan_schematic_wire_candidate
 from diptrace_mcp.services import schematic_wire_quality
-from diptrace_mcp.services.schematic_wire_quality import clean_schematic_wire_operation
+from diptrace_mcp.services.schematic_wire_quality import _text_bbox, clean_schematic_wire_operation
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -20,6 +21,61 @@ MAX_BYTES = 10_000_000
 
 def _load() -> DipTraceDocument:
     return DipTraceDocument.load(FIXTURES / "schematic.xml", MAX_BYTES)
+
+
+def test_vector_text_fallback_uses_diptrace_height_envelope() -> None:
+    shape = ET.fromstring(
+        '<Shape Type="Text" FontVector="Y" FontSize="4" FontWidth="-2" '
+        'FontScale="1" LineSpacing="1.2" HorzAlign="Left" VertAlign="Bottom">'
+        '<Points><Point X="0" Y="0"/></Points>'
+        '<TextLines><TextLine>VCC</TextLine></TextLines></Shape>'
+    )
+
+    box = _text_bbox(_load(), shape, margin_mm=0.0)
+
+    assert box is not None
+    assert box.height == pytest.approx(1.973796078)
+
+
+def test_exact_truetype_unicode_text_extents_are_accepted() -> None:
+    shape = ET.fromstring(
+        '<Shape Type="Text" FontVector="N" FontSize="4" FontWidth="-2" '
+        'FontScale="1" LineSpacing="1.2" TextWidth="10" TextHeight="2" '
+        'Angle="0" HorzAlign="Left" VertAlign="Bottom">'
+        '<Points><Point X="0" Y="0"/></Points>'
+        '<TextLines><TextLine>µ</TextLine></TextLines></Shape>'
+    )
+
+    box = _text_bbox(_load(), shape, margin_mm=0.0)
+
+    assert box is not None
+    assert (box.width, box.height) == pytest.approx((10.0, 2.0))
+
+
+@pytest.mark.parametrize(
+    ("target", "attribute"),
+    [("point", "X"), ("shape", "TextWidth"), ("shape", "FontSize"), ("shape", "Angle")],
+)
+def test_text_bbox_rejects_non_finite_geometry_and_font_values(
+    target: str, attribute: str
+) -> None:
+    shape = ET.fromstring(
+        '<Shape Type="Text" FontVector="Y" FontSize="4" FontWidth="-2" '
+        'FontScale="1" LineSpacing="1.2" TextWidth="10" TextHeight="2" '
+        'Angle="0" HorzAlign="Left" VertAlign="Bottom">'
+        '<Points><Point X="0" Y="0"/></Points>'
+        '<TextLines><TextLine>VCC</TextLine></TextLines></Shape>'
+    )
+    element = shape.find("./Points/Point") if target == "point" else shape
+    assert element is not None
+    element.set(attribute, "nan")
+
+    assert _text_bbox(_load(), shape, margin_mm=0.0) is None
+
+
+def test_pin_orientation_snap_is_circular_at_zero_degrees() -> None:
+    assert schematic_wire_quality._orientation_escape(359.9995, outward=True) == ("x", -1)
+    assert schematic_wire_quality._orientation_escape(-0.0005, outward=True) == ("x", -1)
 
 
 def test_cleanup_rejects_reroute_that_reenters_endpoint_symbol(monkeypatch) -> None:
@@ -70,6 +126,46 @@ def test_cleanup_rejects_reroute_that_reenters_endpoint_symbol(monkeypatch) -> N
     )
 
     cleaned = clean_schematic_wire_operation(_load(), snapshot, operation)
+
+    assert cleaned.points == operation.points
+
+
+def test_cleanup_preserves_declared_pin_escape_direction(monkeypatch) -> None:
+    document = _load()
+    snapshot = build_snapshot(document)
+    assert snapshot.schematic is not None
+    part = next(item for item in snapshot.schematic.parts if item.refdes == "R1")
+    monkeypatch.setattr(
+        schematic_wire_quality,
+        "resolve_document_schematic_pin_geometry",
+        lambda _: SimpleNamespace(
+            pins=[
+                SimpleNamespace(
+                    part_id=part.stable_id,
+                    pin_index=0,
+                    absolute_position={"x": 0.0, "y": 0.0},
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        schematic_wire_quality,
+        "_route",
+        lambda *_: [Point(0.0, 0.0), Point(0.0, 10.0)],
+    )
+    operation = AddWireOperation(
+        net="VCC",
+        points=[
+            {"x": 0.0, "y": 0.0},
+            {"x": 5.0, "y": 0.0},
+            {"x": 5.0, "y": 10.0},
+            {"x": 0.0, "y": 10.0},
+        ],
+        start={"type": "Pin", "refdes": "R1", "pin": 0},
+        end={"type": "Free"},
+    )
+
+    cleaned = clean_schematic_wire_operation(document, snapshot, operation)
 
     assert cleaned.points == operation.points
 
@@ -165,7 +261,7 @@ def test_cleaner_preserves_simple_crossing_instead_of_adding_three_bend_hook() -
     assert cleaned.points == operation.points
 
 
-def test_clean_but_pathological_detour_returns_placement_feedback() -> None:
+def test_clean_but_pathological_detour_is_replaced_by_direct_route() -> None:
     document = _load()
     snapshot = build_snapshot(document)
     operation = AddWireOperation(
@@ -183,12 +279,14 @@ def test_clean_but_pathological_detour_returns_placement_feedback() -> None:
 
     plan = plan_schematic_wire_candidate(document, snapshot, operation)
 
-    assert plan.improved is False
-    assert plan.selected.metrics.detour_ratio == pytest.approx(3.0)
-    assert plan.accept_route is False
-    assert plan.placement_feedback.required is True
-    assert plan.placement_feedback.kind == "move_endpoint_blocks_closer"
-    assert any("detour ratio" in reason for reason in plan.placement_feedback.reasons)
+    assert plan.improved is True
+    assert [point.model_dump() for point in plan.selected.operation.points] == [
+        {"x": 0.0, "y": 50.0},
+        {"x": 50.0, "y": 50.0},
+    ]
+    assert plan.selected.metrics.detour_ratio == pytest.approx(1.0)
+    assert plan.accept_route is True
+    assert plan.placement_feedback.required is False
 
 
 def test_feedback_resolves_multipart_pin_endpoints_to_stable_part_ids() -> None:
@@ -213,7 +311,8 @@ def test_feedback_resolves_multipart_pin_endpoints_to_stable_part_ids() -> None:
 
     plan = plan_schematic_wire_candidate(document, snapshot, operation)
 
-    assert plan.placement_feedback.required is True
+    # The cleaner may simplify the authored detour outright; the endpoint
+    # resolution into stable part ids must hold either way.
     assert plan.placement_feedback.endpoint_part_ids == sorted(
         [r1.stable_id, *(part.stable_id for part in u1_parts)]
     )

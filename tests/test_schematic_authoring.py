@@ -49,9 +49,7 @@ def _service(workspace: Path, state: Path) -> DipTraceService:
 
 
 def test_add_sheet_compiles_official_structure() -> None:
-    result = apply_semantic_operations(
-        _load("schematic.xml"), [AddSheetOperation(name="Power")]
-    )
+    result = apply_semantic_operations(_load("schematic.xml"), [AddSheetOperation(name="Power")])
     root = ET.fromstring(result.raw_bytes)
     sheets = root.findall("./Schematic/SheetSettings/Sheets/Sheet")
     assert [sheet.findtext("./Name") for sheet in sheets] == ["Main", "Power"]
@@ -62,9 +60,48 @@ def test_add_sheet_compiles_official_structure() -> None:
     assert len(snapshot.schematic.sheets) == 2
 
 
+def test_schematic_model_exposes_centered_usable_page_bounds_in_mm() -> None:
+    original = _load("schematic.xml")
+    root = ET.fromstring(original.raw_bytes)
+    root.set("Units", "inch")
+    sheet = root.find("./Schematic/SheetSettings/Sheets/Sheet")
+    assert sheet is not None
+    for name, value in (
+        ("SheetWidth", "11"),
+        ("SheetHeight", "8.5"),
+        ("LeftMargin", "0.5"),
+        ("TopMargin", "0.63"),
+        ("RightMargin", "0.5"),
+        ("BottomMargin", "0.63"),
+    ):
+        ET.SubElement(sheet, name).text = value
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+    snapshot = build_snapshot(document)
+    assert snapshot.schematic is not None
+    page = snapshot.schematic.sheets[0]
+    assert page["width_mm"] == pytest.approx(279.4)
+    assert page["height_mm"] == pytest.approx(215.9)
+    assert page["index"] == 0
+    assert page["usable_bbox"] == pytest.approx(
+        {"min_x": -127.0, "min_y": -91.948, "max_x": 127.0, "max_y": 91.948}
+    )
+
+
 def test_add_sheet_rejects_duplicate_name() -> None:
     with pytest.raises(AmbiguousSelectorError):
         apply_semantic_operations(_load("schematic.xml"), [AddSheetOperation(name="main")])
+
+
+def test_add_net_label_preserves_legacy_positional_path(tmp_path: Path) -> None:
+    service = _service(FIXTURES, tmp_path / "state")
+
+    result = service.add_net_label("VCC", 12.0, 22.0, 0, None, 4, "schematic.xml")
+
+    assert result["transaction"]["status"] == "validated"
 
 
 def test_place_part_compiles_official_structure() -> None:
@@ -130,11 +167,11 @@ def test_place_part_copies_embedded_library_identity_into_bom() -> None:
         b'<Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm" />',
         b'<Library Type="DipTrace-ComponentLibrary" Version="4.3.0.3" Units="mm">'
         b'<Components><Component ComponentStyle="ExactStyle"><Part Id="0" RefDes="Q">'
-        b'<Name>BSS138</Name><Manufacturer>onsemi</Manufacturer>'
-        b'<Datasheet>https://example.invalid/bss138.pdf</Datasheet><AddFields>'
+        b"<Name>BSS138</Name><Manufacturer>onsemi</Manufacturer>"
+        b"<Datasheet>https://example.invalid/bss138.pdf</Datasheet><AddFields>"
         b'<AddField Type="Text"><Name>MPN</Name><Text>BSS138</Text></AddField>'
         b'<AddField Type="Text"><Name>LCSC</Name><Text>C52895</Text></AddField>'
-        b'</AddFields></Part></Component></Components></Library>',
+        b"</AddFields></Part></Component></Components></Library>",
     )
     result = apply_semantic_operations(
         _load_bytes(raw),
@@ -240,11 +277,7 @@ def test_connect_pins_conflict_without_reconnect_flag() -> None:
     with pytest.raises(EditError, match="allow_reconnect"):
         apply_semantic_operations(
             _load("schematic.xml"),
-            [
-                ConnectPinsOperation(
-                    net="NEWNET", pins=[{"refdes": "R1", "pin": 0}]
-                )
-            ],
+            [ConnectPinsOperation(net="NEWNET", pins=[{"refdes": "R1", "pin": 0}])],
         )
 
 
@@ -405,9 +438,7 @@ def _wire_id(document: DipTraceDocument) -> str:
 def test_delete_wire_removes_element_and_keeps_connectivity() -> None:
     document = _wired_document()
     wire_id = _wire_id(document)
-    result = apply_semantic_operations(
-        document, [DeleteWireOperation(selector={"ids": [wire_id]})]
-    )
+    result = apply_semantic_operations(document, [DeleteWireOperation(selector={"ids": [wire_id]})])
     root = ET.fromstring(result.raw_bytes)
     assert root.find("./Schematic/Nets/Net[@Id='0']/Wires/Wire") is None
     vcc = root.find("./Schematic/Nets/Net[@Id='0']")
@@ -421,7 +452,14 @@ def test_delete_wire_removes_element_and_keeps_connectivity() -> None:
 def test_add_net_label_compiles_text_shape_bound_to_net() -> None:
     result = apply_semantic_operations(
         _load("schematic.xml"),
-        [AddNetLabelOperation(net="VCC", x=12.0, y=22.0)],
+        [
+            AddNetLabelOperation(
+                net="VCC",
+                x=12.0,
+                y=22.0,
+                horizontal_align="Right",
+            )
+        ],
     )
     root = ET.fromstring(result.raw_bytes)
     shape = root.find("./Schematic/Shapes/Shape")
@@ -430,6 +468,8 @@ def test_add_net_label_compiles_text_shape_bound_to_net() -> None:
     assert shape.get("NetId") == "0"
     assert shape.get("BusId") == "-1"
     assert shape.get("FontSize") == "4"
+    assert shape.get("HorzAlign") == "Right"
+    assert shape.get("TextAlign") == "Right"
     assert shape.find("./Points/Point").get("X") == "12"  # type: ignore[union-attr]
     assert shape.findtext("./TextLines/TextLine") == "VCC"
 
@@ -438,20 +478,42 @@ def test_full_schematic_authoring_flow_via_service(tmp_path: Path) -> None:
     service = _service(tmp_path, tmp_path / ".state")
     service.create_document("schematic", "project/main.dch", sheets=["Main"])
     placed = service.place_part(
-        "CompType0", "R1", 20.0, 20.0, pin_count=2, value="10k",
-        name="RES_0603", path="project/main.dch", dry_run=True,
+        "CompType0",
+        "R1",
+        20.0,
+        20.0,
+        pin_count=2,
+        value="10k",
+        name="RES_0603",
+        path="project/main.dch",
+        dry_run=True,
     )
     txid = placed["transaction"]["txid"]
     sha = placed["transaction"]["expected_sha256"]
     committed = service.place_part(
-        "CompType0", "R1", 20.0, 20.0, pin_count=2, value="10k",
-        name="RES_0603", path="project/main.dch", dry_run=False,
-        expected_sha256=sha, txid=txid,
+        "CompType0",
+        "R1",
+        20.0,
+        20.0,
+        pin_count=2,
+        value="10k",
+        name="RES_0603",
+        path="project/main.dch",
+        dry_run=False,
+        expected_sha256=sha,
+        txid=txid,
     )
     assert committed["transaction"]["status"] == "committed"
     service.place_part(
-        "CompType0", "R2", 40.0, 20.0, pin_count=2, value="10k",
-        name="RES_0603", path="project/main.dch", dry_run=False,
+        "CompType0",
+        "R2",
+        40.0,
+        20.0,
+        pin_count=2,
+        value="10k",
+        name="RES_0603",
+        path="project/main.dch",
+        dry_run=False,
         expected_sha256=service.document_info("project/main.dch")["result"]["sha256"],
     )
     connected = service.connect_pins(
@@ -473,7 +535,11 @@ def test_full_schematic_authoring_flow_via_service(tmp_path: Path) -> None:
     )
     assert wired["transaction"]["status"] == "committed"
     labeled = service.add_net_label(
-        "GND", 22.5, 25.0, path="project/main.dch", dry_run=False,
+        "GND",
+        22.5,
+        25.0,
+        path="project/main.dch",
+        dry_run=False,
         expected_sha256=service.document_info("project/main.dch")["result"]["sha256"],
     )
     assert labeled["transaction"]["status"] == "committed"
@@ -554,9 +620,7 @@ def test_panelization_update_resets_manual_tabs(tmp_path: Path) -> None:
         b"<ConnectivityCheck",
     )
     document = _load_bytes(raw)
-    result = apply_semantic_operations(
-        document, [SetPanelizationOperation(columns=4, rows=3)]
-    )
+    result = apply_semantic_operations(document, [SetPanelizationOperation(columns=4, rows=3)])
     root = ET.fromstring(result.raw_bytes)
     panel = root.find("./Board/Panel")
     assert panel is not None

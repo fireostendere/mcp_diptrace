@@ -1,137 +1,138 @@
-# План физической валидации I²C level-shifter PCB
+# Physical Validation Plan for the I²C Level-Shifter PCB
 
-Статус: `CLOSED FOR DEMO — PASS-M1; M6-LITE + JLC PREVIEW ACCEPTED; FAB/HW NOT RUN BY SCOPE`
+Status: `CLOSED FOR DEMO — PASS-M1; M6-LITE + JLC PREVIEW ACCEPTED; FAB/HW NOT RUN BY SCOPE`
 
-Цель: получить честное физическое подтверждение для **одной точной ревизии**
-демонстрационной платы 3,3 В ↔ 5 В, а не объявить универсально проверенным весь
-PCB-генератор.
+Goal: obtain honest physical confirmation for **one exact revision** of the
+3.3 V ↔ 5 V demonstration board, not to declare the entire PCB generator
+universally validated.
 
-Базовый PASS состоит из четырёх независимых результатов:
+The baseline PASS consists of four independent results:
 
-1. реальный DipTrace принял плату после native refill/DRC/save/reopen/re-export;
-2. изготовитель принял пакет, а полученная плата соответствует CAM и чертежу;
-3. собранный образец проходит проверки без питания и статический перевод уровней;
-4. реальный I²C проходит в обе стороны на 100 кГц без ошибок.
+1. real DipTrace accepted the board after native refill/DRC/save/reopen/re-export;
+2. the fabricator accepted the package and the delivered board matches CAM and
+   the drawing;
+3. the assembled specimen passes unpowered checks and static level shifting;
+4. real I²C passes in both directions at 100 kHz without errors.
 
-Отдельный `PASS-FM` разрешает claim Fast-mode 400 кГц только после измерения
-фронтов. SI/PI/EMC, серийная технологичность и универсальная совместимость этим
-планом не заявляются.
+A separate `PASS-FM` permits a Fast-mode 400 kHz claim only after edge
+measurements. SI/PI/EMC, volume manufacturability, and universal compatibility
+are not claimed by this plan.
 
-Решение о границе работ от 2026-08-20: оператор принял native-проверки,
-визуальные материалы, первичный JLC PCB preview и совпадение JLC BOM как
-достаточные для демонстрационного результата. Заказ плат и испытания реального
-образца явно исключены из scope. Поэтому фазы C–G не выполняются, а
-`PASS-FAB`, `PASS-HW`, `PASS-FM` и общий физический PASS не заявляются.
+Scope decision of 2026-08-20: the operator accepted the native checks, the
+visual materials, the primary JLC PCB preview, and the JLC BOM match as
+sufficient for the demonstration result. Board ordering and testing of a real
+specimen are explicitly out of scope. Phases C–G are therefore not executed,
+and `PASS-FAB`, `PASS-HW`, `PASS-FM`, and the overall physical PASS are not
+claimed.
 
-## 1. Идентичность кандидата
+## 1. Candidate identity
 
-Начальная точка, найденная при составлении плана:
+Starting point recorded while composing the plan:
 
-| Поле | Значение |
+| Field | Value |
 | --- | --- |
 | Git commit | `2506ca1` |
 | PCB source | `i2c-level-shifter-pcb.dipxml` |
-| PCB SHA-256 до исправления BOM | `0478717d8fe7fa21746c836a6eaed9d9d0f5f17f87b5ab2fbd1288971cde480c` |
+| PCB SHA-256 before the BOM fix | `0478717d8fe7fa21746c836a6eaed9d9d0f5f17f87b5ab2fbd1288971cde480c` |
 | Schematic source | `i2c-level-shifter-module.dchxml` |
-| Schematic SHA-256 до исправления BOM | `88b030b7712c0238897b021f3d572a2a93b20303aca8aca83321d335b56ce51a` |
-| Размер платы по XML | 25 × 12 мм |
-| Слои | 2, сигналы и питание Top, GND pours Top/Bottom |
-| Состав | Q1/Q2 BSS138; R1–R4 pull-up; J1/J2 1×4, 2,54 мм |
-| Аппаратный кандидат | `PV-0 / 4,7 кОм; freeze m1-71edf73` |
-| PCB SHA-256 кандидата | `a272793597e556e87250e9b703a878182629995d2d20dbacf03c897f060fc118` |
-| Schematic SHA-256 кандидата | `bb34fca9fb7e6ee9108b77d84be5bd101df9ec32c987e91d8c23a00b5295dd7e` |
+| Schematic SHA-256 before the BOM fix | `88b030b7712c0238897b021f3d572a2a93b20303aca8aca83321d335b56ce51a` |
+| Board size per XML | 25 × 12 mm |
+| Layers | 2, signals and power on Top, GND pours Top/Bottom |
+| Contents | Q1/Q2 BSS138; R1–R4 pull-up; J1/J2 1×4, 2.54 mm |
+| Hardware candidate | `PV-0 / 4.7 kΩ; freeze m1-71edf73` |
+| Candidate PCB SHA-256 | `a272793597e556e87250e9b703a878182629995d2d20dbacf03c897f060fc118` |
+| Candidate schematic SHA-256 | `bb34fca9fb7e6ee9108b77d84be5bd101df9ec32c987e91d8c23a00b5295dd7e` |
 | Package freeze label | `m1-71edf73` (pre-DCO freeze SHA `71edf73`) |
 | Signed PCB freeze commit | `3c3b6b0` — tree-equivalent rewrite of `71edf73` |
 | Signed package commit | `681e9e2` — tree-equivalent rewrite of `3730259` |
 | DipTrace build/profile | `5.3.0.3 / diptrace-5.3-en-v1` |
-| Изготовитель, заказ, stackup | `JLCPCB preview only; заказ не размещён; stackup не зафиксирован` |
-| Серийные номера образцов | `TBD` |
+| Fabricator, order, stackup | `JLCPCB preview only; no order placed; stackup not fixed` |
+| Specimen serial numbers | `TBD` |
 
-### PV-0 — блокер до заказа
+### PV-0 — blocker before ordering
 
-- [x] Выбрать фактическое сопротивление pull-up и устранить расхождение во всех
-  исходниках/BOM.
+- [x] Select the actual pull-up resistance and resolve the discrepancy across
+  all sources/BOM.
 
-Закрыто 2026-08-20: R1–R4 зафиксированы как **4,7 кОм ±1 %**, MPN
-`0402WGF4701TCE`, LCSC `C25900`; XML разбирается, старые `0402WGF1002TCE` и
-`C25744` отсутствуют в физических schematic/PCB-артефактах. M1 и freeze
-завершены; до заказа остаётся ручное принятие CAM/DFM изготовителя.
+Closed 2026-08-20: R1–R4 fixed as **4.7 kΩ ±1 %**, MPN `0402WGF4701TCE`,
+LCSC `C25900`; the XML parses and the old `0402WGF1002TCE` and `C25744` are
+absent from the physical schematic/PCB artifacts. M1 and the freeze are
+complete; manual fabricator CAM/DFM acceptance remains before ordering.
 
-## 2. Источники критериев
+## 2. Criteria sources
 
-- Топология и pinout разъёмов: текущие `dchxml`/`dipxml` и генератор
-  `scripts/build_i2c_level_shifter_pcb.py`.
+- Connector topology and pinout: the current `dchxml`/`dipxml` and the
+  generator `scripts/build_i2c_level_shifter_pcb.py`.
 - BSS138: [onsemi BSS138/D, Rev. 7, April 2024](https://www.onsemi.com/pdf/datasheet/bss138-d.pdf).
-  Pin 1 = Gate, pin 2 = Source, pin 3 = Drain; в текущем PCB это соответственно
-  3V3, низковольтная линия и высоковольтная линия.
-- Схема двунаправленного перевода: [Nexperia AN10441 Rev. 2](https://assets.nexperia.com/documents/application-note/AN10441.pdf).
-  Gate подключается к меньшему VDD, Source — к низковольтной секции, Drain — к
-  высоковольтной; нормальное условие `VDD2 >= VDD1`.
-- Электрические уровни и времена I²C: [NXP UM10204 Rev. 7](https://www.nxp.com/docs/en/user-guide/UM10204.pdf),
-  таблицы 10–11 и раздел 7.1.
-- Детали pull-up: [выбранный C25900, 4,7 кОм](https://www.lcsc.com/product-detail/Chip-Resistor-Surface-Mount-UniOhm_4-7KR-4701-1_C25900.html)
-  и [его datasheet](https://www.lcsc.com/datasheet/C25900.pdf).
+  Pin 1 = Gate, pin 2 = Source, pin 3 = Drain; on the current PCB these are
+  3V3, the low-voltage line, and the high-voltage line respectively.
+- Bidirectional shifting circuit: [Nexperia AN10441 Rev. 2](https://assets.nexperia.com/documents/application-note/AN10441.pdf).
+  Gate to the lower VDD, Source to the low-voltage section, Drain to the
+  high-voltage section; normal condition `VDD2 >= VDD1`.
+- I²C electrical levels and timings: [NXP UM10204 Rev. 7](https://www.nxp.com/docs/en/user-guide/UM10204.pdf),
+  tables 10–11 and section 7.1.
+- Pull-up part details: [the selected C25900, 4.7 kΩ](https://www.lcsc.com/product-detail/Chip-Resistor-Surface-Mount-UniOhm_4-7KR-4701-1_C25900.html)
+  and [its datasheet](https://www.lcsc.com/datasheet/C25900.pdf).
 
-Ниже ни одно неизвестное значение не подменяется догадкой: допуски
-изготовителя, реальная ёмкость шины, ток утечки стенда и пределы подключённых
-контроллеров записываются после выбора конкретных изделий.
+Below, no unknown value is replaced by a guess: fabricator tolerances, real bus
+capacitance, bench leakage current, and connected controller limits are
+recorded after selecting the exact parts.
 
-## 3. Карта разъёмов и каналов
+## 3. Connector and channel map
 
-| Контакт | J1 — LV | J2 — HV |
+| Pin | J1 — LV | J2 — HV |
 | --- | --- | --- |
 | 1 | GND | GND |
 | 2 | 3V3 | 5V |
 | 3 | SCL_3V3, Q2 Source | SCL_5V, Q2 Drain |
 | 4 | SDA_3V3, Q1 Source | SDA_5V, Q1 Drain |
 
-R1/R2 подтягивают SDA/SCL LV к 3V3. R3/R4 подтягивают SDA/SCL HV к 5V.
-Q1/Q2 Gate подключены к 3V3.
+R1/R2 pull SDA/SCL LV to 3V3. R3/R4 pull SDA/SCL HV to 5V.
+Q1/Q2 Gates connect to 3V3.
 
-## 4. Оборудование и стенд
+## 4. Equipment and bench
 
-| Нужно | Требование | Фактически |
+| Need | Requirement | Actual |
 | --- | --- | --- |
-| Осмотр | лупа/микроскоп; камера | `___` |
-| Геометрия | штангенциркуль; 1:1 распечатка до заказа | `___` |
-| Электрика | мультиметр с continuity/diode/µA | `___` |
-| Питание | два канала 3,3 В и 5 В с независимым ток-лимитом, общий GND | `___` |
-| Сигналы | осциллограф ≥2 каналов; лучше 4, щупы ×10 с известной ёмкостью | `___` |
-| Протокол | логический анализатор с допустимым входом 5 В | `___` |
-| I²C | 3,3-В controller и 5-В target; для обратного теста — переставляемые роли | `___` |
-| Температура | IR/термопара необязательна; при этих мощностях любой заметный нагрев подозрителен | `___` |
+| Inspection | loupe/microscope; camera | `___` |
+| Geometry | calipers; 1:1 printout before ordering | `___` |
+| Electrical | multimeter with continuity/diode/µA | `___` |
+| Power | two channels 3.3 V and 5 V with independent current limits, common GND | `___` |
+| Signals | oscilloscope ≥2 channels; 4 preferred, ×10 probes with known capacitance | `___` |
+| Protocol | logic analyzer with 5 V tolerant inputs | `___` |
+| I²C | 3.3 V controller and 5 V target; swappable roles for the reverse test | `___` |
+| Temperature | IR/thermocouple optional; at these power levels any noticeable heating is suspicious | `___` |
 
-Правила стенда:
+Bench rules:
 
-- GPIO только open-drain (`drive LOW / release`), никогда не push-pull HIGH;
-- все встроенные pull-up на dev-board/анализаторе отключить либо записать их
-  значение и пересчитать эквивалентное сопротивление;
-- до подключения логического анализатора подтвердить его допустимость для 5 В;
-- записать модель и входную ёмкость осциллографических щупов: она входит в
-  измеряемое время нарастания;
-- сначала короткие провода, затем ровно тот кабель/нагрузка, для которых нужен
-  claim.
+- GPIO open-drain only (`drive LOW / release`), never push-pull HIGH;
+- disable all on-board pull-ups of dev boards/analyzers, or record their value
+  and recompute the equivalent resistance;
+- before connecting the logic analyzer, confirm its 5 V tolerance;
+- record the model and input capacitance of scope probes: it is part of the
+  measured rise time;
+- short wires first, then exactly the cable/load for which the claim is needed.
 
-## 5. Фаза A — freeze и native DipTrace acceptance (M1)
+## 5. Phase A — freeze and native DipTrace acceptance (M1)
 
-- [x] PV-0 закрыт в первичном schematic, физическом schematic и PCB; генератор
-  успешно прошёл. Текущий воспроизводимый кандидат содержит 17
-  распределённых GND stitching vias.
-- [x] PCB, MP4 и GIF повторно сгенерированы 2026-08-20; проверены
-  первый/средний/последний кадры и contact sheet 26 стадий.
-- [x] Записаны freeze commit `71edf73` и SHA-256 исходного PCB-кандидата.
-- [x] `pcb_native_acceptance` запущен из этого же source commit/editable install,
-  а не из опубликованного `v0.4.0`, где post-release модуль ещё отсутствовал;
-  окружение: `.venv-win-tests/Scripts/python.exe`, текущий `src` через
-  `PYTHONPATH`, DipTrace `Pcb.exe` 5.3.0.3.
-- [x] На 1:1 распечатку приложены реальные BSS138, 0402 и 1×4 headers; pitch,
-  pad geometry и ориентация pin 1 подтверждены. Печатный лист подготовлен:
+- [x] PV-0 closed in the primary schematic, the physical schematic, and the
+  PCB; the generator ran successfully. The current reproducible candidate
+  contains 17 distributed GND stitching vias.
+- [x] PCB, MP4, and GIF regenerated 2026-08-20; first/middle/last frames and
+  the 26-stage contact sheet checked.
+- [x] Freeze commit `71edf73` and the source PCB candidate SHA-256 recorded.
+- [x] `pcb_native_acceptance` ran from this exact source commit/editable
+  install, not from the published `v0.4.0` where the post-release module was
+  still missing; environment: `.venv-win-tests/Scripts/python.exe`, current
+  `src` via `PYTHONPATH`, DipTrace `Pcb.exe` 5.3.0.3.
+- [x] Real BSS138, 0402, and 1×4 headers applied to a 1:1 printout; pitch,
+  pad geometry, and pin 1 orientation confirmed. The print sheet was prepared:
   `.local/physical-validation/phase-a/review/09-physical-fit-1to1-A4.pdf`;
-  печатать только в режиме 100% / Actual Size и сначала проверить контрольные
-  100,00 мм. Наблюдение оператора 2026-08-20: `PASS — физически и по фото всё
-  соответствует`; численные измерения не сообщены.
-- [x] Выполнен native workflow из `docs/EVIDENCE_CAPTURE.md` на точном DipTrace
-  build. Пример команды из Windows PowerShell:
+  print only at 100% / Actual Size and first verify the 100.00 mm control
+  marks. Operator observation 2026-08-20: `PASS — everything matches
+  physically and in the photos`; no numeric measurements reported.
+- [x] The native workflow from `docs/EVIDENCE_CAPTURE.md` ran on the exact
+  DipTrace build. Example command from Windows PowerShell:
 
 ```powershell
 py -m diptrace_mcp.pcb_native_acceptance run `
@@ -145,325 +146,333 @@ py -m diptrace_mcp.pcb_native_acceptance run `
   --save-as-menu "#0->#4"
 ```
 
-- [x] Native copper refill завершён без ошибки.
-- [x] Native DRC: `0` blocking errors; диалог `No errors found`:
+- [x] Native copper refill completed without error.
+- [x] Native DRC: `0` blocking errors; dialog `No errors found`:
   `.local/physical-validation/phase-a/inset-visible-verdict.png`.
-- [x] После refill GND ratline скрыта DipTrace; J1.1, J2.1 и оба pour
-  сохранили один NetId. Необъяснённой ratline нет.
-- [x] Bottom GND непрерывен; Top GND полезен; нет островов и узких случайных
-  перемычек. Наблюдение: native `Bottom (2)` view показывает сплошную заливку
-  без сигнальных трасс; Top view показывает рабочую заливку вокруг трасс.
-- [x] Stitching распределён по всей плате, включая верхние/нижние свободные
-  области; не принимается один лишь счётчик via. Наблюдение: 17 via видны в
-  верхней, центральной и нижней свободных областях полного Top/Bottom view.
-- [x] На J1.1/J2.1 после реального refill видны четыре thermal spokes; отдельные
-  крупные планы сохранены в пакете визуальных доказательств.
-- [x] Все positive-power и signal traces находятся на Top; Bottom не разрезан
-  ненужными трассами.
-- [x] Outline компактен и равен ожидаемым 25 × 12 мм; компоненты центрированы и
-  симметричны без нарушения clearance.
-- [x] Silkscreen читаем, привязан к своему компоненту, не касается pad/hole/via
-  и не входит в чужой courtyard.
-- [x] Save → Close → Reopen → re-export завершены; structural delta
-  пуст. `HUMAN_REVIEW_REQUIRED` ограничен пересчётом `CopperPourFills`
-  с округлением координат на ±0,000001″; этот bounded delta принят.
-- [x] Сохранены source/candidate/native/export hashes, Top/Bottom screenshots,
-  thermal/stitching close-ups и единый contact sheet:
+- [x] After refill the GND ratline is hidden by DipTrace; J1.1, J2.1, and both
+  pours kept one NetId. No unexplained ratlines.
+- [x] Bottom GND is continuous; Top GND is useful; no islands or narrow
+  accidental necks. Observation: the native `Bottom (2)` view shows a solid
+  fill without signal traces; the Top view shows a working fill around traces.
+- [x] Stitching is distributed over the whole board including upper/lower free
+  areas; a via counter alone is not accepted. Observation: 17 vias are visible
+  in the upper, central, and lower free areas of the full Top/Bottom view.
+- [x] On J1.1/J2.1 four thermal spokes are visible after the real refill;
+  separate large plans are preserved in the visual evidence package.
+- [x] All positive-power and signal traces are on Top; Bottom is not cut by
+  unnecessary traces.
+- [x] The outline is compact and equals the expected 25 × 12 mm; components
+  are centered and symmetric without violating clearance.
+- [x] Silkscreen is readable, stays at its component, does not touch
+  pads/holes/vias, and does not enter a foreign courtyard.
+- [x] Save → Close → Reopen → re-export completed; structural delta empty.
+  `HUMAN_REVIEW_REQUIRED` is limited to recomputed `CopperPourFills` with
+  ±0.000001″ coordinate rounding; this bounded delta is accepted.
+- [x] Source/candidate/native/export hashes, Top/Bottom screenshots,
+  thermal/stitching close-ups, and a single contact sheet are stored:
   `.local/physical-validation/phase-a/review/`.
-- [x] Оператор глазами просмотрел пакет и выдал verdict 2026-08-20:
-  `PASS — физически и по фото всё соответствует`; замечаний не заявлено.
+- [x] The operator eyeballed the package and issued the verdict 2026-08-20:
+  `PASS — everything matches physically and in the photos`; no remarks filed.
 
-### Журнал M1 — 2026-08-20
+### M1 journal — 2026-08-20
 
-- Кандидат: 8 физических компонентов + 17 via-components, 7 nets, 14 traces,
+- Candidate: 8 physical components + 17 via-components, 7 nets, 14 traces,
   2 pours; source SHA-256
   `a272793597e556e87250e9b703a878182629995d2d20dbacf03c897f060fc118`.
-- Реальная карта owner-drawn меню: refill `#3 -> #14`, DRC `#7 -> #0`,
-  Save As `#0 -> #4`. Разделители не входят в индексы pywinauto.
-- Исходные pours касались outline и после реального refill давали две ошибки
-  `Copper pour - Board outline`. Корневая правка: граница обоих pours смещена
-  внутрь на board clearance 0,2 мм, `SnapToBoard=N`.
-- После правки native refill и DRC завершились сообщением `No errors found`.
+- Real owner-drawn menu map: refill `#3 -> #14`, DRC `#7 -> #0`,
+  Save As `#0 -> #4`. Separators are excluded from pywinauto indices.
+- The original pours touched the outline and after the real refill produced
+  two `Copper pour - Board outline` errors. Root fix: both pour outlines moved
+  inward by the 0.2 mm board clearance, `SnapToBoard=N`.
+- After the fix, native refill and DRC completed with `No errors found`.
   Screenshot SHA-256:
   `5d2e2ac49b6d034adc15de3a2b2d71b4346d727848f7aab322da3673c5d7a936`.
-- Полный цикл open → refill → DRC → save → close → reopen → re-export завершён
-  без forced termination. Повторный native round-trip имеет пустой structural
-  delta и `drc_status=pass`. Evidence:
+- The full open → refill → DRC → save → close → reopen → re-export cycle
+  completed without forced termination. The repeated native round-trip has an
+  empty structural delta and `drc_status=pass`. Evidence:
   `.local/physical-validation/phase-a/i2c-level-shifter.final10-native-evidence.json`,
   SHA-256 `72f865d0ee94734abebcaf81a534c0ca6d440a65eade449e4a22648fe417312d`.
 - Native XML SHA-256:
   `928e9047390504fdc48e6db4e91266379af17fe4df711d376003899aa407afcf`.
-  Единственный semantic delta второго round-trip — пересчитанные производные
-  `CopperPourFills` с округлением координат ±0,000001″; connectivity, counts,
-  topology и атрибуты не изменились. Bounded review принят.
-- MP4/GIF пересобраны из 26 стадий: сначала outline, затем 8 компонентов,
-  14 трасс и финальные pours + 17 vias. SHA-256 MP4
+  The only semantic delta of the second round-trip is recomputed derivative
+  `CopperPourFills` with ±0.000001″ coordinate rounding; connectivity, counts,
+  topology, and attributes unchanged. Bounded review accepted.
+- MP4/GIF rebuilt from 26 stages: outline first, then 8 components, 14 traces,
+  and final pours + 17 vias. MP4 SHA-256
   `30c4765e7e0e47948b35ba8de6686df95ada3397eae8752dd4cb622c0b9bfcc4`,
   GIF `05716de6e42220069287aa6d3c8ebd3ea019ac482ff7497991b432f3394d83ba`.
-- Собран пакет для человеческой верификации:
-  `.local/physical-validation/phase-a/review/README.md`; общий лист
+- A package for human verification was assembled:
+  `.local/physical-validation/phase-a/review/README.md`; master sheet
   `00-review-sheet.png`, SHA-256
   `6b4850004e8de5b1aded782cf4b9f23747706508c7e3565a4cfb279e193dc65a`.
-  Полный реестр находится в `review/SHA256SUMS`.
-- Оператор 2026-08-20 подтвердил `PASS` физической примерки и просмотра фото;
-  замечаний не заявил. Численные размеры отдельно не переданы.
-- Verdict: проверки M1 — `PASS`. Формальный freeze M1 завершён commit
-  `71edf73`; исходный PCB-кандидат сохранён с SHA-256
+  The full registry is in `review/SHA256SUMS`.
+- The operator confirmed `PASS` of the physical fit and photo review on
+  2026-08-20; no remarks. Numeric dimensions were not reported separately.
+- Verdict: M1 checks — `PASS`. The formal M1 freeze completed with commit
+  `71edf73`; the source PCB candidate is preserved with SHA-256
   `a272793597e556e87250e9b703a878182629995d2d20dbacf03c897f060fc118`.
 
-**Стоп:** любой DRC error, необъяснённая ratline/island, неверный pin mapping,
-потерянный thermal или semantic/connectivity delta возвращает плату на
-исправление; к производству не переходить.
+**Stop:** any DRC error, unexplained ratline/island, wrong pin mapping, lost
+thermal, or semantic/connectivity delta returns the board to rework; do not
+proceed to production.
 
-## 6. Фаза B — manufacturing package (M6-lite)
+## 6. Phase B — manufacturing package (M6-lite)
 
-- [ ] Зафиксированы: PCB revision, BOM, footprint list, 2-layer stackup, copper
-  weight, finish, solder-mask, board thickness и правила выбранного
-  изготовителя. Значения изготовителя: `___`.
-- [x] Gerber/NC Drill и BOM/CPL экспортированы штатным
-  DipTrace/проверенным экспортёром из **native-saved** файла. Репозиторий не
-  считается самостоятельным авторитетным Gerber-генератором.
-- [x] SHA-256 Gerber ZIP:
+- [ ] Fixed: PCB revision, BOM, footprint list, 2-layer stackup, copper
+  weight, finish, solder mask, board thickness, and the selected fabricator's
+  rules. Fabricator values: `___`.
+- [x] Gerber/NC Drill and BOM/CPL exported by the stock DipTrace/verified
+  exporter from the **native-saved** file. The repository is not considered an
+  authoritative standalone Gerber generator.
+- [x] Gerber ZIP SHA-256:
   `8484362236f943a0e9df33283e0a4fa7754b5f8f27441673f79285052f934b26`;
-  полного производственного ZIP:
+  full production ZIP:
   `7c5712ddbb6d4a5d26082fbac6a57806d6d8f5da0dd94ceb2ec27920735d1289`.
-- [ ] В независимом CAM viewer просмотрены outline, оба copper, mask, silk и
-  drill; mirrored/missing/duplicate layers отсутствуют.
-- [ ] Проверены 0,3-мм finished via holes, annular rings, header holes, mask
-  dams, 0402 paste openings, copper-to-edge и silkscreen-to-pad по rule deck
-  изготовителя. Принятые реальные допуски: `___`.
-- [ ] В CAM подтверждены Top/Bottom GND, 17 распределённых stitching vias и
-  четыре spokes на обоих GND header pads.
-- [ ] Изготовитель закрыл DFM без blocking warning; waiver ledger: `___`.
-- [ ] Сохранены CAM screenshots, DRC, DFM report, order ID и точный package hash.
+- [ ] In an independent CAM viewer: outline, both copper layers, mask, silk,
+  and drill inspected; no mirrored/missing/duplicate layers.
+- [ ] 0.3 mm finished via holes, annular rings, header holes, mask dams, 0402
+  paste openings, copper-to-edge, and silkscreen-to-pad checked against the
+  fabricator's rule deck. Accepted real tolerances: `___`.
+- [ ] Top/Bottom GND, the 17 distributed stitching vias, and four spokes on
+  both GND header pads confirmed in CAM.
+- [ ] The fabricator closed DFM without blocking warnings; waiver ledger: `___`.
+- [ ] CAM screenshots, DRC, DFM report, order ID, and the exact package hash
+  stored.
 
-### Журнал M6-lite — 2026-08-20
+### M6-lite journal — 2026-08-20
 
-- Пакет: `fab/m1-71edf73/`; точный source — native-saved PCB SHA-256
+- Package: `fab/m1-71edf73/`; exact source — the native-saved PCB SHA-256
   `928e9047390504fdc48e6db4e91266379af17fe4df711d376003899aa407afcf`.
-- DipTrace 5.3.0.3 нативно экспортировал 8 метрических Gerber-слоёв и
-  метрический Excellon PTH. Проверены X2 `FileFunction`, EOF, профиль
-  25 × 12 мм, инструменты 0,30 мм ×17 и 1,08 мм ×8; NPTH в дизайне нет.
-- JLC SMT BOM содержит две групповые строки с заполненными `C52895` и
-  `C25900`; CPL содержит совпадающие 6 позиций `Q1/Q2/R1–R4` в миллиметрах.
-  Выводные J1/J2 без LCSC сознательно исключены из машинной сборки и оставлены
-  для ручной установки; полные native BOM/CPL сохранены как evidence.
-- Проверка ZIP и обоих SHA-256 manifests — PASS. Основной визуальный лист:
+- DipTrace 5.3.0.3 natively exported 8 metric Gerber layers and a metric
+  Excellon PTH. X2 `FileFunction`, EOF, the 25 × 12 mm profile, 0.30 mm ×17
+  and 1.08 mm ×8 tools verified; no NPTH in the design.
+- The JLC SMT BOM contains two grouped rows with populated `C52895` and
+  `C25900`; the CPL contains the matching 6 placements `Q1/Q2/R1–R4` in
+  millimeters. Lead-frame J1/J2 without LCSC parts are deliberately excluded
+  from machine assembly and left for manual mounting; the full native BOM/CPL
+  are preserved as evidence.
+- ZIP and both SHA-256 manifest checks — PASS. Main visual sheet:
   `fab/m1-71edf73/evidence/review/00-review-sheet.png`.
-- Verdict машинной части M6-lite: `PASS — READY FOR FABRICATOR PREVIEW`.
-  Независимый CAM, JLC placement preview, реальные параметры заказа, live stock
-  под выбранный тираж, DFM warnings/waivers и order ID остаются ручными воротами.
+- Machine part M6-lite verdict: `PASS — READY FOR FABRICATOR PREVIEW`.
+  Independent CAM, the JLC placement preview, real order parameters, live
+  stock for the chosen quantity, DFM warnings/waivers, and the order ID remain
+  manual gates.
 
-### Закрытие демонстрационного preview — 2026-08-20
+### Demo preview closure — 2026-08-20
 
-- JLCPCB распознал 2-слойную плату 12 × 25 мм; показанные Top/Bottom виды
-  оператор принял без замечаний.
-- JLC BOM определил и подтвердил обе групповые SMT-строки: `Q1/Q2` — BSS138,
-  `C52895`; `R1–R4` — 4,7 кОм, `C25900`. Корпуса совпадают с загруженным BOM;
-  выводные `J1/J2` ожидаемо отсутствуют в SMT-сборке.
-- Скриншоты и их хеши сохранены в `fab/m1-71edf73/evidence/jlc/`.
-- Оператор завершил работу на этом preview: заказ, assembly placement/DFM,
-  получение плат и электрические испытания не выполняются. Это закрывает
-  демонстрационную проверку пакета, но не превращается в производственный или
-  аппаратный claim.
+- JLCPCB recognized the 2-layer 12 × 25 mm board; the shown Top/Bottom views
+  the operator accepted without remarks.
+- JLC BOM identified and confirmed both grouped SMT rows: `Q1/Q2` — BSS138,
+  `C52895`; `R1–R4` — 4.7 kΩ, `C25900`. Packages match the uploaded BOM;
+  lead-frame `J1/J2` are expectedly absent from SMT assembly.
+- Screenshots and their hashes are stored in `fab/m1-71edf73/evidence/jlc/`.
+- The operator closed this preview here: ordering, assembly placement/DFM,
+  receiving boards, and electrical tests are not executed. This closes the
+  demonstration package check but does not become a production or hardware
+  claim.
 
-Минимальный физический proof допускает ручную сборку одного экземпляра. Claim
-готовности к серийной PCBA требует отдельно принятого BOM/CPL и сборочного DFM.
+A minimal physical proof allows hand-assembly of one specimen. A
+volume-PCBA-ready claim requires separately accepted BOM/CPL and assembly DFM.
 
-## 7. Фаза C — входной и визуальный контроль (без питания)
+## 7. Phase C — incoming and visual inspection (unpowered)
 
-Для каждого образца завести ID: `A___ / B___ / C___`.
+Assign an ID per specimen: `A___ / B___ / C___`.
 
-- [ ] Фото Top/Bottom до пайки и после пайки.
-- [ ] Размеры платы: X `___` мм, Y `___` мм; соответствуют чертежу и допуску
-  изготовителя `___`.
-- [ ] Headers входят без усилия/раздвигания отверстий; фактический pitch `___`.
-- [ ] Нет замыканий/недотрава/разрывов, повреждённой маски, поднятых pad,
-  смещённых отверстий и острых краёв.
-- [ ] Q1/Q2: правильная ориентация pin 1, нет bridges и непропая SOT-23.
-- [ ] R1–R4: все четыре установлены, без tombstone/bridge; фактический MPN и
-  номинал из assembly record `___`.
-- [ ] J1/J2: pin 1 и сторона LV/HV однозначно различимы.
-- [ ] При ручной пайке одинаковым процессом GND pads J1.1/J2.1 смачиваются без
-  заметно большего времени/температуры, чем соседние pads. Наблюдение: `___`.
+- [ ] Photos Top/Bottom before soldering and after soldering.
+- [ ] Board dimensions: X `___` mm, Y `___` mm; match the drawing and the
+  fabricator tolerance `___`.
+- [ ] Headers insert without force/hole widening; actual pitch `___`.
+- [ ] No shorts/under-etch/opens, damaged mask, lifted pads, shifted holes,
+  or sharp edges.
+- [ ] Q1/Q2: correct pin 1 orientation, no SOT-23 bridges or cold joints.
+- [ ] R1–R4: all four mounted, no tombstone/bridge; actual MPN and value from
+  the assembly record `___`.
+- [ ] J1/J2: pin 1 and the LV/HV side are unambiguously distinguishable.
+- [ ] With hand soldering using one consistent process, the GND pads J1.1/J2.1
+  wet without noticeably more time/temperature than neighboring pads.
+  Observation: `___`.
 
-## 8. Фаза D — проверки без питания
+## 8. Phase D — unpowered checks
 
-Внешние платы и источники отключены.
+External boards and sources disconnected.
 
-| Проверка | Ожидание из netlist/datasheet | Измерено | PASS |
+| Check | Expectation from netlist/datasheet | Measured | PASS |
 | --- | --- | --- | --- |
 | J1.1 ↔ J2.1 | continuity, GND | `___` | `[ ]` |
 | J1.2 ↔ GND | OL/no continuity | `___` | `[ ]` |
 | J2.2 ↔ GND | OL/no continuity | `___` | `[ ]` |
-| J1.2 ↔ J2.2 | нет прямого rail connection | `___` | `[ ]` |
+| J1.2 ↔ J2.2 | no direct rail connection | `___` | `[ ]` |
 | J1.3 ↔ Q2 Source/R2 signal pad | continuity | `___` | `[ ]` |
 | J2.3 ↔ Q2 Drain/R4 signal pad | continuity | `___` | `[ ]` |
 | J1.4 ↔ Q1 Source/R1 signal pad | continuity | `___` | `[ ]` |
 | J2.4 ↔ Q1 Drain/R3 signal pad | continuity | `___` | `[ ]` |
 | Q1/Q2 Gate ↔ J1.2 | continuity | `___` | `[ ]` |
-| Q1 Source → Drain, diode mode | diode только в одном направлении; reverse OL | `___` | `[ ]` |
-| Q2 Source → Drain, diode mode | diode только в одном направлении; reverse OL | `___` | `[ ]` |
-| R1–R4 | выбранный номинал ±1 % плюс точность DMM | `___` | `[ ]` |
+| Q1 Source → Drain, diode mode | diode in one direction only; reverse OL | `___` | `[ ]` |
+| Q2 Source → Drain, diode mode | diode in one direction only; reverse OL | `___` | `[ ]` |
+| R1–R4 | selected value ±1 % plus DMM accuracy | `___` | `[ ]` |
 
-Если in-circuit измерение резистора искажено параллельным путём, номинал
-подтверждается на spare part/assembly reel; результат не «подгоняется».
+If an in-circuit resistor measurement is distorted by a parallel path, the
+value is confirmed on a spare part/assembly reel; the result is not "fitted".
 
-**Стоп:** continuity rail-to-GND, перепутанная ориентация body diode, неверная
-цепь разъёма или необъяснимый номинал.
+**Stop:** rail-to-GND continuity, swapped body-diode orientation, a wrong
+connector circuit, or an unexplained value.
 
-## 9. Фаза E — первое питание с ток-лимитом
+## 9. Phase E — first power-up with current limits
 
-Сначала плата без внешних I²C-устройств. Общий GND источников подключается к
-J1.1/J2.1. До этой фазы оператор отдельно подтверждает готовность.
+First the board without external I²C devices. The common GND of the sources
+connects to J1.1/J2.1. Before this phase the operator separately confirms
+readiness.
 
-Для варианта 4,7 кОм ±1 %:
+For the 4.7 kΩ ±1 % variant:
 
 - `Rmin = 4653 Ω`;
-- максимум при удержании обеих линий LOW на LV:
+- maximum when holding both lines LOW on LV:
   `2 × 3.3 / Rmin = 1.419 mA`;
-- максимум при удержании обеих линий LOW на HV:
+- maximum when holding both lines LOW on HV:
   `2 × 5 / Rmin = 2.150 mA`.
 
-Поэтому рабочие стартовые limits: **2,0 мА для 3V3 и 3,0 мА для 5V**. Они
-пересчитываются, если PV-0 выбрал другой номинал. Если ЛБП не держит столь малый
-limit, для первого idle-smoke допустимы временные series resistors 680 Ω в 3V3
-и 1 кΩ в 5V: при прямом КЗ они ограничивают ток примерно 4,9/5 мА; перед
-динамическими тестами их удалить после успешной проверки.
+Working starting limits are therefore: **2.0 mA for 3V3 and 3.0 mA for 5V**.
+They are recomputed if PV-0 selects a different value. If the bench supply
+cannot hold such a small limit, temporary series resistors of 680 Ω in 3V3
+and 1 kΩ in 5V are acceptable for the first idle smoke test: in a direct short
+they limit current to roughly 4.9/5 mA; remove them after a successful check
+before dynamic tests.
 
-- [ ] Проверка только 3V3, 5V физически отключён: limit не срабатывает,
-  напряжение/ток записаны `___`.
-- [ ] Проверка только 5V, 3V3 физически отключён: limit не срабатывает,
-  напряжение/ток записаны `___`.
-- [ ] Оба rail включены, `VDD2 >= VDD1`; фактические VDD: `___ / ___`.
-- [ ] Idle signals: J1.3/J1.4 находятся у измеренного 3V3, J2.3/J2.4 — у
-  измеренного 5V. Значения: `___`.
-- [ ] Idle supply current не вызывает limit и соответствует только утечкам
-  платы плюс известной утечке стенда; фактически `___ / ___`.
-- [ ] Через 60 с нет заметного нагрева; температура/наблюдение `___`.
+- [ ] 3V3 only, 5V physically disconnected: the limit does not trip,
+  voltage/current recorded `___`.
+- [ ] 5V only, 3V3 physically disconnected: the limit does not trip,
+  voltage/current recorded `___`.
+- [ ] Both rails on, `VDD2 >= VDD1`; actual VDD: `___ / ___`.
+- [ ] Idle signals: J1.3/J1.4 at the measured 3V3, J2.3/J2.4 at the measured
+  5V. Values: `___`.
+- [ ] Idle supply current does not trip the limit and matches only board
+  leakage plus known bench leakage; actual `___ / ___`.
+- [ ] After 60 s no noticeable heating; temperature/observation `___`.
 
-**Стоп:** срабатывание limit, просадка rail, signal HIGH на неправильном уровне,
-запах или нагрев. Питание снять и вернуться к локализации rail/component.
+**Stop:** a tripping limit, rail sag, a signal HIGH at the wrong level, smell,
+or heating. Remove power and return to localizing the rail/component.
 
-## 10. Фаза F — статический двунаправленный перевод
+## 10. Phase F — static bidirectional shifting
 
-LOW создаётся open-drain ключом. Для каждой строки сначала измеряется idle HIGH,
-затем LOW на обеих сторонах и ток каждого источника.
+LOW is created by an open-drain key. For each row, first measure idle HIGH,
+then LOW on both sides and each source's current.
 
-| Канал и возбуждение | Ожидание | LV/HV LOW | I3V3/I5V | PASS |
+| Channel and drive | Expectation | LV/HV LOW | I3V3/I5V | PASS |
 | --- | --- | --- | --- | --- |
-| J1.4 SDA_LV → LOW | J2.4 также LOW | `___ / ___` | `___ / ___` | `[ ]` |
-| J2.4 SDA_HV → LOW | J1.4 также LOW | `___ / ___` | `___ / ___` | `[ ]` |
-| J1.3 SCL_LV → LOW | J2.3 также LOW | `___ / ___` | `___ / ___` | `[ ]` |
-| J2.3 SCL_HV → LOW | J1.3 также LOW | `___ / ___` | `___ / ___` | `[ ]` |
+| J1.4 SDA_LV → LOW | J2.4 also LOW | `___ / ___` | `___ / ___` | `[ ]` |
+| J2.4 SDA_HV → LOW | J1.4 also LOW | `___ / ___` | `___ / ___` | `[ ]` |
+| J1.3 SCL_LV → LOW | J2.3 also LOW | `___ / ___` | `___ / ___` | `[ ]` |
+| J2.3 SCL_HV → LOW | J1.3 also LOW | `___ / ___` | `___ / ___` | `[ ]` |
 
-Критерии:
+Criteria:
 
-- HIGH каждой стороны не ниже `0.7 ×` её **измеренного** VDD и практически
-  подтянут к своему rail;
-- LOW обеих сторон ≤ 0,4 В;
-- при одной LOW-линии ожидаемый ток pull-up примерно `VDD/R`; при двух —
-  `2×VDD/R`, с учётом допуска R и точности приборов;
-- после release обе стороны возвращаются HIGH без защёлкивания;
-- SDA и SCL проходят все четыре направления одинаково.
+- each side's HIGH is at least `0.7 ×` its **measured** VDD and is effectively
+  pulled to its rail;
+- LOW on both sides ≤ 0.4 V;
+- with one line LOW the expected pull-up current is about `VDD/R`; with two —
+  `2×VDD/R`, accounting for the R tolerance and instrument accuracy;
+- after release both sides return HIGH without latching;
+- SDA and SCL pass all four directions identically.
 
-## 11. Фаза G — реальный I²C и осциллограф
+## 11. Phase G — real I²C and the oscilloscope
 
-### G1. Подготовка
+### G1. Preparation
 
-- [ ] Зафиксированы controller/target, firmware hashes, адрес target, кабель,
-  эффективные pull-up и модели щупов: `___`.
-- [ ] Одновременно наблюдаются LV/HV одной линии; measurement thresholds
-  выставлены 30–70 % от соответствующего измеренного VDD.
-- [ ] Логический анализатор декодирует START, address, ACK, data, repeated START
-  и STOP.
+- [ ] Recorded: controller/target, firmware hashes, target address, cable,
+  effective pull-ups, and probe models: `___`.
+- [ ] LV/HV of one line observed simultaneously; measurement thresholds set to
+  30–70 % of the corresponding measured VDD.
+- [ ] The logic analyzer decodes START, address, ACK, data, repeated START,
+  and STOP.
 
-### G2. Базовый claim — Standard-mode 100 кГц
+### G2. Baseline claim — Standard-mode 100 kHz
 
-- [ ] Controller на 3,3-В стороне, target на 5-В стороне: не менее 10 000
-  write/read transactions с шаблонами `00 FF 55 AA`/счётчиком; 0 NACK,
-  timeout и data mismatch. Результат: `___`.
-- [ ] Роли/стороны переставлены: controller на 5 В, target на 3,3 В; тот же
-  тест, 0 ошибок. Результат: `___`.
-- [ ] Если target умеет clock stretching, один тест явно подтверждает передачу
-  LOW SCL с target-стороны; иначе этот subclaim помечается `NOT TESTED`, а не PASS.
-- [ ] На SDA и SCL обеих сторон: `tr(30–70 %) <= 1000 ns`, `tf <= 300 ns`,
-  `VOL <= 0.4 V`, HIGH >= `0.7×VDD`; нет повторного пересечения порога из-за
-  ringing. Таблица измерений заполнена ниже.
+- [ ] Controller on the 3.3 V side, target on the 5 V side: at least 10,000
+  write/read transactions with `00 FF 55 AA`/counter patterns; 0 NACK,
+  timeout, and data mismatch. Result: `___`.
+- [ ] Roles/sides swapped: controller at 5 V, target at 3.3 V; the same test,
+  0 errors. Result: `___`.
+- [ ] If the target supports clock stretching, one test explicitly confirms
+  LOW SCL transfer from the target side; otherwise this subclaim is marked
+  `NOT TESTED`, not PASS.
+- [ ] On SDA and SCL of both sides: `tr(30–70 %) <= 1000 ns`,
+  `tf <= 300 ns`, `VOL <= 0.4 V`, HIGH >= `0.7×VDD`; no repeated threshold
+  crossing due to ringing. The measurement table is filled below.
 
-### G3. Усиленный claim — Fast-mode 400 кГц
+### G3. Extended claim — Fast-mode 400 kHz
 
-Выполняется только если проект хочет писать о поддержке 400 кГц.
+Executed only if the project wants to claim 400 kHz support.
 
-- [ ] Оба направления проходят те же 10 000 transactions без ошибок.
-- [ ] На всех четырёх наблюдаемых линиях `tr(30–70 %) <= 300 ns` и
-  `tf <= 300 ns`; остальные уровни остаются в пределах G2.
-- [ ] Проверено на целевом кабеле/нагрузке, а не только на коротком лабораторном
-  проводе.
+- [ ] Both directions pass the same 10,000 transactions without errors.
+- [ ] On all four observed lines `tr(30–70 %) <= 300 ns` and `tf <= 300 ns`;
+  the remaining levels stay within G2.
+- [ ] Verified on the target cable/load, not only on a short lab wire.
 
-| Режим | Линия | Сторона | tr | tf | VOL | VOH | PASS |
+| Mode | Line | Side | tr | tf | VOL | VOH | PASS |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 100 кГц | SDA | LV | `___` | `___` | `___` | `___` | `[ ]` |
-| 100 кГц | SDA | HV | `___` | `___` | `___` | `___` | `[ ]` |
-| 100 кГц | SCL | LV | `___` | `___` | `___` | `___` | `[ ]` |
-| 100 кГц | SCL | HV | `___` | `___` | `___` | `___` | `[ ]` |
-| 400 кГц | SDA | LV | `___` | `___` | `___` | `___` | `[ ]` |
-| 400 кГц | SDA | HV | `___` | `___` | `___` | `___` | `[ ]` |
-| 400 кГц | SCL | LV | `___` | `___` | `___` | `___` | `[ ]` |
-| 400 кГц | SCL | HV | `___` | `___` | `___` | `___` | `[ ]` |
+| 100 kHz | SDA | LV | `___` | `___` | `___` | `___` | `[ ]` |
+| 100 kHz | SDA | HV | `___` | `___` | `___` | `___` | `[ ]` |
+| 100 kHz | SCL | LV | `___` | `___` | `___` | `___` | `[ ]` |
+| 100 kHz | SCL | HV | `___` | `___` | `___` | `___` | `[ ]` |
+| 400 kHz | SDA | LV | `___` | `___` | `___` | `___` | `[ ]` |
+| 400 kHz | SDA | HV | `___` | `___` | `___` | `___` | `[ ]` |
+| 400 kHz | SCL | LV | `___` | `___` | `___` | `___` | `[ ]` |
+| 400 kHz | SCL | HV | `___` | `___` | `___` | `___` | `[ ]` |
 
-Для оценки причины медленного фронта допускается формула UM10204
-`tr = 0.8473 × Rp × Cb`; это оценка полной ёмкости конкретного стенда, не новый
-datasheet claim. Для 4,7 кОм теоретический предел Cb — около 251 пФ при 100 кГц
-и 75 пФ при 400 кГц; для 10 кОм — около 118 пФ и 35 пФ соответственно.
+To estimate the cause of a slow edge, the UM10204 formula
+`tr = 0.8473 × Rp × Cb` is permitted; it estimates the total capacitance of
+the specific bench, not a new datasheet claim. For 4.7 kΩ the theoretical Cb
+limit is about 251 pF at 100 kHz and 75 pF at 400 kHz; for 10 kΩ about 118 pF
+and 35 pF respectively.
 
-## 12. Фаза H — power-state и повторяемость
+## 12. Phase H — power states and repeatability
 
-- [ ] При отключённом 3V3 и активном 5V нет необъяснимого back-power;
-  измеренные rail/signal/current `___`.
-- [ ] При отключённом 5V и активном 3V3 нет необъяснимого back-power;
-  измеренные rail/signal/current `___`.
-- [ ] Power-off состояние сверено с пределами конкретных controller/target;
-  отсутствие повреждения не считается доказательством допустимого back-power.
-- [ ] Полный G1–G3 выполнен на одном representative specimen.
-- [ ] На всех остальных собранных экземплярах выполнены минимум фазы C–F и
-  100-кГц smoke; результаты `___`.
-- [ ] Любой repair/rework записан с фото и причиной; repaired unit не скрывается
-  внутри общего PASS.
+- [ ] With 3V3 off and 5V active, no unexplained back-power; measured
+  rail/signal/current `___`.
+- [ ] With 5V off and 3V3 active, no unexplained back-power; measured
+  rail/signal/current `___`.
+- [ ] The power-off state is checked against the specific controller/target
+  limits; absence of damage is not considered proof of permissible back-power.
+- [ ] The full G1–G3 ran on one representative specimen.
+- [ ] On every other assembled specimen, at minimum phases C–F and a 100 kHz
+  smoke test ran; results `___`.
+- [ ] Any repair/rework is recorded with photos and cause; a repaired unit is
+  not hidden inside the overall PASS.
 
-## 13. Evidence pack и итоговый verdict
+## 13. Evidence pack and final verdict
 
-Хранить вне исходников либо в явно выбранном capture root; в репозитории
-достаточно ссылок, хешей и компактного отчёта.
+Store outside the sources or in an explicitly chosen capture root; the
+repository needs only references, hashes, and a compact report.
 
-- [ ] manifest: commit, все SHA, DipTrace/OS/profile, rule deck, fab order,
-  board/assembly revisions и specimen IDs;
+- [ ] manifest: commit, all SHAs, DipTrace/OS/profile, rule deck, fab order,
+  board/assembly revisions, and specimen IDs;
 - [ ] native evidence JSON, native DRC, source/native/export XML;
-- [ ] manufacturing ZIP, CAM/DFM reports и layer screenshots;
-- [ ] фото Top/Bottom/микроскоп/размеры;
-- [ ] таблицы continuity, rails, currents, static levels;
-- [ ] raw scope captures и screenshots для SDA/SCL LV/HV;
-- [ ] I²C logs с числом транзакций и ошибок;
+- [ ] manufacturing ZIP, CAM/DFM reports, and layer screenshots;
+- [ ] photos Top/Bottom/microscope/dimensions;
+- [ ] continuity, rails, currents, static levels tables;
+- [ ] raw scope captures and screenshots for SDA/SCL LV/HV;
+- [ ] I²C logs with transaction and error counts;
 - [ ] failure/rework/waiver ledger;
-- [ ] датированный operator verdict и имя ответственного.
+- [ ] dated operator verdict and the responsible person's name.
 
-| Verdict | Условие | Результат |
+| Verdict | Condition | Result |
 | --- | --- | --- |
-| `PASS-M1` | native refill/DRC/round-trip и визуальная проверка | `PASS` |
-| `PASS-DEMO` | M1 + машинный пакет + JLC PCB/BOM preview | `PASS — operator accepted 2026-08-20` |
-| `PASS-FAB` | точный пакет принят, полученная геометрия совпала | `NOT RUN — заказ исключён из scope` |
-| `PASS-HW` | C–F и 100-кГц G2 пройдены | `NOT RUN — hardware исключён из scope` |
-| `PASS-FM` | дополнительно пройден G3 на целевой нагрузке | `NOT RUN` |
+| `PASS-M1` | native refill/DRC/round-trip and visual review | `PASS` |
+| `PASS-DEMO` | M1 + machine package + JLC PCB/BOM preview | `PASS — operator accepted 2026-08-20` |
+| `PASS-FAB` | exact package accepted, delivered geometry matched | `NOT RUN — ordering out of scope` |
+| `PASS-HW` | C–F and 100 kHz G2 passed | `NOT RUN — hardware out of scope` |
+| `PASS-FM` | additionally G3 passed on the target load | `NOT RUN` |
 
-Общий базовый PASS возможен только при `PASS-M1 + PASS-FAB + PASS-HW` и без
-необъяснённого waiver. Он не заявляется; итог текущего ограниченного scope —
-`PASS-DEMO`. `PASS-FM` не нужен для базового результата.
+The overall baseline PASS is possible only with
+`PASS-M1 + PASS-FAB + PASS-HW` and no unexplained waiver. It is not claimed;
+the outcome of the current limited scope is `PASS-DEMO`. `PASS-FM` is not
+required for the baseline result.
 
-## 14. Короткий маршрут исполнения
+## 14. Short execution route
 
-1. ~~Закрыть PV-0: 4,7 кОм / `0402WGF4701TCE` / `C25900`.~~ Выполнено.
-2. ~~Выполнить operator checks M1 и заморозить commit при записанных SHA.~~ Выполнено.
-3. ~~Проверить машинный пакет и JLC PCB/BOM preview.~~ Выполнено для
-   демонстрационного scope.
-4. Заказ, фазы C–G и базовый физический PASS не выполняются по решению
-   оператора от 2026-08-20.
+1. ~~Close PV-0: 4.7 kΩ / `0402WGF4701TCE` / `C25900`.~~ Done.
+2. ~~Run the M1 operator checks and freeze the commit at recorded SHAs.~~ Done.
+3. ~~Check the machine package and the JLC PCB/BOM preview.~~ Done for the
+   demonstration scope.
+4. Ordering, phases C–G, and the baseline physical PASS are not executed per
+   the operator decision of 2026-08-20.

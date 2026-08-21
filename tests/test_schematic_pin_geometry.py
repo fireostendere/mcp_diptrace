@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import math
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
 
 from diptrace_mcp.adapters import build_snapshot
+from diptrace_mcp.errors import EditError
 from diptrace_mcp.library_adapters import get_library_model
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.schematic_pin_geometry import (
@@ -14,6 +16,7 @@ from diptrace_mcp.schematic_pin_geometry import (
     resolve_document_schematic_pin_geometry,
     resolve_schematic_pin_geometry,
 )
+from diptrace_mcp.schematic_wire_planner import plan_schematic_wire_candidate
 from diptrace_mcp.services.schematic_wire_quality import clean_schematic_wire_operation
 from diptrace_mcp.xml_document import DipTraceDocument
 
@@ -170,6 +173,32 @@ def test_rotation_transform_uses_native_verified_pin_tip_by_default() -> None:
     assert any("verified DipTrace" in warning for warning in resolution.warnings)
 
 
+def test_vertical_pin_orientation_follows_resolved_tip_geometry() -> None:
+    library = _library_model()
+    pin = library.components[0].pins[0]
+    pin.position = {"x": 0.0, "y": -1.0}
+    pin.orientation_deg = 90.0
+
+    resolution = resolve_schematic_pin_geometry(_schematic_snapshot(), library)
+
+    resolved = next(pin for pin in resolution.pins if pin.refdes == "R1" and pin.pin_index == 0)
+    assert resolved.absolute_position == pytest.approx({"x": 10.0, "y": 19.5})
+    assert resolved.absolute_orientation_deg == pytest.approx(270.0)
+
+
+def test_mirrored_part_pin_geometry_tracks_the_rendered_side() -> None:
+    document = _schematic_document_with_embedded_library()
+    part = document.container.find("./Components/Part[@Id='0']")
+    assert part is not None
+    part.set("HorzFlip", "Y")
+
+    resolution = resolve_document_schematic_pin_geometry(document)
+
+    pin = next(pin for pin in resolution.pins if pin.refdes == "R1" and pin.pin_index == 0)
+    assert pin.absolute_position == pytest.approx({"x": 11.5, "y": 20.0})
+    assert pin.absolute_orientation_deg == pytest.approx(180.0)
+
+
 def test_embedded_design_cache_is_primary_document_geometry_source() -> None:
     document = _schematic_document_with_embedded_library()
 
@@ -194,7 +223,11 @@ def test_wire_cleaner_snaps_declared_pin_endpoint_to_native_pin_tip() -> None:
     document = _schematic_document_with_embedded_library()
     operation = AddWireOperation(
         net="VCC",
-        points=[{"x": 9.0, "y": 20.0}, {"x": 8.5, "y": 5.0}],
+        points=[
+            {"x": 9.0, "y": 20.0},
+            {"x": 5.0, "y": 20.0},
+            {"x": 5.0, "y": 5.0},
+        ],
         start={"type": "Pin", "refdes": "R1", "pin": 0},
         end={"type": "Free"},
     )
@@ -210,7 +243,8 @@ def test_wire_cleaner_keeps_native_submicron_axis_noise_orthogonal() -> None:
         net="VCC",
         points=[
             {"x": 8.5000002, "y": 20.0},
-            {"x": 8.5000002, "y": 5.0},
+            {"x": 5.0, "y": 20.0000002},
+            {"x": 5.0, "y": 5.0},
             {"x": 20.0, "y": 5.0},
         ],
         start={"type": "Pin", "refdes": "R1", "pin": 0},
@@ -219,7 +253,58 @@ def test_wire_cleaner_keeps_native_submicron_axis_noise_orthogonal() -> None:
 
     cleaned = clean_schematic_wire_operation(document, build_snapshot(document), operation)
 
-    assert cleaned.points[1].x == pytest.approx(8.5000002)
+    assert cleaned.points[1].y == pytest.approx(20.0000002)
+
+
+def test_wire_planner_repairs_inward_escape_using_resolved_pin_orientation() -> None:
+    document = _schematic_document_with_embedded_library()
+    operation = AddWireOperation(
+        net="VCC",
+        points=[
+            {"x": 8.5, "y": 20.0},
+            {"x": 10.0, "y": 20.0},
+            {"x": 10.0, "y": 5.0},
+            {"x": 20.0, "y": 5.0},
+        ],
+        start={"type": "Pin", "refdes": "R1", "pin": 0},
+        end={"type": "Free"},
+    )
+
+    plan = plan_schematic_wire_candidate(document, build_snapshot(document), operation)
+    cleaned = plan.selected.operation
+
+    assert plan.selected.source == "cleaned"
+    assert cleaned.points[1].x < cleaned.points[0].x
+    assert cleaned.points[1].y == pytest.approx(cleaned.points[0].y)
+
+
+def test_wire_cleaner_rejects_pin_snap_that_collapses_the_path() -> None:
+    document = _schematic_document_with_embedded_library()
+    operation = AddWireOperation(
+        net="VCC",
+        points=[{"x": 9.0, "y": 20.0}, {"x": 8.5, "y": 20.0}],
+        start={"type": "Pin", "refdes": "R1", "pin": 0},
+        end={"type": "Free"},
+    )
+
+    with pytest.raises(EditError, match="collapse to one point"):
+        clean_schematic_wire_operation(document, build_snapshot(document), operation)
+
+
+def test_wire_cleaner_rejects_non_cardinal_resolved_pin_orientation() -> None:
+    document = _schematic_document_with_embedded_library()
+    part = document.container.find("./Components/Part[@Id='0']")
+    assert part is not None
+    part.set("Angle", str(math.pi / 4.0))
+    operation = AddWireOperation(
+        net="VCC",
+        points=[{"x": 9.0, "y": 20.0}, {"x": 5.0, "y": 20.0}],
+        start={"type": "Pin", "refdes": "R1", "pin": 0},
+        end={"type": "Free"},
+    )
+
+    with pytest.raises(EditError, match="cardinal resolved pin orientations"):
+        clean_schematic_wire_operation(document, build_snapshot(document), operation)
 
 
 def test_external_library_fallback_is_disabled_by_default() -> None:
