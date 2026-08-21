@@ -233,18 +233,26 @@ def _absolute_geometry(
             "non-zero schematic part rotation is not applied because the live DipTrace "
             "angle convention is not yet trusted for pin geometry"
         ]
-    if math.isclose(angle, 0.0, abs_tol=_EPS):
-        absolute = Point(origin.x + local.x, origin.y + local.y)
-    else:
-        absolute = Transform(
-            translate_x=origin.x,
-            translate_y=origin.y,
-            rotation_deg=angle,
-        ).apply_point(local)
+    transform = Transform(
+        translate_x=origin.x,
+        translate_y=origin.y,
+        rotation_deg=angle,
+        mirror_x=bool(part.attributes.get("horz_flip", False)),
+        mirror_y=bool(part.attributes.get("vert_flip", False)),
+    )
+    absolute = transform.apply_point(local)
+    if not math.isclose(angle, 0.0, abs_tol=_EPS):
         warnings.append(
             "absolute pin geometry uses the verified DipTrace schematic rotation convention"
         )
-    orientation = (pin.orientation_deg + angle) % 360.0
+    anchor = transform.apply_point(Point(**pin.position))
+    inward_x, inward_y = anchor.x - absolute.x, anchor.y - absolute.y
+    orientation = (
+        math.degrees(math.atan2(inward_y, inward_x)) % 360.0
+        if not math.isclose(inward_x, 0.0, abs_tol=_EPS)
+        or not math.isclose(inward_y, 0.0, abs_tol=_EPS)
+        else None
+    )
     return absolute.as_dict(), orientation, warnings
 
 

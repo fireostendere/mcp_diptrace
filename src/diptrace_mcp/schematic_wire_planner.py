@@ -18,6 +18,7 @@ from .services.schematic_wire_quality import (
     _text_obstacles,
     _wire_anchor,
     clean_schematic_wire_operation,
+    schematic_wire_pin_escape_satisfied,
 )
 from .xml_document import DipTraceDocument
 
@@ -227,6 +228,7 @@ def plan_schematic_wire_candidate(
     operation: AddWireOperation,
     *,
     config: SchematicWirePlannerConfig | None = None,
+    part_deltas: dict[str, Point] | None = None,
 ) -> SchematicWirePlan:
     """Return a non-mutating wire candidate and explicit placement feedback.
 
@@ -234,26 +236,25 @@ def plan_schematic_wire_candidate(
     its result as data, measures both the supplied and selected route, and decides whether
     the selected route is acceptable under explicit readability thresholds. It does not
     apply the operation and it does not move schematic parts implicitly.
+
+    ``part_deltas`` carries per-part translations when ``snapshot`` is a virtual
+    placement preview rather than the document's own snapshot, so document-resolved
+    pin anchors stay consistent with the snapshot's coordinates.
     """
     config = config or SchematicWirePlannerConfig()
     original_metrics = measure_schematic_wire_operation(document, snapshot, operation)
-    cleaned_operation = clean_schematic_wire_operation(document, snapshot, operation)
+    cleaned_operation = clean_schematic_wire_operation(
+        document,
+        snapshot,
+        operation,
+        part_deltas=part_deltas,
+        enforce_pin_escape=False,
+    )
     cleaned_metrics = measure_schematic_wire_operation(
         document,
         snapshot,
         cleaned_operation,
     )
-
-    original_key = tuple(original_metrics.quality_key)
-    cleaned_key = tuple(cleaned_metrics.quality_key)
-    if cleaned_key <= original_key:
-        selected_source: Literal["supplied", "cleaned"] = "cleaned"
-        selected_operation = cleaned_operation
-        selected_metrics = cleaned_metrics
-    else:
-        selected_source = "supplied"
-        selected_operation = operation
-        selected_metrics = original_metrics
 
     original = SchematicWireCandidate(
         source="supplied",
@@ -261,11 +262,11 @@ def plan_schematic_wire_candidate(
         metrics=original_metrics,
     )
     selected = SchematicWireCandidate(
-        source=selected_source,
-        operation=selected_operation,
-        metrics=selected_metrics,
+        source="cleaned",
+        operation=cleaned_operation,
+        metrics=cleaned_metrics,
     )
-    feedback = _feedback(snapshot, selected_operation, selected_metrics, config)
+    feedback = _feedback(snapshot, cleaned_operation, cleaned_metrics, config)
     improved = (
         selected.operation.model_dump(mode="json")
         != operation.model_dump(mode="json")
@@ -273,9 +274,23 @@ def plan_schematic_wire_candidate(
     warnings: list[str] = []
     if snapshot.schematic is None:
         warnings.append("Snapshot has no normalized schematic model; route quality is partial.")
-    if math.isclose(selected_metrics.direct_distance_mm, 0.0, abs_tol=_EPS):
+    if math.isclose(cleaned_metrics.direct_distance_mm, 0.0, abs_tol=_EPS):
         warnings.append(
             "Wire endpoints collapse to the same point; detour ratio is not meaningful."
+        )
+    if not schematic_wire_pin_escape_satisfied(document, snapshot, cleaned_operation):
+        warnings.append(
+            "No escape-compliant route was found: the selected wire does not leave "
+            "every resolved pin away from its symbol body."
+        )
+        feedback = feedback.model_copy(
+            update={
+                "required": True,
+                "reasons": [
+                    *feedback.reasons,
+                    "Wire does not leave every resolved pin away from its symbol body.",
+                ],
+            }
         )
 
     return SchematicWirePlan(

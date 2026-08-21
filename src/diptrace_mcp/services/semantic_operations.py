@@ -680,6 +680,7 @@ class SemanticOperationsService:
         dry_run: bool = True,
         expected_sha256: str | None = None,
         txid: str | None = None,
+        horizontal_align: str = "Left",
     ) -> dict[str, Any]:
         operation = AddNetLabelOperation.model_validate(
             {
@@ -689,6 +690,7 @@ class SemanticOperationsService:
                 "sheet": sheet,
                 "text": text,
                 "font_size": font_size,
+                "horizontal_align": horizontal_align,
             }
         )
         return self.semantic_write(operation, path, dry_run, expected_sha256, txid)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -74,6 +75,44 @@ def test_layout_analysis_exposes_decomposed_baseline_metrics() -> None:
     assert analysis.metrics.wire_crossing_count == 0
     assert analysis.metrics.occupied_area_mm2 > 0
     assert analysis.metrics.score == pytest.approx(sum(analysis.metrics.score_terms.values()))
+
+
+def test_layout_analysis_penalizes_objects_outside_centered_sheet_bounds() -> None:
+    original = _load()
+    root = ET.fromstring(original.raw_bytes)
+    sheet = root.find("./Schematic/SheetSettings/Sheets/Sheet")
+    assert sheet is not None
+    sheet.find("./Id").text = "17"  # type: ignore[union-attr]
+    for name, value in (
+        ("SheetWidth", "100"),
+        ("SheetHeight", "80"),
+        ("LeftMargin", "10"),
+        ("TopMargin", "10"),
+        ("RightMargin", "10"),
+        ("BottomMargin", "10"),
+    ):
+        ET.SubElement(sheet, name).text = value
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+    snapshot = build_snapshot(document)
+    assert snapshot.schematic is not None
+    snapshot.schematic.wires = [
+        ObjectRecord(
+            stable_id=stable_id("wire", "sheet-boundary"),
+            kind="wire",
+            attributes={
+                "sheet": "0",
+                "points": [{"x": 0.0, "y": 0.0}, {"x": 41.0, "y": 0.0}],
+            },
+        )
+    ]
+
+    analysis = analyze_schematic_layout(snapshot)
+
+    assert analysis.metrics.sheet_containment_violation_count == 2
+    assert analysis.metrics.score_terms["sheet_containment"] == 20_000.0
 
 
 def test_first_pass_placement_is_deterministic_and_replayable() -> None:
@@ -319,10 +358,70 @@ def test_wire_metric_helpers_cover_overlap_bends_shared_endpoints_and_same_net()
     assert total > 0
     assert points
 
-    assert layout._wire_points(
-        ObjectRecord(
-            stable_id=stable_id("wire", "metrics", "invalid"),
-            kind="wire",
-            attributes={"points": "not-a-list"},
+    assert (
+        layout._wire_points(
+            ObjectRecord(
+                stable_id=stable_id("wire", "metrics", "invalid"),
+                kind="wire",
+                attributes={"points": "not-a-list"},
+            )
         )
-    ) == []
+        == []
+    )
+
+
+def test_wire_metrics_do_not_compare_different_sheets() -> None:
+    wires = [
+        ObjectRecord(
+            stable_id=stable_id("wire", "sheet-0"),
+            kind="wire",
+            net_name="A",
+            attributes={"sheet": "0", "points": [{"x": 0, "y": 5}, {"x": 10, "y": 5}]},
+        ),
+        ObjectRecord(
+            stable_id=stable_id("wire", "sheet-1"),
+            kind="wire",
+            net_name="B",
+            attributes={"sheet": "1", "points": [{"x": 5, "y": 0}, {"x": 5, "y": 10}]},
+        ),
+    ]
+
+    overlap, crossings, *_ = layout._wire_metrics(wires)
+
+    assert overlap == 0
+    assert crossings == 0
+
+
+def test_part_overlap_uses_body_bounds_not_pin_envelopes() -> None:
+    snapshot = build_snapshot(_load())
+    assert snapshot.schematic is not None
+    intent = infer_schematic_design_intent(snapshot)
+    snapshot.schematic.parts = [
+        ObjectRecord(
+            stable_id=stable_id("part", "body-a"),
+            kind="part",
+            refdes="A",
+            position={"x": 2.0, "y": 2.0},
+            bbox={"min_x": 0.0, "min_y": 0.0, "max_x": 8.0, "max_y": 4.0},
+            attributes={
+                "sheet": "0",
+                "body_bbox": {"min_x": 0.0, "min_y": 0.0, "max_x": 4.0, "max_y": 4.0},
+            },
+        ),
+        ObjectRecord(
+            stable_id=stable_id("part", "body-b"),
+            kind="part",
+            refdes="B",
+            position={"x": 8.0, "y": 2.0},
+            bbox={"min_x": 2.0, "min_y": 0.0, "max_x": 10.0, "max_y": 4.0},
+            attributes={
+                "sheet": "0",
+                "body_bbox": {"min_x": 6.0, "min_y": 0.0, "max_x": 10.0, "max_y": 4.0},
+            },
+        ),
+    ]
+    snapshot.schematic.wires = []
+
+    analysis = analyze_schematic_layout(snapshot, intent=intent)
+
+    assert analysis.metrics.part_overlap_count == 0

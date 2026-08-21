@@ -1148,6 +1148,7 @@ def create_server(
         sheet: int = 0,
         text: str | None = None,
         font_size: int = 4,
+        horizontal_align: Literal["Left", "Center", "Right"] = "Left",
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1155,7 +1156,8 @@ def create_server(
     ) -> dict[str, Any]:
         """Add a net-bound text label shape to a schematic sheet."""
         return service.add_net_label(
-            net, x, y, sheet, text, font_size, path, dry_run, expected_sha256, txid
+            net, x, y, sheet, text, font_size, path, dry_run, expected_sha256, txid,
+            horizontal_align=horizontal_align,
         )
 
     @mcp.tool()

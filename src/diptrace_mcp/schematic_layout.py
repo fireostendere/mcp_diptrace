@@ -107,6 +107,7 @@ class SchematicDesignIntent(StrictModel):
 
 
 class SchematicLayoutWeights(StrictModel):
+    sheet_containment: float = Field(default=10_000.0, ge=0.0)
     part_overlap: float = Field(default=10_000.0, ge=0.0)
     wire_overlap: float = Field(default=5_000.0, ge=0.0)
     wire_crossing: float = Field(default=1_000.0, ge=0.0)
@@ -122,6 +123,7 @@ class SchematicLayoutMetrics(StrictModel):
     part_count: int = Field(ge=0)
     block_count: int = Field(ge=0)
     wire_count: int = Field(ge=0)
+    sheet_containment_violation_count: int = Field(ge=0)
     part_overlap_count: int = Field(ge=0)
     wire_overlap_count: int = Field(ge=0)
     wire_crossing_count: int = Field(ge=0)
@@ -200,6 +202,20 @@ def _require_schematic(snapshot: DocumentSnapshot) -> None:
         raise CapabilityUnavailableError("Schematic layout analysis requires a schematic document")
 
 
+def schematic_sheet_usable_bounds(snapshot: DocumentSnapshot) -> dict[str, BBox]:
+    """Return page bounds centered at DipTrace's schematic origin.
+
+    Sheet XPos/YPos are viewport state and intentionally do not participate.
+    """
+    _require_schematic(snapshot)
+    assert snapshot.schematic is not None
+    return {
+        str(sheet.get("index", index)): BBox(**bbox)
+        for index, sheet in enumerate(snapshot.schematic.sheets)
+        if isinstance((bbox := sheet.get("usable_bbox")), dict)
+    }
+
+
 def _part_role(part: ObjectRecord) -> SchematicPartIntent:
     refdes = (part.refdes or "").upper()
     prefix_match = re.match(r"[A-Z]+", refdes)
@@ -260,9 +276,7 @@ def _part_role(part: ObjectRecord) -> SchematicPartIntent:
             confidence=0.7,
             reasons=["active-device RefDes"],
         )
-    if prefix in {"Y", "X"} or any(
-        token in text for token in ("XTAL", "CRYSTAL", "OSCILLATOR")
-    ):
+    if prefix in {"Y", "X"} or any(token in text for token in ("XTAL", "CRYSTAL", "OSCILLATOR")):
         return SchematicPartIntent(
             part_id=part.stable_id,
             refdes=part.refdes,
@@ -569,10 +583,15 @@ def _position_for(part: ObjectRecord, placements: Mapping[str, Point] | None) ->
     return Point(**part.position)
 
 
-def _bbox_for(part: ObjectRecord, placements: Mapping[str, Point] | None) -> BBox | None:
-    if part.bbox is None:
+def _bbox_for(
+    part: ObjectRecord,
+    placements: Mapping[str, Point] | None,
+    bbox: dict[str, float] | None = None,
+) -> BBox | None:
+    raw = bbox or part.bbox
+    if raw is None:
         return None
-    box = BBox(**part.bbox)
+    box = BBox(**raw)
     if placements is None or part.stable_id not in placements or part.position is None:
         return box
     original = Point(**part.position)
@@ -603,9 +622,7 @@ def _same_point(first: Point, second: Point) -> bool:
 
 
 def _cross(first: Point, second: Point, third: Point) -> float:
-    return (second.x - first.x) * (third.y - first.y) - (
-        second.y - first.y
-    ) * (third.x - first.x)
+    return (second.x - first.x) * (third.y - first.y) - (second.y - first.y) * (third.x - first.x)
 
 
 def _point_on_segment(point: Point, segment: _Segment) -> bool:
@@ -625,9 +642,8 @@ def _segments_intersect(first: _Segment, second: _Segment) -> bool:
     c2 = _cross(first.start, first.end, second.end)
     c3 = _cross(second.start, second.end, first.start)
     c4 = _cross(second.start, second.end, first.end)
-    if (
-        ((c1 > _EPS and c2 < -_EPS) or (c1 < -_EPS and c2 > _EPS))
-        and ((c3 > _EPS and c4 < -_EPS) or (c3 < -_EPS and c4 > _EPS))
+    if ((c1 > _EPS and c2 < -_EPS) or (c1 < -_EPS and c2 > _EPS)) and (
+        (c3 > _EPS and c4 < -_EPS) or (c3 < -_EPS and c4 > _EPS)
     ):
         return True
     return (
@@ -639,9 +655,10 @@ def _segments_intersect(first: _Segment, second: _Segment) -> bool:
 
 
 def _collinear_overlap_length(first: _Segment, second: _Segment) -> float:
-    if abs(_cross(first.start, first.end, second.start)) > _EPS or abs(
-        _cross(first.start, first.end, second.end)
-    ) > _EPS:
+    if (
+        abs(_cross(first.start, first.end, second.start)) > _EPS
+        or abs(_cross(first.start, first.end, second.end)) > _EPS
+    ):
         return 0.0
     if first.horizontal and second.horizontal:
         return max(
@@ -659,7 +676,7 @@ def _collinear_overlap_length(first: _Segment, second: _Segment) -> float:
 
 
 def _wire_metrics(wires: list[ObjectRecord]) -> tuple[int, int, int, int, float, list[Point]]:
-    wire_segments: list[tuple[str | None, int, _Segment]] = []
+    wire_segments: list[tuple[str, str | None, int, _Segment]] = []
     diagonal_count = 0
     bend_count = 0
     total_length = 0.0
@@ -673,9 +690,7 @@ def _wire_metrics(wires: list[ObjectRecord]) -> tuple[int, int, int, int, float,
             if not _same_point(first, second)
         ]
         total_length += sum(segment.length for segment in segments)
-        diagonal_count += sum(
-            not (segment.horizontal or segment.vertical) for segment in segments
-        )
+        diagonal_count += sum(not (segment.horizontal or segment.vertical) for segment in segments)
         for first, second in zip(segments, segments[1:], strict=False):
             first_dx = first.end.x - first.start.x
             first_dy = first.end.y - first.start.y
@@ -683,13 +698,14 @@ def _wire_metrics(wires: list[ObjectRecord]) -> tuple[int, int, int, int, float,
             second_dy = second.end.y - second.start.y
             if abs(first_dx * second_dy - first_dy * second_dx) > _EPS:
                 bend_count += 1
-        wire_segments.extend((wire.net_name, wire_index, segment) for segment in segments)
+        sheet = str(wire.attributes.get("sheet", "0"))
+        wire_segments.extend((sheet, wire.net_name, wire_index, segment) for segment in segments)
 
     crossing_count = 0
     overlap_count = 0
-    for index, (first_net, first_wire, first) in enumerate(wire_segments):
-        for second_net, second_wire, second in wire_segments[index + 1 :]:
-            if first_wire == second_wire:
+    for index, (first_sheet, first_net, first_wire, first) in enumerate(wire_segments):
+        for second_sheet, second_net, second_wire, second in wire_segments[index + 1 :]:
+            if first_sheet != second_sheet or first_wire == second_wire:
                 continue
             overlap = _collinear_overlap_length(first, second)
             if overlap > _EPS:
@@ -806,6 +822,13 @@ def analyze_schematic_layout(
         motifs = intent.motifs
 
     parts = snapshot.schematic.parts
+    sheet_bounds = schematic_sheet_usable_bounds(snapshot)
+    sheet_containment_violation_count = 0
+    sheets_without_bounds = {
+        str(sheet.get("index", index))
+        for index, sheet in enumerate(snapshot.schematic.sheets)
+        if str(sheet.get("index", index)) not in sheet_bounds
+    }
     part_overlap_count = 0
     part_boxes: list[tuple[str, BBox]] = []
     content_area = 0.0
@@ -817,8 +840,20 @@ def analyze_schematic_layout(
         box = _bbox_for(part, placements)
         if box is None:
             continue
+        sheet = str(part.attributes.get("sheet", "0"))
+        bound = sheet_bounds.get(sheet)
+        if bound is None:
+            sheets_without_bounds.add(sheet)
+        elif not bound.contains_bbox(box):
+            sheet_containment_violation_count += 1
         content_area += box.area
-        part_boxes.append((str(part.attributes.get("sheet", "0")), box))
+        body_bbox = part.attributes.get("body_bbox")
+        overlap_box = _bbox_for(
+            part,
+            placements,
+            body_bbox if isinstance(body_bbox, dict) else None,
+        )
+        part_boxes.append((sheet, overlap_box or box))
         extent_points.extend([Point(box.min_x, box.min_y), Point(box.max_x, box.max_y)])
     for index, (first_sheet, first) in enumerate(part_boxes):
         for second_sheet, second in part_boxes[index + 1 :]:
@@ -834,6 +869,19 @@ def analyze_schematic_layout(
         wire_extent_points,
     ) = _wire_metrics(snapshot.schematic.wires)
     extent_points.extend(wire_extent_points)
+    for wire in snapshot.schematic.wires:
+        sheet = str(wire.attributes.get("sheet", "0"))
+        bound = sheet_bounds.get(sheet)
+        if bound is None:
+            sheets_without_bounds.add(sheet)
+            continue
+        points = [
+            Point(float(item["x"]), float(item["y"]))
+            for item in wire.attributes.get("points", [])
+            if isinstance(item, dict) and "x" in item and "y" in item
+        ]
+        if points and not all(bound.contains_point(point) for point in points):
+            sheet_containment_violation_count += 1
 
     if extent_points:
         min_x = min(point.x for point in extent_points)
@@ -875,6 +923,7 @@ def analyze_schematic_layout(
     motif_score = sum(float(result["score"]) for result in motif_results)
 
     score_terms = {
+        "sheet_containment": (sheet_containment_violation_count * weights.sheet_containment),
         "part_overlap": part_overlap_count * weights.part_overlap,
         "wire_overlap": wire_overlap_count * weights.wire_overlap,
         "wire_crossing": wire_crossing_count * weights.wire_crossing,
@@ -889,6 +938,7 @@ def analyze_schematic_layout(
         part_count=len(parts),
         block_count=len(intent.blocks),
         wire_count=len(snapshot.schematic.wires),
+        sheet_containment_violation_count=sheet_containment_violation_count,
         part_overlap_count=part_overlap_count,
         wire_overlap_count=wire_overlap_count,
         wire_crossing_count=wire_crossing_count,
@@ -907,10 +957,33 @@ def analyze_schematic_layout(
         score=sum(score_terms.values()),
     )
     warnings = list(intent.warnings)
+    if sheet_containment_violation_count:
+        warnings.append(
+            f"{sheet_containment_violation_count} schematic object(s) are outside their "
+            "usable sheet boundary."
+        )
     if placements and snapshot.schematic.wires:
         warnings.append(
             "Wire geometry was measured at its current coordinates while placement "
             "overrides were supplied."
+        )
+    limitations = [
+        "Current schematic part bounds are conservative position proxies, not "
+        "authoritative symbol extents.",
+        "Exact pin graphics/coordinates are not normalized, so pin-facing quality "
+        "is not yet scored.",
+        "Schematic text-label extents are not normalized and are not included in "
+        "sheet-containment scoring.",
+        "Same-net wire intersections are not counted as crossings because junction "
+        "intent is not yet normalized.",
+        "Reference motifs are structured constraints; automatic datasheet ingestion "
+        "is not implemented.",
+    ]
+    if sheets_without_bounds:
+        limitations.append(
+            "Sheet containment was unavailable for sheet id(s): "
+            + ", ".join(sorted(sheets_without_bounds))
+            + "."
         )
     return SchematicLayoutAnalysis(
         intent=intent,
@@ -921,16 +994,7 @@ def analyze_schematic_layout(
             "Part geometry uses the currently normalized schematic bounding boxes.",
         ],
         warnings=warnings,
-        limitations=[
-            "Current schematic part bounds are conservative position proxies, not "
-            "authoritative symbol extents.",
-            "Exact pin graphics/coordinates are not normalized, so pin-facing quality "
-            "is not yet scored.",
-            "Same-net wire intersections are not counted as crossings because junction "
-            "intent is not yet normalized.",
-            "Reference motifs are structured constraints; automatic datasheet ingestion "
-            "is not implemented.",
-        ],
+        limitations=limitations,
     )
 
 

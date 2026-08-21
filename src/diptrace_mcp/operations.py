@@ -621,6 +621,10 @@ class AddWireOperation(SemanticOperation):
     start: WireEndpoint
     end: WireEndpoint
     hidden_power: bool = False
+    # "enforce" refuses wires that cannot be routed clear of their pins'
+    # symbol bodies; "best_effort" keeps connectivity-safe replacement geometry
+    # (for example reroute plans) when no escape-compliant route exists.
+    pin_escape_policy: Literal["enforce", "best_effort"] = "enforce"
 
 
 class DeleteWireOperation(SelectorOperation):
@@ -628,6 +632,8 @@ class DeleteWireOperation(SelectorOperation):
 
 
 class AddNetLabelOperation(SemanticOperation):
+    """Add a visual annotation; native Net Port parts carry cross-sheet connectivity."""
+
     kind: Literal["add_net_label"] = "add_net_label"
     net: str = Field(min_length=1, max_length=1_000)
     x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
@@ -635,6 +641,7 @@ class AddNetLabelOperation(SemanticOperation):
     sheet: int = Field(default=0, ge=0)
     text: str | None = Field(default=None, min_length=1, max_length=1_000)
     font_size: int = Field(default=4, ge=1, le=1_000)
+    horizontal_align: Literal["Left", "Center", "Right"] = "Left"
 
 
 class SetPanelizationOperation(SemanticOperation):

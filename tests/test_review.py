@@ -7,12 +7,15 @@ from pathlib import Path
 import pytest
 
 import diptrace_mcp.review as review_module
-from diptrace_mcp.adapters import build_snapshot
+from diptrace_mcp.adapters import build_snapshot, stable_id
 from diptrace_mcp.capabilities import get_capabilities
 from diptrace_mcp.config import Settings
+from diptrace_mcp.domain import ObjectRecord
 from diptrace_mcp.geometry_backend import shapely_available
+from diptrace_mcp.operations import AddNetLabelOperation
 from diptrace_mcp.review import registry, run_checks
 from diptrace_mcp.routing import RouteConnectionConfig, synthesize_route
+from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.xml_document import DipTraceDocument
 
@@ -446,11 +449,217 @@ def test_erc_reports_unconnected_pin_not_intentional_no_connect() -> None:
     document = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
     findings, metrics, _, count = run_checks(build_snapshot(document))
 
-    assert count == 5
+    assert count == 10
     unconnected = [item for item in findings if item.check_id == "schematic.unconnected_pin"]
     assert len(unconnected) == 1
     assert unconnected[0].object_ids
     assert metrics["schematic.unconnected_pin"]["pins_checked"] == 6
+
+
+def test_erc_rejects_diptrace_generated_net_names() -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    name = root.find("./Schematic/Nets/Net/Name")
+    assert name is not None
+    name.text = "Net 42"
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+    findings, metrics, _, _ = run_checks(
+        build_snapshot(document), categories={"connectivity"}
+    )
+
+    anonymous = [item for item in findings if item.check_id == "schematic.anonymous_net_name"]
+    assert len(anonymous) == 1
+    assert anonymous[0].severity == "error"
+    assert metrics["schematic.anonymous_net_name"]["anonymous_nets"] == 1
+
+
+def test_schematic_placement_review_flags_page_escape_and_wire_dogleg() -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    library = root.find("./Library")
+    assert library is not None
+    components = ET.SubElement(library, "Components")
+    component = ET.SubElement(components, "Component", {"ComponentStyle": "CompType1"})
+    library_part = ET.SubElement(
+        component, "Part", {"Id": "1", "Width": "4", "Height": "2"}
+    )
+    pins = ET.SubElement(library_part, "Pins")
+    ET.SubElement(
+        pins,
+        "Pin",
+        {"X": "2", "Y": "0", "Length": "2", "Orientation": "180"},
+    )
+    sheet = root.find("./Schematic/SheetSettings/Sheets/Sheet")
+    assert sheet is not None
+    sheet.find("./Id").text = "17"  # type: ignore[union-attr]
+    for name, value in (
+        ("SheetWidth", "100"),
+        ("SheetHeight", "80"),
+        ("LeftMargin", "10"),
+        ("TopMargin", "10"),
+        ("RightMargin", "10"),
+        ("BottomMargin", "10"),
+    ):
+        ET.SubElement(sheet, name).text = value
+    part = root.find("./Schematic/Components/Part[@Id='2']")
+    assert part is not None
+    part.set("X", "37")
+    schematic = root.find("./Schematic")
+    assert schematic is not None
+    shapes = ET.SubElement(schematic, "Shapes")
+    disabled = ET.SubElement(
+        shapes,
+        "Shape",
+        {"Id": "disabled-outside", "Type": "Line", "Sheet": "0", "Enabled": "N"},
+    )
+    disabled_points = ET.SubElement(disabled, "Points")
+    ET.SubElement(disabled_points, "Point", {"X": "1000", "Y": "0"})
+    ET.SubElement(disabled_points, "Point", {"X": "1001", "Y": "0"})
+    document = DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+    snapshot = build_snapshot(document)
+    assert snapshot.schematic is not None
+    escaped_part = next(item for item in snapshot.schematic.parts if item.xml_id == "2")
+    assert escaped_part.geometry_source == "embedded-symbol-bounds"
+    assert escaped_part.bbox == pytest.approx(
+        {"min_x": 35.0, "min_y": 19.0, "max_x": 41.0, "max_y": 21.0}
+    )
+    snapshot.schematic.wires = [
+        ObjectRecord(
+            stable_id=stable_id("wire", "dogleg"),
+            kind="wire",
+            label="DOGLEG wire",
+            bbox={"min_x": 0.0, "min_y": 0.0, "max_x": 30.0, "max_y": 10.0},
+            attributes={
+                "sheet": "0",
+                "points": [
+                    {"x": 0.0, "y": 0.0},
+                    {"x": 0.0, "y": 10.0},
+                    {"x": 20.0, "y": 10.0},
+                    {"x": 20.0, "y": 0.0},
+                    {"x": 30.0, "y": 0.0},
+                ],
+            },
+        )
+    ]
+
+    findings, metrics, _, _ = run_checks(snapshot, categories={"placement"})
+
+    assert {finding.check_id for finding in findings} == {
+        "schematic.sheet_containment",
+        "schematic.excessive_wire_detour",
+    }
+    assert metrics["schematic.sheet_containment"]["objects_outside"] == 1
+    assert metrics["schematic.excessive_wire_detour"]["excessive_detours"] == 1
+
+
+def test_schematic_placement_review_flags_large_two_bend_detour() -> None:
+    snapshot = build_snapshot(DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000))
+    assert snapshot.schematic is not None
+    snapshot.schematic.wires = [
+        ObjectRecord(
+            stable_id=stable_id("wire", "large-two-bend-detour"),
+            kind="wire",
+            label="large detour",
+            attributes={
+                "sheet": "0",
+                "points": [
+                    {"x": 0.0, "y": 0.0},
+                    {"x": 0.0, "y": 100.0},
+                    {"x": 1.0, "y": 100.0},
+                    {"x": 1.0, "y": 0.0},
+                ],
+            },
+        )
+    ]
+
+    findings, metrics, _, _ = run_checks(snapshot, categories={"placement"})
+
+    detours = [item for item in findings if item.check_id == "schematic.excessive_wire_detour"]
+    assert len(detours) == 1
+    assert metrics["schematic.excessive_wire_detour"]["excessive_detours"] == 1
+
+
+def test_schematic_placement_review_flags_label_over_support_component() -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    result = apply_semantic_operations(
+        original,
+        [AddNetLabelOperation(net="VCC", x=10.0, y=20.0, text="VCC")],
+    )
+
+    findings, metrics, _, _ = run_checks(build_snapshot(result.document), categories={"placement"})
+
+    overlap = next(
+        finding for finding in findings if finding.check_id == "schematic.label_support_overlap"
+    )
+    assert overlap.object_ids
+    assert overlap.bbox is not None
+    assert metrics["schematic.label_support_overlap"]["overlaps"] == 1
+    assert metrics["schematic.text_collision"]["part_collisions"] == 1
+
+
+def test_schematic_placement_review_flags_overlapping_text_and_foreign_wire() -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    result = apply_semantic_operations(
+        original,
+        [
+            AddNetLabelOperation(net="VCC", x=100.0, y=100.0, text="LABEL"),
+            AddNetLabelOperation(net="SIGNAL", x=100.0, y=100.0, text="OTHER"),
+        ],
+    )
+    result.document.container.findall("./Shapes/Shape[@Type='Text']")[0].set("NetId", "-1")
+    snapshot = build_snapshot(result.document)
+    assert snapshot.schematic is not None
+    snapshot.schematic.wires = [
+        ObjectRecord(
+            stable_id=stable_id("wire", "foreign-label-crossing"),
+            kind="wire",
+            label="SIGNAL wire",
+            net_id="1",
+            attributes={
+                "sheet": "0",
+                "points": [{"x": 90.0, "y": 100.5}, {"x": 110.0, "y": 100.5}],
+            },
+        )
+    ]
+
+    findings, metrics, _, _ = run_checks(snapshot, categories={"placement"})
+
+    collisions = [item for item in findings if item.check_id == "schematic.text_collision"]
+    assert len(collisions) == 3
+    assert metrics["schematic.text_collision"]["text_collisions"] == 1
+    assert metrics["schematic.text_collision"]["foreign_wire_collisions"] == 1
+    assert metrics["schematic.text_collision"]["same_net_wire_collisions"] == 1
+
+
+def test_schematic_text_review_fails_closed_without_font_metrics() -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    result = apply_semantic_operations(
+        original,
+        [AddNetLabelOperation(net="VCC", x=100.0, y=100.0, text="LABEL")],
+    )
+    shape = result.document.container.find("./Shapes/Shape[@Type='Text']")
+    assert shape is not None
+    shape.set("FontVector", "N")
+
+    findings, metrics, _, _ = run_checks(
+        build_snapshot(result.document), categories={"placement"}
+    )
+
+    unmeasured = [
+        item
+        for item in findings
+        if item.check_id == "schematic.text_collision"
+        and item.title == "Schematic text cannot be measured safely"
+    ]
+    assert len(unmeasured) == 1
+    assert metrics["schematic.text_collision"]["unmeasured_texts"] == 1
 
 
 def test_erc_does_not_require_values_on_net_ports() -> None:

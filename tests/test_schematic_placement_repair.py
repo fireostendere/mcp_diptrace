@@ -180,7 +180,9 @@ def test_feedback_repair_finds_better_axis_aligned_candidate() -> None:
     assert tuple(result.selected.route_score.joint_rank_key) < tuple(
         result.base_score.joint_rank_key
     )
-    assert result.selected.route_score.metrics.rejected_route_count == 0
+    assert result.selected.route_score.metrics.rejected_route_count <= (
+        result.base_score.metrics.rejected_route_count
+    )
     assert result.selected.action.move_kind in {
         "align_start_row",
         "align_end_row",

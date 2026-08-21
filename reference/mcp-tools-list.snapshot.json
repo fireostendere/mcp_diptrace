@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 152593,
-  "canonical_descriptor_sha256": "9f028d61aed18f9073d15a2255595058652568402a89de2f68316ab76dbd850e",
+  "canonical_descriptor_bytes": 152707,
+  "canonical_descriptor_sha256": "86e325b45b13aef30e0bf1d31f11fed8d41a0368603fa290481eef6bbeb4d893",
   "format_version": 1,
   "tool_count": 170,
   "tools": [
@@ -104,6 +104,16 @@
             "default": 4,
             "title": "Font Size",
             "type": "integer"
+          },
+          "horizontal_align": {
+            "default": "Left",
+            "enum": [
+              "Left",
+              "Center",
+              "Right"
+            ],
+            "title": "Horizontal Align",
+            "type": "string"
           },
           "net": {
             "title": "Net",
