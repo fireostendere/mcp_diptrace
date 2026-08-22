@@ -22,7 +22,7 @@ Current board SHA-256: `b1bc3588af7dfa4b9146abcab7eac2bd303e80fdeaa8d4c5c1a88a8e
 | 9. Silkscreen | PASS | `plan_silkscreen` unresolved set empty (asserted); planner now treats vias as fixed obstacles so labels never overlap stitch vias. |
 | 10. Headless QC | PASS | `review_pcb_quality` hard_error_count == 0 gate inside `build()`; pre-QC artifact dumped to `.attiny85-2layer-*-preqc.dipxml` on failure for diagnosis. |
 | 11. Native DipTrace refill/DRC | PENDING | Manual M1 gate: open `attiny85-arduino-clone-pcb.dipxml` in DipTrace, refill both GND planes, run native DRC. Framework reports this as `native_refill_and_drc_required`. |
-| 12. PNG/MP4/GIF and final frame | PENDING | After gate 11: re-record via `diptrace-mcp-cinematic` capture → compile → ffmpeg; boundary-fit framing per house rules; inspect final frame. |
+| 12. PNG/MP4/GIF and final frame | PENDING | After gate 11: re-record via `diptrace-mcp-cinematic` capture → compile → ffmpeg; boundary-fit framing per house rules; inspect final frame. The existing `attiny85-arduino-clone-pcb.{png,mp4,gif}` are a **stale pre-J2-removal render** — do not ship or resume from them. |
 
 ## Build command (exact environment)
 
