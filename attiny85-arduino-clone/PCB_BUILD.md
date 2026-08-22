@@ -4,7 +4,7 @@ Status: `ROUTED_2LAYER_PENDING_NATIVE`
 Updated: 2026-08-22
 Input schematic SHA-256: `2f5ee017e42890eaaddc50de831390dcae6cda38531e24c161bc058013ed3ec2`
 Starting board SHA-256: `cadc29c4c005ad322276fe3ef8f262795510f9a6de641b6e3544a1e9804c9fd2`
-Current board SHA-256: `b1bc3588af7dfa4b9146abcab7eac2bd303e80fdeaa8d4c5c1a88a8ed9186310`
+Current board SHA-256: `4c3274442ae358b7ec0dfcb6050be831fc2597988847d035a59e487e69841c12`
 
 ## Ordered gates
 
@@ -17,7 +17,7 @@ Current board SHA-256: `b1bc3588af7dfa4b9146abcab7eac2bd303e80fdeaa8d4c5c1a88a8e
 | 4. Mechanics and connector datums | PASS | J1/J3 centerline group checked by `review_pcb_quality(centerline_groups={"y": ["J1","J3"]})`; board edge datum X_SHIFT keeps J1 opening at outline. J2 removed at the schematic source (see deviations). |
 | 5. Datasheet-driven critical placement | PASS | `POSITIONS` implements the C1-left / C2-right / L1-above target; manual VBUS tree (J1→C1→VIN, EN branch, VOUT→C2) applied before autorouting. |
 | 6. Stackup | PASS | Default `--layers 2`; four layers only via explicit flag after a recorded two-layer failure (none occurred). |
-| 7. Routing | PASS | Zero ratlines asserted; 50 traces, 45 vias total, ≤2 vias per connection, no via-in-pad, escapes beyond pad copper. Long hauls (USB pair, +3V3 to U2 VDD, TXD to J3) cross on Bottom where Top is walled. |
+| 7. Routing | PASS | Zero ratlines asserted; 50 traces, 42 vias total (duplicate same-net vias merged onto shared transitions), ≤2 vias per connection, no via-in-pad, escapes beyond pad copper. Long hauls (USB pair, +3V3 to U2 VDD, TXD to J3) cross on Bottom where Top is walled. |
 | 8. Ground pours and stitching | PASS | GND pours Top+Bottom (`add_copper_pours`, 0.13 clearance, four-spoke connector thermals) plus 21 distributed stitch vias; QC stitching coverage gate green. |
 | 9. Silkscreen | PASS | `plan_silkscreen` unresolved set empty (asserted); planner now treats vias as fixed obstacles so labels never overlap stitch vias. |
 | 10. Headless QC | PASS | `review_pcb_quality` hard_error_count == 0 gate inside `build()`; pre-QC artifact dumped to `.attiny85-2layer-*-preqc.dipxml` on failure for diagnosis. |
