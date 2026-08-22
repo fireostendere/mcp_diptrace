@@ -15,3 +15,15 @@ https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/
 - There is no hardware UART peripheral in this device. PB3/PB4 are a firmware
   software-UART allocation in this design.
 
+## PCB layout and grounding
+
+Source: section 17.9 "Noise Canceling Techniques", PDF page 130:
+
+- Keep analog signal paths as short as possible and run them over the ground
+  plane; keep them away from high-speed switching digital tracks.
+- Place bypass capacitors as close to VCC and GND pins as possible; a good
+  design with properly placed external bypass capacitors reduces the need for
+  ADC Noise Reduction mode.
+- PCB-stage rule: route the ATTINY85 decoupling cap directly across pins 8
+  (VCC) and 4 (GND) with the capacitor nearest the pins, over continuous GND.
+
