@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
-"""Headless PCB build for the ATtiny85 Arduino-clone schematic.
-
-Pipeline mirrors scripts/build_i2c_level_shifter_pcb.py: scaffold, schematic
-sync with explicit placements, rotation, routing on up to four selected copper
-layers, and silkscreen.
-"""
+"""Headless, datasheet-gated PCB build for the ATtiny85 Arduino clone."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from diptrace_mcp.adapters import build_snapshot
+from diptrace_mcp.copper_pours import add_copper_pours
 from diptrace_mcp.domain import QuerySelector
 from diptrace_mcp.operations import (
+    AddTraceOperation,
     RotateComponentsOperation,
     SetTextVisibilityOperation,
+    TracePathPoint,
 )
 from diptrace_mcp.pcb_autorouter import PCBRouterConfig, plan_pcb_routes
 from diptrace_mcp.pcb_design_intent import (
@@ -27,6 +26,7 @@ from diptrace_mcp.pcb_design_intent import (
     PCBNetOverride,
 )
 from diptrace_mcp.pcb_placement import PCBPlacementV2Config
+from diptrace_mcp.pcb_quality import PCBQualityConfig, review_pcb_quality
 from diptrace_mcp.scaffolding import PcbScaffold, build_pcb_document, default_layers
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.silkscreen import (
@@ -69,9 +69,6 @@ PATTERNS = {
     "J3": "PatType18",
 }
 
-DEBUG_OUT = ROOT / ".local" / "attiny85-debug.dipxml"
-FAILED_OUT = ROOT / ".local" / "attiny85-routing-failed.dipxml"
-
 # The micro-USB shell tabs share one net in DipTrace ("6@" pads); sync needs
 # unique pad numbers, so the seven shield pads are renumbered 7..13 and tied
 # to GND explicitly afterwards (USB shell is a GND connection for ESD/EMC).
@@ -82,14 +79,14 @@ J1_SHIELD_PADS = [str(n) for n in range(7, 14)]
 POSITIONS = {
     # USB power stage (TPS63802 buck-boost): caps and inductor tight to U3,
     # FB divider under it, hot loop kept local.
-    "J1": (4.0, 11.0),
-    "C1": (8.6, 13.5),
-    "U3": (11.8, 13.5),
-    "L1": (15.6, 13.5),
-    "C2": (18.8, 13.5),
-    "R1": (9.5, 16.65),
-    "R2": (11.55, 16.65),
-    "R3": (13.625, 17.0),
+    "J1": (4.0, 12.5),
+    "C1": (10.2, 14.43),
+    "U3": (12.6, 12.85),
+    "L1": (12.6, 16.35),
+    "C2": (15.3, 14.545),
+    "R1": (14.115, 10.2),
+    "R2": (12.085, 10.2),
+    "R3": (16.145, 10.2),
     # USB-UART bridge (CP2102) with local decoupling and VBUS divider.
     "U2": (25.5, 13.5),
     "C3": (21.6, 16.8),
@@ -102,24 +99,25 @@ POSITIONS = {
     "C6": (27.25, 17.65),
     "R6": (29.5, 17.65),
     # J3 carries IO and the complete ISP pin set; the duplicate J2 is omitted.
-    "J3": (41.0, 11.5),
+    "J3": (41.0, 12.5),
 }
 
 ROTATIONS = {
     "J1": 270,  # USB opening over the left edge, tails into the board
+    "U3": 90,
     "C1": 90,
     "C2": 90,
     "C3": 90,
     "C4": 90,
     "C5": 90,
     "C6": 0,
-    "R1": 0,
-    "R2": 0,
-    "R3": 90,
+    "R1": 180,
+    "R2": 180,
+    "R3": 180,
     "R4": 90,
     "R5": 90,
     "R6": 0,
-    "L1": 90,
+    "L1": 180,
     "U2": 180,  # UART faces U1; VBUS faces its divider R4/R5.
     "U1": 270,  # UART faces U2 on the left; ISP faces J3 on the right.
     "J3": 90,  # 2x4 becomes two vertical columns at the right edge
@@ -149,8 +147,8 @@ ROUTED_NETS = [
     "VBUS",
 ]
 
-# The switching loop stays strictly on Top; FB and PG may cross on Bottom.
-TOP_ONLY_NETS = {"TPS_L1", "TPS_L2"}
+# The complete regulator control loop stays on Top.
+TOP_ONLY_NETS = {"TPS_L1", "TPS_L2", "TPS_FB", "TPS_PG", "VBUS"}
 
 
 def _physical_schematic(document: DipTraceDocument) -> DipTraceDocument:
@@ -210,6 +208,70 @@ def _tie_j1_shield_to_gnd(document: DipTraceDocument) -> DipTraceDocument:
     )
 
 
+def _validate_tps_footprint(document: DipTraceDocument) -> None:
+    root = ET.fromstring(document.raw_bytes)
+    expected = {
+        "PadT9": (0.25, 0.599999),
+        "PadT10": (0.25, 0.899998),
+        "PadT11": (0.25, 1.299997),
+    }
+    for style_name, (width, height) in expected.items():
+        style = root.find(f"./Library/Library/PadStyles/PadStyle[@Name='{style_name}']")
+        assert style is not None, f"TPS63802 pad style {style_name} is missing"
+        stack = style.find("./MainStack")
+        mask = style.find("./MaskPaste")
+        assert stack is not None and mask is not None
+        assert abs(float(stack.get("Width", "nan")) - width) < 1e-6
+        assert abs(float(stack.get("Height", "nan")) - height) < 1e-6
+        assert mask.get("TopMask") == "Open"
+        assert abs(float(mask.get("CustomSwell", "nan")) - 0.07) < 1e-6
+    pad8 = root.find("./Library/Library/PadStyles/PadStyle[@Name='PadT11']/MaskPaste")
+    assert pad8 is not None and pad8.get("TopPaste") == "Segments"
+    assert pad8.get("Segment_Percent") == "83"
+    assert len(pad8.findall("./TopSegments/Item")) == 2
+
+
+def _pad(document: DipTraceDocument, refdes: str, number: str):
+    snapshot = build_snapshot(document)
+    assert snapshot.board is not None
+    component = next(item for item in snapshot.board.components if item.refdes == refdes)
+    return next(
+        item
+        for item in snapshot.board.pads
+        if item.parent_id == component.stable_id and item.label == number
+    )
+
+
+def _top_trace(
+    document: DipTraceDocument,
+    net: str,
+    start: tuple[str, str],
+    end: tuple[str, str],
+    intermediate: list[tuple[float, float, float]],
+    *,
+    width: float = 0.25,
+) -> AddTraceOperation:
+    first = _pad(document, *start)
+    last = _pad(document, *end)
+    assert first.position is not None and last.position is not None
+    return AddTraceOperation(
+        net=net,
+        start_object_id=first.stable_id,
+        end_object_id=last.stable_id,
+        points=[
+            TracePathPoint(**first.position),
+            *(
+                TracePathPoint(x=x, y=y, layer="Top", width=point_width)
+                for x, y, point_width in intermediate
+            ),
+            TracePathPoint(**last.position, layer="Top", width=width),
+        ],
+        layer="Top",
+        width=width,
+        clearance=0.13,
+    )
+
+
 def _intent() -> PCBIntentOverrides:
     components = [
         PCBComponentOverride(selector="J1", role="connector", mechanical_anchor=True),
@@ -256,7 +318,9 @@ def _intent() -> PCBIntentOverrides:
     return PCBIntentOverrides(components=components, nets=nets)
 
 
-def build(layer_count: int = 4) -> dict[str, object]:
+def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
+    if layer_count not in {2, 4}:
+        raise ValueError("layer_count must be 2 or 4")
     layers = default_layers(layer_count)
     routing_layers = [layer.name for layer in layers]
     bottom_first_layers = [routing_layers[-1], routing_layers[0]]
@@ -267,6 +331,7 @@ def build(layer_count: int = 4) -> dict[str, object]:
         [routing_layers[2], routing_layers[0]] if layer_count == 4 else routing_layers
     )
     schematic = DipTraceDocument.load(SCHEMATIC, 16 * 1024 * 1024)
+    _validate_tps_footprint(schematic)
     physical = _physical_schematic(schematic)
     board = DipTraceDocument.from_bytes(
         BOARD,
@@ -312,8 +377,10 @@ def build(layer_count: int = 4) -> dict[str, object]:
     ).document
     placed = hide_assembly_markings(placed)
     placed = _tie_j1_shield_to_gnd(placed)
-    DEBUG_OUT.parent.mkdir(exist_ok=True)
-    DEBUG_OUT.write_bytes(placed.raw_bytes)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    debug_out = output.with_name(f".{output.stem}-placed{output.suffix}")
+    failed_out = output.with_name(f".{output.stem}-routing-failed{output.suffix}")
+    debug_out.write_bytes(placed.raw_bytes)
 
     def router_config(nets: list[str], layers: list[str] = routing_layers) -> PCBRouterConfig:
         return PCBRouterConfig(
@@ -322,12 +389,15 @@ def build(layer_count: int = 4) -> dict[str, object]:
             clearance_mm=0.13,
             grid_mm=0.125,
             max_vias_per_connection=2,
-            via_cost=0.2,
+            via_cost=2.0,
             max_detour=12,
-            max_nodes=500_000,
+            # Config caps are 1M nodes / 30 s; long cross-board USB traces
+            # genuinely need most of that budget before finding a corridor.
+            max_nodes=1_000_000,
             route_time_budget_ms=30_000,
             avoid_component_bodies=False,
-            max_ripup_attempts=6,
+            allow_via_in_pad=False,
+            max_ripup_attempts=3,
             allow_component_moves=False,
             component_move_penalty_mm=2,
             placement=PCBPlacementV2Config(grid_mm=0.5, search_radius_steps=6),
@@ -353,13 +423,12 @@ def build(layer_count: int = 4) -> dict[str, object]:
     ]
     groups = [
         *(([net], ["Top"]) for net in ("TPS_L1", "TPS_L2")),
-        (["TPS_FB"], bottom_first_layers),
-        (["TPS_PG"], bottom_first_layers),
+        (["TPS_FB"], ["Top"]),
+        (["TPS_PG"], ["Top"]),
         (["CP2102_VBUS"], ["Top"]),
-        (["GND"], bottom_first_layers),
         (["VBUS"], ["Top"]),
-        (["USB_D-"], ["Top"]),
-        (["USB_D+"], ["Top"]),
+        (["USB_D-"], routing_layers),
+        (["USB_D+"], routing_layers),
         (["+3V3"], power_first_layers),
         *(
             (
@@ -371,58 +440,90 @@ def build(layer_count: int = 4) -> dict[str, object]:
                 in {
                     "PB2_SCK",
                     "RESET",
-                    "CP2102_TXD",
                     "CP2102_DTR",
                     "CP2102_VBUS",
                     "PB0_MOSI",
                 }
-                else bottom_first_layers,
+                else routing_layers,
             )
             for net in signal_nets
         ),
+        (["GND"], bottom_first_layers),
     ]
 
-    gnd_plan = plan_pcb_routes(
-        placed,
-        overrides=_intent(),
-        config=router_config(["GND"], bottom_first_layers),
-    )
-    placed_snapshot = build_snapshot(placed)
-    components = {
-        component.stable_id: component.refdes for component in placed_snapshot.board.components
-    }
-    gnd_escape = [
-        item.operation
-        for item in gnd_plan.routing.routed
-        if {
-            components.get(placed_snapshot.get_object(item.operation.start_object_id).parent_id),
-            components.get(placed_snapshot.get_object(item.operation.end_object_id).parent_id),
-        }
-        == {"U3", "R2"}
-    ]
-    assert len(gnd_escape) == 1
-    routed = apply_semantic_operations(placed, gnd_escape).document
-    local_3v3_plan = plan_pcb_routes(
+    routed = placed
+    j1 = _pad(routed, "J1", "1")
+    c1 = _pad(routed, "C1", "1")
+    assert j1.position is not None and c1.position is not None
+    routed = apply_semantic_operations(
         routed,
-        overrides=_intent(),
-        config=router_config(["+3V3"], bottom_first_layers),
-    )
-    routed_snapshot = build_snapshot(routed)
-    components = {
-        component.stable_id: component.refdes for component in routed_snapshot.board.components
-    }
-    local_3v3 = []
-    for item in local_3v3_plan.routing.routed:
-        refs = {
-            components.get(routed_snapshot.get_object(item.operation.start_object_id).parent_id),
-            components.get(routed_snapshot.get_object(item.operation.end_object_id).parent_id),
-        }
-        if refs <= {"U3", "R1", "R3"} or refs == {"C2", "C3"}:
-            local_3v3.append(item.operation)
-    assert len(local_3v3) == 3
-    routed = apply_semantic_operations(routed, local_3v3).document
+        [
+            _top_trace(
+                routed,
+                "VBUS",
+                ("J1", "1"),
+                ("C1", "1"),
+                [(j1.position["x"], c1.position["y"], 0.25)],
+            )
+        ],
+    ).document
+    c1 = _pad(routed, "C1", "1")
+    vin = _pad(routed, "U3", "10")
+    assert c1.position is not None and vin.position is not None
+    routed = apply_semantic_operations(
+        routed,
+        [
+            _top_trace(
+                routed,
+                "VBUS",
+                ("C1", "1"),
+                ("U3", "10"),
+                [(vin.position["x"] - 0.35, vin.position["y"], 0.5)],
+            )
+        ],
+    ).document
+    c1 = _pad(routed, "C1", "1")
+    enable = _pad(routed, "U3", "1")
+    assert c1.position is not None and enable.position is not None
+    branch_x = c1.position["x"] + 0.4
+    routed = apply_semantic_operations(
+        routed,
+        [
+            _top_trace(
+                routed,
+                "VBUS",
+                ("C1", "1"),
+                ("U3", "1"),
+                [
+                    (branch_x, c1.position["y"], 0.25),
+                    (branch_x, enable.position["y"], 0.25),
+                    (enable.position["x"] - 0.25, enable.position["y"], 0.25),
+                ],
+            )
+        ],
+    ).document
+    vout = _pad(routed, "U3", "6")
+    c2 = _pad(routed, "C2", "1")
+    assert vout.position is not None and c2.position is not None
+    routed = apply_semantic_operations(
+        routed,
+        [
+            _top_trace(
+                routed,
+                "+3V3",
+                ("U3", "6"),
+                ("C2", "1"),
+                [
+                    (vout.position["x"] + 0.35, vout.position["y"], 0.25),
+                    (c2.position["x"] - 0.35, c2.position["y"], 0.5),
+                ],
+                width=0.5,
+            )
+        ],
+    ).document
     metrics: dict[str, object] = {}
     for requested, layers in groups:
+        print(f"routing {','.join(requested)} on {','.join(layers)}", file=sys.stderr, flush=True)
         remaining = requested
         for _attempt in range(3):
             attempt_layers = ["Top"] if _attempt == 2 and layers != ["Top"] else layers
@@ -446,38 +547,20 @@ def build(layer_count: int = 4) -> dict[str, object]:
                 break
             remaining = next_remaining
         if remaining:
-            FAILED_OUT.write_bytes(routed.raw_bytes)
+            failed_out.write_bytes(routed.raw_bytes)
             raise RuntimeError(f"autorouter failures after passes: {sorted(remaining)}")
-        if requested == ["GND"]:
-            for uart_net, uart_layers in (
-                ("CP2102_RXD", bottom_first_layers),
-                ("CP2102_TXD", ["Top"]),
-            ):
-                uart_plan = plan_pcb_routes(
-                    routed,
-                    overrides=_intent(),
-                    config=router_config([uart_net], uart_layers),
-                )
-                routed_snapshot = build_snapshot(routed)
-                components = {
-                    component.stable_id: component.refdes
-                    for component in routed_snapshot.board.components
-                }
-                uart_link = [
-                    item.operation
-                    for item in uart_plan.routing.routed
-                    if {
-                        components.get(
-                            routed_snapshot.get_object(item.operation.start_object_id).parent_id
-                        ),
-                        components.get(
-                            routed_snapshot.get_object(item.operation.end_object_id).parent_id
-                        ),
-                    }
-                    == {"U1", "U2"}
-                ]
-                assert len(uart_link) == 1
-                routed = apply_semantic_operations(routed, uart_link).document
+
+    pour_result = add_copper_pours(
+        routed,
+        net="GND",
+        layers=("Top", "Bottom"),
+        clearance_mm=0.13,
+        board_clearance_mm=0.2,
+        spoke_width_mm=0.3,
+        stitch_pitch_mm=2.0,
+        stitch_edge_mm=0.8,
+    )
+    routed = pour_result.document
 
     snapshot = build_snapshot(routed)
     extra_silk = [
@@ -501,20 +584,41 @@ def build(layer_count: int = 4) -> dict[str, object]:
     if silk_plan.operations:
         routed = apply_semantic_operations(routed, silk_plan.operations).document
 
-    BOARD.write_bytes(routed.raw_bytes)
-
     snapshot = build_snapshot(routed)
     assert snapshot.board is not None
     assert len(snapshot.board.components) == len(PATTERNS)
-    assert not snapshot.board.copper_pours
+    assert len(snapshot.board.copper_pours) == 2
     assert not snapshot.board.ratlines
     assert all(component.refdes != "J2" for component in snapshot.board.components)
+    quality = review_pcb_quality(
+        snapshot,
+        config=PCBQualityConfig(
+            via_pad_clearance_mm=0.13,
+            centerline_groups={"y": ["J1", "J3"]},
+            centerline_tolerance_mm=0.1,
+        ),
+    )
+    if quality.hard_error_count:
+        output.with_name(f".{output.stem}-preqc{output.suffix}").write_bytes(routed.raw_bytes)
+        raise RuntimeError(
+            "PCB quality gate failed: "
+            + json.dumps(
+                [
+                    item.model_dump()
+                    for item in quality.findings
+                    if item.severity == "error"
+                ],
+                indent=1,
+            )
+        )
+    output.write_bytes(routed.raw_bytes)
     return {
         "components": len(snapshot.board.components),
         "nets": len(snapshot.board.nets),
         "traces": len(snapshot.board.traces),
         "vias": len(snapshot.board.vias),
-        "copper_pours": len(snapshot.board.copper_pours),
+        "copper_pours": pour_result.pour_count,
+        "stitch_vias": pour_result.stitch_via_count,
         "layers": routing_layers,
         "failed_routes": len(remaining),
         "route_length_mm": metrics.get("total_length_mm"),
@@ -523,9 +627,10 @@ def build(layer_count: int = 4) -> dict[str, object]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--layers", type=int, choices=(2, 4), default=4)
+    parser.add_argument("--layers", type=int, choices=(2, 4), default=2)
+    parser.add_argument("--output", type=Path, default=BOARD)
     args = parser.parse_args()
-    print(json.dumps(build(args.layers), indent=2, sort_keys=True))
+    print(json.dumps(build(args.layers, output=args.output), indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":
