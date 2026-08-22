@@ -13,7 +13,6 @@ PARTS = {
     "U2": ("Silicon Labs", "CP2102-GM", "C430012"),
     "U3": ("Texas Instruments", "TPS63802DLAR", "C2845237"),
     "J1": ("Amphenol FCI", "10118194-0001LF", "C132563"),
-    "J2": ("Generic", "HDR-2x3", ""),
     "J3": ("Generic", "HDR-2x4", ""),
     "L1": ("Coilcraft", "XFL4015-471MEC", "C18221164"),
     "R1": ("Yageo", "RC0402FR-07511KL", "C163461"),

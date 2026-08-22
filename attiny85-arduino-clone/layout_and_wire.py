@@ -7,7 +7,6 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
-from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.domain import QuerySelector
 from diptrace_mcp.geometry import BBox, Point
 from diptrace_mcp.operations import (
@@ -18,7 +17,6 @@ from diptrace_mcp.operations import (
     RotateComponentsOperation,
     SetComponentPropertiesOperation,
 )
-from diptrace_mcp.schematic_layout import schematic_sheet_usable_bounds
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.services.builtin_library import _component_definitions
 from diptrace_mcp.services.schematic_wire_quality import _text_obstacles
@@ -49,8 +47,7 @@ PLACEMENT = {
     "R4": (41.0, 150.0),
     "R5": (57.0, 150.0),
     "C6": (160.08, 176.59),
-    # MCU_ISP: programming connector -> MCU -> local decoupling.
-    "J2": (55.0, 160.0),
+    # MCU_ISP: MCU -> local decoupling; the duplicate ISP header J2 is omitted.
     "R6": (121.82, 149.84),
     "U1": (165.0, 160.0),
     "C5": (207.54, 157.46),
@@ -962,10 +959,30 @@ def content_bounds(document: DipTraceDocument, sheet: int) -> BBox:
     )
 
 
+def _sheet_usable_bounds(document: DipTraceDocument) -> dict[int, BBox]:
+    """Page bounds centered at DipTrace's schematic origin (viewport X/Y ignored)."""
+
+    bounds: dict[int, BBox] = {}
+
+    def dim(sheet: ET.Element, tag: str) -> float:
+        return float(sheet.findtext(tag, "0"))
+
+    sheets = next(document.root.iter("Sheets"))
+    for index, sheet in enumerate(sheets.findall("./Sheet")):
+        width, height = dim(sheet, "SheetWidth"), dim(sheet, "SheetHeight")
+        bounds[index] = BBox(
+            -width / 2.0 + dim(sheet, "LeftMargin"),
+            -height / 2.0 + dim(sheet, "BottomMargin"),
+            width / 2.0 - dim(sheet, "RightMargin"),
+            height / 2.0 - dim(sheet, "TopMargin"),
+        )
+    return bounds
+
+
 def center_sheet_content(
     document: DipTraceDocument,
 ) -> tuple[DipTraceDocument, dict[int, tuple[float, float]]]:
-    bounds = schematic_sheet_usable_bounds(build_snapshot(document))
+    bounds = _sheet_usable_bounds(document)
     shifts = {
         int(sheet): (
             page.center.x - content_bounds(document, int(sheet)).center.x,
@@ -1038,7 +1055,6 @@ def main() -> None:
         (1, (("U2", 2), ("U2", 28)), (98.0, 133.41)),
         (2, (("U1", 3),), (205.0, 157.46)),
         (2, (("C5", 1),), (207.54, 147.3)),
-        (2, (("J2", 5),), (70.0, 153.65)),
         (3, (("J3", 7),), (105.0, 143.49)),
     ]
     with_ground, ground_mapping = add_ground_symbols(placed, ground_groups)
@@ -1190,7 +1206,8 @@ def main() -> None:
         labels.append((net, 1, point))
 
     # MCU_ISP. Signal names genuinely continue to the other sheets, so short
-    # ports are clearer here than crossing the incompatible J2/U1 pin orders.
+    # ports are clearer here than crossing the incompatible U1 pin orders.
+    # The duplicate ISP header J2 is omitted; J3 carries the full pin set.
     for key, length in ((("U1", 7), 7.62), (("C5", 0), 2.54)):
         item, point = port(index, "+3V3", 2, key, length)
         specs.append(item)
@@ -1209,27 +1226,12 @@ def main() -> None:
     item, point = port(index, "+3V3", 2, ("R6", 1), 5.08)
     specs.append(item)
     labels.append(("+3V3", 2, point))
-    specs.append(
-        wire(
-            index,
-            "+3V3",
-            2,
-            ("J2", 1),
-            None,
-            free_end=(76.0, 163.81),
-        )
-    )
-    labels.append(("+3V3", 2, (76.0, 163.81)))
     for net, key in (
         ("CP2102_TXD", ("U1", 1)),
         ("CP2102_RXD", ("U1", 2)),
         ("PB0_MOSI", ("U1", 4)),
         ("PB1_MISO", ("U1", 5)),
         ("PB2_SCK", ("U1", 6)),
-        ("PB1_MISO", ("J2", 0)),
-        ("PB2_SCK", ("J2", 2)),
-        ("PB0_MOSI", ("J2", 3)),
-        ("RESET", ("J2", 4)),
     ):
         item, point = port(index, net, 2, key, 7.62)
         specs.append(item)
@@ -1269,7 +1271,6 @@ def main() -> None:
         ("U2", 28): (),
         ("U1", 3): (),
         ("C5", 1): (),
-        ("J2", 5): (),
         ("J3", 7): ((105.0, 151.11),),
     }
     for symbol_refdes, key, terminal in ground_mapping:

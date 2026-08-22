@@ -8,7 +8,6 @@ both were absent. No component in this schematic was drawn from memory.
 | U1 | ATTINY85-20SU | DipTrace `builtin-component:1905240492:1486` | `SOIC8P127_524X798X216L68X41N` |
 | U2 | CP2102-GM | DipTrace `builtin-component:1681702205:8` | `PQFN29P50_500X500X100L45X24T315N` |
 | J1 | 10118194-0001LF | DipTrace `builtin-component:457793591:83` | `AMPHENOL_10118194-0001LF` |
-| J2 | HDR-2x3 | DipTrace `builtin-component:1525896499:92` | `HDR-2x3` |
 | J3 | HDR-2x4 | DipTrace `builtin-component:1525896499:93` | `HDR-2x4` |
 | U3 | TPS63802DLAR | LCSC C2845237; no exact DipTrace match | `VSON-10_L3.0-W2.0-P0.50-TL` |
 | L1 | XFL4015-471MEC | LCSC C18221164; no exact DipTrace match | LCSC catalog footprint |
