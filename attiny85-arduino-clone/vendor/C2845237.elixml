@@ -3,22 +3,30 @@
   <Library Type="DipTrace-PatternLibrary" Units="mm">
     <PadStyles>
       <PadStyle Name="C2845237_PAD_0" Type="Surface">
-        <MainStack Shape="Rectangle" Width="0.299999" Height="0.599999" Corner="0" />
+        <MainStack Shape="Rectangle" Width="0.25" Height="0.599999" Corner="0" />
         <Terminals>
-          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.299999" Height="0.599999" Corner="0" />
+          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.25" Height="0.599999" Corner="0" />
         </Terminals>
+        <MaskPaste TopMask="Open" BotMask="Common" TopPaste="Common" BotPaste="Common" CustomSwell="0.07" />
       </PadStyle>
       <PadStyle Name="C2845237_PAD_1" Type="Surface">
-        <MainStack Shape="Rectangle" Width="0.299999" Height="0.899998" Corner="0" />
+        <MainStack Shape="Rectangle" Width="0.25" Height="0.899998" Corner="0" />
         <Terminals>
-          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.299999" Height="0.899998" Corner="0" />
+          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.25" Height="0.899998" Corner="0" />
         </Terminals>
+        <MaskPaste TopMask="Open" BotMask="Common" TopPaste="Common" BotPaste="Common" CustomSwell="0.07" />
       </PadStyle>
       <PadStyle Name="C2845237_PAD_2" Type="Surface">
-        <MainStack Shape="Rectangle" Width="0.299999" Height="1.299997" Corner="0" />
+        <MainStack Shape="Rectangle" Width="0.25" Height="1.299997" Corner="0" />
         <Terminals>
-          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.299999" Height="1.299997" Corner="0" />
+          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.25" Height="1.299997" Corner="0" />
         </Terminals>
+        <MaskPaste TopMask="Open" BotMask="Common" TopPaste="Segments" BotPaste="Common" CustomSwell="0.07" Segment_Percent="83" Segment_EdgeGap="0" Segment_Gap="0.2" Segment_Side="0">
+          <TopSegments>
+            <Item X1="-0.125" Y1="0.65" X2="0.125" Y2="0.1" />
+            <Item X1="-0.125" Y1="-0.1" X2="0.125" Y2="-0.65" />
+          </TopSegments>
+        </MaskPaste>
       </PadStyle>
     </PadStyles>
     <Patterns>

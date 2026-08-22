@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "vendor" / "C2845237.json"
 TARGET = ROOT / "vendor" / "C2845237.elixml"
 SCALE_MM = 0.254
+TI_LAND_WIDTH_MM = 0.25
+TI_MASK_SWELL_MM = 0.07
 
 
 def add(parent: ET.Element, tag: str, text: str | None = None, **attrs: object) -> ET.Element:
@@ -89,12 +91,13 @@ def main() -> None:
         if tokens[0] != "PAD":
             continue
         assert tokens[1] == "RECT" and tokens[6] == "1"
+        assert math.isclose(float(tokens[4]) * SCALE_MM, 0.3, abs_tol=1e-5)
         pad_records.append(
             (
                 int(tokens[8]),
                 float(tokens[2]),
                 float(tokens[3]),
-                float(tokens[4]),
+                TI_LAND_WIDTH_MM / SCALE_MM,
                 float(tokens[5]),
                 float(tokens[11]),
             )
@@ -130,6 +133,30 @@ def main() -> None:
             Height=mm(height),
             Corner="0",
         )
+        pad_length_mm = height * SCALE_MM
+        mask_paste = add(
+            pad_style,
+            "MaskPaste",
+            TopMask="Open",
+            BotMask="Common",
+            TopPaste="Segments" if math.isclose(pad_length_mm, 1.3, abs_tol=1e-5) else "Common",
+            BotPaste="Common",
+            CustomSwell=f"{TI_MASK_SWELL_MM:g}",
+            **(
+                {
+                    "Segment_Percent": "83",
+                    "Segment_EdgeGap": "0",
+                    "Segment_Gap": "0.2",
+                    "Segment_Side": "0",
+                }
+                if math.isclose(pad_length_mm, 1.3, abs_tol=1e-5)
+                else {}
+            ),
+        )
+        if math.isclose(pad_length_mm, 1.3, abs_tol=1e-5):
+            segments = add(mask_paste, "TopSegments")
+            add(segments, "Item", X1="-0.125", Y1="0.65", X2="0.125", Y2="0.1")
+            add(segments, "Item", X1="-0.125", Y1="-0.1", X2="0.125", Y2="-0.65")
 
     bbox = package["dataStr"]["BBox"]
     pattern = add(

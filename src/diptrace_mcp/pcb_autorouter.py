@@ -40,6 +40,7 @@ class PCBRouterConfig(StrictModel):
     max_nodes: int = Field(default=100_000, ge=100, le=1_000_000)
     route_time_budget_ms: int = Field(default=5_000, ge=100, le=30_000)
     avoid_component_bodies: bool = True
+    allow_via_in_pad: bool = False
     ripup_retry: bool = True
     max_ripup_attempts: int = Field(default=4, ge=0, le=8)
     allow_component_moves: bool = True
@@ -456,6 +457,7 @@ def _connections(
                 max_nodes=config.max_nodes,
                 time_budget_ms=config.route_time_budget_ms,
                 avoid_component_bodies=config.avoid_component_bodies,
+                allow_via_in_pad=config.allow_via_in_pad,
                 routing_priority=priority,
             )
         )

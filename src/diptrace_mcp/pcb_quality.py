@@ -13,6 +13,7 @@ from .geometry import BBox, Point, distance, point_in_polygon
 from .pcb_design_intent import PCBDesignIntent, build_pcb_design_intent
 from .pcb_physical import PCBPhysicalAnalysis, analyze_pcb_physics
 from .pcb_physics_knowledge import PCBPhysicsPrinciple, pcb_physics_principles
+from .routing_compiler import via_pad_violation_pairs
 
 
 class PCBQualityConfig(StrictModel):
@@ -21,6 +22,9 @@ class PCBQualityConfig(StrictModel):
     stitching_coverage_radius_mm: float = Field(default=2.85, gt=0.0, le=50.0)
     stitching_obstacle_clearance_mm: float = Field(default=0.3, ge=0.0, le=10.0)
     require_two_layer_ground_pours: bool = True
+    via_pad_clearance_mm: float = Field(default=0.1, ge=0.0, le=10.0)
+    centerline_groups: dict[Literal["x", "y"], list[str]] = Field(default_factory=dict)
+    centerline_tolerance_mm: float = Field(default=0.25, ge=0.0, le=10.0)
 
 
 class PCBQualityFinding(StrictModel):
@@ -57,6 +61,9 @@ class PCBQualityReview(StrictModel):
     stitching_sample_count: int = Field(ge=0)
     stitching_coverage_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
     maximum_stitching_gap_mm: float | None = Field(default=None, ge=0.0)
+    unrouted_connection_count: int = Field(ge=0)
+    via_pad_violation_count: int = Field(ge=0)
+    mechanical_centerline_max_offset_mm: float | None = Field(default=None, ge=0.0)
     silkscreen_violation_count: int = Field(ge=0)
     findings: list[PCBQualityFinding] = Field(default_factory=list)
     physics_principles: list[PCBPhysicsPrinciple] = Field(default_factory=list)
@@ -268,6 +275,49 @@ def _silkscreen_violations(snapshot: DocumentSnapshot) -> tuple[int, list[str]]:
     return len(violations), ids
 
 
+def _via_pad_violations(
+    snapshot: DocumentSnapshot,
+    clearance: float,
+) -> tuple[int, list[str]]:
+    violations = via_pad_violation_pairs(snapshot, clearance)
+    ids = sorted({item for pair in violations for item in pair})
+    return len(violations), ids
+
+
+def _centerline_offsets(
+    snapshot: DocumentSnapshot,
+    outline: BBox | None,
+    groups: dict[Literal["x", "y"], list[str]],
+) -> tuple[float | None, list[str], list[str]]:
+    if outline is None or not groups:
+        return None, [], []
+    assert snapshot.board is not None
+    components = {item.refdes: item for item in snapshot.board.components if item.refdes}
+    offsets: list[float] = []
+    object_ids: list[str] = []
+    missing: list[str] = []
+    for axis, refdeses in groups.items():
+        target = outline.center.x if axis == "x" else outline.center.y
+        for refdes in refdeses:
+            component = components.get(refdes)
+            if component is None:
+                missing.append(refdes)
+                continue
+            center = (
+                BBox(**component.bbox).center
+                if component.bbox is not None
+                else Point(**component.position)
+                if component.position is not None
+                else None
+            )
+            if center is None:
+                missing.append(refdes)
+                continue
+            offsets.append(abs((center.x if axis == "x" else center.y) - target))
+            object_ids.append(component.stable_id)
+    return max(offsets, default=None), sorted(set(object_ids)), sorted(set(missing))
+
+
 def review_pcb_quality(
     snapshot: DocumentSnapshot,
     *,
@@ -313,6 +363,13 @@ def review_pcb_quality(
     ground_layers = {_layer_name(snapshot, item.layer).casefold() for item in ground_pours}
     via_count, sample_count, coverage, maximum_gap = _stitching_coverage(snapshot, physical, config)
     silk_count, silk_ids = _silkscreen_violations(snapshot)
+    via_pad_count, via_pad_ids = _via_pad_violations(snapshot, config.via_pad_clearance_mm)
+    centerline_offset, centerline_ids, missing_centerline = _centerline_offsets(
+        snapshot,
+        outline_box,
+        config.centerline_groups,
+    )
+    unrouted_count = len(snapshot.board.ratlines)
     findings: list[PCBQualityFinding] = []
 
     if outline_box is None:
@@ -359,6 +416,60 @@ def review_pcb_quality(
                 severity="info",
                 message="A repeated two-part group is not aligned on either principal axis.",
                 evidence={"alignment_penalty_mm": alignment},
+            )
+        )
+
+    if missing_centerline or (
+        centerline_offset is not None and centerline_offset > config.centerline_tolerance_mm + 1e-9
+    ):
+        findings.append(
+            PCBQualityFinding(
+                code="mechanical_centerline_misaligned",
+                category="geometry",
+                severity="error",
+                message="Configured mechanical anchors are not centered on their board axis.",
+                object_ids=centerline_ids,
+                evidence={
+                    "maximum_offset_mm": centerline_offset,
+                    "tolerance_mm": config.centerline_tolerance_mm,
+                    "missing_component_count": len(missing_centerline),
+                },
+            )
+        )
+
+    if unrouted_count:
+        findings.append(
+            PCBQualityFinding(
+                code="unrouted_connections",
+                category="geometry",
+                severity="error",
+                message="The PCB still contains unrouted connections.",
+                object_ids=sorted(
+                    {
+                        str(endpoint["pad_id"])
+                        for item in snapshot.board.ratlines
+                        for endpoint in item.get("endpoints", [])
+                        if endpoint.get("pad_id")
+                    }
+                ),
+                evidence={"ratline_count": unrouted_count},
+            )
+        )
+
+    if via_pad_count:
+        findings.append(
+            PCBQualityFinding(
+                code="via_in_pad_or_too_close",
+                category="manufacturing",
+                severity="error",
+                message=(
+                    "Via copper overlaps or is too close to a pad; escape the via beyond the pad."
+                ),
+                object_ids=via_pad_ids,
+                evidence={
+                    "violation_count": via_pad_count,
+                    "required_edge_clearance_mm": config.via_pad_clearance_mm,
+                },
             )
         )
 
@@ -470,6 +581,9 @@ def review_pcb_quality(
             silk_count * 100.0,
             len(return_issues) * 25.0,
             len(broad_switch_pours) * 25.0,
+            unrouted_count * 100.0,
+            via_pad_count * 100.0,
+            (centerline_offset or 0.0) * 100.0,
         )
     )
     priorities = [
@@ -498,6 +612,9 @@ def review_pcb_quality(
         stitching_sample_count=sample_count,
         stitching_coverage_ratio=coverage,
         maximum_stitching_gap_mm=maximum_gap,
+        unrouted_connection_count=unrouted_count,
+        via_pad_violation_count=via_pad_count,
+        mechanical_centerline_max_offset_mm=centerline_offset,
         silkscreen_violation_count=silk_count,
         findings=findings,
         physics_principles=pcb_physics_principles(),
