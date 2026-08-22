@@ -14,6 +14,8 @@ from diptrace_mcp.copper_pours import add_copper_pours
 from diptrace_mcp.domain import QuerySelector
 from diptrace_mcp.operations import (
     AddTraceOperation,
+    DeleteViaOperation,
+    ReplaceTraceOperation,
     RotateComponentsOperation,
     SetTextVisibilityOperation,
     TracePathPoint,
@@ -240,6 +242,162 @@ def _pad(document: DipTraceDocument, refdes: str, number: str):
         for item in snapshot.board.pads
         if item.parent_id == component.stable_id and item.label == number
     )
+
+
+def _trace_between(snapshot, net_name: str, pad_a, pad_b):
+    """Find the routed trace whose endpoints sit exactly on the two pads."""
+    assert snapshot.board is not None
+
+    def at(point, pad) -> bool:
+        return abs(point["x"] - pad.position["x"]) < 1e-6 and abs(
+            point["y"] - pad.position["y"]
+        ) < 1e-6
+
+    for trace in snapshot.board.traces:
+        if trace.net_name != net_name:
+            continue
+        points = trace.attributes.get("points") or []
+        if len(points) < 2:
+            continue
+        if (at(points[0], pad_a) and at(points[-1], pad_b)) or (
+            at(points[0], pad_b) and at(points[-1], pad_a)
+        ):
+            return trace
+    raise AssertionError(f"no {net_name} trace between the given pads")
+
+
+def _dedupe_overlapping_vias(document: DipTraceDocument) -> DipTraceDocument:
+    """Route three secondary links through a sibling via of the same net.
+
+    The sequential router drops each connection's vias independently, so two
+    same-net transitions can land within one grid step and print as an ugly
+    double ring. Sharing an adjacent via removes the duplicate copper without
+    changing any electrical decision.
+    """
+    via_style = build_snapshot(document).board.via_styles[0].id
+
+    def point(x: float, y: float, layer: str | None = None, *, via: bool = False):
+        return TracePathPoint(
+            x=x,
+            y=y,
+            layer=layer,
+            width=0.25,
+            via_style=via_style if via else None,
+        )
+
+    replacements: list[tuple[str, str, str, list[TracePathPoint]]] = []
+    u27 = _pad(document, "U2", "7")
+    r62 = _pad(document, "R6", "2")
+    replacements.append(
+        (
+            "+3V3",
+            u27.stable_id,
+            r62.stable_id,
+            [
+                point(u27.position["x"], u27.position["y"]),
+                point(21.25, 9.965, "Top"),
+                point(21.25, 9.875, "Top", via=True),
+                point(26.125, 10.0, "Bottom"),
+                point(27.375, 11.25, "Bottom", via=True),
+                point(27.875, 11.75, "Top"),
+                point(r62.position["x"], r62.position["y"], "Top"),
+            ],
+        )
+    )
+    pad29 = _pad(document, "U2", "29")
+    u14 = _pad(document, "U1", "4")
+    replacements.append(
+        (
+            "GND",
+            pad29.stable_id,
+            u14.stable_id,
+            [
+                point(pad29.position["x"], pad29.position["y"]),
+                point(23.375, 8.875, "Top"),
+                point(23.875, 9.375, "Top"),
+                point(23.875, 10.5, "Top"),
+                point(24.0, 10.75, "Top", via=True),
+                point(25.25, 11.875, "Bottom"),
+                point(27.875, 11.875, "Bottom"),
+                point(28.625, 11.125, "Bottom"),
+                point(28.625, 6.875, "Bottom", via=True),
+                point(28.25, 6.5, "Top"),
+                point(27.295, 6.5, "Top"),
+                point(u14.position["x"], u14.position["y"], "Top"),
+            ],
+        )
+    )
+    j15 = _pad(document, "J1", "5")
+    c12 = _pad(document, "C1", "2")
+    replacements.append(
+        (
+            "GND",
+            j15.stable_id,
+            c12.stable_id,
+            [
+                point(j15.position["x"], j15.position["y"]),
+                point(4.125, 5.625, "Top"),
+                point(5.0, 5.625, "Top"),
+                point(6.75, 7.375, "Top", via=True),
+                point(8.0, 8.625, "Bottom"),
+                point(8.125, 10.375, "Bottom", via=True),
+                point(c12.position["x"], c12.position["y"], "Top"),
+            ],
+        )
+    )
+
+    snapshot = build_snapshot(document)
+    operations = []
+    for net_name, pad_a_id, pad_b_id, points in replacements:
+        pad_a = next(p for p in snapshot.board.pads if p.stable_id == pad_a_id)
+        pad_b = next(p for p in snapshot.board.pads if p.stable_id == pad_b_id)
+        trace = _trace_between(snapshot, net_name, pad_a, pad_b)
+        previous = trace.attributes.get("points") or []
+        # The compiler compares endpoints bit-for-bit against the stored
+        # trace, in stored order: reuse its exact coordinates and orientation.
+        forward = abs(points[0].x - previous[0]["x"]) < 1e-6 and abs(
+            points[0].y - previous[0]["y"]
+        ) < 1e-6
+        if not forward:
+            points = list(reversed(points))
+        points[0] = TracePathPoint(x=previous[0]["x"], y=previous[0]["y"])
+        points[-1] = TracePathPoint(
+            x=previous[-1]["x"],
+            y=previous[-1]["y"],
+            layer="Top",
+            width=0.25,
+        )
+        operations.append(
+            ReplaceTraceOperation(
+                trace_id=trace.stable_id,
+                points=points,
+                layer="Top",
+                width=0.25,
+            )
+        )
+    document = apply_semantic_operations(document, operations).document
+
+    # Replacing the trace path leaves the old standalone via objects in
+    # place; drop one of each now-coincident same-net pair.
+    snapshot = build_snapshot(document)
+    stale: list[str] = []
+    vias = list(snapshot.board.vias)
+    for i, left in enumerate(vias):
+        for right in vias[i + 1 :]:
+            if left.net_id != right.net_id:
+                continue
+            if (
+                abs(left.position["x"] - right.position["x"]) < 1e-6
+                and abs(left.position["y"] - right.position["y"]) < 1e-6
+            ):
+                if right.stable_id not in stale:
+                    stale.append(right.stable_id)
+    if stale:
+        document = apply_semantic_operations(
+            document,
+            [DeleteViaOperation(selector=QuerySelector(ids=stale))],
+        ).document
+    return document
 
 
 def _top_trace(
@@ -549,6 +707,8 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
         if remaining:
             failed_out.write_bytes(routed.raw_bytes)
             raise RuntimeError(f"autorouter failures after passes: {sorted(remaining)}")
+
+    routed = _dedupe_overlapping_vias(routed)
 
     pour_result = add_copper_pours(
         routed,
