@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Library Type="DipTrace-ComponentLibrary" Name="LCSC C4147" Hint="Converted from downloaded read-only LCSC/EasyEDA catalog data" Version="5.3.0.3" Units="mm">
+  <Library Type="DipTrace-PatternLibrary" Units="mm">
+    <PadStyles>
+      <PadStyle Name="C4147_PAD_0" Type="Surface">
+        <MainStack Shape="Rectangle" Width="0.565658" Height="0.540004" Corner="0" />
+        <Terminals>
+          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.565658" Height="0.540004" Corner="0" />
+        </Terminals>
+      </PadStyle>
+    </PadStyles>
+    <Patterns>
+      <Pattern PatternStyle="C4147_PATTERN" Id="0" Mounting="SMD" Width="1.8796" Height="0.9906" Orientation="0" LockTypeChange="Y" Type="LCSC">
+        <Name>R0402</Name>
+        <Name_Description>LCSC/EasyEDA footprint C4147</Name_Description>
+        <Name_Unique>R0402</Name_Unique>
+        <Manufacturer>UNI-ROYAL(厚声)</Manufacturer>
+        <Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+        <DefPad Style="C4147_PAD_0" />
+        <Pads>
+          <Pad Id="1" Style="C4147_PAD_0" X="-0.432816" Y="0" Angle="0.000000" Locked="N" Side="Top">
+            <Number>1</Number>
+          </Pad>
+          <Pad Id="2" Style="C4147_PAD_0" X="0.432816" Y="0" Angle="0.000000" Locked="N" Side="Top">
+            <Number>2</Number>
+          </Pad>
+        </Pads>
+        <Shapes>
+          <Shape Id="0" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.05" AllLayers="N">
+            <Points>
+              <Point X="-0.9398" Y="0.4953" />
+              <Point X="0.9398" Y="-0.4953" />
+            </Points>
+          </Shape>
+          <Shape Id="1" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.05" AllLayers="N">
+            <Points>
+              <Point X="-0.9398" Y="0.4953" />
+              <Point X="0.9398" Y="-0.4953" />
+            </Points>
+          </Shape>
+        </Shapes>
+      </Pattern>
+    </Patterns>
+  </Library>
+  <Components>
+    <Component Id="0" ComponentStyle="C4147">
+      <Part Id="0" RefDes="R" PartType="Normal" Type="2 Pins" Width="5.08" Height="2.032" LockTypeChange="Y">
+        <Pattern Style="C4147_PATTERN" />
+        <Name>0402WGF9102TCE</Name>
+        <PartName>Part 1</PartName>
+        <Origin X="0" Y="0" />
+        <Datasheet />
+        <Manufacturer>UNI-ROYAL(厚声)</Manufacturer>
+        <Pins>
+          <Pin Id="0" X="-2.54" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="0" PadId="1" Length="2.54" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>1</Name>
+            <PadNumber>1</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="1" X="2.54" Y="0" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="2" Length="2.54" ShowName="N" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>2</Name>
+            <PadNumber>2</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+        </Pins>
+        <Shapes>
+          <Shape Id="0" Type="Rectangle" LineWidth="0.25">
+            <Points>
+              <Point X="-2.54" Y="1.016" />
+              <Point X="2.54" Y="-1.016" />
+            </Points>
+          </Shape>
+        </Shapes>
+        <AddFields>
+          <AddField Type="Text">
+            <Name>MPN</Name>
+            <Text>0402WGF9102TCE</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>LCSC</Name>
+            <Text>C4147</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>EasyEDA UUID</Name>
+            <Text>9a75577a5c945a6cfd936933b6b9be26</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>EasyEDA Package UUID</Name>
+            <Text>fafd024f554e426eb74cf4a204aa88b0</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>Source</Name>
+            <Text>LCSC/EasyEDA downloaded catalog data</Text>
+          </AddField>
+        </AddFields>
+      </Part>
+    </Component>
+  </Components>
+</Library>

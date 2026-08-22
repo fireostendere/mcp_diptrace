@@ -1,0 +1,196 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Library Type="DipTrace-ComponentLibrary" Name="LCSC C2845237" Hint="Converted from the downloaded read-only LCSC/EasyEDA component" Version="5.3.0.3" Units="mm">
+  <Library Type="DipTrace-PatternLibrary" Units="mm">
+    <PadStyles>
+      <PadStyle Name="C2845237_PAD_0" Type="Surface">
+        <MainStack Shape="Rectangle" Width="0.299999" Height="0.599999" Corner="0" />
+        <Terminals>
+          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.299999" Height="0.599999" Corner="0" />
+        </Terminals>
+      </PadStyle>
+      <PadStyle Name="C2845237_PAD_1" Type="Surface">
+        <MainStack Shape="Rectangle" Width="0.299999" Height="0.899998" Corner="0" />
+        <Terminals>
+          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.299999" Height="0.899998" Corner="0" />
+        </Terminals>
+      </PadStyle>
+      <PadStyle Name="C2845237_PAD_2" Type="Surface">
+        <MainStack Shape="Rectangle" Width="0.299999" Height="1.299997" Corner="0" />
+        <Terminals>
+          <Terminal Shape="Rectangle" X="0" Y="0" Angle="0" Width="0.299999" Height="1.299997" Corner="0" />
+        </Terminals>
+      </PadStyle>
+    </PadStyles>
+    <Patterns>
+      <Pattern PatternStyle="C2845237_PATTERN" Id="0" Mounting="SMD" Width="2.6924" Height="3.1496" Orientation="0" LockTypeChange="Y" Type="LCSC">
+        <Name>VSON-10_L3.0-W2.0-P0.50-TL</Name>
+        <Name_Description>LCSC/EasyEDA footprint C2845237</Name_Description>
+        <Name_Unique>VSON-10_L3.0-W2.0-P0.50-TL</Name_Unique>
+        <Manufacturer>Texas Instruments</Manufacturer>
+        <Origin X="0" Y="0" Cross="Y" Circle="Y" Common="Hide" Courtyard="Show" />
+        <DefPad Style="C2845237_PAD_0" />
+        <Pads>
+          <Pad Id="1" Style="C2845237_PAD_0" X="-0.825068" Y="0.999998" Angle="4.712389" Locked="N" Side="Top">
+            <Number>1</Number>
+          </Pad>
+          <Pad Id="2" Style="C2845237_PAD_0" X="-0.825068" Y="0.499872" Angle="4.712389" Locked="N" Side="Top">
+            <Number>2</Number>
+          </Pad>
+          <Pad Id="3" Style="C2845237_PAD_0" X="-0.825068" Y="0" Angle="4.712389" Locked="N" Side="Top">
+            <Number>3</Number>
+          </Pad>
+          <Pad Id="4" Style="C2845237_PAD_0" X="-0.825068" Y="-0.500126" Angle="4.712389" Locked="N" Side="Top">
+            <Number>4</Number>
+          </Pad>
+          <Pad Id="5" Style="C2845237_PAD_0" X="-0.825068" Y="-0.999998" Angle="4.712389" Locked="N" Side="Top">
+            <Number>5</Number>
+          </Pad>
+          <Pad Id="6" Style="C2845237_PAD_1" X="0.824916" Y="-0.999998" Angle="4.712389" Locked="N" Side="Top">
+            <Number>6</Number>
+          </Pad>
+          <Pad Id="7" Style="C2845237_PAD_1" X="0.824916" Y="-0.500126" Angle="4.712389" Locked="N" Side="Top">
+            <Number>7</Number>
+          </Pad>
+          <Pad Id="8" Style="C2845237_PAD_2" X="0.625018" Y="0" Angle="4.712389" Locked="N" Side="Top">
+            <Number>8</Number>
+          </Pad>
+          <Pad Id="9" Style="C2845237_PAD_1" X="0.824916" Y="0.499872" Angle="4.712389" Locked="N" Side="Top">
+            <Number>9</Number>
+          </Pad>
+          <Pad Id="10" Style="C2845237_PAD_1" X="0.824916" Y="0.999998" Angle="4.712389" Locked="N" Side="Top">
+            <Number>10</Number>
+          </Pad>
+        </Pads>
+        <Shapes>
+          <Shape Id="0" Type="Rectangle" Locked="N" Layer="Top Outline" LineWidth="0.05" AllLayers="N">
+            <Points>
+              <Point X="-1" Y="1.5" />
+              <Point X="1" Y="-1.5" />
+            </Points>
+          </Shape>
+          <Shape Id="1" Type="Polyline" Locked="N" Layer="Top Silk" LineWidth="0.151994" AllLayers="N">
+            <Points>
+              <Point X="1.143" Y="1.330122" />
+              <Point X="1.143" Y="1.524" />
+            </Points>
+          </Shape>
+          <Shape Id="2" Type="Polyline" Locked="N" Layer="Top Silk" LineWidth="0.151994" AllLayers="N">
+            <Points>
+              <Point X="-1.016" Y="-1.330122" />
+              <Point X="-1.016" Y="-1.524" />
+              <Point X="1.143" Y="-1.524" />
+              <Point X="1.143" Y="-1.330122" />
+            </Points>
+          </Shape>
+          <Shape Id="3" Type="Polyline" Locked="N" Layer="Top Silk" LineWidth="0.151994" AllLayers="N">
+            <Points>
+              <Point X="1.143" Y="1.524" />
+              <Point X="-1.016" Y="1.524" />
+              <Point X="-1.016" Y="1.330122" />
+            </Points>
+          </Shape>
+          <Shape Id="4" Type="Rectangle" Locked="N" Layer="Top Courtyard" LineWidth="0.05" AllLayers="N">
+            <Points>
+              <Point X="-1.3462" Y="1.5748" />
+              <Point X="1.3462" Y="-1.5748" />
+            </Points>
+          </Shape>
+        </Shapes>
+      </Pattern>
+    </Patterns>
+  </Library>
+  <Components>
+    <Component Id="0" ComponentStyle="C2845237">
+      <Part Id="0" RefDes="U" PartType="Normal" Type="IC-2 Sides" Width="17.78" Height="15.24" LockTypeChange="Y">
+        <Pattern Style="C2845237_PATTERN" />
+        <Name>TPS63802DLAR</Name>
+        <PartName>Part 1</PartName>
+        <Origin X="0" Y="0" />
+        <Datasheet>https://www.ti.com/lit/ds/symlink/tps63802.pdf</Datasheet>
+        <Manufacturer>Texas Instruments</Manufacturer>
+        <Pins>
+          <Pin Id="0" X="-8.89" Y="5.08" Locked="N" Type="Default" ElectricType="Input" Orientation="0" PadId="1" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>EN</Name>
+            <PadNumber>1</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="1" X="-8.89" Y="2.54" Locked="N" Type="Default" ElectricType="Input" Orientation="0" PadId="2" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>MODE</Name>
+            <PadNumber>2</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="2" X="-8.89" Y="0" Locked="N" Type="Default" ElectricType="Power" Orientation="0" PadId="3" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>AGND</Name>
+            <PadNumber>3</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="3" X="-8.89" Y="-2.54" Locked="N" Type="Default" ElectricType="Input" Orientation="0" PadId="4" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>FB</Name>
+            <PadNumber>4</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="4" X="-8.89" Y="-5.08" Locked="N" Type="Default" ElectricType="Output" Orientation="0" PadId="5" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>PG</Name>
+            <PadNumber>5</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="5" X="8.89" Y="-5.08" Locked="N" Type="Default" ElectricType="Power" Orientation="180" PadId="6" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>VOUT</Name>
+            <PadNumber>6</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="6" X="8.89" Y="-2.54" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="7" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>L2</Name>
+            <PadNumber>7</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="7" X="8.89" Y="0" Locked="N" Type="Default" ElectricType="Power" Orientation="180" PadId="8" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>GND</Name>
+            <PadNumber>8</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="8" X="8.89" Y="2.54" Locked="N" Type="Default" ElectricType="Passive" Orientation="180" PadId="9" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>L1</Name>
+            <PadNumber>9</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+          <Pin Id="9" X="8.89" Y="5.08" Locked="N" Type="Default" ElectricType="Power" Orientation="180" PadId="10" Length="2.54" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="0" NameOrientation="0">
+            <Name>VIN</Name>
+            <PadNumber>10</PadNumber>
+            <NameFont Size="5" FontSizeFloat="5" Width="-2" Scale="1" FontMono="N" />
+          </Pin>
+        </Pins>
+        <Shapes>
+          <Shape Id="0" Type="Rectangle" LineWidth="0.25">
+            <Points>
+              <Point X="-8.89" Y="7.62" />
+              <Point X="8.89" Y="-7.62" />
+            </Points>
+          </Shape>
+        </Shapes>
+        <AddFields>
+          <AddField Type="Text">
+            <Name>MPN</Name>
+            <Text>TPS63802DLAR</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>LCSC</Name>
+            <Text>C2845237</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>EasyEDA UUID</Name>
+            <Text>43350ccf909f479a8e23621953ad4377</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>EasyEDA Package UUID</Name>
+            <Text>3a71dc8c227a46e9855749ad19062bb6</Text>
+          </AddField>
+          <AddField Type="Text">
+            <Name>Source</Name>
+            <Text>LCSC/EasyEDA downloaded catalog data</Text>
+          </AddField>
+        </AddFields>
+      </Part>
+    </Component>
+  </Components>
+</Library>
