@@ -36,6 +36,7 @@ from .geometry_backend import (
     point_to_shape_distance,
     segment_to_shape_distance,
     shapely_available,
+    shape_bbox,
 )
 from .operations import (
     AddDifferentialPairRouteOperation,
@@ -88,6 +89,7 @@ class RouteConnectionConfig(StrictModel):
     max_nodes: int = Field(default=100_000, ge=100, le=1_000_000)
     time_budget_ms: int = Field(default=5_000, ge=100, le=30_000)
     avoid_component_bodies: bool = True
+    allow_via_in_pad: bool = False
     routing_priority: int = Field(default=0, ge=0, le=1_000)
 
     @model_validator(mode="after")
@@ -143,6 +145,7 @@ class DifferentialPairRouteConfig(StrictModel):
         default=0.01, gt=0.0, le=1.0, description=_MM_FIELD_DESCRIPTION
     )
     avoid_component_bodies: bool = True
+    allow_via_in_pad: bool = False
 
     @model_validator(mode="after")
     def validate_vias(self) -> DifferentialPairRouteConfig:
@@ -362,6 +365,7 @@ def synthesize_route(
         via,
         config,
         started,
+        via_pad_clearance=clearance,
         start_accesses=start_accesses,
         end_accesses=end_accesses,
     )
@@ -408,6 +412,7 @@ def synthesize_route(
         layer=start_layer,
         width=config.width,
         clearance=clearance,
+        allow_via_in_pad=config.allow_via_in_pad,
     )
     used_layers = list(dict.fromkeys(node.active_layer for node in nodes))
     layer_sequence = _layer_sequence(nodes)
@@ -515,6 +520,9 @@ def synthesize_route_min_vias(
                 "detour_exceeded",
                 "no_route",
                 "via_budget_insufficient",
+                # A larger via budget often yields a much shorter path that
+                # fits the same time budget; resource limits are not final.
+                "resource_exhausted",
             }:
                 raise
             last_error = exc
@@ -635,6 +643,7 @@ def synthesize_differential_pair_route(
         max_nodes=config.max_nodes,
         time_budget_ms=config.time_budget_ms,
         avoid_component_bodies=config.avoid_component_bodies,
+        allow_via_in_pad=config.allow_via_in_pad,
     )
     layer_ids, start_layer, end_layer = _route_layers(snapshot, route_config)
     clearance_resolution = resolve_clearance(
@@ -697,6 +706,7 @@ def synthesize_differential_pair_route(
         virtual_via,
         route_config,
         started,
+        via_pad_clearance=clearance,
         start_directions=directions,
         end_directions=directions,
     )
@@ -761,6 +771,7 @@ def synthesize_differential_pair_route(
         layer=start_layer,
         width=width,
         clearance=clearance,
+        allow_via_in_pad=config.allow_via_in_pad,
     )
     return DifferentialPairRouteResult(
         operation=operation,
@@ -1199,10 +1210,34 @@ def _obstacles(
             if segment_layer != layer_id:
                 continue
             other_radius = float(widths[index]) / 2.0 if index < len(widths) else 0.0
+            margin = expansion + other_radius
+            if abs(start.x - end.x) > 1e-9 and abs(start.y - end.y) > 1e-9:
+                # A diagonal segment's bounding box over-blocks everything
+                # inside the corner triangle; chunk it so each box stays close
+                # to the real copper (overhang <= chunk/2).
+                length = math.hypot(end.x - start.x, end.y - start.y)
+                steps = max(1, int(length / 0.25))
+                for chunk in range(steps):
+                    first = Point(
+                        start.x + (end.x - start.x) * chunk / steps,
+                        start.y + (end.y - start.y) * chunk / steps,
+                    )
+                    last = Point(
+                        start.x + (end.x - start.x) * (chunk + 1) / steps,
+                        start.y + (end.y - start.y) * (chunk + 1) / steps,
+                    )
+                    obstacles.append(
+                        _Obstacle(
+                            f"{trace.stable_id}:{index}.{chunk}",
+                            BBox.from_points([first, last]).expand(margin),
+                            "trace_segment",
+                        )
+                    )
+                continue
             obstacles.append(
                 _Obstacle(
                     f"{trace.stable_id}:{index}",
-                    BBox.from_points([start, end]).expand(expansion + other_radius),
+                    BBox.from_points([start, end]).expand(margin),
                     "trace_segment",
                 )
             )
@@ -1406,6 +1441,7 @@ def _a_star(
     config: RouteConnectionConfig,
     started: float,
     *,
+    via_pad_clearance: float,
     start_directions: set[int] | None = None,
     end_directions: set[int] | None = None,
     start_accesses: list[_GridAccess] | None = None,
@@ -1430,15 +1466,12 @@ def _a_star(
         )
 
     def heuristic(key: tuple[int, int], layer_index: int) -> float:
+        # Admissible estimate: pure octile distance to the nearest end access.
+        # Layer preference is priced by via_cost on transitions in g; taxing
+        # h per layer starves every state that legitimately needs to cross.
         costs = []
         for end_key, accesses in end_by_key.items():
-            route_cost = _octile(key, end_key, config.grid) + accesses[0].length
-            moves = max(abs(key[0] - end_key[0]), abs(key[1] - end_key[1]))
-            stay_cost = route_cost + moves * layer_index * config.via_cost
-            preferred_cost = route_cost + config.via_cost * (
-                (layer_index != 0) + (end_index != 0)
-            )
-            costs.append(min(stay_cost, preferred_cost))
+            costs.append(_octile(key, end_key, config.grid) + accesses[0].length)
         return min(costs)
 
     queue: list[tuple[float, float, _State]] = []
@@ -1474,6 +1507,9 @@ def _a_star(
     start_anchor_keys = {_grid_key(access.anchor, config.grid) for access in start_accesses}
     end_anchor_keys = set(end_by_key)
     visited = 0
+    via_pad_blocks: list[tuple[BBox | None, object]] | None = None
+    via_sites_checked = 0
+    via_sites_free = 0
     deadline = started + config.time_budget_ms / 1_000.0
     goal: _State | None = None
     goal_access: _GridAccess | None = None
@@ -1481,7 +1517,13 @@ def _a_star(
         if time.monotonic() >= deadline:
             raise RoutingError(
                 "Local routing time budget exhausted",
-                details={"visited_nodes": visited, "time_budget_ms": config.time_budget_ms},
+                details={
+                    "reason": "resource_exhausted",
+                    "visited_nodes": visited,
+                    "time_budget_ms": config.time_budget_ms,
+                    "via_sites_checked": via_sites_checked,
+                    "via_sites_free": via_sites_free,
+                },
             )
         _priority, cost, state = heapq.heappop(queue)
         x, y, layer_index, previous_direction, via_count = state
@@ -1491,7 +1533,11 @@ def _a_star(
         if visited > config.max_nodes:
             raise RoutingError(
                 "Local routing node budget exhausted",
-                details={"visited_nodes": visited, "max_nodes": config.max_nodes},
+                details={
+                    "reason": "resource_exhausted",
+                    "visited_nodes": visited,
+                    "max_nodes": config.max_nodes,
+                },
             )
         matching_end_accesses = end_by_key.get((x, y), [])
         if (
@@ -1518,7 +1564,9 @@ def _a_star(
             if _segment_blocked(current, point, obstacles[layer_id]):
                 continue
             step = config.grid * (math.sqrt(2.0) if dx and dy else 1.0)
-            step += layer_index * config.via_cost
+            # Layer preference is expressed once per via transition below;
+            # taxing every grid step made Bottom runs cost-prohibitive and
+            # degenerated A* into a full-board flood.
             bend = (
                 config.bend_cost
                 if previous_direction >= 0 and previous_direction != direction_index
@@ -1546,12 +1594,25 @@ def _a_star(
             and previous_direction >= 0
             and (x, y) not in start_anchor_keys | end_anchor_keys
         )
-        if (
-            via is not None
-            and can_via
-            and layer_id in via.layer_ids
-            and not _via_blocked(current, via, config.width, obstacles)
-        ):
+        if via is not None and can_via and layer_id in via.layer_ids:
+            if via_pad_blocks is None:
+                via_pad_blocks = _via_pad_blockers(snapshot, via, via_pad_clearance)
+            site_free = not _via_blocked(
+                snapshot,
+                current,
+                via,
+                config.width,
+                obstacles,
+                pad_clearance=via_pad_clearance,
+                allow_via_in_pad=config.allow_via_in_pad,
+                pad_blockers=via_pad_blocks,
+            )
+        else:
+            site_free = False
+        if via is not None and can_via:
+            via_sites_checked += 1
+        if site_free:
+            via_sites_free += 1
             for target_index in range(len(layer_ids)):
                 if target_index == layer_index:
                     continue
@@ -1623,12 +1684,55 @@ def _segment_blocked(start: Point, end: Point, obstacles: _ObstacleIndex) -> boo
     return False
 
 
+def _via_pad_blockers(
+    snapshot: DocumentSnapshot,
+    via: _ViaStyle,
+    pad_clearance: float,
+) -> list[tuple[BBox | None, object]]:
+    """Pre-resolve pads that can veto a via site (expensive XML/geometry once)."""
+
+    assert snapshot.board is not None
+    required = via.diameter / 2.0 + pad_clearance
+    blockers: list[tuple[BBox | None, object]] = []
+    for pad in snapshot.board.pads:
+        if not any(pad_on_layer(snapshot, pad, layer_id) for layer_id in via.layer_ids):
+            continue
+        if pad.geometry is not None:
+            # Conservative envelope first; exact (shapely) distance only for
+            # points that get past it.
+            envelope = shape_bbox(pad.geometry).expand(required)
+            blockers.append((envelope, pad.geometry))
+        elif pad.bbox is not None:
+            blockers.append((BBox(**pad.bbox).expand(required), None))
+    return blockers
+
+
 def _via_blocked(
+    snapshot: DocumentSnapshot,
     point: Point,
     via: _ViaStyle,
     route_width: float,
     obstacles: dict[str, _ObstacleIndex],
+    *,
+    pad_clearance: float,
+    allow_via_in_pad: bool,
+    pad_blockers: list[tuple[BBox | None, object]] | None = None,
 ) -> bool:
+    assert snapshot.board is not None
+    if not allow_via_in_pad:
+        required = via.diameter / 2.0 + pad_clearance
+        for bbox, geometry in (
+            pad_blockers
+            if pad_blockers is not None
+            else _via_pad_blockers(snapshot, via, pad_clearance)
+        ):
+            if geometry is not None:
+                if bbox is not None and not bbox.contains_point(point):
+                    continue
+                if point_to_shape_distance(point, geometry) + 1e-9 < required:
+                    return True
+            elif bbox is not None and bbox.contains_point(point):
+                return True
     extra = max(0.0, (via.diameter - route_width) / 2.0)
     via_box = BBox(point.x, point.y, point.x, point.y).expand(extra)
     for layer_id in via.layer_ids:

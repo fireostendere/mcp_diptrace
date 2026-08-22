@@ -234,6 +234,22 @@ def point_to_shape_distance(point: Point, shape: GeometryShape) -> float:
 
 
 def _to_shapely(shape: GeometryShape) -> Any | None:
+    # Conversion dominates point-to-shape checks when the router probes
+    # thousands of sites; cache per live shape object (identity-guarded).
+    cached = _TO_SHAPELY_CACHE.get(id(shape))
+    if cached is not None and cached[0] is shape:
+        return cached[1]
+    converted = _build_shapely(shape)
+    # ponytail: unbounded cache, keyed by object identity; clear it if
+    # long-lived processes route against many distinct documents.
+    _TO_SHAPELY_CACHE[id(shape)] = (shape, converted)
+    return converted
+
+
+_TO_SHAPELY_CACHE: dict[int, tuple[GeometryShape, Any]] = {}
+
+
+def _build_shapely(shape: GeometryShape) -> Any | None:
     if not shapely_available():
         return None
     from shapely import affinity  # type: ignore[import-untyped]

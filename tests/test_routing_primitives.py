@@ -18,6 +18,7 @@ from diptrace_mcp.operations import (
     AddViaOperation,
     DeleteTraceOperation,
     DeleteViaOperation,
+    MoveComponentsOperation,
     MoveViaOperation,
     ReplaceTraceOperation,
     SetTraceWidthOperation,
@@ -33,6 +34,40 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def _load() -> DipTraceDocument:
     return DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+
+
+def _pattern_route_document() -> DipTraceDocument:
+    document = DipTraceDocument.load(FIXTURES / "pcb_patterns.xml", 10_000_000)
+    root = ET.fromstring(document.raw_bytes)
+    nets = root.find("./Board/Nets")
+    ratlines = root.find("./Board/Ratlines")
+    assert nets is not None and ratlines is not None
+    net = ET.SubElement(nets, "Net", {"Id": "0", "NetClass": "0", "Locked": "N"})
+    ET.SubElement(net, "Name").text = "VCC"
+    pads = ET.SubElement(net, "Pads")
+    ET.SubElement(pads, "Item", {"Comp": "0", "Pad": "0"})
+    ET.SubElement(pads, "Item", {"Comp": "1", "Pad": "0"})
+    ET.SubElement(net, "Traces")
+    ET.SubElement(
+        ratlines,
+        "Ratline",
+        {
+            "Id": "0",
+            "Hidden": "N",
+            "X1": "8.9",
+            "Y1": "10",
+            "X2": "29.4",
+            "Y2": "10",
+            "Comp1": "0",
+            "Pad1": "0",
+            "Comp2": "1",
+            "Pad2": "0",
+        },
+    )
+    return DipTraceDocument.from_bytes(
+        document.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
 
 
 def _four_layer_blind_via_document() -> DipTraceDocument:
@@ -153,6 +188,79 @@ def test_add_trace_rejects_layer_change_without_via() -> None:
                     ],
                     layer="Top",
                     width=0.25,
+                )
+            ],
+        )
+
+
+def test_add_trace_rejects_same_net_via_in_pad_unless_explicit() -> None:
+    document = _pattern_route_document()
+    start, end = _vcc_endpoints(document)
+    operation = AddTraceOperation(
+        net="VCC",
+        start_object_id=start,
+        end_object_id=end,
+        points=[
+            TracePathPoint(x=8.9, y=10),
+            TracePathPoint(x=9.5, y=10, layer="Top", via_style="Default"),
+            TracePathPoint(x=28.5, y=10, layer="Bottom", via_style="Default"),
+            TracePathPoint(x=29.4, y=10, layer="Top"),
+        ],
+        layer="Top",
+        width=0.25,
+        clearance=0.2,
+    )
+
+    with pytest.raises(GeometryError, match="Via-in-pad is disabled"):
+        apply_semantic_operations(document, [operation])
+    with pytest.raises(GeometryError, match="Via-in-pad is disabled"):
+        apply_semantic_operations(document, [operation.model_copy(update={"clearance": 0.0})])
+
+    allowed = apply_semantic_operations(
+        document,
+        [operation.model_copy(update={"allow_via_in_pad": True})],
+    )
+    snapshot = build_snapshot(allowed.document)
+    assert snapshot.board is not None and len(snapshot.board.vias) == 2
+    trace = snapshot.board.traces[0]
+    first, second = sorted(snapshot.board.vias, key=lambda item: item.position["x"])
+    with pytest.raises(GeometryError, match="Via-in-pad is disabled"):
+        apply_semantic_operations(
+            allowed.document,
+            [
+                AddViaOperation(
+                    trace_id=trace.stable_id,
+                    x=9.6,
+                    y=10,
+                    via_style="Default",
+                    layer_before="Bottom",
+                    layer_after="Top",
+                )
+            ],
+        )
+    with pytest.raises(GeometryError, match="Component geometry introduces via-in-pad"):
+        apply_semantic_operations(
+            allowed.document,
+            [MoveComponentsOperation(selector=QuerySelector(refdes=["R2"]), dx=-0.9)],
+        )
+    with pytest.raises(GeometryError, match="Via-in-pad is disabled"):
+        apply_semantic_operations(
+            allowed.document,
+            [
+                MoveViaOperation(
+                    selector=QuerySelector(ids=[second.stable_id]),
+                    absolute_x=29.4,
+                    absolute_y=10,
+                )
+            ],
+        )
+    with pytest.raises(GeometryError, match="Via-in-pad is disabled"):
+        apply_semantic_operations(
+            allowed.document,
+            [
+                SetViaStyleOperation(
+                    selector=QuerySelector(ids=[first.stable_id]),
+                    via_style="Default",
                 )
             ],
         )
