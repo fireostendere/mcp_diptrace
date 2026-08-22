@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import math
+from functools import lru_cache
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
 from typing import Any
@@ -10,6 +11,7 @@ from .domain import GeometryShape
 from .geometry import BBox, Point, Transform, point_to_segment_distance, segment_distance
 
 
+@lru_cache(maxsize=1)
 def shapely_available() -> bool:
     return importlib.util.find_spec("shapely") is not None
 
@@ -50,6 +52,20 @@ def shape_bbox(shape: GeometryShape) -> BBox:
             center.y - shape.height / 2.0,
             center.x + shape.width / 2.0,
             center.y + shape.height / 2.0,
+        )
+    if shape.kind == "rectangle":
+        angle = math.radians(shape.rotation_deg)
+        half_width = abs(math.cos(angle)) * shape.width / 2.0 + abs(
+            math.sin(angle)
+        ) * shape.height / 2.0
+        half_height = abs(math.sin(angle)) * shape.width / 2.0 + abs(
+            math.cos(angle)
+        ) * shape.height / 2.0
+        return BBox(
+            center.x - half_width,
+            center.y - half_height,
+            center.x + half_width,
+            center.y + half_height,
         )
     geometry = _to_shapely(shape)
     if geometry is not None:

@@ -2,9 +2,8 @@
 """Headless PCB build for the ATtiny85 Arduino-clone schematic.
 
 Pipeline mirrors scripts/build_i2c_level_shifter_pcb.py: scaffold, schematic
-sync with explicit placements, rotation, routing on Top, silkscreen, and GND
-pours with stitching. The grounding strategy follows
-.agents/skills/diptrace-pcb-grounding and attiny85-arduino-clone/rules/.
+sync with explicit placements, rotation, routing on up to four selected copper
+layers, and silkscreen.
 """
 
 from __future__ import annotations
@@ -15,11 +14,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from diptrace_mcp.adapters import build_snapshot
-from diptrace_mcp.copper_pours import add_copper_pours
 from diptrace_mcp.domain import QuerySelector
-from diptrace_mcp.geometry import BBox
 from diptrace_mcp.operations import (
-    MoveBoardTextsOperation,
     RotateComponentsOperation,
     SetTextVisibilityOperation,
 )
@@ -31,7 +27,7 @@ from diptrace_mcp.pcb_design_intent import (
     PCBNetOverride,
 )
 from diptrace_mcp.pcb_placement import PCBPlacementV2Config
-from diptrace_mcp.scaffolding import PcbScaffold, build_pcb_document
+from diptrace_mcp.scaffolding import PcbScaffold, build_pcb_document, default_layers
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.silkscreen import (
     SilkscreenPlanConfig,
@@ -41,12 +37,14 @@ from diptrace_mcp.silkscreen import (
 from diptrace_mcp.synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan
 from diptrace_mcp.xml_document import DipTraceDocument
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).absolute().parent
 SCHEMATIC = ROOT / "attiny85-arduino-clone.dchxml"
 BOARD = ROOT / "attiny85-arduino-clone-pcb.dipxml"
 
-BOARD_W = 44.5
-BOARD_H = 22.0
+BOARD_W = 42.2
+BOARD_H = 13.7
+X_SHIFT = 2.1247434  # J1's footprint BOARD EDGE line lands at board X=0.
+Y_SHIFT = 5.65
 
 # Pattern styles embedded in the schematic (PatTypeN names come from the
 # provenance table; the schematic Library carries their geometry).
@@ -68,11 +66,11 @@ PATTERNS = {
     "R4": "PatType12",
     "R5": "PatType13",
     "R6": "PatType16",
-    "J2": "PatType17",
     "J3": "PatType18",
 }
 
 DEBUG_OUT = ROOT / ".local" / "attiny85-debug.dipxml"
+FAILED_OUT = ROOT / ".local" / "attiny85-routing-failed.dipxml"
 
 # The micro-USB shell tabs share one net in DipTrace ("6@" pads); sync needs
 # unique pad numbers, so the seven shield pads are renumbered 7..13 and tied
@@ -89,22 +87,21 @@ POSITIONS = {
     "U3": (11.8, 13.5),
     "L1": (15.6, 13.5),
     "C2": (18.8, 13.5),
-    "R1": (10.6, 9.3),
-    "R2": (12.6, 9.3),
-    "R3": (15.0, 9.3),
+    "R1": (9.5, 16.65),
+    "R2": (11.55, 16.65),
+    "R3": (13.625, 17.0),
     # USB-UART bridge (CP2102) with local decoupling and VBUS divider.
     "U2": (25.5, 13.5),
     "C3": (21.6, 16.8),
     "C4": (21.6, 10.2),
-    "R4": (21.2, 13.5),
-    "R5": (19.5, 13.5),
+    "R4": (19.5, 17.1),
+    "R5": (20.5, 13.5),
     # MCU with decoupling across VCC/GND, reset network near pin 1.
     "U1": (33.0, 14.0),
-    "C5": (38.2, 14.0),
-    "R6": (29.5, 8.8),
-    "C6": (27.0, 8.8),
-    # Headers: ISP bottom center, IO at the right edge.
-    "J2": (25.0, 4.5),
+    "C5": (38.2, 17.9),
+    "C6": (27.25, 17.65),
+    "R6": (29.5, 17.65),
+    # J3 carries IO and the complete ISP pin set; the duplicate J2 is omitted.
     "J3": (41.0, 11.5),
 }
 
@@ -116,32 +113,35 @@ ROTATIONS = {
     "C4": 90,
     "C5": 90,
     "C6": 0,
-    "R1": 90,
-    "R2": 90,
-    "R3": 0,
+    "R1": 0,
+    "R2": 0,
+    "R3": 90,
     "R4": 90,
     "R5": 90,
     "R6": 0,
     "L1": 90,
-    "U1": 90,  # pin rows vertical: UART left, power right, GND bottom-left
+    "U2": 180,  # UART faces U1; VBUS faces its divider R4/R5.
+    "U1": 270,  # UART faces U2 on the left; ISP faces J3 on the right.
     "J3": 90,  # 2x4 becomes two vertical columns at the right edge
 }
 
 # Order matters: the sequential router keeps earlier traces as obstacles.
 # Long cross-board signals claim their corridors first; the short local power
 # links of the buck-boost stage still fit afterwards because their endpoints
-# are adjacent. +3V3 is not routed: it is poured on Top after routing.
+# are adjacent.
 ROUTED_NETS = [
+    "GND",
+    "+3V3",
     "USB_D+",
     "USB_D-",
-    "CP2102_TXD",
+    "PB1_MISO",
+    "PB0_MOSI",
+    "PB2_SCK",
+    "RESET",
     "CP2102_RXD",
+    "CP2102_TXD",
     "CP2102_DTR",
     "CP2102_VBUS",
-    "RESET",
-    "PB0_MOSI",
-    "PB1_MISO",
-    "PB2_SCK",
     "TPS_L1",
     "TPS_L2",
     "TPS_FB",
@@ -149,12 +149,8 @@ ROUTED_NETS = [
     "VBUS",
 ]
 
-# Power stays on Top with zero vias; signals may escape to Bottom when the
-# Top corridor is congested (house rules allow breaking the Bottom plane only
-# where a necessary via requires it).
-# VBUS may take a Bottom segment when the Top corridor is gone; the local
-# buck-boost switching nets stay strictly on Top with zero vias.
-TOP_ONLY_NETS = {"TPS_L1", "TPS_L2", "TPS_FB", "TPS_PG"}
+# The switching loop stays strictly on Top; FB and PG may cross on Bottom.
+TOP_ONLY_NETS = {"TPS_L1", "TPS_L2"}
 
 
 def _physical_schematic(document: DipTraceDocument) -> DipTraceDocument:
@@ -217,7 +213,6 @@ def _tie_j1_shield_to_gnd(document: DipTraceDocument) -> DipTraceDocument:
 def _intent() -> PCBIntentOverrides:
     components = [
         PCBComponentOverride(selector="J1", role="connector", mechanical_anchor=True),
-        PCBComponentOverride(selector="J2", role="connector", mechanical_anchor=True),
         PCBComponentOverride(selector="J3", role="connector", mechanical_anchor=True),
         PCBComponentOverride(selector="U3", block_id="power"),
         PCBComponentOverride(selector="L1", block_id="power"),
@@ -239,6 +234,7 @@ def _intent() -> PCBIntentOverrides:
             ),
         )
         for name, role, width in (
+            ("GND", "ground", 0.25),
             ("VBUS", "power", 0.25),
             ("+3V3", "power", 0.25),
             ("TPS_L1", "power", 0.25),
@@ -260,7 +256,16 @@ def _intent() -> PCBIntentOverrides:
     return PCBIntentOverrides(components=components, nets=nets)
 
 
-def build() -> dict[str, object]:
+def build(layer_count: int = 4) -> dict[str, object]:
+    layers = default_layers(layer_count)
+    routing_layers = [layer.name for layer in layers]
+    bottom_first_layers = [routing_layers[-1], routing_layers[0]]
+    inner_first_layers = (
+        [routing_layers[1], routing_layers[0]] if layer_count == 4 else bottom_first_layers
+    )
+    power_first_layers = (
+        [routing_layers[2], routing_layers[0]] if layer_count == 4 else routing_layers
+    )
     schematic = DipTraceDocument.load(SCHEMATIC, 16 * 1024 * 1024)
     physical = _physical_schematic(schematic)
     board = DipTraceDocument.from_bytes(
@@ -269,6 +274,7 @@ def build() -> dict[str, object]:
             PcbScaffold(
                 width_mm=BOARD_W,
                 height_mm=BOARD_H,
+                layers=layers,
                 trace_width_mm=0.25,
                 clearance_mm=0.13,
             ),
@@ -284,8 +290,8 @@ def build() -> dict[str, object]:
                 refdes=refdes,
                 pattern_style=PATTERNS[refdes],
                 pad_numbers=J1_PAD_NUMBERS if refdes == "J1" else [],
-                x=x,
-                y=y,
+                x=x - X_SHIFT,
+                y=y - Y_SHIFT,
             )
             for refdes, (x, y) in POSITIONS.items()
         ],
@@ -309,16 +315,18 @@ def build() -> dict[str, object]:
     DEBUG_OUT.parent.mkdir(exist_ok=True)
     DEBUG_OUT.write_bytes(placed.raw_bytes)
 
-    def router_config(nets: list[str]) -> PCBRouterConfig:
+    def router_config(nets: list[str], layers: list[str] = routing_layers) -> PCBRouterConfig:
         return PCBRouterConfig(
             nets=nets,
-            routing_layers=["Top", "Bottom"],
+            routing_layers=layers,
             clearance_mm=0.13,
             grid_mm=0.125,
             max_vias_per_connection=2,
+            via_cost=0.2,
             max_detour=12,
-            max_nodes=200_000,
-            route_time_budget_ms=15_000,
+            max_nodes=500_000,
+            route_time_budget_ms=30_000,
+            avoid_component_bodies=False,
             max_ripup_attempts=6,
             allow_component_moves=False,
             component_move_penalty_mm=2,
@@ -329,34 +337,147 @@ def build() -> dict[str, object]:
     # externally: long signals route on the clean board first, then the local
     # power links, then retries see the accumulated copper.
     tps_block = ["TPS_L1", "TPS_L2", "TPS_FB", "TPS_PG"]
-    signal_nets = [n for n in ROUTED_NETS if n not in TOP_ONLY_NETS and n != "VBUS"]
-    groups = [tps_block, signal_nets, ["VBUS"]]
-
-    routed = placed
-    remaining: list[str] = []
-    metrics: dict[str, object] = {}
-    for group in [*groups, None, None]:
-        nets = group if group is not None else remaining
-        if not nets:
-            remaining = []
-            break
-        route_plan = plan_pcb_routes(routed, overrides=_intent(), config=router_config(nets))
-        if route_plan.operations:
-            routed = apply_semantic_operations(routed, route_plan.operations).document
-        metrics = route_plan.metrics
-        failed_ids = {item["net"] for item in route_plan.routing.failed}
-        if not failed_ids:
-            remaining = []
-            continue
-        name_by_id = {
-            record.stable_id: record.name
-            for record in build_snapshot(routed).board.nets
+    signal_nets = [
+        net
+        for net in ROUTED_NETS
+        if net
+        not in {
+            "GND",
+            "+3V3",
+            "VBUS",
+            "USB_D+",
+            "USB_D-",
+            "CP2102_VBUS",
+            *tps_block,
         }
-        remaining = [name_by_id[item] for item in failed_ids if item in name_by_id]
-        if group is None and (not route_plan.operations or not remaining):
-            break
-    if remaining:
-        raise RuntimeError(f"autorouter failures after passes: {sorted(remaining)}")
+    ]
+    groups = [
+        *(([net], ["Top"]) for net in ("TPS_L1", "TPS_L2")),
+        (["TPS_FB"], bottom_first_layers),
+        (["TPS_PG"], bottom_first_layers),
+        (["CP2102_VBUS"], ["Top"]),
+        (["GND"], bottom_first_layers),
+        (["VBUS"], ["Top"]),
+        (["USB_D-"], ["Top"]),
+        (["USB_D+"], ["Top"]),
+        (["+3V3"], power_first_layers),
+        *(
+            (
+                [net],
+                inner_first_layers
+                if net == "CP2102_TXD" and layer_count == 4
+                else ["Top"]
+                if net
+                in {
+                    "PB2_SCK",
+                    "RESET",
+                    "CP2102_TXD",
+                    "CP2102_DTR",
+                    "CP2102_VBUS",
+                    "PB0_MOSI",
+                }
+                else bottom_first_layers,
+            )
+            for net in signal_nets
+        ),
+    ]
+
+    gnd_plan = plan_pcb_routes(
+        placed,
+        overrides=_intent(),
+        config=router_config(["GND"], bottom_first_layers),
+    )
+    placed_snapshot = build_snapshot(placed)
+    components = {
+        component.stable_id: component.refdes for component in placed_snapshot.board.components
+    }
+    gnd_escape = [
+        item.operation
+        for item in gnd_plan.routing.routed
+        if {
+            components.get(placed_snapshot.get_object(item.operation.start_object_id).parent_id),
+            components.get(placed_snapshot.get_object(item.operation.end_object_id).parent_id),
+        }
+        == {"U3", "R2"}
+    ]
+    assert len(gnd_escape) == 1
+    routed = apply_semantic_operations(placed, gnd_escape).document
+    local_3v3_plan = plan_pcb_routes(
+        routed,
+        overrides=_intent(),
+        config=router_config(["+3V3"], bottom_first_layers),
+    )
+    routed_snapshot = build_snapshot(routed)
+    components = {
+        component.stable_id: component.refdes for component in routed_snapshot.board.components
+    }
+    local_3v3 = []
+    for item in local_3v3_plan.routing.routed:
+        refs = {
+            components.get(routed_snapshot.get_object(item.operation.start_object_id).parent_id),
+            components.get(routed_snapshot.get_object(item.operation.end_object_id).parent_id),
+        }
+        if refs <= {"U3", "R1", "R3"} or refs == {"C2", "C3"}:
+            local_3v3.append(item.operation)
+    assert len(local_3v3) == 3
+    routed = apply_semantic_operations(routed, local_3v3).document
+    metrics: dict[str, object] = {}
+    for requested, layers in groups:
+        remaining = requested
+        for _attempt in range(3):
+            attempt_layers = ["Top"] if _attempt == 2 and layers != ["Top"] else layers
+            route_plan = plan_pcb_routes(
+                routed,
+                overrides=_intent(),
+                config=router_config(remaining, attempt_layers),
+            )
+            if route_plan.operations:
+                routed = apply_semantic_operations(routed, route_plan.operations).document
+            metrics = route_plan.metrics
+            failed_ids = {item["net"] for item in route_plan.routing.failed}
+            if not failed_ids:
+                remaining = []
+                break
+            name_by_id = {
+                record.stable_id: record.name for record in build_snapshot(routed).board.nets
+            }
+            next_remaining = [name_by_id[item] for item in failed_ids if item in name_by_id]
+            if not route_plan.operations and next_remaining == remaining:
+                break
+            remaining = next_remaining
+        if remaining:
+            FAILED_OUT.write_bytes(routed.raw_bytes)
+            raise RuntimeError(f"autorouter failures after passes: {sorted(remaining)}")
+        if requested == ["GND"]:
+            for uart_net, uart_layers in (
+                ("CP2102_RXD", bottom_first_layers),
+                ("CP2102_TXD", ["Top"]),
+            ):
+                uart_plan = plan_pcb_routes(
+                    routed,
+                    overrides=_intent(),
+                    config=router_config([uart_net], uart_layers),
+                )
+                routed_snapshot = build_snapshot(routed)
+                components = {
+                    component.stable_id: component.refdes
+                    for component in routed_snapshot.board.components
+                }
+                uart_link = [
+                    item.operation
+                    for item in uart_plan.routing.routed
+                    if {
+                        components.get(
+                            routed_snapshot.get_object(item.operation.start_object_id).parent_id
+                        ),
+                        components.get(
+                            routed_snapshot.get_object(item.operation.end_object_id).parent_id
+                        ),
+                    }
+                    == {"U1", "U2"}
+                ]
+                assert len(uart_link) == 1
+                routed = apply_semantic_operations(routed, uart_link).document
 
     snapshot = build_snapshot(routed)
     extra_silk = [
@@ -380,28 +501,21 @@ def build() -> dict[str, object]:
     if silk_plan.operations:
         routed = apply_semantic_operations(routed, silk_plan.operations).document
 
-    pour_result = add_copper_pours(
-        routed,
-        net="GND",
-        layers=("Top", "Bottom"),
-        stitch_pitch_mm=2.0,
-        stitch_edge_mm=0.8,
-    )
-    routed = pour_result.document
-    vcc_pour = add_copper_pours(routed, net="+3V3", layers=("Top",))
-    routed = vcc_pour.document
     BOARD.write_bytes(routed.raw_bytes)
 
     snapshot = build_snapshot(routed)
     assert snapshot.board is not None
-    assert len(snapshot.board.copper_pours) == 3
+    assert len(snapshot.board.components) == len(PATTERNS)
+    assert not snapshot.board.copper_pours
+    assert not snapshot.board.ratlines
+    assert all(component.refdes != "J2" for component in snapshot.board.components)
     return {
         "components": len(snapshot.board.components),
         "nets": len(snapshot.board.nets),
         "traces": len(snapshot.board.traces),
         "vias": len(snapshot.board.vias),
         "copper_pours": len(snapshot.board.copper_pours),
-        "stitch_vias": pour_result.stitch_via_count,
+        "layers": routing_layers,
         "failed_routes": len(remaining),
         "route_length_mm": metrics.get("total_length_mm"),
     }
@@ -409,8 +523,9 @@ def build() -> dict[str, object]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.parse_args()
-    print(json.dumps(build(), indent=2, sort_keys=True))
+    parser.add_argument("--layers", type=int, choices=(2, 4), default=4)
+    args = parser.parse_args()
+    print(json.dumps(build(args.layers), indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

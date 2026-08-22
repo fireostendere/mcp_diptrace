@@ -29,15 +29,17 @@ from .xml_document import DipTraceDocument
 
 class PCBRouterConfig(StrictModel):
     nets: list[str] = Field(default_factory=list, max_length=64)
-    routing_layers: list[str] = Field(default_factory=list, max_length=32)
+    routing_layers: list[str] = Field(default_factory=list, max_length=4)
     default_trace_width_mm: float | None = Field(default=None, gt=0.0)
     clearance_mm: float | None = Field(default=None, ge=0.0)
     grid_mm: float = Field(default=0.5, gt=0.0, le=10.0)
     via_style: str | None = Field(default=None, min_length=1, max_length=256)
     max_vias_per_connection: int = Field(default=2, ge=0, le=32)
+    via_cost: float | None = Field(default=None, ge=0.0, le=10_000.0)
     max_detour: float = Field(default=3.0, ge=1.0, le=100.0)
     max_nodes: int = Field(default=100_000, ge=100, le=1_000_000)
     route_time_budget_ms: int = Field(default=5_000, ge=100, le=30_000)
+    avoid_component_bodies: bool = True
     ripup_retry: bool = True
     max_ripup_attempts: int = Field(default=4, ge=0, le=8)
     allow_component_moves: bool = True
@@ -445,10 +447,15 @@ def _connections(
                 grid=config.grid_mm,
                 via_style=via_style,
                 max_vias=via_budget,
-                via_cost=5.0 + policy.via_penalty,
+                via_cost=(
+                    config.via_cost
+                    if config.via_cost is not None
+                    else 5.0 + policy.via_penalty
+                ),
                 max_detour=config.max_detour,
                 max_nodes=config.max_nodes,
                 time_budget_ms=config.route_time_budget_ms,
+                avoid_component_bodies=config.avoid_component_bodies,
                 routing_priority=priority,
             )
         )

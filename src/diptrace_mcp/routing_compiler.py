@@ -38,6 +38,7 @@ from .operations import (
     SetViaStyleOperation,
     TracePathPoint,
 )
+from .routing import pad_on_layer
 from .via_styles import (
     resolve_via_span,
     select_via_style,
@@ -365,6 +366,8 @@ def _validate_path(
             if obstacle.bbox is None or obstacle.net_id in (
                 ignored_net_xml_ids or {net.xml_id}
             ):
+                continue
+            if obstacle.kind == "pad" and not pad_on_layer(snapshot, obstacle, layer_id):
                 continue
             exact_violation = (
                 shapely_available()

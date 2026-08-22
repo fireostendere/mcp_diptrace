@@ -497,11 +497,14 @@ def synthesize_route_min_vias(
     snapshot: DocumentSnapshot,
     config: RouteConnectionConfig,
 ) -> RouteSynthesisResult:
-    """Route with the first feasible VIA budget from zero through the caller's cap."""
+    """Route with the first feasible VIA budget that honors layer preference."""
 
     failures: list[dict[str, Any]] = []
     last_error: RoutingError | None = None
-    for via_budget in range(config.max_vias + 1):
+    layer_ids, start_layer, end_layer = _route_layers(snapshot, config)
+    preferred_vias = (start_layer != layer_ids[0]) + (end_layer != layer_ids[0])
+    first_budget = preferred_vias if preferred_vias <= config.max_vias else 0
+    for via_budget in range(first_budget, config.max_vias + 1):
         try:
             result = synthesize_route(
                 snapshot,
@@ -535,8 +538,8 @@ def synthesize_route_min_vias(
             },
             assumptions=[
                 *result.assumptions,
-                "VIA budgets are attempted from zero upward; resource-limit "
-                "failures stop the search.",
+                "VIA budgets start with the transitions required by the first preferred "
+                "layer; resource-limit failures stop the search.",
             ],
         )
     assert last_error is not None
@@ -1206,7 +1209,7 @@ def _obstacles(
     for item in [*snapshot.board.keepouts, *snapshot.board.pads, *snapshot.board.vias]:
         if item.bbox is None or item.net_id in (ignored_net_xml_ids or {net.xml_id}):
             continue
-        if item.kind == "pad" and not _pad_on_layer(snapshot, item, layer_id):
+        if item.kind == "pad" and not pad_on_layer(snapshot, item, layer_id):
             continue
         obstacles.append(_Obstacle(item.stable_id, BBox(**item.bbox).expand(expansion), item.kind))
     for pour in snapshot.board.copper_pours:
@@ -1246,7 +1249,7 @@ def _obstacles(
     return obstacles
 
 
-def _pad_on_layer(snapshot: DocumentSnapshot, pad: ObjectRecord, layer_id: str) -> bool:
+def pad_on_layer(snapshot: DocumentSnapshot, pad: ObjectRecord, layer_id: str) -> bool:
     style = pad.attributes.get("pad_style") or {}
     if str(style.get("pad_type", "")).casefold() != "surface":
         return True
@@ -1427,12 +1430,16 @@ def _a_star(
         )
 
     def heuristic(key: tuple[int, int], layer_index: int) -> float:
-        route_cost = min(
-            _octile(key, end_key, config.grid) + access.length
-            for end_key, accesses in end_by_key.items()
-            for access in accesses[:1]
-        )
-        return route_cost + (config.via_cost if layer_index != end_index else 0.0)
+        costs = []
+        for end_key, accesses in end_by_key.items():
+            route_cost = _octile(key, end_key, config.grid) + accesses[0].length
+            moves = max(abs(key[0] - end_key[0]), abs(key[1] - end_key[1]))
+            stay_cost = route_cost + moves * layer_index * config.via_cost
+            preferred_cost = route_cost + config.via_cost * (
+                (layer_index != 0) + (end_index != 0)
+            )
+            costs.append(min(stay_cost, preferred_cost))
+        return min(costs)
 
     queue: list[tuple[float, float, _State]] = []
     costs: dict[_State, float] = {}
@@ -1511,6 +1518,7 @@ def _a_star(
             if _segment_blocked(current, point, obstacles[layer_id]):
                 continue
             step = config.grid * (math.sqrt(2.0) if dx and dy else 1.0)
+            step += layer_index * config.via_cost
             bend = (
                 config.bend_cost
                 if previous_direction >= 0 and previous_direction != direction_index

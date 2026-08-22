@@ -317,7 +317,10 @@ def build_sync_plan(
                 row_right + half_width,
             )
         )
-        if board_bounds is not None:
+        has_explicit_position = (
+            mapping is not None and mapping.x is not None and mapping.y is not None
+        )
+        if board_bounds is not None and not has_explicit_position:
             min_x, min_y, max_x, max_y = board_bounds
             auto_x = max(auto_x, min_x + half_width)
             if row_count >= placement.columns or auto_x + half_width > max_x:

@@ -18,6 +18,7 @@ from diptrace_mcp.routing import (
     resolve_route_clearance,
     synthesize_differential_pair_route,
     synthesize_route,
+    synthesize_route_min_vias,
 )
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.service import DipTraceService
@@ -496,6 +497,25 @@ def test_multilayer_router_inserts_valid_vias_and_roundtrips() -> None:
         point.layer or route.operation.layer for point in route.operation.points[1:]
     ]
     assert len(vcc_trace.relationships["vias"]) == 2
+
+
+def test_multilayer_router_prefers_the_first_requested_layer() -> None:
+    document = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    config = _config(document).model_copy(
+        update={
+            "preferred_layers": ["Bottom", "Top"],
+            "start_layer": "Top",
+            "end_layer": "Top",
+            "via_style": "Default",
+            "max_vias": 2,
+        }
+    )
+
+    route = synthesize_route_min_vias(build_snapshot(document), config)
+
+    assert route.metrics["via_count"] == 2
+    assert route.metrics["layer_sequence"] == ["0", "1", "0"]
+    assert route.metrics["via_budget_attempts"] == [{"max_vias": 2, "status": "routed"}]
 
 
 def test_documented_via_style_geometry_and_span_are_normalized() -> None:
