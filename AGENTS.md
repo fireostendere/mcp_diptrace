@@ -57,3 +57,8 @@ command, and the last checkpoint commit. Make narrow commits after evidence and
 footprints, after placement/routing, and after native acceptance/media. If Git
 write access is unavailable, record the exact intended files and commit command
 instead of claiming that a checkpoint exists.
+
+Verify the handoff mechanically before resuming or handing off:
+`PYTHONPATH=src .venv/bin/python scripts/pcb_quality_gate.py <project-dir>`
+checks gate-table ordering, recorded SHAs against the files on disk, and the
+headless QC (`hard_error_count == 0`); non-zero exit means BLOCKED.
