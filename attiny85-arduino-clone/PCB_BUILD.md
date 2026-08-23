@@ -1,10 +1,10 @@
 # PCB build handoff
 
 Status: `ROUTED_2LAYER_PENDING_NATIVE`
-Updated: 2026-08-22
+Updated: 2026-08-23
 Input schematic SHA-256: `2f5ee017e42890eaaddc50de831390dcae6cda38531e24c161bc058013ed3ec2`
 Starting board SHA-256: `cadc29c4c005ad322276fe3ef8f262795510f9a6de641b6e3544a1e9804c9fd2`
-Current board SHA-256: `4c3274442ae358b7ec0dfcb6050be831fc2597988847d035a59e487e69841c12`
+Current board SHA-256: `64692a60c6aa53639578c6b775ece0fe41117544bd30b1d2c87254190f467a55`
 
 ## Ordered gates
 
@@ -17,7 +17,7 @@ Current board SHA-256: `4c3274442ae358b7ec0dfcb6050be831fc2597988847d035a59e487e
 | 4. Mechanics and connector datums | PASS | J1/J3 centerline group checked by `review_pcb_quality(centerline_groups={"y": ["J1","J3"]})`; board edge datum X_SHIFT keeps J1 opening at outline. J2 removed at the schematic source (see deviations). |
 | 5. Datasheet-driven critical placement | PASS | `POSITIONS` implements the C1-left / C2-right / L1-above target; manual VBUS tree (J1→C1→VIN, EN branch, VOUT→C2) applied before autorouting. |
 | 6. Stackup | PASS | Default `--layers 2`; four layers only via explicit flag after a recorded two-layer failure (none occurred). |
-| 7. Routing | PASS | Zero ratlines asserted; 50 traces, 42 vias total (duplicate same-net vias merged onto shared transitions), ≤2 vias per connection, no via-in-pad, escapes beyond pad copper. Long hauls (USB pair, +3V3 to U2 VDD, TXD to J3) cross on Bottom where Top is walled. |
+| 7. Routing | PASS | Zero ratlines asserted; 50 traces, 42 vias total, ≤2 vias per connection, no via-in-pad, escapes beyond pad copper. VBUS trunk J1→C1 pre-routed at 0.5 mm (0.25 through the connector zone); TPS_L1/L2 manual hot-loop verticals 0.45 mm with a 0.35 mm taper through the pin-row zone so the U3.8 GND corridor stays routable; router VBUS intent kept at 0.25 mm (only the high-Z R4 sense tap is router-routed). Long hauls (USB pair, +3V3 to U2 VDD, TXD to J3) cross on Bottom where Top is walled. |
 | 8. Ground pours and stitching | PASS | GND pours Top+Bottom (`add_copper_pours`, 0.13 clearance, four-spoke connector thermals) plus 21 distributed stitch vias; QC stitching coverage gate green. |
 | 9. Silkscreen | PASS | `plan_silkscreen` unresolved set empty (asserted); planner now treats vias as fixed obstacles so labels never overlap stitch vias. |
 | 10. Headless QC | PASS | `review_pcb_quality` hard_error_count == 0 gate inside `build()`; pre-QC artifact dumped to `.attiny85-2layer-*-preqc.dipxml` on failure for diagnosis. |
@@ -28,18 +28,33 @@ Current board SHA-256: `4c3274442ae358b7ec0dfcb6050be831fc2597988847d035a59e487e
 
 ```bash
 cd /mnt/c/Users/fireo/mcp_diptrace
-PYTHONPATH=src .venv/bin/python attiny85-arduino-clone/build_pcb.py --layers 2
+PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python attiny85-arduino-clone/build_pcb.py --layers 2
 ```
 
 - `.venv/bin/python` is required; the system `python3` has no dependencies.
 - `PYTHONPATH=src` is required even inside the venv because the installed
   `site-packages` copy of `diptrace_mcp` is older than `src/`.
+- `PYTHONHASHSEED=0` is REQUIRED: PadStyle XML elements serialize in
+  hash-set order, so an unpinned seed yields byte-different (same-geometry)
+  boards and unstable SHA-256 records.
 - Outputs: final board at `attiny85-arduino-clone-pcb.dipxml`;
   `.attiny85-2layer-v14-placed.dipxml` style debug artifacts land next to
   `--output`.
 
 ## Intentional deviations
 
+- **VBUS router intent stays 0.25 mm** (not the trunk's 0.5): the only
+  router-routed VBUS link left is the high-impedance R4 sense tap, and a
+  0.5 mm intent blocks its fine-pad anchor escapes ("no clearance-safe path").
+  The real current path J1→C1→VIN is pre-routed manually at 0.5 mm.
+- **Stale VBUS sense-tap dedupe replacement removed**: the hand-authored
+  southern lane U3.10→R4.2 no longer matched the surrounding router copper
+  and failed trace validation; the autorouter closes the tap within clearance
+  on its own.
+- **TPS_L1/L2 verticals taper 0.45→0.35 mm** through the pin-row zone: a flat
+  0.45 wall seals the U3.8 GND corridor between the legs (router bbox
+  expansion leaves no reachable grid node); the taper keeps ≥0.175 mm to the
+  neighbouring VIN/GND/VOUT lands and leaves the corridor routable.
 - **J2 omitted at the schematic source** (user request): it duplicated the full
   ISP pin set already exposed by J3. Removed from `.dchxml`,
   `build_connectivity.py`, `layout_and_wire.py`, `set_bom_fields.py`,

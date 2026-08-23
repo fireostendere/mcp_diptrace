@@ -12,6 +12,7 @@ from pathlib import Path
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.copper_pours import add_copper_pours
 from diptrace_mcp.domain import QuerySelector
+from diptrace_mcp.errors import GeometryError
 from diptrace_mcp.operations import (
     AddTraceOperation,
     DeleteViaOperation,
@@ -267,7 +268,7 @@ def _trace_between(snapshot, net_name: str, pad_a, pad_b):
 
 
 def _dedupe_overlapping_vias(document: DipTraceDocument) -> DipTraceDocument:
-    """Route three secondary links through a sibling via of the same net.
+    """Canonicalize three secondary GND links through sibling same-net vias.
 
     The sequential router drops each connection's vias independently, so two
     same-net transitions can land within one grid step and print as an ugly
@@ -345,9 +346,12 @@ def _dedupe_overlapping_vias(document: DipTraceDocument) -> DipTraceDocument:
             ],
         )
     )
+    # NOTE: the VBUS sense-tap replacement (U3.10 -> R4.2) is gone. With the
+    # manual J1->C1->VIN tree and the 0.25 router intent the autorouter closes
+    # the tap itself within clearance, so the hand-authored southern lane no
+    # longer matches the surrounding copper and failed validation.
 
     snapshot = build_snapshot(document)
-    operations = []
     for net_name, pad_a_id, pad_b_id, points in replacements:
         pad_a = next(p for p in snapshot.board.pads if p.stable_id == pad_a_id)
         pad_b = next(p for p in snapshot.board.pads if p.stable_id == pad_b_id)
@@ -367,15 +371,37 @@ def _dedupe_overlapping_vias(document: DipTraceDocument) -> DipTraceDocument:
             layer="Top",
             width=0.25,
         )
-        operations.append(
-            ReplaceTraceOperation(
-                trace_id=trace.stable_id,
-                points=points,
-                layer="Top",
-                width=0.25,
-            )
+        operation = ReplaceTraceOperation(
+            trace_id=trace.stable_id,
+            points=points,
+            layer="Top",
+            width=0.25,
         )
-    document = apply_semantic_operations(document, operations).document
+        try:
+            document = apply_semantic_operations(document, [operation]).document
+        except GeometryError as exc:
+            culprit_ids = set(getattr(exc, "object_ids", None) or [])
+            nets_by_id = {
+                record.stable_id: record.name for record in snapshot.board.nets
+            }
+            culprits = [
+                f"{nets_by_id.get(t.net_id, '?')}-trace "
+                f"{[(round(p['x'], 2), round(p['y'], 2)) for p in (t.attributes.get('points') or [])]}"
+                for t in snapshot.board.traces
+                if t.stable_id in culprit_ids
+            ]
+            print(
+                f"dedupe replacement failed: {net_name} "
+                f"{pad_a.label}-pad -> {pad_b.label}-pad\n"
+                f"  segment_index={getattr(exc, 'details', {}).get('segment_index')} "
+                f"measured={getattr(exc, 'details', {}).get('measured')} "
+                f"required={getattr(exc, 'details', {}).get('required')}\n"
+                f"  against: {culprits}",
+                file=sys.stderr,
+                flush=True,
+            )
+            raise
+        snapshot = build_snapshot(document)
 
     # Replacing the trace path leaves the old standalone via objects in
     # place; drop one of each now-coincident same-net pair.
@@ -441,9 +467,12 @@ def _intent() -> PCBIntentOverrides:
         PCBComponentOverride(selector="U2", block_id="usb"),
         PCBComponentOverride(selector="U1", block_id="mcu"),
     ]
-    # Widths stay <=0.25 mm: at 0.5 mm QFN/VSON pitch the router's pad
-    # obstacle expansion (width/2 + clearance) must stay under the pad gap,
-    # otherwise pad escapes have no clearance-safe grid access.
+    # TI TPS63802 layout rules (LAY-001): hot-loop nets route short/wide/
+    # direct. TPS_L1/TPS_L2 are pre-covered by deterministic _top_trace calls
+    # at 0.45 mm; the intent matches so any QC/router fallback agrees.
+    # Fine-pitch escapes elsewhere stay <=0.25 mm: at 0.5 mm QFN/VSON pitch
+    # the pad obstacle expansion (width/2 + clearance) must stay under the
+    # pad gap.
     nets = [
         PCBNetOverride(
             selector=name,
@@ -455,10 +484,13 @@ def _intent() -> PCBIntentOverrides:
         )
         for name, role, width in (
             ("GND", "ground", 0.25),
+            # Router-side VBUS work is the high-impedance R4 sense tap only;
+            # 0.25 keeps its fine-pad escape feasible. The input trunk
+            # J1→C1→VIN is pre-routed manually at 0.5 mm.
             ("VBUS", "power", 0.25),
             ("+3V3", "power", 0.25),
-            ("TPS_L1", "power", 0.25),
-            ("TPS_L2", "power", 0.25),
+            ("TPS_L1", "power", 0.45),
+            ("TPS_L2", "power", 0.45),
             ("TPS_FB", "digital", 0.2),
             ("TPS_PG", "digital", 0.2),
             ("USB_D+", "digital", 0.2),
@@ -580,7 +612,7 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
         }
     ]
     groups = [
-        *(([net], ["Top"]) for net in ("TPS_L1", "TPS_L2")),
+        # TPS_L1/TPS_L2 are manual reference traces (datasheet hot loop).
         (["TPS_FB"], ["Top"]),
         (["TPS_PG"], ["Top"]),
         (["CP2102_VBUS"], ["Top"]),
@@ -621,7 +653,11 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
                 "VBUS",
                 ("J1", "1"),
                 ("C1", "1"),
-                [(j1.position["x"], c1.position["y"], 0.25)],
+                # 0.25 while passing the connector zone (J1.2/J1.3 lands and
+                # USB_D+/- pads reach y=7.70; the (6.75,7.375) stitch via
+                # needs its 0.555 mm standoff), 0.5 mm copper only after x=7.0.
+                [(j1.position["x"], c1.position["y"], 0.25), (7.0, c1.position["y"], 0.25)],
+                width=0.5,
             )
         ],
     ).document
@@ -636,6 +672,9 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
                 "VBUS",
                 ("C1", "1"),
                 ("U3", "10"),
+                # Wide over the free run, taper to 0.25 for the final hop:
+                # at 0.5 mm the copper would sit 0.10 mm from the TPS_L1
+                # land next door (needs 0.13).
                 [(vin.position["x"] - 0.35, vin.position["y"], 0.5)],
             )
         ],
@@ -643,7 +682,7 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
     c1 = _pad(routed, "C1", "1")
     enable = _pad(routed, "U3", "1")
     assert c1.position is not None and enable.position is not None
-    branch_x = c1.position["x"] + 0.4
+    branch_x = c1.position["x"] + 0.525
     routed = apply_semantic_operations(
         routed,
         [
@@ -660,6 +699,37 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
             )
         ],
     ).document
+    # TI TPS63802 layout example (datasheet Fig. 12-1, rules LAY-001/LAY-004):
+    # switch nodes leave the IC straight toward the inductor with one bend and
+    # wide copper; FB/PG stay away from them. Verticals sit exactly on the SW
+    # pad axes. Widths taper: 0.35 mm through the pin-row zone keeps >=0.175 mm
+    # to the neighbouring VIN/GND/VOUT lands AND leaves the U3.8 GND pad a
+    # routable corridor between the legs (a flat 0.45 mm wall seals it);
+    # the main hot-loop stretch north of the row runs 0.45 mm.
+    sw_legs = (
+        (("U3", "9"), ("L1", "1"), "TPS_L1"),
+        (("U3", "7"), ("L1", "2"), "TPS_L2"),
+    )
+    for sw_pad, l_pad, net_name in sw_legs:
+        sw = _pad(routed, *sw_pad)
+        lp = _pad(routed, *l_pad)
+        assert sw.position is not None and lp.position is not None
+        routed = apply_semantic_operations(
+            routed,
+            [
+                _top_trace(
+                    routed,
+                    net_name,
+                    sw_pad,
+                    l_pad,
+                    [
+                        (sw.position["x"], sw.position["y"] + 0.675, 0.35),
+                        (sw.position["x"], lp.position["y"], 0.45),
+                    ],
+                    width=0.45,
+                )
+            ],
+        ).document
     vout = _pad(routed, "U3", "6")
     c2 = _pad(routed, "C2", "1")
     assert vout.position is not None and c2.position is not None
@@ -706,6 +776,22 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
             remaining = next_remaining
         if remaining:
             failed_out.write_bytes(routed.raw_bytes)
+            snapshot_now = build_snapshot(routed)
+            ref_by_id = {
+                record.stable_id: record.refdes for record in snapshot_now.board.components
+            }
+            pad_names = {
+                record.stable_id: f"{ref_by_id.get(record.parent_id, '?')}.{record.label}"
+                for record in snapshot_now.board.pads
+            }
+            for item in route_plan.routing.failed:
+                start = pad_names.get(item.get("start"), item.get("start"))
+                end = pad_names.get(item.get("end"), item.get("end"))
+                print(
+                    f"failed link: net={item['net']} {start} -> {end}: {item['error']}",
+                    file=sys.stderr,
+                    flush=True,
+                )
             raise RuntimeError(f"autorouter failures after passes: {sorted(remaining)}")
 
     routed = _dedupe_overlapping_vias(routed)
