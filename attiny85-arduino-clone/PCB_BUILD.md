@@ -4,7 +4,7 @@ Status: `ROUTED_2LAYER_PENDING_NATIVE`
 Updated: 2026-08-23
 Input schematic SHA-256: `2f5ee017e42890eaaddc50de831390dcae6cda38531e24c161bc058013ed3ec2`
 Starting board SHA-256: `cadc29c4c005ad322276fe3ef8f262795510f9a6de641b6e3544a1e9804c9fd2`
-Current board SHA-256: `64692a60c6aa53639578c6b775ece0fe41117544bd30b1d2c87254190f467a55`
+Current board SHA-256: `b4acaf5cece1c1d583b8096528d81fea88d282a33ed71870a5ae30aa7bcbb813`
 
 ## Ordered gates
 
@@ -21,8 +21,8 @@ Current board SHA-256: `64692a60c6aa53639578c6b775ece0fe41117544bd30b1d2c8725419
 | 8. Ground pours and stitching | PASS | GND pours Top+Bottom (`add_copper_pours`, 0.13 clearance, four-spoke connector thermals) plus 21 distributed stitch vias; QC stitching coverage gate green. |
 | 9. Silkscreen | PASS | `plan_silkscreen` unresolved set empty (asserted); planner now treats vias as fixed obstacles so labels never overlap stitch vias. |
 | 10. Headless QC | PASS | `review_pcb_quality` hard_error_count == 0 gate inside `build()`; pre-QC artifact dumped to `.attiny85-2layer-*-preqc.dipxml` on failure for diagnosis. |
-| 11. Native DipTrace refill/DRC | PENDING | Manual M1 gate: open `attiny85-arduino-clone-pcb.dipxml` in DipTrace, refill both GND planes, run native DRC. Framework reports this as `native_refill_and_drc_required`. |
-| 12. PNG/MP4/GIF and final frame | PENDING | After gate 11: re-record via `diptrace-mcp-cinematic` capture → compile → ffmpeg; boundary-fit framing per house rules; inspect final frame. The existing `attiny85-arduino-clone-pcb.{png,mp4,gif}` are a **stale pre-J2-removal render** — do not ship or resume from them. |
+| 11. Native DipTrace refill/DRC | IN PROGRESS | Headless native DRC driver works (`scripts/diptrace_native_gate11.py`, real Pcb.exe 5.3 on a hidden desktop). Native findings reduced 31 -> 3 after the trace-transition fix, pour clearance 0.18, hidden service silk texts, and the 13.9 mm outline. Remaining: C5.1 silk-to-pad (-0.093, cause under investigation), pour-to-TPS_L1/L2 at 0.125 vs 0.13 (native fill ignores the pour clearance attribute - investigating). |
+| 12. PNG/MP4/GIF and final frame | PENDING | After gate 11: re-record via `diptrace-mcp-cinematic` capture -> compile -> ffmpeg; boundary-fit framing per house rules; inspect final frame. The existing `attiny85-arduino-clone-pcb.{png,mp4,gif}` are a **stale pre-J2-removal render** — do not ship or resume from them. |
 
 ## Build command (exact environment)
 
@@ -43,19 +43,25 @@ PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python attiny85-arduino-clone/build_pc
 
 ## Intentional deviations
 
-- **VBUS router intent stays 0.25 mm** (not the trunk's 0.5): the only
-  router-routed VBUS link left is the high-impedance R4 sense tap, and a
-  0.5 mm intent blocks its fine-pad anchor escapes ("no clearance-safe path").
-  The real current path J1→C1→VIN is pre-routed manually at 0.5 mm.
-- **Stale VBUS sense-tap dedupe replacement removed**: the hand-authored
-  southern lane U3.10→R4.2 no longer matched the surrounding router copper
-  and failed trace validation; the autorouter closes the tap within clearance
-  on its own.
-- **TPS_L1/L2 verticals taper 0.45→0.35 mm** through the pin-row zone: a flat
-  0.45 wall seals the U3.8 GND corridor between the legs (router bbox
-  expansion leaves no reachable grid node); the taper keeps ≥0.175 mm to the
-  neighbouring VIN/GND/VOUT lands and leaves the corridor routable.
-- **J2 omitted at the schematic source** (user request): it duplicated the full
+- **GND pour clearance 0.18 mm** (rule 0.13): the native pour fill measures
+  up to 5 um inside the requested clearance near polygon corners.
+- **Board outline height 13.9 mm** (was 13.7): the router does not model
+  outline clearance; its USB_D+ hop copper sat 25 um past the old edge.
+- **Service silk texts hidden** (Pattern/Manufacturer/Datasheet besides
+  Name/Value): their empty-text bounding boxes tripped native silk checks.
+- **Dedupe stale-via cleanup removed (root-cause fix)**: the replacement paths
+  deliberately share sibling same-net vias, and `DeleteViaOperation` rewrites
+  the FOLLOWING trace point to the incoming layer, silently killing the new
+  trace's Top->Bottom transition. DipTrace then re-inserted the missing vias
+  on load next to pads (C6.2, U2 pin row) - the source of 28 of the original
+  31 native DRC findings.
+- **GND pour clearance 0.18 mm** (rule 0.13): the native pour fill measures
+  up to 5 um inside the requested clearance near polygon corners.
+- **Board outline height 13.9 mm** (was 13.7): the router does not model
+  outline clearance; its USB_D+ hop copper sat 25 um past the old edge.
+- **Service silk texts hidden** (Pattern/Manufacturer/Datasheet in addition
+  to Name/Value): their empty-text bounding boxes tripped native silk checks.
+- **VBUS router intent kept at 0.25 mm** (trunk widened separately): the only
   ISP pin set already exposed by J3. Removed from `.dchxml`,
   `build_connectivity.py`, `layout_and_wire.py`, `set_bom_fields.py`,
   provenance and README. `build_pcb.py` asserts no J2 reaches the PCB.

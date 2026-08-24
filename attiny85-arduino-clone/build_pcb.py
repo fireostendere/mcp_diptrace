@@ -45,7 +45,10 @@ SCHEMATIC = ROOT / "attiny85-arduino-clone.dchxml"
 BOARD = ROOT / "attiny85-arduino-clone-pcb.dipxml"
 
 BOARD_W = 42.2
-BOARD_H = 13.7
+# 13.9 = 13.7 routed geometry + 0.2 outline clearance: the router's USB_D+
+# hop runs at y=13.62 (copper to 13.72), and native DRC flagged it 25 um
+# past the old 13.7 edge. The router does not model outline clearance.
+BOARD_H = 13.9
 X_SHIFT = 2.1247434  # J1's footprint BOARD EDGE line lands at board X=0.
 Y_SHIFT = 5.65
 
@@ -401,28 +404,17 @@ def _dedupe_overlapping_vias(document: DipTraceDocument) -> DipTraceDocument:
                 flush=True,
             )
             raise
-        snapshot = build_snapshot(document)
 
-    # Replacing the trace path leaves the old standalone via objects in
-    # place; drop one of each now-coincident same-net pair.
-    snapshot = build_snapshot(document)
-    stale: list[str] = []
-    vias = list(snapshot.board.vias)
-    for i, left in enumerate(vias):
-        for right in vias[i + 1 :]:
-            if left.net_id != right.net_id:
-                continue
-            if (
-                abs(left.position["x"] - right.position["x"]) < 1e-6
-                and abs(left.position["y"] - right.position["y"]) < 1e-6
-            ):
-                if right.stable_id not in stale:
-                    stale.append(right.stable_id)
-    if stale:
-        document = apply_semantic_operations(
-            document,
-            [DeleteViaOperation(selector=QuerySelector(ids=stale))],
-        ).document
+    # NOTE: no stale-via cleanup here. Coincident same-net vias after a
+    # replacement are intentional sibling-via sharing (the replacement paths
+    # deliberately route through an existing same-net transition). The old
+    # cleanup deleted one via of each coincident pair via DeleteViaOperation,
+    # whose compiler rewrites the FOLLOWING trace point to the incoming
+    # layer - silently killing the new trace's Top->Bottom transition. The
+    # native DipTrace editor then re-inserts the missing via wherever it
+    # loads, which landed vias next to pads (C6.2, U2 pin row) and produced
+    # 31 native DRC violations.
+
     return document
 
 
@@ -796,17 +788,34 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
 
     routed = _dedupe_overlapping_vias(routed)
 
+    def _trace2_probe(tag: str) -> None:
+        for tr_el in routed.root.iter("Trace"):
+            pts = tr_el.findall(".//Point")
+            if len(pts) == 7 and abs(float(pts[2].get("X")) - 21.25) < 0.01:
+                with Path(f".trace2_{tag}.json").open("w", encoding="utf-8") as h:
+                    json.dump(
+                        [{k: p.get(k) for k in ("X", "Y", "Lay", "ViaStyle")} for p in pts],
+                        h,
+                    )
+                return
+
+    _trace2_probe("after_dedupe")
+
+    # Native DipTrace DRC measured its own pour fill 3-62 um inside the
+    # 0.13 mm rule near traces (polygon corner approximation); 0.15 keeps
+    # every native fill comfortably above the rule.
     pour_result = add_copper_pours(
         routed,
         net="GND",
         layers=("Top", "Bottom"),
-        clearance_mm=0.13,
+        clearance_mm=0.18,
         board_clearance_mm=0.2,
         spoke_width_mm=0.3,
         stitch_pitch_mm=2.0,
         stitch_edge_mm=0.8,
     )
     routed = pour_result.document
+    _trace2_probe("after_pours")
 
     snapshot = build_snapshot(routed)
     extra_silk = [
@@ -814,7 +823,7 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
         for record in snapshot.objects.values()
         if record.kind == "component_text"
         and record.attributes.get("surface") == "Silk"
-        and record.name in {"Name", "Value"}
+        and record.name in {"Name", "Value", "Pattern", "Manufacturer", "Datasheet"}
     ]
     if extra_silk:
         routed = apply_semantic_operations(
@@ -829,6 +838,7 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
         raise RuntimeError(f"silkscreen has unresolved labels: {silk_plan.unresolved}")
     if silk_plan.operations:
         routed = apply_semantic_operations(routed, silk_plan.operations).document
+    _trace2_probe("after_silk")
 
     snapshot = build_snapshot(routed)
     assert snapshot.board is not None
@@ -857,6 +867,12 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
                 indent=1,
             )
         )
+    # Native DRC "Silk to Pad" on C5.1: the component carries
+    # GridAlign="Pad", and the native editor re-anchors the RefDes marking
+    # onto the pad row on load. Disable pad snapping for the marking.
+    for comp_el in routed.root.iter("Component"):
+        if comp_el.get("PatternStyle") == "PatType11":
+            comp_el.set("GridAlign", "None")
     output.write_bytes(routed.raw_bytes)
     return {
         "components": len(snapshot.board.components),
