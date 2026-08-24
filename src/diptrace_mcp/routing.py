@@ -86,8 +86,10 @@ class RouteConnectionConfig(StrictModel):
     max_vias: int = Field(default=0, ge=0, le=32)
     via_cost: float = Field(default=5.0, ge=0.0, le=10_000.0)
     max_detour: float = Field(default=3.0, ge=1.0, le=100.0)
-    max_nodes: int = Field(default=100_000, ge=100, le=1_000_000)
-    time_budget_ms: int = Field(default=5_000, ge=100, le=30_000)
+    max_nodes: int = Field(default=100_000, ge=100, le=4_000_000)
+    # Ceiling raised above the node budget so the deterministic node cap
+    # always binds before the wall-clock deadline (reproducible builds).
+    time_budget_ms: int = Field(default=5_000, ge=100, le=900_000)
     avoid_component_bodies: bool = True
     allow_via_in_pad: bool = False
     routing_priority: int = Field(default=0, ge=0, le=1_000)
@@ -139,8 +141,9 @@ class DifferentialPairRouteConfig(StrictModel):
     max_vias: int = Field(default=0, ge=0, le=32)
     via_cost: float = Field(default=8.0, ge=0.0, le=10_000.0)
     max_detour: float = Field(default=3.0, ge=1.0, le=100.0)
-    max_nodes: int = Field(default=200_000, ge=100, le=1_000_000)
-    time_budget_ms: int = Field(default=10_000, ge=100, le=30_000)
+    max_nodes: int = Field(default=200_000, ge=100, le=4_000_000)
+    # Ceiling raised so the deterministic node budget binds before wall clock.
+    time_budget_ms: int = Field(default=10_000, ge=100, le=900_000)
     endpoint_tolerance: float = Field(
         default=0.01, gt=0.0, le=1.0, description=_MM_FIELD_DESCRIPTION
     )
