@@ -1,7 +1,7 @@
 # PCB build handoff
 
-Status: `NATIVE_DRC_CLEAN_PENDING_MEDIA`
-Updated: 2026-08-24
+Status: `RELEASE_CANDIDATE_ALL_GATES_PASS`
+Updated: 2026-08-25
 Input schematic SHA-256: `2f5ee017e42890eaaddc50de831390dcae6cda38531e24c161bc058013ed3ec2`
 Starting board SHA-256: `cadc29c4c005ad322276fe3ef8f262795510f9a6de641b6e3544a1e9804c9fd2`
 Current board SHA-256: `e0e5cdbe0aad5f7c0fa15dcfecfa99b48f6e623119f7f2874dadb2b7f3be1ee0`
@@ -22,7 +22,7 @@ Current board SHA-256: `e0e5cdbe0aad5f7c0fa15dcfecfa99b48f6e623119f7f2874dadb2b7
 | 9. Silkscreen | PASS | `plan_silkscreen` unresolved set empty (asserted); planner now treats vias as fixed obstacles so labels never overlap stitch vias. |
 | 10. Headless QC | PASS | `review_pcb_quality` hard_error_count == 0 gate inside `build()`; pre-QC artifact dumped to `.attiny85-2layer-*-preqc.dipxml` on failure for diagnosis. |
 | 11. Native DipTrace refill/DRC | PASS | 2026-08-24 (final): native DRC reports **0 findings** on board `e0e5cdbe…` with the solid GND copper shapes under U3 (`scripts/gate11_result.json`, "DRC clean (no errors window)"; DipTrace opens the errors window only when findings exist - verified with an error-injected control copy). Driver hardening: menu resolved by index (owner-drawn text paths are hash-unstable), clean-board case handled, Save-As artifact written. History: 31 -> 3 (transition fix, silk hides, 13.9 outline) -> C5.1 fixed (J3 silk over C5 pad 1; C5 nudged 0.2 mm) -> TPS_L1/L2 pour findings eliminated by the TI-flank re-layout + route keepout between the inductor legs -> U2:22 disappeared when pour clearance returned to 0.18 -> solid GND shapes tuned against stroke overhang (rectangle stroke extends LineWidth/2 past the path; native pads/lands measure wider than snapshot bboxes - both accounted with 0.18 insets). |
-| 12. PNG/MP4/GIF and final frame | PENDING | Re-record via `diptrace-mcp-cinematic` capture -> compile -> ffmpeg; boundary-fit framing per house rules; inspect final frame. The existing `attiny85-arduino-clone-pcb.{png,mp4,gif}` are a **stale pre-rework render** — do not ship or resume from them. |
+| 12. PNG/MP4/GIF and final frame | PASS | 2026-08-25: staged cinematic rebuilt from the construction order (18 stages: placement -> manual power tree -> per-net routing -> pours -> silk) via `scripts/render_pcb_stages.py`; boundary-fit framing (purple outline, ~10% margin, stable frame, no editor controls); final frame inspected. Artifacts: `media/attiny85-arduino-clone-pcb.{png,mp4,gif}` (PNG at 2x). The old root-level `attiny85-arduino-clone-pcb.{png,mp4,gif}` renders are obsolete. |
 
 ## Build command (exact environment)
 

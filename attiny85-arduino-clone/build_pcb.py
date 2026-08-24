@@ -686,6 +686,15 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
     ]
 
     routed = placed
+    # Gate 12 staging (ATTINY_STAGE_DIR): dump the board after each
+    # construction step so the media pipeline renders components and
+    # connections appearing one at a time.
+    stage_dir = os.environ.get("ATTINY_STAGE_DIR")
+
+    def _stage(name: str) -> None:
+        if stage_dir:
+            Path(stage_dir).mkdir(parents=True, exist_ok=True)
+            (Path(stage_dir) / f"{name}.dipxml").write_bytes(routed.raw_bytes)
     # Route keepout between the TPS_L1/L2 legs: the hot-loop channel is not
     # a GND corridor (user rule - ground ties under the chip via the pour).
     # x-limits clear the 0.35 mm legs (edges 10.1504/10.8004) even after the
@@ -843,6 +852,7 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
             )
         ],
     ).document
+    _stage("01_manual")
     metrics: dict[str, object] = {}
     for requested, layers in groups:
         print(f"routing {','.join(requested)} on {','.join(layers)}", file=sys.stderr, flush=True)
@@ -861,6 +871,8 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
             if not failed_ids:
                 remaining = []
                 break
+        if not remaining:
+            _stage(f"02_{requested[0].replace('+', 'p')}")
             name_by_id = {
                 record.stable_id: record.name for record in build_snapshot(routed).board.nets
             }
@@ -990,6 +1002,7 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
         smd_spoke="Direct",
     )
     routed = pour_result.document
+    _stage("90_pours")
     _trace2_probe("after_pours")
 
     snapshot = build_snapshot(routed)
@@ -1013,6 +1026,7 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
         raise RuntimeError(f"silkscreen has unresolved labels: {silk_plan.unresolved}")
     if silk_plan.operations:
         routed = apply_semantic_operations(routed, silk_plan.operations).document
+    _stage("99_final")
     _trace2_probe("after_silk")
 
     snapshot = build_snapshot(routed)
