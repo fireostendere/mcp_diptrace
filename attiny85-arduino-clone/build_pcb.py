@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -101,7 +102,9 @@ POSITIONS = {
     "R5": (20.5, 13.5),
     # MCU with decoupling across VCC/GND, reset network near pin 1.
     "U1": (33.0, 14.0),
-    "C5": (38.2, 17.9),
+    # C5 nudged 0.2 mm left: J3's Top Silk rectangle line terminated inside
+    # C5 pad-1 copper (native "Silk to Pad", Gap=-0.0934, Rule=0).
+    "C5": (38.0, 17.9),
     "C6": (27.25, 17.65),
     "R6": (29.5, 17.65),
     # J3 carries IO and the complete ISP pin set; the duplicate J2 is omitted.
@@ -529,6 +532,42 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
             version=schematic.version,
         ),
     )
+    # Native Pcb.exe defaults RefDes placement to RefDesGlobal
+    # SilkAlign="Auto" and drops every per-component RefDesMarking offset -
+    # the source of gate-11 "Pad C5:1 - Silk to Pad". Declare an explicit
+    # Markings block: with it present the editor honors individual offsets,
+    # and FontSize 1.2 mm (vs default 3) makes the modeled text match the
+    # planner's 1 mm assumption so offsets actually clear the pads.
+    # ATTINY_SILK_ALIGN / ATTINY_MARKING_FONT_MM are probe knobs.
+    silk_align = os.environ.get("ATTINY_SILK_ALIGN")
+    font_mm = os.environ.get("ATTINY_MARKING_FONT_MM")
+    if silk_align or font_mm:
+        raw_tree = RawTreeSnapshot.capture(board)
+        settings_el = board.root.find("./Board/Settings")
+        markings = ET.Element("Markings")
+        ET.SubElement(markings, "CompRotate").text = "N"
+        if font_mm:
+            ET.SubElement(markings, "FontVector").text = "Y"
+            ET.SubElement(markings, "FontName").text = "Tahoma"
+            ET.SubElement(markings, "FontSize").text = font_mm
+            ET.SubElement(markings, "FontSizeFloat").text = font_mm
+            ET.SubElement(markings, "FontWidth").text = "-2"
+            ET.SubElement(markings, "FontScale").text = "1"
+        if silk_align:
+            ET.SubElement(
+                markings,
+                "RefDesGlobal",
+                {
+                    "SilkShow": "Show",
+                    "SilkAlign": silk_align,
+                    "AssyShow": "Common",
+                    "AssyAlign": "Auto",
+                },
+            )
+        settings_el.insert(0, markings)
+        board = DipTraceDocument.from_bytes(
+            board.path, raw_tree.compile(board.root, board.path)
+        )
     sync = build_sync_plan(
         physical,
         board,
@@ -803,14 +842,14 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
 
     _trace2_probe("after_dedupe")
 
-    # Native DipTrace DRC measured its own pour fill 3-62 um inside the
-    # 0.13 mm rule near traces (polygon corner approximation); 0.15 keeps
-    # every native fill comfortably above the rule.
+    # Native DipTrace DRC measured its own pour fill up to ~62 um inside the
+    # requested clearance near polygon corners; 0.18 still left 0.125 vs the
+    # 0.13 rule at TPS_L1/L2, so 0.22 restores margin above the rule.
     pour_result = add_copper_pours(
         routed,
         net="GND",
         layers=("Top", "Bottom"),
-        clearance_mm=0.18,
+        clearance_mm=0.22,
         board_clearance_mm=0.2,
         spoke_width_mm=0.3,
         stitch_pitch_mm=2.0,
@@ -869,35 +908,10 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
                 indent=1,
             )
         )
-    # Native DRC "Silk to Pad" on C5.1: C5 is rotated 90 degrees, and the
-    # RefDes marking offset written by the silkscreen planner is global,
-    # while the native editor interprets RefDesMarking offsets in the
-    # pattern-local (rotated) frame - so the marking lands on pad 1.
-    # Re-express the planner's global offset (-2.075, 0) in the local frame:
-    # native pos = origin + R(angle)*local, so local = R(-angle)*global;
-    # for Angle=+90 deg that maps (dx,dy)_global -> (dy,-dx)_local,
-    # giving the target local offset (0, +2.075).
-    # raw_bytes is a frozen snapshot: direct root mutations never reach the
-    # written file unless recompiled (this silently no-op'd both earlier
-    # C5.1 fix attempts - GridAlign=None and the first offset rewrite).
-    raw_tree = RawTreeSnapshot.capture(routed)
-    for comp_el in routed.root.iter("Component"):
-        if comp_el.get("PatternStyle") != "PatType11":
-            continue
-        angle = float(comp_el.get("Angle") or 0.0)
-        if abs(angle - 1.57079633) > 0.01:
-            continue
-        for marking in comp_el.findall("./RefDesMarking/Silk"):
-            if marking.get("Show") != "Show":
-                continue
-            dx = float(marking.get("X") or 0.0)
-            dy = float(marking.get("Y") or 0.0)
-            if abs(dx) < 0.01 and abs(dy) < 0.01:
-                continue
-            marking.set("X", f"{dy:.9g}")
-            marking.set("Y", f"{-dx:.9g}")
-    compiled = raw_tree.compile(routed.root, routed.path)
-    routed = DipTraceDocument.from_bytes(routed.path, compiled)
+    # C5.1 silk-to-pad (native): Pcb.exe saves RefDes as RefDesGlobal
+    # SilkAlign="Auto" and drops every per-component RefDesMarking offset,
+    # so offset-based fixes cannot reach the native layout. Real lever is
+    # the document-level <Markings> block (spec 4.4.1.7); pending a probe.
     output.write_bytes(routed.raw_bytes)
     return {
         "components": len(snapshot.board.components),

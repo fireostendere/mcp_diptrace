@@ -4,8 +4,7 @@ Status: `ROUTED_2LAYER_PENDING_NATIVE`
 Updated: 2026-08-24
 Input schematic SHA-256: `2f5ee017e42890eaaddc50de831390dcae6cda38531e24c161bc058013ed3ec2`
 Starting board SHA-256: `cadc29c4c005ad322276fe3ef8f262795510f9a6de641b6e3544a1e9804c9fd2`
-Current board SHA-256: `455c5ad81e47c165` (first 16 hex; file rewritten with local-frame
-RefDes offsets - see gate 11 and deviations "post-QC mutations must be compiled")
+Current board SHA-256: `2bc6eea2bda23a4ed466fb0e01acc19e73f0841036df2a66c74737caafbf1129`
 
 ## Ordered gates
 
@@ -22,7 +21,7 @@ RefDes offsets - see gate 11 and deviations "post-QC mutations must be compiled"
 | 8. Ground pours and stitching | PASS | GND pours Top+Bottom (`add_copper_pours`, 0.13 clearance, four-spoke connector thermals) plus 21 distributed stitch vias; QC stitching coverage gate green. |
 | 9. Silkscreen | PASS | `plan_silkscreen` unresolved set empty (asserted); planner now treats vias as fixed obstacles so labels never overlap stitch vias. |
 | 10. Headless QC | PASS | `review_pcb_quality` hard_error_count == 0 gate inside `build()`; pre-QC artifact dumped to `.attiny85-2layer-*-preqc.dipxml` on failure for diagnosis. |
-| 11. Native DipTrace refill/DRC | IN PROGRESS | Headless native DRC driver works (`scripts/diptrace_native_gate11.py`, real Pcb.exe 5.3 on a hidden desktop). Native findings reduced 31 -> 3 after the trace-transition fix, pour clearance 0.18, hidden service silk texts, and the 13.9 mm outline. Remaining: C5.1 silk-to-pad (-0.093), pour-to-TPS_L1/L2 at 0.125 vs 0.13 (native fill ignores the pour clearance attribute - investigating). C5.1 ROOT CAUSE FOUND 2026-08-24: post-QC XML mutations were never compiled into `raw_bytes` (both earlier fixes silently no-op'd; board bytes never changed). The local-frame RefDes offset rewrite now lands (C5 -> (0,+2.075)); awaiting native DRC confirmation. |
+| 11. Native DipTrace refill/DRC | PENDING | Headless native DRC driver works (`scripts/diptrace_native_gate11.py`, real Pcb.exe 5.3 on a hidden desktop). Native findings 31 -> 2: C5.1 silk-to-pad FIXED 2026-08-24 (J3 Top Silk rectangle line terminated inside C5 pad-1 copper; C5 nudged 0.2 mm, native-verified). Remaining: `Copper pour - TPS_L1` and `- TPS_L2` at exactly 0.125 vs rule 0.13. Proven immune to pour Clearance (0.18/0.22), GND net-class clearance via UseNetClearance=Y (0.2 - also raised the RULE and broke 104 other pairs), document Grid (0.01): the load-time refill quantizes to ~0.125 inside the U3 pin-row corridor (U3.8 GND pad leaves only ~0.15 mm to each leg). Decision needed: widen inter-leg channel (deviates from TI SW-pad-axis layout), accept the 5 um technical violation, or keepout the channel (kills the reserve escape route). |
 | 12. PNG/MP4/GIF and final frame | PENDING | After gate 11: re-record via `diptrace-mcp-cinematic` capture -> compile -> ffmpeg; boundary-fit framing per house rules; inspect final frame. The existing `attiny85-arduino-clone-pcb.{png,mp4,gif}` are a **stale pre-J2-removal render** — do not ship or resume from them. |
 
 ## Build command (exact environment)
@@ -94,8 +93,16 @@ PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python attiny85-arduino-clone/build_pc
   `DipTraceDocument.raw_bytes` is a frozen byte snapshot; mutating `.root`
   directly never reaches `write_bytes`. This silently no-op'd both earlier
   C5.1 fixes (board SHA stayed b4acaf5c across code changes - that stale-SHA
-  invariant was the tell). build() now captures before the RefDes rewrite and
-  writes the compiled result (`455c5ad8…`).
+  invariant was the tell). Any future post-QC edit must capture before and
+  compile after mutation.
+- **C5.1 silk root cause was placement, not markings**: Pcb.exe saves RefDes
+  as `RefDesGlobal SilkAlign="Auto"` and drops per-component offsets under
+  its defaults; with an explicit `<Markings>` block it honors them, but the
+  offender turned out to be J3's own Top Silk outline ending inside C5 pad-1
+  copper (`CompRotate=N` is what Pcb.exe itself writes - the local-frame
+  hypothesis was wrong). Fix: C5 x -0.2 mm in POSITIONS.
+- **GND pour clearance 0.22** (was 0.18): neutral for the TPS findings but
+  keeps native corner rasterization comfortably off all other copper.
 
 ## Checkpoints
 
