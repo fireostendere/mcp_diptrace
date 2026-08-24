@@ -123,10 +123,10 @@ def _run_worker(request: dict[str, Any], result_path: Path) -> int:
         report["drc_errors"] = items
         report["window_title"] = str(drc.window_text()).strip()
 
-        # Locate each error: select list row, press Locate, read cursor point.
-        from diptrace_mcp.diptrace_window import normalized_cursor_position
-
+        # Locate each error: select list row, press Locate, screenshot the
+        # layout window so the highlighted offender can be inspected.
         located: list[dict[str, Any]] = []
+        shots_dir = Path(request.get("shots_dir") or "")
         try:
             count = int(list_box.item_count())
             for i in range(count):
@@ -134,14 +134,26 @@ def _run_worker(request: dict[str, Any], result_path: Path) -> int:
                     list_box.select(i)
                 time.sleep(0.15)
                 _click_button(drc, "Locate")
-                time.sleep(0.4)
-                pos: dict[str, Any] = {}
-                with suppress_exception():
-                    cursor = normalized_cursor_position("DipTrace")
-                    if cursor is not None:
-                        pos = {"x": cursor.x, "y": cursor.y}
-                label = items[i] if i < len(items) else f"#{i}"
-                located.append({"index": i, "error": label, **pos})
+                time.sleep(0.6)
+                entry: dict[str, Any] = {"index": i}
+                if i < len(items):
+                    entry["error"] = items[i]
+                if shots_dir:
+                    with suppress_exception():
+                        layout = app.window(
+                            best_match="PCB Layout"
+                        ) if False else None
+                    for cand in app.windows(visible_only=True):
+                        with suppress_exception():
+                            title = str(cand.window_text())
+                        if "PCB Layout" in title and "attiny85" in title:
+                            with suppress_exception():
+                                img = app.window(handle=int(cand.handle)).capture_as_image()
+                                shot = shots_dir / f"drc_{i}.png"
+                                img.save(shot)
+                                entry["shot"] = str(shot)
+                            break
+                located.append(entry)
         except Exception as exc:  # noqa: BLE001 - locate pass is best-effort
             located.append({"locate_pass_error": f"{type(exc).__name__}: {exc}"})
         report["drc_located"] = located
@@ -218,7 +230,11 @@ def main() -> int:
     if os.name != "nt":
         print("Windows required", file=sys.stderr)
         return 2
-    request = {"diptrace_root": args.diptrace_root, "project": args.project}
+    request = {
+        "diptrace_root": args.diptrace_root,
+        "project": args.project,
+        "shots_dir": str(Path(args.output).parent),
+    }
     desktop_name = f"DipTraceGate11-{os.getpid()}-{uuid.uuid4().hex[:8]}"
     with tempfile.TemporaryDirectory(prefix="diptrace-gate11-") as raw_temp:
         temp = Path(raw_temp)
