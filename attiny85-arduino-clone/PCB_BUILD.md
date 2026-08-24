@@ -1,10 +1,11 @@
 # PCB build handoff
 
 Status: `ROUTED_2LAYER_PENDING_NATIVE`
-Updated: 2026-08-23
+Updated: 2026-08-24
 Input schematic SHA-256: `2f5ee017e42890eaaddc50de831390dcae6cda38531e24c161bc058013ed3ec2`
 Starting board SHA-256: `cadc29c4c005ad322276fe3ef8f262795510f9a6de641b6e3544a1e9804c9fd2`
-Current board SHA-256: `b4acaf5cece1c1d583b8096528d81fea88d282a33ed71870a5ae30aa7bcbb813`
+Current board SHA-256: `455c5ad81e47c165` (first 16 hex; file rewritten with local-frame
+RefDes offsets - see gate 11 and deviations "post-QC mutations must be compiled")
 
 ## Ordered gates
 
@@ -21,7 +22,7 @@ Current board SHA-256: `b4acaf5cece1c1d583b8096528d81fea88d282a33ed71870a5ae30aa
 | 8. Ground pours and stitching | PASS | GND pours Top+Bottom (`add_copper_pours`, 0.13 clearance, four-spoke connector thermals) plus 21 distributed stitch vias; QC stitching coverage gate green. |
 | 9. Silkscreen | PASS | `plan_silkscreen` unresolved set empty (asserted); planner now treats vias as fixed obstacles so labels never overlap stitch vias. |
 | 10. Headless QC | PASS | `review_pcb_quality` hard_error_count == 0 gate inside `build()`; pre-QC artifact dumped to `.attiny85-2layer-*-preqc.dipxml` on failure for diagnosis. |
-| 11. Native DipTrace refill/DRC | IN PROGRESS | Headless native DRC driver works (`scripts/diptrace_native_gate11.py`, real Pcb.exe 5.3 on a hidden desktop). Native findings reduced 31 -> 3 after the trace-transition fix, pour clearance 0.18, hidden service silk texts, and the 13.9 mm outline. Remaining: C5.1 silk-to-pad (-0.093, cause under investigation), pour-to-TPS_L1/L2 at 0.125 vs 0.13 (native fill ignores the pour clearance attribute - investigating). |
+| 11. Native DipTrace refill/DRC | IN PROGRESS | Headless native DRC driver works (`scripts/diptrace_native_gate11.py`, real Pcb.exe 5.3 on a hidden desktop). Native findings reduced 31 -> 3 after the trace-transition fix, pour clearance 0.18, hidden service silk texts, and the 13.9 mm outline. Remaining: C5.1 silk-to-pad (-0.093), pour-to-TPS_L1/L2 at 0.125 vs 0.13 (native fill ignores the pour clearance attribute - investigating). C5.1 ROOT CAUSE FOUND 2026-08-24: post-QC XML mutations were never compiled into `raw_bytes` (both earlier fixes silently no-op'd; board bytes never changed). The local-frame RefDes offset rewrite now lands (C5 -> (0,+2.075)); awaiting native DRC confirmation. |
 | 12. PNG/MP4/GIF and final frame | PENDING | After gate 11: re-record via `diptrace-mcp-cinematic` capture -> compile -> ffmpeg; boundary-fit framing per house rules; inspect final frame. The existing `attiny85-arduino-clone-pcb.{png,mp4,gif}` are a **stale pre-J2-removal render** — do not ship or resume from them. |
 
 ## Build command (exact environment)
@@ -89,6 +90,12 @@ PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python attiny85-arduino-clone/build_pc
   (≈300 s worst case measured) keeps results machine-speed independent; the
   time guard is now a pure runaway safety net. RefDes post-processing was
   proven innocent by an A/B run (disabled block still failed on USB_D-).
+- **Post-QC XML mutations must go through RawTreeSnapshot capture/compile**:
+  `DipTraceDocument.raw_bytes` is a frozen byte snapshot; mutating `.root`
+  directly never reaches `write_bytes`. This silently no-op'd both earlier
+  C5.1 fixes (board SHA stayed b4acaf5c across code changes - that stale-SHA
+  invariant was the tell). build() now captures before the RefDes rewrite and
+  writes the compiled result (`455c5ad8…`).
 
 ## Checkpoints
 

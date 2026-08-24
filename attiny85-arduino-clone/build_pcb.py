@@ -38,7 +38,7 @@ from diptrace_mcp.silkscreen import (
     plan_silkscreen,
 )
 from diptrace_mcp.synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan
-from diptrace_mcp.xml_document import DipTraceDocument
+from diptrace_mcp.xml_document import DipTraceDocument, RawTreeSnapshot
 
 ROOT = Path(__file__).absolute().parent
 SCHEMATIC = ROOT / "attiny85-arduino-clone.dchxml"
@@ -874,8 +874,13 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
     # while the native editor interprets RefDesMarking offsets in the
     # pattern-local (rotated) frame - so the marking lands on pad 1.
     # Re-express the planner's global offset (-2.075, 0) in the local frame:
-    # for Angle=+90 deg global (dx,dy) = (-y_local, x_local), so the local
-    # offset is (0, +2.075).
+    # native pos = origin + R(angle)*local, so local = R(-angle)*global;
+    # for Angle=+90 deg that maps (dx,dy)_global -> (dy,-dx)_local,
+    # giving the target local offset (0, +2.075).
+    # raw_bytes is a frozen snapshot: direct root mutations never reach the
+    # written file unless recompiled (this silently no-op'd both earlier
+    # C5.1 fix attempts - GridAlign=None and the first offset rewrite).
+    raw_tree = RawTreeSnapshot.capture(routed)
     for comp_el in routed.root.iter("Component"):
         if comp_el.get("PatternStyle") != "PatType11":
             continue
@@ -889,8 +894,10 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
             dy = float(marking.get("Y") or 0.0)
             if abs(dx) < 0.01 and abs(dy) < 0.01:
                 continue
-            marking.set("X", f"{-dy:.9g}")
-            marking.set("Y", f"{dx:.9g}")
+            marking.set("X", f"{dy:.9g}")
+            marking.set("Y", f"{-dx:.9g}")
+    compiled = raw_tree.compile(routed.root, routed.path)
+    routed = DipTraceDocument.from_bytes(routed.path, compiled)
     output.write_bytes(routed.raw_bytes)
     return {
         "components": len(snapshot.board.components),
