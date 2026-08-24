@@ -12,6 +12,7 @@ from pathlib import Path
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.copper_pours import add_copper_pours
+from diptrace_mcp.geometry import Point
 from diptrace_mcp.domain import QuerySelector
 from diptrace_mcp.errors import GeometryError
 from diptrace_mcp.operations import (
@@ -86,11 +87,18 @@ J1_SHIELD_PADS = [str(n) for n in range(7, 14)]
 POSITIONS = {
     # USB power stage (TPS63802 buck-boost): caps and inductor tight to U3,
     # FB divider under it, hot loop kept local.
+    # TI TPS63802 layout example (datasheet Fig. 12-1): C1 flanks VIN and C2
+    # flanks VOUT at pin-row height (y 8.025), pads facing the IC; L1 stays
+    # directly above (its 4.9x4.3 mm body is already body-limited).
+    # C1 rot 180 puts its VBUS pad toward VIN; C2 rot 0 keeps +3V3 pad
+    # toward VOUT. Board coords = POSITIONS minus X_SHIFT/Y_SHIFT.
     "J1": (4.0, 12.5),
-    "C1": (10.2, 14.43),
+    "C1": (9.81, 13.675),
     "U3": (12.6, 12.85),
     "L1": (12.6, 16.35),
-    "C2": (15.3, 14.545),
+    # C2 cleared of U3/L1 Top Outline overlaps: pad-1 left edge >= 12.125
+    # (U3 outline ends 11.975) and top edge <= 8.42 (L1 outline starts 8.554).
+    "C2": (15.635, 13.365),
     "R1": (14.115, 10.2),
     "R2": (12.085, 10.2),
     "R3": (16.145, 10.2),
@@ -114,8 +122,8 @@ POSITIONS = {
 ROTATIONS = {
     "J1": 270,  # USB opening over the left edge, tails into the board
     "U3": 90,
-    "C1": 90,
-    "C2": 90,
+    "C1": 180,  # VBUS pad toward U3.VIN (TI Fig. 12-1 flank)
+    "C2": 0,  # +3V3 pad toward U3.VOUT
     "C3": 90,
     "C4": 90,
     "C5": 90,
@@ -342,12 +350,15 @@ def _dedupe_overlapping_vias(document: DipTraceDocument) -> DipTraceDocument:
             j15.stable_id,
             c12.stable_id,
             [
+                # The old Top lane crossed y 6.8 inside the VBUS feed corridor
+                # (x 5.06..9.2). Drop to Bottom south of it and resurface at
+                # the (8.125,10.375) stitch via as before.
                 point(j15.position["x"], j15.position["y"]),
                 point(4.125, 5.625, "Top"),
-                point(5.0, 5.625, "Top"),
-                point(6.75, 7.375, "Top", via=True),
-                point(8.0, 8.625, "Bottom"),
-                point(8.125, 10.375, "Bottom", via=True),
+                point(5.75, 5.625, "Top"),
+                point(5.75, 6.2, "Top", via=True),
+                point(7.6, 7.75, "Bottom"),
+                point(7.6, 10.375, "Bottom", via=True),
                 point(c12.position["x"], c12.position["y"], "Top"),
             ],
         )
@@ -533,14 +544,14 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
         ),
     )
     # Native Pcb.exe defaults RefDes placement to RefDesGlobal
-    # SilkAlign="Auto" and drops every per-component RefDesMarking offset -
-    # the source of gate-11 "Pad C5:1 - Silk to Pad". Declare an explicit
-    # Markings block: with it present the editor honors individual offsets,
-    # and FontSize 1.2 mm (vs default 3) makes the modeled text match the
-    # planner's 1 mm assumption so offsets actually clear the pads.
-    # ATTINY_SILK_ALIGN / ATTINY_MARKING_FONT_MM are probe knobs.
-    silk_align = os.environ.get("ATTINY_SILK_ALIGN")
-    font_mm = os.environ.get("ATTINY_MARKING_FONT_MM")
+    # SilkAlign="Auto" with a 3 mm font: the auto text lands on the pads
+    # (native "C2:1 - Silk to Pad"). Declare an explicit Markings block:
+    # with it present the editor honors the silkscreen planner's
+    # per-component offsets (verified by round-trip) and the 1.2 mm vector
+    # font fits small footprints. CompRotate=N is what Pcb.exe itself
+    # writes; ATTINY_SILK_ALIGN / ATTINY_MARKING_FONT_MM override.
+    silk_align = os.environ.get("ATTINY_SILK_ALIGN", "Top")
+    font_mm = os.environ.get("ATTINY_MARKING_FONT_MM", "1.2")
     if silk_align or font_mm:
         raw_tree = RawTreeSnapshot.capture(board)
         settings_el = board.root.find("./Board/Settings")
@@ -675,6 +686,30 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
     ]
 
     routed = placed
+    # Route keepout between the TPS_L1/L2 legs: the hot-loop channel is not
+    # a GND corridor (user rule - ground ties under the chip via the pour).
+    # x-limits clear the 0.35 mm legs (edges 10.1504/10.8004) even after the
+    # validator's half-width expansion (0.175).
+    raw_tree = RawTreeSnapshot.capture(routed)
+    board_el = routed.root.find("./Board")
+    shapes_el = board_el.find("./Shapes")
+    if shapes_el is None:
+        shapes_el = ET.SubElement(board_el, "Shapes")
+    keepout_id = max(
+        (int(s.get("Id", "-1")) for s in shapes_el.findall("./Shape") if s.get("Id", "").isdigit()),
+        default=-1,
+    ) + 1
+    keepout = ET.SubElement(
+        shapes_el,
+        "Shape",
+        {"Id": str(keepout_id), "Type": "Rectangle", "AllLayers": "N", "Layer": "Route Keepout"},
+    )
+    keepout_pts = ET.SubElement(keepout, "Points")
+    for kx, ky in ((10.33, 8.50), (10.62, 8.50), (10.62, 10.70), (10.33, 10.70)):
+        ET.SubElement(keepout_pts, "Point", {"X": f"{kx:.9g}", "Y": f"{ky:.9g}"})
+    routed = DipTraceDocument.from_bytes(
+        routed.path, raw_tree.compile(routed.root, routed.path)
+    )
     j1 = _pad(routed, "J1", "1")
     c1 = _pad(routed, "C1", "1")
     assert j1.position is not None and c1.position is not None
@@ -686,11 +721,20 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
                 "VBUS",
                 ("J1", "1"),
                 ("C1", "1"),
-                # 0.25 while passing the connector zone (J1.2/J1.3 lands and
-                # USB_D+/- pads reach y=7.70; the (6.75,7.375) stitch via
-                # needs its 0.555 mm standoff), 0.5 mm copper only after x=7.0.
-                [(j1.position["x"], c1.position["y"], 0.25), (7.0, c1.position["y"], 0.25)],
-                width=0.5,
+                # C1 rot 180 puts the VBUS pad on the RIGHT (IC side) and the
+                # GND pad on the left, so a straight feed along the pin row
+                # would drive over the GND land, and the north side is walled
+                # by L1.1's 1.2x3.8 mm land (x from 8.686, y from 8.8). Feed
+                # from below: exit J1 right (x 5.06 keeps 0.135 to the lands),
+                # down to y 6.8 (0.15 under the (6.75,7.375) stitch via),
+                # under the cap, up into the pad. All 0.25 - the 0.45 trunk
+                # starts at the C1->VIN hop.
+                [
+                    (5.06, j1.position["y"], 0.25),
+                    (5.06, 6.8, 0.25),
+                    (c1.position["x"] + 0.755, 6.8, 0.25),
+                ],
+                width=0.25,
             )
         ],
     ).document
@@ -705,17 +749,18 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
                 "VBUS",
                 ("C1", "1"),
                 ("U3", "10"),
-                # Wide over the free run, taper to 0.25 for the final hop:
-                # at 0.5 mm the copper would sit 0.10 mm from the TPS_L1
-                # land next door (needs 0.13).
-                [(vin.position["x"] - 0.35, vin.position["y"], 0.5)],
+                # Straight 0.45 mm hop at pin-row height: 0.5 mm copper would
+                # sit 0.125 mm from the TPS_L1 land next door (needs 0.13).
+                [(vin.position["x"] - 0.35, vin.position["y"], 0.45)],
             )
         ],
     ).document
     c1 = _pad(routed, "C1", "1")
     enable = _pad(routed, "U3", "1")
     assert c1.position is not None and enable.position is not None
-    branch_x = c1.position["x"] + 0.525
+    # EN taps VBUS at C1's right pad and drops below the cap body, then cuts
+    # across to the EN land clear of U3's body outline (x 8.9).
+    branch_x = c1.position["x"] + 0.755
     routed = apply_semantic_operations(
         routed,
         [
@@ -725,10 +770,26 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
                 ("C1", "1"),
                 ("U3", "1"),
                 [
-                    (branch_x, c1.position["y"], 0.25),
-                    (branch_x, enable.position["y"], 0.25),
+                    (branch_x, c1.position["y"] - 0.8, 0.25),
                     (enable.position["x"] - 0.25, enable.position["y"], 0.25),
                 ],
+            )
+        ],
+    ).document
+    # GND under the chip (user rule): tie U3.8 to AGND U3.3 with a short
+    # bridge inside the body outline - the Top pour + stitching vias below
+    # the chip carry it away. No GND trace between the inductor legs (the
+    # keepout above seals that channel).
+    routed = apply_semantic_operations(
+        routed,
+        [
+            _top_trace(
+                routed,
+                "GND",
+                ("U3", "8"),
+                ("U3", "3"),
+                [],
+                width=0.35,
             )
         ],
     ).document
@@ -843,17 +904,33 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
     _trace2_probe("after_dedupe")
 
     # Native DipTrace DRC measured its own pour fill up to ~62 um inside the
-    # requested clearance near polygon corners; 0.18 still left 0.125 vs the
-    # 0.13 rule at TPS_L1/L2, so 0.22 restores margin above the rule.
+    # requested clearance near polygon corners. 0.22 additionally spawned a
+    # 0.119 mm finding at U2.22 that 0.18 never produced, so 0.18 stays.
+    # SMD GND lands direct-tie to the pour (reflow assembly; THT connector
+    # pads keep their 4-spoke relief). extra_vias = CP2102-GM rule: via
+    # cluster under the exposed pad 29 - the only GND return of the QFN.
+    u2 = _pad(routed, "U2", "29")
+    assert u2.position is not None
+    ex, ey = u2.position["x"], u2.position["y"]
     pour_result = add_copper_pours(
         routed,
         net="GND",
         layers=("Top", "Bottom"),
-        clearance_mm=0.22,
+        clearance_mm=0.18,
         board_clearance_mm=0.2,
         spoke_width_mm=0.3,
         stitch_pitch_mm=2.0,
         stitch_edge_mm=0.8,
+        extra_vias=[
+            Point(x=ex + dx, y=ey + dy)
+            for dx in (-0.775, 0.0, 0.775)
+            for dy in (-0.825, 0.0, 0.825)
+        ]
+        # Stitch the ground under U3 (user rule): three vias in the open
+        # strip between the bottom pin row and the FB divider resistors,
+        # clear of the FB escape diagonal (x ~11.25 at y 5.5).
+        + [Point(x=x, y=5.5) for x in (9.3, 10.15, 12.0)],
+        smd_spoke="Direct",
     )
     routed = pour_result.document
     _trace2_probe("after_pours")

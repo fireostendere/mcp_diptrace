@@ -323,6 +323,19 @@ def via_pad_violation_pairs(
             else:
                 continue
             if gap <= 1e-9 or gap + 1e-9 < clearance:
+                # A same-net via fully covered by the pad copper is a
+                # deliberate thermal stitch (QFN exposed pad, CP2102-GM
+                # "via cluster under the pad"), not an escape violation.
+                if (
+                    via.net_id == pad.net_id
+                    and via.bbox is not None
+                    and pad.bbox is not None
+                    and BBox(**via.bbox).min_x >= BBox(**pad.bbox).min_x - 1e-6
+                    and BBox(**via.bbox).min_y >= BBox(**pad.bbox).min_y - 1e-6
+                    and BBox(**via.bbox).max_x <= BBox(**pad.bbox).max_x + 1e-6
+                    and BBox(**via.bbox).max_y <= BBox(**pad.bbox).max_y + 1e-6
+                ):
+                    continue
                 violations.add((via.stable_id, pad.stable_id))
     return violations
 

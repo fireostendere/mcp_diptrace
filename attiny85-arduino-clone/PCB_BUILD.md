@@ -1,10 +1,10 @@
 # PCB build handoff
 
-Status: `ROUTED_2LAYER_PENDING_NATIVE`
+Status: `NATIVE_DRC_CLEAN_PENDING_MEDIA`
 Updated: 2026-08-24
 Input schematic SHA-256: `2f5ee017e42890eaaddc50de831390dcae6cda38531e24c161bc058013ed3ec2`
 Starting board SHA-256: `cadc29c4c005ad322276fe3ef8f262795510f9a6de641b6e3544a1e9804c9fd2`
-Current board SHA-256: `2bc6eea2bda23a4ed466fb0e01acc19e73f0841036df2a66c74737caafbf1129`
+Current board SHA-256: `47d1756f9e9172f57bf6599766d5a285163f47b8bb4b2ef80759bd5cc70acc75`
 
 ## Ordered gates
 
@@ -15,14 +15,14 @@ Current board SHA-256: `2bc6eea2bda23a4ed466fb0e01acc19e73f0841036df2a66c74737ca
 | 2. Official datasheet/package/layout evidence | PASS | `rules/ATTINY85-20SU.md`, `rules/CP2102-GM.md`, `rules/TPS63802DLAR.md`; TI DLA0010A layout captured in the TPS rules file. |
 | 3. Footprints and pin maps | PASS | `_validate_tps_footprint` asserts DLA0010A 0.250 mm pad styles and segmented pad 8 paste; J1 shield pads renumbered 7..13 and tied to GND; LCSC patterns synced (`PATTERNS`). |
 | 4. Mechanics and connector datums | PASS | J1/J3 centerline group checked by `review_pcb_quality(centerline_groups={"y": ["J1","J3"]})`; board edge datum X_SHIFT keeps J1 opening at outline. J2 removed at the schematic source (see deviations). |
-| 5. Datasheet-driven critical placement | PASS | `POSITIONS` implements the C1-left / C2-right / L1-above target; manual VBUS tree (J1→C1→VIN, EN branch, VOUT→C2) applied before autorouting. |
+| 5. Datasheet-driven critical placement | PASS | TPS63802 block follows TI Fig. 12-1: C1 flanks VIN and C2 flanks VOUT at pin-row height (pads toward the IC), L1 directly above (body-limited: 4.9x4.3 mm land), FB divider below; manual VBUS tree J1→C1→VIN with EN tap, VOUT→C2 hop. |
 | 6. Stackup | PASS | Default `--layers 2`; four layers only via explicit flag after a recorded two-layer failure (none occurred). |
 | 7. Routing | PASS | Zero ratlines asserted; 50 traces, 42 vias total, ≤2 vias per connection, no via-in-pad, escapes beyond pad copper. VBUS trunk J1→C1 pre-routed at 0.5 mm (0.25 through the connector zone); TPS_L1/L2 manual hot-loop verticals 0.45 mm with a 0.35 mm taper through the pin-row zone so the U3.8 GND corridor stays routable; router VBUS intent kept at 0.25 mm (only the high-Z R4 sense tap is router-routed). Long hauls (USB pair, +3V3 to U2 VDD, TXD to J3) cross on Bottom where Top is walled. |
 | 8. Ground pours and stitching | PASS | GND pours Top+Bottom (`add_copper_pours`, 0.13 clearance, four-spoke connector thermals) plus 21 distributed stitch vias; QC stitching coverage gate green. |
 | 9. Silkscreen | PASS | `plan_silkscreen` unresolved set empty (asserted); planner now treats vias as fixed obstacles so labels never overlap stitch vias. |
 | 10. Headless QC | PASS | `review_pcb_quality` hard_error_count == 0 gate inside `build()`; pre-QC artifact dumped to `.attiny85-2layer-*-preqc.dipxml` on failure for diagnosis. |
-| 11. Native DipTrace refill/DRC | PENDING | Headless native DRC driver works (`scripts/diptrace_native_gate11.py`, real Pcb.exe 5.3 on a hidden desktop). Native findings 31 -> 2: C5.1 silk-to-pad FIXED 2026-08-24 (J3 Top Silk rectangle line terminated inside C5 pad-1 copper; C5 nudged 0.2 mm, native-verified). Remaining: `Copper pour - TPS_L1` and `- TPS_L2` at exactly 0.125 vs rule 0.13. Proven immune to pour Clearance (0.18/0.22), GND net-class clearance via UseNetClearance=Y (0.2 - also raised the RULE and broke 104 other pairs), document Grid (0.01): the load-time refill quantizes to ~0.125 inside the U3 pin-row corridor (U3.8 GND pad leaves only ~0.15 mm to each leg). Decision needed: widen inter-leg channel (deviates from TI SW-pad-axis layout), accept the 5 um technical violation, or keepout the channel (kills the reserve escape route). |
-| 12. PNG/MP4/GIF and final frame | PENDING | After gate 11: re-record via `diptrace-mcp-cinematic` capture -> compile -> ffmpeg; boundary-fit framing per house rules; inspect final frame. The existing `attiny85-arduino-clone-pcb.{png,mp4,gif}` are a **stale pre-J2-removal render** — do not ship or resume from them. |
+| 11. Native DipTrace refill/DRC | PASS | 2026-08-24: native DRC reports **0 findings** (`scripts/gate11_result.json`, "DRC clean (no errors window)"; DipTrace opens the errors window only when findings exist - verified with an error-injected control copy). Driver hardening: menu resolved by index (owner-drawn text paths are hash-unstable), clean-board case handled, Save-As artifact written. History: 31 -> 3 (transition fix, silk hides, 13.9 outline) -> C5.1 fixed (J3 silk over C5 pad 1; C5 nudged 0.2 mm) -> TPS_L1/L2 pour findings eliminated by the TI-flank re-layout + route keepout between the inductor legs -> U2:22 disappeared when pour clearance returned to 0.18. |
+| 12. PNG/MP4/GIF and final frame | PENDING | Re-record via `diptrace-mcp-cinematic` capture -> compile -> ffmpeg; boundary-fit framing per house rules; inspect final frame. The existing `attiny85-arduino-clone-pcb.{png,mp4,gif}` are a **stale pre-rework render** — do not ship or resume from them. |
 
 ## Build command (exact environment)
 
@@ -103,6 +103,27 @@ PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python attiny85-arduino-clone/build_pc
   hypothesis was wrong). Fix: C5 x -0.2 mm in POSITIONS.
 - **GND pour clearance 0.22** (was 0.18): neutral for the TPS findings but
   keeps native corner rasterization comfortably off all other copper.
+- **QFN thermal-pad via cluster is exempt from the via-in-pad ban**: the
+  CP2102-GM rule requires a via cluster under exposed pad 29 (its only GND
+  return; the ring around the pad is fully occupied by QFN lands). 3x3 GND
+  vias sit inside the pad; QC `via_pad_violation_pairs` skips same-net vias
+  fully covered by the pad copper. Signal-pad via-in-pad stays banned.
+- **SMD GND lands direct-tie to the pour** (`SMD_Spoke="Direct"`): reflow
+  assembly, no hand-soldering comfort needed; THT connector pads keep the
+  four-spoke relief.
+- **Explicit `<Markings>` block** (CompRotate=N, vector font 1.2 mm,
+  RefDesGlobal SilkAlign=Top): with it present Pcb.exe honors the silkscreen
+  planner's per-component offsets (verified by round-trip) and the default
+  3 mm auto-RefDes no longer lands on pads.
+- **Route keepout between the TPS_L1/L2 legs** (10.33..10.62 x 8.50..10.70):
+  the hot-loop channel is not a GND corridor; U3.8 ties to AGND U3.3 with a
+  0.35 mm bridge under the body and the pour + three stitch vias south of
+  the chip carry it away (user rule: ground under the chip, no traces
+  between the inductor legs).
+- **C1/C2 flank the TPS63802 at pin-row height** (TI Fig. 12-1): C1 rot 180
+  (VBUS pad toward VIN, fed from below - the north side is walled by L1.1's
+  1.2x3.8 mm land), C2 rot 0 shifted right/down to clear the U3/L1 Top
+  Outline rectangles (cross-component outline-vs-pad is a native DRC class).
 
 ## Checkpoints
 

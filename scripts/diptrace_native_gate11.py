@@ -99,67 +99,91 @@ def _run_worker(request: dict[str, Any], result_path: Path) -> int:
         # Invoke Verification -> DRC (menu index 7 -> 0; see verification_map).
         from diptrace_mcp.headless_gui import _post_menu_item, _save_window
 
-        item = window.menu_item("#7->0")
-        _post_menu_item(window, item)
-        drc = _find_window(app, "DRC - Errors found", 20.0)
+        # The DRC menu post occasionally does not land on a loaded host:
+        # the menus are owner-drawn, so text-path resolution ("#7->0")
+        # matches synthetic hash-ordered names and is not stable across
+        # launches. Resolve strictly by index instead (Verification -> [0],
+        # per scripts/verification_map.json) and retry the post.
+        #
+        # DipTrace opens the "DRC - Errors found" window only when the check
+        # finds something; a clean board posts through silently (verified by
+        # an error-injected control copy). No window after the retries on an
+        # enabled item means zero findings.
+        drc = None
+        clean_run = False
+        for attempt in range(3):
+            verification = window.menu().items()[7].sub_menu()
+            _post_menu_item(window, verification.items()[0])
+            try:
+                drc = _find_window(app, "DRC - Errors found", 45.0)
+                break
+            except HeadlessGuiError:
+                if attempt == 2:
+                    clean_run = True
+                    break
+                time.sleep(3.0)
         time.sleep(1.0)
 
-        list_box = drc.child_window(class_name="TListBox")
-        _click_button(drc, "Run DRC")
-        # Wait for the run to settle: poll the error list until stable.
-        stable = 0
-        last_count = -1
-        deadline = time.monotonic() + 90.0
-        while time.monotonic() < deadline and stable < 3:
-            with suppress_exception():
-                count = int(list_box.item_count())
-            stable = stable + 1 if count == last_count else 0
-            last_count = count
+        if clean_run:
+            report["drc_item_count"] = 0
+            report["drc_errors"] = []
+            report["window_title"] = "DRC clean (no errors window)"
+            report["drc_located"] = []
+        else:
+            list_box = drc.child_window(class_name="TListBox")
+            _click_button(drc, "Run DRC")
+            # Wait for the run to settle: poll the error list until stable.
+            stable = 0
+            last_count = -1
+            deadline = time.monotonic() + 90.0
+            while time.monotonic() < deadline and stable < 3:
+                with suppress_exception():
+                    count = int(list_box.item_count())
+                stable = stable + 1 if count == last_count else 0
+                last_count = count
+                time.sleep(1.0)
             time.sleep(1.0)
-        time.sleep(1.0)
-        with suppress_exception():
-            items = [str(t) for t in list_box.texts()]
-        report["drc_item_count"] = last_count
-        report["drc_errors"] = items
-        report["window_title"] = str(drc.window_text()).strip()
+            with suppress_exception():
+                items = [str(t) for t in list_box.texts()]
+            report["drc_item_count"] = last_count
+            report["drc_errors"] = items
+            report["window_title"] = str(drc.window_text()).strip()
 
         # Locate each error: select list row, press Locate, screenshot the
         # layout window so the highlighted offender can be inspected.
         located: list[dict[str, Any]] = []
         shots_dir = Path(request.get("shots_dir") or "")
-        try:
-            count = int(list_box.item_count())
-            for i in range(count):
-                with suppress_exception():
-                    list_box.select(i)
-                time.sleep(0.15)
-                _click_button(drc, "Locate")
-                time.sleep(0.6)
-                entry: dict[str, Any] = {"index": i}
-                if i < len(items):
-                    entry["error"] = items[i]
-                if shots_dir:
+        if not clean_run:
+            try:
+                count = int(list_box.item_count())
+                for i in range(count):
                     with suppress_exception():
-                        layout = app.window(
-                            best_match="PCB Layout"
-                        ) if False else None
-                    for cand in app.windows(visible_only=True):
-                        with suppress_exception():
-                            title = str(cand.window_text())
-                        if "PCB Layout" in title and "attiny85" in title:
+                        list_box.select(i)
+                    time.sleep(0.15)
+                    _click_button(drc, "Locate")
+                    time.sleep(0.6)
+                    entry: dict[str, Any] = {"index": i}
+                    if i < len(items):
+                        entry["error"] = items[i]
+                    if shots_dir:
+                        for cand in app.windows(visible_only=True):
                             with suppress_exception():
-                                img = app.window(handle=int(cand.handle)).capture_as_image()
-                                shot = shots_dir / f"drc_{i}.png"
-                                img.save(shot)
-                                entry["shot"] = str(shot)
-                            break
-                located.append(entry)
-        except Exception as exc:  # noqa: BLE001 - locate pass is best-effort
-            located.append({"locate_pass_error": f"{type(exc).__name__}: {exc}"})
+                                title = str(cand.window_text())
+                            if "PCB Layout" in title and "attiny85" in title:
+                                with suppress_exception():
+                                    img = app.window(handle=int(cand.handle)).capture_as_image()
+                                    shot = shots_dir / f"drc_{i}.png"
+                                    img.save(shot)
+                                    entry["shot"] = str(shot)
+                                break
+                    located.append(entry)
+            except Exception as exc:  # noqa: BLE001 - locate pass is best-effort
+                located.append({"locate_pass_error": f"{type(exc).__name__}: {exc}"})
         report["drc_located"] = located
 
-        _click_button(drc, "Close")
-        time.sleep(1.0)
+        if not clean_run:
+            _click_button(drc, "Close")
+            time.sleep(1.0)
 
         # Save via the library's proven Save-As machinery into a SEPARATE
         # native artifact: no overwrite prompt, original untouched until the

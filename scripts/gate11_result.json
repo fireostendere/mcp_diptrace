@@ -1,0 +1,12 @@
+{
+ "ok": true,
+ "error": null,
+ "sha_before": "47d1756f9e9172f57bf6599766d5a285163f47b8bb4b2ef80759bd5cc70acc75",
+ "drc_item_count": 0,
+ "drc_errors": [],
+ "window_title": "DRC clean (no errors window)",
+ "drc_located": [],
+ "native_artifact": "C:\\Users\\fireo\\mcp_diptrace\\attiny85-arduino-clone\\.attiny85-arduino-clone-pcb-native-gate11.dipxml",
+ "sha_after": "70dd2924df124eb209e9e6e6e18c41ec2c2cf5ce57c5cbb627ff44e84bb8d39f",
+ "changed": true
+}
