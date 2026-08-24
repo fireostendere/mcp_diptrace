@@ -82,6 +82,13 @@ PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python attiny85-arduino-clone/build_pc
 - **Silkscreen planner treats vias as obstacles** (previously ignored).
 - **CP2102_TXD routes on Top+Bottom**: the stale Top-only group could not close
   U1↔J3 hop which requires two vias.
+- **Router time budgets must never bind before the node cap** (root cause of
+  the 2026-08-24 USB_D- flap): A* checked its wall-clock deadline first, so a
+  busy WSL host exhausted 30 s before reaching 1M nodes and long hauls failed
+  nondeterministically. `route_time_budget_ms=900_000` vs `max_nodes=1_000_000`
+  (≈300 s worst case measured) keeps results machine-speed independent; the
+  time guard is now a pure runaway safety net. RefDes post-processing was
+  proven innocent by an A/B run (disabled block still failed on USB_D-).
 
 ## Checkpoints
 

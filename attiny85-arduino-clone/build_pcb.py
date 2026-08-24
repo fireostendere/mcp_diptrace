@@ -573,10 +573,12 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
             max_vias_per_connection=2,
             via_cost=2.0,
             max_detour=12,
-            # Config caps are 1M nodes / 30 s; long cross-board USB traces
-            # genuinely need most of that budget before finding a corridor.
+            # Node cap is the real limiter: wall-clock must never bind first,
+            # else machine load flips builds run-to-run (USB_D- flap).
+            # 1M nodes ~ 300 s measured on this box, so 900 s is a pure
+            # runaway guard and results stay deterministic.
             max_nodes=1_000_000,
-            route_time_budget_ms=30_000,
+            route_time_budget_ms=900_000,
             avoid_component_bodies=False,
             allow_via_in_pad=False,
             max_ripup_attempts=3,
@@ -867,12 +869,28 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
                 indent=1,
             )
         )
-    # Native DRC "Silk to Pad" on C5.1: the component carries
-    # GridAlign="Pad", and the native editor re-anchors the RefDes marking
-    # onto the pad row on load. Disable pad snapping for the marking.
+    # Native DRC "Silk to Pad" on C5.1: C5 is rotated 90 degrees, and the
+    # RefDes marking offset written by the silkscreen planner is global,
+    # while the native editor interprets RefDesMarking offsets in the
+    # pattern-local (rotated) frame - so the marking lands on pad 1.
+    # Re-express the planner's global offset (-2.075, 0) in the local frame:
+    # for Angle=+90 deg global (dx,dy) = (-y_local, x_local), so the local
+    # offset is (0, +2.075).
     for comp_el in routed.root.iter("Component"):
-        if comp_el.get("PatternStyle") == "PatType11":
-            comp_el.set("GridAlign", "None")
+        if comp_el.get("PatternStyle") != "PatType11":
+            continue
+        angle = float(comp_el.get("Angle") or 0.0)
+        if abs(angle - 1.57079633) > 0.01:
+            continue
+        for marking in comp_el.findall("./RefDesMarking/Silk"):
+            if marking.get("Show") != "Show":
+                continue
+            dx = float(marking.get("X") or 0.0)
+            dy = float(marking.get("Y") or 0.0)
+            if abs(dx) < 0.01 and abs(dy) < 0.01:
+                continue
+            marking.set("X", f"{-dy:.9g}")
+            marking.set("Y", f"{dx:.9g}")
     output.write_bytes(routed.raw_bytes)
     return {
         "components": len(snapshot.board.components),
