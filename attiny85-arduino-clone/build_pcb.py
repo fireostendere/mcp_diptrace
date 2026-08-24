@@ -903,6 +903,63 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
 
     _trace2_probe("after_dedupe")
 
+    # Solid GND copper rectangle under U3 (user rule): one solid polygon
+    # instead of the pour's slivered fill between the pin row, the stitch
+    # vias and AGND. The rectangle path is stroked with LineWidth 0.1, so
+    # copper extends 0.05 past each edge: keep 0.18 to foreign copper
+    # (0.13 rule + 0.05 stroke). x-limits clear MODE/FB lands, y-limits
+    # clear R2 and the L1 outline; pad 8, AGND and the vias are same-net
+    # and merge into it.
+    gnd_net_el = next(el for el in routed.root.iter("Net") if el.findtext("Name") == "GND")
+    raw_tree = RawTreeSnapshot.capture(routed)
+    board_el = routed.root.find("./Board")
+    shapes_el = board_el.find("./Shapes")
+    if shapes_el is None:
+        shapes_el = ET.SubElement(board_el, "Shapes")
+    shape_id = max(
+        (int(s.get("Id", "-1")) for s in shapes_el.findall("./Shape") if s.get("Id", "").isdigit()),
+        default=-1,
+    ) + 1
+    copper_rect = ET.SubElement(
+        shapes_el,
+        "Shape",
+        {
+            "Id": str(shape_id),
+            "Type": "Rectangle",
+            "AllLayers": "N",
+            "Layer": "Signal/Plane",
+            "LayId": "0",
+            "NetId": gnd_net_el.get("Id", "-1"),
+            "LineWidth": "0.1",
+        },
+    )
+    rect_pts = ET.SubElement(copper_rect, "Points")
+    for px, py in ((10.34, 5.23), (10.58, 8.34)):
+        ET.SubElement(rect_pts, "Point", {"X": f"{px:.9g}", "Y": f"{py:.9g}"})
+    # Lower slab: one solid piece under the three stitch vias, merging with
+    # the strip above into a single T-shaped pour (stroke-aware insets:
+    # 0.13 clearance + 0.05 stroke half-width from every foreign edge).
+    shape_id += 1
+    copper_slab = ET.SubElement(
+        shapes_el,
+        "Shape",
+        {
+            "Id": str(shape_id),
+            "Type": "Rectangle",
+            "AllLayers": "N",
+            "Layer": "Signal/Plane",
+            "LayId": "0",
+            "NetId": gnd_net_el.get("Id", "-1"),
+            "LineWidth": "0.1",
+        },
+    )
+    slab_pts = ET.SubElement(copper_slab, "Points")
+    for px, py in ((8.95, 5.23), (10.52, 5.89)):
+        ET.SubElement(slab_pts, "Point", {"X": f"{px:.9g}", "Y": f"{py:.9g}"})
+    routed = DipTraceDocument.from_bytes(
+        routed.path, raw_tree.compile(routed.root, routed.path)
+    )
+
     # Native DipTrace DRC measured its own pour fill up to ~62 um inside the
     # requested clearance near polygon corners. 0.22 additionally spawned a
     # 0.119 mm finding at U2.22 that 0.18 never produced, so 0.18 stays.
