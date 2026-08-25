@@ -8,7 +8,8 @@ Usage (from Windows, repo root available):
     set PYTHONPATH=C:\\Users\\fireo\\mcp_diptrace\\src
     python scripts\\diptrace_menu_probe.py ^
         --diptrace-root "C:\\Program Files\\DipTrace" ^
-        --project "C:\\Users\\fireo\\mcp_diptrace\\attiny85-arduino-clone\\attiny85-arduino-clone-pcb.dipxml" ^
+        --project "C:\\Users\\fireo\\mcp_diptrace\\attiny85-arduino-clone" \\
+        "\\attiny85-arduino-clone-pcb.dipxml" ^
         --output menus.json
 """
 
@@ -28,10 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from diptrace_mcp.headless_gui import (  # noqa: E402
     HeadlessGuiError,
     HiddenDesktop,
-    _main_window,
     _pywinauto_application,
 )
-
 
 _MF_POPUP = 0x10
 _MF_SEPARATOR = 0x800
@@ -183,10 +182,8 @@ def _run_worker(request: dict[str, Any], result_path: Path) -> int:
         error = f"{type(exc).__name__}: {exc}; dismissed={len(dismissed)}; visible={titles[:12]!r}"
     finally:
         if app is not None:
-            try:
+            with suppress_exception():
                 app.kill(soft=False)
-            except Exception:
-                pass
     result_path.write_text(
         json.dumps(
             {"ok": error is None, "error": error, "title": window_title, "menus": menus},

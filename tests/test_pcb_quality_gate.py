@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from scripts.pcb_quality_gate import check_order, parse_handoff
 
 

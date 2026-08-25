@@ -162,9 +162,15 @@ scripts/check_documentation_state.py
 scripts/check_provenance_inventory.py
 scripts/check_public_privacy.py
 scripts/check_release_metadata.py
+scripts/clearance_sweep.py
 scripts/compare_artifact_sbom.py
+scripts/diptrace_drc_locate_shot.py
+scripts/diptrace_menu_probe.py
+scripts/diptrace_native_gate11.py
+scripts/diptrace_verification_mapper.py
 scripts/extract_spec_inventory.py
 scripts/frozen_server_smoke.py
+scripts/gate11_result.json
 scripts/generate_compliance_inventory.py
 scripts/generate_coverage_badge.py
 scripts/generate_fixture_hash_manifest.py
@@ -181,9 +187,12 @@ scripts/install_macos.sh
 scripts/make_probe_pack.py
 scripts/mcp_smoke.py
 scripts/measure_mcp_surface.py
+scripts/menus_probe.json
+scripts/pcb_quality_gate.py
 scripts/prepare_manual_acceptance.py
 scripts/probe_windows_wsl_lock_interop.py
 scripts/release_artifact_allowlist.txt
+scripts/render_pcb_stages.py
 scripts/report_format_coverage.py
 scripts/run_clean_room_audit.py
 scripts/run_deep_audit.py
@@ -453,6 +462,7 @@ tests/test_pcb_joint_optimizer.py
 tests/test_pcb_native_acceptance.py
 tests/test_pcb_physical.py
 tests/test_pcb_quality.py
+tests/test_pcb_quality_gate.py
 tests/test_pcb_routing_policy.py
 tests/test_phase4.py
 tests/test_physics_estimates.py

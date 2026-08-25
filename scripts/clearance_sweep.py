@@ -16,7 +16,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from shapely.geometry import LineString, Point as ShPoint, Polygon, box  # noqa: E402
+from shapely.geometry import LineString, Polygon, box  # noqa: E402
+from shapely.geometry import Point as ShPoint
 
 from diptrace_mcp.adapters import build_snapshot  # noqa: E402
 from diptrace_mcp.xml_document import DipTraceDocument  # noqa: E402

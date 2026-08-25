@@ -26,13 +26,13 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+import importlib.util as _ilu  # noqa: E402
+
 from diptrace_mcp.headless_gui import (  # noqa: E402
     HeadlessGuiError,
     HiddenDesktop,
     _pywinauto_application,
 )
-
-import importlib.util as _ilu  # noqa: E402
 
 _probe_spec = _ilu.spec_from_file_location(
     "diptrace_menu_probe", Path(__file__).with_name("diptrace_menu_probe.py")
