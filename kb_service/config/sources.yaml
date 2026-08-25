@@ -1,0 +1,58 @@
+# Configured knowledge sources for `knowledge ingest-all`.
+# Each entry: type + type-specific fields, optional authority override.
+#
+# types: directory | file | website | youtube
+#   directory: path, recursive (default true), extensions (optional)
+#   file:      path
+#   website:   url, recursive (default false)
+#   youtube:   url  (video / playlist / @channel; channel+playlist need yt-dlp extra)
+#
+# authority override (optional): one of
+#   datasheet, appnote, reference_design, official_docs, specification,
+#   article, community, forum
+# If omitted it is inferred: datasheets/ -> datasheet, appnotes/ -> appnote,
+# books/ -> article, diptrace.com -> official_docs, web/youtube -> article/community.
+
+sources:
+  - type: directory
+    path: ./sources/datasheets
+    recursive: true
+
+  - type: directory
+    path: ./sources/appnotes
+    recursive: true
+
+  - type: directory
+    path: ./sources/books
+    recursive: true
+
+  # Official DipTrace documentation (single pages; flip recursive to crawl).
+  - type: website
+    url: https://diptrace.com/
+    recursive: false
+
+  # Official DipTrace tutorial (PDF, ~260 pages).
+  - type: website
+    url: https://diptrace.com/books/tutorial.pdf
+    recursive: false
+
+  # TI app note: Constructing your power supply - layout considerations.
+  - type: website
+    url: https://www.ti.com/lit/pdf/SLUP230
+    recursive: false
+    authority: appnote
+
+  # TI app note: QFN and SON PCB attachment.
+  - type: website
+    url: https://www.ti.com/lit/pdf/SLUA271
+    recursive: false
+    authority: appnote
+
+  # Manufacturer datasheet: TI TPS62130 buck converter (direct PDF).
+  - type: website
+    url: https://www.ti.com/lit/ds/symlink/tps62130.pdf
+    recursive: false
+
+  # YouTube engineering channel (needs extras: pip install -e ".[youtube]").
+  - type: youtube
+    url: https://www.youtube.com/@PhilsLab
