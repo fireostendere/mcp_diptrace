@@ -19,7 +19,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-CODE_RE = re.compile(r"lcsc\.com/product-detail/(C[0-9]{6,8})\.html")
+CODE_RE = re.compile(r"lcsc\.com/product-detail/(C[0-9]{4,8})\.html")
 SVG_RE = re.compile(r"component_svgs/prod/([a-f0-9]{32})")
 
 
@@ -37,14 +37,43 @@ def curl(url: str, *, dest: Path | None = None, follow: bool = True) -> str | by
     return dest.read_bytes()
 
 
+def _jlc_search(query: str) -> str | None:
+    """JLCPCB parts API (shares LCSC C-codes); verified 2026-08-25."""
+    body = json.dumps({"keyword": query, "currentPage": 1, "pageSize": 5})
+    out = subprocess.run(
+        [
+            "curl", "-sS", "-m", "40", "-X", "POST",
+            "https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/"
+            "smtGood/selectSmtComponentList",
+            "-H", "Content-Type: application/json", "-d", body,
+        ],
+        capture_output=True, text=True,
+    )
+    try:
+        items = json.loads(out.stdout)["data"]["componentPageInfo"]["list"] or []
+    except Exception:
+        return None
+    for item in items:
+        model = (item.get("componentModelEn") or "").upper()
+        if model == query.upper():
+            return item.get("componentCode")
+    return None
+
+
 def resolve_code(query: str) -> str:
-    if re.fullmatch(r"C[0-9]{6,8}", query):
+    if re.fullmatch(r"C[0-9]{4,8}", query):
         return query
     html = curl(f"https://html.duckduckgo.com/html/?q={query}+lcsc+product-detail")
     match = CODE_RE.search(html)
-    if not match:
-        raise SystemExit(f"No LCSC product code found for {query!r}")
-    return match.group(1)
+    if match:
+        return match.group(1)
+    code = _jlc_search(query)
+    if code:
+        return code
+    raise SystemExit(
+        f"No LCSC product code found for {query!r} "
+        "(DDG and JLC API both failed; pass the C-code explicitly)"
+    )
 
 
 def pick_component_json(code: str) -> tuple[dict, dict]:
