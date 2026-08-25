@@ -1,0 +1,164 @@
+[
+  {
+    "lcsc_code": "C2980299",
+    "mpn": "ESP32-S3-MINI-1U-N8",
+    "manufacturer": "Espressif Systems",
+    "datasheet_url": "https://documentation.espressif.com/esp32-s3-mini-1_mini-1u_datasheet_en.pdf"
+  },
+  {
+    "lcsc_code": "C165948",
+    "mpn": "TYPE-C-31-M-12",
+    "manufacturer": "Korean Hroparts",
+    "datasheet_url": "https://datasheet.lcsc.com/datasheet/pdf/9e56b777c022540fcce7c7f67825f55e.pdf"
+  },
+  {
+    "lcsc_code": "C698206",
+    "mpn": "UK-USB AF 90-19.6",
+    "manufacturer": "XKB Connection",
+    "datasheet_url": "vendor/C698206.pdf"
+  },
+  {
+    "lcsc_code": "C130085",
+    "mpn": "TS3USB221RSER",
+    "manufacturer": "Texas Instruments",
+    "datasheet_url": "https://www.ti.com/lit/ds/symlink/ts3usb221.pdf"
+  },
+  {
+    "lcsc_code": "C55136",
+    "mpn": "SY6280AAC",
+    "manufacturer": "Silergy",
+    "datasheet_url": "vendor/C55136.pdf"
+  },
+  {
+    "lcsc_code": "C2653870",
+    "mpn": "INA226AIDGSR",
+    "manufacturer": "Texas Instruments",
+    "datasheet_url": "vendor/C2653870.pdf"
+  },
+  {
+    "lcsc_code": "C11133",
+    "mpn": "TS5A23157DGSR",
+    "manufacturer": "Texas Instruments",
+    "datasheet_url": "vendor/C11133.pdf"
+  },
+  {
+    "lcsc_code": "C15741",
+    "mpn": "SN74LVC2T45DCUR",
+    "manufacturer": "Texas Instruments",
+    "datasheet_url": "vendor/C15741.pdf"
+  },
+  {
+    "lcsc_code": "C129516",
+    "mpn": "PCA9539PW",
+    "manufacturer": "Nexperia/TI",
+    "datasheet_url": "vendor/C129516.pdf"
+  },
+  {
+    "lcsc_code": "C161747",
+    "mpn": "ADS7830IPWR",
+    "manufacturer": "Texas Instruments",
+    "datasheet_url": "vendor/C161747.pdf"
+  },
+  {
+    "lcsc_code": "C7519",
+    "mpn": "USBLC6-2SC6",
+    "manufacturer": "STMicroelectronics",
+    "datasheet_url": "vendor/C7519.pdf"
+  },
+  {
+    "lcsc_code": "C146332",
+    "mpn": "TLP176A(F)",
+    "manufacturer": "Toshiba",
+    "datasheet_url": "vendor/C146332.pdf"
+  },
+  {
+    "lcsc_code": "C83574",
+    "mpn": "BAT54S-7-F",
+    "manufacturer": "Vishay",
+    "datasheet_url": "vendor/C83574.pdf"
+  },
+  {
+    "lcsc_code": "C10758",
+    "mpn": "SMAJ5.0A",
+    "manufacturer": "MDD/Brightking",
+    "datasheet_url": "vendor/C10758.pdf"
+  },
+  {
+    "lcsc_code": "C123820",
+    "mpn": "SMBJ26A",
+    "manufacturer": "MDD/Brightking",
+    "datasheet_url": "vendor/C123820.pdf"
+  },
+  {
+    "lcsc_code": "C20802",
+    "mpn": "SMD1206P150TF",
+    "manufacturer": "TECHFUSE",
+    "datasheet_url": "vendor/C20802.pdf"
+  },
+  {
+    "lcsc_code": "C68608",
+    "mpn": "MS122WF200MT4E",
+    "manufacturer": "MSTC/Ohmcraft-class",
+    "datasheet_url": "vendor/C68608.pdf"
+  },
+  {
+    "lcsc_code": "C2286",
+    "mpn": "KT-0603R",
+    "manufacturer": "KENT",
+    "datasheet_url": "vendor/C2286.pdf"
+  },
+  {
+    "lcsc_code": "C318884",
+    "mpn": "TS-1187A-B-A-B",
+    "manufacturer": "XKB",
+    "datasheet_url": "vendor/C318884.pdf"
+  },
+  {
+    "lcsc_code": "C8465",
+    "mpn": "WJ500V-5.08-2P",
+    "manufacturer": "Ningbo/Kangnex",
+    "datasheet_url": "vendor/C8465.pdf"
+  },
+  {
+    "lcsc_code": "C108176",
+    "mpn": "BZT52C5V6S-7-F",
+    "manufacturer": "Vishay/Brightking",
+    "datasheet_url": "vendor/C108176.pdf"
+  },
+  {
+    "lcsc_code": "C14643",
+    "mpn": "BZT52C12S",
+    "manufacturer": "Onsemi-class",
+    "datasheet_url": "vendor/C14643.pdf"
+  },
+  {
+    "lcsc_code": "C910842",
+    "mpn": "BSMD2920-200-24V",
+    "manufacturer": "BHF",
+    "datasheet_url": "vendor/C910842.pdf"
+  },
+  {
+    "lcsc_code": "C6186",
+    "mpn": "AMS1117-3.3",
+    "manufacturer": "AMS",
+    "datasheet_url": "vendor/C6186.pdf"
+  },
+  {
+    "lcsc_code": "C7843",
+    "mpn": "SN74LVC1T45DBVR",
+    "manufacturer": "TI",
+    "datasheet_url": "vendor/C7843.pdf"
+  },
+  {
+    "lcsc_code": "C15127",
+    "mpn": "AO3401A",
+    "manufacturer": "AOS",
+    "datasheet_url": "vendor/C15127.pdf"
+  },
+  {
+    "lcsc_code": "C84104",
+    "mpn": "MMBT3904",
+    "manufacturer": "Changjiang/JSC",
+    "datasheet_url": "vendor/C84104.pdf"
+  }
+]
