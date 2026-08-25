@@ -80,7 +80,11 @@ def run_board_qc(board: Path, centerline_x: list[str], centerline_y: list[str]) 
     snapshot = build_snapshot(document)
     return review_pcb_quality(
         snapshot,
+        # Mirror the build() QC config: the CP2102 thermal via cluster under
+        # exposed pad 29 is a deliberate same-net stitch (see PCB_BUILD.md).
         config=PCBQualityConfig(
+            via_pad_clearance_mm=0.13,
+            allow_thermal_via_in_pad=True,
             centerline_groups={"x": centerline_x, "y": centerline_y},
         ),
     )
