@@ -395,6 +395,12 @@ See [Testing](docs/TESTING.md) and [Development](docs/DEVELOPMENT.md).
 
 - [Usage](docs/USAGE.md)
 - [MCP tools and resources](docs/MCP_TOOLS.md)
+- [Packaged MCP skills catalog](skills/README.md)
+- Agent-host skills under [.agents/skills/](.agents/skills/):
+  [`diptrace-pcb-testpoints`](.agents/skills/diptrace-pcb-testpoints/SKILL.md),
+  [`diptrace-pcb-grounding`](.agents/skills/diptrace-pcb-grounding/SKILL.md),
+  [`diptrace-schematic-style`](.agents/skills/diptrace-schematic-style/SKILL.md),
+  [`easyeda-lcsc-sourcing`](.agents/skills/easyeda-lcsc-sourcing/SKILL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [EDA intelligence map](docs/EDA_INTELLIGENCE.md)
 - [Schematic layout engine](docs/SCHEMATIC_LAYOUT_ENGINE.md)

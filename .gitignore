@@ -58,3 +58,9 @@ scancode-results*.json
 *.ACCOUNT.JSON
 
 reference/diptrace-xml/sources/*.pdf
+
+# Transient debug and working artifacts
+.dedupe_debug.jsonl
+.trace2_*.json
+.attiny85-arduino-clone-pcb-*.dipxml*
+*.dipxmlbak
