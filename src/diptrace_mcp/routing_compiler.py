@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 from typing import TypeAlias
 
 from .adapters import DocumentSnapshot, stable_id
-from .domain import ObjectRecord, QuerySelector, ResolvedCopperLayer
+from .domain import GeometryShape, ObjectRecord, QuerySelector, ResolvedCopperLayer
 from .errors import (
     AmbiguousSelectorError,
     CapabilityUnavailableError,
@@ -24,7 +24,7 @@ from .geometry import (
     segment_distance,
     segment_intersects_bbox,
 )
-from .geometry_backend import line_to_shape_distance, shapely_available
+from .geometry_backend import line_to_shape_distance, shape_distance, shapely_available
 from .numeric_inputs import xml_number_mm
 from .operations import (
     AddDifferentialPairRouteOperation,
@@ -38,6 +38,7 @@ from .operations import (
     SetViaStyleOperation,
     TracePathPoint,
 )
+from .routing import pad_on_layer
 from .via_styles import (
     resolve_via_span,
     select_via_style,
@@ -297,6 +298,102 @@ def _path(
     return geometry, layers, widths, via_styles
 
 
+def _bbox_gap(left: BBox, right: BBox) -> float:
+    dx = max(left.min_x - right.max_x, right.min_x - left.max_x, 0.0)
+    dy = max(left.min_y - right.max_y, right.min_y - left.max_y, 0.0)
+    return float((dx * dx + dy * dy) ** 0.5)
+
+
+def via_pad_violation_pairs(
+    snapshot: DocumentSnapshot,
+    clearance: float,
+    allow_thermal_via_in_pad: bool = False,
+) -> set[tuple[str, str]]:
+    if snapshot.board is None:
+        return set()
+    violations: set[tuple[str, str]] = set()
+    for via in snapshot.board.vias:
+        span = {str(item) for item in via.attributes.get("span_layer_ids", [])}
+        for pad in snapshot.board.pads:
+            if span and not any(pad_on_layer(snapshot, pad, layer_id) for layer_id in span):
+                continue
+            if via.geometry is not None and pad.geometry is not None:
+                gap = shape_distance(via.geometry, pad.geometry)
+            elif via.bbox is not None and pad.bbox is not None:
+                gap = _bbox_gap(BBox(**via.bbox), BBox(**pad.bbox))
+            else:
+                continue
+            if gap <= 1e-9 or gap + 1e-9 < clearance:
+                # A same-net via fully covered by the pad copper is a
+                # deliberate thermal stitch (QFN exposed pad, CP2102-GM
+                # "via cluster under the pad"), allowed only when the
+                # config opts in; the default keeps the escape rule strict.
+                if (
+                    allow_thermal_via_in_pad
+                    and via.net_id == pad.net_id
+                    and via.bbox is not None
+                    and pad.bbox is not None
+                    and BBox(**via.bbox).min_x >= BBox(**pad.bbox).min_x - 1e-6
+                    and BBox(**via.bbox).min_y >= BBox(**pad.bbox).min_y - 1e-6
+                    and BBox(**via.bbox).max_x <= BBox(**pad.bbox).max_x + 1e-6
+                    and BBox(**via.bbox).max_y <= BBox(**pad.bbox).max_y + 1e-6
+                ):
+                    continue
+                violations.add((via.stable_id, pad.stable_id))
+    return violations
+
+
+def _validate_via_pad_clearance(
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    point: Point,
+    *,
+    diameter: float,
+    span: tuple[str, ...],
+    requested_clearance: float | None,
+    same_net_ids: set[str | None],
+    allow_via_in_pad: bool,
+) -> None:
+    assert snapshot.board is not None
+    via_shape = GeometryShape(
+        kind="circle",
+        center=point.as_dict(),
+        width=diameter,
+        height=diameter,
+    )
+    required = max(_clearance(document, layer_id, requested_clearance) for layer_id in span)
+    for pad in snapshot.board.pads:
+        if not any(pad_on_layer(snapshot, pad, layer_id) for layer_id in span):
+            continue
+        same_net = pad.net_id in same_net_ids
+        if same_net and allow_via_in_pad:
+            continue
+        if pad.geometry is not None:
+            measured = shape_distance(via_shape, pad.geometry)
+        elif pad.bbox is not None:
+            pad_box = BBox(**pad.bbox)
+            via_box = BBox(point.x, point.y, point.x, point.y).expand(diameter / 2.0)
+            measured = _bbox_gap(via_box, pad_box)
+        else:
+            continue
+        if measured <= 1e-9 or measured + 1e-9 < required:
+            raise GeometryError(
+                (
+                    "Via-in-pad is disabled; via copper must clear the pad edge"
+                    if same_net
+                    else "Via violates clearance to pad copper"
+                ),
+                object_ids=[pad.stable_id],
+                details={
+                    "position": point.as_dict(),
+                    "measured": measured,
+                    "required": required,
+                    "same_net": same_net,
+                    "allow_via_in_pad": allow_via_in_pad,
+                },
+            )
+
+
 def _validate_path(
     document: DipTraceDocument,
     snapshot: DocumentSnapshot,
@@ -309,6 +406,7 @@ def _validate_path(
     *,
     exclude_trace_id: str | None = None,
     ignored_net_xml_ids: set[str | None] | None = None,
+    allow_via_in_pad: bool = False,
 ) -> None:
     if snapshot.board is None or snapshot.board.outline is None:
         raise GeometryError("Board outline is required for safe trace insertion")
@@ -365,6 +463,8 @@ def _validate_path(
             if obstacle.bbox is None or obstacle.net_id in (
                 ignored_net_xml_ids or {net.xml_id}
             ):
+                continue
+            if obstacle.kind == "pad" and not pad_on_layer(snapshot, obstacle, layer_id):
                 continue
             exact_violation = (
                 shapely_available()
@@ -447,14 +547,24 @@ def _validate_path(
         required = max(
             _clearance(document, layer_id, requested_clearance) for layer_id in span
         )
-        for obstacle in [*snapshot.board.pads, *snapshot.board.vias]:
+        _validate_via_pad_clearance(
+            document,
+            snapshot,
+            point,
+            diameter=diameter,
+            span=span,
+            requested_clearance=requested_clearance,
+            same_net_ids={net.xml_id},
+            allow_via_in_pad=allow_via_in_pad,
+        )
+        for obstacle in snapshot.board.vias:
             if obstacle.bbox is None or obstacle.net_id in (
                 ignored_net_xml_ids or {net.xml_id}
             ):
                 continue
             if via_box.expand(required).intersects(BBox(**obstacle.bbox)):
                 raise GeometryError(
-                    "Via violates clearance to pad or via copper",
+                    "Via violates clearance to existing via copper",
                     object_ids=[obstacle.stable_id],
                     details={"point_index": segment_index + 1, "required": required},
                 )
@@ -751,6 +861,7 @@ def _add_trace(
         widths,
         via_styles,
         operation.clearance,
+        allow_via_in_pad=operation.allow_via_in_pad,
     )
     trace_id, generated_id, point_patches = _insert_trace(
         document,
@@ -888,6 +999,7 @@ def _add_differential_pair_route(
         *positive,
         operation.clearance,
         ignored_net_xml_ids=ignored_nets,
+        allow_via_in_pad=operation.allow_via_in_pad,
     )
     _validate_path(
         document,
@@ -896,6 +1008,7 @@ def _add_differential_pair_route(
         *negative,
         operation.clearance,
         ignored_net_xml_ids=ignored_nets,
+        allow_via_in_pad=operation.allow_via_in_pad,
     )
     pair_element = next(
         (
@@ -1045,6 +1158,7 @@ def _replace_trace(
         via_styles,
         operation.clearance,
         exclude_trace_id=trace.stable_id,
+        allow_via_in_pad=operation.allow_via_in_pad,
     )
     patches = _write_points(
         document, _element(snapshot, trace), points, layers, widths, via_styles
@@ -1162,7 +1276,8 @@ def _add_via(
     if snapshot.board is None:
         raise CapabilityUnavailableError("Via operations require a PCB document")
     style = select_via_style(snapshot.board, operation.via_style)
-    validate_via_geometry(style)
+    diameter, _hole = validate_via_geometry(style)
+    span = resolve_via_span(snapshot.board, style)
     style_id = style.id
     container = _element(snapshot, trace).find("./Points")
     if container is None:
@@ -1176,6 +1291,16 @@ def _add_via(
         for item in elements
     ]
     target = Point(operation.x, operation.y)
+    _validate_via_pad_clearance(
+        document,
+        snapshot,
+        target,
+        diameter=diameter,
+        span=span,
+        requested_clearance=None,
+        same_net_ids={trace.net_id},
+        allow_via_in_pad=operation.allow_via_in_pad,
+    )
     existing = next(
         (item for item, point in enumerate(points) if distance(point, target) <= 1e-6),
         None,
@@ -1252,6 +1377,8 @@ def _move_vias(
     snapshot: DocumentSnapshot,
     operation: MoveViaOperation,
 ) -> tuple[dict[str, object], int, list[str]]:
+    if snapshot.board is None:
+        raise CapabilityUnavailableError("Via operations require a PCB document")
     vias = _select(snapshot, operation.selector, "via")
     before: list[dict[str, object]] = []
     after: list[dict[str, object]] = []
@@ -1263,6 +1390,18 @@ def _move_vias(
         moved = Point(
             operation.absolute_x if operation.absolute_x is not None else point.x + operation.dx,
             operation.absolute_y if operation.absolute_y is not None else point.y + operation.dy,
+        )
+        style = select_via_style(snapshot.board, str(via.attributes.get("via_style", "")))
+        diameter, _hole = validate_via_geometry(style)
+        _validate_via_pad_clearance(
+            document,
+            snapshot,
+            moved,
+            diameter=diameter,
+            span=resolve_via_span(snapshot.board, style),
+            requested_clearance=None,
+            same_net_ids={via.net_id},
+            allow_via_in_pad=operation.allow_via_in_pad,
         )
         element = _element(snapshot, via)
         element.set("X", f"{from_mm(moved.x, document.units):.9g}")
@@ -1315,7 +1454,8 @@ def _set_via_style(
     if snapshot.board is None:
         raise CapabilityUnavailableError("Via operations require a PCB document")
     style = select_via_style(snapshot.board, operation.via_style)
-    validate_via_geometry(style)
+    diameter, _hole = validate_via_geometry(style)
+    span = resolve_via_span(snapshot.board, style)
     style_id = style.id
     before: list[dict[str, str]] = []
     for via in vias:
@@ -1324,6 +1464,18 @@ def _set_via_style(
         element = _element(snapshot, via)
         layer_before, layer_after = _trace_point_transition(snapshot, trace, element)
         validate_via_transition(snapshot.board, style, layer_before, layer_after)
+        if via.position is None:
+            raise GeometryError(f"Via has no position: {via.stable_id}")
+        _validate_via_pad_clearance(
+            document,
+            snapshot,
+            Point(**via.position),
+            diameter=diameter,
+            span=span,
+            requested_clearance=None,
+            same_net_ids={via.net_id},
+            allow_via_in_pad=operation.allow_via_in_pad,
+        )
         before.append({"id": via.stable_id, "via_style": element.get("ViaStyle", "-1")})
         element.set("ViaStyle", style_id)
     ids = [via.stable_id for via in vias]

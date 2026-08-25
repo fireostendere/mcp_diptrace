@@ -29,9 +29,11 @@ def verify_backend(expected: str) -> None:
     bounds = shape_bbox(pad)
     if expected == "pure_python":
         measured = line_to_shape_distance(Point(0.0, 5.0), Point(3.0, 5.0), 0.2, pad)
-        # The no-GEOS implementation encloses the rotated 2x1 rectangle in the
-        # square defined by its diagonal: span = hypot(2, 1).
-        expected_span = math.hypot(2.0, 1.0)
+        # The exact AABB of a 45-degree 2x1 rectangle:
+        # span = |cos45|*2 + |sin45|*1 = 2.1213 on both axes.
+        expected_span = abs(math.cos(math.radians(45.0))) * 2.0 + abs(
+            math.sin(math.radians(45.0))
+        ) * 1.0
         span_matches = math.isclose(
             bounds.width, expected_span, rel_tol=1e-12, abs_tol=0.0
         ) and math.isclose(bounds.height, expected_span, rel_tol=1e-12, abs_tol=0.0)

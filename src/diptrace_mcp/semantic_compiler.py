@@ -13,6 +13,7 @@ from .errors import (
     AmbiguousSelectorError,
     CapabilityUnavailableError,
     EditError,
+    GeometryError,
     LockedObjectError,
     ObjectNotFoundError,
     RoundtripValidationError,
@@ -63,6 +64,7 @@ from .routing_compiler import (
     ROUTING_OPERATION_TYPES,
     RoutingOperation,
     apply_routing_operation,
+    via_pad_violation_pairs,
 )
 from .xml_document import (
     DipTraceDocument,
@@ -135,11 +137,30 @@ def apply_semantic_operations(
     patch_count = 0
 
     for index, operation in enumerate(operations):
+        check_via_pad = snapshot.board is not None and isinstance(
+            operation,
+            (
+                MoveComponentsOperation,
+                RotateComponentsOperation,
+                SetComponentPatternOperation,
+                SetComponentSideOperation,
+                SyncSchematicToPcbOperation,
+            ),
+        )
+        before_via_pad = via_pad_violation_pairs(snapshot, 0.0) if check_via_pad else set()
         handler = _semantic_operation_handler(operation)
         preview, patches = handler(index, working, snapshot, operation, changed_ids)
         previews.append(preview)
         patch_count += patches
         snapshot = build_snapshot(working, live_session=live_session)
+        introduced_via_pad = (
+            via_pad_violation_pairs(snapshot, 0.0) - before_via_pad if check_via_pad else set()
+        )
+        if introduced_via_pad:
+            raise GeometryError(
+                "Component geometry introduces via-in-pad",
+                object_ids=sorted({item for pair in introduced_via_pad for item in pair}),
+            )
 
     raw_bytes = raw_tree.compile(working.root, working.path) if patch_count else document.raw_bytes
     try:

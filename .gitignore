@@ -17,6 +17,9 @@ release-dist/
 plugin/dist/
 *.spec
 .diptrace-mcp-backups/
+# DipTrace transient backups and local ZCode session state.
+*~
+.zcode/
 
 # Owner-private open-source readiness work; never commit these files.
 .local/

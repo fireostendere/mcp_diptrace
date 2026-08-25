@@ -32,6 +32,8 @@ def add_copper_pours(
     spoke_width_mm: float = 0.3,
     stitch_pitch_mm: float | None = None,
     stitch_edge_mm: float = 1.0,
+    extra_vias: Iterable[Point] = (),
+    smd_spoke: str = "4 spoke",
 ) -> CopperPourResult:
     """Assign full-board copper pours and optional ground stitching vias."""
 
@@ -131,7 +133,7 @@ def add_copper_pours(
                 "SpokeWidth": _number(spoke_width_mm, working.units),
                 "ViaDirect": "Y",
                 "SMD_Separate": "N",
-                "SMD_Spoke": "4 spoke",
+                "SMD_Spoke": smd_spoke,
                 "SMD_SpokeWidth": _number(spoke_width_mm, working.units),
                 "RatlineMode": "Automaticaly",
                 "SnapToBoard": snap_to_board,
@@ -159,6 +161,9 @@ def add_copper_pours(
             edge=stitch_edge_mm,
             clearance=clearance_mm,
         )
+    explicit_vias = list(extra_vias)
+    stitch_points = list(stitch_points) + explicit_vias
+    if stitch_points:
         via_style = board.find("./ViaStyles/ViaStyle")
         if via_style is None or not via_style.get("Id"):
             raise EditError("Ground stitching requires a PCB ViaStyle")

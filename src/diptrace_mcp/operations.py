@@ -321,6 +321,7 @@ class AddTraceOperation(SemanticOperation):
     clearance: float | None = Field(
         default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
     )
+    allow_via_in_pad: bool = False
 
     @model_validator(mode="after")
     def validate_path(self) -> AddTraceOperation:
@@ -366,6 +367,7 @@ class AddDifferentialPairRouteOperation(SemanticOperation):
     clearance: float | None = Field(
         default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
     )
+    allow_via_in_pad: bool = False
 
     @model_validator(mode="after")
     def validate_coupled_paths(self) -> AddDifferentialPairRouteOperation:
@@ -390,6 +392,7 @@ class ReplaceTraceOperation(SemanticOperation):
     clearance: float | None = Field(
         default=None, ge=0.0, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
     )
+    allow_via_in_pad: bool = False
 
 
 class DeleteTraceOperation(SelectorOperation):
@@ -418,6 +421,7 @@ class AddViaOperation(SemanticOperation):
     via_style: str = Field(min_length=1, max_length=256)
     layer_before: str | None = Field(default=None, min_length=1, max_length=256)
     layer_after: str | None = Field(default=None, min_length=1, max_length=256)
+    allow_via_in_pad: bool = False
 
 
 class MoveViaOperation(SelectorOperation):
@@ -430,6 +434,7 @@ class MoveViaOperation(SelectorOperation):
     absolute_y: float | None = Field(
         default=None, allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION
     )
+    allow_via_in_pad: bool = False
 
     @model_validator(mode="after")
     def reject_noop(self) -> MoveViaOperation:
@@ -445,6 +450,7 @@ class DeleteViaOperation(SelectorOperation):
 class SetViaStyleOperation(SelectorOperation):
     kind: Literal["set_via_style"] = "set_via_style"
     via_style: str = Field(min_length=1, max_length=256)
+    allow_via_in_pad: bool = False
 
 
 class AddSheetOperation(SemanticOperation):

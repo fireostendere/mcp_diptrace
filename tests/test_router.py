@@ -11,13 +11,15 @@ from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.capabilities import get_capabilities
 from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import CapabilityUnavailableError, RoutingError
-from diptrace_mcp.geometry import distance
+from diptrace_mcp.geometry import Point, distance
+from diptrace_mcp.geometry_backend import point_to_shape_distance
 from diptrace_mcp.routing import (
     DifferentialPairRouteConfig,
     RouteConnectionConfig,
     resolve_route_clearance,
     synthesize_differential_pair_route,
     synthesize_route,
+    synthesize_route_min_vias,
 )
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.service import DipTraceService
@@ -137,6 +139,73 @@ def _document_with_top_layer_barrier() -> DipTraceDocument:
     ET.SubElement(net, "Name").text = "TOP_BARRIER"
     ET.SubElement(net, "Pads")
     traces = ET.SubElement(net, "Traces")
+    trace = ET.SubElement(
+        traces,
+        "Trace",
+        {
+            "Id": "0",
+            "Connected1": "Free",
+            "Connected2": "Free",
+            "Group": "-1",
+            "PairSeparateTrace": "-1",
+            "Selected": "N",
+        },
+    )
+    points = ET.SubElement(trace, "Points")
+    ET.SubElement(points, "Point", {"Id": "0", "X": "15", "Y": "0.5"})
+    ET.SubElement(
+        points,
+        "Point",
+        {
+            "Id": "1",
+            "X": "15",
+            "Y": "29.5",
+            "Lay": "0",
+            "Width": "0.5",
+            "Jumper": "0",
+            "Arc": "N",
+            "ViaStyle": "-1",
+            "Selected": "N",
+        },
+    )
+    return DipTraceDocument.from_bytes(
+        original.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+
+def _pattern_document_with_top_layer_barrier() -> DipTraceDocument:
+    original = DipTraceDocument.load(FIXTURES / "pcb_patterns.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    nets = root.find("./Board/Nets")
+    ratlines = root.find("./Board/Ratlines")
+    assert nets is not None and ratlines is not None
+    net = ET.SubElement(nets, "Net", {"Id": "0", "NetClass": "0", "Locked": "N"})
+    ET.SubElement(net, "Name").text = "VCC"
+    pads = ET.SubElement(net, "Pads")
+    ET.SubElement(pads, "Item", {"Comp": "0", "Pad": "0"})
+    ET.SubElement(pads, "Item", {"Comp": "1", "Pad": "0"})
+    ET.SubElement(net, "Traces")
+    ET.SubElement(
+        ratlines,
+        "Ratline",
+        {
+            "Id": "0",
+            "Hidden": "N",
+            "X1": "8.9",
+            "Y1": "10",
+            "X2": "29.4",
+            "Y2": "10",
+            "Comp1": "0",
+            "Pad1": "0",
+            "Comp2": "1",
+            "Pad2": "0",
+        },
+    )
+    barrier = ET.SubElement(nets, "Net", {"Id": "1", "NetClass": "0", "Locked": "N"})
+    ET.SubElement(barrier, "Name").text = "TOP_BARRIER"
+    ET.SubElement(barrier, "Pads")
+    traces = ET.SubElement(barrier, "Traces")
     trace = ET.SubElement(
         traces,
         "Trace",
@@ -496,6 +565,62 @@ def test_multilayer_router_inserts_valid_vias_and_roundtrips() -> None:
         point.layer or route.operation.layer for point in route.operation.points[1:]
     ]
     assert len(vcc_trace.relationships["vias"]) == 2
+
+
+def test_multilayer_router_escapes_vias_beyond_same_net_pads() -> None:
+    document = _pattern_document_with_top_layer_barrier()
+    snapshot = build_snapshot(document)
+    net = next(item for item in snapshot.board.nets if item.name == "VCC")  # type: ignore[union-attr]
+    start, end = net.relationships["endpoints"]
+    route = synthesize_route(
+        snapshot,
+        RouteConnectionConfig(
+            net=net.stable_id,
+            start_object_id=start,
+            end_object_id=end,
+            layer="Top",
+            preferred_layers=["Top", "Bottom"],
+            width=0.25,
+            clearance=0.2,
+            grid=0.5,
+            via_style="Default",
+            max_vias=2,
+            via_cost=0.2,
+            max_detour=6.0,
+            max_nodes=200_000,
+            time_budget_ms=10_000,
+            avoid_component_bodies=False,
+        ),
+    )
+
+    via_points = [Point(item.x, item.y) for item in route.operation.points if item.via_style]
+    assert len(via_points) == 2
+    for point in via_points:
+        for pad in (item for item in snapshot.board.pads if item.net_id == "0"):  # type: ignore[union-attr]
+            assert pad.geometry is not None
+            assert point_to_shape_distance(point, pad.geometry) >= 0.5 - 1e-9
+    apply_semantic_operations(document, [route.operation])
+
+
+def test_multilayer_router_does_not_force_layer_preference_vias() -> None:
+    document = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
+    config = _config(document).model_copy(
+        update={
+            "preferred_layers": ["Bottom", "Top"],
+            "start_layer": "Top",
+            "end_layer": "Top",
+            "via_style": "Default",
+            "max_vias": 2,
+        }
+    )
+
+    route = synthesize_route_min_vias(build_snapshot(document), config)
+
+    # Layer order only prices transitions (via_cost); a clear straight path
+    # must stay on its endpoint layer instead of being forced to dip.
+    assert route.metrics["via_count"] == 0
+    assert route.metrics["layer_sequence"] == ["0"]
+    assert route.metrics["via_budget_attempts"][0]["status"] == "routed"
 
 
 def test_documented_via_style_geometry_and_span_are_normalized() -> None:

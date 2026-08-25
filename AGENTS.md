@@ -8,6 +8,11 @@ constraints, and manufacturability take precedence.
 
 - For standard 2.54 mm connectors, choose the simplest, smallest practical
   footprint by default.
+- Before placing any physical part, verify its exact manufacturer package and
+  land pattern against the official datasheet. For ICs, also extract the current
+  layout guidelines/example and check the datasheet revision history. Treat the
+  vendor layout topology as the default constraint; document every intentional
+  deviation and its consequence. Missing evidence blocks the PCB build.
 - Keep boards compact. Derive the outline from component courtyards plus a sane
   manufacturing margin, remove unused space, center the layout, and preserve
   visual symmetry when it does not harm placement or routing. A connector's
@@ -20,6 +25,10 @@ constraints, and manufacturability take precedence.
   coverage in every part of the board instead of relying only on the via count.
 - Connect soldered connector GND pads to pours with a four-spoke cross thermal
   relief so they remain easy to solder.
+- Disable via-in-pad by default. Escape each transition beyond the pad copper
+  edge plus applicable clearance before placing the via. Allow via-in-pad only
+  when the user explicitly requests a compatible filled/capped fabrication
+  process.
 - Keep silkscreen readable, close to its associated component, and visually
   aligned. It must not enter another component's mounting/courtyard space or
   overlap pads, holes, or vias. Silkscreen may cross copper traces because the
@@ -32,3 +41,24 @@ constraints, and manufacturability take precedence.
   schematic recordings.
 - After a visual PCB change, regenerate and inspect the PCB, MP4, and GIF. Check
   the final frame as well as the staged sequence.
+
+## PCB build order and handoff
+
+Use this gate order without skipping: electrical checks; official source
+evidence; footprint/pin-map validation; mechanics and connector datums;
+datasheet-driven critical placement; two-layer-first stackup; critical then
+remaining routing; zero ratlines; Top/Bottom GND pours and distributed
+stitching; silkscreen; headless QC; native DipTrace refill/DRC; media and
+release inspection. A failed gate returns to the stage that owns the defect.
+
+Maintain a project `PCB_BUILD.md` containing input/output SHAs, the last passing
+gate, current failure evidence, intentional datasheet deviations, exact resume
+command, and the last checkpoint commit. Make narrow commits after evidence and
+footprints, after placement/routing, and after native acceptance/media. If Git
+write access is unavailable, record the exact intended files and commit command
+instead of claiming that a checkpoint exists.
+
+Verify the handoff mechanically before resuming or handing off:
+`PYTHONPATH=src .venv/bin/python scripts/pcb_quality_gate.py <project-dir>`
+checks gate-table ordering, recorded SHAs against the files on disk, and the
+headless QC (`hard_error_count == 0`); non-zero exit means BLOCKED.

@@ -112,8 +112,8 @@ def test_geometry_backend_has_conservative_pure_python_fallback(
     report = geometry_backend.backend_report()
     bounds = geometry_backend.shape_bbox(pad)
     assert report["engine"] == "pure_python"
-    assert bounds.width == pytest.approx(5**0.5)
-    assert bounds.height == pytest.approx(5**0.5)
+    assert bounds.width == pytest.approx(3 / 2**0.5)
+    assert bounds.height == pytest.approx(3 / 2**0.5)
     assert geometry_backend.line_to_shape_distance(
         Point(0, 5), Point(3, 5), 0.2, pad
     ) > 0.0
@@ -143,7 +143,9 @@ def test_shape_bbox_points_params_and_invalid_parametric_geometry(
         height=8.0,
         rotation_deg=30.0,
     )
-    assert shape_bbox(rotated) == BBox(-5.0, -5.0, 5.0, 5.0)
+    bounds = shape_bbox(rotated)
+    assert bounds.width == pytest.approx(3 * 3**0.5 + 4)
+    assert bounds.height == pytest.approx(3 + 4 * 3**0.5)
 
 
 def test_transform_shape_handles_points_missing_center_and_rotated_center() -> None:

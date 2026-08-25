@@ -274,7 +274,12 @@ def _fixed_obstacles(
         if item.stable_id in selected_ids and not item.locked:
             continue
         obstacles.append(_Obstacle(item.stable_id, item.side, BBox(**item.bbox), item.kind))
-    for item in [*snapshot.board.pads, *snapshot.board.holes, *snapshot.board.testpoints]:
+    for item in [
+        *snapshot.board.pads,
+        *snapshot.board.holes,
+        *snapshot.board.vias,
+        *snapshot.board.testpoints,
+    ]:
         if item.bbox is not None:
             obstacles.append(_Obstacle(item.stable_id, item.side, BBox(**item.bbox), item.kind))
     if config.avoid_component_bodies:

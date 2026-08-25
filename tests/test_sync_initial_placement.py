@@ -47,3 +47,13 @@ def test_sync_wraps_new_components_inside_board_outline() -> None:
     positions = [(item.x, item.y) for item in plan.operation.components]
     assert positions == [(5.0, 5.0), (15.0, 5.0), (5.0, 15.0), (15.0, 15.0)]
     assert all(2.5 <= x <= 17.5 and 1.0 <= y <= 19.0 for x, y in positions)
+
+    explicit = build_sync_plan(
+        schematic,
+        DipTraceDocument.from_bytes(
+            Path("small-board.dip"), build_pcb_document(PcbScaffold(width_mm=1, height_mm=1))
+        ),
+        mappings=[item.model_copy(update={"x": 0.5, "y": 0.5}) for item in mappings],
+        pattern_documents=[patterns],
+    )
+    assert {(item.x, item.y) for item in explicit.operation.components} == {(0.5, 0.5)}

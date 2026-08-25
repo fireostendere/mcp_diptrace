@@ -83,7 +83,7 @@ def test_planner_moves_collision_and_never_moves_locked_label(tmp_path: Path) ->
         "changed_count": 1,
         "rotated_count": 0,
         "unresolved_count": 0,
-        "fixed_obstacle_count": 4,
+        "fixed_obstacle_count": 5,
     }
     assert len(result.operations) == 1
     locked = next(item for item in result.candidates if item["status"] == "locked_unchanged")

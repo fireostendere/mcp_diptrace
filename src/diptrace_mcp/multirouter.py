@@ -350,11 +350,25 @@ def synthesize_routes_with_retry(
                 break
             if not recovered:
                 still_failed.append(
-                    {"index": index, "net": config.net, "error": message, "ripup": "exhausted"}
+                    {
+                        "index": index,
+                        "net": config.net,
+                        "start": config.start_object_id,
+                        "end": config.end_object_id,
+                        "error": message,
+                        "ripup": "exhausted",
+                    }
                 )
     else:
         still_failed = [
-            {"index": index, "net": config.net, "error": message, "ripup": "disabled"}
+            {
+                "index": index,
+                "net": config.net,
+                "start": config.start_object_id,
+                "end": config.end_object_id,
+                "error": message,
+                "ripup": "disabled",
+            }
             for index, config, message in failed
         ]
 

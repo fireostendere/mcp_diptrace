@@ -5,7 +5,7 @@ from pathlib import Path
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.copper_pours import add_copper_pours
-from diptrace_mcp.pcb_quality import review_pcb_quality
+from diptrace_mcp.pcb_quality import PCBQualityConfig, review_pcb_quality
 from diptrace_mcp.pcb_whole_board import (
     PCBWholeBoardConfig,
     compact_rectangular_board_outline,
@@ -33,11 +33,46 @@ def _ground_document() -> DipTraceDocument:
     )
 
 
+def _via_in_pad_document() -> DipTraceDocument:
+    document = DipTraceDocument.load(FIXTURES / "pcb_patterns.xml", MAX_BYTES)
+    root = ET.fromstring(document.raw_bytes)
+    nets = root.find("./Board/Nets")
+    components = root.find("./Board/Components")
+    assert nets is not None and components is not None
+    net = ET.SubElement(nets, "Net", {"Id": "0", "NetClass": "0", "Locked": "N"})
+    ET.SubElement(net, "Name").text = "GND"
+    pads = ET.SubElement(net, "Pads")
+    ET.SubElement(pads, "Item", {"Comp": "0", "Pad": "0"})
+    ET.SubElement(net, "Traces")
+    via = ET.SubElement(
+        components,
+        "Component",
+        {
+            "Id": "4",
+            "Type": "Via",
+            "ViaStyle": "0",
+            "X": "8.9",
+            "Y": "10",
+            "Locked": "N",
+            "Selected": "N",
+        },
+    )
+    ET.SubElement(via, "RefDes").text = "GNDV1"
+    ET.SubElement(via, "Name").text = "Test Via"
+    via_pads = ET.SubElement(via, "Pads")
+    ET.SubElement(via_pads, "Pad", {"Id": "1", "NetId": "0"})
+    return DipTraceDocument.from_bytes(
+        document.path,
+        ET.tostring(root, encoding="utf-8", xml_declaration=True),
+    )
+
+
 def test_quality_review_exposes_physics_unknowns_and_hard_ground_rule() -> None:
     review = review_pcb_quality(build_snapshot(_document()))
 
     assert review.hard_error_count >= 1
     assert "two_layer_ground_pour_missing" in review.review_priorities
+    assert "unrouted_connections" in review.review_priorities
     assert review.unknowns
     assert {item.principle_id for item in review.physics_principles} == {
         "continuous_reference_plane",
@@ -61,6 +96,25 @@ def test_ground_pours_thermals_and_dense_stitching_improve_quality() -> None:
     assert review.stitching_coverage_ratio is not None
     assert "two_layer_ground_pour_missing" not in review.review_priorities
     assert "ground_thermal_not_four_spoke" not in review.review_priorities
+
+
+def test_quality_rejects_via_in_pad_and_enforces_explicit_centerline() -> None:
+    via_review = review_pcb_quality(
+        build_snapshot(_via_in_pad_document()),
+        config=PCBQualityConfig(require_two_layer_ground_pours=False),
+    )
+    assert via_review.via_pad_violation_count >= 1
+    assert "via_in_pad_or_too_close" in via_review.review_priorities
+
+    off_axis = review_pcb_quality(
+        build_snapshot(_document()),
+        config=PCBQualityConfig(
+            require_two_layer_ground_pours=False,
+            centerline_groups={"y": ["R1", "U1"]},
+        ),
+    )
+    assert off_axis.mechanical_centerline_max_offset_mm == 5.0
+    assert "mechanical_centerline_misaligned" in off_axis.review_priorities
 
 
 def test_rectangular_outline_compaction_centers_occupied_geometry() -> None:

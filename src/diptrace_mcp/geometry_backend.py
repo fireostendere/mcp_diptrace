@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import math
+from functools import lru_cache
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
 from typing import Any
@@ -10,6 +11,7 @@ from .domain import GeometryShape
 from .geometry import BBox, Point, Transform, point_to_segment_distance, segment_distance
 
 
+@lru_cache(maxsize=1)
 def shapely_available() -> bool:
     return importlib.util.find_spec("shapely") is not None
 
@@ -50,6 +52,20 @@ def shape_bbox(shape: GeometryShape) -> BBox:
             center.y - shape.height / 2.0,
             center.x + shape.width / 2.0,
             center.y + shape.height / 2.0,
+        )
+    if shape.kind == "rectangle":
+        angle = math.radians(shape.rotation_deg)
+        half_width = abs(math.cos(angle)) * shape.width / 2.0 + abs(
+            math.sin(angle)
+        ) * shape.height / 2.0
+        half_height = abs(math.sin(angle)) * shape.width / 2.0 + abs(
+            math.cos(angle)
+        ) * shape.height / 2.0
+        return BBox(
+            center.x - half_width,
+            center.y - half_height,
+            center.x + half_width,
+            center.y + half_height,
         )
     geometry = _to_shapely(shape)
     if geometry is not None:
@@ -218,6 +234,22 @@ def point_to_shape_distance(point: Point, shape: GeometryShape) -> float:
 
 
 def _to_shapely(shape: GeometryShape) -> Any | None:
+    # Conversion dominates point-to-shape checks when the router probes
+    # thousands of sites; cache per live shape object (identity-guarded).
+    cached = _TO_SHAPELY_CACHE.get(id(shape))
+    if cached is not None and cached[0] is shape:
+        return cached[1]
+    converted = _build_shapely(shape)
+    # ponytail: unbounded cache, keyed by object identity; clear it if
+    # long-lived processes route against many distinct documents.
+    _TO_SHAPELY_CACHE[id(shape)] = (shape, converted)
+    return converted
+
+
+_TO_SHAPELY_CACHE: dict[int, tuple[GeometryShape, Any]] = {}
+
+
+def _build_shapely(shape: GeometryShape) -> Any | None:
     if not shapely_available():
         return None
     from shapely import affinity  # type: ignore[import-untyped]
