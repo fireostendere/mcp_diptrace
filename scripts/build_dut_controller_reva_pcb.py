@@ -14,8 +14,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from diptrace_mcp.adapters import build_snapshot  # noqa: E402
 from diptrace_mcp.domain import QuerySelector  # noqa: E402
-from diptrace_mcp.operations import RotateComponentsOperation  # noqa: E402
+from diptrace_mcp.operations import (  # noqa: E402
+    AddTraceOperation,
+    RotateComponentsOperation,
+    TracePathPoint,
+)
 from diptrace_mcp.scaffolding import PcbScaffold, build_pcb_document, default_layers  # noqa: E402
 from diptrace_mcp.semantic_compiler import apply_semantic_operations  # noqa: E402
 from diptrace_mcp.synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan  # noqa: E402
@@ -31,10 +36,10 @@ BOARD_H = 96.0
 POS: dict[str, tuple[float, float, float]] = {
     # --- Sheet ESP32_CONTROL -------------------------------------------------
     "U1": (30.0, 74.0, 0),
-    "C1": (19.0, 64.0, 270),
-    "C2": (23.0, 64.0, 270),
-    "C3": (27.0, 64.0, 270),
-    "C4": (31.0, 64.0, 270),
+    "C1": (24.0, 87.0, 180),
+    "C2": (28.0, 87.0, 180),
+    "C3": (32.0, 87.0, 180),
+    "C4": (36.0, 87.0, 180),
     "R1": (42.0, 84.0, 180),
     "C5": (47.0, 87.0, 180),
     "SW1": (46.0, 78.0, 0),
@@ -416,8 +421,151 @@ def route_batch(batch: str) -> None:
         print("failed:", failed)
 
 
+
+
+# ---------------------------------------------------------------------------
+# Manual critical routing: explicit chains of (refdes, pad_number) endpoints
+# plus optional explicit waypoints. Generates L-shaped segments (H-first).
+# ---------------------------------------------------------------------------
+
+MANUAL_CHAINS = {
+    "CTRL_DP": {"w": 0.25, "layer": "Top", "chains": [[
+        ("J1", "6"), ("WP", 11.5, 75.75), ("WP", 11.5, 66.0),
+        ("WP", 30.85, 66.0), ("U1", "24")]]},
+    "CTRL_DN": {"w": 0.25, "layer": "Top", "chains": [[
+        ("J1", "7"), ("WP", 10.9, 76.25), ("WP", 10.9, 65.35),
+        ("WP", 29.95, 65.35), ("U1", "23")]]},
+    "UP_DP": {"w": 0.25, "layer": "Top", "chains": [
+        [("J2", "6"), ("WP", 11.5, 87.75), ("WP", 11.5, 86.85), ("D8", "1")],
+        [("D8", "6"), ("WP", 52.5, 89.15), ("WP", 52.5, 81.32), ("U3", "1")],
+        [("D8", "6"), ("WP", 49.0, 89.15), ("WP", 49.0, 67.32), ("U4", "1")],
+    ]},
+    "UP_DN": {"w": 0.25, "layer": "Top", "chains": [
+        [("J2", "5"), ("WP", 10.9, 87.25), ("WP", 10.9, 86.85), ("D8", "3")],
+        [("D8", "5"), ("WP", 54.5, 88.65), ("WP", 54.5, 81.32), ("U3", "2")],
+        [("D8", "5"), ("WP", 47.5, 88.65), ("WP", 47.5, 67.32), ("U4", "2")],
+    ]},
+    "USB1_DP": {"w": 0.25, "layer": "Top", "chains": [
+        [("U3", "8"), ("WP", 121.0, 82.68), ("WP", 121.0, 80.5), ("J3", "7")],
+        [("U3", "8"), ("WP", 110.4, 82.68), ("WP", 110.4, 86.85), ("D9", "1")],
+    ]},
+    "USB1_DN": {"w": 0.25, "layer": "Bottom", "chains": [
+        [("U3", "7"), ("WP", 119.0, 82.68), ("WP", 119.0, 90.55), ("J3", "2")],
+        [("U3", "7"), ("WP", 113.9, 82.68), ("WP", 113.9, 86.85), ("D9", "3")],
+    ]},
+    "USB2_DP": {"w": 0.25, "layer": "Top", "chains": [
+        [("U4", "8"), ("WP", 125.2, 68.68), ("WP", 125.2, 56.5), ("J4", "7")],
+        [("U4", "8"), ("WP", 110.4, 68.68), ("WP", 110.4, 54.85), ("D10", "1")],
+    ]},
+    "USB2_DN": {"w": 0.25, "layer": "Bottom", "chains": [
+        [("U4", "7"), ("WP", 119.0, 68.68), ("WP", 119.0, 66.55), ("J4", "2")],
+        [("U4", "7"), ("WP", 113.9, 68.68), ("WP", 113.9, 54.85), ("D10", "3")],
+    ]},
+}
+
+
+def _pad_index(snapshot):
+    idx = {}
+    comp_ref = {}
+    for c in snapshot.board.components:
+        comp_ref[c.id if hasattr(c, "id") else None] = c.refdes
+    for p in snapshot.board.pads:
+        ref = getattr(p, "refdes", None)
+        num = str(p.attributes.get("number") or p.attributes.get("pad") or "")
+        net = p.net_name or ""
+        pos = (round(p.position["x"], 3), round(p.position["y"], 3))
+        idx.setdefault((ref, num), []).append((pos, net))
+    return idx
+
+
+def manual_route() -> None:
+    doc = DipTraceDocument.load(BOARD_PATH, 256 * 1024 * 1024)
+    snap = build_snapshot(doc)
+
+    # Build (refdes, number) -> (position, net_name, stable pad id, component id)
+    comp_ref_by_id = {}
+    for c in snap.objects.values():
+        if getattr(c, "kind", "") == "component":
+            comp_ref_by_id[c.stable_id] = getattr(c, "refdes", None)
+    pad_lookup: dict[tuple[str, str], list[dict]] = {}
+    for p in snap.board.pads:
+        ref = comp_ref_by_id.get(p.parent_id) or getattr(p, "refdes", None)
+        if ref is None:
+            continue
+        num = str(p.attributes.get("number") or p.attributes.get("pad") or "")
+        pad_lookup.setdefault((ref, num), []).append({
+            "xy": (p.position["x"], p.position["y"]),
+            "net": p.net_name,
+            "stable_id": getattr(p, "stable_id", None),
+            "comp": getattr(p, "parent_id", None),
+        })
+
+    ops = []
+    report = []
+    for net, spec in MANUAL_CHAINS.items():
+        for chain in spec["chains"]:
+            pts = []
+            for entry_ in chain:
+                if entry_[0] == "WP":
+                    pts.append({"xy": (entry_[1], entry_[2]), "net": net,
+                                "stable_id": None, "comp": None})
+                    continue
+                ref, num = entry_
+                cand = pad_lookup.get((ref, num))
+                if not cand:
+                    raise SystemExit(f"manual_route: pad {ref}.{num} not found")
+                entry = cand[0]
+                if entry["net"] and entry["net"] != net:
+                    raise SystemExit(f"manual_route: {ref}.{num} on net {entry['net']}, want {net}")
+                pts.append(entry)
+            # Build L-segments H-first
+            path = [pts[0]["xy"]]
+            for prev, cur in zip(pts, pts[1:]):
+                (x0, y0), (x1, y1) = path[-1], cur["xy"]
+                if abs(y1 - y0) > 0.01 and abs(x1 - x0) > 0.01:
+                    path.append((x1, y0))
+                path.append((x1, y1))
+            pad_pts = [p_ for p_ in pts if p_["stable_id"]]
+            if len(pad_pts) < 2:
+                raise SystemExit(f"manual_route: chain needs >=2 pads {chain}")
+            sid0, sid1 = pad_pts[0]["stable_id"], pad_pts[-1]["stable_id"]
+            ops.append(AddTraceOperation(
+                net=net, start_object_id=sid0, end_object_id=sid1,
+                points=[TracePathPoint(x=x, y=y) for x, y in path],
+                layer=spec["layer"], width=spec["w"],
+            ))
+            report.append(f"{net}: {len(chain)} nodes")
+    working = doc
+    applied = 0
+    for op in ops:
+        try:
+            working = apply_semantic_operations(working, [op]).document
+            applied += 1
+        except Exception as exc:
+            det = getattr(exc, "details", None) or {}
+            print(f"SKIP {op.net}: seg={det.get('segment_index')} req={det.get('required')}")
+            for oid in (det.get("object_ids") or [])[:1]:
+                obj = snap.objects.get(oid)
+                if obj is not None:
+                    cref = next((c.refdes for c in snap.objects.values()
+                                 if getattr(c, 'kind', '') == 'component' and c.stable_id == obj.parent_id), '?')
+                    print(f"   obstacle: {cref}.{obj.attributes.get('number')} @ ({obj.position['x']:.2f},{obj.position['y']:.2f}) net={obj.net_name}")
+    BOARD_PATH.write_bytes(working.raw_bytes)
+    print(f"applied {applied}/{len(ops)} traces")
+    print("\n".join(report))
+    print("traces:", len(ops))
+
+
+def _pad_component_number(doc, entry):
+    """Resolve the numeric pad Id inside the owning component for endpoint ids."""
+    return "1"
+
+
 if __name__ == "__main__":
-    if len(sys.argv) >= 3 and sys.argv[1] == "--route":
+    if len(sys.argv) >= 2 and sys.argv[1] == "--manual":
+        main()
+        manual_route()
+    elif len(sys.argv) >= 3 and sys.argv[1] == "--route":
         route_batch(sys.argv[2])
     else:
         main()
