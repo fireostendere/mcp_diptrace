@@ -52,7 +52,7 @@ LIB_STEMS = [
 ]
 STD = "std_parts"
 
-_LIBS: dict[str, tuple[DipTraceDocument, dict[str, dict[str, int]]]] = {}
+_LIBS: dict[str, tuple[DipTraceDocument, dict[str, dict[str, int]], dict[str, str]]] = {}
 _EMBEDDED: set[str] = set()
 _STYLE_ALIAS: dict[tuple[str, str], str] = {}
 
@@ -69,7 +69,12 @@ def load_libraries() -> None:
                 for pin in part.findall("./Pins/Pin")
             }
             mapping[style] = pins
-        _LIBS[stem] = (doc, mapping)
+        alias_path = LIB_DIR / f"{stem}.alias.json"
+        alias = {}
+        if alias_path.is_file():
+            import json as _json
+            alias = _json.loads(alias_path.read_text())
+        _LIBS[stem] = (doc, mapping, alias)
     std = DipTraceDocument.load(LIB_DIR / "std_parts.elixml", 64 * 1024 * 1024)
     mapping = {}
     for comp in std.root.findall("./Components/Component"):
@@ -79,7 +84,7 @@ def load_libraries() -> None:
             for pin in comp.find("./Part").findall("./Pins/Pin")
         }
         mapping[style] = pins
-    _LIBS[STD] = (std, mapping)
+    _LIBS[STD] = (std, mapping, {})
 
 
 def _rename_fragment(xml: str, tag: str, attr_map: list[tuple[str, str, str]]) -> str:
@@ -151,11 +156,15 @@ class Builder:
         self.document = document
         self.ops: list[object] = []
         self.pin_map: dict[str, dict[str, int]] = {}   # refdes -> pad -> index
+        self.alias: dict[str, dict[str, str]] = {}     # refdes -> orig pad -> new pad
 
     def part(self, stem_style: tuple[str, str], refdes: str, value: str,
              sheet: int, x: float, y: float) -> None:
         stem, style = stem_style
         pins = _LIBS[stem][1][style]
+        lib_alias = _LIBS[stem][2]
+        if lib_alias:
+            self.alias[refdes] = {orig: new for orig, new in lib_alias.items()}
         name = next(
             (
                 comp.findtext("./Part/Name")
@@ -190,6 +199,7 @@ class Builder:
         for net_name, endpoints in table.items():
             pin_endpoints = []
             for refdes, pad in endpoints:
+                pad = self.alias.get(refdes, {}).get(pad, pad)
                 if refdes not in self.pin_map:
                     raise KeyError(f"net {net_name}: unknown refdes {refdes}")
                 if pad not in self.pin_map[refdes]:
@@ -651,8 +661,10 @@ def main() -> None:
     for pad in ("7", "38", "41", "44"):
         if pad in b.pin_map["U1"]:
             EXPECTED_NC["U1"].add(b.pin_map["U1"][pad])
-    EXPECTED_NC["J2"] = {b.pin_map["J2"][p] for p in ("A4B9", "B4A9", "A8", "B8")}
-    EXPECTED_NC["J1"] = {b.pin_map["J1"][p] for p in ("A8", "B8")}
+    j_alias = b.alias.get("J2", {})
+    EXPECTED_NC["J2"] = {b.pin_map["J2"][j_alias[p]] for p in ("A4B9", "B4A9", "A8", "B8") if p in j_alias}
+    j1_alias = b.alias.get("J1", {})
+    EXPECTED_NC["J1"] = {b.pin_map["J1"][j1_alias[p]] for p in ("A8", "B8") if p in j1_alias}
 
     nc_ids: list[str] = []
     unexpected: list[str] = []
@@ -686,7 +698,8 @@ def main() -> None:
     # Every declared endpoint must exist
     for name, endpoints in N.items():
         for refdes, pad in endpoints:
-            assert pad in b.pin_map.get(refdes, {}), f"net {name}: bad {refdes}.{pad}"
+            pad_x = b.alias.get(refdes, {}).get(pad, pad)
+            assert pad_x in b.pin_map.get(refdes, {}), f"net {name}: bad {refdes}.{pad}"
 
     OUT_PATH.write_bytes(compiled.raw_bytes)
     print("parts:", len(b.pin_map))

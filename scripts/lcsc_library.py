@@ -168,28 +168,40 @@ def parse_package(result: dict) -> tuple[list[FootprintPad], float, float]:
     if not pads:
         raise ValueError("package has no PAD records")
     # DipTrace sync requires unique pad numbers per component; EasyEDA repeats
-    # one number across thermal-pad grids (ESP32-S3-MINI "61" x9). Keep the
-    # first occurrence; suffix the copies so the build can tie them to GND.
-    seen: dict[str, int] = {}
-    uniquified: list[FootprintPad] = []
+    # one number across thermal-pad grids (ESP32-S3-MINI "61" x9). Merge each
+    # duplicated group into a single pad covering their union bounding box.
+    groups: dict[str, list[FootprintPad]] = {}
+    order: list[str] = []
     for pad in sorted(pads, key=lambda p: p.number):
-        count = seen.get(pad.number, 0)
-        seen[pad.number] = count + 1
-        if count:
-            uniquified.append(
-                FootprintPad(
-                    number=f"{pad.number}_{count + 1}",
-                    x_mm=pad.x_mm,
-                    y_mm=pad.y_mm,
-                    w_mm=pad.w_mm,
-                    h_mm=pad.h_mm,
-                    angle_deg=pad.angle_deg,
-                    hole_mm=pad.hole_mm,
-                )
+        if pad.number not in groups:
+            groups[pad.number] = []
+            order.append(pad.number)
+        groups[pad.number].append(pad)
+    merged: list[FootprintPad] = []
+    for number in order:
+        members = groups[number]
+        if len(members) == 1:
+            merged.append(members[0])
+            continue
+        xs0 = [m.x_mm - m.w_mm / 2 for m in members]
+        xs1 = [m.x_mm + m.w_mm / 2 for m in members]
+        ys0 = [m.y_mm - m.h_mm / 2 for m in members]
+        ys1 = [m.y_mm + m.h_mm / 2 for m in members]
+        x0, x1 = min(xs0), max(xs1)
+        y0, y1 = min(ys0), max(ys1)
+        base = members[0]
+        merged.append(
+            FootprintPad(
+                number=number,
+                x_mm=(x0 + x1) / 2,
+                y_mm=(y0 + y1) / 2,
+                w_mm=x1 - x0,
+                h_mm=y1 - y0,
+                angle_deg=0.0,
+                hole_mm=base.hole_mm,
             )
-        else:
-            uniquified.append(pad)
-    return uniquified, cx, cy
+        )
+    return merged, cx, cy
 
 
 def _electric_type(name: str) -> str:
@@ -219,6 +231,18 @@ def build_elixml(
     (bx, by, bw, bh), pins = parse_symbol(result)
     pads, _, _ = parse_package(result)
     remap = _merged_pad_remap(pins, {p.number for p in pads})
+
+    # DipTrace sync maps schematic pins to PCB pads POSITIONALLY
+    # (pin index -> pad_numbers[index]), so the embedded pattern must list its
+    # pads in exactly the symbol's pin order. Unmatched extra pads keep their
+    # relative order at the end.
+    desired = [remap.get(pin.number, pin.number) for pin in pins]
+    rank = {num: i for i, num in enumerate(desired)}
+    pads = sorted(
+        enumerate(pads),
+        key=lambda t: (rank.get(t[1].number, len(desired) + t[0]), t[0]),
+    )
+    pads = [pad for _i, pad in pads]
 
     center_x, center_y = bx + bw / 2, by + bh / 2
 
@@ -284,7 +308,7 @@ def build_elixml(
     ET.SubElement(pattern, "Origin", {"X": "0", "Y": "0"})
     ET.SubElement(pattern, "DefPad", {"Style": next(iter(style_for_size.values()))})
     pads_el = ET.SubElement(pattern, "Pads")
-    for index, pad in enumerate(sorted(pads, key=lambda p: p.number)):
+    for index, pad in enumerate(pads):
         pad_el = ET.SubElement(
             pads_el,
             "Pad",
@@ -377,6 +401,29 @@ def build_elixml(
         field = ET.SubElement(extra, "AddField", {"Type": "Text"})
         ET.SubElement(field, "Name").text = key
         ET.SubElement(field, "Text").text = value
+
+    # DipTrace's synthetic-sync resolves pad references by numeric Id
+    # fallback; alphanumeric pad numbers (USB-C "A1B12") cannot round-trip.
+    # Renumber such components sequentially in symbol-pin order and record an
+    # alias table next to the .elixml so builders can translate net tables.
+    import json as _json
+
+    alias: dict[str, str] = {}
+    if any(not pad.number.isdigit() for pad in pads):
+        for index, pad in enumerate(pads):
+            alias[pad.number] = str(index + 1)
+        for pad_el, pad in zip(pads_el.findall("Pad"), pads):
+            num = pad_el.find("Number")
+            if num is not None:
+                num.text = alias.get(pad.number, pad.number)
+        for pin_el, pin in zip(pins_el.findall("Pin"), pins):
+            pn = pin_el.find("PadNumber")
+            if pn is not None:
+                pn.text = alias.get(remap.get(pin.number, pin.number),
+                                    remap.get(pin.number, pin.number))
+        Path(f".local/reva_lib/{lcsc_code}.alias.json").write_text(
+            _json.dumps(alias, indent=1), encoding="utf-8"
+        )
 
     ET.indent(library, space="  ")
     return ET.tostring(library, encoding="unicode")
