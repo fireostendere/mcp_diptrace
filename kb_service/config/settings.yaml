@@ -1,0 +1,44 @@
+# Knowledge RAG service settings. Environment variables override these values:
+#   QDRANT_URL, KB_COLLECTION, KB_DATA_DIR, KB_EMBEDDING_MODEL,
+#   KB_CHUNK_SIZE, KB_CHUNK_OVERLAP, KB_MAX_CONTEXT_TOKENS
+
+qdrant_url: http://localhost:6333
+collection: engineering
+
+# Storage root (relative paths resolve against this service directory).
+data_dir: ./data
+
+# Dense embedding model (FastEmbed, local ONNX; downloaded once then cached).
+# intfloat/multilingual-e5-large: 1024-dim, multilingual retrieval (EN/RU queries).
+# Lighter alternative: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (384-dim).
+embedding_model: intfloat/multilingual-e5-large
+
+# Local cross-encoder reranker (multilingual). Set to "" to disable.
+rerank_model: jinaai/jina-reranker-v2-base-multilingual
+rerank_candidates: 32   # how many hybrid candidates get reranked per query
+
+# Structure-aware chunker limits, in characters.
+chunk_size: 1600
+chunk_overlap: 200
+min_chunk_chars: 120
+
+# Context assembly budget for search responses.
+max_context_tokens: 4000
+chars_per_token: 3.5   # rough estimate used for the token budget
+
+# Source trust tiers -> retrieval score multiplier. final = rrf_score * (0.5 + weight).
+authority_weights:
+  datasheet: 1.00        # manufacturer datasheet
+  appnote: 0.95          # manufacturer application note
+  reference_design: 0.95 # official reference design / EVM guide
+  official_docs: 0.85    # official tool documentation (e.g. DipTrace)
+  specification: 0.85    # standards / specifications (JEDEC, IPC, USB IF...)
+  article: 0.60          # reputable engineering article / book chapter
+  community: 0.35        # GitHub / blog / video content
+  forum: 0.15            # forum threads, Q&A scraps
+
+# Web ingestion bounds.
+web_max_pages: 40      # hard cap per website source (recursive crawl)
+request_timeout: 30    # seconds
+
+youtube_max_videos: 30 # cap for channel/playlist ingestion runs
