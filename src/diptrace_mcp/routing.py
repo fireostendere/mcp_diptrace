@@ -35,8 +35,8 @@ from .geometry import (
 from .geometry_backend import (
     point_to_shape_distance,
     segment_to_shape_distance,
-    shapely_available,
     shape_bbox,
+    shapely_available,
 )
 from .operations import (
     AddDifferentialPairRouteOperation,

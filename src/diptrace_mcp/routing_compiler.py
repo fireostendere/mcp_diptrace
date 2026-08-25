@@ -307,6 +307,7 @@ def _bbox_gap(left: BBox, right: BBox) -> float:
 def via_pad_violation_pairs(
     snapshot: DocumentSnapshot,
     clearance: float,
+    allow_thermal_via_in_pad: bool = False,
 ) -> set[tuple[str, str]]:
     if snapshot.board is None:
         return set()
@@ -325,9 +326,11 @@ def via_pad_violation_pairs(
             if gap <= 1e-9 or gap + 1e-9 < clearance:
                 # A same-net via fully covered by the pad copper is a
                 # deliberate thermal stitch (QFN exposed pad, CP2102-GM
-                # "via cluster under the pad"), not an escape violation.
+                # "via cluster under the pad"), allowed only when the
+                # config opts in; the default keeps the escape rule strict.
                 if (
-                    via.net_id == pad.net_id
+                    allow_thermal_via_in_pad
+                    and via.net_id == pad.net_id
                     and via.bbox is not None
                     and pad.bbox is not None
                     and BBox(**via.bbox).min_x >= BBox(**pad.bbox).min_x - 1e-6

@@ -23,6 +23,9 @@ class PCBQualityConfig(StrictModel):
     stitching_obstacle_clearance_mm: float = Field(default=0.3, ge=0.0, le=10.0)
     require_two_layer_ground_pours: bool = True
     via_pad_clearance_mm: float = Field(default=0.1, ge=0.0, le=10.0)
+    # QFN/thermal exposed pads legitimately carry a same-net via cluster
+    # fully inside the pad copper (CP2102-GM rule); default stays strict.
+    allow_thermal_via_in_pad: bool = False
     centerline_groups: dict[Literal["x", "y"], list[str]] = Field(default_factory=dict)
     centerline_tolerance_mm: float = Field(default=0.25, ge=0.0, le=10.0)
 
@@ -278,8 +281,11 @@ def _silkscreen_violations(snapshot: DocumentSnapshot) -> tuple[int, list[str]]:
 def _via_pad_violations(
     snapshot: DocumentSnapshot,
     clearance: float,
+    allow_thermal_via_in_pad: bool = False,
 ) -> tuple[int, list[str]]:
-    violations = via_pad_violation_pairs(snapshot, clearance)
+    violations = via_pad_violation_pairs(
+        snapshot, clearance, allow_thermal_via_in_pad=allow_thermal_via_in_pad
+    )
     ids = sorted({item for pair in violations for item in pair})
     return len(violations), ids
 
@@ -363,7 +369,9 @@ def review_pcb_quality(
     ground_layers = {_layer_name(snapshot, item.layer).casefold() for item in ground_pours}
     via_count, sample_count, coverage, maximum_gap = _stitching_coverage(snapshot, physical, config)
     silk_count, silk_ids = _silkscreen_violations(snapshot)
-    via_pad_count, via_pad_ids = _via_pad_violations(snapshot, config.via_pad_clearance_mm)
+    via_pad_count, via_pad_ids = _via_pad_violations(
+        snapshot, config.via_pad_clearance_mm, config.allow_thermal_via_in_pad
+    )
     centerline_offset, centerline_ids, missing_centerline = _centerline_offsets(
         snapshot,
         outline_box,

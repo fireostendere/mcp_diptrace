@@ -38,11 +38,13 @@ def _parse(path: Path) -> dict:
     out: dict = {"components": [], "traces": [], "vias": [], "pads": [],
                  "shapes": [], "pours": []}
     # nets by id
-    nets = {}
+    nets: dict[str, str] = {}
     for m in re.finditer(r'<Net Id="(\d+)"[^>]*>\s*<Name>([^<]+)</Name>', s):
         nets[m.group(1)] = m.group(2)
     # components + pads
-    for cm in re.finditer(r'<Component [^>]*PatternStyle="(PatType\d+)"[^>]*? X="([-\d.e]+)" Y="([-\d.e]+)"([^>]*)>', s):
+    comp_re = (r'<Component [^>]*PatternStyle="(PatType\d+)"'
+               r'[^>]*? X="([-\d.e]+)" Y="([-\d.e]+)"([^>]*)>')
+    for cm in re.finditer(comp_re, s):
         tail = cm.group(4)
         am = re.search(r'Angle="([-\d.e]+)"', tail)
         i = cm.end()
@@ -59,16 +61,21 @@ def _parse(path: Path) -> dict:
     for m in re.finditer(r'<Pattern PatternStyle="(PatType\d+)"[^>]*>.*?</Pattern>', s, re.S):
         style = m.group(1)
         blk = m.group(0)
-        pads = [(str(n), float(a), float(b)) for n, a, b in re.findall(
-            r'<Pad Id="(\d+)"[^>]*X="([-\d.e]+)" Y="([-\d.e]+)"', blk)]
+        pad_re = r'<Pad Id="(\d+)"[^>]*X="([-\d.e]+)" Y="([-\d.e]+)"'
+        pads = [(str(n), float(a), float(b)) for n, a, b in re.findall(pad_re, blk)]
         shapes = []
-        for sm in re.finditer(r'<Shape Id="\d+" Type="(\w+)"[^>]*Layer="([^"]+)"[^>]*>\s*<Points>(.*?)</Points>', blk, re.S):
-            pts = [(float(a), float(b)) for a, b in re.findall(r'X="([-\d.e]+)" Y="([-\d.e]+)"', sm.group(3))]
+        shape_re = (r'<Shape Id="\d+" Type="(\w+)"[^>]*Layer="([^"]+)"'
+                    r'[^>]*>\s*<Points>(.*?)</Points>')
+        for sm in re.finditer(shape_re, blk, re.S):
+            pt_re = r'X="([-\d.e]+)" Y="([-\d.e]+)"'
+            pts = [(float(a), float(b)) for a, b in re.findall(pt_re, sm.group(3))]
             shapes.append((sm.group(2), sm.group(1), pts))
         pats[style] = {"pads": pads, "shapes": shapes}
     # pad styles: name -> (w, h)
     padstyles = {}
-    for pm in re.finditer(r'<PadStyle Name="(\w+)"[^>]*>\s*<MainStack Shape="Rectangle" Width="([\d.e]+)" Height="([\d.e]+)"', s):
+    ps_re = (r'<PadStyle Name="(\w+)"[^>]*>\s*<MainStack Shape="Rectangle"'
+             r' Width="([\d.e]+)" Height="([\d.e]+)"')
+    for pm in re.finditer(ps_re, s):
         padstyles[pm.group(1)] = (float(pm.group(2)), float(pm.group(3)))
     out["pats"] = pats
     out["padstyles"] = padstyles
@@ -82,8 +89,9 @@ def _parse(path: Path) -> dict:
     for nm in re.finditer(r'<Net Id="(\d+)"[^>]*>\s*<Name>([^<]+)</Name>.*?</Net>', s, re.S):
         net_name = nm.group(2)
         for tm in re.finditer(r'<Trace\b.*?</Trace>', nm.group(0), re.S):
-            pts = [(_float(a), _float(b), _float(w)) for a, b, w in re.findall(
-                r'<Point Id="\d+" X="([-\d.e]+)" Y="([-\d.e]+)" Lay="\d*"[^>]*?(?:Width="([\d.e]+)")?[^>]*>', tm.group(0))]
+            pt_re = (r'<Point Id="\d+" X="([-\d.e]+)" Y="([-\d.e]+)"'
+                     r' Lay="\d*"[^>]*?(?:Width="([\d.e]+)")?[^>]*>')
+            pts = [(_float(a), _float(b), _float(w)) for a, b, w in re.findall(pt_re, tm.group(0))]
             if len(pts) >= 2:
                 out["traces"].append({"net": net_name, "pts": pts,
                                       "layer": "top" if 'Lay="0"' in tm.group(0) else "bottom"})
@@ -91,13 +99,18 @@ def _parse(path: Path) -> dict:
     for vm in re.finditer(r'<Component [^>]*Type="Via"[^>]*X="([-\d.e]+)" Y="([-\d.e]+)"[^>]*>', s):
         out["vias"].append((float(vm.group(1)), float(vm.group(2))))
     # copper shapes on Top
-    for sm in re.finditer(r'<Shape Id="\d+" Type="Rectangle"[^>]*Layer="Signal/Plane"[^>]*NetId="(\d+)"[^>]*>\s*<Points>(.*?)</Points>', s, re.S):
-        pts = [(_float(a), _float(b)) for a, b in re.findall(r'X="([-\d.e]+)" Y="([-\d.e]+)"', sm.group(2))]
+    cs_re = (r'<Shape Id="\d+" Type="Rectangle"[^>]*Layer="Signal/Plane"'
+             r'[^>]*NetId="(\d+)"[^>]*>\s*<Points>(.*?)</Points>')
+    for sm in re.finditer(cs_re, s, re.S):
+        pt_re = r'X="([-\d.e]+)" Y="([-\d.e]+)"'
+        pts = [(_float(a), _float(b)) for a, b in re.findall(pt_re, sm.group(2))]
         if len(pts) == 2:
             out["shapes"].append({"net": nets.get(sm.group(1), "?"), "pts": pts})
     # pours (outline only; fill rendered as solid same-net copper)
-    for pm in re.finditer(r'<CopperPour\b[^>]*NetId="(\d+)"[^>]*Lay="0"[^>]*>(.*?)</CopperPour>', s, re.S):
-        pts = [(_float(a), _float(b)) for a, b in re.findall(r'<Point X="([-\d.e]+)" Y="([-\d.e]+)"', pm.group(2))]
+    pour_re = r'<CopperPour\b[^>]*NetId="(\d+)"[^>]*Lay="0"[^>]*>(.*?)</CopperPour>'
+    for pm in re.finditer(pour_re, s, re.S):
+        pt_re = r'<Point X="([-\d.e]+)" Y="([-\d.e]+)"'
+        pts = [(_float(a), _float(b)) for a, b in re.findall(pt_re, pm.group(2))]
         if len(pts) >= 3:
             out["pours"].append({"net": nets.get(pm.group(1), "?"), "pts": pts})
     return out
@@ -137,26 +150,29 @@ def render(data: dict, out_path: Path, scale: int = 1, final: bool = False) -> N
             if tr["layer"] != layer or tr["net"] == "GND" and layer == "bottom":
                 continue
             pts = tr["pts"]
-            for (ax, ay, aw), (bx, by, bw) in zip(pts, pts[1:]):
+            for (ax, ay, aw), (bx, by, bw) in zip(pts, pts[1:], strict=False):
                 wa = aw or bw or 0.25
                 wb = bw or aw or 0.25
                 color = COPPER if layer == "top" else (34, 30, 22)
                 dr.line([T(ax, ay), T(bx, by)], fill=color, width=max(1, int(wa * ppp)))
-                dr.ellipse([*T(ax - wa / 2, ay + wa / 2), *T(ax + wa / 2, ay - wa / 2)], fill=color)
-                dr.ellipse([*T(bx - wb / 2, by + wb / 2), *T(bx + wb / 2, by - wb / 2)], fill=color)
+                dr.ellipse([*T(ax - wa / 2, ay + wa / 2),
+                            *T(ax + wa / 2, ay - wa / 2)], fill=color)
+                dr.ellipse([*T(bx - wb / 2, by + wb / 2),
+                            *T(bx + wb / 2, by - wb / 2)], fill=color)
     # component pads + outlines
     try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", int(1.1 * ppp))
+        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        font = ImageFont.truetype(font_path, int(1.1 * ppp))
     except Exception:
         font = ImageFont.load_default()
     for c in data["components"]:
         pw, ph = data["padstyles"].get(c["padstyle"], (0.6, 0.6))
-        for num, px, py in data["pats"][c["pat"]]["pads"]:
+        for _num, px, py in data["pats"][c["pat"]]["pads"]:
             bx, by = _rot(c, px, py)
             half_w = (pw / 2) if abs(c["a"]) < 0.1 else (ph / 2)
             half_h = (ph / 2) if abs(c["a"]) < 0.1 else (pw / 2)
             dr.rectangle([*T(bx - half_w, by + half_h), *T(bx + half_w, by - half_h)], fill=PAD)
-        for layer, styp, pts in data["pats"][c["pat"]]["shapes"]:
+        for layer, _styp, pts in data["pats"][c["pat"]]["shapes"]:
             coords = poly(c, pts, close=True)
             if layer == "Top Outline" and len(coords) >= 2:
                 if len(coords) == 2:  # Rectangle: 2 diagonal corners
@@ -186,7 +202,20 @@ def main() -> int:
     stage_dir = Path(sys.argv[1])
     out_dir = Path(sys.argv[2])
     out_dir.mkdir(parents=True, exist_ok=True)
-    stages = sorted(p for p in stage_dir.glob("*.dipxml"))
+    # Construction order of the build stages (build_pcb.py ATTINY_STAGE_DIR).
+    order = [
+        "01_manual",
+        "02_TPS_FB", "02_TPS_PG", "02_CP2102_VBUS", "02_VBUS",
+        "02_USB_D-", "02_USB_Dp", "02_p3V3",
+        "02_PB1_MISO", "02_PB0_MOSI", "02_PB2_SCK", "02_RESET",
+        "02_CP2102_RXD", "02_CP2102_TXD", "02_CP2102_DTR", "02_GND",
+        "90_pours", "99_final",
+    ]
+    rank = {name: i for i, name in enumerate(order)}
+    stages = sorted(
+        (p for p in stage_dir.glob("*.dipxml")),
+        key=lambda p: rank.get(p.stem, len(rank)),
+    )
     if not stages:
         print("no stages", file=sys.stderr)
         return 1
@@ -196,7 +225,8 @@ def main() -> int:
         frame = out_dir / f"frame_{i:02d}_{stage.stem}.png"
         render(data, frame)
         frames.append((frame, stage.stem))
-        print(f"{frame.name}: {len(data['components'])} comps, {len(data['traces'])} traces", flush=True)
+        print(f"{frame.name}: {len(data['components'])} comps, "
+              f"{len(data['traces'])} traces", flush=True)
     # final PNG at 2x
     data = _parse(stages[-1])
     render(data, out_dir / "attiny85-arduino-clone-pcb.png", scale=2, final=True)

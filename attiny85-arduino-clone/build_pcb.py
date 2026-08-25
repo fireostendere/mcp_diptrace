@@ -12,12 +12,11 @@ from pathlib import Path
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.copper_pours import add_copper_pours
-from diptrace_mcp.geometry import Point
 from diptrace_mcp.domain import QuerySelector
 from diptrace_mcp.errors import GeometryError
+from diptrace_mcp.geometry import Point
 from diptrace_mcp.operations import (
     AddTraceOperation,
-    DeleteViaOperation,
     ReplaceTraceOperation,
     RotateComponentsOperation,
     SetTextVisibilityOperation,
@@ -401,12 +400,13 @@ def _dedupe_overlapping_vias(document: DipTraceDocument) -> DipTraceDocument:
             nets_by_id = {
                 record.stable_id: record.name for record in snapshot.board.nets
             }
-            culprits = [
-                f"{nets_by_id.get(t.net_id, '?')}-trace "
-                f"{[(round(p['x'], 2), round(p['y'], 2)) for p in (t.attributes.get('points') or [])]}"
-                for t in snapshot.board.traces
-                if t.stable_id in culprit_ids
-            ]
+            culprits = []
+            for t in snapshot.board.traces:
+                if t.stable_id not in culprit_ids:
+                    continue
+                pts = [(round(p["x"], 2), round(p["y"], 2))
+                       for p in (t.attributes.get("points") or [])]
+                culprits.append(f"{nets_by_id.get(t.net_id, '?')}-trace {pts}")
             print(
                 f"dedupe replacement failed: {net_name} "
                 f"{pad_a.label}-pad -> {pad_b.label}-pad\n"
@@ -1039,6 +1039,7 @@ def build(layer_count: int = 2, *, output: Path = BOARD) -> dict[str, object]:
         snapshot,
         config=PCBQualityConfig(
             via_pad_clearance_mm=0.13,
+            allow_thermal_via_in_pad=True,
             centerline_groups={"y": ["J1", "J3"]},
             centerline_tolerance_mm=0.1,
         ),
