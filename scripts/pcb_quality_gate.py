@@ -115,7 +115,11 @@ def main() -> int:
 
     schematic = resolve_unique(args.project, "*.dchxml")
     schematic_sha = shas.get("input schematic")
-    if schematic is not None and schematic_sha is not None and sha256_of(schematic) != schematic_sha:
+    schematic_changed = (
+        schematic is not None and schematic_sha is not None
+        and sha256_of(schematic) != schematic_sha
+    )
+    if schematic_changed:
         blocked.append(f"schematic SHA stale: {schematic.name} does not match PCB_BUILD.md record")
 
     if board is not None:
