@@ -83,14 +83,14 @@ POS: dict[str, tuple[float, float, float]] = {
     "J2": (6.5, 88.0, 90),
     "U3": (58.0, 82.0, 0),
     "U4": (58.0, 68.0, 0),
-    "U5": (92.0, 84.0, 0),
-    "U6": (92.0, 62.0, 0),
+    "U5": (95.0, 77.2, 0),
+    "U6": (95.0, 55.3, 0),
     "J3": (126.0, 84.0, 270),
     "J4": (126.0, 60.0, 270),
     "D8": (18.0, 88.0, 0),
     "D7": (18.0, 76.0, 0),
-    "D9": (112.0, 88.0, 0),
-    "D10": (112.0, 56.0, 0),
+    "D9": (104.0, 91.8, 0),
+    "D10": (96.0, 50.2, 0),
     "D11": (117.0, 92.5, 90),
     "D12": (117.0, 51.5, 90),
     "F4": (101.0, 90.0, 270),
@@ -105,10 +105,10 @@ POS: dict[str, tuple[float, float, float]] = {
     "R18": (52.0, 63.0, 0),
     "R19": (49.0, 79.0, 0),
     "R20": (49.0, 71.0, 0),
-    "R70": (86.5, 79.0, 0),
+    "R70": (86.5, 76.8, 0),
     "R21": (86.5, 67.0, 0),
-    "C20": (63.0, 86.0, 270),
-    "C21": (63.0, 64.0, 270),
+    "C20": (63.0, 88.8, 270),
+    "C21": (52.0, 64.2, 270),
     "C22": (88.0, 81.0, 270),
     "C23": (88.0, 59.0, 270),
     # --- UART ----------------------------------------------------------------
@@ -211,12 +211,12 @@ POS: dict[str, tuple[float, float, float]] = {
     "J9": (126.0, 44.0, 270),
     "J10": (126.0, 16.0, 270),
     # --- CURRENT_SENSE ---------------------------------------------------------
-    "U19": (104.0, 84.0, 0),
-    "U20": (104.0, 62.0, 0),
+    "U19": (110.0, 74.8, 0),
+    "U20": (110.0, 58.5, 0),
     "RSH_USB1": (109.5, 90.0, 270),
-    "RSH_USB2": (109.5, 58.0, 270),
-    "C16": (99.5, 84.0, 270),
-    "C17": (99.5, 62.0, 270),
+    "RSH_USB2": (109.5, 54.0, 270),
+    "C16": (110.5, 79.5, 270),
+    "C17": (110.5, 62.5, 270),
 }
 
 # MON dividers live on sheet 6 but were placed there too
@@ -258,7 +258,7 @@ def main() -> None:
         BOARD_PATH,
         build_pcb_document(
             PcbScaffold(width_mm=BOARD_W, height_mm=BOARD_H, trace_width_mm=0.25,
-                        layers=default_layers(2)),
+                        clearance_mm=0.15, layers=default_layers(2)),
             units=schematic.units,
             version=schematic.version,
         ),
@@ -363,6 +363,71 @@ BATCHES: dict[str, dict] = {
 }
 
 
+def _routed_nets(doc) -> set[str]:
+    snap = build_snapshot(doc)
+    out = set()
+    for t in snap.board.traces:
+        if t.net_name:
+            out.add(t.net_name)
+    return out
+
+
+def route_rest() -> None:
+    """Catch-all autoroute for every net that has no copper yet."""
+    from diptrace_mcp.pcb_autorouter import PCBRouterConfig, plan_pcb_routes
+    doc = DipTraceDocument.load(BOARD_PATH, 256 * 1024 * 1024)
+    done = _routed_nets(doc)
+    all_nets = [n.name for n in build_snapshot(doc).board.nets]
+    todo = [n for n in all_nets if n not in done and n != "GND"]
+    print(f"nets to route: {len(todo)}")
+    plan = plan_pcb_routes(
+        doc,
+        overrides=_intent_for("sense"),
+        config=PCBRouterConfig(
+            nets=todo,
+            routing_layers=["Top", "Bottom"],
+            default_trace_width_mm=0.25,
+            clearance_mm=0.15,
+            grid_mm=0.5,
+            max_vias_per_connection=4,
+            via_cost=6.0,
+            max_detour=10.0,
+            max_nodes=1_200_000,
+            route_time_budget_ms=180_000,
+            ripup_retry=True,
+            max_ripup_attempts=4,
+            allow_component_moves=False,
+            ordering="congestion_aware",
+        ),
+    )
+    routed = apply_semantic_operations(doc, plan.operations).document
+    BOARD_PATH.write_bytes(routed.raw_bytes)
+    still = [f["net"] for f in plan.routing.failed]
+    print(f"ops={len(plan.operations)} failed={len(still)}")
+    if still:
+        print("failed:", still)
+
+
+def finish() -> None:
+    """GND pours + stitching, hide service silk, run QC summary."""
+    from diptrace_mcp.copper_pours import add_copper_pours
+    from diptrace_mcp.pcb_quality import review_pcb_quality
+    doc = DipTraceDocument.load(BOARD_PATH, 256 * 1024 * 1024)
+    pour = add_copper_pours(
+        doc, net="GND", layers=("Top", "Bottom"),
+        stitch_pitch_mm=2.0, stitch_edge_mm=0.8,
+    )
+    doc = pour.document
+    BOARD_PATH.write_bytes(doc.raw_bytes)
+    snap = build_snapshot(doc)
+    res = review_pcb_quality(snap)
+    hard = [f for f in res.findings if f.severity == "error"]
+    print("stitch vias:", pour.stitch_via_count)
+    print("QC findings:", len(res.findings), "| errors:", len(hard))
+    for f in hard[:12]:
+        print("-", str(f.message)[:120])
+
+
 def _intent_for(batch: str) -> "PCBIntentOverrides":
     from diptrace_mcp.pcb_design_intent import (
         PCBComponentOverride, PCBElectricalConstraints, PCBIntentOverrides, PCBNetOverride,
@@ -388,6 +453,44 @@ def _intent_for(batch: str) -> "PCBIntentOverrides":
         for r in ("J1", "J2", "J3", "J4", "J5", "J6", "J7", "J9", "J10", "J11", "J12", "J13", "J14", "J15")
     ]
     return PCBIntentOverrides(components=anchors, nets=nets)
+
+
+USB_NETS = ["CTRL_DP", "CTRL_DN", "UP_DP", "UP_DN", "USB1_DP", "USB1_DN", "USB2_DP", "USB2_DN"]
+
+
+def route_one(net: str) -> None:
+    from diptrace_mcp.pcb_autorouter import PCBRouterConfig, plan_pcb_routes
+    doc = DipTraceDocument.load(BOARD_PATH, 256 * 1024 * 1024)
+    plan = plan_pcb_routes(
+        doc,
+        overrides=_intent_for("usb"),
+        config=PCBRouterConfig(
+            nets=[net],
+            routing_layers=["Top", "Bottom"],
+            default_trace_width_mm=0.25,
+            clearance_mm=0.15,
+            grid_mm=0.425,
+            max_vias_per_connection=4,
+            via_cost=6.0,
+            max_detour=8.0,
+            max_nodes=3_000_000,
+            route_time_budget_ms=540_000,
+            ripup_retry=True,
+            max_ripup_attempts=6,
+            allow_component_moves=False,
+        ),
+    )
+    if not plan.operations:
+        print(f"{net}: NO OPS failed={len(plan.routing.failed)}")
+        return
+    routed = apply_semantic_operations(doc, plan.operations).document
+    BOARD_PATH.write_bytes(routed.raw_bytes)
+    print(f"{net}: ops={len(plan.operations)} failed={len(plan.routing.failed)}")
+
+
+def route_usb_all() -> None:
+    for net in USB_NETS:
+        route_one(net)
 
 
 def route_batch(batch: str) -> None:
@@ -542,8 +645,14 @@ def manual_route() -> None:
             working = apply_semantic_operations(working, [op]).document
             applied += 1
         except Exception as exc:
-            det = getattr(exc, "details", None) or {}
+            det = {
+                "segment_index": getattr(exc, "details", {}).get("segment_index")
+                if isinstance(getattr(exc, "details", None), dict) else None,
+                "object_ids": getattr(exc, "object_ids", []) or [],
+            }
             print(f"SKIP {op.net}: seg={det.get('segment_index')} req={det.get('required')}")
+            if not det.get("object_ids"):
+                print(f"   raw exc: type={type(exc).__name__} args={str(exc.args)[:160]} vars={list(vars(exc).keys()) if hasattr(exc,'__dict__') else '-'}")
             for oid in (det.get("object_ids") or [])[:1]:
                 obj = snap.objects.get(oid)
                 if obj is not None:
@@ -562,10 +671,21 @@ def _pad_component_number(doc, entry):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) >= 2 and sys.argv[1] == "--manual":
+    argv = sys.argv[1:]
+    if argv[:1] == ["--route-usb-all"]:
+        route_usb_all()
+    elif argv[:1] == ["--route-rest"]:
+        route_rest()
+    elif argv[:1] == ["--finish"]:
+        finish()
+    elif argv[:2] == ["--route-one"]:
+        route_one(argv[2])
+    elif argv[:1] == ["--manual"]:
         main()
         manual_route()
-    elif len(sys.argv) >= 3 and sys.argv[1] == "--route":
-        route_batch(sys.argv[2])
-    else:
+    elif argv[:2] == ["--route"]:
+        route_batch(argv[2])
+    elif not argv:
         main()
+    else:
+        raise SystemExit(f"unknown args: {argv}")
