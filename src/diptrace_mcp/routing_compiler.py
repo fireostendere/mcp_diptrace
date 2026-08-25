@@ -301,7 +301,7 @@ def _path(
 def _bbox_gap(left: BBox, right: BBox) -> float:
     dx = max(left.min_x - right.max_x, right.min_x - left.max_x, 0.0)
     dy = max(left.min_y - right.max_y, right.min_y - left.max_y, 0.0)
-    return (dx * dx + dy * dy) ** 0.5
+    return float((dx * dx + dy * dy) ** 0.5)
 
 
 def via_pad_violation_pairs(

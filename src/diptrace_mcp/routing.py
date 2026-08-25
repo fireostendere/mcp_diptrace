@@ -1619,7 +1619,7 @@ def _a_star(
             for target_index in range(len(layer_ids)):
                 if target_index == layer_index:
                     continue
-                if layer_ids[target_index] not in via.layer_ids:
+                if via is None or layer_ids[target_index] not in via.layer_ids:
                     continue
                 next_state = (x, y, target_index, previous_direction, via_count + 1)
                 _queue_state(
@@ -1732,7 +1732,12 @@ def _via_blocked(
             if geometry is not None:
                 if bbox is not None and not bbox.contains_point(point):
                     continue
-                if point_to_shape_distance(point, geometry) + 1e-9 < required:
+                shape = geometry if isinstance(geometry, GeometryShape) else None
+                if shape is None:
+                    if bbox is not None and bbox.contains_point(point):
+                        return True
+                    continue
+                if point_to_shape_distance(point, shape) + 1e-9 < required:
                     return True
             elif bbox is not None and bbox.contains_point(point):
                 return True

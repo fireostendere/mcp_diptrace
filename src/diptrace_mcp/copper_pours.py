@@ -161,7 +161,7 @@ def add_copper_pours(
             edge=stitch_edge_mm,
             clearance=clearance_mm,
         )
-    explicit_vias = [Point(**item) if isinstance(item, dict) else item for item in extra_vias]
+    explicit_vias = list(extra_vias)
     stitch_points = list(stitch_points) + explicit_vias
     if stitch_points:
         via_style = board.find("./ViaStyles/ViaStyle")
