@@ -1,6 +1,6 @@
 # PCB build handoff — DUT Controller Rev.A
 
-Status: `SCHEMATIC_PASS_ERC0__PCB_PLACED_USB_PARTIAL`
+Status: `SCHEMATIC_ERC0 · PCB_PLACED · USB_ROUTED · POURS+SILK_DONE · REST_ROUTING_PENDING`
 Updated: 2026-08-26
 Input schematic SHA-256: `cf74ced24bb89357d8783de0c7ae151e44eb45278371f3441dec976f6e867769`
 Current board SHA-256: see last commit of `dut-controller-reva-pcb.dipxml`
@@ -37,7 +37,7 @@ PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python scripts/build_dut_controller_re
 | 7. Routing | PARTIAL | CTRL_DP+5 more USB traces applied via --manual; 10 chains fail clearance by ≤0.05–0.3 mm — see "Next actions" |
 | 8. Pours/stitching | PENDING | add_copper_pours GND Top+Bottom after routing completes |
 | 9. Silkscreen | PENDING | plan_silkscreen after pours |
-| 10. Headless QC | FAIL(expected) | 3 hard errors = unrouted/pours/silk (gates 7–9 not done); placement itself clean |
+| 10. Headless QC | PARTIAL | 1 error left: `The PCB still contains unrouted connections` (~100 links; see Routing next actions). Placement/pours/silk clean |
 | 11. Native refill/DRC | PENDING | scripts/diptrace_native_gate11.py pattern |
 | 12. Media | PENDING | |
 
@@ -77,3 +77,14 @@ D10 to the receptacle side).
 
 - `f1df06b` placement + firmware skeleton + dut-mcp server + bringup/BOM docs
 - later commits: manual-routing stage, protocol doc (see git log)
+
+
+## Session log (2026-08-26 night)
+
+- Autorouter per-net pass routed CTRL/UP/USB1/USB2 pairs (20 segs, 4 vias;
+  ratlines on those nets = 0).
+- route_rest adaptive chunking landed ~33 more segments; remaining ~100 links
+  exceed in-session router capability at grid 0.5 / 120 s budgets.
+- Root-caused & fixed CLI dangling-else that wiped routed traces after runs.
+- Component relocations to clear corridors: C1-C4, U5/U6, U19/U20, D9/D10,
+  RSH_USB2, R70, C16/C17, C20/C21.

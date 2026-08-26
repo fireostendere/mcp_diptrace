@@ -454,9 +454,27 @@ def finish() -> None:
     doc = DipTraceDocument.load(BOARD_PATH, 256 * 1024 * 1024)
     pour = add_copper_pours(
         doc, net="GND", layers=("Top", "Bottom"),
-        stitch_pitch_mm=2.0, stitch_edge_mm=0.8,
+        stitch_pitch_mm=4.0, stitch_edge_mm=1.0,
     )
     doc = pour.document
+
+    from diptrace_mcp.silkscreen import SilkscreenPlanConfig, hide_assembly_markings, plan_silkscreen
+    doc = hide_assembly_markings(doc)
+    snap_mid = build_snapshot(doc)
+    extra = [r.stable_id for r in snap_mid.objects.values()
+             if r.kind == "component_text" and r.attributes.get("surface") == "Silk"
+             and r.name in {"Name", "Value"}]
+    if extra:
+        from diptrace_mcp.operations import SetTextVisibilityOperation
+        doc = apply_semantic_operations(
+            doc,
+            [SetTextVisibilityOperation(selector=QuerySelector(ids=extra), visibility="Hide")],
+        ).document
+    silk = plan_silkscreen(build_snapshot(doc),
+                           SilkscreenPlanConfig(clearance=0.15, search_steps=20))
+    if silk.operations:
+        doc = apply_semantic_operations(doc, silk.operations).document
+        print("silkscreen moves:", len(silk.changed_ids), "unresolved:", len(silk.unresolved))
     BOARD_PATH.write_bytes(doc.raw_bytes)
     snap = build_snapshot(doc)
     res = review_pcb_quality(snap)
