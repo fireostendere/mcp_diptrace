@@ -36,7 +36,12 @@ def nativeize_schematic() -> None:
     tpl = ET.parse(SCH_TPL).getroot()
     mine = ET.parse(SCH_MINE).getroot()
 
+    tpl.set("Units", "mm")
     tlib = tpl.find("./Library")
+    tlib.set("Units", "mm")
+    plib_units = tlib.find("./Library")
+    if plib_units is not None:
+        plib_units.set("Units", "mm")
     mlib = mine.find("./Library")
 
     # template layout: Library/Library(PatternLibrary){PadStyles,Patterns}, Library/Components
@@ -95,6 +100,16 @@ def nativeize_schematic() -> None:
         if nm is None:
             nm = ET.SubElement(s, "Name")
         nm.text = name
+
+    for s in sheets_t.findall("./Sheet"):
+        for tag, val in (("SheetWidth", "297"), ("SheetHeight", "210"),
+                         ("XPos", "0"), ("YPos", "0"), ("Scale", "1"),
+                         ("LeftMargin", "10"), ("RightMargin", "10"),
+                         ("TopMargin", "10"), ("BottomMargin", "10")):
+            el = s.find(f"./{tag}")
+            if el is None:
+                el = ET.SubElement(s, tag)
+            el.text = val
 
     active = sch.find("./SheetSettings/ActiveSheet")
     if active is not None:
