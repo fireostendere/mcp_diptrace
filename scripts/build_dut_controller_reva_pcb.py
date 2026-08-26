@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from diptrace_mcp.adapters import build_snapshot  # noqa: E402
+from diptrace_mcp.xml_document import RawTreeSnapshot  # noqa: E402
 from diptrace_mcp.domain import QuerySelector  # noqa: E402
 from diptrace_mcp.operations import (  # noqa: E402
     AddTraceOperation,
@@ -51,7 +52,7 @@ POS: dict[str, tuple[float, float, float]] = {
     "F1": (14.5, 63.0, 270),
     "D1": (17.0, 57.5, 0),
     "C6": (21.0, 63.0, 270),
-    "U2": (28.0, 60.0, 0),
+    "U2": (30.0, 58.5, 0),
     "C7": (35.0, 63.5, 270),
     "C8": (38.5, 61.0, 270),
     "J11": (7.0, 30.0, 90),
@@ -68,7 +69,7 @@ POS: dict[str, tuple[float, float, float]] = {
     "D3": (16.0, 55.0, 90),
     "F3": (20.5, 55.0, 90),
     "Q2": (27.5, 56.5, 180),
-    "Q4": (33.5, 59.5, 180),
+    "Q4": (36.5, 51.5, 180),
     "R6": (29.5, 50.5, 0),
     "R7": (37.5, 63.0, 270),
     "D5": (31.5, 50.5, 90),
@@ -85,8 +86,8 @@ POS: dict[str, tuple[float, float, float]] = {
     "U4": (58.0, 68.0, 0),
     "U5": (95.0, 77.2, 0),
     "U6": (95.0, 55.3, 0),
-    "J3": (126.0, 84.0, 270),
-    "J4": (126.0, 60.0, 270),
+    "J3": (126.6, 84.0, 270),
+    "J4": (126.6, 60.0, 270),
     "D8": (18.0, 88.0, 0),
     "D7": (18.0, 76.0, 0),
     "D9": (104.0, 91.8, 0),
@@ -105,7 +106,7 @@ POS: dict[str, tuple[float, float, float]] = {
     "R18": (52.0, 63.0, 0),
     "R19": (49.0, 79.0, 0),
     "R20": (49.0, 71.0, 0),
-    "R70": (86.5, 76.8, 0),
+    "R70": (115.0, 81.5, 90),
     "R21": (86.5, 67.0, 0),
     "C20": (63.0, 88.8, 270),
     "C21": (52.0, 64.2, 270),
@@ -144,14 +145,14 @@ POS: dict[str, tuple[float, float, float]] = {
     "C27": (66.5, 31.0, 0),
     # --- SWITCHES ------------------------------------------------------------
     "U17": (66.0, 60.0, 0),
-    "K1": (80.0, 74.0, 0),
-    "K2": (88.0, 74.0, 0),
-    "K3": (96.0, 74.0, 0),
-    "K4": (104.0, 74.0, 0),
-    "K5": (80.0, 66.0, 0),
-    "K6": (88.0, 66.0, 0),
-    "K7": (96.0, 66.0, 0),
-    "K8": (104.0, 66.0, 0),
+    "K1": (79.0, 73.0, 0),
+    "K2": (88.0, 73.0, 0),
+    "K3": (97.0, 73.0, 0),
+    "K4": (106.0, 73.0, 0),
+    "K5": (79.0, 64.5, 0),
+    "K6": (88.0, 64.5, 0),
+    "K7": (97.0, 64.5, 0),
+    "K8": (106.0, 64.5, 0),
     "R36": (83.0, 77.5, 0),
     "R37": (91.0, 77.5, 0),
     "R38": (99.0, 77.5, 0),
@@ -214,9 +215,9 @@ POS: dict[str, tuple[float, float, float]] = {
     "U19": (110.0, 74.8, 0),
     "U20": (110.0, 58.5, 0),
     "RSH_USB1": (109.5, 90.0, 270),
-    "RSH_USB2": (109.5, 54.0, 270),
+    "RSH_USB2": (108.5, 54.0, 270),
     "C16": (110.5, 79.5, 270),
-    "C17": (110.5, 62.5, 270),
+    "C17": (113.5, 62.5, 270),
 }
 
 # MON dividers live on sheet 6 but were placed there too
@@ -455,6 +456,7 @@ def finish() -> None:
     pour = add_copper_pours(
         doc, net="GND", layers=("Top", "Bottom"),
         stitch_pitch_mm=4.0, stitch_edge_mm=1.0,
+        clearance_mm=0.22, board_clearance_mm=0.3,
     )
     doc = pour.document
 
@@ -727,12 +729,63 @@ def _pad_component_number(doc, entry):
     return "1"
 
 
+def sanitize_pads() -> None:
+    """Shrink SMD pad widths so same-pattern neighbours meet clearance."""
+    import xml.etree.ElementTree as ET
+    doc = DipTraceDocument.load(BOARD_PATH, 256 * 1024 * 1024)
+    root = doc.root
+    patterns = {p.get("PatternStyle"): p for p in root.iter("Pattern")}
+    styles = {s.get("Name"): s for s in root.iter("PadStyle")}
+    fixed = 0
+    for pstyle, pat in patterns.items():
+        pads = pat.findall("./Pads/Pad")
+        by_style = {}
+        for pd_ in pads:
+            stl_name = pd_.get("Style")
+            stl = styles.get(stl_name)
+            if stl is None:
+                continue
+            ms = stl.find("./MainStack")
+            if ms is None or ms.get("Type") == "Through":
+                continue
+            by_style.setdefault(stl_name, []).append(
+                (float(pd_.get("X", "0")), float(pd_.get("Y", "0")))
+            )
+        for stl_name, coords in by_style.items():
+            st = styles[stl_name]
+            ms = st.find("./MainStack")
+            if ms is None:
+                continue
+            w = float(ms.get("Width"))
+            dmin = None
+            for i in range(len(coords)):
+                for j in range(i + 1, len(coords)):
+                    dx = abs(coords[i][0] - coords[j][0])
+                    dy = abs(coords[i][1] - coords[j][1])
+                    if abs(dy) < 0.01 and dx > 0.01:
+                        dmin = dx if dmin is None else min(dmin, dx)
+                    elif abs(dx) < 0.01 and dy > 0.01:
+                        dmin = dy if dmin is None else min(dmin, dy)
+            if dmin is None:
+                continue
+            max_w = round(dmin - 0.35, 3)
+            if max_w > 0.15 and w > max_w:
+                ms.set("Width", f"{max_w:.3f}")
+                fixed += 1
+                print(f"padstyle {stl_name}: width {w:.2f} -> {max_w:.2f}")
+    payload = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    BOARD_PATH.write_bytes(payload)
+    print("sanitized styles:", fixed)
+
+
 if __name__ == "__main__":
     argv = sys.argv[1:]
     if argv[:1] == ["--route-usb-all"]:
         route_usb_all()
     elif argv[:1] == ["--route-rest"]:
         route_rest()
+    elif argv[:1] == ["--sanitize-pads"]:
+        sanitize_pads()
     elif argv[:1] == ["--finish"]:
         finish()
     elif argv[:2] == ["--route-one"]:
@@ -746,3 +799,5 @@ if __name__ == "__main__":
         main()
     else:
         raise SystemExit(f"unknown args: {argv}")
+
+
