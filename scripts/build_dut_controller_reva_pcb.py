@@ -380,32 +380,71 @@ def route_rest() -> None:
     all_nets = [n.name for n in build_snapshot(doc).board.nets]
     todo = [n for n in all_nets if n not in done and n != "GND"]
     print(f"nets to route: {len(todo)}")
-    plan = plan_pcb_routes(
-        doc,
-        overrides=_intent_for("sense"),
-        config=PCBRouterConfig(
-            nets=todo,
-            routing_layers=["Top", "Bottom"],
-            default_trace_width_mm=0.25,
-            clearance_mm=0.15,
-            grid_mm=0.5,
-            max_vias_per_connection=4,
-            via_cost=6.0,
-            max_detour=10.0,
-            max_nodes=1_200_000,
-            route_time_budget_ms=180_000,
-            ripup_retry=True,
-            max_ripup_attempts=4,
-            allow_component_moves=False,
-            ordering="congestion_aware",
-        ),
-    )
-    routed = apply_semantic_operations(doc, plan.operations).document
-    BOARD_PATH.write_bytes(routed.raw_bytes)
-    still = [f["net"] for f in plan.routing.failed]
-    print(f"ops={len(plan.operations)} failed={len(still)}")
-    if still:
-        print("failed:", still)
+    overrides = _intent_for("sense")
+    # Pack chunks by an estimated connection budget: a net with P pads costs
+    # ~P-1 links and the multi-router is bounded to 64 links per call.
+    pad_count = {}
+    snap0 = build_snapshot(doc)
+    comp_ref = {c.stable_id: c.refdes for c in snap0.objects.values()
+                if getattr(c, "kind", "") == "component"}
+    for p_ in snap0.board.pads:
+        ref = comp_ref.get(p_.parent_id) or ""
+        net = p_.net_name or ""
+        pad_count.setdefault(net, set()).add((ref, str(p_.attributes.get("number") or "")))
+    cost = {n: max(1, len(pad_count.get(n, {1})) - 1) for n in todo}
+    todo.sort(key=lambda n: cost[n])
+    start = 0
+    while start < len(todo):
+        doc = DipTraceDocument.load(BOARD_PATH, 256 * 1024 * 1024)
+        done = _routed_nets(doc)
+        budget, chunk = 0, []
+        i = start
+        while i < len(todo) and todo[i] in done:
+            i += 1
+        while i < len(todo) and budget + cost[todo[i]] <= 48:
+            if todo[i] not in done:
+                chunk.append(todo[i]); budget += cost[todo[i]]
+            i += 1
+        if not chunk:
+            # single oversize net (hub): give it a solo call at its own risk
+            chunk = [todo[start]]
+        size = len(chunk)
+        print(f"-- chunk @{start} size={len(chunk)}")
+        try:
+            plan = plan_pcb_routes(
+                doc,
+                overrides=overrides,
+                config=PCBRouterConfig(
+                    nets=chunk,
+                    routing_layers=["Top", "Bottom"],
+                    default_trace_width_mm=0.25,
+                    clearance_mm=0.15,
+                    grid_mm=0.5,
+                    max_vias_per_connection=4,
+                    via_cost=6.0,
+                    max_detour=10.0,
+                    max_nodes=1_200_000,
+                    route_time_budget_ms=120_000,
+                    ripup_retry=True,
+                    max_ripup_attempts=4,
+                    allow_component_moves=False,
+                ),
+            )
+        except Exception as exc:
+            print(f"   router refused ({str(exc)[:60]}); shrinking")
+            if size > 6:
+                size //= 2
+                continue
+            raise
+        routed = apply_semantic_operations(doc, plan.operations).document
+        BOARD_PATH.write_bytes(routed.raw_bytes)
+        failed = [f.get("net") for f in plan.routing.failed]
+        print(f"ops={len(plan.operations)} failed={len(failed)}: {failed[:6]}")
+        progress = len(_routed_nets(DipTraceDocument.load(BOARD_PATH, 256*1024*1024)) - done)
+        start += len(chunk) if progress else 1
+        if progress == 0:
+            print("   no progress on this chunk; advancing")
+    print("ROUTE_REST_DONE")
 
 
 def finish() -> None:
