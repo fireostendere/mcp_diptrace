@@ -1,8 +1,8 @@
 {
-  "canonical_descriptor_bytes": 150777,
-  "canonical_descriptor_sha256": "6b111fd9e1197b6bed901e7141c1d077195f4bde1a12929c97d31c98bd66f526",
+  "canonical_descriptor_bytes": 152593,
+  "canonical_descriptor_sha256": "9f028d61aed18f9073d15a2255595058652568402a89de2f68316ab76dbd850e",
   "format_version": 1,
-  "tool_count": 167,
+  "tool_count": 170,
   "tools": [
     {
       "description": "Abandon stale local session state without applying its working XML.",
@@ -5299,6 +5299,92 @@
       "outputSchema": {
         "additionalProperties": true,
         "title": "move_viaDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Transplant generated schematic/PCB content into a DipTrace-native\n        template so the real editor parses it without hanging. Detects kind\n        (schematic or PCB) automatically.",
+      "inputSchema": {
+        "properties": {
+          "input_path": {
+            "title": "Input Path",
+            "type": "string"
+          },
+          "output_path": {
+            "title": "Output Path",
+            "type": "string"
+          },
+          "template_path": {
+            "title": "Template Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "input_path",
+          "template_path",
+          "output_path"
+        ],
+        "title": "pipeline_nativeize_documentArguments",
+        "type": "object"
+      },
+      "name": "pipeline_nativeize_document",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "pipeline_nativeize_documentDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Render Top + Bottom SVG previews of a .dipxml board without opening\n        DipTrace. Shows outline, copper traces, pours, vias and board edge.",
+      "inputSchema": {
+        "properties": {
+          "output_dir": {
+            "default": ".",
+            "title": "Output Dir",
+            "type": "string"
+          },
+          "pcb_path": {
+            "title": "Pcb Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pcb_path"
+        ],
+        "title": "pipeline_render_board_previewArguments",
+        "type": "object"
+      },
+      "name": "pipeline_render_board_preview",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "pipeline_render_board_previewDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Resolve an MPN to its LCSC part code and download component JSON +\n        datasheet PDF from EasyEDA. Returns code, package, pin/pad counts and\n        file paths for downstream schematic building.",
+      "inputSchema": {
+        "properties": {
+          "mpn_or_code": {
+            "title": "Mpn Or Code",
+            "type": "string"
+          },
+          "output_dir": {
+            "default": "vendor",
+            "title": "Output Dir",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mpn_or_code"
+        ],
+        "title": "pipeline_source_componentArguments",
+        "type": "object"
+      },
+      "name": "pipeline_source_component",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "pipeline_source_componentDictOutput",
         "type": "object"
       }
     },

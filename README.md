@@ -58,7 +58,7 @@ Version `0.4.0` is the current published unsigned development release. The
 immutable GitHub release is `v0.4.0`, and the matching Python package is
 `diptrace-mcp==0.4.0` on PyPI.
 
-The published release keeps the public MCP contract frozen at 167 tools and
+The published release keeps the public MCP contract frozen at 170 tools and
 contains the A1-A8 roadmap closure plus tested cross-platform host paths:
 
 - Windows split per-user/admin installers and portable bundle;
@@ -109,7 +109,7 @@ is not yet published.
 
 ## What it provides
 
-The public MCP surface currently registers 167 tools. Runtime
+The public MCP surface currently registers 170 tools. Runtime
 `get_capabilities` remains authoritative for the active
 installation and document.
 

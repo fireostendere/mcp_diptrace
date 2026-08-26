@@ -2881,6 +2881,42 @@ def create_server(
             "Then legalize placement and rerun connectivity and DRC."
         )
 
+    # --- pipeline tools (Rev.A DUT controller + generic board build) ------
+
+    @mcp.tool()
+    def pipeline_source_component(
+        mpn_or_code: str,
+        output_dir: str = "vendor",
+    ) -> dict[str, Any]:
+        """Resolve an MPN to its LCSC part code and download component JSON +
+        datasheet PDF from EasyEDA. Returns code, package, pin/pad counts and
+        file paths for downstream schematic building."""
+        from diptrace_mcp.pipeline import lcsc_fetch
+        return lcsc_fetch(mpn_or_code, output_dir)
+
+    @mcp.tool()
+    def pipeline_nativeize_document(
+        input_path: str,
+        template_path: str,
+        output_path: str,
+    ) -> dict[str, Any]:
+        """Transplant generated schematic/PCB content into a DipTrace-native
+        template so the real editor parses it without hanging. Detects kind
+        (schematic or PCB) automatically."""
+        from diptrace_mcp.pipeline import nativeize_document
+        return nativeize_document(input_path, template_path, output_path)
+
+    @mcp.tool()
+    def pipeline_render_board_preview(
+        pcb_path: str,
+        output_dir: str = ".",
+    ) -> dict[str, Any]:
+        """Render Top + Bottom SVG previews of a .dipxml board without opening
+        DipTrace. Shows outline, copper traces, pours, vias and board edge."""
+        from diptrace_mcp.pipeline import render_board_svg
+        return render_board_svg(pcb_path, output_dir)
+
+
     _finalize_tool_descriptions(mcp)
     service.set_workflow_prompt_names(tuple(mcp._prompt_manager._prompts))
     return mcp
