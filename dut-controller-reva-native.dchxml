@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
-<Source Type="DipTrace-Schematic" Version="5.3.0.3" Units="inch">
-  <Library Type="DipTrace-ComponentLibrary" Units="inch">
-    <Library Type="DipTrace-PatternLibrary" Units="inch">
+<Source Type="DipTrace-Schematic" Version="5.3.0.3" Units="mm">
+  <Library Type="DipTrace-ComponentLibrary" Units="mm">
+    <Library Type="DipTrace-PatternLibrary" Units="mm">
       <PadStyles>
         <PadStyle Name="C2980299_C2980299_PadT0" Type="Surface">
           <MainStack Shape="Rectangle" Width="0.4" Height="0.8" Corner="0" />
@@ -3913,15 +3913,15 @@
           <Id>0</Id>
           <Name>SYSTEM_OVERVIEW</Name>
           <Type>Normal</Type>
-          <XPos>-3.85</XPos>
-          <YPos>-1.7</YPos>
-          <Scale>1.2</Scale>
-          <SheetWidth>11</SheetWidth>
-          <SheetHeight>8.5</SheetHeight>
-          <LeftMargin>0.5</LeftMargin>
-          <TopMargin>0.63</TopMargin>
-          <RightMargin>0.5</RightMargin>
-          <BottomMargin>0.63</BottomMargin>
+          <XPos>0</XPos>
+          <YPos>0</YPos>
+          <Scale>1</Scale>
+          <SheetWidth>297</SheetWidth>
+          <SheetHeight>210</SheetHeight>
+          <LeftMargin>10</LeftMargin>
+          <TopMargin>10</TopMargin>
+          <RightMargin>10</RightMargin>
+          <BottomMargin>10</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -3940,15 +3940,15 @@
           <Id>1</Id>
           <Name>ESP32_CONTROL</Name>
           <Type>Normal</Type>
-          <XPos>-3.85</XPos>
-          <YPos>-1.7</YPos>
-          <Scale>1.2</Scale>
-          <SheetWidth>11</SheetWidth>
-          <SheetHeight>8.5</SheetHeight>
-          <LeftMargin>0.5</LeftMargin>
-          <TopMargin>0.63</TopMargin>
-          <RightMargin>0.5</RightMargin>
-          <BottomMargin>0.63</BottomMargin>
+          <XPos>0</XPos>
+          <YPos>0</YPos>
+          <Scale>1</Scale>
+          <SheetWidth>297</SheetWidth>
+          <SheetHeight>210</SheetHeight>
+          <LeftMargin>10</LeftMargin>
+          <TopMargin>10</TopMargin>
+          <RightMargin>10</RightMargin>
+          <BottomMargin>10</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -3967,15 +3967,15 @@
           <Id>2</Id>
           <Name>POWER</Name>
           <Type>Normal</Type>
-          <XPos>-3.85</XPos>
-          <YPos>-1.7</YPos>
-          <Scale>1.2</Scale>
-          <SheetWidth>11</SheetWidth>
-          <SheetHeight>8.5</SheetHeight>
-          <LeftMargin>0.5</LeftMargin>
-          <TopMargin>0.63</TopMargin>
-          <RightMargin>0.5</RightMargin>
-          <BottomMargin>0.63</BottomMargin>
+          <XPos>0</XPos>
+          <YPos>0</YPos>
+          <Scale>1</Scale>
+          <SheetWidth>297</SheetWidth>
+          <SheetHeight>210</SheetHeight>
+          <LeftMargin>10</LeftMargin>
+          <TopMargin>10</TopMargin>
+          <RightMargin>10</RightMargin>
+          <BottomMargin>10</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -3994,15 +3994,15 @@
           <Id>3</Id>
           <Name>USB_DUT</Name>
           <Type>Normal</Type>
-          <XPos>-3.85</XPos>
-          <YPos>-1.7</YPos>
-          <Scale>1.2</Scale>
-          <SheetWidth>11</SheetWidth>
-          <SheetHeight>8.5</SheetHeight>
-          <LeftMargin>0.5</LeftMargin>
-          <TopMargin>0.63</TopMargin>
-          <RightMargin>0.5</RightMargin>
-          <BottomMargin>0.63</BottomMargin>
+          <XPos>0</XPos>
+          <YPos>0</YPos>
+          <Scale>1</Scale>
+          <SheetWidth>297</SheetWidth>
+          <SheetHeight>210</SheetHeight>
+          <LeftMargin>10</LeftMargin>
+          <TopMargin>10</TopMargin>
+          <RightMargin>10</RightMargin>
+          <BottomMargin>10</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -4021,15 +4021,15 @@
           <Id>4</Id>
           <Name>UART</Name>
           <Type>Normal</Type>
-          <XPos>-3.85</XPos>
-          <YPos>-1.7</YPos>
-          <Scale>1.2</Scale>
-          <SheetWidth>11</SheetWidth>
-          <SheetHeight>8.5</SheetHeight>
-          <LeftMargin>0.5</LeftMargin>
-          <TopMargin>0.63</TopMargin>
-          <RightMargin>0.5</RightMargin>
-          <BottomMargin>0.63</BottomMargin>
+          <XPos>0</XPos>
+          <YPos>0</YPos>
+          <Scale>1</Scale>
+          <SheetWidth>297</SheetWidth>
+          <SheetHeight>210</SheetHeight>
+          <LeftMargin>10</LeftMargin>
+          <TopMargin>10</TopMargin>
+          <RightMargin>10</RightMargin>
+          <BottomMargin>10</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -4048,15 +4048,15 @@
           <Id>5</Id>
           <Name>SWITCHES</Name>
           <Type>Normal</Type>
-          <XPos>-3.85</XPos>
-          <YPos>-1.7</YPos>
-          <Scale>1.2</Scale>
-          <SheetWidth>11</SheetWidth>
-          <SheetHeight>8.5</SheetHeight>
-          <LeftMargin>0.5</LeftMargin>
-          <TopMargin>0.63</TopMargin>
-          <RightMargin>0.5</RightMargin>
-          <BottomMargin>0.63</BottomMargin>
+          <XPos>0</XPos>
+          <YPos>0</YPos>
+          <Scale>1</Scale>
+          <SheetWidth>297</SheetWidth>
+          <SheetHeight>210</SheetHeight>
+          <LeftMargin>10</LeftMargin>
+          <TopMargin>10</TopMargin>
+          <RightMargin>10</RightMargin>
+          <BottomMargin>10</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -4075,15 +4075,15 @@
           <Id>6</Id>
           <Name>AUX_ADC</Name>
           <Type>Normal</Type>
-          <XPos>-3.85</XPos>
-          <YPos>-1.7</YPos>
-          <Scale>1.2</Scale>
-          <SheetWidth>11</SheetWidth>
-          <SheetHeight>8.5</SheetHeight>
-          <LeftMargin>0.5</LeftMargin>
-          <TopMargin>0.63</TopMargin>
-          <RightMargin>0.5</RightMargin>
-          <BottomMargin>0.63</BottomMargin>
+          <XPos>0</XPos>
+          <YPos>0</YPos>
+          <Scale>1</Scale>
+          <SheetWidth>297</SheetWidth>
+          <SheetHeight>210</SheetHeight>
+          <LeftMargin>10</LeftMargin>
+          <TopMargin>10</TopMargin>
+          <RightMargin>10</RightMargin>
+          <BottomMargin>10</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -4102,15 +4102,15 @@
           <Id>7</Id>
           <Name>CURRENT_SENSE</Name>
           <Type>Normal</Type>
-          <XPos>-3.85</XPos>
-          <YPos>-1.7</YPos>
-          <Scale>1.2</Scale>
-          <SheetWidth>11</SheetWidth>
-          <SheetHeight>8.5</SheetHeight>
-          <LeftMargin>0.5</LeftMargin>
-          <TopMargin>0.63</TopMargin>
-          <RightMargin>0.5</RightMargin>
-          <BottomMargin>0.63</BottomMargin>
+          <XPos>0</XPos>
+          <YPos>0</YPos>
+          <Scale>1</Scale>
+          <SheetWidth>297</SheetWidth>
+          <SheetHeight>210</SheetHeight>
+          <LeftMargin>10</LeftMargin>
+          <TopMargin>10</TopMargin>
+          <RightMargin>10</RightMargin>
+          <BottomMargin>10</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
