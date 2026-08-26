@@ -3907,21 +3907,21 @@
     <SheetSettings>
       <DisplayTitles>Y</DisplayTitles>
       <DisplaySheet>Y</DisplaySheet>
-      <ActiveSheet>1</ActiveSheet>
+      <ActiveSheet>0</ActiveSheet>
       <Sheets>
         <Sheet>
           <Id>0</Id>
           <Name>SYSTEM_OVERVIEW</Name>
           <Type>Normal</Type>
-          <XPos>0</XPos>
-          <YPos>0</YPos>
-          <Scale>1</Scale>
+          <XPos>-3.85</XPos>
+          <YPos>-1.7</YPos>
+          <Scale>1.2</Scale>
           <SheetWidth>297</SheetWidth>
           <SheetHeight>210</SheetHeight>
-          <LeftMargin>10</LeftMargin>
-          <TopMargin>10</TopMargin>
-          <RightMargin>10</RightMargin>
-          <BottomMargin>10</BottomMargin>
+          <LeftMargin>0.5</LeftMargin>
+          <TopMargin>0.63</TopMargin>
+          <RightMargin>0.5</RightMargin>
+          <BottomMargin>0.63</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -3940,15 +3940,15 @@
           <Id>1</Id>
           <Name>ESP32_CONTROL</Name>
           <Type>Normal</Type>
-          <XPos>0</XPos>
-          <YPos>0</YPos>
-          <Scale>1</Scale>
+          <XPos>-3.85</XPos>
+          <YPos>-1.7</YPos>
+          <Scale>1.2</Scale>
           <SheetWidth>297</SheetWidth>
           <SheetHeight>210</SheetHeight>
-          <LeftMargin>10</LeftMargin>
-          <TopMargin>10</TopMargin>
-          <RightMargin>10</RightMargin>
-          <BottomMargin>10</BottomMargin>
+          <LeftMargin>0.5</LeftMargin>
+          <TopMargin>0.63</TopMargin>
+          <RightMargin>0.5</RightMargin>
+          <BottomMargin>0.63</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -3967,15 +3967,15 @@
           <Id>2</Id>
           <Name>POWER</Name>
           <Type>Normal</Type>
-          <XPos>0</XPos>
-          <YPos>0</YPos>
-          <Scale>1</Scale>
+          <XPos>-3.85</XPos>
+          <YPos>-1.7</YPos>
+          <Scale>1.2</Scale>
           <SheetWidth>297</SheetWidth>
           <SheetHeight>210</SheetHeight>
-          <LeftMargin>10</LeftMargin>
-          <TopMargin>10</TopMargin>
-          <RightMargin>10</RightMargin>
-          <BottomMargin>10</BottomMargin>
+          <LeftMargin>0.5</LeftMargin>
+          <TopMargin>0.63</TopMargin>
+          <RightMargin>0.5</RightMargin>
+          <BottomMargin>0.63</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -3994,15 +3994,15 @@
           <Id>3</Id>
           <Name>USB_DUT</Name>
           <Type>Normal</Type>
-          <XPos>0</XPos>
-          <YPos>0</YPos>
-          <Scale>1</Scale>
+          <XPos>-3.85</XPos>
+          <YPos>-1.7</YPos>
+          <Scale>1.2</Scale>
           <SheetWidth>297</SheetWidth>
           <SheetHeight>210</SheetHeight>
-          <LeftMargin>10</LeftMargin>
-          <TopMargin>10</TopMargin>
-          <RightMargin>10</RightMargin>
-          <BottomMargin>10</BottomMargin>
+          <LeftMargin>0.5</LeftMargin>
+          <TopMargin>0.63</TopMargin>
+          <RightMargin>0.5</RightMargin>
+          <BottomMargin>0.63</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -4021,15 +4021,15 @@
           <Id>4</Id>
           <Name>UART</Name>
           <Type>Normal</Type>
-          <XPos>0</XPos>
-          <YPos>0</YPos>
-          <Scale>1</Scale>
+          <XPos>-3.85</XPos>
+          <YPos>-1.7</YPos>
+          <Scale>1.2</Scale>
           <SheetWidth>297</SheetWidth>
           <SheetHeight>210</SheetHeight>
-          <LeftMargin>10</LeftMargin>
-          <TopMargin>10</TopMargin>
-          <RightMargin>10</RightMargin>
-          <BottomMargin>10</BottomMargin>
+          <LeftMargin>0.5</LeftMargin>
+          <TopMargin>0.63</TopMargin>
+          <RightMargin>0.5</RightMargin>
+          <BottomMargin>0.63</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -4048,15 +4048,15 @@
           <Id>5</Id>
           <Name>SWITCHES</Name>
           <Type>Normal</Type>
-          <XPos>0</XPos>
-          <YPos>0</YPos>
-          <Scale>1</Scale>
+          <XPos>-3.85</XPos>
+          <YPos>-1.7</YPos>
+          <Scale>1.2</Scale>
           <SheetWidth>297</SheetWidth>
           <SheetHeight>210</SheetHeight>
-          <LeftMargin>10</LeftMargin>
-          <TopMargin>10</TopMargin>
-          <RightMargin>10</RightMargin>
-          <BottomMargin>10</BottomMargin>
+          <LeftMargin>0.5</LeftMargin>
+          <TopMargin>0.63</TopMargin>
+          <RightMargin>0.5</RightMargin>
+          <BottomMargin>0.63</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -4075,15 +4075,15 @@
           <Id>6</Id>
           <Name>AUX_ADC</Name>
           <Type>Normal</Type>
-          <XPos>0</XPos>
-          <YPos>0</YPos>
-          <Scale>1</Scale>
+          <XPos>-3.85</XPos>
+          <YPos>-1.7</YPos>
+          <Scale>1.2</Scale>
           <SheetWidth>297</SheetWidth>
           <SheetHeight>210</SheetHeight>
-          <LeftMargin>10</LeftMargin>
-          <TopMargin>10</TopMargin>
-          <RightMargin>10</RightMargin>
-          <BottomMargin>10</BottomMargin>
+          <LeftMargin>0.5</LeftMargin>
+          <TopMargin>0.63</TopMargin>
+          <RightMargin>0.5</RightMargin>
+          <BottomMargin>0.63</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -4102,15 +4102,15 @@
           <Id>7</Id>
           <Name>CURRENT_SENSE</Name>
           <Type>Normal</Type>
-          <XPos>0</XPos>
-          <YPos>0</YPos>
-          <Scale>1</Scale>
+          <XPos>-3.85</XPos>
+          <YPos>-1.7</YPos>
+          <Scale>1.2</Scale>
           <SheetWidth>297</SheetWidth>
           <SheetHeight>210</SheetHeight>
-          <LeftMargin>10</LeftMargin>
-          <TopMargin>10</TopMargin>
-          <RightMargin>10</RightMargin>
-          <BottomMargin>10</BottomMargin>
+          <LeftMargin>0.5</LeftMargin>
+          <TopMargin>0.63</TopMargin>
+          <RightMargin>0.5</RightMargin>
+          <BottomMargin>0.63</BottomMargin>
           <BorderZones>
             <Visible>Y</Visible>
             <HorzZones>2</HorzZones>
@@ -8606,7 +8606,784 @@
           <Item Part="165" Pin="8" />
           <Item Part="165" Pin="9" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="1" Connected1="Pin" Object1="9" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="1" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="22.413" Y="98.587" Dir="-1" />
+              <Point X="55.81" Y="98.587" Dir="0" />
+              <Point X="55.81" Y="86" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="1" Connected1="Pin" Object1="2" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="3" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="61.81" Y="86" Dir="-1" />
+              <Point X="68.445" Y="86" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="1" Connected1="Pin" Object1="4" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="6" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="75.445" Y="86" Dir="-1" />
+              <Point X="93.81" Y="86" Dir="0" />
+              <Point X="93.81" Y="88" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="1" Connected1="Pin" Object1="11" SubObject1="9" Bus1="-1" Connected2="Pin" Object2="11" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="123.62" Y="98.73" Dir="-1" />
+              <Point X="123.62" Y="101.27" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="4" Sheet="1" Connected1="Pin" Object1="0" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="323.4" Y="87.44" Dir="-1" />
+              <Point X="323.4" Y="97.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="5" Sheet="1" Connected1="Pin" Object1="7" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="8" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="370.4" Y="338.91" Dir="-1" />
+              <Point X="380.4" Y="338.91" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="6" Sheet="1" Connected1="Pin" Object1="7" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="8" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="410.4" Y="338.91" Dir="-1" />
+              <Point X="420.4" Y="338.91" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="7" Sheet="1" Connected1="Pin" Object1="0" SubObject1="64" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="63" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="77.44" Dir="-1" />
+              <Point X="413.4" Y="87.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="8" Sheet="1" Connected1="Pin" Object1="0" SubObject1="62" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="61" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="97.44" Dir="-1" />
+              <Point X="413.4" Y="107.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="9" Sheet="1" Connected1="Pin" Object1="0" SubObject1="60" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="59" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="117.44" Dir="-1" />
+              <Point X="413.4" Y="127.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="10" Sheet="1" Connected1="Pin" Object1="0" SubObject1="58" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="57" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="137.44" Dir="-1" />
+              <Point X="413.4" Y="147.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="11" Sheet="1" Connected1="Pin" Object1="0" SubObject1="56" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="55" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="157.44" Dir="-1" />
+              <Point X="413.4" Y="167.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="12" Sheet="1" Connected1="Pin" Object1="0" SubObject1="54" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="53" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="177.44" Dir="-1" />
+              <Point X="413.4" Y="187.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="13" Sheet="1" Connected1="Pin" Object1="0" SubObject1="52" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="51" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="197.44" Dir="-1" />
+              <Point X="413.4" Y="207.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="14" Sheet="1" Connected1="Pin" Object1="0" SubObject1="50" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="49" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="217.44" Dir="-1" />
+              <Point X="413.4" Y="227.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="15" Sheet="1" Connected1="Pin" Object1="0" SubObject1="48" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="47" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="237.44" Dir="-1" />
+              <Point X="413.4" Y="247.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="16" Sheet="1" Connected1="Pin" Object1="0" SubObject1="46" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="45" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="257.44" Dir="-1" />
+              <Point X="413.4" Y="267.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="17" Sheet="1" Connected1="Pin" Object1="0" SubObject1="42" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="41" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="297.44" Dir="-1" />
+              <Point X="413.4" Y="307.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="18" Sheet="2" Connected1="Pin" Object1="18" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="26" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="20.35" Y="82" Dir="-1" />
+              <Point X="20.35" Y="96" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="19" Sheet="2" Connected1="Pin" Object1="27" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="35" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="20.35" Y="118" Dir="-1" />
+              <Point X="20.35" Y="132" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="20" Sheet="2" Connected1="Pin" Object1="14" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="13" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="34.445" Y="84" Dir="-1" />
+              <Point X="43.143" Y="84" Dir="0" />
+              <Point X="43.143" Y="88.127" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="21" Sheet="2" Connected1="Pin" Object1="22" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="16" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="55" Y="88" Dir="-1" />
+              <Point X="60.445" Y="88" Dir="0" />
+              <Point X="60.445" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="22" Sheet="2" Connected1="Pin" Object1="31" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="17" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="55" Y="124" Dir="-1" />
+              <Point X="66.81" Y="124" Dir="0" />
+              <Point X="66.81" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="23" Sheet="4" Connected1="Pin" Object1="88" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="89" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="80" Dir="-1" />
+              <Point X="42.19" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="24" Sheet="4" Connected1="Pin" Object1="90" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="69" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="88" Dir="-1" />
+              <Point X="43.3" Y="88" Dir="0" />
+              <Point X="43.3" Y="88.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="25" Sheet="4" Connected1="Pin" Object1="91" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="92" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="134" Dir="-1" />
+              <Point X="42.19" Y="138" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="26" Sheet="4" Connected1="Pin" Object1="93" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="73" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="142" Dir="-1" />
+              <Point X="43.3" Y="142" Dir="0" />
+              <Point X="43.3" Y="142.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="27" Sheet="4" Connected1="Pin" Object1="68" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.3" Y="74.81" Dir="-1" />
+              <Point X="53.3" Y="74.81" Dir="0" />
+              <Point X="53.3" Y="83.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="28" Sheet="4" Connected1="Pin" Object1="72" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.3" Y="128.81" Dir="-1" />
+              <Point X="53.3" Y="128.81" Dir="0" />
+              <Point X="53.3" Y="137.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="29" Sheet="4" Connected1="Pin" Object1="94" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="71" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="65.81" Y="78" Dir="-1" />
+              <Point X="73.3" Y="78" Dir="0" />
+              <Point X="73.3" Y="83.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="30" Sheet="4" Connected1="Pin" Object1="95" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="75" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="65.81" Y="132" Dir="-1" />
+              <Point X="73.3" Y="132" Dir="0" />
+              <Point X="73.3" Y="137.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="31" Sheet="4" Connected1="Pin" Object1="79" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="96" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="79.81" Y="78" Dir="-1" />
+              <Point X="93.81" Y="78" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="32" Sheet="4" Connected1="Pin" Object1="82" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="97" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="79.81" Y="132" Dir="-1" />
+              <Point X="93.81" Y="132" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="33" Sheet="4" Connected1="Pin" Object1="84" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="85" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="89.81" Y="94" Dir="-1" />
+              <Point X="89.81" Y="98" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="34" Sheet="4" Connected1="Pin" Object1="86" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="87" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="89.81" Y="148" Dir="-1" />
+              <Point X="89.81" Y="152" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="35" Sheet="4" Connected1="Pin" Object1="76" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="69" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="119.65" Y="90" Dir="-1" />
+              <Point X="143.3" Y="90" Dir="0" />
+              <Point X="143.3" Y="101.03" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="36" Sheet="4" Connected1="Pin" Object1="77" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="73" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="119.65" Y="144" Dir="-1" />
+              <Point X="143.3" Y="144" Dir="0" />
+              <Point X="143.3" Y="155.03" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="37" Sheet="6" Connected1="Pin" Object1="129" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="133" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="40.111" Y="103.144" Dir="-1" />
+              <Point X="40.111" Y="111.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="38" Sheet="6" Connected1="Pin" Object1="137" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="141" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="40.111" Y="119.144" Dir="-1" />
+              <Point X="40.111" Y="127.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="39" Sheet="6" Connected1="Pin" Object1="127" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="128" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="104" Dir="-1" />
+              <Point X="57.81" Y="104" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="40" Sheet="6" Connected1="Pin" Object1="131" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="132" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="112" Dir="-1" />
+              <Point X="57.81" Y="112" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="41" Sheet="6" Connected1="Pin" Object1="135" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="136" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="120" Dir="-1" />
+              <Point X="57.81" Y="120" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="42" Sheet="6" Connected1="Pin" Object1="139" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="140" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="128" Dir="-1" />
+              <Point X="57.81" Y="128" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="43" Sheet="6" Connected1="Pin" Object1="143" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="144" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="136" Dir="-1" />
+              <Point X="57.81" Y="136" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="44" Sheet="6" Connected1="Pin" Object1="146" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="147" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="144" Dir="-1" />
+              <Point X="57.81" Y="144" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="45" Sheet="6" Connected1="Pin" Object1="124" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="125" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="57.81" Y="86" Dir="-1" />
+              <Point X="69.81" Y="86" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="46" Sheet="6" Connected1="Pin" Object1="149" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="157" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="77.111" Y="155.144" Dir="-1" />
+              <Point X="77.111" Y="167.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="47" Sheet="6" Connected1="Pin" Object1="151" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="159" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="93.111" Y="155.144" Dir="-1" />
+              <Point X="93.111" Y="167.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="48" Sheet="6" Connected1="Pin" Object1="153" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="161" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="109.111" Y="155.144" Dir="-1" />
+              <Point X="109.111" Y="167.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="49" Sheet="6" Connected1="Pin" Object1="155" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="125.111" Y="155.144" Dir="-1" />
+              <Point X="132.54" Y="155.144" Dir="0" />
+              <Point X="132.54" Y="154.73" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="50" Sheet="6" Connected1="Pin" Object1="163" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="125.111" Y="167.144" Dir="-1" />
+              <Point X="132.54" Y="167.144" Dir="0" />
+              <Point X="132.54" Y="170.73" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="51" Sheet="6" Connected1="Pin" Object1="164" SubObject1="8" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="135.08" Y="154.73" Dir="-1" />
+              <Point X="137.62" Y="154.73" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="52" Sheet="6" Connected1="Pin" Object1="165" SubObject1="8" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="135.08" Y="170.73" Dir="-1" />
+              <Point X="137.62" Y="170.73" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="53" Sheet="6" Connected1="Pin" Object1="123" SubObject1="7" Bus1="-1" Connected2="Pin" Object2="123" SubObject2="6" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="288.4" Y="-196.37" Dir="-1" />
+              <Point X="288.4" Y="-186.37" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="54" Sheet="6" Connected1="Pin" Object1="123" SubObject1="12" Bus1="-1" Connected2="Pin" Object2="123" SubObject2="11" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="428.4" Y="324.494" Dir="-1" />
+              <Point X="428.4" Y="334.494" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="55" Sheet="6" Connected1="Pin" Object1="123" SubObject1="10" Bus1="-1" Connected2="Pin" Object2="123" SubObject2="8" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="428.4" Y="344.494" Dir="-1" />
+              <Point X="428.4" Y="364.494" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="56" Sheet="7" Connected1="Pin" Object1="168" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="171" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="27.81" Y="84" Dir="-1" />
+              <Point X="53.81" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="57" Sheet="7" Connected1="Pin" Object1="174" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="177" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="79.81" Y="84" Dir="-1" />
+              <Point X="105.81" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="58" Sheet="7" Connected1="Pin" Object1="166" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="166" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="277.4" Y="280.56" Dir="-1" />
+              <Point X="277.4" Y="290.56" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="59" Sheet="7" Connected1="Pin" Object1="169" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="172" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="303.4" Y="280.56" Dir="-1" />
+              <Point X="329.4" Y="280.56" Dir="0" />
+              <Point X="329.4" Y="290.56" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="60" Sheet="7" Connected1="Pin" Object1="166" SubObject1="6" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="6" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="367.4" Y="310.56" Dir="-1" />
+              <Point X="393.4" Y="310.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="61" Sheet="7" Connected1="Pin" Object1="172" SubObject1="6" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="6" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="419.4" Y="310.56" Dir="-1" />
+              <Point X="445.4" Y="310.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="62" Sheet="1" Connected1="Pin" Object1="9" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="1" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="22.413" Y="98.587" Dir="-1" />
+              <Point X="55.81" Y="98.587" Dir="0" />
+              <Point X="55.81" Y="86" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="63" Sheet="1" Connected1="Pin" Object1="2" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="3" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="61.81" Y="86" Dir="-1" />
+              <Point X="68.445" Y="86" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="64" Sheet="1" Connected1="Pin" Object1="4" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="6" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="75.445" Y="86" Dir="-1" />
+              <Point X="93.81" Y="86" Dir="0" />
+              <Point X="93.81" Y="88" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="65" Sheet="1" Connected1="Pin" Object1="11" SubObject1="9" Bus1="-1" Connected2="Pin" Object2="11" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="123.62" Y="98.73" Dir="-1" />
+              <Point X="123.62" Y="101.27" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="66" Sheet="1" Connected1="Pin" Object1="0" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="323.4" Y="87.44" Dir="-1" />
+              <Point X="323.4" Y="97.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="67" Sheet="1" Connected1="Pin" Object1="7" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="8" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="370.4" Y="338.91" Dir="-1" />
+              <Point X="380.4" Y="338.91" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="68" Sheet="1" Connected1="Pin" Object1="7" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="8" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="410.4" Y="338.91" Dir="-1" />
+              <Point X="420.4" Y="338.91" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="69" Sheet="1" Connected1="Pin" Object1="0" SubObject1="64" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="63" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="77.44" Dir="-1" />
+              <Point X="413.4" Y="87.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="70" Sheet="1" Connected1="Pin" Object1="0" SubObject1="62" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="61" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="97.44" Dir="-1" />
+              <Point X="413.4" Y="107.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="71" Sheet="1" Connected1="Pin" Object1="0" SubObject1="60" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="59" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="117.44" Dir="-1" />
+              <Point X="413.4" Y="127.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="72" Sheet="1" Connected1="Pin" Object1="0" SubObject1="58" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="57" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="137.44" Dir="-1" />
+              <Point X="413.4" Y="147.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="73" Sheet="1" Connected1="Pin" Object1="0" SubObject1="56" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="55" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="157.44" Dir="-1" />
+              <Point X="413.4" Y="167.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="74" Sheet="1" Connected1="Pin" Object1="0" SubObject1="54" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="53" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="177.44" Dir="-1" />
+              <Point X="413.4" Y="187.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="75" Sheet="1" Connected1="Pin" Object1="0" SubObject1="52" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="51" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="197.44" Dir="-1" />
+              <Point X="413.4" Y="207.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="76" Sheet="1" Connected1="Pin" Object1="0" SubObject1="50" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="49" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="217.44" Dir="-1" />
+              <Point X="413.4" Y="227.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="77" Sheet="1" Connected1="Pin" Object1="0" SubObject1="48" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="47" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="237.44" Dir="-1" />
+              <Point X="413.4" Y="247.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="78" Sheet="1" Connected1="Pin" Object1="0" SubObject1="46" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="45" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="257.44" Dir="-1" />
+              <Point X="413.4" Y="267.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="79" Sheet="1" Connected1="Pin" Object1="0" SubObject1="42" Bus1="-1" Connected2="Pin" Object2="0" SubObject2="41" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="413.4" Y="297.44" Dir="-1" />
+              <Point X="413.4" Y="307.44" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="80" Sheet="2" Connected1="Pin" Object1="18" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="26" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="20.35" Y="82" Dir="-1" />
+              <Point X="20.35" Y="96" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="81" Sheet="2" Connected1="Pin" Object1="27" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="35" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="20.35" Y="118" Dir="-1" />
+              <Point X="20.35" Y="132" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="82" Sheet="2" Connected1="Pin" Object1="14" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="13" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="34.445" Y="84" Dir="-1" />
+              <Point X="43.143" Y="84" Dir="0" />
+              <Point X="43.143" Y="88.127" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="83" Sheet="2" Connected1="Pin" Object1="22" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="16" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="55" Y="88" Dir="-1" />
+              <Point X="60.445" Y="88" Dir="0" />
+              <Point X="60.445" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="84" Sheet="2" Connected1="Pin" Object1="31" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="17" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="55" Y="124" Dir="-1" />
+              <Point X="66.81" Y="124" Dir="0" />
+              <Point X="66.81" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="85" Sheet="4" Connected1="Pin" Object1="88" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="89" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="80" Dir="-1" />
+              <Point X="42.19" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="86" Sheet="4" Connected1="Pin" Object1="90" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="69" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="88" Dir="-1" />
+              <Point X="43.3" Y="88" Dir="0" />
+              <Point X="43.3" Y="88.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="87" Sheet="4" Connected1="Pin" Object1="91" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="92" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="134" Dir="-1" />
+              <Point X="42.19" Y="138" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="88" Sheet="4" Connected1="Pin" Object1="93" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="73" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="142" Dir="-1" />
+              <Point X="43.3" Y="142" Dir="0" />
+              <Point X="43.3" Y="142.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="89" Sheet="4" Connected1="Pin" Object1="68" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.3" Y="74.81" Dir="-1" />
+              <Point X="53.3" Y="74.81" Dir="0" />
+              <Point X="53.3" Y="83.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="90" Sheet="4" Connected1="Pin" Object1="72" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.3" Y="128.81" Dir="-1" />
+              <Point X="53.3" Y="128.81" Dir="0" />
+              <Point X="53.3" Y="137.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="91" Sheet="4" Connected1="Pin" Object1="94" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="71" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="65.81" Y="78" Dir="-1" />
+              <Point X="73.3" Y="78" Dir="0" />
+              <Point X="73.3" Y="83.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="92" Sheet="4" Connected1="Pin" Object1="95" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="75" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="65.81" Y="132" Dir="-1" />
+              <Point X="73.3" Y="132" Dir="0" />
+              <Point X="73.3" Y="137.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="93" Sheet="4" Connected1="Pin" Object1="79" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="96" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="79.81" Y="78" Dir="-1" />
+              <Point X="93.81" Y="78" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="94" Sheet="4" Connected1="Pin" Object1="82" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="97" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="79.81" Y="132" Dir="-1" />
+              <Point X="93.81" Y="132" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="95" Sheet="4" Connected1="Pin" Object1="84" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="85" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="89.81" Y="94" Dir="-1" />
+              <Point X="89.81" Y="98" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="96" Sheet="4" Connected1="Pin" Object1="86" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="87" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="89.81" Y="148" Dir="-1" />
+              <Point X="89.81" Y="152" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="97" Sheet="4" Connected1="Pin" Object1="76" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="69" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="119.65" Y="90" Dir="-1" />
+              <Point X="143.3" Y="90" Dir="0" />
+              <Point X="143.3" Y="101.03" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="98" Sheet="4" Connected1="Pin" Object1="77" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="73" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="119.65" Y="144" Dir="-1" />
+              <Point X="143.3" Y="144" Dir="0" />
+              <Point X="143.3" Y="155.03" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="99" Sheet="6" Connected1="Pin" Object1="129" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="133" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="40.111" Y="103.144" Dir="-1" />
+              <Point X="40.111" Y="111.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="100" Sheet="6" Connected1="Pin" Object1="137" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="141" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="40.111" Y="119.144" Dir="-1" />
+              <Point X="40.111" Y="127.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="101" Sheet="6" Connected1="Pin" Object1="127" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="128" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="104" Dir="-1" />
+              <Point X="57.81" Y="104" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="102" Sheet="6" Connected1="Pin" Object1="131" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="132" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="112" Dir="-1" />
+              <Point X="57.81" Y="112" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="103" Sheet="6" Connected1="Pin" Object1="135" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="136" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="120" Dir="-1" />
+              <Point X="57.81" Y="120" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="104" Sheet="6" Connected1="Pin" Object1="139" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="140" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="128" Dir="-1" />
+              <Point X="57.81" Y="128" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="105" Sheet="6" Connected1="Pin" Object1="143" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="144" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="136" Dir="-1" />
+              <Point X="57.81" Y="136" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="106" Sheet="6" Connected1="Pin" Object1="146" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="147" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.81" Y="144" Dir="-1" />
+              <Point X="57.81" Y="144" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="107" Sheet="6" Connected1="Pin" Object1="124" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="125" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="57.81" Y="86" Dir="-1" />
+              <Point X="69.81" Y="86" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="108" Sheet="6" Connected1="Pin" Object1="149" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="157" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="77.111" Y="155.144" Dir="-1" />
+              <Point X="77.111" Y="167.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="109" Sheet="6" Connected1="Pin" Object1="151" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="159" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="93.111" Y="155.144" Dir="-1" />
+              <Point X="93.111" Y="167.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="110" Sheet="6" Connected1="Pin" Object1="153" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="161" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="109.111" Y="155.144" Dir="-1" />
+              <Point X="109.111" Y="167.144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="111" Sheet="6" Connected1="Pin" Object1="155" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="125.111" Y="155.144" Dir="-1" />
+              <Point X="132.54" Y="155.144" Dir="0" />
+              <Point X="132.54" Y="154.73" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="112" Sheet="6" Connected1="Pin" Object1="163" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="125.111" Y="167.144" Dir="-1" />
+              <Point X="132.54" Y="167.144" Dir="0" />
+              <Point X="132.54" Y="170.73" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="113" Sheet="6" Connected1="Pin" Object1="164" SubObject1="8" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="135.08" Y="154.73" Dir="-1" />
+              <Point X="137.62" Y="154.73" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="114" Sheet="6" Connected1="Pin" Object1="165" SubObject1="8" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="135.08" Y="170.73" Dir="-1" />
+              <Point X="137.62" Y="170.73" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="115" Sheet="6" Connected1="Pin" Object1="123" SubObject1="7" Bus1="-1" Connected2="Pin" Object2="123" SubObject2="6" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="288.4" Y="-196.37" Dir="-1" />
+              <Point X="288.4" Y="-186.37" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="116" Sheet="6" Connected1="Pin" Object1="123" SubObject1="12" Bus1="-1" Connected2="Pin" Object2="123" SubObject2="11" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="428.4" Y="324.494" Dir="-1" />
+              <Point X="428.4" Y="334.494" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="117" Sheet="6" Connected1="Pin" Object1="123" SubObject1="10" Bus1="-1" Connected2="Pin" Object2="123" SubObject2="8" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="428.4" Y="344.494" Dir="-1" />
+              <Point X="428.4" Y="364.494" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="118" Sheet="7" Connected1="Pin" Object1="168" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="171" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="27.81" Y="84" Dir="-1" />
+              <Point X="53.81" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="119" Sheet="7" Connected1="Pin" Object1="174" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="177" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="79.81" Y="84" Dir="-1" />
+              <Point X="105.81" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="120" Sheet="7" Connected1="Pin" Object1="166" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="166" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="277.4" Y="280.56" Dir="-1" />
+              <Point X="277.4" Y="290.56" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="121" Sheet="7" Connected1="Pin" Object1="169" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="172" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="303.4" Y="280.56" Dir="-1" />
+              <Point X="329.4" Y="280.56" Dir="0" />
+              <Point X="329.4" Y="290.56" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="122" Sheet="7" Connected1="Pin" Object1="166" SubObject1="6" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="6" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="367.4" Y="310.56" Dir="-1" />
+              <Point X="393.4" Y="310.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="123" Sheet="7" Connected1="Pin" Object1="172" SubObject1="6" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="6" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="419.4" Y="310.56" Dir="-1" />
+              <Point X="445.4" Y="310.56" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="1" NetClass="0" Locked="N" Enabled="Y">
         <Name>+3V3</Name>
@@ -8689,7 +9466,440 @@
           <Item Part="175" Pin="1" />
           <Item Part="145" Pin="0" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="1" Connected1="Pin" Object1="10" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="1" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="96" Dir="-1" />
+              <Point X="48.19" Y="96" Dir="0" />
+              <Point X="48.19" Y="86" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="1" Connected1="Pin" Object1="2" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="3" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="54.19" Y="86" Dir="-1" />
+              <Point X="59.555" Y="86" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="1" Connected1="Pin" Object1="4" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="5" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="66.555" Y="86" Dir="-1" />
+              <Point X="80.19" Y="86" Dir="0" />
+              <Point X="80.19" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="2" Connected1="Pin" Object1="16" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="17" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="51.555" Y="84" Dir="-1" />
+              <Point X="59.19" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="4" Sheet="3" Connected1="Pin" Object1="58" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="64" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="62.19" Y="80" Dir="-1" />
+              <Point X="76.19" Y="80" Dir="0" />
+              <Point X="76.19" Y="82" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="5" Sheet="3" Connected1="Pin" Object1="59" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="65" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="62.19" Y="130" Dir="-1" />
+              <Point X="76.19" Y="130" Dir="0" />
+              <Point X="76.19" Y="132" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="6" Sheet="3" Connected1="Pin" Object1="38" SubObject1="9" Bus1="-1" Connected2="Pin" Object2="39" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="412.4" Y="297.924" Dir="-1" />
+              <Point X="412.4" Y="347.924" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="7" Sheet="4" Connected1="Pin" Object1="68" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="69" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.3" Y="84.81" Dir="-1" />
+              <Point X="43.3" Y="98.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="8" Sheet="4" Connected1="Pin" Object1="72" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="73" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.3" Y="138.81" Dir="-1" />
+              <Point X="43.3" Y="152.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="9" Sheet="4" Connected1="Pin" Object1="94" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="96" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="58.19" Y="78" Dir="-1" />
+              <Point X="86.19" Y="78" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="10" Sheet="4" Connected1="Pin" Object1="95" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="97" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="58.19" Y="132" Dir="-1" />
+              <Point X="86.19" Y="132" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="11" Sheet="4" Connected1="Pin" Object1="68" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="87.03" Dir="-1" />
+              <Point X="173.3" Y="87.03" Dir="0" />
+              <Point X="173.3" Y="83.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="12" Sheet="4" Connected1="Pin" Object1="72" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="141.03" Dir="-1" />
+              <Point X="173.3" Y="141.03" Dir="0" />
+              <Point X="173.3" Y="137.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="13" Sheet="5" Connected1="Pin" Object1="117" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="118" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="26.19" Y="92" Dir="-1" />
+              <Point X="31.19" Y="92" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="14" Sheet="5" Connected1="Pin" Object1="121" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="119" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="110" Dir="-1" />
+              <Point X="56.19" Y="110" Dir="0" />
+              <Point X="56.19" Y="120" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="15" Sheet="5" Connected1="Pin" Object1="115" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="116" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="51.81" Y="84" Dir="-1" />
+              <Point X="57.81" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="16" Sheet="5" Connected1="Pin" Object1="100" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="108" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="80.19" Y="78" Dir="-1" />
+              <Point X="80.19" Y="93" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="17" Sheet="5" Connected1="Pin" Object1="102" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="110" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="97.19" Y="78" Dir="-1" />
+              <Point X="97.19" Y="93" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="18" Sheet="5" Connected1="Pin" Object1="104" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="112" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="114.19" Y="78" Dir="-1" />
+              <Point X="114.19" Y="93" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="19" Sheet="5" Connected1="Pin" Object1="106" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="114" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="131.19" Y="78" Dir="-1" />
+              <Point X="131.19" Y="93" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="20" Sheet="6" Connected1="Pin" Object1="145" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="141" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="36.19" Y="144" Dir="-1" />
+              <Point X="40.111" Y="144" Dir="0" />
+              <Point X="40.111" Y="128.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="21" Sheet="6" Connected1="Pin" Object1="129" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="133" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="40.111" Y="104.856" Dir="-1" />
+              <Point X="40.111" Y="112.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="22" Sheet="6" Connected1="Pin" Object1="137" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="124" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="40.111" Y="120.856" Dir="-1" />
+              <Point X="50.19" Y="120.856" Dir="0" />
+              <Point X="50.19" Y="86" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="23" Sheet="6" Connected1="Pin" Object1="149" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="157" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="77.111" Y="156.856" Dir="-1" />
+              <Point X="77.111" Y="168.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="24" Sheet="6" Connected1="Pin" Object1="151" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="159" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="93.111" Y="156.856" Dir="-1" />
+              <Point X="93.111" Y="168.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="25" Sheet="6" Connected1="Pin" Object1="153" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="161" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="109.111" Y="156.856" Dir="-1" />
+              <Point X="109.111" Y="168.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="26" Sheet="6" Connected1="Pin" Object1="164" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="155" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="122.38" Y="157.27" Dir="-1" />
+              <Point X="125.111" Y="157.27" Dir="0" />
+              <Point X="125.111" Y="156.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="27" Sheet="6" Connected1="Pin" Object1="165" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="163" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="122.38" Y="173.27" Dir="-1" />
+              <Point X="125.111" Y="173.27" Dir="0" />
+              <Point X="125.111" Y="168.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="28" Sheet="7" Connected1="Pin" Object1="168" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="171" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="20.19" Y="84" Dir="-1" />
+              <Point X="46.19" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="29" Sheet="7" Connected1="Pin" Object1="174" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="177" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="72.19" Y="84" Dir="-1" />
+              <Point X="98.19" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="30" Sheet="7" Connected1="Pin" Object1="169" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="172" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="303.4" Y="290.56" Dir="-1" />
+              <Point X="329.4" Y="290.56" Dir="0" />
+              <Point X="329.4" Y="280.56" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="31" Sheet="7" Connected1="Pin" Object1="175" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="355.4" Y="280.56" Dir="-1" />
+              <Point X="355.4" Y="290.56" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="32" Sheet="7" Connected1="Pin" Object1="166" SubObject1="5" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="367.4" Y="320.56" Dir="-1" />
+              <Point X="393.4" Y="320.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="33" Sheet="7" Connected1="Pin" Object1="172" SubObject1="5" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="419.4" Y="320.56" Dir="-1" />
+              <Point X="445.4" Y="320.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="34" Sheet="1" Connected1="Pin" Object1="10" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="1" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="96" Dir="-1" />
+              <Point X="48.19" Y="96" Dir="0" />
+              <Point X="48.19" Y="86" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="35" Sheet="1" Connected1="Pin" Object1="2" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="3" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="54.19" Y="86" Dir="-1" />
+              <Point X="59.555" Y="86" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="36" Sheet="1" Connected1="Pin" Object1="4" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="5" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="66.555" Y="86" Dir="-1" />
+              <Point X="80.19" Y="86" Dir="0" />
+              <Point X="80.19" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="37" Sheet="2" Connected1="Pin" Object1="16" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="17" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="51.555" Y="84" Dir="-1" />
+              <Point X="59.19" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="38" Sheet="3" Connected1="Pin" Object1="58" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="64" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="62.19" Y="80" Dir="-1" />
+              <Point X="76.19" Y="80" Dir="0" />
+              <Point X="76.19" Y="82" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="39" Sheet="3" Connected1="Pin" Object1="59" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="65" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="62.19" Y="130" Dir="-1" />
+              <Point X="76.19" Y="130" Dir="0" />
+              <Point X="76.19" Y="132" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="40" Sheet="3" Connected1="Pin" Object1="38" SubObject1="9" Bus1="-1" Connected2="Pin" Object2="39" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="412.4" Y="297.924" Dir="-1" />
+              <Point X="412.4" Y="347.924" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="41" Sheet="4" Connected1="Pin" Object1="68" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="69" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.3" Y="84.81" Dir="-1" />
+              <Point X="43.3" Y="98.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="42" Sheet="4" Connected1="Pin" Object1="72" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="73" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.3" Y="138.81" Dir="-1" />
+              <Point X="43.3" Y="152.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="43" Sheet="4" Connected1="Pin" Object1="94" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="96" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="58.19" Y="78" Dir="-1" />
+              <Point X="86.19" Y="78" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="44" Sheet="4" Connected1="Pin" Object1="95" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="97" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="58.19" Y="132" Dir="-1" />
+              <Point X="86.19" Y="132" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="45" Sheet="4" Connected1="Pin" Object1="68" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="87.03" Dir="-1" />
+              <Point X="173.3" Y="87.03" Dir="0" />
+              <Point X="173.3" Y="83.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="46" Sheet="4" Connected1="Pin" Object1="72" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="141.03" Dir="-1" />
+              <Point X="173.3" Y="141.03" Dir="0" />
+              <Point X="173.3" Y="137.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="47" Sheet="5" Connected1="Pin" Object1="117" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="118" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="26.19" Y="92" Dir="-1" />
+              <Point X="31.19" Y="92" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="48" Sheet="5" Connected1="Pin" Object1="121" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="119" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="42.19" Y="110" Dir="-1" />
+              <Point X="56.19" Y="110" Dir="0" />
+              <Point X="56.19" Y="120" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="49" Sheet="5" Connected1="Pin" Object1="115" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="116" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="51.81" Y="84" Dir="-1" />
+              <Point X="57.81" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="50" Sheet="5" Connected1="Pin" Object1="100" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="108" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="80.19" Y="78" Dir="-1" />
+              <Point X="80.19" Y="93" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="51" Sheet="5" Connected1="Pin" Object1="102" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="110" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="97.19" Y="78" Dir="-1" />
+              <Point X="97.19" Y="93" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="52" Sheet="5" Connected1="Pin" Object1="104" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="112" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="114.19" Y="78" Dir="-1" />
+              <Point X="114.19" Y="93" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="53" Sheet="5" Connected1="Pin" Object1="106" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="114" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="131.19" Y="78" Dir="-1" />
+              <Point X="131.19" Y="93" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="54" Sheet="6" Connected1="Pin" Object1="145" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="141" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="36.19" Y="144" Dir="-1" />
+              <Point X="40.111" Y="144" Dir="0" />
+              <Point X="40.111" Y="128.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="55" Sheet="6" Connected1="Pin" Object1="129" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="133" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="40.111" Y="104.856" Dir="-1" />
+              <Point X="40.111" Y="112.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="56" Sheet="6" Connected1="Pin" Object1="137" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="124" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="40.111" Y="120.856" Dir="-1" />
+              <Point X="50.19" Y="120.856" Dir="0" />
+              <Point X="50.19" Y="86" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="57" Sheet="6" Connected1="Pin" Object1="149" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="157" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="77.111" Y="156.856" Dir="-1" />
+              <Point X="77.111" Y="168.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="58" Sheet="6" Connected1="Pin" Object1="151" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="159" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="93.111" Y="156.856" Dir="-1" />
+              <Point X="93.111" Y="168.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="59" Sheet="6" Connected1="Pin" Object1="153" SubObject1="2" Bus1="-1" Connected2="Pin" Object2="161" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="109.111" Y="156.856" Dir="-1" />
+              <Point X="109.111" Y="168.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="60" Sheet="6" Connected1="Pin" Object1="164" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="155" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="122.38" Y="157.27" Dir="-1" />
+              <Point X="125.111" Y="157.27" Dir="0" />
+              <Point X="125.111" Y="156.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="61" Sheet="6" Connected1="Pin" Object1="165" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="163" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="122.38" Y="173.27" Dir="-1" />
+              <Point X="125.111" Y="173.27" Dir="0" />
+              <Point X="125.111" Y="168.856" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="62" Sheet="7" Connected1="Pin" Object1="168" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="171" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="20.19" Y="84" Dir="-1" />
+              <Point X="46.19" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="63" Sheet="7" Connected1="Pin" Object1="174" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="177" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="72.19" Y="84" Dir="-1" />
+              <Point X="98.19" Y="84" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="64" Sheet="7" Connected1="Pin" Object1="169" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="172" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="303.4" Y="290.56" Dir="-1" />
+              <Point X="329.4" Y="290.56" Dir="0" />
+              <Point X="329.4" Y="280.56" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="65" Sheet="7" Connected1="Pin" Object1="175" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="355.4" Y="280.56" Dir="-1" />
+              <Point X="355.4" Y="290.56" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="66" Sheet="7" Connected1="Pin" Object1="166" SubObject1="5" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="367.4" Y="320.56" Dir="-1" />
+              <Point X="393.4" Y="320.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="67" Sheet="7" Connected1="Pin" Object1="172" SubObject1="5" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="419.4" Y="320.56" Dir="-1" />
+              <Point X="445.4" Y="320.56" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="2" NetClass="0" Locked="N" Enabled="Y">
         <Name>+5V</Name>
@@ -8702,7 +9912,36 @@
           <Item Part="50" Pin="0" />
           <Item Part="51" Pin="0" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="2" Connected1="Pin" Object1="13" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="14" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="3.143" Y="88.127" Dir="-1" />
+              <Point X="25.555" Y="88.127" Dir="0" />
+              <Point X="25.555" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="3" Connected1="Pin" Object1="50" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="44" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="66.73" Y="72" Dir="-1" />
+              <Point X="99" Y="72" Dir="0" />
+              <Point X="99" Y="96.6" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="2" Connected1="Pin" Object1="13" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="14" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="3.143" Y="88.127" Dir="-1" />
+              <Point X="25.555" Y="88.127" Dir="0" />
+              <Point X="25.555" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="3" Connected1="Pin" Object1="50" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="44" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="66.73" Y="72" Dir="-1" />
+              <Point X="99" Y="72" Dir="0" />
+              <Point X="99" Y="96.6" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="3" NetClass="0" Locked="N" Enabled="Y">
         <Name>ADC_REF</Name>
@@ -8718,7 +9957,22 @@
           <Item Part="10" Pin="1" />
           <Item Part="9" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="1" Connected1="Pin" Object1="10" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="9" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="96" Dir="-1" />
+              <Point X="62.413" Y="96" Dir="0" />
+              <Point X="62.413" Y="98.587" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="1" Connected1="Pin" Object1="10" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="9" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="96" Dir="-1" />
+              <Point X="62.413" Y="96" Dir="0" />
+              <Point X="62.413" Y="98.587" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="5" NetClass="0" Locked="N" Enabled="Y">
         <Name>AMP_ILIM1</Name>
@@ -8748,7 +10002,32 @@
           <Item Part="175" Pin="3" />
           <Item Part="117" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="7" Connected1="Pin" Object1="166" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="277.4" Y="310.56" Dir="-1" />
+              <Point X="303.4" Y="310.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="7" Connected1="Pin" Object1="172" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="329.4" Y="310.56" Dir="-1" />
+              <Point X="355.4" Y="310.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="7" Connected1="Pin" Object1="166" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="277.4" Y="310.56" Dir="-1" />
+              <Point X="303.4" Y="310.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="7" Connected1="Pin" Object1="172" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="329.4" Y="310.56" Dir="-1" />
+              <Point X="355.4" Y="310.56" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="8" NetClass="0" Locked="N" Enabled="Y">
         <Name>I2C_SCL</Name>
@@ -8762,7 +10041,32 @@
           <Item Part="175" Pin="4" />
           <Item Part="118" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="7" Connected1="Pin" Object1="166" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="277.4" Y="320.56" Dir="-1" />
+              <Point X="303.4" Y="320.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="7" Connected1="Pin" Object1="172" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="329.4" Y="320.56" Dir="-1" />
+              <Point X="355.4" Y="320.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="7" Connected1="Pin" Object1="166" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="277.4" Y="320.56" Dir="-1" />
+              <Point X="303.4" Y="320.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="7" Connected1="Pin" Object1="172" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="175" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="329.4" Y="320.56" Dir="-1" />
+              <Point X="355.4" Y="320.56" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="9" NetClass="0" Locked="N" Enabled="Y">
         <Name>CTRL_DP</Name>
@@ -8939,7 +10243,22 @@
           <Item Part="66" Pin="0" />
           <Item Part="166" Pin="8" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="3" Connected1="Pin" Object1="66" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="40" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="97.555" Y="84" Dir="-1" />
+              <Point X="125.84" Y="84" Dir="0" />
+              <Point X="125.84" Y="83.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="3" Connected1="Pin" Object1="66" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="40" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="97.555" Y="84" Dir="-1" />
+              <Point X="125.84" Y="84" Dir="0" />
+              <Point X="125.84" Y="83.81" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="27" NetClass="0" Locked="N" Enabled="Y">
         <Name>VBUS1_OUT</Name>
@@ -8952,7 +10271,20 @@
           <Item Part="166" Pin="7" />
           <Item Part="169" Pin="7" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="7" Connected1="Pin" Object1="166" SubObject1="7" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="367.4" Y="300.56" Dir="-1" />
+              <Point X="393.4" Y="300.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="7" Connected1="Pin" Object1="166" SubObject1="7" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="7" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="367.4" Y="300.56" Dir="-1" />
+              <Point X="393.4" Y="300.56" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="28" NetClass="0" Locked="N" Enabled="Y">
         <Name>VBUS1_EN</Name>
@@ -8961,7 +10293,22 @@
           <Item Part="40" Pin="3" />
           <Item Part="62" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="3" Connected1="Pin" Object1="62" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="40" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="103.81" Y="76" Dir="-1" />
+              <Point X="145.84" Y="76" Dir="0" />
+              <Point X="145.84" Y="83.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="3" Connected1="Pin" Object1="62" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="40" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="103.81" Y="76" Dir="-1" />
+              <Point X="145.84" Y="76" Dir="0" />
+              <Point X="145.84" Y="83.81" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="29" NetClass="0" Locked="N" Enabled="Y">
         <Name>VBUS2_SW</Name>
@@ -8971,7 +10318,22 @@
           <Item Part="67" Pin="0" />
           <Item Part="169" Pin="8" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="3" Connected1="Pin" Object1="67" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="41" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="97.555" Y="134" Dir="-1" />
+              <Point X="125.84" Y="134" Dir="0" />
+              <Point X="125.84" Y="133.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="3" Connected1="Pin" Object1="67" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="41" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="97.555" Y="134" Dir="-1" />
+              <Point X="125.84" Y="134" Dir="0" />
+              <Point X="125.84" Y="133.81" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="30" NetClass="0" Locked="N" Enabled="Y">
         <Name>VBUS2_OUT</Name>
@@ -8992,7 +10354,22 @@
           <Item Part="41" Pin="3" />
           <Item Part="63" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="3" Connected1="Pin" Object1="63" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="41" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="103.81" Y="126" Dir="-1" />
+              <Point X="145.84" Y="126" Dir="0" />
+              <Point X="145.84" Y="133.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="3" Connected1="Pin" Object1="63" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="41" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="103.81" Y="126" Dir="-1" />
+              <Point X="145.84" Y="126" Dir="0" />
+              <Point X="145.84" Y="133.81" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="32" NetClass="0" Locked="N" Enabled="Y">
         <Name>+5V_FUSED</Name>
@@ -9005,7 +10382,44 @@
           <Item Part="166" Pin="9" />
           <Item Part="169" Pin="9" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="3" Connected1="Pin" Object1="50" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="51" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="136.73" Y="72" Dir="-1" />
+              <Point X="136.73" Y="122" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="7" Connected1="Pin" Object1="167" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="170" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="18.92" Y="104" Dir="-1" />
+              <Point X="44.92" Y="104" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="7" Connected1="Pin" Object1="166" SubObject1="9" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="367.4" Y="280.56" Dir="-1" />
+              <Point X="393.4" Y="280.56" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="3" Connected1="Pin" Object1="50" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="51" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="136.73" Y="72" Dir="-1" />
+              <Point X="136.73" Y="122" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="4" Sheet="7" Connected1="Pin" Object1="167" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="170" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="18.92" Y="104" Dir="-1" />
+              <Point X="44.92" Y="104" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="5" Sheet="7" Connected1="Pin" Object1="166" SubObject1="9" Bus1="-1" Connected2="Pin" Object2="169" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="367.4" Y="280.56" Dir="-1" />
+              <Point X="393.4" Y="280.56" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="33" NetClass="0" Locked="N" Enabled="Y">
         <Name>PWR1_VIN</Name>
@@ -9017,7 +10431,50 @@
           <Item Part="23" Pin="0" />
           <Item Part="25" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="2" Connected1="Pin" Object1="18" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="21" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="5.27" Y="82" Dir="-1" />
+              <Point X="49.493" Y="82" Dir="0" />
+              <Point X="49.493" Y="92" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="2" Connected1="Pin" Object1="25" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="23" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="33.254" Y="124" Dir="-1" />
+              <Point X="44.19" Y="124" Dir="0" />
+              <Point X="44.19" Y="106" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="2" Connected1="Pin" Object1="19" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="20" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="303.67" Y="333.228" Dir="-1" />
+              <Point X="310.4" Y="333.228" Dir="0" />
+              <Point X="310.4" Y="333.768" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="2" Connected1="Pin" Object1="18" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="21" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="5.27" Y="82" Dir="-1" />
+              <Point X="49.493" Y="82" Dir="0" />
+              <Point X="49.493" Y="92" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="4" Sheet="2" Connected1="Pin" Object1="25" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="23" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="33.254" Y="124" Dir="-1" />
+              <Point X="44.19" Y="124" Dir="0" />
+              <Point X="44.19" Y="106" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="5" Sheet="2" Connected1="Pin" Object1="19" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="20" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="303.67" Y="333.228" Dir="-1" />
+              <Point X="310.4" Y="333.228" Dir="0" />
+              <Point X="310.4" Y="333.768" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="34" NetClass="0" Locked="N" Enabled="Y">
         <Name>PWR1_GATE</Name>
@@ -9027,7 +10484,36 @@
           <Item Part="22" Pin="0" />
           <Item Part="25" Pin="0" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="2" Connected1="Pin" Object1="21" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="23" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="12.889" Y="112" Dir="-1" />
+              <Point X="51.81" Y="112" Dir="0" />
+              <Point X="51.81" Y="106" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="2" Connected1="Pin" Object1="22" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="25" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="55" Y="148" Dir="-1" />
+              <Point X="73.254" Y="148" Dir="0" />
+              <Point X="73.254" Y="124" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="2" Connected1="Pin" Object1="21" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="23" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="12.889" Y="112" Dir="-1" />
+              <Point X="51.81" Y="112" Dir="0" />
+              <Point X="51.81" Y="106" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="2" Connected1="Pin" Object1="22" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="25" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="55" Y="148" Dir="-1" />
+              <Point X="73.254" Y="148" Dir="0" />
+              <Point X="73.254" Y="124" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="35" NetClass="0" Locked="N" Enabled="Y">
         <Name>PWR1_EN</Name>
@@ -9067,7 +10553,50 @@
           <Item Part="33" Pin="0" />
           <Item Part="32" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="2" Connected1="Pin" Object1="27" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="30" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="5.27" Y="118" Dir="-1" />
+              <Point X="49.493" Y="118" Dir="0" />
+              <Point X="49.493" Y="128" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="2" Connected1="Pin" Object1="32" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="33" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="33.254" Y="160" Dir="-1" />
+              <Point X="44.19" Y="160" Dir="0" />
+              <Point X="44.19" Y="142" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="2" Connected1="Pin" Object1="28" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="29" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="303.67" Y="369.228" Dir="-1" />
+              <Point X="310.4" Y="369.228" Dir="0" />
+              <Point X="310.4" Y="369.768" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="2" Connected1="Pin" Object1="27" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="30" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="5.27" Y="118" Dir="-1" />
+              <Point X="49.493" Y="118" Dir="0" />
+              <Point X="49.493" Y="128" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="4" Sheet="2" Connected1="Pin" Object1="32" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="33" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="33.254" Y="160" Dir="-1" />
+              <Point X="44.19" Y="160" Dir="0" />
+              <Point X="44.19" Y="142" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="5" Sheet="2" Connected1="Pin" Object1="28" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="29" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="303.67" Y="369.228" Dir="-1" />
+              <Point X="310.4" Y="369.228" Dir="0" />
+              <Point X="310.4" Y="369.768" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="39" NetClass="0" Locked="N" Enabled="Y">
         <Name>PWR2_GATE</Name>
@@ -9077,7 +10606,36 @@
           <Item Part="31" Pin="0" />
           <Item Part="32" Pin="0" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="2" Connected1="Pin" Object1="30" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="33" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="12.889" Y="148" Dir="-1" />
+              <Point X="51.81" Y="148" Dir="0" />
+              <Point X="51.81" Y="142" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="2" Connected1="Pin" Object1="31" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="32" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="55" Y="184" Dir="-1" />
+              <Point X="73.254" Y="184" Dir="0" />
+              <Point X="73.254" Y="160" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="2" Connected1="Pin" Object1="30" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="33" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="12.889" Y="148" Dir="-1" />
+              <Point X="51.81" Y="148" Dir="0" />
+              <Point X="51.81" Y="142" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="2" Connected1="Pin" Object1="31" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="32" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="55" Y="184" Dir="-1" />
+              <Point X="73.254" Y="184" Dir="0" />
+              <Point X="73.254" Y="160" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="40" NetClass="0" Locked="N" Enabled="Y">
         <Name>PWR2_EN</Name>
@@ -9112,7 +10670,22 @@
           <Item Part="22" Pin="1" />
           <Item Part="24" Pin="0" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="2" Connected1="Pin" Object1="22" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="24" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="25" Y="118" Dir="-1" />
+              <Point X="52.19" Y="118" Dir="0" />
+              <Point X="52.19" Y="114" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="2" Connected1="Pin" Object1="22" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="24" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="25" Y="118" Dir="-1" />
+              <Point X="52.19" Y="118" Dir="0" />
+              <Point X="52.19" Y="114" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="44" NetClass="0" Locked="N" Enabled="Y">
         <Name>PWR2_BASE</Name>
@@ -9120,7 +10693,22 @@
           <Item Part="31" Pin="1" />
           <Item Part="34" Pin="0" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="2" Connected1="Pin" Object1="31" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="34" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="25" Y="154" Dir="-1" />
+              <Point X="52.19" Y="154" Dir="0" />
+              <Point X="52.19" Y="150" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="2" Connected1="Pin" Object1="31" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="34" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="25" Y="154" Dir="-1" />
+              <Point X="52.19" Y="154" Dir="0" />
+              <Point X="52.19" Y="150" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="45" NetClass="0" Locked="N" Enabled="Y">
         <Name>EN_RC</Name>
@@ -9132,7 +10720,22 @@
           <Item Part="8" Pin="0" />
           <Item Part="11" Pin="3" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="1" Connected1="Pin" Object1="6" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="5" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="86.19" Y="88" Dir="-1" />
+              <Point X="87.81" Y="88" Dir="0" />
+              <Point X="87.81" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="1" Connected1="Pin" Object1="6" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="5" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="86.19" Y="88" Dir="-1" />
+              <Point X="87.81" Y="88" Dir="0" />
+              <Point X="87.81" Y="84" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="46" NetClass="0" Locked="N" Enabled="Y">
         <Name>BOOT_IO0</Name>
@@ -9192,7 +10795,22 @@
           <Item Part="71" Pin="4" />
           <Item Part="88" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="88" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="71" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="80" Dir="-1" />
+              <Point X="73.3" Y="80" Dir="0" />
+              <Point X="73.3" Y="94.43" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="88" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="71" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="80" Dir="-1" />
+              <Point X="73.3" Y="80" Dir="0" />
+              <Point X="73.3" Y="94.43" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="53" NetClass="0" Locked="N" Enabled="Y">
         <Name>UART1_TXG</Name>
@@ -9201,7 +10819,22 @@
           <Item Part="70" Pin="0" />
           <Item Part="89" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="89" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="84" Dir="-1" />
+              <Point X="53.3" Y="84" Dir="0" />
+              <Point X="53.3" Y="94.43" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="89" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="84" Dir="-1" />
+              <Point X="53.3" Y="84" Dir="0" />
+              <Point X="53.3" Y="94.43" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="54" NetClass="0" Locked="N" Enabled="Y">
         <Name>UART1_RXG</Name>
@@ -9210,7 +10843,22 @@
           <Item Part="70" Pin="4" />
           <Item Part="90" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="90" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="88" Dir="-1" />
+              <Point X="53.3" Y="88" Dir="0" />
+              <Point X="53.3" Y="56.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="90" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="88" Dir="-1" />
+              <Point X="53.3" Y="88" Dir="0" />
+              <Point X="53.3" Y="56.81" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="55" NetClass="0" Locked="N" Enabled="Y">
         <Name>U1TX_MCU</Name>
@@ -9234,7 +10882,22 @@
           <Item Part="68" Pin="3" />
           <Item Part="70" Pin="9" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="68" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="97.03" Dir="-1" />
+              <Point X="173.3" Y="97.03" Dir="0" />
+              <Point X="173.3" Y="94.43" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="68" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="97.03" Dir="-1" />
+              <Point X="173.3" Y="97.03" Dir="0" />
+              <Point X="173.3" Y="94.43" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="58" NetClass="0" Locked="N" Enabled="Y">
         <Name>U1RX_V</Name>
@@ -9242,7 +10905,22 @@
           <Item Part="69" Pin="3" />
           <Item Part="70" Pin="5" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="69" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="111.03" Dir="-1" />
+              <Point X="173.3" Y="111.03" Dir="0" />
+              <Point X="173.3" Y="103.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="69" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="70" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="111.03" Dir="-1" />
+              <Point X="173.3" Y="111.03" Dir="0" />
+              <Point X="173.3" Y="103.95" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="59" NetClass="0" Locked="N" Enabled="Y">
         <Name>U1_TXGATED</Name>
@@ -9300,7 +10978,22 @@
           <Item Part="76" Pin="1" />
           <Item Part="78" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="78" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="76" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="73.81" Y="78" Dir="-1" />
+              <Point X="122.19" Y="78" Dir="0" />
+              <Point X="122.19" Y="90" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="78" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="76" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="73.81" Y="78" Dir="-1" />
+              <Point X="122.19" Y="78" Dir="0" />
+              <Point X="122.19" Y="90" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="66" NetClass="0" Locked="N" Enabled="Y">
         <Name>VREF1</Name>
@@ -9311,7 +11004,32 @@
           <Item Part="68" Pin="5" />
           <Item Part="69" Pin="5" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="78" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="79" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="66.19" Y="78" Dir="-1" />
+              <Point X="72.19" Y="78" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="68" SubObject1="5" Bus1="-1" Connected2="Pin" Object2="69" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="84.81" Dir="-1" />
+              <Point X="143.3" Y="98.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="4" Connected1="Pin" Object1="78" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="79" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="66.19" Y="78" Dir="-1" />
+              <Point X="72.19" Y="78" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="4" Connected1="Pin" Object1="68" SubObject1="5" Bus1="-1" Connected2="Pin" Object2="69" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="84.81" Dir="-1" />
+              <Point X="143.3" Y="98.81" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="67" NetClass="0" Locked="N" Enabled="Y">
         <Name>UART2_POL</Name>
@@ -9321,7 +11039,22 @@
           <Item Part="75" Pin="4" />
           <Item Part="91" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="91" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="75" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="134" Dir="-1" />
+              <Point X="73.3" Y="134" Dir="0" />
+              <Point X="73.3" Y="148.43" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="91" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="75" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="134" Dir="-1" />
+              <Point X="73.3" Y="134" Dir="0" />
+              <Point X="73.3" Y="148.43" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="68" NetClass="0" Locked="N" Enabled="Y">
         <Name>UART2_TXG</Name>
@@ -9330,7 +11063,22 @@
           <Item Part="74" Pin="0" />
           <Item Part="92" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="92" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="138" Dir="-1" />
+              <Point X="53.3" Y="138" Dir="0" />
+              <Point X="53.3" Y="148.43" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="92" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="138" Dir="-1" />
+              <Point X="53.3" Y="138" Dir="0" />
+              <Point X="53.3" Y="148.43" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="69" NetClass="0" Locked="N" Enabled="Y">
         <Name>UART2_RXG</Name>
@@ -9339,7 +11087,22 @@
           <Item Part="74" Pin="4" />
           <Item Part="93" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="93" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="142" Dir="-1" />
+              <Point X="53.3" Y="142" Dir="0" />
+              <Point X="53.3" Y="110.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="93" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="4" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="49.81" Y="142" Dir="-1" />
+              <Point X="53.3" Y="142" Dir="0" />
+              <Point X="53.3" Y="110.81" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="70" NetClass="0" Locked="N" Enabled="Y">
         <Name>U2TX_MCU</Name>
@@ -9363,7 +11126,22 @@
           <Item Part="72" Pin="3" />
           <Item Part="74" Pin="9" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="72" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="151.03" Dir="-1" />
+              <Point X="173.3" Y="151.03" Dir="0" />
+              <Point X="173.3" Y="148.43" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="72" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="9" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="151.03" Dir="-1" />
+              <Point X="173.3" Y="151.03" Dir="0" />
+              <Point X="173.3" Y="148.43" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="73" NetClass="0" Locked="N" Enabled="Y">
         <Name>U2RX_V</Name>
@@ -9371,7 +11149,22 @@
           <Item Part="73" Pin="3" />
           <Item Part="74" Pin="5" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="73" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="165.03" Dir="-1" />
+              <Point X="173.3" Y="165.03" Dir="0" />
+              <Point X="173.3" Y="157.95" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="73" SubObject1="3" Bus1="-1" Connected2="Pin" Object2="74" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="165.03" Dir="-1" />
+              <Point X="173.3" Y="165.03" Dir="0" />
+              <Point X="173.3" Y="157.95" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="74" NetClass="0" Locked="N" Enabled="Y">
         <Name>U2_TXGATED</Name>
@@ -9429,7 +11222,22 @@
           <Item Part="77" Pin="1" />
           <Item Part="81" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="81" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="77" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="73.81" Y="132" Dir="-1" />
+              <Point X="122.19" Y="132" Dir="0" />
+              <Point X="122.19" Y="144" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="81" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="77" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="73.81" Y="132" Dir="-1" />
+              <Point X="122.19" Y="132" Dir="0" />
+              <Point X="122.19" Y="144" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="81" NetClass="0" Locked="N" Enabled="Y">
         <Name>VREF2</Name>
@@ -9440,7 +11248,32 @@
           <Item Part="72" Pin="5" />
           <Item Part="73" Pin="5" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="4" Connected1="Pin" Object1="81" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="82" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="66.19" Y="132" Dir="-1" />
+              <Point X="72.19" Y="132" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="4" Connected1="Pin" Object1="72" SubObject1="5" Bus1="-1" Connected2="Pin" Object2="73" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="138.81" Dir="-1" />
+              <Point X="143.3" Y="152.81" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="4" Connected1="Pin" Object1="81" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="82" SubObject2="0" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="66.19" Y="132" Dir="-1" />
+              <Point X="72.19" Y="132" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="4" Connected1="Pin" Object1="72" SubObject1="5" Bus1="-1" Connected2="Pin" Object2="73" SubObject2="5" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="143.3" Y="138.81" Dir="-1" />
+              <Point X="143.3" Y="152.81" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="82" NetClass="0" Locked="N" Enabled="Y">
         <Name>SW1_A</Name>
@@ -9600,7 +11433,22 @@
           <Item Part="107" Pin="1" />
           <Item Part="98" Pin="7" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="5" Connected1="Pin" Object1="98" SubObject1="7" Bus1="-1" Connected2="Pin" Object2="107" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="318.24" Y="-187.29" Dir="-1" />
+              <Point X="325.13" Y="-187.29" Dir="0" />
+              <Point X="325.13" Y="-160.8" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="5" Connected1="Pin" Object1="98" SubObject1="7" Bus1="-1" Connected2="Pin" Object2="107" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="318.24" Y="-187.29" Dir="-1" />
+              <Point X="325.13" Y="-187.29" Dir="0" />
+              <Point X="325.13" Y="-160.8" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="102" NetClass="0" Locked="N" Enabled="Y">
         <Name>SW6_A</Name>
@@ -9632,7 +11480,22 @@
           <Item Part="109" Pin="1" />
           <Item Part="98" Pin="8" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="5" Connected1="Pin" Object1="98" SubObject1="8" Bus1="-1" Connected2="Pin" Object2="109" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="318.24" Y="-197.29" Dir="-1" />
+              <Point X="342.13" Y="-197.29" Dir="0" />
+              <Point X="342.13" Y="-160.8" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="5" Connected1="Pin" Object1="98" SubObject1="8" Bus1="-1" Connected2="Pin" Object2="109" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="318.24" Y="-197.29" Dir="-1" />
+              <Point X="342.13" Y="-197.29" Dir="0" />
+              <Point X="342.13" Y="-160.8" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="106" NetClass="0" Locked="N" Enabled="Y">
         <Name>SW7_A</Name>
@@ -9720,7 +11583,22 @@
           <Item Part="119" Pin="1" />
           <Item Part="120" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="5" Connected1="Pin" Object1="119" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="120" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="63.81" Y="120" Dir="-1" />
+              <Point X="88.413" Y="120" Dir="0" />
+              <Point X="88.413" Y="122.587" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="5" Connected1="Pin" Object1="119" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="120" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="63.81" Y="120" Dir="-1" />
+              <Point X="88.413" Y="120" Dir="0" />
+              <Point X="88.413" Y="122.587" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="117" NetClass="0" Locked="N" Enabled="Y">
         <Name>EXP_LED</Name>
@@ -9745,7 +11623,22 @@
           <Item Part="164" Pin="1" />
           <Item Part="149" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="148" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="95.81" Y="156" Dir="-1" />
+              <Point X="124.92" Y="156" Dir="0" />
+              <Point X="124.92" Y="157.27" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="148" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="95.81" Y="156" Dir="-1" />
+              <Point X="124.92" Y="156" Dir="0" />
+              <Point X="124.92" Y="157.27" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="120" NetClass="0" Locked="N" Enabled="Y">
         <Name>AUX1_MCU2</Name>
@@ -9762,7 +11655,22 @@
           <Item Part="164" Pin="2" />
           <Item Part="151" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="150" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="111.81" Y="156" Dir="-1" />
+              <Point X="132.54" Y="156" Dir="0" />
+              <Point X="132.54" Y="157.27" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="150" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="111.81" Y="156" Dir="-1" />
+              <Point X="132.54" Y="156" Dir="0" />
+              <Point X="132.54" Y="157.27" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="122" NetClass="0" Locked="N" Enabled="Y">
         <Name>AUX1_MCU3</Name>
@@ -9779,7 +11687,22 @@
           <Item Part="164" Pin="3" />
           <Item Part="153" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="152" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="127.81" Y="156" Dir="-1" />
+              <Point X="135.08" Y="156" Dir="0" />
+              <Point X="135.08" Y="157.27" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="152" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="164" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="127.81" Y="156" Dir="-1" />
+              <Point X="135.08" Y="156" Dir="0" />
+              <Point X="135.08" Y="157.27" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="124" NetClass="0" Locked="N" Enabled="Y">
         <Name>AUX1_MCU4</Name>
@@ -9796,7 +11719,22 @@
           <Item Part="164" Pin="4" />
           <Item Part="155" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="164" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="154" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="137.62" Y="157.27" Dir="-1" />
+              <Point X="143.81" Y="157.27" Dir="0" />
+              <Point X="143.81" Y="156" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="164" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="154" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="137.62" Y="157.27" Dir="-1" />
+              <Point X="143.81" Y="157.27" Dir="0" />
+              <Point X="143.81" Y="156" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="126" NetClass="0" Locked="N" Enabled="Y">
         <Name>AUX2_MCU1</Name>
@@ -9813,7 +11751,22 @@
           <Item Part="165" Pin="1" />
           <Item Part="157" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="156" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="95.81" Y="168" Dir="-1" />
+              <Point X="124.92" Y="168" Dir="0" />
+              <Point X="124.92" Y="173.27" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="156" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="95.81" Y="168" Dir="-1" />
+              <Point X="124.92" Y="168" Dir="0" />
+              <Point X="124.92" Y="173.27" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="128" NetClass="0" Locked="N" Enabled="Y">
         <Name>AUX2_MCU2</Name>
@@ -9830,7 +11783,22 @@
           <Item Part="165" Pin="2" />
           <Item Part="159" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="158" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="111.81" Y="168" Dir="-1" />
+              <Point X="132.54" Y="168" Dir="0" />
+              <Point X="132.54" Y="173.27" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="158" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="2" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="111.81" Y="168" Dir="-1" />
+              <Point X="132.54" Y="168" Dir="0" />
+              <Point X="132.54" Y="173.27" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="130" NetClass="0" Locked="N" Enabled="Y">
         <Name>AUX2_MCU3</Name>
@@ -9847,7 +11815,22 @@
           <Item Part="165" Pin="3" />
           <Item Part="161" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="160" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="127.81" Y="168" Dir="-1" />
+              <Point X="135.08" Y="168" Dir="0" />
+              <Point X="135.08" Y="173.27" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="160" SubObject1="1" Bus1="-1" Connected2="Pin" Object2="165" SubObject2="3" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="127.81" Y="168" Dir="-1" />
+              <Point X="135.08" Y="168" Dir="0" />
+              <Point X="135.08" Y="173.27" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="132" NetClass="0" Locked="N" Enabled="Y">
         <Name>AUX2_MCU4</Name>
@@ -9864,7 +11847,22 @@
           <Item Part="165" Pin="4" />
           <Item Part="163" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="165" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="162" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="137.62" Y="173.27" Dir="-1" />
+              <Point X="143.81" Y="173.27" Dir="0" />
+              <Point X="143.81" Y="168" Dir="1" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="165" SubObject1="4" Bus1="-1" Connected2="Pin" Object2="162" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="137.62" Y="173.27" Dir="-1" />
+              <Point X="143.81" Y="173.27" Dir="0" />
+              <Point X="143.81" Y="168" Dir="1" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="134" NetClass="0" Locked="N" Enabled="Y">
         <Name>ADC1_RAW</Name>
@@ -9883,7 +11881,32 @@
           <Item Part="129" Pin="1" />
           <Item Part="123" Pin="0" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="127" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="126" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="104" Dir="-1" />
+              <Point X="43.81" Y="104" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="128" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="129" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.19" Y="104" Dir="-1" />
+              <Point X="90.111" Y="104" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="6" Connected1="Pin" Object1="127" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="126" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="104" Dir="-1" />
+              <Point X="43.81" Y="104" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="6" Connected1="Pin" Object1="128" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="129" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.19" Y="104" Dir="-1" />
+              <Point X="90.111" Y="104" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="136" NetClass="0" Locked="N" Enabled="Y">
         <Name>ADC2_RAW</Name>
@@ -9902,7 +11925,32 @@
           <Item Part="133" Pin="1" />
           <Item Part="123" Pin="1" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="131" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="130" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="112" Dir="-1" />
+              <Point X="43.81" Y="112" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="132" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="133" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.19" Y="112" Dir="-1" />
+              <Point X="90.111" Y="112" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="6" Connected1="Pin" Object1="131" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="130" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="112" Dir="-1" />
+              <Point X="43.81" Y="112" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="6" Connected1="Pin" Object1="132" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="133" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.19" Y="112" Dir="-1" />
+              <Point X="90.111" Y="112" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="138" NetClass="0" Locked="N" Enabled="Y">
         <Name>ADC3_RAW</Name>
@@ -9921,7 +11969,32 @@
           <Item Part="137" Pin="1" />
           <Item Part="123" Pin="2" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="135" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="134" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="120" Dir="-1" />
+              <Point X="43.81" Y="120" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="136" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="137" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.19" Y="120" Dir="-1" />
+              <Point X="90.111" Y="120" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="6" Connected1="Pin" Object1="135" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="134" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="120" Dir="-1" />
+              <Point X="43.81" Y="120" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="6" Connected1="Pin" Object1="136" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="137" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.19" Y="120" Dir="-1" />
+              <Point X="90.111" Y="120" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="140" NetClass="0" Locked="N" Enabled="Y">
         <Name>ADC4_RAW</Name>
@@ -9940,7 +12013,32 @@
           <Item Part="141" Pin="1" />
           <Item Part="123" Pin="3" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="139" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="138" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="128" Dir="-1" />
+              <Point X="43.81" Y="128" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="140" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="141" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.19" Y="128" Dir="-1" />
+              <Point X="90.111" Y="128" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="2" Sheet="6" Connected1="Pin" Object1="139" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="138" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="128" Dir="-1" />
+              <Point X="43.81" Y="128" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="3" Sheet="6" Connected1="Pin" Object1="140" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="141" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="50.19" Y="128" Dir="-1" />
+              <Point X="90.111" Y="128" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="142" NetClass="0" Locked="N" Enabled="Y">
         <Name>MON5V_DIV</Name>
@@ -9950,7 +12048,20 @@
           <Item Part="144" Pin="0" />
           <Item Part="123" Pin="4" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="143" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="142" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="136" Dir="-1" />
+              <Point X="43.81" Y="136" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="143" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="142" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="136" Dir="-1" />
+              <Point X="43.81" Y="136" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
       <Net Id="143" NetClass="0" Locked="N" Enabled="Y">
         <Name>MON3V3_DIV</Name>
@@ -9960,7 +12071,20 @@
           <Item Part="147" Pin="0" />
           <Item Part="123" Pin="5" />
         </Pins>
-        <Wires />
+        <Wires>
+          <Wire Id="0" Sheet="6" Connected1="Pin" Object1="146" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="145" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="144" Dir="-1" />
+              <Point X="43.81" Y="144" Dir="0" />
+            </Points>
+          </Wire>
+          <Wire Id="1" Sheet="6" Connected1="Pin" Object1="146" SubObject1="0" Bus1="-1" Connected2="Pin" Object2="145" SubObject2="1" Bus2="-1" HiddenPower="N" CanUnhide="N" Arrows="None" Group="-1" Selected="N">
+            <Points>
+              <Point X="43.19" Y="144" Dir="-1" />
+              <Point X="43.81" Y="144" Dir="0" />
+            </Points>
+          </Wire>
+        </Wires>
       </Net>
     </Nets>
     <Shapes>
@@ -10030,7 +12154,5 @@
       </OptionsTransient>
       <GndNetName />
     </Simulator>
-    <DifferentialPairs />
-    <Buses />
   </Schematic>
 </Source>
