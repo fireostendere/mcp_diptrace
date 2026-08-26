@@ -1,6 +1,6 @@
 # PCB build handoff — DUT Controller Rev.A
 
-Status: `SCHEMATIC_ERC0 · PCB_PLACED · USB_ROUTED · POURS+SILK_DONE · REST_ROUTING_PENDING`
+Status: `NATIVE_OPEN_OK · SCHEMATIC_ERC0 · PCB_PARTIAL_ROUTE · NATIVE_DRC_128`
 Updated: 2026-08-26
 Input schematic SHA-256: `cf74ced24bb89357d8783de0c7ae151e44eb45278371f3441dec976f6e867769`
 Current board SHA-256: see last commit of `dut-controller-reva-pcb.dipxml`
@@ -88,3 +88,26 @@ D10 to the receptacle side).
 - Root-caused & fixed CLI dangling-else that wiped routed traces after runs.
 - Component relocations to clear corridors: C1-C4, U5/U6, U19/U20, D9/D10,
   RSH_USB2, R70, C16/C17, C20/C21.
+
+
+## Native verification (2026-08-26)
+
+| Check | File | Result |
+|---|---|---|
+| Schematic roundtrip | dut-controller-reva-native.dchxml | **PASS** (ok=true, sha changed = native save clean) |
+| PCB open+save | dut-controller-reva-native.dipxml | **PASS** (sha changed = loaded & saved natively) |
+| PCB native DRC | dut-controller-reva-native.dipxml | **128 findings** — 105 pad-pad (fine-pitch MSOP/TSSOP + PhotoMOS density), 14 pour clr, 8 drill, 1 empty |
+
+### Root cause of original hang
+
+`build_schematic_document()` scaffold produces a minimal XML skeleton that
+DipTrace 5.3 cannot parse (missing Settings/Categories/Simulator/Terminals/
+BorderZones sections). Fix: `scripts/nativeize_reva.py` transplants generated
+content into proven-native templates (i2c-level-shifter-module.dchxml for
+schematic, attiny85-pcb.dipxml for board).
+
+### Remaining DRC classes (Rev.A known)
+
+- TS5A23157 MSOP-10 @0.5 mm pitch ×4 (U11–U16): EasyEDA copper exceeds 0.13 mm rule; needs custom pad or fine-pitch fab note
+- PhotoMOS TLP176A row spacing: increase row pitch to ≥9 mm or use narrower variant
+- Pour clearance: isolated 0.09–0.15 mm gaps vs 0.13 rule (marginal)
