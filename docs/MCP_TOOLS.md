@@ -2,7 +2,7 @@
 
 ## Public contract
 
-DipTrace MCP currently exposes **167 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
+DipTrace MCP currently exposes **170 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
 
 `reference/mcp-tools-list.snapshot.json`
 
