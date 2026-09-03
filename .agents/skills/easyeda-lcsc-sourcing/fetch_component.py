@@ -23,6 +23,15 @@ CODE_RE = re.compile(r"lcsc\.com/product-detail/(C[0-9]{4,8})\.html")
 SVG_RE = re.compile(r"component_svgs/prod/([a-f0-9]{32})")
 
 
+def validate_requested_part(requested: str, result: dict) -> None:
+    """Reject search results that silently resolve to a different MPN."""
+    if re.fullmatch(r"C[0-9]{4,8}", requested):
+        return
+    actual = str(result.get("title") or "").strip()
+    if actual.casefold() != requested.strip().casefold():
+        raise SystemExit(f"MPN mismatch: requested {requested!r}, EasyEDA returned {actual!r}")
+
+
 def curl(url: str, *, dest: Path | None = None, follow: bool = True) -> str | bytes:
     cmd = ["curl", "-sS", "-m", "40", "-A", UA]
     if follow:
@@ -104,8 +113,9 @@ def main() -> None:
     payload, pdf_url = pick_component_json(code)
 
     json_path = args.out / f"{code}.json"
-    json_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     result = payload["result"]
+    validate_requested_part(args.part, result)
+    json_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     pins = sum(1 for s in result["dataStr"]["shape"] if s.startswith("P~"))
     pads = sum(
         1

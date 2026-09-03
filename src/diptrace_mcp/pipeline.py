@@ -7,15 +7,14 @@ scripts/render_board_svg.py and the Rev.A builder.
 
 from __future__ import annotations
 
+import copy
 import json
-import math
 import re
 import subprocess
-import sys
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # 1. LCSC/EasyEDA component sourcing
@@ -34,7 +33,7 @@ def lcsc_fetch(mpn_or_code: str, output_dir: str) -> dict[str, Any]:
         if m:
             code = m.group(1)
         else:
-            code = _jlc_search(query)
+            code = _jlc_search(query) or ""
             if not code:
                 raise ValueError(f"Cannot resolve {query!r} to an LCSC code")
     else:
@@ -47,7 +46,6 @@ def lcsc_fetch(mpn_or_code: str, output_dir: str) -> dict[str, Any]:
 
     # EasyEDA API: pick combined doc (has packageDetail)
     payload = None
-    import time
     for uuid in uuids:
         raw = _curl(f"https://easyeda.com/api/components/{uuid}")
         try:
@@ -88,29 +86,41 @@ def lcsc_fetch(mpn_or_code: str, output_dir: str) -> dict[str, Any]:
 
 
 def _curl(url: str) -> str:
-    r = subprocess.run(["curl", "-sS", "-L", "-m", "40", "-A", "Mozilla/5.0",
-                        "--", url], capture_output=True, text=True, check=True)
+    r = subprocess.run(
+        ["curl", "-sS", "-L", "-m", "40", "-A", "Mozilla/5.0", "--", url],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return r.stdout
 
 
 def _download(url: str, dest: Path) -> None:
-    subprocess.run(["curl", "-sS", "-L", "-m", "60", "-A", "Mozilla/5.0",
-                    "-o", str(dest), "--", url], check=True)
+    subprocess.run(
+        ["curl", "-sS", "-L", "-m", "60", "-A", "Mozilla/5.0", "-o", str(dest), "--", url],
+        check=True,
+    )
 
 
 def _jlc_search(query: str) -> str | None:
     body = json.dumps({"keyword": query, "currentPage": 1, "pageSize": 3})
     try:
         raw = subprocess.run(
-            ["curl", "-sS", "-m", "25", "-X", "POST",
-             "https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList",
-             "-H", "Content-Type: application/json", "-d", body],
-            capture_output=True, text=True, timeout=30,
+            [
+                "curl", "-sS", "-m", "25", "-X", "POST",
+                "https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList",
+                "-H", "Content-Type: application/json", "-d", body,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         items = json.loads(raw.stdout)["data"]["componentPageInfo"]["list"] or []
         for it in items:
-            if (it.get("componentModelEn") or "").upper() == query.upper():
-                return it.get("componentCode")
+            model = str(it.get("componentModelEn") or "").upper()
+            if model == query.upper():
+                val = it.get("componentCode")
+                return str(val) if val is not None else None
     except Exception:
         pass
     return None
@@ -155,8 +165,13 @@ def nativeize_document(input_path: str, template_path: str, output_path: str) ->
 
     ET.indent(tpl, space="  ")
     dst.write_bytes(ET.tostring(tpl, encoding="utf-8", xml_declaration=True))
-    return {"ok": True, "input": str(src), "template": str(tpl_p),
-            "output": str(dst), "kind": kind}
+    return {
+        "ok": True,
+        "input": str(src),
+        "template": str(tpl_p),
+        "output": str(dst),
+        "kind": kind,
+    }
 
 
 def _detect_kind(path: Path) -> str:
@@ -171,88 +186,114 @@ def _detect_kind(path: Path) -> str:
 
 def _graft_schematic(tpl: ET.Element, mine: ET.Element) -> None:
     tlib = tpl.find("./Library")
+    if tlib is None:
+        return
     mlib = mine.find("./Library")
     plib_t = tlib.find("./Library")
     plib_m = mlib.find("./Library") if mlib is not None else None
-    for tag in ("PadStyles", "Patterns"):
-        holder = plib_t.find(tag)
-        if holder is not None:
-            for c in list(holder):
-                holder.remove(c)
-        if plib_m is not None:
-            src_el = plib_m.find(tag)
-            if src_el is not None:
-                for c in src_el:
-                    holder.append(copy.deepcopy(c))
+    if plib_t is not None:
+        for tag in ("PadStyles", "Patterns"):
+            holder = plib_t.find(tag)
+            if holder is not None:
+                for c in list(holder):
+                    holder.remove(c)
+                if plib_m is not None:
+                    src_el = plib_m.find(tag)
+                    if src_el is not None:
+                        for c in src_el:
+                            holder.append(copy.deepcopy(c))
     comps_t = tlib.find("Components")
-    for c in list(comps_t):
-        comps_t.remove(c)
-    for c in (mlib.findall("./Components/Component") if mlib is not None else []):
-        comps_t.append(copy.deepcopy(c))
+    if comps_t is not None:
+        for c in list(comps_t):
+            comps_t.remove(c)
+        if mlib is not None:
+            for c in mlib.findall("./Components/Component"):
+                comps_t.append(copy.deepcopy(c))
 
     sch_t = tpl.find("./Schematic")
     sch_m = mine.find("./Schematic")
+    if sch_t is None or sch_m is None:
+        return
     comps_ct = sch_t.find("./Components")
-    for c in list(comps_ct):
-        comps_ct.remove(c)
-    for p in sch_m.find("./Components"):
-        comps_ct.append(copy.deepcopy(p))
+    sch_m_comps = sch_m.find("./Components")
+    if comps_ct is not None and sch_m_comps is not None:
+        for c in list(comps_ct):
+            comps_ct.remove(c)
+        for p in sch_m_comps:
+            comps_ct.append(copy.deepcopy(p))
+
     nets_t = sch_t.find("./Nets")
+    mnets = sch_m.find("./Nets")
     if nets_t is not None:
         for n in list(nets_t):
             nets_t.remove(n)
-    mnets = sch_m.find("./Nets")
-    if mnets is not None:
-        for n in mnets:
-            nets_t.append(copy.deepcopy(n))
+        if mnets is not None:
+            for n in mnets:
+                nets_t.append(copy.deepcopy(n))
 
 
 def _graft_pcb(tpl: ET.Element, mine: ET.Element) -> None:
     tboard = tpl.find("./Board")
     mboard = mine.find("./Board")
+    if tboard is None or mboard is None:
+        return
 
     # outline
     tout = tboard.find("./BoardOutline/Points")
     minel = mboard.find("./BoardOutline/Points")
-    for c in list(tout):
-        tout.remove(c)
-    for p_ in minel:
-        tout.append(copy.deepcopy(p_))
+    if tout is not None and minel is not None:
+        for c in list(tout):
+            tout.remove(c)
+        for p_ in minel:
+            tout.append(copy.deepcopy(p_))
 
     # library patterns/pad styles
-    def get_lib(el):
+    def get_lib(el: ET.Element) -> tuple[ET.Element | None, ET.Element | None]:
         sub = el.find("./Library/Library")
-        return (sub.find("PadStyles") if sub is not None else None,
-                sub.find("Patterns") if sub is not None else None)
+        if sub is None:
+            return None, None
+        return sub.find("PadStyles"), sub.find("Patterns")
+
     tp, tpat = get_lib(tpl)
     mp, mpat = get_lib(mine)
     for h in (tp, tpat):
         if h is not None:
-            for c in list(h): h.remove(c)
+            for c in list(h):
+                h.remove(c)
     for h_src, h_dst in ((mp, tp), (mpat, tpat)):
         if h_src is not None and h_dst is not None:
-            for c in h_src: h_dst.append(copy.deepcopy(c))
+            for c in h_src:
+                h_dst.append(copy.deepcopy(c))
 
-    # components / nets / pours / ratlines / shapes
+    # components / ratlines
     for tag in ("Components", "Ratlines"):
         th = tboard.find(tag)
         mh = mboard.find(tag)
         if th is not None:
-            for c in list(th): th.remove(c)
-        if mh is not None:
-            for c in mh: th.append(copy.deepcopy(c))
+            for c in list(th):
+                th.remove(c)
+            if mh is not None:
+                for c in mh:
+                    th.append(copy.deepcopy(c))
+
     tnets = tboard.find("Nets")
-    for n in list(tnets): tnets.remove(n)
     mnets = mboard.find("Nets")
-    if mnets is not None:
-        for n in mnets: tnets.append(copy.deepcopy(n))
+    if tnets is not None:
+        for n in list(tnets):
+            tnets.remove(n)
+        if mnets is not None:
+            for n in mnets:
+                tnets.append(copy.deepcopy(n))
+
     for tag in ("CopperPours", "Shapes"):
         th = tboard.find(tag)
         mh = mboard.find(tag)
         if th is not None:
-            for c in list(th): th.remove(c)
-        if mh is not None:
-            for c in mh: th.append(copy.deepcopy(c))
+            for c in list(th):
+                th.remove(c)
+            if mh is not None:
+                for c in mh:
+                    th.append(copy.deepcopy(c))
 
 
 # ---------------------------------------------------------------------------
@@ -263,83 +304,129 @@ def render_board_svg(pcb_path: str, output_dir: str) -> dict[str, Any]:
     """Render Top + Bottom SVG previews of the PCB."""
     root = ET.parse(pcb_path).getroot()
     board = root.find("./Board")
-    scale = 12
-    margin_mm = 3
+    if board is None:
+        return {"ok": False, "error": "No Board element found", "files": []}
 
-    outline = [(float(p_.get("X")), float(p_.get("Y")))
-               for p_ in board.find("./BoardOutline/Points")]
-    xs = [p[0] for p in outline]; ys = [p[1] for p in outline]
-    min_x, min_y = min(xs) - margin_mm, min(ys) - margin_mm
-    W = max(xs) - min_x + margin_mm; H = max(ys) - min_y + margin_mm
+    scale = 12.0
+    margin_mm = 3.0
 
-    traces = []
-    vias = []
+    outline_pts = board.find("./BoardOutline/Points")
+    if outline_pts is None:
+        return {"ok": False, "error": "No BoardOutline/Points found", "files": []}
+
+    outline = [
+        (float(p_.get("X", "0")), float(p_.get("Y", "0")))
+        for p_ in outline_pts
+    ]
+    if not outline:
+        return {"ok": False, "error": "Empty outline", "files": []}
+
+    xs = [p[0] for p in outline]
+    ys = [p[1] for p in outline]
+    min_x = min(xs) - margin_mm
+    min_y = min(ys) - margin_mm
+    board_w = max(xs) - min_x + margin_mm
+    board_h = max(ys) - min_y + margin_mm
+
+    traces: list[tuple[str, int, float, list[tuple[float, float]]]] = []
+    vias: list[tuple[float, float]] = []
     for net in board.findall("./Nets/Net"):
         name = net.findtext("./Name") or ""
-        for tr in (net.find("./Traces") or []):
-            run_lay, run_pts = None, []
-            for p_ in tr.find("./Points"):
+        traces_el = net.find("./Traces")
+        if traces_el is None:
+            continue
+        for tr in traces_el:
+            run_lay: int | None = None
+            run_pts: list[tuple[float, float]] = []
+            pts_node = tr.find("./Points")
+            if pts_node is None:
+                continue
+            for p_ in pts_node:
                 lay = int(p_.get("Lay", "0"))
                 w = float(p_.get("Width", "0.25"))
-                xy = (float(p_.get("X")), float(p_.get("Y")))
+                xy = (float(p_.get("X", "0")), float(p_.get("Y", "0")))
                 if p_.get("ViaStyle", "-1") not in ("-1", None):
                     vias.append(xy)
                 if run_lay is None:
                     run_lay = lay
                 elif lay != run_lay:
                     traces.append((name, run_lay, w, run_pts))
-                    run_lay = lay; run_pts = [run_pts[-1]] if run_pts else []
+                    run_lay = lay
+                    run_pts = [run_pts[-1]] if run_pts else []
                 run_pts.append(xy)
-            if len(run_pts) >= 2:
+            if run_lay is not None and len(run_pts) >= 2:
                 traces.append((name, run_lay, w, run_pts))
 
-    pours = [(int(p_.get("Lay", "0")),
-              [(float(q.get("X")), float(q.get("Y"))) for q in p_.find("./Points")])
-             for p_ in board.findall("./CopperPours/CopperPour")]
+    pours: list[tuple[int, list[tuple[float, float]]]] = []
+    for p_ in board.findall("./CopperPours/CopperPour"):
+        pour_lay = int(p_.get("Lay", "0"))
+        pour_pts_el = p_.find("./Points")
+        if pour_pts_el is not None:
+            pts_list = [
+                (float(q.get("X", "0")), float(q.get("Y", "0")))
+                for q in pour_pts_el
+            ]
+            pours.append((pour_lay, pts_list))
 
-    out_dir = Path(output_dir); out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
     stem = Path(pcb_path).stem
-    files = []
+    files: list[str] = []
 
     for side, lay_idx, mirror in (("Top", 0, False), ("Bottom", 1, True)):
-        lines = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W*scale:.0f}" '
-                 f'height="{H*scale:.0f}" viewBox="0 0 {W*scale:.0f} {H*scale:.0f}">',
-                 '<rect width="100%" height="100%" fill="#111"/>',
-                 f'<g transform="translate({margin_mm*scale:.0f},{margin_mm*scale:.0f})">']
+        lines = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{board_w*scale:.0f}" '
+            f'height="{board_h*scale:.0f}" viewBox="0 0 {board_w*scale:.0f} {board_h*scale:.0f}">',
+            '<rect width="100%" height="100%" fill="#111"/>',
+            f'<g transform="translate({margin_mm*scale:.0f},{margin_mm*scale:.0f})">',
+        ]
 
-        def T(x, y):
+        def transform(
+            x: float, y: float, is_mirror: bool = mirror
+        ) -> tuple[float, float]:
             px = (x - min_x) * scale
             py = (y - min_y) * scale
-            if mirror: px = W * scale - px
+            if is_mirror:
+                px = board_w * scale - px
             return px - margin_mm * scale, py - margin_mm * scale
 
-        o = " ".join(f"{px:.1f},{py:.1f}" for px, py in (T(*p) for p in outline))
-        lines.append(f'<polygon points="{o}" fill="#1a1a1a" stroke="#e0e0e0" stroke-width="2"/>')
+        outline_str = " ".join(
+            f"{px:.1f},{py:.1f}" for px, py in (transform(*p) for p in outline)
+        )
+        lines.append(
+            f'<polygon points="{outline_str}" fill="#1a1a1a" stroke="#e0e0e0" stroke-width="2"/>'
+        )
         pour_fill = "#2255cc18" if mirror else "#cc222218"
         copper = "#2255cc" if mirror else "#cc2222"
         for ply, pts in pours:
-            if ply != lay_idx: continue
-            o = " ".join(f"{px:.1f},{py:.1f}" for px, py in (T(*q) for q in pts))
-            lines.append(f'<polygon points="{o}" fill="{pour_fill}"/>')
+            if ply != lay_idx:
+                continue
+            p_str = " ".join(
+                f"{px:.1f},{py:.1f}" for px, py in (transform(*q) for q in pts)
+            )
+            lines.append(f'<polygon points="{p_str}" fill="{pour_fill}"/>')
         for _net, lay, w, pts in traces:
-            if lay != lay_idx: continue
-            d = " ".join(f"{px:.1f},{py:.1f}" for px, py in (T(*q) for q in pts))
-            lines.append(f'<polyline points="{d}" fill="none" stroke="{copper}" '
-                         f'stroke-width="{w*scale:.1f}" stroke-linecap="round"/>')
+            if lay != lay_idx:
+                continue
+            d_str = " ".join(
+                f"{px:.1f},{py:.1f}" for px, py in (transform(*q) for q in pts)
+            )
+            lines.append(
+                f'<polyline points="{d_str}" fill="none" stroke="{copper}" '
+                f'stroke-width="{w*scale:.1f}" stroke-linecap="round"/>'
+            )
         for vx, vy in vias:
-            px, py = T(vx, vy)
-            lines.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="4" fill="none" stroke="#ddd" stroke-width="2"/>')
-        lines.append(f'<text x="10" y="20" font-size="16" fill="#fff">{stem} {side}</text>')
+            px, py = transform(vx, vy)
+            lines.append(
+                f'<circle cx="{px:.1f}" cy="{py:.1f}" r="4" fill="none" '
+                f'stroke="#ddd" stroke-width="2"/>'
+            )
+        lines.append(
+            f'<text x="10" y="20" font-size="16" fill="#fff">{stem} {side}</text>'
+        )
         lines.append("</g></svg>")
         svg_path = out_dir / f"{stem}-{side.lower()}.svg"
         svg_path.write_text("\n".join(lines), encoding="utf-8")
         files.append(str(svg_path))
 
     return {"ok": True, "files": files}
-
-
-# ---------------------------------------------------------------------------
-# helpers
-# ---------------------------------------------------------------------------
-
-import copy  # noqa: E402

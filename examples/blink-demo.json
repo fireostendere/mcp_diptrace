@@ -1,0 +1,29 @@
+{
+  "project": "blink-demo",
+  "description": "Minimal example: ESP32-S3 blinks an LED. Proves the generic pipeline end-to-end.",
+  "version": "0.1.0",
+  "sheets": ["MCU", "POWER"],
+  "components": [
+    {"refdes": "U1", "lcsc_or_builtin": "C2980299", "value": "ESP32-S3-MINI-1U-N8", "sheet": 1, "x": 40, "y": 60},
+    {"refdes": "C1", "lcsc_or_builtin": "std:COMP_C0603", "value": "100nF", "sheet": 1, "x": 20, "y": 50},
+    {"refdes": "R1", "lcsc_or_builtin": "std:COMP_R0603", "value": "10k", "sheet": 1, "x": 55, "y": 40},
+    {"refdes": "LED1", "lcsc_or_builtin": "C2286", "value": "red", "sheet": 1, "x": 60, "y": 70},
+    {"refdes": "R2", "lcsc_or_builtin": "std:COMP_R0603", "value": "1k", "sheet": 1, "x": 55, "y": 70},
+    {"refdes": "J1", "lcsc_or_builtin": "C165948", "value": "USB-C", "sheet": 1, "x": 15, "y": 60}
+  ],
+  "nets": {
+    "GND":    [["U1", "1"], ["U1", "2"], ["C1", "2"], ["LED1", "2"]],
+    "+3V3":   [["U1", "3"], ["C1", "1"], ["R1", "1"], ["R2", "1"]],
+    "EN_RC":  [["U1", "45"], ["R1", "2"]],
+    "LED_A":  [["R2", "2"], ["LED1", "1"]]
+  },
+  "board": {
+    "width_mm": 40,
+    "height_mm": 30,
+    "placement": {
+      "U1": [20, 15], "C1": [10, 8], "R1": [30, 8], "LED1": [30, 20], "R2": [25, 20], "J1": [5, 15]
+    },
+    "rotations": {},
+    "routing": { "grid_mm": 0.125, "clearance_mm": 0.13 }
+  }
+}

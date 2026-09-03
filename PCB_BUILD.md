@@ -2,9 +2,18 @@
 
 Status: `NATIVE_OPEN_OK · SCHEMATIC_ERC0 · PCB_PARTIAL_ROUTE · NATIVE_DRC_128`
 Updated: 2026-08-26
-Input schematic SHA-256: `cf74ced24bb89357d8783de0c7ae151e44eb45278371f3441dec976f6e867769`
-Current board SHA-256: see last commit of `dut-controller-reva-pcb.dipxml`
-(`git log -1 --format=%H -- dut-controller-reva-pcb.dipxml`)
+Input schematic SHA-256: `26f5a68666a93102b517d913ea04420049eedc697cee709ca4d02ea8d62c65eb`
+Current board SHA-256: `b8c6b4473b172a980fdbd2d5259b10cfa47fe9ccff306c13c7cf2e211957f5b4`
+Engineering memory: `docs/engineering-memory/dut-controller-reva.md`
+
+Capture a reproducible gate snapshot after each handoff update:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/record_quality_gate_memory.py . \
+  --board dut-controller-reva-pcb.dipxml \
+  --schematic dut-controller-reva.dchxml \
+  --memory docs/engineering-memory/dut-controller-reva.md
+```
 
 Build / iterate commands (exact environment):
 
@@ -12,10 +21,11 @@ Build / iterate commands (exact environment):
 cd /mnt/c/Users/fireo/mcp_diptrace
 # regenerate library + schematic (deterministic)
 PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python scripts/lcsc_library.py
-PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python scripts/build_dut_controller_reva.py
+PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python scripts/revabuild.py
 # placement (idempotent, rebuilds board file)
 PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python scripts/build_dut_controller_reva_pcb.py
-# manual critical routing (USB pairs; idempotent: re-runs placement first)
+# manual critical routing (USB pairs; preserves the placed/routed board)
+# requires the placement stage above to have produced the board once
 PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python scripts/build_dut_controller_reva_pcb.py --manual
 # batched autorouter (needs larger budgets; see notes)
 PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python scripts/build_dut_controller_reva_pcb.py --route usb
@@ -33,7 +43,7 @@ PYTHONHASHSEED=0 PYTHONPATH=src .venv/bin/python scripts/build_dut_controller_re
 | 3. Footprints & pin maps | PASS | positional pin↔pad order enforced in converter; alnum pads renumbered w/ alias JSON; EPAD grid merged |
 | 4. Mechanics/datums | PASS* | connectors on edges; *formal centerline check pending |
 | 5. Critical placement | PARTIAL | module N-side corridor cleared (C1-C4 relocated); ESD/fuse/shunt clusters set |
-| 6. Stackup | PASS | 2-layer default |
+| 6. Stackup | PARTIAL | 2-layer default (pending critical placement completion) |
 | 7. Routing | PARTIAL | CTRL_DP+5 more USB traces applied via --manual; 10 chains fail clearance by ≤0.05–0.3 mm — see "Next actions" |
 | 8. Pours/stitching | PENDING | add_copper_pours GND Top+Bottom after routing completes |
 | 9. Silkscreen | PENDING | plan_silkscreen after pours |

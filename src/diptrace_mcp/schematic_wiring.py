@@ -20,7 +20,6 @@ from __future__ import annotations
 import math
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from pathlib import Path
 
 from diptrace_mcp.xml_document import DipTraceDocument
 
@@ -59,7 +58,7 @@ def compute_endpoints(doc: DipTraceDocument) -> dict[str, list[Endpoint]]:
     style_map = {c.get("ComponentStyle"): c for c in root.findall("./Library/Components/Component")}
     net_names = {n.get("Id", ""): n.findtext("./Name") or ""
                  for n in root.findall("./Schematic/Nets/Net")}
-    result = {v: [] for v in net_names.values()}
+    result: dict[str, list[Endpoint]] = {v: [] for v in net_names.values()}
     for part in root.findall("./Schematic/Components/Part"):
         refdes = part.findtext("./RefDes") or ""
         sheet = int(part.get("Sheet", "0"))
@@ -137,8 +136,6 @@ class SchematicWireBuilder:
 
     def auto_chain(self, net: str, max_len: float = 40.0) -> int:
         """Greedy nearest-neighbour chaining for all same-sheet pins of a net."""
-        import random
-        random.seed(42)
         eps = [e for e in self.endpoints.get(net, [])]
         if len(eps) < 2:
             return 0
@@ -158,7 +155,8 @@ class SchematicWireBuilder:
                 if best_i < 0 or best_d > max_len:
                     break
                 tgt = pool.pop(best_i)
-                mids = [(tgt.x, cur.y)] if abs(tgt.y - cur.y) > 0.01 and abs(tgt.x - cur.x) > 0.01 else []
+                has_mid = abs(tgt.y - cur.y) > 0.01 and abs(tgt.x - cur.x) > 0.01
+                mids = [(tgt.x, cur.y)] if has_mid else []
                 pts = [(cur.x, cur.y)] + [m for m in mids if m != (tgt.x, tgt.y)] + [(tgt.x, tgt.y)]
                 compact = tuple(p for i_, p in enumerate(pts) if i_ == 0 or p != pts[i_ - 1])
                 self._specs.append((net, WireSpec(net, sheet, cur.refdes, cur.pin,
@@ -174,7 +172,7 @@ class SchematicWireBuilder:
         nets_by_name = {(n.findtext("./Name") or "").casefold(): n
                         for n in root.findall("./Schematic/Nets/Net")}
 
-        def ea(side: int, rd: str | None, pn: int | None):
+        def ea(side: int, rd: str | None, pn: int | None) -> dict[str, str]:
             if rd and pn is not None:
                 part = parts_by_ref.get(rd.casefold())
                 pid = part.get("Id", "") if part else "-1"

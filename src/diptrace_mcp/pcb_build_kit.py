@@ -11,19 +11,15 @@ from __future__ import annotations
 
 import os
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
 from pathlib import Path
 
-from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.pcb_design_intent import (
     PCBComponentOverride,
     PCBElectricalConstraints,
     PCBIntentOverrides,
     PCBNetOverride,
 )
-from diptrace_mcp.scaffolding import PcbScaffold, build_pcb_document, default_layers
 from diptrace_mcp.xml_document import DipTraceDocument, RawTreeSnapshot
-
 
 # ---------------------------------------------------------------------------
 # Schematic → PCB helpers
@@ -41,16 +37,17 @@ def strip_schematic_to_physical(schematic: DipTraceDocument,
     root = ET.fromstring(schematic.raw_bytes)
     comps = root.find("./Schematic/Components")
     kept_ids: set[str] = set()
-    for part in list(comps.findall("./Part")):
-        ref = part.findtext("./RefDes") or ""
-        if keep_refdes is not None:
-            if ref not in keep_refdes:
+    if comps is not None:
+        for part in list(comps.findall("./Part")):
+            ref = part.findtext("./RefDes") or ""
+            if keep_refdes is not None:
+                if ref not in keep_refdes:
+                    comps.remove(part)
+                    continue
+            elif any(ref.startswith(p) for p in strip_suffixes):
                 comps.remove(part)
                 continue
-        elif any(ref.startswith(p) for p in strip_suffixes):
-            comps.remove(part)
-            continue
-        kept_ids.add(part.get("Id", ""))
+            kept_ids.add(part.get("Id", ""))
     for net_el in root.findall("./Schematic/Nets/Net"):
         pins = net_el.find("./Pins")
         wires = net_el.find("./Wires")
@@ -80,7 +77,11 @@ def renumber_merged_pads(root: ET.Element, pattern_style: str) -> None:
         if pads is None:
             return
         next_num = max(
-            (int(p.findtext("./Number") or 0) for p in pads if (p.findtext("./Number") or "").isdigit()),
+            (
+                int(p.findtext("./Number") or 0)
+                for p in pads
+                if (p.findtext("./Number") or "").isdigit()
+            ),
             default=6,
         ) + 1
         for pad in pads.findall("Pad"):
@@ -162,6 +163,8 @@ def inject_route_keepout(
     """
     raw = RawTreeSnapshot.capture(document)
     board = document.root.find("./Board")
+    if board is None:
+        raise ValueError("Document has no Board element")
     shapes = board.find("./Shapes")
     if shapes is None:
         shapes = ET.SubElement(board, "Shapes")
@@ -203,6 +206,8 @@ def inject_markings_preset(
     offsets (instead of 3mm auto text that lands on pads)."""
     raw = RawTreeSnapshot.capture(document)
     settings = document.root.find("./Board/Settings")
+    if settings is None:
+        raise ValueError("Document has no Board/Settings element")
     markings = ET.Element("Markings")
     ET.SubElement(markings, "CompRotate").text = "N"
     if font_mm:

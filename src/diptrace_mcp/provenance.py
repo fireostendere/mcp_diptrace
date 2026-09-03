@@ -5,13 +5,10 @@ Sources: attiny85-arduino-clone/set_bom_fields.py, COMPONENT_PROVENANCE.md
 
 from __future__ import annotations
 
-import json
-import textwrap
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.xml_document import DipTraceDocument
 
 
@@ -29,7 +26,6 @@ class BomLine:
 def export_bom(schematic_path: str | Path) -> list[BomLine]:
     """Group BOM records by exact sourcing identity (MPN+value+pattern)."""
     doc = DipTraceDocument.load(Path(schematic_path), 128 * 1024 * 1024)
-    snap = build_snapshot(doc)
     # Use the MCP's own grouping: by refdes dedup on MPN+manufacturer+value+pattern
     groups: dict[tuple[str, str, str, str], BomLine] = {}
     for p in doc.root.findall("./Schematic/Components/Part"):
@@ -37,7 +33,6 @@ def export_bom(schematic_path: str | Path) -> list[BomLine]:
         if refdes.startswith(("PSG", "PWR", "NPI", "NPO")):
             continue
         value = p.findtext("./Value") or ""
-        lib_name = p.findtext("./Name") or ""
         add_fields = {f.findtext("./Name") or "": f.findtext("./Text") or ""
                       for f in p.findall("./AddFields/AddField")}
         mpn = add_fields.get("MPN", "")
@@ -68,9 +63,9 @@ def write_provenance_markdown(lines: list[BomLine], output: Path) -> None:
         "| RefDes | MPN | Manufacturer | Value | Pattern | LCSC | Datasheet |\n"
         "|---|---|---|---|---|---|---|\n"
         + "\n".join(
-            f"| {', '.join(l.refdes)} | {l.mpn} | {l.manufacturer} "
-            f"| {l.value} | {l.pattern} | {l.lcsc} | {l.datasheet} |"
-            for l in lines
+            f"| {', '.join(line.refdes)} | {line.mpn} | {line.manufacturer} "
+            f"| {line.value} | {line.pattern} | {line.lcsc} | {line.datasheet} |"
+            for line in lines
         ) + "\n",
         encoding="utf-8",
     )
@@ -81,18 +76,18 @@ def set_bom_fields(
     fields: dict[str, dict[str, str]],
     expected_sha256: str | None = None,
     dry_run: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """Set custom BOM fields (MPN/LCSC/Manufacturer/Datasheet) on selected
     parts. Wraps SetComponentPropertiesOperation per refdes.
 
     fields: {refdes: {"MPN": "...", "LCSC": "C2845237", ...}}
     """
     from diptrace_mcp.domain import QuerySelector
-    from diptrace_mcp.operations import SetComponentPropertiesOperation
+    from diptrace_mcp.operations import SemanticOperation, SetComponentPropertiesOperation
     from diptrace_mcp.semantic_compiler import apply_semantic_operations
 
     doc = DipTraceDocument.load(Path(schematic_path), 128 * 1024 * 1024)
-    ops = [
+    ops: list[SemanticOperation] = [
         SetComponentPropertiesOperation(
             selector=QuerySelector(refdes=[refdes]),
             fields=kv,

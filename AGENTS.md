@@ -1,5 +1,62 @@
 # Repository instructions
 
+## Knowledge / RAG usage policy
+
+The current DipTrace project and explicit user instructions are the primary
+source of truth for the current editing task.
+
+Use Knowledge MCP / RAG only when external or previously recorded knowledge is
+actually required to decide WHAT the design should contain, HOW something
+should work, or WHICH engineering rule/recommendation applies.
+
+Use RAG when:
+
+- engineering knowledge is missing or uncertain;
+- a datasheet, application note, standard, reference design, or project
+  specification is needed;
+- component-specific requirements are unknown;
+- the task asks WHY or HOW something should be implemented;
+- current project state is insufficient to make a technically correct decision.
+
+Do NOT query RAG when the task can be completed from:
+
+1. the user's current explicit instruction, and
+2. the current DipTrace project/editor state.
+
+In particular, do NOT query RAG for:
+
+- visual rearrangement;
+- moving existing blocks/components;
+- alignment, spacing, grouping, or cosmetic cleanup;
+- changing the visual composition of a sheet;
+- hiding/removing already-understood documentary connections;
+- operations whose desired result is fully specified by the user;
+- verification that can be performed directly through DipTrace MCP.
+
+Examples:
+
+`How should USB D+/D- be routed?` → RAG is appropriate.
+
+`What are the layout requirements for TPS62130?` → RAG is appropriate.
+
+`Which logical interfaces should this system overview contain?` → RAG may be
+appropriate if the current project/specification does not answer it.
+
+`Move these blocks so the sheet looks cleaner.` → Do NOT use RAG.
+
+`Remove the power lines and leave only the logic lines.` → Do NOT use RAG when
+the existing lines can already be identified from the current schematic.
+
+`Move R15 2 mm to the right.` → Do NOT use RAG.
+
+When the user gives an explicit instruction that conflicts with older project
+documentation retrieved from RAG, do not silently override the user with the
+older document. Treat the user's current instruction as the desired edit unless
+doing so would create a technical/safety contradiction that must be surfaced.
+
+Before calling `knowledge_search`, ask internally: "Is there a material fact I
+do not know that is required to perform this task?" If no, do not call RAG.
+
 ## User-taught PCB house rules
 
 Apply these defaults to PCB generation and demonstration media unless the user

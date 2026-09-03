@@ -349,7 +349,7 @@ def build_elixml(
     ET.SubElement(part, "Manufacturer").text = manufacturer
     pins_el = ET.SubElement(part, "Pins")
     for index, pin in enumerate(pins):
-        px, py = pin.x_mm / SCALE_MM, pin.y_mm / SCALE_MM
+        px, py = pin.x_mm, pin.y_mm
         distances = {
             "left": abs(px - bx),
             "right": abs(px - (bx + bw)),
