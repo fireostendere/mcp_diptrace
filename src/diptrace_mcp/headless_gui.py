@@ -318,6 +318,8 @@ class _Win32Api:
         self.user32.GetClassNameW.restype = ctypes.c_int
         self.user32.GetDlgCtrlID.argtypes = [wintypes.HWND]
         self.user32.GetDlgCtrlID.restype = ctypes.c_int
+        self.user32.IsWindow.argtypes = [wintypes.HWND]
+        self.user32.IsWindow.restype = wintypes.BOOL
         self.user32.IsWindowVisible.argtypes = [wintypes.HWND]
         self.user32.IsWindowVisible.restype = wintypes.BOOL
         self.user32.IsWindowEnabled.argtypes = [wintypes.HWND]
@@ -1052,21 +1054,71 @@ def _window_titles(app: Any) -> list[str]:
     return titles
 
 
+def _confirm_shift_origin(window: Any) -> bool:
+    title = str(window.window_text()).replace("&", "").strip().casefold()
+    if title != "shift origin":
+        return False
+    try:
+        children = window.children()
+    except Exception:
+        if not _Win32Api().user32.IsWindow(int(window.handle)):
+            return True
+        raise
+    buttons = []
+    for child in children:
+        with suppress(Exception):
+            label = str(child.window_text()).replace("&", "").strip().casefold()
+            class_name = str(child.class_name()).casefold()
+            if child.control_id() == 1 and label == "ok" and class_name in {"button", "tbutton"}:
+                buttons.append(child)
+    if len(buttons) != 1 or not buttons[0].is_enabled():
+        raise HeadlessGuiError("Shift Origin dialog has no unique enabled OK button")
+    _post_window_message(int(window.handle), _WM_COMMAND, 1, int(buttons[0].handle))
+    return True
+
+
 def _main_window(app: Any, project: Path, timeout_seconds: float) -> Any:
     identifiers = {project.name.casefold(), project.stem.casefold()}
     deadline = time.monotonic() + timeout_seconds
+    stable_handle: int | None = None
+    stable_samples = 0
     while True:
         fallback_handle: int | None = None
+        candidate_handle: int | None = None
         for window in app.windows(visible_only=False, enabled_only=True):
+            title = ""
             with suppress(Exception):
                 title = str(window.window_text()).casefold()
+            if title.replace("&", "").strip() == "shift origin":
+                if window.is_visible():
+                    _confirm_shift_origin(window)
+                continue
+            with suppress(Exception):
                 if any(identifier and identifier in title for identifier in identifiers):
                     fallback_handle = int(window.handle)
                     if window.menu() is not None:
-                        return app.window(handle=fallback_handle)
+                        candidate_handle = fallback_handle
+                        break
+        if candidate_handle is None:
+            stable_handle = None
+            stable_samples = 0
+        elif candidate_handle == stable_handle:
+            stable_samples += 1
+        else:
+            stable_handle = candidate_handle
+            stable_samples = 1
+        if candidate_handle is not None and stable_samples >= 5:
+            candidate = app.window(handle=candidate_handle)
+            try:
+                candidate.wait("exists enabled", timeout=1.0)
+            except Exception:
+                stable_handle = None
+                stable_samples = 0
+            else:
+                return candidate
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            if fallback_handle is not None:
+            if fallback_handle is not None and candidate_handle is None:
                 return app.window(handle=fallback_handle)
             raise HeadlessGuiError(f"DipTrace main window for {project.name!r} was not found")
         time.sleep(min(0.1, remaining))
@@ -1223,6 +1275,7 @@ def _perform_worker_roundtrip(
     pid: int | None = None
     forced = False
     error: str | None = None
+    stage = "launch"
     try:
         command = subprocess.list2cmdline([str(request.executable), str(request.project)])
         app = application_class(backend="win32").start(
@@ -1230,11 +1283,14 @@ def _perform_worker_roundtrip(
             timeout=request.timeout_seconds,
         )
         pid = int(app.process)
+        stage = "find_main_window"
         window = _main_window(app, request.project, request.timeout_seconds)
-        window.wait("exists enabled", timeout=request.timeout_seconds)
+        stage = "save"
         _save_window(window, request.save_menu)
         # Both messages target the same GUI queue, so WM_CLOSE cannot overtake Save.
+        stage = "close"
         _post_window_message(int(window.handle), _WM_CLOSE)
+        stage = "wait_for_exit"
         try:
             app.wait_for_process_exit(timeout=min(10.0, request.timeout_seconds))
         except Exception as exc:
@@ -1243,7 +1299,7 @@ def _perform_worker_roundtrip(
     except Exception as exc:
         titles = _window_titles(app) if app is not None else []
         suffix = f"; open windows: {titles!r}" if titles else ""
-        error = f"{type(exc).__name__}: {exc}{suffix}"
+        error = f"{stage}: {type(exc).__name__}: {exc}{suffix}"
         if app is not None:
             with suppress(Exception):
                 forced = True

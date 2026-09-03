@@ -470,7 +470,110 @@ def test_main_window_prefers_hidden_project_form_with_native_menu(
 
     assert window is specification
     assert specification.waited is True
-    assert app.calls == 2
+    assert app.calls >= 2
+
+
+def test_main_window_confirms_only_known_shift_origin_dialog(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages: list[tuple[int, int, int, int]] = []
+
+    class Button:
+        handle = 8
+
+        def window_text(self) -> str:
+            return "&OK"
+
+        def class_name(self) -> str:
+            return "TButton"
+
+        def control_id(self) -> int:
+            return 1
+
+        def is_enabled(self) -> bool:
+            return True
+
+    class Window:
+        def __init__(
+            self,
+            handle: int,
+            title: str,
+            menu: object | None = None,
+            *,
+            visible: bool = True,
+        ) -> None:
+            self.handle = handle
+            self.title = title
+            self._menu = menu
+            self._visible = visible
+
+        def window_text(self) -> str:
+            return self.title
+
+        def children(self) -> list[Button]:
+            return [Button()] if self.title == "Shift Origin" else []
+
+        def is_visible(self) -> bool:
+            return self._visible
+
+        def menu(self) -> object | None:
+            return self._menu
+
+    dialog = Window(7, "Shift Origin")
+    hidden_dialog = Window(6, "Shift Origin", visible=False)
+    main = Window(9, "Schematics - board.dchxml", object())
+
+    class Specification:
+        def wait(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+    specification = Specification()
+
+    class App:
+        calls = 0
+
+        def windows(self, **_kwargs: object) -> list[Window]:
+            self.calls += 1
+            return [hidden_dialog, dialog] if self.calls == 1 else [main]
+
+        def window(self, *, handle: int) -> Specification:
+            assert handle == 9
+            return specification
+
+    monkeypatch.setattr(
+        headless_gui,
+        "_post_window_message",
+        lambda *message: messages.append(message),
+    )
+    monkeypatch.setattr(headless_gui.time, "sleep", lambda _seconds: None)
+
+    assert headless_gui._main_window(App(), Path("board.dchxml"), 1) is specification
+    assert messages == [(7, headless_gui._WM_COMMAND, 1, 8)]
+
+
+def test_shift_origin_ignores_only_a_destroyed_dialog(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Window:
+        handle = 7
+
+        def window_text(self) -> str:
+            return "Shift Origin"
+
+        def children(self) -> list[object]:
+            raise RuntimeError("stale handle")
+
+    class User32:
+        def IsWindow(self, handle: int) -> bool:
+            assert handle == 7
+            return False
+
+    class Api:
+        user32 = User32()
+
+    monkeypatch.setattr(headless_gui, "_Win32Api", Api)
+
+    assert headless_gui._confirm_shift_origin(Window()) is True
 
 
 def test_save_window_falls_back_to_owner_drawn_file_save_item(

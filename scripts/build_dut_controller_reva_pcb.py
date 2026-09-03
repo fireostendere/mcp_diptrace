@@ -641,6 +641,10 @@ def _pad_index(snapshot):
 
 
 def manual_route() -> None:
+    if not BOARD_PATH.is_file():
+        raise SystemExit(
+            "manual_route: placed board is missing; run the placement stage first"
+        )
     doc = DipTraceDocument.load(BOARD_PATH, 256 * 1024 * 1024)
     snap = build_snapshot(doc)
 
@@ -791,7 +795,7 @@ if __name__ == "__main__":
     elif argv[:2] == ["--route-one"]:
         route_one(argv[2])
     elif argv[:1] == ["--manual"]:
-        main()
+        # Resume the current artifact; placement is an explicit no-argument stage.
         manual_route()
     elif argv[:2] == ["--route"]:
         route_batch(argv[2])
@@ -799,5 +803,3 @@ if __name__ == "__main__":
         main()
     else:
         raise SystemExit(f"unknown args: {argv}")
-
-

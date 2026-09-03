@@ -1,0 +1,13 @@
+{
+  "schema_version": "diptrace-document-provenance-v1",
+  "provenance": "mcp_modified_from_synthetic_parser_only",
+  "validation_level": "synthetic_operation_fixture",
+  "current_document_sha256": "26f5a68666a93102b517d913ea04420049eedc697cee709ca4d02ea8d62c65eb",
+  "seed_sha256": "bb34fca9fb7e6ee9108b77d84be5bd101df9ec32c987e91d8c23a00b5295dd7e",
+  "parent_validation_level": "synthetic_parser_only",
+  "authority": "runtime",
+  "evidence_manifest_path": null,
+  "evidence_manifest_sha256": null,
+  "trusted_registry_entry_id": null,
+  "last_modified_by": "mcp_apply_xml_edits"
+}

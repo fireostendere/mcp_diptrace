@@ -63,4 +63,10 @@ reference/diptrace-xml/sources/*.pdf
 .dedupe_debug.jsonl
 .trace2_*.json
 .attiny85-arduino-clone-pcb-*.dipxml*
+.dut-controller-reva-*.dipxml*
+.*.dipxml
 *.dipxmlbak
+:memory:.ses
+*.ses
+vendor/*.pdf
+~*
