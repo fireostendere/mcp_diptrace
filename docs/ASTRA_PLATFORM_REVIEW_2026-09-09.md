@@ -60,8 +60,9 @@ neither footprint data nor explicit numbers were available.
 Connected pins now require exact embedded-cache bindings or caller-supplied
 `pin_map` entries. The cache resolver uses ComponentStyle/ComponentPart, validates
 pin counts and actual PadId/PadNumber pairs, and supports section-local indices
-for multi-unit components. Missing or ambiguous evidence does not fall back to
-pin order. Existing explicit mappings and guarded transactions remain available.
+for multi-unit components. Literal cache-key lookup rejects malformed, Unicode
+and oversized index strings without integer coercion. Missing or ambiguous
+evidence does not fall back to pin order. Existing explicit mappings and guarded transactions remain available.
 
 **Compatibility change:** older callers relying on implicit positional mapping
 must provide a reviewed `pin_map`. See `DEVELOPMENT.md` for a synthetic example.
@@ -176,8 +177,8 @@ redundant logic and stale instructions instead of replacing it with abstractions
 Executed locally on Linux with CPython 3.13.5 and the declared dev/geometry
 dependencies (including the Shapely/GEOS backend):
 
-- Complete regression: **1615 passed, 6 skipped** in 71.19 seconds. This adds
-  **45 passing regression cases** against the original baseline. The six skips
+- Complete regression: **1619 passed, 6 skipped** in 67.83 seconds. This adds
+  **49 passing regression cases** against the original baseline. The six skips
   require native Windows Job Objects, desktop objects, PID/path semantics or
   PowerShell; none is counted as a pass.
 - Global Ruff check passed across `src`, `tests`, `benchmarks`, `scripts` and

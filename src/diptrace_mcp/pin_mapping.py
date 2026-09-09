@@ -1,7 +1,6 @@
 """Resolve explicit cached symbol-pin/footprint-pad bindings, never pin order guesses."""
 from __future__ import annotations
 
-import re
 import xml.etree.ElementTree as ET
 from collections import Counter
 
@@ -58,7 +57,16 @@ def schematic_pin_pad_numbers(document: DipTraceDocument) -> dict[tuple[str, int
     if len(libraries) != 1:
         return {}
     library = libraries[0]
-    components = library.findall("./Components/Component")
+    # Literal identities avoid coercing Unicode digits or oversized integers
+    # from untrusted XML into apparently valid native cache indices.
+    sections_by_style = {
+        f"CompType{index}": {
+            str(section_index): section
+            for section_index, section in enumerate(component.findall("./Part"))
+        }
+        for index, component in enumerate(library.findall("./Components/Component"))
+        if component.get("Id", str(index)) == str(index)
+    }
     patterns: dict[str, list[ET.Element]] = {}
     for pattern in library.findall(
         "./Library[@Type='DipTrace-PatternLibrary']/Patterns/Pattern"
@@ -69,20 +77,13 @@ def schematic_pin_pad_numbers(document: DipTraceDocument) -> dict[tuple[str, int
     result: dict[tuple[str, int], str] = {}
     for part in parts:
         identity = part.get("Id", "")
-        match = re.fullmatch(r"CompType(\d+)", part.get("ComponentStyle", ""))
-        section_text = part.get("ComponentPart", "")
-        if not identity or id_counts[identity] != 1 or match is None or not section_text.isdigit():
+        if not identity or id_counts[identity] != 1:
             continue
-        component_index, section_index = int(match[1]), int(section_text)
-        if component_index >= len(components):
+        section = sections_by_style.get(part.get("ComponentStyle", ""), {}).get(
+            part.get("ComponentPart", "")
+        )
+        if section is None:
             continue
-        component = components[component_index]
-        if component.get("Id", str(component_index)) != str(component_index):
-            continue
-        sections = component.findall("./Part")
-        if section_index >= len(sections):
-            continue
-        section = sections[section_index]
         if len(section.findall("./Pins/Pin")) != len(part.findall("./Pins/Pin")):
             continue
         attachment = section.find("./Pattern")

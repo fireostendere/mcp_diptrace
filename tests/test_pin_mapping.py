@@ -147,9 +147,18 @@ def test_sync_uses_verified_cache_without_manual_mapping() -> None:
     assert plan.operation.nets[1].endpoints[0].pad_number == "2"
 
 
-@pytest.mark.parametrize("attribute,value", [("ComponentStyle", "CompType999"),
-                                            ("ComponentPart", "999"),
-                                            ("ComponentPart", "-1")])
+@pytest.mark.parametrize(
+    "attribute,value",
+    [
+        ("ComponentStyle", "CompType999"),
+        ("ComponentPart", "999"),
+        ("ComponentPart", "-1"),
+        pytest.param("ComponentPart", "²", id="non-decimal-digit"),
+        pytest.param("ComponentPart", "٠", id="non-native-digit"),
+        pytest.param("ComponentPart", "9" * 5000, id="oversized-section"),
+        pytest.param("ComponentStyle", "CompType" + "9" * 5000, id="oversized-style"),
+    ],
+)
 def test_invalid_cache_binding_is_not_guessed(attribute: str, value: str) -> None:
     roots = _pair()
     part = roots[0].find("./Schematic/Components/Part")
