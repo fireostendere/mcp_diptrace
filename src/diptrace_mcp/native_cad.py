@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import hashlib
 import json
 import os
 import subprocess
@@ -188,6 +189,46 @@ def _click_caption(window: Any, caption: str) -> None:
     _post_window_message(int(matches[0]["handle"]), 0x00F5)  # BM_CLICK, no input desktop
 
 
+def _set_checked(window: Any, caption: str, checked: bool) -> None:
+    matches = [
+        item
+        for item in _controls(window)
+        if str(item["title"]).replace("&", "").strip() == caption
+        and item["visible"]
+        and item["enabled"]
+    ]
+    if len(matches) != 1:
+        raise HeadlessGuiError(f"Native checkbox is not unique: {caption}")
+    hwnd = int(matches[0]["handle"])
+    api = _Win32Api()
+    if int(api.user32.SendMessageW(hwnd, 0x00F0, 0, 0)) != int(checked):
+        _post_window_message(hwnd, 0x00F5)
+    deadline = time.monotonic() + 3
+    while int(api.user32.SendMessageW(hwnd, 0x00F0, 0, 0)) != int(checked):
+        if time.monotonic() >= deadline:
+            raise HeadlessGuiError(f"Native checkbox state did not change: {caption}")
+        time.sleep(0.05)
+
+
+def _drc_bitmap_status(image: Any, dialog_class: str) -> str:
+    # Exact message-glyph fingerprint, observed in two independent runs of
+    # DipTrace 5.3.0.3 EN / Win32 96-DPI. This is not OCR or a class-name heuristic.
+    # Different DPI/font/text must stay unknown. Full-window evidence is retained.
+    if dialog_class != "TFMyMessage" or image.size != (306, 117):
+        return "visual_review_required"
+    body = image.crop((8, 30, image.width - 8, image.height - 42)).convert("L")
+    pixels = body.point(lambda value: 255 if value < 128 else 0)
+    box = pixels.getbbox()
+    if box is None:
+        return "visual_review_required"
+    glyphs = pixels.crop(box)
+    if glyphs.size == (84, 10) and hashlib.sha256(glyphs.tobytes()).hexdigest() == (
+        "8c8fc31460a31b05a3a51824dd3d11b03a2847c21095eddbe317b65eef2ee5f1"
+    ):
+        return "pass"
+    return "visual_review_required"
+
+
 def _acknowledge_startup(app: Any, output: Path) -> None:
     # A private desktop may start with a graphics-backend warning. Record it;
     # acknowledging on a disposable copy cannot certify a successfully loaded design.
@@ -257,8 +298,11 @@ def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[
     dialog = _dialog(app, timeout, "TExpForm")
     _dump(output / "gerber-controls.json", {"controls": _controls(dialog)})
     _capture(dialog, output / "gerber-dialog.png")
-    _click_caption(dialog, "Metric")
-    _click_caption(dialog, "Export All")
+    _set_checked(dialog, "Metric", True)
+    _set_checked(dialog, "Use Design Origin", True)
+    _set_checked(dialog, "Mirror", False)
+    _capture(dialog, output / "gerber-settings.png")
+    _click_caption(dialog, "Export All...")
     popup = _dialog(app, timeout, "#32768")
     menu = win32gui.SendMessage(popup.handle, 0x01E1, 0, 0)  # MN_GETHMENU
     if not menu or win32gui.GetMenuItemCount(menu) != 3:
@@ -274,7 +318,8 @@ def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[
         "exporter": "DipTrace Gerber X2 + NC Drill ZIP",
         "ui_profile": PROFILE,
         "units_requested": "mm",
-        "origin": "native_export_settings_recorded_in_capture",
+        "origin": "design_origin",
+        "mirror": False,
     }
 
 
@@ -332,7 +377,7 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
                     dialog = _dialog(app, request.timeout_seconds, "TFMyMessage", "TForm60")
                     report["drc_texts"] = _texts(dialog, app)
                     report["drc_dialog_class"] = dialog.class_name()
-                    _capture(dialog, output / "drc.png")
+                    image = _capture(dialog, output / "drc.png")
                     report["drc_status"] = (
                         "pass"
                         if any(
@@ -341,8 +386,9 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
                         )
                         else "fail"
                         if dialog.class_name() == "TForm60"
-                        else "visual_review_required"
+                        else _drc_bitmap_status(image, dialog.class_name())
                     )
+                    report["drc_recognition"] = "text_or_version_bound_message_bitmap"
                     _post_window_message(dialog.handle, 0x0010)
                 _save_as(app, window, reexport, request.timeout_seconds, xml=True)
                 if request.export_manufacturing:
