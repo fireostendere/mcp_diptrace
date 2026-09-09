@@ -74,7 +74,14 @@ def _dump(path: Path, value: dict[str, Any]) -> None:
 
 
 def _visible(app: Any, *classes: str) -> list[Any]:
-    return [window for window in app.windows(visible_only=True) if window.class_name() in classes]
+    found: list[Any] = []
+    # Delphi destroys splash/dialog HWNDs while pywinauto enumerates them.
+    with suppress(Exception):
+        for window in app.windows(visible_only=True):
+            with suppress(Exception):
+                if window.class_name() in classes:
+                    found.append(window)
+    return found
 
 
 def _dialog(app: Any, timeout: float, *classes: str) -> Any:
@@ -108,7 +115,7 @@ def _children(hwnd: int) -> list[int]:
 
 
 def _control_info(hwnd: int) -> dict[str, Any]:
-    import win32gui  # type: ignore[import-not-found]
+    import win32gui
 
     return {
         "handle": hwnd,
@@ -129,8 +136,8 @@ def _capture(window: Any, path: Path) -> Any:
     """PrintWindow renders only the owned window, even on a hidden desktop."""
     from ctypes import wintypes
 
-    import win32gui  # type: ignore[import-not-found]
-    import win32ui  # type: ignore[import-not-found]
+    import win32gui
+    import win32ui
     from PIL import Image
 
     left, top, right, bottom = win32gui.GetWindowRect(window.handle)
@@ -144,7 +151,7 @@ def _capture(window: Any, path: Path) -> Any:
     try:
         bitmap.CreateCompatibleBitmap(source_dc, width, height)
         memory_dc.SelectObject(bitmap)
-        windll = ctypes.windll
+        windll = ctypes.__dict__["windll"]
         render = windll.user32.PrintWindow
         render.argtypes = [wintypes.HWND, wintypes.HDC, wintypes.UINT]
         render.restype = wintypes.BOOL
@@ -292,8 +299,18 @@ def _save_filename(dialog: Any, target: Path, *, native_extension: str | None = 
 
 
 def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[str, Any]:
-    import win32gui  # type: ignore[import-not-found]
+    import win32gui
 
+    _post_menu_item(window, window.menu_item("#0->#9->#5"))
+    drill = _dialog(app, min(timeout, 20), "TDrillForm")
+    time.sleep(0.2)
+    _dump(output / "drill-controls.json", {"controls": _controls(drill)})
+    _set_checked(drill, "Metric", True)
+    _set_checked(drill, "Use Design Origin", True)
+    _set_checked(drill, "Mirror", False)
+    _capture(drill, output / "drill-settings.png")
+    _click_caption(drill, "Close")
+    time.sleep(0.2)
     _post_menu_item(window, window.menu_item("#0->#9->#4"))  # observed 5.3.0.3 Export/Gerber X2
     dialog = _dialog(app, timeout, "TExpForm")
     _dump(output / "gerber-controls.json", {"controls": _controls(dialog)})
@@ -307,20 +324,90 @@ def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[
     menu = win32gui.SendMessage(popup.handle, 0x01E1, 0, 0)  # MN_GETHMENU
     if not menu or win32gui.GetMenuItemCount(menu) != 3:
         raise HeadlessGuiError("Unexpected native Export All popup")
-    command = win32gui.GetMenuItemID(menu, 1)  # ZIP: Gerber + NC Drill
-    win32gui.PostMessage(dialog.handle, 0x001F, 0, 0)  # WM_CANCELMODE: dismiss owned popup
-    win32gui.PostMessage(dialog.handle, 0x0111, command, 0)
-    save = _dialog(app, timeout, "#32770")
+    # Select the measured item in the owned popup. Delphi popup menus can use
+    # a hidden menu owner, so posting WM_COMMAND to the form is not equivalent.
+    left, top, right, bottom = win32gui.GetMenuItemRect(int(popup.handle), menu, 1)
+    x, y = win32gui.ScreenToClient(int(popup.handle), ((left + right) // 2, (top + bottom) // 2))
+    coordinates = (x & 0xFFFF) | ((y & 0xFFFF) << 16)
+    _dump(output / "gerber-popup.json", {"menu": int(menu), "rect": [left, top, right, bottom]})
+    _capture(popup, output / "gerber-popup.png")
+    for message, flags in ((0x0200, 0), (0x0201, 1), (0x0202, 0)):
+        _post_window_message(int(popup.handle), message, flags, coordinates)
+    save = _dialog(app, min(timeout, 20), "#32770")
     _save_filename(save, output / "native-fabrication.zip")
     _wait_for_export(app, output / "native-fabrication.zip", timeout)
     _post_window_message(dialog.handle, 0x0010)
+    time.sleep(0.2)
+    _native_placement(app, window, output, timeout)
     return {
+        "assembly_exporter": "DipTrace Pick and Place",
         "exporter": "DipTrace Gerber X2 + NC Drill ZIP",
         "ui_profile": PROFILE,
         "units_requested": "mm",
         "origin": "design_origin",
         "mirror": False,
     }
+
+
+def _combo_items(hwnd: int) -> list[str]:
+    api = _Win32Api()
+    count = int(api.user32.SendMessageW(hwnd, 0x0146, 0, 0))
+    if not 0 < count <= 64:
+        raise HeadlessGuiError("Unexpected native combo size")
+    result = []
+    for index in range(count):
+        length = int(api.user32.SendMessageW(hwnd, 0x0149, index, 0))
+        if not 0 <= length < 1024:
+            raise HeadlessGuiError("Native combo text exceeds the bound")
+        text = ctypes.create_unicode_buffer(length + 1)
+        api.user32.SendMessageW(hwnd, 0x0148, index, ctypes.addressof(text))
+        result.append(text.value)
+    return result
+
+
+def _choose_combo(hwnd: int, index: int) -> None:
+    import win32gui
+
+    api = _Win32Api()
+    api.user32.SendMessageW(hwnd, 0x014E, index, 0)
+    parent, control_id = win32gui.GetParent(hwnd), win32gui.GetDlgCtrlID(hwnd)
+    for notification in (9, 1, 8):
+        _post_window_message(parent, 0x0111, (control_id & 0xFFFF) | (notification << 16), hwnd)
+    if int(api.user32.SendMessageW(hwnd, 0x0147, 0, 0)) != index:
+        raise HeadlessGuiError("Native combo selection did not persist")
+
+
+def _native_placement(app: Any, window: Any, output: Path, timeout: float) -> None:
+    _post_menu_item(window, window.menu_item("#0->#9->#12"))
+    dialog = _dialog(app, min(timeout, 20), "TForm54")
+    time.sleep(0.2)
+    _dump(output / "placement-controls.json", {"controls": _controls(dialog)})
+    _capture(dialog, output / "placement-before.png")
+    _set_checked(dialog, "Use Design Origin", True)
+    _set_checked(dialog, "Mirror", False)
+    selected_units = False
+    for control in _controls(dialog):
+        if control["class"] not in {"TComboBox", "ComboBox"}:
+            continue
+        hwnd = int(control["handle"])
+        options = _combo_items(hwnd)
+        lowered = [name.casefold() for name in options]
+        if "millimeters" in lowered:
+            _choose_combo(hwnd, lowered.index("millimeters"))
+            selected_units = True
+        elif set(lowered) == {"all", "top", "bottom"}:
+            _choose_combo(hwnd, lowered.index("all"))
+        elif set(options) == {".", ","}:
+            _choose_combo(hwnd, options.index("."))
+    if not selected_units:
+        raise HeadlessGuiError("Native placement metric units were not resolved")
+    _capture(dialog, output / "placement-settings.png")
+    _click_caption(dialog, "Export to File")
+    save = _dialog(app, min(timeout, 20), "#32770")
+    time.sleep(0.2)
+    _save_filename(save, output / "native-placement.csv", native_extension=".csv")
+    _wait_for_export(app, output / "native-placement.csv", timeout)
+    _post_window_message(int(dialog.handle), 0x0010)
 
 
 def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
@@ -333,7 +420,7 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
         raise HeadlessGuiError("Unsupported native editor")
     executable_name, xml_extension, binary_extension = EXTENSIONS[source.kind]
     executable = request.diptrace_root / executable_name
-    import win32api  # type: ignore[import-not-found]
+    import win32api
 
     version_info = win32api.GetFileVersionInfo(str(executable), "\\")
     ms, ls = version_info["FileVersionMS"], version_info["FileVersionLS"]
@@ -365,8 +452,16 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
                 subprocess.list2cmdline([str(executable), str(opened)]),
                 timeout=request.timeout_seconds,
             )
-            _acknowledge_startup(app, output)
-            window = _main_window(app, opened, request.timeout_seconds)
+            deadline = time.monotonic() + request.timeout_seconds
+            while True:
+                try:
+                    _acknowledge_startup(app, output)
+                    window = _main_window(app, opened, min(2.0, request.timeout_seconds))
+                    break
+                except Exception:
+                    if time.monotonic() >= deadline:
+                        raise
+                    time.sleep(0.1)
             report["steps"].append({"step": phase, "pid": int(app.process)})
             if phase == "open_save_close":
                 _save_as(app, window, binary, request.timeout_seconds, xml=False)
@@ -477,7 +572,7 @@ def run_native_cad(request: NativeCadRequest) -> dict[str, Any]:
         raise HeadlessGuiError("Native evidence exceeds size limit")
     report = json.loads(result_path.read_text(encoding="utf-8"))
     report["worker_exit_code"] = code
-    report["input_desktop_unchanged"] = input_desktop_name() == before
+    report["input_desktop_unchanged"] = before is not None and input_desktop_name() == before
     report["source_unchanged"] = sha256_bytes(request.source.read_bytes()) == source_sha
     if code != 0 or not report["input_desktop_unchanged"] or not report["source_unchanged"]:
         report["completed"] = False
