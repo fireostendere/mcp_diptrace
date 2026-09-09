@@ -166,7 +166,8 @@ def test_schematic_pcb_comparison_is_structured() -> None:
     assert result["components"]["schematic_count"] == 2
     assert result["components"]["pcb_count"] == 2
     assert result["difference_count"] >= 1
-    assert result["confidence"] == "medium"
+    assert result["confidence"] == "low"
+    assert result["comparison_complete"] is False
 
 
 def test_advanced_service_contract(tmp_path: Path) -> None:

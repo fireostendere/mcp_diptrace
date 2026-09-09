@@ -25,6 +25,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .errors import DocumentError, EditError
+from .pin_mapping import part_pin_pad_numbers
 from .xml_document import DipTraceDocument, RawTreeSnapshot
 
 CollisionPolicy = Literal["error", "keep", "update"]
@@ -672,7 +673,7 @@ def attach_pattern(
 def validate_explicit_pin_pad_mapping(document: DipTraceDocument, component_name: str) -> list[str]:
     """Return deterministic mapping errors for one component.
 
-    This is intentionally strict: every mapped pin must carry both ``PadId`` and
+    This is intentionally strict: every mapped pin must carry ``PadId`` (or ``PadIndex``) and
     ``PadNumber`` and must resolve to the attached embedded pattern.
     """
 
@@ -685,32 +686,17 @@ def validate_explicit_pin_pad_mapping(document: DipTraceDocument, component_name
     if len(matches) != 1:
         return [f"component selector matched {len(matches)} entries"]
     pattern_root = _pattern_library_root(document)
-    patterns = {
-        item.get("PatternStyle", ""): item
-        for item in pattern_root.findall("./Patterns/Pattern")
-        if item.get("PatternStyle")
-    }
+    patterns: dict[str, list[ET.Element]] = {}
+    for item in pattern_root.findall("./Patterns/Pattern"):
+        patterns.setdefault(item.get("PatternStyle", ""), []).append(item)
     errors: list[str] = []
     for part_index, part in enumerate(matches[0].findall("./Part")):
         pattern = part.find("./Pattern")
         style = pattern.get("Style", "") if pattern is not None else ""
-        resolved = patterns.get(style)
-        if resolved is None:
-            errors.append(f"part {part_index}: attached pattern {style!r} is missing")
+        candidates = patterns.get(style, [])
+        if not style or len(candidates) != 1:
+            errors.append(f"part {part_index}: attached pattern {style!r} is missing or ambiguous")
             continue
-        valid_ids = {pad.get("Id", "") for pad in resolved.findall("./Pads/Pad")}
-        valid_numbers = {_child_text(pad, "Number") for pad in resolved.findall("./Pads/Pad")}
-        for pin in part.findall("./Pins/Pin"):
-            pad_id = pin.get("PadId")
-            pad_number = _child_text(pin, "PadNumber")
-            label = _child_text(pin, "Name") or pin.get("Id", "<unknown>")
-            if pad_id is None or not pad_number:
-                errors.append(f"part {part_index} pin {label}: mapping is incomplete")
-                continue
-            if pad_id not in valid_ids:
-                errors.append(f"part {part_index} pin {label}: PadId {pad_id!r} is absent")
-            if pad_number not in valid_numbers:
-                errors.append(
-                    f"part {part_index} pin {label}: PadNumber {pad_number!r} is absent"
-                )
+        _, mapping_errors = part_pin_pad_numbers(part, candidates[0])
+        errors.extend(f"part {part_index}: {message}" for message in mapping_errors)
     return errors

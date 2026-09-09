@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
+import math
 import uuid
 from collections.abc import Callable
 from datetime import datetime
@@ -11,6 +13,7 @@ from typing import Literal
 
 from .adapters import DocumentSnapshot
 from .bom import extract_bom, group_bom
+from .connectivity import build_connectivity_graph
 from .domain import ExportRecord
 from .errors import ObjectNotFoundError
 from .record_ids import (
@@ -24,6 +27,7 @@ from .record_ids import (
     require_record_id,
 )
 from .record_store import RecordStore
+from .release_readiness import run_release_readiness
 from .retention import (
     RetentionCandidate,
     RetentionPolicy,
@@ -38,8 +42,16 @@ ExportType = Literal["bom", "fabrication_manifest", "assembly_manifest", "si_geo
 
 
 def _safe_csv(value: object) -> str:
+    # Coordinates are numbers, not untrusted spreadsheet expressions. Escaping a
+    # negative float corrupts machine-readable placement data.
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError("CSV numeric values must be finite")
+        return str(value)
     rendered = str(value)
-    if rendered.startswith(("=", "+", "-", "@")):
+    if rendered.lstrip().startswith(("=", "+", "-", "@")) or rendered.startswith(
+        ("\t", "\r", "\n")
+    ):
         return f"'{rendered}"
     return rendered
 
@@ -249,7 +261,8 @@ class ExportStore(RecordStore):
                 name,
                 kind="export",
             )
-            payload = path.read_bytes()
+            with path.open("rb") as stream:
+                payload = stream.read(self.max_artifact_bytes + 1)
         except (
             InvalidRecordId,
             InvalidRecordPath,
@@ -260,6 +273,16 @@ class ExportStore(RecordStore):
             ) from exc
         if len(payload) > self.max_artifact_bytes:
             raise ValueError(f"Export artifact exceeds read limit: {name}")
+        if record.manifest.get("schema_version") == 2:
+            if name == "manifest.json":
+                if json.loads(payload) != record.manifest:
+                    raise ValueError("Export manifest integrity check failed")
+            else:
+                inventory = record.manifest.get("artifact_integrity", {})
+                expected = inventory.get(name) if isinstance(inventory, dict) else None
+                actual = {"sha256": hashlib.sha256(payload).hexdigest(), "bytes": len(payload)}
+                if expected != actual:
+                    raise ValueError(f"Export artifact integrity check failed: {name}")
         return payload
 
     def list(self) -> list[ExportRecord]:
@@ -311,9 +334,15 @@ def bom_csv(snapshot: DocumentSnapshot, *, include_dnp: bool = True) -> bytes:
     )
 
 
-def placement_csv(snapshot: DocumentSnapshot) -> bytes:
+def placement_csv(snapshot: DocumentSnapshot, *, include_dnp: bool = True) -> bytes:
     if snapshot.board is None:
         return b""
+    excluded = {
+        object_id
+        for record in extract_bom(snapshot)
+        if record.dnp and not include_dnp
+        for object_id in record.source_object_ids
+    }
     rows = [
         {
             "RefDes": item.refdes or "",
@@ -327,6 +356,7 @@ def placement_csv(snapshot: DocumentSnapshot) -> bytes:
             "GeometryConfidence": item.confidence,
         }
         for item in snapshot.board.components
+        if item.stable_id not in excluded
     ]
     return _csv_bytes(
         rows,
@@ -383,8 +413,47 @@ def create_release_manifest(
         "Placement CSV is generic and must be mapped to the assembler's coordinate convention.",
         "The bundle is a release-review manifest, not fabrication-ready artwork.",
     ]
+    bom = extract_bom(snapshot)
+    included = [record for record in bom if include_dnp or not record.dnp]
+    readiness = run_release_readiness(snapshot)
+    graph = build_connectivity_graph(snapshot)
+    preflight = {
+        "source_sha256": snapshot.info.sha256,
+        "status": (
+            "blocked"
+            if readiness["status"] == "blocked" or graph.unrouted_connections
+            else "manual_review_required"
+        ),
+        "native_acceptance": "not_run",
+        "offline_drc": "not_run",
+        "readiness": readiness,
+        "explicit_unrouted_connections": graph.unrouted_connections,
+        "manual_gates": readiness["manual_gates"],
+        "limitations": [
+            *graph.warnings,
+            "No ratlines does not prove copper continuity or native DRC acceptance.",
+            "Run the registered PCB review separately for geometric/clearance checks.",
+        ],
+    }
     manifest: dict[str, object] = {
+        "schema_version": 2,
         "kind": export_type,
+        "include_dnp": include_dnp,
+        "population": {
+            "total_components": len(bom),
+            "included_components": len(included),
+            "excluded_refdes": sorted(
+                refdes for record in bom if record.dnp and not include_dnp
+                for refdes in record.refdes
+            ),
+        },
+        "placement_convention": {
+            "units": "mm",
+            "origin": "exported_document_origin",
+            "rotation_units": "degrees",
+            "bottom_side_transform": "none; assembler convention requires review",
+        },
+        "preflight_status": preflight["status"],
         "document_id": snapshot.info.document_id,
         "source_type": snapshot.info.source_type,
         "source_version": snapshot.info.version,
@@ -412,14 +481,15 @@ def create_release_manifest(
             "placement.csv",
             "stackup.json",
             "board-geometry.json",
+            "preflight.json",
         ],
         "not_generated": ["gerber", "nc_drill", "odb++", "ipc-2581", "final_pours"],
         "limitations": limitations,
     }
     artifacts = {
-        "manifest.json": json.dumps(manifest, indent=2).encode("utf-8"),
         "bom.csv": bom_csv(snapshot, include_dnp=include_dnp),
-        "placement.csv": placement_csv(snapshot),
+        "placement.csv": placement_csv(snapshot, include_dnp=include_dnp),
+        "preflight.json": json.dumps(preflight, indent=2).encode("utf-8"),
         "stackup.json": json.dumps(
             snapshot.board.stackup.model_dump(mode="json"), indent=2
         ).encode("utf-8"),
@@ -435,6 +505,13 @@ def create_release_manifest(
             indent=2,
         ).encode("utf-8"),
     }
+    # The manifest cannot hash itself; record.json stores the same manifest.
+    # These digests establish byte identity, not a signature or engineering approval.
+    manifest["artifact_integrity"] = {
+        name: {"sha256": hashlib.sha256(payload).hexdigest(), "bytes": len(payload)}
+        for name, payload in sorted(artifacts.items())
+    }
+    artifacts["manifest.json"] = json.dumps(manifest, indent=2).encode("utf-8")
     return store.create(snapshot, export_type, artifacts, manifest, limitations)
 
 

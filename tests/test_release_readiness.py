@@ -40,3 +40,29 @@ def test_release_readiness_is_not_applicable_to_schematic() -> None:
     report = run_release_readiness(snapshot)
     assert report["status"] == "not_applicable"
     assert report["findings"] == []
+
+
+
+def test_readiness_uses_bom_population_and_manufacturer_aliases() -> None:
+    raw = (FIXTURES / "pcb.xml").read_bytes().replace(
+        b"<RefDes>R1</RefDes>",
+        b"<RefDes>R1</RefDes><AddFields><AddField><Name>Populate</Name>"
+        b"<Text>no</Text></AddField></AddFields>",
+    ).replace(
+        b"<RefDes>U1</RefDes>",
+        b"<RefDes>U1</RefDes><AddFields><AddField><Name>mfr</Name>"
+        b"<Text>Synthetic</Text></AddField><AddField><Name>MPN</Name>"
+        b"<Text>TEST-1</Text></AddField></AddFields>",
+    )
+    snapshot = build_snapshot(DipTraceDocument.from_bytes(Path("test.xml"), raw))
+    report = run_release_readiness(snapshot)
+    assert report["metrics"]["populated_components"] == 1
+    assert report["metrics"]["missing_procurement_identity_count"] == 0
+
+
+def test_readiness_blocks_unidentified_assembly_component() -> None:
+    raw = (FIXTURES / "pcb.xml").read_bytes().replace(b"<RefDes>R1</RefDes>", b"<RefDes />")
+    snapshot = build_snapshot(DipTraceDocument.from_bytes(Path("test.xml"), raw))
+    report = run_release_readiness(snapshot)
+    assert report["status"] == "blocked"
+    assert any(item["check_id"] == "release.missing_refdes" for item in report["findings"])

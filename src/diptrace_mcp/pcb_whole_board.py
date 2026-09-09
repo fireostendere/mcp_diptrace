@@ -4,7 +4,6 @@ import difflib
 import hashlib
 import json
 import math
-import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,7 +77,7 @@ class PCBWholeBoardResult:
 
 def _rectangular_outline_box(document: DipTraceDocument) -> BBox | None:
     points = document.container.findall("./BoardOutline/Points/Point")
-    if len(points) != 4:
+    if len(points) != 4 or any(set(point.attrib) - {"X", "Y"} for point in points):
         return None
     coordinates = [
         Point(
@@ -93,6 +92,11 @@ def _rectangular_outline_box(document: DipTraceDocument) -> BBox | None:
     ys = sorted(set(point.y for point in coordinates))
     if len(xs) != 2 or len(ys) != 2:
         return None
+    # Four corner coordinates alone do not prove a rectangle: a bowtie has
+    # the same extrema. Every successive edge must be nonzero and axis-aligned.
+    for first, second in zip(coordinates, coordinates[1:] + coordinates[:1], strict=True):
+        if (first.x == second.x) == (first.y == second.y):
+            return None
     return BBox(xs[0], ys[0], xs[1], ys[1])
 
 
@@ -107,7 +111,13 @@ def compact_rectangular_board_outline(
 
     if document.kind != "pcb":
         raise EditError("Board-outline compaction requires a PCB document")
-    if margin_mm < 0.0 or minimum_width_mm <= 0.0 or minimum_height_mm <= 0.0:
+    dimensions = (margin_mm, minimum_width_mm, minimum_height_mm)
+    if (
+        not all(math.isfinite(value) for value in dimensions)
+        or margin_mm < 0.0
+        or minimum_width_mm <= 0.0
+        or minimum_height_mm <= 0.0
+    ):
         raise EditError("Board-outline compaction dimensions are invalid")
     outline = document.container.find("./BoardOutline")
     before = _rectangular_outline_box(document)
@@ -121,7 +131,14 @@ def compact_rectangular_board_outline(
         + snapshot.board.keepouts
         + snapshot.board.testpoints
         + snapshot.board.traces
+        + snapshot.board.vias
+        + snapshot.board.copper_pours
+        + snapshot.board.texts
     )
+    # Cutouts and unbounded physical objects need a mechanical review, not a
+    # guessed rectangular crop. Existing pours/markings/via annuli also occupy space.
+    if snapshot.board.cutouts or any(item.bbox is None for item in records):
+        return document, False, before.as_dict(), None
     boxes = [BBox(**item.bbox) for item in records if item.bbox is not None]
     if not boxes:
         return document, False, before.as_dict(), before.as_dict()
@@ -140,6 +157,11 @@ def compact_rectangular_board_outline(
         center.x + width / 2.0,
         center.y + height / 2.0,
     )
+    if (
+        after.min_x < before.min_x or after.min_y < before.min_y
+        or after.max_x > before.max_x or after.max_y > before.max_y
+    ):
+        return document, False, before.as_dict(), None
     if all(
         math.isclose(first, second, abs_tol=1e-9)
         for first, second in zip(
@@ -154,25 +176,21 @@ def compact_rectangular_board_outline(
     raw_tree = RawTreeSnapshot.capture(working)
     points = working.container.find("./BoardOutline/Points")
     assert points is not None
-    points.clear()
-
     def unit(value: float) -> str:
         return f"{from_mm(value, working.units):.9g}"
 
-    for point in (
-        Point(after.min_x, after.min_y),
-        Point(after.max_x, after.min_y),
-        Point(after.max_x, after.max_y),
-        Point(after.min_x, after.max_y),
-    ):
-        ET.SubElement(points, "Point", {"X": unit(point.x), "Y": unit(point.y)})
+    # Update existing corners in place: preserve winding, corner order, point
+    # container metadata and raw XML outside the coordinate changes.
+    for point in points.findall("./Point"):
+        x = to_mm(float(point.get("X", "nan")), working.units)
+        y = to_mm(float(point.get("Y", "nan")), working.units)
+        point.set("X", unit(after.min_x if x == before.min_x else after.max_x))
+        point.set("Y", unit(after.min_y if y == before.min_y else after.max_y))
     compiled = raw_tree.compile(working.root, working.path)
-    return (
-        DipTraceDocument.from_bytes(working.path, compiled),
-        True,
-        before.as_dict(),
-        after.as_dict(),
-    )
+    result = DipTraceDocument.from_bytes(working.path, compiled)
+    serialized_box = _rectangular_outline_box(result)
+    assert serialized_box is not None
+    return result, True, before.as_dict(), serialized_box.as_dict()
 
 
 def _ground_name(document: DipTraceDocument, requested: str | None) -> str | None:
@@ -248,8 +266,8 @@ def optimize_pcb_whole_board(
         )
         if outline_after is None:
             warnings.append(
-                "Outline compaction was skipped because the outline is locked or "
-                "not a simple rectangle."
+                "Outline compaction was skipped: locked/unsupported outline, cutouts, "
+                "incomplete occupied bounds, or required expansion needs mechanical review."
             )
 
     ground = _ground_name(working, config.ground_net)

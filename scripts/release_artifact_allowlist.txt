@@ -28,6 +28,7 @@ benchmarks/synthetic_board.py
 docs/ACCEPTANCE_SEED_AUDIT.md
 docs/API_ERRORS.md
 docs/ARCHITECTURE.md
+docs/ASTRA_PLATFORM_REVIEW_2026-09-09.md
 docs/ASYNC_EXECUTION.md
 docs/AUTOMATABLE_ROADMAP_CLOSURE.md
 docs/CINEMATIC_DEMO_MODE.md
@@ -287,6 +288,7 @@ src/diptrace_mcp/pcb_quality.py
 src/diptrace_mcp/pcb_routing_policy.py
 src/diptrace_mcp/pcb_whole_board.py
 src/diptrace_mcp/physics_estimates.py
+src/diptrace_mcp/pin_mapping.py
 src/diptrace_mcp/placement.py
 src/diptrace_mcp/plans.py
 src/diptrace_mcp/policy.py
@@ -466,6 +468,7 @@ tests/test_pcb_quality_gate.py
 tests/test_pcb_routing_policy.py
 tests/test_phase4.py
 tests/test_physics_estimates.py
+tests/test_pin_mapping.py
 tests/test_placement.py
 tests/test_plugin_settings.py
 tests/test_policy.py
