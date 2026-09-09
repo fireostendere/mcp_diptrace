@@ -9,6 +9,7 @@
 .github/workflows/linux-clean-install.yml
 .github/workflows/macos-clean-install.yml
 .github/workflows/mcpb.yml
+.github/workflows/native-platform.yml
 .github/workflows/pypi.yml
 .github/workflows/release.yml
 .github/workflows/windows-installer.yml
@@ -203,6 +204,7 @@ scripts/spec_inventory_integrity.py
 scripts/summarize_pyinstaller_inventory.py
 scripts/summarize_scancode.py
 scripts/sync_skill_scripts.py
+scripts/validate_native_platform.py
 scripts/verify_geometry_backend.py
 skills/README.md
 skills/SOURCES.sha256
@@ -273,6 +275,7 @@ src/diptrace_mcp/library_mutation_api.py
 src/diptrace_mcp/manual_acceptance.py
 src/diptrace_mcp/model_cache.py
 src/diptrace_mcp/multirouter.py
+src/diptrace_mcp/native_cad.py
 src/diptrace_mcp/numeric_inputs.py
 src/diptrace_mcp/operations.py
 src/diptrace_mcp/pattern_recommendation.py
