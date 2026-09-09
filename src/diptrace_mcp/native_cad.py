@@ -31,6 +31,7 @@ from .headless_gui import (
     _save_dialog_as_xml,
     _save_dialog_controls,
     _wait_for_export,
+    _Win32Api,
     input_desktop_name,
     thread_desktop_name,
 )
@@ -87,22 +88,40 @@ def _dialog(app: Any, timeout: float, *classes: str) -> Any:
     raise HeadlessGuiError(f"Expected native dialog did not appear: {classes}")
 
 
+def _children(hwnd: int) -> list[int]:
+    """Enumerate owned HWND children without filtering by the input desktop."""
+    from ctypes import wintypes
+
+    api = _Win32Api()
+    handles: list[int] = []
+    callback_type = ctypes.__dict__["WINFUNCTYPE"](wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def collect(child: int, _data: int) -> bool:
+        if len(handles) >= 512:
+            return False
+        handles.append(int(child))
+        return True
+
+    api.user32.EnumChildWindows(hwnd, callback_type(collect), 0)
+    return handles
+
+
+def _control_info(hwnd: int) -> dict[str, Any]:
+    import win32gui  # type: ignore[import-not-found]
+
+    return {
+        "handle": hwnd,
+        "title": win32gui.GetWindowText(hwnd),
+        "class": win32gui.GetClassName(hwnd),
+        "id": win32gui.GetDlgCtrlID(hwnd),
+        "rect": list(win32gui.GetWindowRect(hwnd)),
+        "visible": bool(win32gui.IsWindowVisible(hwnd)),
+        "enabled": bool(win32gui.IsWindowEnabled(hwnd)),
+    }
+
+
 def _controls(window: Any) -> list[dict[str, Any]]:
-    result = []
-    for control in window.descendants()[:256]:
-        with suppress(Exception):
-            item = {
-                "title": control.window_text(),
-                "class": control.class_name(),
-                "id": control.control_id(),
-                "rect": list(control.rectangle()),
-                "visible": control.is_visible(),
-                "enabled": control.is_enabled(),
-            }
-            if control.class_name() in {"TComboBox", "ComboBox", "TListBox", "ListBox"}:
-                item["items"] = control.texts()
-            result.append(item)
-    return result
+    return [_control_info(hwnd) for hwnd in _children(int(window.handle))]
 
 
 def _capture(window: Any, path: Path) -> Any:
@@ -159,15 +178,28 @@ def _texts(window: Any, app: Any) -> list[str]:
 def _click_caption(window: Any, caption: str) -> None:
     matches = [
         control
-        for control in window.descendants()
-        if control.window_text().replace("&", "").strip().casefold() == caption.casefold()
-        and control.is_visible()
-        and control.is_enabled()
+        for control in _controls(window)
+        if str(control["title"]).replace("&", "").strip().casefold() == caption.casefold()
+        and control["visible"]
+        and control["enabled"]
     ]
     if len(matches) != 1:
         raise HeadlessGuiError(f"Native control not uniquely resolved: {caption}")
-    # click uses WM_* messages; click_input is deliberately never used.
-    matches[0].click()
+    _post_window_message(int(matches[0]["handle"]), 0x00F5)  # BM_CLICK, no input desktop
+
+
+def _acknowledge_startup(app: Any, output: Path) -> None:
+    # A private desktop may start with a graphics-backend warning. Record it;
+    # acknowledging on a disposable copy cannot certify a successfully loaded design.
+    time.sleep(1.0)
+    for index, dialog in enumerate(_visible(app, "TFMyMessage")):
+        _capture(dialog, output / f"startup-{index}.png")
+        _dump(
+            output / f"startup-{index}.json",
+            {"texts": _texts(dialog, app), "controls": _controls(dialog)},
+        )
+        _post_window_message(int(dialog.handle), 0x0010)
+    time.sleep(0.2)
 
 
 def _save_as(app: Any, window: Any, target: Path, timeout: float, *, xml: bool) -> None:
@@ -175,6 +207,15 @@ def _save_as(app: Any, window: Any, target: Path, timeout: float, *, xml: bool) 
         raise HeadlessGuiError("Native output must not overwrite an existing file")
     _post_menu_item(window, window.menu_item("#0->#4"))
     dialog = _dialog(app, timeout, "#32770")
+    deadline = time.monotonic() + min(timeout, 10)
+    while True:
+        try:
+            _save_dialog_controls(int(dialog.handle))
+            break
+        except HeadlessGuiError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(0.1)
     if xml:
         _save_dialog_as_xml(int(dialog.handle), target)
     else:
@@ -183,25 +224,30 @@ def _save_as(app: Any, window: Any, target: Path, timeout: float, *, xml: bool) 
 
 
 def _save_filename(dialog: Any, target: Path, *, native_extension: str | None = None) -> None:
-    import win32gui  # type: ignore[import-not-found]
-    from pywinauto.controls.hwndwrapper import HwndWrapper
-
+    api = _Win32Api()
     edit, combo = _save_dialog_controls(int(dialog.handle))
     if native_extension is not None:
-        from pywinauto.controls.win32_controls import ComboBoxWrapper
-
-        wrapper = ComboBoxWrapper(combo)
-        choices = wrapper.texts()[1:]
-        matching = [
-            index
-            for index, name in enumerate(choices)
-            if "xml" not in name.casefold() and f"*{native_extension}" in name.casefold()
-        ]
+        count = int(api.user32.SendMessageW(combo, 0x0146, 0, 0))  # CB_GETCOUNT
+        matching: list[int] = []
+        choices: list[str] = []
+        for index in range(max(0, min(count, 100))):
+            text = ctypes.create_unicode_buffer(1024)
+            api.user32.SendMessageW(combo, 0x0148, index, ctypes.addressof(text))
+            choices.append(text.value)
+            if (
+                "xml" not in text.value.casefold()
+                and f"*{native_extension}" in text.value.casefold()
+            ):
+                matching.append(index)
         if len(matching) != 1:
             raise HeadlessGuiError(f"Native file format not unique: {choices}")
-        wrapper.select(matching[0])
-    HwndWrapper(edit).set_window_text(str(target))
-    win32gui.PostMessage(int(dialog.handle), 0x0111, 1, 0)
+        api.user32.SendMessageW(combo, 0x014E, matching[0], 0)  # CB_SETCURSEL
+        for notification in (9, 1, 8):  # CBN_SELENDOK, SELCHANGE, CLOSEUP
+            _post_window_message(int(dialog.handle), 0x0111, 1136 | (notification << 16), combo)
+        time.sleep(0.2)
+    text = ctypes.create_unicode_buffer(str(target))
+    api.user32.SendMessageW(edit, 0x000C, 0, ctypes.addressof(text))
+    _post_window_message(int(dialog.handle), 0x0111, 1, 0)
 
 
 def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[str, Any]:
@@ -274,6 +320,7 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
                 subprocess.list2cmdline([str(executable), str(opened)]),
                 timeout=request.timeout_seconds,
             )
+            _acknowledge_startup(app, output)
             window = _main_window(app, opened, request.timeout_seconds)
             report["steps"].append({"step": phase, "pid": int(app.process)})
             if phase == "open_save_close":
@@ -388,7 +435,7 @@ def run_native_cad(request: NativeCadRequest) -> dict[str, Any]:
     report["source_unchanged"] = sha256_bytes(request.source.read_bytes()) == source_sha
     if code != 0 or not report["input_desktop_unchanged"] or not report["source_unchanged"]:
         report["completed"] = False
-        report["error"] = "Native isolation invariant failed"
+        report.setdefault("error", "Native isolation invariant failed")
     _dump(result_path, report)
     return dict(report)
 
