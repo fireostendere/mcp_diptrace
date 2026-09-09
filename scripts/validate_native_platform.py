@@ -32,9 +32,14 @@ def main() -> None:
         raise SystemExit("Native execution incomplete; inspect retained evidence")
     # This initial integration checks actual native output, not PCB approval.
     output = args.output.resolve() / "i2c-board"
-    for name in ("saved.dip", "reexport.dipxml", "native-fabrication.zip"):
-        if not (output / name).is_file():
-            raise SystemExit(f"Missing native output: {name}")
+    for name in (
+        "saved.dip",
+        "reexport.dipxml",
+        "native-fabrication.zip",
+        "native-placement.csv",
+    ):
+        if not (output / name).is_file() or (output / name).stat().st_size == 0:
+            raise SystemExit(f"Missing or empty native output: {name}")
 
 
 if __name__ == "__main__":

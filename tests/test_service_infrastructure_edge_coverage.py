@@ -225,6 +225,7 @@ def test_config_platform_translation_and_state_defaults(
         assert local_app_data is not None
         expected = (Path(local_app_data) / "DipTraceMCP").resolve()
     else:
+        monkeypatch.chdir(tmp_path)
         monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg"))
         expected = (tmp_path / "xdg" / "diptrace-mcp").resolve()
     assert config_module._default_state_dir(tmp_path) == expected

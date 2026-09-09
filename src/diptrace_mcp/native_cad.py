@@ -115,7 +115,7 @@ def _children(hwnd: int) -> list[int]:
 
 
 def _control_info(hwnd: int) -> dict[str, Any]:
-    import win32gui
+    import win32gui  # type: ignore[import-untyped]
 
     return {
         "handle": hwnd,
@@ -137,8 +137,8 @@ def _capture(window: Any, path: Path) -> Any:
     from ctypes import wintypes
 
     import win32gui
-    import win32ui
-    from PIL import Image
+    import win32ui  # type: ignore[import-untyped]
+    from PIL import Image  # type: ignore[import-not-found]
 
     left, top, right, bottom = win32gui.GetWindowRect(window.handle)
     width, height = right - left, bottom - top
@@ -246,7 +246,7 @@ def _acknowledge_startup(app: Any, output: Path) -> None:
             output / f"startup-{index}.json",
             {"texts": _texts(dialog, app), "controls": _controls(dialog)},
         )
-        _post_window_message(int(dialog.handle), 0x0010)
+        _click_caption(dialog, "OK")
     time.sleep(0.2)
 
 
@@ -298,6 +298,62 @@ def _save_filename(dialog: Any, target: Path, *, native_extension: str | None = 
     _post_window_message(int(dialog.handle), 0x0111, 1, 0)
 
 
+def _menu_item_rect(hwnd: int, menu: int, item: int) -> tuple[int, int, int, int]:
+    """Read a menu rectangle without pywin32's version-dependent tuple wrapper."""
+    from ctypes import wintypes
+
+    rect = wintypes.RECT()
+    get_rect = _Win32Api().user32.GetMenuItemRect
+    get_rect.argtypes = [
+        wintypes.HWND,
+        wintypes.HMENU,
+        wintypes.UINT,
+        ctypes.POINTER(wintypes.RECT),
+    ]
+    get_rect.restype = wintypes.BOOL
+    if not get_rect(hwnd, menu, item, ctypes.byref(rect)):
+        raise HeadlessGuiError("Native export menu item has no rectangle")
+    return rect.left, rect.top, rect.right, rect.bottom
+
+
+def _window_thread_process(hwnd: int) -> tuple[int, int]:
+    from ctypes import wintypes
+
+    process_id = wintypes.DWORD()
+    get_process_id = _Win32Api().user32.GetWindowThreadProcessId
+    get_process_id.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    get_process_id.restype = wintypes.DWORD
+    thread_id = int(get_process_id(hwnd, ctypes.byref(process_id)))
+    if not thread_id:
+        raise HeadlessGuiError("Native export window has no owning thread")
+    return thread_id, int(process_id.value)
+
+
+def _menu_owner(thread_id: int) -> int:
+    from ctypes import wintypes
+
+    class GuiThreadInfo(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.DWORD),
+            ("flags", wintypes.DWORD),
+            ("hwndActive", wintypes.HWND),
+            ("hwndFocus", wintypes.HWND),
+            ("hwndCapture", wintypes.HWND),
+            ("hwndMenuOwner", wintypes.HWND),
+            ("hwndMoveSize", wintypes.HWND),
+            ("hwndCaret", wintypes.HWND),
+            ("rcCaret", wintypes.RECT),
+        ]
+
+    info = GuiThreadInfo(cbSize=ctypes.sizeof(GuiThreadInfo))
+    get_info = _Win32Api().user32.GetGUIThreadInfo
+    get_info.argtypes = [wintypes.DWORD, ctypes.POINTER(GuiThreadInfo)]
+    get_info.restype = wintypes.BOOL
+    if not get_info(thread_id, ctypes.byref(info)) or not info.hwndMenuOwner:
+        raise HeadlessGuiError("Native export menu has no owner")
+    return int(info.hwndMenuOwner)
+
+
 def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[str, Any]:
     import win32gui
 
@@ -324,15 +380,31 @@ def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[
     menu = win32gui.SendMessage(popup.handle, 0x01E1, 0, 0)  # MN_GETHMENU
     if not menu or win32gui.GetMenuItemCount(menu) != 3:
         raise HeadlessGuiError("Unexpected native Export All popup")
-    # Select the measured item in the owned popup. Delphi popup menus can use
-    # a hidden menu owner, so posting WM_COMMAND to the form is not equivalent.
-    left, top, right, bottom = win32gui.GetMenuItemRect(int(popup.handle), menu, 1)
-    x, y = win32gui.ScreenToClient(int(popup.handle), ((left + right) // 2, (top + bottom) // 2))
-    coordinates = (x & 0xFFFF) | ((y & 0xFFFF) << 16)
-    _dump(output / "gerber-popup.json", {"menu": int(menu), "rect": [left, top, right, bottom]})
+    # Delphi's popup has no GW_OWNER. GUITHREADINFO exposes the actual menu owner.
+    left, top, right, bottom = _menu_item_rect(int(popup.handle), int(menu), 1)
+    command = int(win32gui.GetMenuItemID(menu, 1))
+    thread_id, popup_pid = _window_thread_process(int(popup.handle))
+    owner = _menu_owner(thread_id)
+    _, owner_pid = _window_thread_process(owner)
+    _dump(
+        output / "gerber-popup.json",
+        {
+            "menu": int(menu),
+            "rect": [left, top, right, bottom],
+            "popup_pid": popup_pid,
+            "owner": owner,
+            "owner_pid": owner_pid,
+            "process": int(app.process),
+            "command": command,
+        },
+    )
+    if popup_pid != int(app.process) or owner_pid != int(app.process):
+        raise HeadlessGuiError("Native export popup ownership is invalid")
+    if not 1 <= command <= 0xFFFF:
+        raise HeadlessGuiError("Native export popup command is invalid")
     _capture(popup, output / "gerber-popup.png")
-    for message, flags in ((0x0200, 0), (0x0201, 1), (0x0202, 0)):
-        _post_window_message(int(popup.handle), message, flags, coordinates)
+    _post_window_message(owner, 0x001F)  # WM_CANCELMODE
+    _post_window_message(owner, 0x0111, command)  # WM_COMMAND
     save = _dialog(app, min(timeout, 20), "#32770")
     _save_filename(save, output / "native-fabrication.zip")
     _wait_for_export(app, output / "native-fabrication.zip", timeout)
@@ -406,6 +478,10 @@ def _native_placement(app: Any, window: Any, output: Path, timeout: float) -> No
     save = _dialog(app, min(timeout, 20), "#32770")
     time.sleep(0.2)
     _save_filename(save, output / "native-placement.csv", native_extension=".csv")
+    csv_settings = _dialog(app, min(timeout, 20), "TForm_CSVSettings")
+    _dump(output / "placement-csv-controls.json", {"controls": _controls(csv_settings)})
+    _capture(csv_settings, output / "placement-csv-settings.png")
+    _click_caption(csv_settings, "OK")
     _wait_for_export(app, output / "native-placement.csv", timeout)
     _post_window_message(int(dialog.handle), 0x0010)
 
@@ -420,7 +496,7 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
         raise HeadlessGuiError("Unsupported native editor")
     executable_name, xml_extension, binary_extension = EXTENSIONS[source.kind]
     executable = request.diptrace_root / executable_name
-    import win32api
+    import win32api  # type: ignore[import-untyped]
 
     version_info = win32api.GetFileVersionInfo(str(executable), "\\")
     ms, ls = version_info["FileVersionMS"], version_info["FileVersionLS"]
