@@ -9,6 +9,7 @@
 .github/workflows/linux-clean-install.yml
 .github/workflows/macos-clean-install.yml
 .github/workflows/mcpb.yml
+.github/workflows/native-platform.yml
 .github/workflows/pypi.yml
 .github/workflows/release.yml
 .github/workflows/windows-installer.yml
@@ -28,6 +29,7 @@ benchmarks/synthetic_board.py
 docs/ACCEPTANCE_SEED_AUDIT.md
 docs/API_ERRORS.md
 docs/ARCHITECTURE.md
+docs/ASTRA_PLATFORM_REVIEW_2026-09-09.md
 docs/ASYNC_EXECUTION.md
 docs/AUTOMATABLE_ROADMAP_CLOSURE.md
 docs/CINEMATIC_DEMO_MODE.md
@@ -202,6 +204,7 @@ scripts/spec_inventory_integrity.py
 scripts/summarize_pyinstaller_inventory.py
 scripts/summarize_scancode.py
 scripts/sync_skill_scripts.py
+scripts/validate_native_platform.py
 scripts/verify_geometry_backend.py
 skills/README.md
 skills/SOURCES.sha256
@@ -272,6 +275,7 @@ src/diptrace_mcp/library_mutation_api.py
 src/diptrace_mcp/manual_acceptance.py
 src/diptrace_mcp/model_cache.py
 src/diptrace_mcp/multirouter.py
+src/diptrace_mcp/native_cad.py
 src/diptrace_mcp/numeric_inputs.py
 src/diptrace_mcp/operations.py
 src/diptrace_mcp/pattern_recommendation.py
@@ -287,6 +291,7 @@ src/diptrace_mcp/pcb_quality.py
 src/diptrace_mcp/pcb_routing_policy.py
 src/diptrace_mcp/pcb_whole_board.py
 src/diptrace_mcp/physics_estimates.py
+src/diptrace_mcp/pin_mapping.py
 src/diptrace_mcp/placement.py
 src/diptrace_mcp/plans.py
 src/diptrace_mcp/policy.py
@@ -466,6 +471,7 @@ tests/test_pcb_quality_gate.py
 tests/test_pcb_routing_policy.py
 tests/test_phase4.py
 tests/test_physics_estimates.py
+tests/test_pin_mapping.py
 tests/test_placement.py
 tests/test_plugin_settings.py
 tests/test_policy.py

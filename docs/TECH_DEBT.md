@@ -20,8 +20,9 @@ Repository tests prove deterministic bounded behaviour, not that complete real s
 `schematic_atomic_reroute.py` closes the former dangerous gap where moving a symbol could leave stale existing wire geometry. Remaining optimisation debt is broader rather than transactional:
 
 - global same-net Steiner-tree optimisation beyond the current bounded endpoint selection and literal multi-junction preservation for proven acyclic existing wire graphs;
-- arbitrary PDF/application-note extraction beyond the validated structured
-  engineering-rule-pack boundary;
+- broader reviewed engineering-rule-pack coverage and caller-supplied evidence
+  bindings; arbitrary PDF retrieval/extraction and model interpretation belong to
+  OpenCode/mcp-rag, not this deterministic server;
 - broader real-project tuning without hiding score terms.
 
 ### 3. Schematic rotation/pin-facing authority

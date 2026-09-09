@@ -2,17 +2,18 @@
 
 ## Current baseline
 
-The current source/package version is `0.3.0`. The public MCP contract currently registers 167 tools (165 existing tools plus the read-only built-in-library bridge). `DipTraceService` is the stable public Facade; typed domain implementations live under `src/diptrace_mcp/services/`.
+The current source/package version is `0.4.0`. The public MCP contract currently registers 167 tools (165 existing tools plus the read-only built-in-library bridge). `DipTraceService` is the stable public Facade; typed domain implementations live under `src/diptrace_mcp/services/`.
 
-`v0.3.0` is published as an unsigned GitHub development prerelease and as
-`diptrace-mcp==0.3.0` on PyPI. Development on `main` continues after that
+`v0.4.0` is published as an unsigned GitHub development prerelease and as
+`diptrace-mcp==0.4.0` on PyPI. Development on `main` continues after that
 immutable release, so use the tag when exact released bytes matter.
 
 ## Repository structure
 
 ```text
 src/diptrace_mcp/
-  server.py                     FastMCP registration, transport, errors, offload
+  server.py                     stable server entry-point shim
+  server_runtime.py             FastMCP registration, transport, errors, offload
   service.py                    stable DipTraceService Facade
   services/                     typed application/domain services
   adapters.py                   XML-to-domain adapters
@@ -92,8 +93,6 @@ python -m mypy --no-incremental src/diptrace_mcp plugin
 python scripts/sync_skill_scripts.py --check
 python scripts/generate_pcb_skills.py --check
 python scripts/generate_mcp_tools_snapshot.py --check
-python scripts/check_service_facade_contract.py --check
-python scripts/validate_service_decomposition.py --check
 python scripts/audit_event_loop.py --json
 python scripts/generate_coverage_badge.py --check
 python scripts/extract_spec_inventory.py \
@@ -118,8 +117,6 @@ Do not treat the old `v0.1.2` ~86% measurement as the current target. See [TESTI
 
 ```bash
 python scripts/generate_mcp_tools_snapshot.py --check
-python scripts/check_service_facade_contract.py --check
-python scripts/validate_service_decomposition.py --check
 ```
 
 Current expected values:
@@ -257,3 +254,43 @@ Current generic release procedure:
 - [RELEASE_PROCESS.md](RELEASE_PROCESS.md)
 
 Do not move an existing tag, replace published bytes or claim signed/production-ready status from CI alone.
+
+
+## Assembly handoff and electrical synchronization
+
+`export_assembly_outputs` and `export_fabrication_outputs` produce review bundles,
+not native manufacturing artwork. Their version-2 manifests contain a consistent
+`include_dnp` population, placement-coordinate conventions, a source-SHA-bound
+`preflight.json`, and SHA-256/byte lengths for every data artifact. The manifest
+itself is excluded from its digest table; reads compare it with the saved export
+record. Digests detect modified export bytes, not engineering correctness or a
+trusted signature. Existing version-1 export records remain readable.
+
+Preflight combines the existing BOM/readiness rules with explicitly exported
+ratlines. It is `blocked` on known blockers and otherwise
+`manual_review_required`; it never approves fabrication. Offline geometric DRC
+is a separate registered review operation, and native DipTrace acceptance must
+still be run. No RAG/LLM or external solver is invoked by export.
+
+Connected schematic pins now require either exact embedded ComponentStyle /
+ComponentPart / PadId + PadNumber bindings or explicit `component_mappings.pin_map`.
+A list of footprint pad numbers alone is not a pin map. Migrating an old positional
+mapping requires an explicit reviewed mapping, for example:
+
+```json
+{
+  "refdes": "R1",
+  "pattern_style": "PatType0",
+  "pin_map": [
+    {"part_id": "0", "pin": 0, "pad_number": "1"},
+    {"part_id": "0", "pin": 1, "pad_number": "2"}
+  ]
+}
+```
+
+That example is synthetic, not a generic mapping for arbitrary parts. Use the
+actual source Part ID, section-local pin index, and verified physical pad number.
+Synchronization still uses the existing dry-run, expected-SHA, backup and
+transaction path. Compare results report source hashes, `comparison_complete`,
+ambiguities, and physical-pad-number endpoint differences. Missing mappings or
+ambiguous identifiers return `status=inconclusive`, never `matches=true`.

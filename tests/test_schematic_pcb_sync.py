@@ -31,7 +31,13 @@ def _load(name: str) -> DipTraceDocument:
 
 def _mapping() -> list[ComponentSyncMapping]:
     return [
-        ComponentSyncMapping(refdes="R1", pattern_style="PatType0"),
+        ComponentSyncMapping(
+            refdes="R1", pattern_style="PatType0",
+            pin_map=[
+                {"part_id": "0", "pin": 0, "pad_number": "1"},
+                {"part_id": "0", "pin": 1, "pad_number": "2"},
+            ],
+        ),
         ComponentSyncMapping(
             refdes="U1",
             pattern_style="PatType1",
@@ -623,3 +629,45 @@ def test_sync_pattern_cache_normalization_edge_cases() -> None:
     )
     with pytest.raises(EditError, match="duplicate pad number"):
         _sync_pattern_pad_ids(duplicate_map)
+
+
+
+def test_sync_never_guesses_connected_single_part_pin_order() -> None:
+    mappings = _mapping()
+    mappings[0] = ComponentSyncMapping(refdes="R1", pattern_style="PatType0")
+    pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    with pytest.raises(EditError, match="Pin-to-pad mapping is required for R1"):
+        build_sync_plan(
+            _load("schematic.xml"), pcb, mappings=mappings,
+            pattern_documents=[_load("pattern_library.xml")],
+        )
+    assert pcb.raw_bytes == build_pcb_document()
+
+
+
+@pytest.mark.parametrize("attribute,value", [("NetId", "999"), ("NotConnected", "Y")])
+def test_sync_rejects_contradictory_source_pin_state(attribute: str, value: str) -> None:
+    source = _load("schematic.xml")
+    root = ET.fromstring(source.raw_bytes)
+    pin = root.find("./Schematic/Components/Part/Pins/Pin")
+    assert pin is not None
+    pin.set(attribute, value)
+    schematic = DipTraceDocument.from_bytes(source.path, ET.tostring(root))
+    pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    with pytest.raises(EditError, match="contradicts net membership"):
+        build_sync_plan(
+            schematic, pcb, mappings=_mapping(),
+            pattern_documents=[_load("pattern_library.xml")],
+        )
+
+
+def test_sync_rejects_duplicate_net_names() -> None:
+    source = _load("schematic.xml")
+    raw = source.raw_bytes.replace(b"<Name>SIGNAL</Name>", b"<Name>VCC</Name>")
+    schematic = DipTraceDocument.from_bytes(source.path, raw)
+    pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    with pytest.raises(EditError, match="unique names"):
+        build_sync_plan(
+            schematic, pcb, mappings=_mapping(),
+            pattern_documents=[_load("pattern_library.xml")],
+        )

@@ -177,3 +177,32 @@ def test_pin_mapping_requires_id_and_number_together() -> None:
             number="1",
             pad_id="0",
         )
+
+
+
+def test_pin_mapping_rejects_crossed_id_number_pair() -> None:
+    document = _document("component_library.xml")
+    raw = document.raw_bytes.replace(b'PadId="0"', b'PadId="1"', 1)
+    mutated = DipTraceDocument.from_bytes(document.path, raw)
+    errors = validate_explicit_pin_pad_mapping(mutated, "RES_0603")
+    assert any("does not match" in message for message in errors)
+
+
+def test_pin_mapping_rejects_ambiguous_pattern_identity() -> None:
+    import xml.etree.ElementTree as ET
+
+    document = _document("component_library.xml")
+    root = ET.fromstring(document.raw_bytes)
+    patterns = root.find("./Library/Patterns")
+    assert patterns is not None
+    patterns.append(ET.fromstring(ET.tostring(patterns[0])))
+    mutated = DipTraceDocument.from_bytes(document.path, ET.tostring(root))
+    assert validate_explicit_pin_pad_mapping(mutated, "RES_0603")
+
+
+def test_pin_mapping_accepts_documented_padindex_alias() -> None:
+    document = _document("component_library.xml")
+    mutated = DipTraceDocument.from_bytes(
+        document.path, document.raw_bytes.replace(b"PadId=", b"PadIndex=")
+    )
+    assert validate_explicit_pin_pad_mapping(mutated, "RES_0603") == []
