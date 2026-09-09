@@ -15,6 +15,9 @@ concurrency:
   group: native-platform-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PYTHONUTF8: '1'
+
 jobs:
   native-windows:
     runs-on: windows-latest
@@ -41,56 +44,63 @@ jobs:
           if (-not (Test-Path "$root\Pcb.exe")) { throw 'DipTrace Pcb.exe is missing' }
           "DIPTRACE_ROOT=$root" >> $env:GITHUB_ENV
           python -m pip install -e ".[dev,geometry,headless-gui]"
-      - name: Inspect native menus without editing project sources
+          python -m pip install Pillow
+      - name: Inspect native dialogs without writing project sources
         shell: python
         run: |
           import json, os, pathlib, shutil, subprocess, time
           from contextlib import suppress
+          import win32api
           from pywinauto.application import Application
+          from diptrace_mcp.headless_gui import _post_menu_item, _main_window
           output = pathlib.Path('native-evidence')
           output.mkdir(exist_ok=True)
+          executable = pathlib.Path(os.environ['DIPTRACE_ROOT']) / 'Pcb.exe'
+          module = win32api.LoadLibraryEx(str(executable), 0, 2)
+          names = win32api.EnumResourceNames(module, 10)
+          (output / 'resource-names.json').write_text(json.dumps(names), encoding='utf-8')
+          for name in names:
+              if str(name).upper() in {'TFORM1', 'TEXPFORM', 'TDRILLFORM', 'TFORM60', 'TG_FILES', 'TFORM54'}:
+                  (output / (str(name) + '.dfm')).write_bytes(win32api.LoadResource(module, 10, name))
+          win32api.FreeLibrary(module)
           source = pathlib.Path('i2c-level-shifter-pcb.dipxml')
           target = output / source.name
           shutil.copyfile(source, target)
-          app = Application(backend='win32').start(subprocess.list2cmdline([os.environ['DIPTRACE_ROOT'] + '\\Pcb.exe', str(target.resolve())]), timeout=60)
-          report = {'phase': 'ui_inspection_only', 'acceptance': 'not_run', 'windows': []}
+          app = Application(backend='win32').start(subprocess.list2cmdline([str(executable), str(target.resolve())]), timeout=60)
+          report = {'phase': 'ui_inspection_only', 'acceptance': 'not_run', 'probes': []}
           def describe(window):
-              result = {'title': window.window_text(), 'class': window.class_name(), 'handle': window.handle, 'controls': []}
+              result = {'title': window.window_text(), 'class': window.class_name(), 'handle': window.handle, 'visible': window.is_visible(), 'controls': []}
               for child in window.descendants()[:250]:
                   with suppress(Exception):
-                      result['controls'].append({'title': child.window_text(), 'class': child.class_name(), 'id': child.control_id()})
-              return result
-          def menu_items(menu, prefix=''):
-              result = []
-              for i, item in enumerate(menu.items()):
-                  path = prefix + '#' + str(i)
-                  value = {'path': path, 'text': item.text(), 'id': item.item_id(), 'enabled': item.is_enabled()}
-                  submenu = item.sub_menu()
-                  if submenu is not None:
-                      value['children'] = menu_items(submenu, path + '->')
-                  result.append(value)
+                      item = {'title': child.window_text(), 'class': child.class_name(), 'id': child.control_id(), 'visible': child.is_visible(), 'enabled': child.is_enabled(), 'rect': list(child.rectangle())}
+                      if child.class_name() in ('TComboBox', 'ComboBox', 'TListBox', 'ListBox'):
+                          item['items'] = child.texts()
+                      result['controls'].append(item)
               return result
           try:
-              time.sleep(8)
-              for attempt in range(3):
-                  for window in app.windows():
-                      report['windows'].append(describe(window))
-                      title = window.window_text().casefold()
-                      if any(word in title for word in ('color', 'graphics', 'welcome', 'starting')):
-                          for child in window.descendants():
-                              if child.window_text().replace('&', '').strip() in ('OK', 'Close', 'Continue'):
-                                  child.post_message(0x00F5)
-                                  time.sleep(1)
-                                  break
-                  time.sleep(2)
-              for window in app.windows():
-                  with suppress(Exception):
-                      if window.menu() is not None:
-                          report['main_window'] = describe(window)
-                          report['menu'] = menu_items(window.menu())
-              print(json.dumps(report, ensure_ascii=False, indent=2))
+              window = _main_window(app, target, 60)
+              time.sleep(5)
+              for menu in ['#7->#0', '#7->#4', '#0->#9->#0', '#0->#9->#1', '#0->#9->#3', '#0->#9->#4', '#0->#9->#5', '#0->#9->#6', '#0->#4']:
+                  value = {'menu': menu, 'windows': []}
+                  try:
+                      _post_menu_item(window, window.menu_item(menu))
+                      time.sleep(3)
+                      for opened in app.windows(visible_only=True):
+                          if int(opened.handle) == int(window.handle):
+                              continue
+                          value['windows'].append(describe(opened))
+                          with suppress(Exception):
+                              opened.capture_as_image().save(output / (menu.replace('#', '').replace('->','-') + '-' + opened.class_name() + '.png'))
+                      for opened in app.windows(visible_only=True):
+                          if int(opened.handle) != int(window.handle):
+                              opened.post_message(0x0010)
+                      time.sleep(1)
+                  except Exception as exc:
+                      value['error'] = str(exc)
+                  report['probes'].append(value)
+              print(json.dumps(report, ensure_ascii=True, indent=2))
           finally:
-              (output / 'native-ui.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+              (output / 'dialog-probe.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
               app.kill(soft=False)
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
