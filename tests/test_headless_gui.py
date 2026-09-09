@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from diptrace_mcp import headless_gui
+from diptrace_mcp import headless_gui, native_cad
 from diptrace_mcp.headless_gui import (
     DesktopSmokeResult,
     RoundtripRequest,
@@ -704,3 +704,91 @@ def test_worker_roundtrip_posts_fifo_close_and_fails_when_exit_is_forced(
     assert calls.index("save") < calls.index((42, headless_gui._WM_CLOSE))
     assert ("kill", False) in calls
     assert "did not exit" in (result.error or "")
+
+
+class _GetMenuItemRect:
+    def __init__(self, *, succeeds: bool = True) -> None:
+        self.argtypes: object = None
+        self.restype: object = None
+        self.succeeds = succeeds
+
+    def __call__(self, hwnd: int, menu: int, item: int, result: object) -> bool:
+        assert (hwnd, menu, item) == (10, 20, 1)
+        rect = result._obj  # type: ignore[attr-defined]
+        rect.left, rect.top, rect.right, rect.bottom = 1, 2, 31, 42
+        return self.succeeds
+
+
+class _GetWindowThreadProcessId:
+    argtypes: object = None
+    restype: object = None
+
+    def __call__(self, hwnd: int, result: object) -> int:
+        assert hwnd == 10
+        result._obj.value = 1234  # type: ignore[attr-defined]
+        return 99
+
+
+class _GetGUIThreadInfo:
+    argtypes: object = None
+    restype: object = None
+
+    def __call__(self, thread_id: int, result: object) -> bool:
+        assert thread_id == 99
+        result._obj.hwndMenuOwner = 55  # type: ignore[attr-defined]
+        return True
+
+
+def test_native_menu_item_rect_uses_win32_rect(monkeypatch: pytest.MonkeyPatch) -> None:
+    call = _GetMenuItemRect()
+    monkeypatch.setattr(
+        native_cad,
+        "_Win32Api",
+        lambda: types.SimpleNamespace(user32=types.SimpleNamespace(GetMenuItemRect=call)),
+    )
+
+    assert native_cad._menu_item_rect(10, 20, 1) == (1, 2, 31, 42)
+    assert call.argtypes is not None
+    assert call.restype is not None
+
+
+def test_native_menu_item_rect_rejects_missing_bounds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call = _GetMenuItemRect(succeeds=False)
+    monkeypatch.setattr(
+        native_cad,
+        "_Win32Api",
+        lambda: types.SimpleNamespace(user32=types.SimpleNamespace(GetMenuItemRect=call)),
+    )
+
+    with pytest.raises(native_cad.HeadlessGuiError, match="has no rectangle"):
+        native_cad._menu_item_rect(10, 20, 1)
+
+
+def test_native_window_process_uses_out_parameter(monkeypatch: pytest.MonkeyPatch) -> None:
+    call = _GetWindowThreadProcessId()
+    monkeypatch.setattr(
+        native_cad,
+        "_Win32Api",
+        lambda: types.SimpleNamespace(
+            user32=types.SimpleNamespace(GetWindowThreadProcessId=call)
+        ),
+    )
+
+    assert native_cad._window_thread_process(10) == (99, 1234)
+    assert call.argtypes is not None
+    assert call.restype is not None
+
+
+def test_native_menu_owner_uses_active_gui_thread(monkeypatch: pytest.MonkeyPatch) -> None:
+    call = _GetGUIThreadInfo()
+    monkeypatch.setattr(
+        native_cad,
+        "_Win32Api",
+        lambda: types.SimpleNamespace(user32=types.SimpleNamespace(GetGUIThreadInfo=call)),
+    )
+
+    assert native_cad._menu_owner(99) == 55
+    assert call.argtypes is not None
+    assert call.restype is not None
