@@ -129,7 +129,13 @@ def test_schematic_to_pcb_sync_invalidates_trust_after_real_commit(tmp_path: Pat
         str(schematic),
         str(board),
         component_mappings=[
-            {"refdes": "R1", "pattern_style": "PatType0"},
+            {
+                "refdes": "R1", "pattern_style": "PatType0",
+                "pin_map": [
+                    {"part_id": "0", "pin": 0, "pad_number": "1"},
+                    {"part_id": "0", "pin": 1, "pad_number": "2"},
+                ],
+            },
             {
                 "refdes": "U1",
                 "pattern_style": "PatType1",

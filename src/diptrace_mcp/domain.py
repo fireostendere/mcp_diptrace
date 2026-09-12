@@ -124,7 +124,7 @@ def requires_diptrace_verification(level: FixtureValidationLevel) -> bool:
     """Return True if a document at this trust level still needs DipTrace verification.
 
     Only a full round-trip (open/save/re-export with semantic comparison) or an
-    external tool round-trip can免除 further verification.
+    external tool round-trip can satisfy that verification requirement.
     """
     return level in {
         FixtureValidationLevel.synthetic_parser_only,

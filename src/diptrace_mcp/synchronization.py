@@ -10,6 +10,7 @@ from .domain import StrictModel
 from .errors import AmbiguousSelectorError, DocumentError, EditError, ObjectNotFoundError
 from .numeric_inputs import xml_integer, xml_number_mm
 from .operations import SyncSchematicToPcbOperation
+from .pin_mapping import schematic_pin_pad_numbers
 from .xml_document import DipTraceDocument
 
 _MM_FIELD_DESCRIPTION = "Distance in millimetres."
@@ -257,6 +258,7 @@ def build_sync_plan(
     row_min_y = float("-inf")
     component_specs: list[dict[str, Any]] = []
     pin_to_pad: dict[tuple[str, int], tuple[str, str]] = {}
+    cached_pin_map = schematic_pin_pad_numbers(schematic)
     copied_patterns: dict[str, str] = {}
     copied_pad_styles: dict[str, str] = {}
     warnings: list[str] = []
@@ -360,15 +362,9 @@ def build_sync_plan(
             ]
         elif pattern_entry is not None:
             pad_numbers = _pattern_pad_numbers(pattern_entry[1])
-        elif len(parts) == 1:
-            pad_numbers = [str(index + 1) for index, _ in enumerate(parts[0].findall("./Pins/Pin"))]
-            warnings.append(
-                f"{refdes}: pad numbers were inferred from single-part pin order because "
-                f"pattern {pattern_style!r} was not available"
-            )
         else:
             raise EditError(
-                f"Pad numbers are required for multi-part component {refdes}",
+                f"Explicit pad numbers or an embedded pattern are required for {refdes}",
                 details={"refdes": refdes},
             )
         if not pad_numbers:
@@ -390,18 +386,15 @@ def build_sync_plan(
                 if pad_number.casefold() not in {item.casefold() for item in pad_numbers}:
                     raise EditError(f"Pin map for {refdes} references missing pad {pad_number}")
                 pin_to_pad[(part_id, pin_index)] = (refdes, pad_number)
-        elif len(parts) == 1:
-            pins = parts[0].findall("./Pins/Pin")
-            if len(pins) > len(pad_numbers):
-                raise EditError(
-                    f"Component {refdes} has more schematic pins than PCB pads",
-                    details={"pins": len(pins), "pads": len(pad_numbers)},
-                )
-            for pin_index in range(len(pins)):
-                pin_to_pad[(parts[0].get("Id", ""), pin_index)] = (
-                    refdes,
-                    pad_numbers[pin_index],
-                )
+        else:
+            # Pin indices are local to symbol sections. Never guess that pin N
+            # corresponds to the Nth footprint pad, even for a single-part IC.
+            for part in parts:
+                for pin_index, _ in enumerate(part.findall("./Pins/Pin")):
+                    pin_key = (part.get("Id", ""), pin_index)
+                    number = cached_pin_map.get(pin_key)
+                    if number is not None and number in pad_numbers:
+                        pin_to_pad[pin_key] = (refdes, number)
 
         fields: dict[str, str] = {}
         for part in parts:
@@ -453,15 +446,22 @@ def build_sync_plan(
 
     nets: list[dict[str, Any]] = []
     endpoint_owner: dict[tuple[str, str], str] = {}
+    net_names: set[str] = set()
+    net_ids: set[str] = set()
     for net in schematic.container.findall("./Nets/Net"):
         name = _text(net, "Name")
         if not name:
             raise EditError("Every synchronized schematic net requires a name")
+        net_id = net.get("Id", "")
+        if name.casefold() in net_names or not net_id or net_id in net_ids:
+            raise EditError("Synchronized nets require unique names and nonempty unique IDs")
+        net_names.add(name.casefold())
+        net_ids.add(net_id)
         endpoints: list[dict[str, str]] = []
         for item in net.findall("./Pins/Item"):
             part_id = item.get("Part", "")
             pin_text = item.get("Pin", "")
-            if not pin_text.isdigit():
+            if not pin_text.isascii() or not pin_text.isdecimal():
                 raise EditError(f"Net {name} has an invalid pin index: {pin_text!r}")
             pin_key = (part_id, int(pin_text))
             endpoint = pin_to_pad.get(pin_key)
@@ -471,6 +471,14 @@ def build_sync_plan(
                 raise EditError(
                     f"Pin-to-pad mapping is required for {refdes} part {part_id} pin {pin_text}",
                     details={"net": name, "part_id": part_id, "pin": int(pin_text)},
+                )
+            pin_element = parts_by_id[part_id].findall("./Pins/Pin")[int(pin_text)]
+            if (
+                pin_element.get("NetId", net_id) != net_id
+                or pin_element.get("NotConnected") == "Y"
+            ):
+                raise EditError(
+                    f"Schematic pin {part_id}:{pin_text} contradicts net membership or no-connect"
                 )
             endpoint_key = (endpoint[0].casefold(), endpoint[1].casefold())
             previous_net = endpoint_owner.setdefault(endpoint_key, name)
@@ -511,7 +519,7 @@ def build_sync_plan(
         operation=operation,
         warnings=warnings,
         limitations=[
-            "Multi-part components require explicit part-id/pin to pad-number mappings.",
+            "Connected pins require verified embedded bindings or explicit part-id/pin mappings.",
             (
                 "Exact reconciliation covers components, net endpoint sets, and traces on "
                 "changed nets; derived ratline cache is invalidated when connectivity changes. "

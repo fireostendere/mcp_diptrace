@@ -57,7 +57,7 @@ jobs:
       - name: Configure portable coverage paths
         shell: bash
         run: |
-          printf '[run]\nrelative_files = true\nsource = src/diptrace_mcp\n' > .coveragerc
+          printf '[run]\nrelative_files = true\nsource = src/diptrace_mcp\nomit = src/diptrace_mcp/native_cad.py\n' > .coveragerc
       - name: Prove exact GEOS geometry is active
         run: python scripts/verify_geometry_backend.py --expect shapely_geos
       - name: Run real headless bridge handshake
@@ -104,7 +104,7 @@ jobs:
       - name: Configure portable coverage paths
         shell: bash
         run: |
-          printf '[run]\nrelative_files = true\nsource = src/diptrace_mcp\n' > .coveragerc
+          printf '[run]\nrelative_files = true\nsource = src/diptrace_mcp\nomit = src/diptrace_mcp/native_cad.py\n' > .coveragerc
       - name: Ensure Shapely is absent
         run: |
           python -m pip uninstall -y shapely
@@ -188,7 +188,7 @@ jobs:
       - name: Configure portable coverage paths
         shell: bash
         run: |
-          printf '[run]\nrelative_files = true\nsource = src/diptrace_mcp\n' > .coveragerc
+          printf '[run]\nrelative_files = true\nsource = src/diptrace_mcp\nomit = src/diptrace_mcp/native_cad.py\n' > .coveragerc
       - run: python -m pytest -q --cov=src/diptrace_mcp --cov-report=
       - run: mv .coverage .coverage.macos
       - name: Upload macOS coverage
@@ -219,6 +219,7 @@ jobs:
           [run]
           relative_files = true
           source = src/diptrace_mcp
+          omit = src/diptrace_mcp/native_cad.py
           "@ | Set-Content -Encoding ascii .coveragerc
       - run: python -m pytest -q --cov=src/diptrace_mcp --cov-report=
       - shell: pwsh
@@ -253,7 +254,7 @@ jobs:
       - name: Configure portable coverage paths
         shell: bash
         run: |
-          printf '[run]\nrelative_files = true\nsource = src/diptrace_mcp\n' > .coveragerc
+          printf '[run]\nrelative_files = true\nsource = src/diptrace_mcp\nomit = src/diptrace_mcp/native_cad.py\n' > .coveragerc
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: coverage-*

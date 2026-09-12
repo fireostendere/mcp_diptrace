@@ -198,3 +198,64 @@ def test_guarded_whole_board_plan_binds_preview_identity_and_stale_sha(tmp_path:
             dry_run=True,
             expected_sha256=document.sha256,
         )
+
+
+def test_compaction_preserves_freestanding_via_and_existing_silkscreen() -> None:
+    root = ET.fromstring(_via_in_pad_document().raw_bytes)
+    via = root.find("./Board/Components/Component[@Type='Via']")
+    assert via is not None
+    via.set("X", "40")
+    via.set("Y", "25")
+    document = DipTraceDocument.from_bytes(Path("via-edge.xml"), ET.tostring(root))
+    compacted, _, _, _ = compact_rectangular_board_outline(document)
+    snapshot = build_snapshot(compacted)
+    assert snapshot.board is not None and snapshot.board.outline is not None
+    boundary = snapshot.board.outline["bbox"]
+    for item in [*snapshot.board.vias, *snapshot.board.texts]:
+        if item.bbox:
+            assert boundary["min_x"] <= item.bbox["min_x"]
+            assert item.bbox["max_x"] <= boundary["max_x"]
+            assert boundary["min_y"] <= item.bbox["min_y"]
+            assert item.bbox["max_y"] <= boundary["max_y"]
+
+
+def test_compaction_does_not_repair_bowtie_outline_by_guessing() -> None:
+    root = ET.fromstring(_document().raw_bytes)
+    points = root.find("./Board/BoardOutline/Points")
+    assert points is not None
+    points[1], points[2] = points[2], points[1]
+    document = DipTraceDocument.from_bytes(Path("bowtie.xml"), ET.tostring(root))
+    compacted, changed, _, _ = compact_rectangular_board_outline(document)
+    assert changed is False
+    assert compacted.raw_bytes == document.raw_bytes
+
+
+def test_compaction_preserves_point_container_metadata_and_winding() -> None:
+    root = ET.fromstring(_document().raw_bytes)
+    points = root.find("./Board/BoardOutline/Points")
+    assert points is not None
+    points.set("FutureMetadata", "preserve-me")
+    points[:] = list(reversed(points))
+    document = DipTraceDocument.from_bytes(Path("metadata.xml"), ET.tostring(root))
+    compacted, changed, _, _ = compact_rectangular_board_outline(document)
+    assert changed is True
+    result = compacted.container.find("./BoardOutline/Points")
+    assert result is not None and result.get("FutureMetadata") == "preserve-me"
+    assert float(result[0].get("Y", "0")) > float(result[-1].get("Y", "0"))
+
+
+def test_compaction_never_enlarges_the_mechanical_outline() -> None:
+    document = _document()
+    compacted, changed, _, _ = compact_rectangular_board_outline(document, minimum_width_mm=100)
+    assert changed is False
+    assert compacted.raw_bytes == document.raw_bytes
+
+
+def test_compaction_rejects_non_finite_dimensions() -> None:
+    import pytest
+
+    from diptrace_mcp.errors import EditError
+
+    for value in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(EditError, match="dimensions"):
+            compact_rectangular_board_outline(_document(), margin_mm=value)

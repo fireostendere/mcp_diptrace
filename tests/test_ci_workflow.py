@@ -33,6 +33,15 @@ def test_linux_geometry_job_runs_exact_backend_and_coverage_gates() -> None:
     combined = _job_commands(workflow["jobs"]["combined-coverage"])
     assert "coverage report --fail-under=90" in combined
 
+    for name in (
+        "test-linux-geometry-and-coverage",
+        "test-linux-no-shapely-fallback",
+        "test-macos",
+        "test-windows",
+        "combined-coverage",
+    ):
+        assert "omit = src/diptrace_mcp/native_cad.py" in _job_commands(workflow["jobs"][name])
+
 
 def test_linux_fallback_job_proves_shapely_absent_and_runs_fallback_tests() -> None:
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))

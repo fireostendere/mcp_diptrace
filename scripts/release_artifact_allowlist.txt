@@ -9,6 +9,7 @@
 .github/workflows/linux-clean-install.yml
 .github/workflows/macos-clean-install.yml
 .github/workflows/mcpb.yml
+.github/workflows/native-platform.yml
 .github/workflows/pypi.yml
 .github/workflows/release.yml
 .github/workflows/windows-installer.yml
@@ -28,6 +29,7 @@ benchmarks/synthetic_board.py
 docs/ACCEPTANCE_SEED_AUDIT.md
 docs/API_ERRORS.md
 docs/ARCHITECTURE.md
+docs/ASTRA_PLATFORM_REVIEW_2026-09-09.md
 docs/ASYNC_EXECUTION.md
 docs/AUTOMATABLE_ROADMAP_CLOSURE.md
 docs/BOARD_SPEC_TEMPLATE.json
@@ -231,6 +233,7 @@ scripts/standard_library.py
 scripts/summarize_pyinstaller_inventory.py
 scripts/summarize_scancode.py
 scripts/sync_skill_scripts.py
+scripts/validate_native_platform.py
 scripts/verification_map.json
 scripts/verify_geometry_backend.py
 scripts/wire_schematic.py
@@ -316,6 +319,8 @@ src/diptrace_mcp/library_mutation_api.py
 src/diptrace_mcp/manual_acceptance.py
 src/diptrace_mcp/model_cache.py
 src/diptrace_mcp/multirouter.py
+src/diptrace_mcp/native_cad.py
+src/diptrace_mcp/native_xml_export.py
 src/diptrace_mcp/numeric_inputs.py
 src/diptrace_mcp/operations.py
 src/diptrace_mcp/pattern_recommendation.py
@@ -332,6 +337,7 @@ src/diptrace_mcp/pcb_quality.py
 src/diptrace_mcp/pcb_routing_policy.py
 src/diptrace_mcp/pcb_whole_board.py
 src/diptrace_mcp/physics_estimates.py
+src/diptrace_mcp/pin_mapping.py
 src/diptrace_mcp/pipeline.py
 src/diptrace_mcp/placement.py
 src/diptrace_mcp/plans.py
@@ -354,6 +360,7 @@ src/diptrace_mcp/schematic_atomic_reroute.py
 src/diptrace_mcp/schematic_ensemble.py
 src/diptrace_mcp/schematic_joint_optimizer.py
 src/diptrace_mcp/schematic_layout.py
+src/diptrace_mcp/schematic_native_acceptance.py
 src/diptrace_mcp/schematic_optimizer.py
 src/diptrace_mcp/schematic_pin_geometry.py
 src/diptrace_mcp/schematic_placement_repair.py
@@ -498,6 +505,8 @@ tests/test_mcpb_distribution.py
 tests/test_model_cache.py
 tests/test_models.py
 tests/test_multirouter.py
+tests/test_native_net_port_types.py
+tests/test_native_xml_export.py
 tests/test_ngspice.py
 tests/test_nonfinite_inputs.py
 tests/test_openems.py
@@ -515,6 +524,7 @@ tests/test_pcb_quality_gate.py
 tests/test_pcb_routing_policy.py
 tests/test_phase4.py
 tests/test_physics_estimates.py
+tests/test_pin_mapping.py
 tests/test_placement.py
 tests/test_plugin_settings.py
 tests/test_policy.py
@@ -547,6 +557,7 @@ tests/test_schematic_ensemble.py
 tests/test_schematic_joint_optimizer.py
 tests/test_schematic_layout.py
 tests/test_schematic_layout_edge_coverage.py
+tests/test_schematic_native_acceptance.py
 tests/test_schematic_optimizer.py
 tests/test_schematic_pcb_sync.py
 tests/test_schematic_pin_geometry.py

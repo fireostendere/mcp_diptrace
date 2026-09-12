@@ -1,0 +1,56 @@
+name: Native PCB platform acceptance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/native-platform.yml'
+      - 'src/diptrace_mcp/native_cad.py'
+      - 'scripts/validate_native_platform.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-platform-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: '1'
+
+jobs:
+  native-windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - name: Install pinned test-only DipTrace Freeware
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'dipfree.exe'
+          curl.exe --fail --location --retry 3 --max-time 180 https://diptrace.com/downloads/dipfree_en64.exe --output $installer
+          if ($LASTEXITCODE -ne 0) { throw 'DipTrace download failed' }
+          $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne '87a9d4cb14e01b0561d6a88d540a5775d92d011359b465d12c7c5d0f0e527e74') { throw "Pinned DipTrace installer mismatch: $actual" }
+          $process = Start-Process $installer -ArgumentList '/silent','/hide' -PassThru
+          if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Installer timeout' }
+          if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
+          $root = 'C:\Program Files\DipTrace'
+          if (-not (Test-Path "$root\Pcb.exe")) { throw 'DipTrace Pcb.exe is missing' }
+          "DIPTRACE_ROOT=$root" >> $env:GITHUB_ENV
+          python -m pip install -e ".[dev,geometry,headless-gui]"
+          python -m pip install Pillow
+      - name: Run real native save-reopen and manufacturing export
+        shell: pwsh
+        run: python scripts/validate_native_platform.py --diptrace-root "$env:DIPTRACE_ROOT" --output native-evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-platform-evidence
+          path: native-evidence/
+          retention-days: 7

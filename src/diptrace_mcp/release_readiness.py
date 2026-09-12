@@ -11,18 +11,7 @@ from collections import Counter
 from typing import Any
 
 from .adapters import DocumentSnapshot
-
-_DNP_TRUE = {"1", "true", "yes", "y"}
-_MPN_KEYS = ("mpn", "manufacturer part number", "manufacturer_part_number")
-
-
-def _fields(item: Any) -> dict[str, str]:
-    raw = item.attributes.get("additional_fields", {})
-    return {str(key).casefold(): str(value).strip() for key, value in raw.items()}
-
-
-def _is_dnp(item: Any) -> bool:
-    return _fields(item).get("dnp", "").casefold() in _DNP_TRUE
+from .bom import extract_bom
 
 
 def _finding(
@@ -56,9 +45,26 @@ def run_release_readiness(snapshot: DocumentSnapshot) -> dict[str, Any]:
         }
 
     components = list(snapshot.board.components)
-    populated = [item for item in components if not _is_dnp(item)]
+    # One population/procurement interpretation for BOM, placement and readiness.
+    bom_by_object = {
+        object_id: record
+        for record in extract_bom(snapshot)
+        for object_id in record.source_object_ids
+    }
+    populated = [item for item in components if not bom_by_object[item.stable_id].dnp]
     metrics["components"] = len(components)
     metrics["populated_components"] = len(populated)
+
+    for item in populated:
+        if not (item.refdes or "").strip():
+            findings.append(
+                _finding(
+                    "release.missing_refdes",
+                    "error",
+                    "A populated component has no reference designator for assembly matching.",
+                    object_ids=[item.stable_id],
+                )
+            )
 
     refdes_counts = Counter((item.refdes or "").casefold() for item in components if item.refdes)
     duplicate_refdes = {value for value, count in refdes_counts.items() if count > 1}
@@ -108,11 +114,9 @@ def run_release_readiness(snapshot: DocumentSnapshot) -> dict[str, Any]:
 
     missing_procurement_identity = []
     for item in populated:
-        fields = _fields(item)
-        mpn = next((fields[key] for key in _MPN_KEYS if fields.get(key)), "")
-        manufacturer = fields.get("manufacturer") or str(
-            item.attributes.get("manufacturer", "")
-        ).strip()
+        record = bom_by_object[item.stable_id]
+        mpn = record.mpn
+        manufacturer = record.manufacturer
         if not mpn or not manufacturer:
             missing_procurement_identity.append(item)
             findings.append(
