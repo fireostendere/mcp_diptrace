@@ -221,7 +221,6 @@ SHEET4 = [
 def build_operations():
     """Return list of (tool, args) tuples for MCP commit."""
     ops = []
-    lib_dir = ROOT / ".local" / "reva_lib"
     sheets_data = [
         (0, "MCU",          SHEET1),
         (1, "POWER",        SHEET2),
@@ -229,7 +228,7 @@ def build_operations():
         (3, "ADC_CURRENT",  SHEET4),
     ]
 
-    for sheet_idx, sheet_name, components in sheets_data:
+    for sheet_idx, _sheet_name, components in sheets_data:
         for refdes, lib_key, x, y, angle, value in components:
             x, y = _grid(x, y)
             if lib_key in BUILTIN:
@@ -270,7 +269,7 @@ def main():
     print(f"  builtin: {builtin}  |  LCSC: {lcsc}")
     # Validate coordinates
     out = 0
-    for t, a in ops:
+    for _tool, a in ops:
         x, y = a["x"], a["y"]
         if not (USABLE_MIN_X <= x <= USABLE_MAX_X and USABLE_MIN_Y <= y <= USABLE_MAX_Y):
             out += 1

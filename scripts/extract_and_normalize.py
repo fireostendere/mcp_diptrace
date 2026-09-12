@@ -132,7 +132,7 @@ def normalize(parts: list[dict]) -> list[dict]:
     for p in parts:
         by_sheet.setdefault(p["sheet"], []).append(p)
 
-    for sheet, sp in by_sheet.items():
+    for sp in by_sheet.values():
         xs = [p["x_orig"] for p in sp]
         ys = [p["y_orig"] for p in sp]
         dx = 0 - (min(xs) + max(xs)) / 2

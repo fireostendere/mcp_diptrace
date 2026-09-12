@@ -21,6 +21,7 @@ from diptrace_mcp.operations import (  # noqa: E402
     RotateComponentsOperation,
     TracePathPoint,
 )
+from diptrace_mcp.pcb_design_intent import PCBIntentOverrides  # noqa: E402
 from diptrace_mcp.scaffolding import PcbScaffold, build_pcb_document, default_layers  # noqa: E402
 from diptrace_mcp.semantic_compiler import apply_semantic_operations  # noqa: E402
 from diptrace_mcp.synchronization import (  # noqa: E402
@@ -28,9 +29,7 @@ from diptrace_mcp.synchronization import (  # noqa: E402
     SyncPlacement,
     build_sync_plan,
 )
-from diptrace_mcp.xml_document import (
-    DipTraceDocument,  # noqa: E402
-    )
+from diptrace_mcp.xml_document import DipTraceDocument  # noqa: E402
 
 SCHEMATIC_PATH = ROOT / "dut-controller-reva.dchxml"
 BOARD_PATH = ROOT / "dut-controller-reva-pcb.dipxml"
@@ -133,7 +132,6 @@ POS: dict[str, tuple[float, float, float]] = {
     "D13": (71.5, 49.0, 0),
     "R24": (63.0, 31.0, 0),
     "R25": (67.5, 31.0, 0),
-    "D14": (71.5, 31.0, 0),
     "R26": (77.0, 46.0, 0),
     "R27": (77.0, 42.0, 0),
     "R28": (77.0, 28.0, 0),
@@ -181,19 +179,16 @@ POS: dict[str, tuple[float, float, float]] = {
     "R49": (94.0, 46.0, 0),
     "R50": (97.5, 46.0, 0),
     "C10": (100.5, 46.0, 0),
-    "D14": (103.5, 46.0, 0),
     "R51": (94.0, 42.5, 0),
     "R52": (97.5, 42.5, 0),
     "C11": (100.5, 42.5, 0),
-    "D15": (103.5, 42.5, 0),
     "R53": (94.0, 22.0, 0),
     "R54": (97.5, 22.0, 0),
     "C12": (100.5, 22.0, 0),
-    "D16": (103.5, 22.0, 0),
     "R55": (94.0, 18.5, 0),
     "R56": (97.5, 18.5, 0),
     "C13": (100.5, 18.5, 0),
-    "D17": (103.5, 18.5, 0),
+    "D14": (103.5, 46.0, 0),
     "D15": (103.5, 46.0, 0),
     "D16": (103.5, 42.5, 0),
     "D17": (103.5, 22.0, 0),
@@ -409,7 +404,8 @@ def route_rest() -> None:
             i += 1
         while i < len(todo) and budget + cost[todo[i]] <= 48:
             if todo[i] not in done:
-                chunk.append(todo[i]); budget += cost[todo[i]]
+                chunk.append(todo[i])
+                budget += cost[todo[i]]
             i += 1
         if not chunk:
             # single oversize net (hub): give it a solo call at its own risk
@@ -698,7 +694,7 @@ def manual_route() -> None:
                 pts.append(entry)
             # Build L-segments H-first
             path = [pts[0]["xy"]]
-            for prev, cur in zip(pts, pts[1:]):
+            for _prev, cur in zip(pts, pts[1:], strict=False):
                 (x0, y0), (x1, y1) = path[-1], cur["xy"]
                 if abs(y1 - y0) > 0.01 and abs(x1 - x0) > 0.01:
                     path.append((x1, y0))
@@ -753,7 +749,7 @@ def sanitize_pads() -> None:
     patterns = {p.get("PatternStyle"): p for p in root.iter("Pattern")}
     styles = {s.get("Name"): s for s in root.iter("PadStyle")}
     fixed = 0
-    for pstyle, pat in patterns.items():
+    for pat in patterns.values():
         pads = pat.findall("./Pads/Pad")
         by_style = {}
         for pd_ in pads:

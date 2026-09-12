@@ -412,11 +412,11 @@ def build_elixml(
     if any(not pad.number.isdigit() for pad in pads):
         for index, pad in enumerate(pads):
             alias[pad.number] = str(index + 1)
-        for pad_el, pad in zip(pads_el.findall("Pad"), pads):
+        for pad_el, pad in zip(pads_el.findall("Pad"), pads, strict=False):
             num = pad_el.find("Number")
             if num is not None:
                 num.text = alias.get(pad.number, pad.number)
-        for pin_el, pin in zip(pins_el.findall("Pin"), pins):
+        for pin_el, pin in zip(pins_el.findall("Pin"), pins, strict=False):
             pn = pin_el.find("PadNumber")
             if pn is not None:
                 pn.text = alias.get(remap.get(pin.number, pin.number),

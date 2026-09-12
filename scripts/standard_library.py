@@ -77,7 +77,7 @@ def _component(library: ET.Element, style: str, name: str, refdes: str, pattern_
         pin = ET.SubElement(pins_el, "Pin", {"Id": str(index), "X": x, "Y": y, "Locked": "N", "Type": "Default", "ElectricType": "Passive", "Orientation": "0" if left else "180", "PadId": num, "Length": "2.54", "ShowName": "N", "NumXShift": "0", "NumYShift": "0", "NameXShift": "0", "NameYShift": "0", "SignalDelay": "0", "NumOrientation": "0", "NameOrientation": "0"})
         ET.SubElement(pin, "Name").text = nm
         ET.SubElement(pin, "PadNumber").text = num
-    shapes = ET.SubElement(part, "Shapes")
+    ET.SubElement(part, "Shapes")
 
 
 def build() -> bytes:

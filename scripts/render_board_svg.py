@@ -32,7 +32,6 @@ def fmt(v: float) -> str:
 
 def load(root):
     board = root.find("./Board")
-    outline = [tuple(map(float, p_.attrib["X"].split()) ) for p_ in []]  # placeholder
     pts = [(float(p_.get("X")), float(p_.get("Y"))) for p_ in board.find("./BoardOutline/Points")]
     # patterns & pad styles
     patterns = {}
@@ -40,7 +39,6 @@ def load(root):
         style = pat.get("PatternStyle")
         pads = []
         for pd_ in pat.findall("./Pads/Pad"):
-            stl = pd_.get("Style")
             pads.append({
                 "id": pd_.get("Id"),
                 "x": float(pd_.get("X", "0")),
@@ -54,18 +52,10 @@ def load(root):
             pts2 = [(float(p_.get("X")), float(p_.get("Y")))
                     for p_ in sh.find("./Points")] if sh.find("./Points") is not None else []
             if "Courtyard" in layer and pts2:
-                xs = [p_[0] for p_ in pts2]; ys = [p_[1] for p_ in pts2]
+                xs = [p_[0] for p_ in pts2]
+                ys = [p_[1] for p_ in pts2]
                 shapes["courtyard"] = (min(xs), min(ys), max(xs), max(ys))
         patterns[style] = {"pads": pads, **shapes}
-    for ps in root.iter("PadStyle"):
-        name = ps.get("Name")
-        ms = ps.find("./MainStack")
-        if ms is None:
-            continue
-        through = ps.get("Type") == "Through"
-        for pat in patterns.values():
-            for pd_ in pat["pads"]:
-                pass
     # attach pad geometry via style lookup dict
     styles = {}
     for ps in root.iter("PadStyle"):
@@ -78,9 +68,6 @@ def load(root):
             "shape": ms.get("Shape", "Rectangle"),
             "through": ps.get("Type") == "Through",
         }
-    for pat in patterns.values():
-        for pd_ in pat["pads"]:
-            st = styles.get(pd_.get("_style_placeholder", ""))
     # second pass with real style names stored during first parse
     return board, pts, patterns, styles
 
@@ -120,7 +107,8 @@ def main() -> None:
         for sh in pat.findall("./Shapes/Shape"):
             if "Courtyard" in (sh.get("Layer") or "") and sh.find("./Points") is not None:
                 cs = [(float(p_.get("X")), float(p_.get("Y"))) for p_ in sh.find("./Points")]
-                xs = [c[0] for c in cs]; ys = [c[1] for c in cs]
+                xs = [c[0] for c in cs]
+                ys = [c[1] for c in cs]
                 courtyard = (min(xs), min(ys), max(xs), max(ys))
         patterns[style] = {"pads": pads, "courtyard": courtyard}
 
@@ -175,7 +163,8 @@ def main() -> None:
     outline = [(float(p_.get("X")), float(p_.get("Y")))
                for p_ in board_el.find("./BoardOutline/Points")]
 
-    xs = [p[0] for p in outline]; ys = [p[1] for p in outline]
+    xs = [p[0] for p in outline]
+    ys = [p[1] for p in outline]
     min_x, min_y = min(xs) - MARGIN, min(ys) - MARGIN
     W, H = (max(xs) - min_x + MARGIN), (max(ys) - min_y + MARGIN)
 
@@ -222,15 +211,14 @@ def main() -> None:
             visible = bottom_side == mirror
             a = math.radians(c["ang"])
             ca, sa = math.cos(a), math.sin(a)
-            def xf(px_, py_, flip_local=False):
+            def xf(px_, py_, flip_local=False, _bs=bottom_side, _ca=ca, _sa=sa, _c=c):
                 lx, ly = px_, py_
-                if bottom_side:
+                if _bs:
                     lx = -lx          # bottom-side footprint mirrors X
-                rx = lx * ca - ly * sa
-                ry = lx * sa + ly * ca
-                return t(c["x"] + rx, c["y"] + ry)
+                rx = lx * _ca - ly * _sa
+                ry = lx * _sa + ly * _ca
+                return t(_c["x"] + rx, _c["y"] + ry)
             for pd_ in c["pat"]["pads"]:
-                number = c["pads"].get(pd_["id"], "")
                 px, py = xf(pd_["x"], pd_["y"])
                 if pd_["through"]:
                     color, r = PAD_THT, max(pd_["w"], pd_["h"]) / 2

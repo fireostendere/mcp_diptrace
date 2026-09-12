@@ -16,14 +16,25 @@ def _document(
     extra_component: str = "",
 ) -> DipTraceDocument:
     placed_style = f' ComponentStyle="{style}"' if style is not None else ""
+    library_part = (
+        f'<Part Id="0" RefDes="PS" PartType="{part_type}">'
+        '<Name>Port_Out</Name><Pins>'
+        '<Pin Id="10" ElectricType="Passive"/>'
+        "</Pins></Part>"
+    )
+    schematic_part = (
+        f'<Part Id="0"{placed_style} ComponentPart="0">'
+        "<RefDes>NETPORT</RefDes><Name>REQ_C1</Name>"
+        f"<Pins>{pins}</Pins></Part>"
+    )
     return DipTraceDocument.from_bytes(
         Path("native-net-port.dch"),
         f'''<Source Type="DipTrace-Schematic">
   <Library Type="DipTrace-ComponentLibrary"><Components>
-    <Component ComponentStyle="Port_Out"><Part Id="0" RefDes="PS" PartType="{part_type}"><Name>Port_Out</Name><Pins><Pin Id="10" ElectricType="Passive"/></Pins></Part></Component>{extra_component}
+    <Component ComponentStyle="Port_Out">{library_part}</Component>{extra_component}
   </Components></Library>
   <Schematic><Components>
-    <Part Id="0"{placed_style} ComponentPart="0"><RefDes>NETPORT</RefDes><Name>REQ_C1</Name><Pins>{pins}</Pins></Part>
+    {schematic_part}
   </Components></Schematic>
 </Source>'''.encode(),
     )
@@ -41,8 +52,15 @@ def test_explicit_native_net_port_inherits_type_by_position(part_type: str) -> N
 def test_normal_or_ambiguous_style_does_not_relax_identity() -> None:
     assert _schematic_library_pin_types(_document(part_type="Normal")) == {}
     assert _schematic_library_pin_types(_document(style=None)) == {}
+    duplicate_port = (
+        '<Component ComponentStyle="Port_Out">'
+        '<Part Id="0" RefDes="PS" PartType="Net Port">'
+        "<Name>Port_Out</Name><Pins>"
+        '<Pin Id="10" ElectricType="Passive"/>'
+        "</Pins></Part></Component>"
+    )
     assert _schematic_library_pin_types(
-        _document(extra_component='<Component ComponentStyle="Port_Out"><Part Id="0" RefDes="PS" PartType="Net Port"><Name>Port_Out</Name><Pins><Pin Id="10" ElectricType="Passive"/></Pins></Part></Component>')
+        _document(extra_component=duplicate_port)
     ) == {}
 
 
