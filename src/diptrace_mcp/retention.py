@@ -63,8 +63,15 @@ def prune_terminal_records(
     policy: RetentionPolicy,
     clock: Clock = system_clock,
     protected_paths: Iterable[Path] = (),
+    validate: Callable[[RetentionCandidate], bool] | None = None,
 ) -> RetentionReport:
-    """Delete only prevalidated terminal candidates confined to one state store."""
+    """Delete only prevalidated terminal candidates confined to one state store.
+
+    ``validate`` runs after confinement and protection checks and only for
+    records already doomed by count or age, so a store can prove integrity
+    lazily without reading records that survive this pass. A record that fails
+    validation is retained, never deleted.
+    """
 
     if not _safe_store_root(state_root, store_root):
         return RetentionReport()
@@ -99,6 +106,8 @@ def prune_terminal_records(
         if resolved_candidate in protected:
             continue
         if not _safe_candidate_path(state_root, store_root, candidate.path):
+            continue
+        if validate is not None and not validate(candidate):
             continue
         try:
             if candidate.path.is_dir():
