@@ -1,0 +1,21 @@
+{
+  "device": "test_router",
+  "map": {
+    "power": { "main": { "kind": "usb", "ch": 1 } },
+    "uart": { "console": { "kind": "uart", "ch": 1, "baud": 115200 } },
+    "buttons": {
+      "power":    { "kind": "sw", "ch": 1 },
+      "reset":    { "kind": "sw", "ch": 2 },
+      "recovery": { "kind": "sw", "ch": 3 }
+    },
+    "signals": {
+      "status":   { "kind": "gpio", "port": "AUX1", "io": 1 },
+      "boot_btn": { "kind": "sw", "ch": 4 }
+    },
+    "rails": {
+      "rail_3v3": { "kind": "adc", "ch": 5 },
+      "rail_5v":  { "kind": "adc", "ch": 4 }
+    }
+  },
+  "notes": "Agent-facing names only; physical channels resolved by dut-mcp/server.py"
+}

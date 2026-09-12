@@ -2,7 +2,7 @@
 
 ## Public contract
 
-DipTrace MCP currently exposes **167 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
+DipTrace MCP currently exposes **171 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
 
 `reference/mcp-tools-list.snapshot.json`
 
@@ -33,7 +33,7 @@ The exact names and schemas are in the generated snapshot. Conceptually the publ
 - bounded external jobs/adapters;
 - release/readiness and other project-owned analysis helpers.
 
-Use MCP introspection rather than copying a manually maintained 167-item list into application code or documentation.
+Use MCP introspection rather than copying a manually maintained 171-item list into application code or documentation.
 
 ## Tool availability
 
@@ -74,7 +74,7 @@ The public tool surface is not permission to bypass those boundaries.
 
 Schematic design intent / functional blocks / reference motifs, bounded multi-candidate placement optimization, non-mutating wire quality planning/feedback, conservative pin-geometry resolution, and pin-aware joint route/placement scoring remain internal engines. They are now productized through bounded public tools:
 
-- `rank_schematic_placement_candidates` — deterministic ensemble ranking of placement candidates by route quality, readable motifs and congestion (unwired schematics only; the joint route scorer models hypothetical wires). Optional `engineering_rules` supplies validated SHA-bound external motifs;
+- `rank_schematic_placement_candidates` — deterministic ensemble ranking of placement candidates by route quality, readable motifs and congestion (unwired by default; the joint route scorer models hypothetical wires). Already-wired schematic scoring requires explicit `config.optimizer.placement.allow_existing_wires=true` and `config.route.allow_existing_wires=true`; it remains read-only hypothetical scoring, never a repair or commit. Optional `engineering_rules` supplies validated SHA-bound external motifs; optional strict `config` exposes bounded optimizer, route, congestion, candidate-count, and repair controls;
 - `plan_schematic_placement_repair` — bounded route-feedback placement repair combined with selective atomic affected-net reroute, stored as one dependency-safe plan. Works on already-wired schematics: the repair scorer models the same world the reroute applies (it removes exactly the affected wire geometry the reroute replaces and keeps unaffected nets as obstacles), affected explicit wires are deleted and selectively replanned, and a clean wired schematic produces an explicit no-op plan instead of spurious motion. `moves` are operator-fixed constraints resolved on the current placement: a part is selected by stable object ID or by unambiguous case-insensitive RefDes (a RefDes shared by several parts, e.g. a multi-part component, is refused fail-closed), duplicate moves for one part are refused, and repair search can never displace the requested positions;
 - `apply_schematic_placement_repair_plan` — stages or commits that stored plan through the ordinary expected-SHA transaction path (`dry_run` defaults to true). Plans exceeding the 100-operation transaction limit are rejected at planning time, not only at apply time. Applying a stored no-op plan (`status="noop"`) is an idempotent success: `ok=true`, `changed=false`, no transaction, document SHA unchanged.
 

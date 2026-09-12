@@ -1,0 +1,3350 @@
+{
+ "ok": true,
+ "error": null,
+ "verification": {
+  "0": {
+   "new_windows": [
+    "DRC - Errors found"
+   ],
+   "DRC - Errors found": [
+    {
+     "class": "TComboBox",
+     "text": "All Layers",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Layer:",
+     "type": ""
+    },
+    {
+     "class": "TButton",
+     "text": "Run DRC",
+     "type": ""
+    },
+    {
+     "class": "TButton",
+     "text": "Locate",
+     "type": ""
+    },
+    {
+     "class": "TButton",
+     "text": "Close",
+     "type": ""
+    },
+    {
+     "class": "TListBox",
+     "text": "",
+     "type": ""
+    }
+   ]
+  },
+  "1": {
+   "new_windows": []
+  },
+  "2": {
+   "new_windows": [
+    "Design Rules"
+   ],
+   "Design Rules": [
+    {
+     "class": "TButton",
+     "text": "Cancel",
+     "type": ""
+    },
+    {
+     "class": "TButton",
+     "text": "OK",
+     "type": ""
+    },
+    {
+     "class": "TGroupBox",
+     "text": "",
+     "type": "",
+     "children": [
+      {
+       "class": "TButton",
+       "text": "Net Classes...",
+       "type": ""
+      },
+      {
+       "class": "TMemo",
+       "text": "Clearance settings will not be used for the nets where custom net class clearance (\"Use Clearance in DRC\" option) or Class-to-Class settings are defined.\r\n",
+       "type": ""
+      }
+     ]
+    },
+    {
+     "class": "TButton",
+     "text": "Net Classes...",
+     "type": ""
+    },
+    {
+     "class": "TMemo",
+     "text": "Clearance settings will not be used for the nets where custom net class clearance (\"Use Clearance in DRC\" option) or Class-to-Class settings are defined.\r\n",
+     "type": ""
+    },
+    {
+     "class": "TGroupBox",
+     "text": "",
+     "type": "",
+     "children": [
+      {
+       "class": "TCheckBox",
+       "text": "Enable Real-time DRC",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Check Sizes",
+       "type": ""
+      },
+      {
+       "class": "TCheckBox",
+       "text": "",
+       "type": ""
+      },
+      {
+       "class": "TCheckBox",
+       "text": "",
+       "type": ""
+      },
+      {
+       "class": "TPageControl",
+       "text": "",
+       "type": "",
+       "children": [
+        {
+         "class": "TTabSheet",
+         "text": "Sizes",
+         "type": "",
+         "children": [
+          {
+           "class": "TListBox",
+           "text": "",
+           "type": ""
+          }
+         ]
+        },
+        {
+         "class": "TListBox",
+         "text": "",
+         "type": ""
+        },
+        {
+         "class": "TTabSheet",
+         "text": "Clearances",
+         "type": "",
+         "children": [
+          {
+           "class": "TCheckBox",
+           "text": "Same Net Clearances",
+           "type": ""
+          },
+          {
+           "class": "TGroupBox",
+           "text": "",
+           "type": "",
+           "children": [
+            {
+             "class": "TStaticText",
+             "text": "mm",
+             "type": ""
+            },
+            {
+             "class": "TStaticText",
+             "text": "mm",
+             "type": ""
+            },
+            {
+             "class": "TStaticText",
+             "text": "mm",
+             "type": ""
+            },
+            {
+             "class": "TStaticText",
+             "text": "mm",
+             "type": ""
+            },
+            {
+             "class": "TStaticText",
+             "text": "SMD to SMD:",
+             "type": ""
+            },
+            {
+             "class": "TStaticText",
+             "text": "SMD to Pad:",
+             "type": ""
+            },
+            {
+             "class": "TStaticText",
+             "text": "SMD to Via:",
+             "type": ""
+            },
+            {
+             "class": "TStaticText",
+             "text": "Trace to Trace:",
+             "type": ""
+            },
+            {
+             "class": "TEdit",
+             "text": "0",
+             "type": ""
+            },
+            {
+             "class": "TEdit",
+             "text": "0",
+             "type": ""
+            },
+            {
+             "class": "TEdit",
+             "text": "0",
+             "type": ""
+            },
+            {
+             "class": "TEdit",
+             "text": "0",
+             "type": ""
+            }
+           ]
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to SMD:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to Pad:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to Via:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Trace to Trace:",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TListBox",
+           "text": "",
+           "type": ""
+          },
+          {
+           "class": "TCheckBox",
+           "text": "All Layers",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Drill:",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Copper:",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Board:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Drill:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD:",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Pad:",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Via:",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "-0,333",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Copper:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Pad:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Via:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Trace:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Trace:",
+           "type": ""
+          }
+         ]
+        },
+        {
+         "class": "TCheckBox",
+         "text": "Same Net Clearances",
+         "type": ""
+        },
+        {
+         "class": "TGroupBox",
+         "text": "",
+         "type": "",
+         "children": [
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to SMD:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to Pad:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to Via:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Trace to Trace:",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          }
+         ]
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to SMD:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Pad:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Via:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace to Trace:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TListBox",
+         "text": "",
+         "type": ""
+        },
+        {
+         "class": "TCheckBox",
+         "text": "All Layers",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Drill:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Copper:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Board:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Drill:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Pad:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Via:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Copper:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Pad:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Via:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace:",
+         "type": ""
+        }
+       ]
+      },
+      {
+       "class": "TTabSheet",
+       "text": "Sizes",
+       "type": "",
+       "children": [
+        {
+         "class": "TListBox",
+         "text": "",
+         "type": ""
+        }
+       ]
+      },
+      {
+       "class": "TListBox",
+       "text": "",
+       "type": ""
+      },
+      {
+       "class": "TTabSheet",
+       "text": "Clearances",
+       "type": "",
+       "children": [
+        {
+         "class": "TCheckBox",
+         "text": "Same Net Clearances",
+         "type": ""
+        },
+        {
+         "class": "TGroupBox",
+         "text": "",
+         "type": "",
+         "children": [
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to SMD:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to Pad:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to Via:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Trace to Trace:",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          }
+         ]
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to SMD:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Pad:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Via:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace to Trace:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TListBox",
+         "text": "",
+         "type": ""
+        },
+        {
+         "class": "TCheckBox",
+         "text": "All Layers",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Drill:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Copper:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Board:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Drill:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Pad:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Via:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Copper:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Pad:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Via:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace:",
+         "type": ""
+        }
+       ]
+      },
+      {
+       "class": "TCheckBox",
+       "text": "Same Net Clearances",
+       "type": ""
+      },
+      {
+       "class": "TGroupBox",
+       "text": "",
+       "type": "",
+       "children": [
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to SMD:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Pad:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Via:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace to Trace:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        }
+       ]
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to SMD:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to Pad:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to Via:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace to Trace:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TListBox",
+       "text": "",
+       "type": ""
+      },
+      {
+       "class": "TCheckBox",
+       "text": "All Layers",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Drill:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Copper:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Board:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Drill:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Pad:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Via:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Copper:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Pad:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Via:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Check Clearances",
+       "type": ""
+      }
+     ]
+    },
+    {
+     "class": "TCheckBox",
+     "text": "Enable Real-time DRC",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Check Sizes",
+     "type": ""
+    },
+    {
+     "class": "TCheckBox",
+     "text": "",
+     "type": ""
+    },
+    {
+     "class": "TCheckBox",
+     "text": "",
+     "type": ""
+    },
+    {
+     "class": "TPageControl",
+     "text": "",
+     "type": "",
+     "children": [
+      {
+       "class": "TTabSheet",
+       "text": "Sizes",
+       "type": "",
+       "children": [
+        {
+         "class": "TListBox",
+         "text": "",
+         "type": ""
+        }
+       ]
+      },
+      {
+       "class": "TListBox",
+       "text": "",
+       "type": ""
+      },
+      {
+       "class": "TTabSheet",
+       "text": "Clearances",
+       "type": "",
+       "children": [
+        {
+         "class": "TCheckBox",
+         "text": "Same Net Clearances",
+         "type": ""
+        },
+        {
+         "class": "TGroupBox",
+         "text": "",
+         "type": "",
+         "children": [
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "mm",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to SMD:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to Pad:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "SMD to Via:",
+           "type": ""
+          },
+          {
+           "class": "TStaticText",
+           "text": "Trace to Trace:",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          },
+          {
+           "class": "TEdit",
+           "text": "0",
+           "type": ""
+          }
+         ]
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to SMD:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Pad:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Via:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace to Trace:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TListBox",
+         "text": "",
+         "type": ""
+        },
+        {
+         "class": "TCheckBox",
+         "text": "All Layers",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Drill:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Copper:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Board:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Drill:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Pad:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Via:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "-0,333",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Copper:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Pad:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Via:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace:",
+         "type": ""
+        }
+       ]
+      },
+      {
+       "class": "TCheckBox",
+       "text": "Same Net Clearances",
+       "type": ""
+      },
+      {
+       "class": "TGroupBox",
+       "text": "",
+       "type": "",
+       "children": [
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to SMD:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Pad:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Via:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace to Trace:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        }
+       ]
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to SMD:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to Pad:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to Via:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace to Trace:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TListBox",
+       "text": "",
+       "type": ""
+      },
+      {
+       "class": "TCheckBox",
+       "text": "All Layers",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Drill:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Copper:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Board:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Drill:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Pad:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Via:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Copper:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Pad:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Via:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace:",
+       "type": ""
+      }
+     ]
+    },
+    {
+     "class": "TTabSheet",
+     "text": "Sizes",
+     "type": "",
+     "children": [
+      {
+       "class": "TListBox",
+       "text": "",
+       "type": ""
+      }
+     ]
+    },
+    {
+     "class": "TListBox",
+     "text": "",
+     "type": ""
+    },
+    {
+     "class": "TTabSheet",
+     "text": "Clearances",
+     "type": "",
+     "children": [
+      {
+       "class": "TCheckBox",
+       "text": "Same Net Clearances",
+       "type": ""
+      },
+      {
+       "class": "TGroupBox",
+       "text": "",
+       "type": "",
+       "children": [
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "mm",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to SMD:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Pad:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "SMD to Via:",
+         "type": ""
+        },
+        {
+         "class": "TStaticText",
+         "text": "Trace to Trace:",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        },
+        {
+         "class": "TEdit",
+         "text": "0",
+         "type": ""
+        }
+       ]
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to SMD:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to Pad:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to Via:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace to Trace:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TListBox",
+       "text": "",
+       "type": ""
+      },
+      {
+       "class": "TCheckBox",
+       "text": "All Layers",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Drill:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Copper:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Board:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Drill:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Pad:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Via:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "-0,333",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Copper:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Pad:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Via:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace:",
+       "type": ""
+      }
+     ]
+    },
+    {
+     "class": "TCheckBox",
+     "text": "Same Net Clearances",
+     "type": ""
+    },
+    {
+     "class": "TGroupBox",
+     "text": "",
+     "type": "",
+     "children": [
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "mm",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to SMD:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to Pad:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "SMD to Via:",
+       "type": ""
+      },
+      {
+       "class": "TStaticText",
+       "text": "Trace to Trace:",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      },
+      {
+       "class": "TEdit",
+       "text": "0",
+       "type": ""
+      }
+     ]
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "SMD to SMD:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "SMD to Pad:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "SMD to Via:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Trace to Trace:",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "0",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "0",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "0",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "0",
+     "type": ""
+    },
+    {
+     "class": "TListBox",
+     "text": "",
+     "type": ""
+    },
+    {
+     "class": "TCheckBox",
+     "text": "All Layers",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Drill:",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Copper:",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Board:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Drill:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "mm",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "SMD:",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Pad:",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Via:",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TEdit",
+     "text": "-0,333",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Copper:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "SMD:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Pad:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Via:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Trace:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Trace:",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Check Clearances",
+     "type": ""
+    },
+    {
+     "class": "TStaticText",
+     "text": "Template:",
+     "type": ""
+    },
+    {
+     "class": "TButton",
+     "text": "...",
+     "type": ""
+    },
+    {
+     "class": "TComboBox",
+     "text": "None",
+     "type": ""
+    },
+    {
+     "class": "TCheckBox",
+     "text": "Show a list of errors or \"No Errors\" message",
+     "type": ""
+    }
+   ]
+  },
+  "4": {
+   "invoke_error": "native menu item is disabled"
+  },
+  "5": {
+   "new_windows": [
+    "Check Net Connectivity"
+   ],
+   "Check Net Connectivity": [
+    {
+     "class": "TButton",
+     "text": "Cancel",
+     "type": ""
+    },
+    {
+     "class": "TButton",
+     "text": "OK",
+     "type": ""
+    },
+    {
+     "class": "TGroupBox",
+     "text": "Connectors",
+     "type": "",
+     "children": [
+      {
+       "class": "TCheckBox",
+       "text": "Copper Pours",
+       "type": ""
+      },
+      {
+       "class": "TCheckBox",
+       "text": "Shapes",
+       "type": ""
+      },
+      {
+       "class": "TCheckBox",
+       "text": "Traces",
+       "type": ""
+      }
+     ]
+    },
+    {
+     "class": "TCheckBox",
+     "text": "Copper Pours",
+     "type": ""
+    },
+    {
+     "class": "TCheckBox",
+     "text": "Shapes",
+     "type": ""
+    },
+    {
+     "class": "TCheckBox",
+     "text": "Traces",
+     "type": ""
+    }
+   ]
+  }
+ }
+}

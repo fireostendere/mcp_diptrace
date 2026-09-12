@@ -1,0 +1,175 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Source Type="DipTrace-Schematic" Version="5.3.0.3" Units="inch">
+<Library Type="DipTrace-ComponentLibrary" Units="inch">
+<Library Type="DipTrace-PatternLibrary" Units="inch">
+<PadStyles />
+<Patterns />
+</Library>
+<Categories>
+<Category Index="0">
+<Name>Symbols</Name>
+<Types>
+<Type Index="0">
+<Name>Net Ports</Name>
+<SubTypes />
+</Type>
+</Types>
+</Category>
+</Categories>
+<Components>
+
+
+
+
+
+
+
+
+
+
+</Components>
+</Library>
+<Schematic>
+<SheetSettings><DisplayTitles>Y</DisplayTitles><DisplaySheet>Y</DisplaySheet><ActiveSheet>0</ActiveSheet><Sheets><Sheet><Id>0</Id><Name>SYSTEM_OVERVIEW</Name><Type>Normal</Type><XPos>0</XPos><YPos>0</YPos><Scale>1</Scale><SheetWidth>11.692913</SheetWidth><SheetHeight>8.267717</SheetHeight><LeftMargin>0.393701</LeftMargin><TopMargin>0.393701</TopMargin><RightMargin>0.393701</RightMargin><BottomMargin>0.393701</BottomMargin><BorderZones><Visible>Y</Visible><HorzZones>4</HorzZones><VertZones>4</VertZones><Standard>0</Standard><FontName>Arial</FontName><FontSize>10</FontSize><FontSizeFloat>10</FontSizeFloat><FontLineWidth>-2</FontLineWidth><Border>Y</Border><HorzBorderSize>0.314961</HorzBorderSize><VertBorderSize>0.314961</VertBorderSize></BorderZones></Sheet></Sheets></SheetSettings>
+<Settings>
+<Markings>
+<FontVector>Y</FontVector>
+<FontMono>N</FontMono>
+<FontSize>6</FontSize>
+<FontSizeFloat>6</FontSizeFloat>
+<FontWidth>-2</FontWidth>
+<FontScale>1</FontScale>
+<UsePartFontColor>N</UsePartFontColor>
+<FontColor>0</FontColor>
+<RefDesGlobal Show="Show" ShowPart="Show" Align="Auto" />
+<NameGlobal Show="Hide" ShowPart="Show" Align="Auto" />
+<ValueGlobal Show="Show" Align="Auto" />
+<ManufacturerGlobal Show="Hide" Align="Auto" />
+<DatasheetGlobal Show="Hide" Align="Auto" />
+<AddFieldsGlobal>
+<AddField Show="Hide" Align="Auto">
+<Name>Unique Name</Name>
+<Value>uniquename</Value>
+</AddField>
+<AddField Show="Hide" Align="Auto">
+<Name>Part Number (Digi-Key)</Name>
+<Value>partnumber(digi-key)</Value>
+</AddField>
+<AddField Show="Hide" Align="Auto">
+<Name>Part Number (Mouser)</Name>
+<Value>partnumber(mouser)</Value>
+</AddField>
+<AddField Show="Hide" Align="Auto">
+<Name>Part Number (LCSC)</Name>
+<Value>partnumber(lcsc)</Value>
+</AddField>
+</AddFieldsGlobal>
+</Markings>
+<Grid>
+<Visible>Y</Visible>
+<Snap>Y</Snap>
+<Size>0.05</Size>
+</Grid>
+<Origin>
+<Visible>N</Visible>
+<AxisColor>16711680</AxisColor>
+<X>0</X>
+<Y>0</Y>
+</Origin>
+<LineWidth>
+<Wire>0.003937</Wire>
+<NodeSize>0.03937</NodeSize>
+<Bus>0.026247</Bus>
+<Table>0.013123</Table>
+<Titles>0.013123</Titles>
+</LineWidth>
+<BusConnections>
+<Show>NetName</Show>
+<Position>Above</Position>
+<FontSize>4</FontSize>
+<FontSizeFloat>4</FontSizeFloat>
+</BusConnections>
+<PinNumbers Visible="Y" Font="4" FontSizeFloat="4" />
+<NetName FontSize="4" FontSizeFloat="4" />
+<HidePower>N</HidePower>
+<ProjectDir>C:\Users\fireo\mcp_diptrace\.local\validation\schematic-quality-d742c4a\refdes-value-label-pressure-05</ProjectDir>
+</Settings>
+<ProjectLibs Sorted="N" />
+<DesignCache Count="99" />
+<NetClasses>
+<NetClass Id="0" UpdateId="0" Type="Normal">
+<Name>Default</Name>
+</NetClass>
+</NetClasses>
+<ERC CheckPinType="Y" CheckNotConnected="N" CheckSinglePin="Y" CheckShort="N" CheckPinSuperimpose="Y">
+<VCCTemplate>V*</VCCTemplate>
+<GNDTemplate>GND*</GNDTemplate>
+</ERC>
+<Components />
+<Nets />
+<Shapes><Shape Enabled="Y" Id="0" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="10" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="0" Y="3.22835" /></Points><TextLines><TextLine>DUT CONTROLLER Rev.A / SYSTEM OVERVIEW</TextLine></TextLines></Shape><Shape Enabled="Y" Id="1" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="5" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="0" Y="2.87402" /></Points><TextLines><TextLine>DOCUMENTATION ONLY - no electrical connectivity</TextLine></TextLines></Shape><Shape Enabled="Y" Id="2" Type="Rectangle" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-5.3937" Y="0.590551" /><Point X="-4.52756" Y="1.37795" /></Points></Shape><Shape Enabled="Y" Id="3" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="4" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-4.96063" Y="0.984252" /></Points><TextLines><TextLine>HOST / MCP</TextLine></TextLines></Shape><Shape Enabled="Y" Id="4" Type="Rectangle" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="4.33071" Y="0.590551" /><Point X="5.3937" Y="1.37795" /></Points></Shape><Shape Enabled="Y" Id="5" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="5" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="4.8622" Y="0.984252" /></Points><TextLines><TextLine>DUT</TextLine></TextLines></Shape><Shape Enabled="Y" Id="6" Type="Rectangle" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-4.13386" Y="0.393701" /><Point X="-1.77165" Y="1.5748" /></Points></Shape><Shape Enabled="Y" Id="7" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="6" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-2.95276" Y="0.984252" /></Points><TextLines><TextLine>ESP32_CONTROL</TextLine></TextLines></Shape><Shape Enabled="Y" Id="8" Type="Rectangle" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-0.590551" Y="0.393701" /><Point X="1.1811" Y="1.5748" /></Points></Shape><Shape Enabled="Y" Id="9" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="6" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="0.295276" Y="0.984252" /></Points><TextLines><TextLine>USB_DUT</TextLine></TextLines></Shape><Shape Enabled="Y" Id="10" Type="Rectangle" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-4.25197" Y="-2.16535" /><Point X="-3.07087" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="11" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="6" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-3.66142" Y="-1.5748" /></Points><TextLines><TextLine>POWER</TextLine></TextLines></Shape><Shape Enabled="Y" Id="12" Type="Rectangle" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-2.87402" Y="-2.16535" /><Point X="-1.69291" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="13" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="6" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-2.28346" Y="-1.5748" /></Points><TextLines><TextLine>UART</TextLine></TextLines></Shape><Shape Enabled="Y" Id="14" Type="Rectangle" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-1.49606" Y="-2.16535" /><Point X="-0.11811" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="15" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="6" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-0.807087" Y="-1.5748" /></Points><TextLines><TextLine>SWITCHES</TextLine></TextLines></Shape><Shape Enabled="Y" Id="16" Type="Rectangle" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="0.275591" Y="-2.16535" /><Point X="1.65354" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="17" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="6" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="0.964567" Y="-1.5748" /></Points><TextLines><TextLine>AUX_ADC</TextLine></TextLines></Shape><Shape Enabled="Y" Id="18" Type="Rectangle" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="2.04724" Y="-2.16535" /><Point X="3.74016" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="19" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="6" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="2.8937" Y="-1.5748" /></Points><TextLines><TextLine>CURRENT_SENSE</TextLine></TextLines></Shape><Shape Enabled="Y" Id="20" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-4.52756" Y="0.984252" /><Point X="-4.13386" Y="0.984252" /></Points></Shape><Shape Enabled="Y" Id="21" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="4" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-4.33071" Y="1.65354" /></Points><TextLines><TextLine>CONTROL USB</TextLine></TextLines></Shape><Shape Enabled="Y" Id="22" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-4.96063" Y="1.37795" /><Point X="-4.96063" Y="2.04724" /></Points></Shape><Shape Enabled="Y" Id="23" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-4.96063" Y="2.04724" /><Point X="0.295276" Y="2.04724" /></Points></Shape><Shape Enabled="Y" Id="24" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="0.295276" Y="2.04724" /><Point X="0.295276" Y="1.5748" /></Points></Shape><Shape Enabled="Y" Id="25" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="4" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-2.32283" Y="2.24409" /></Points><TextLines><TextLine>UPLINK USB</TextLine></TextLines></Shape><Shape Enabled="Y" Id="26" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-1.77165" Y="0.984252" /><Point X="-0.590551" Y="0.984252" /></Points></Shape><Shape Enabled="Y" Id="27" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="4" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-1.1811" Y="1.25984" /></Points><TextLines><TextLine>control</TextLine></TextLines></Shape><Shape Enabled="Y" Id="28" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="1.1811" Y="0.984252" /><Point X="4.33071" Y="0.984252" /></Points></Shape><Shape Enabled="Y" Id="29" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="4" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="2.75591" Y="1.25984" /></Points><TextLines><TextLine>DUT interfaces</TextLine></TextLines></Shape><Shape Enabled="Y" Id="30" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-3.66142" Y="0.393701" /><Point X="-3.66142" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="31" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="4" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-4.05512" Y="-0.314961" /></Points><TextLines><TextLine>GPIO ENABLES</TextLine></TextLines></Shape><Shape Enabled="Y" Id="32" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-2.28346" Y="0.393701" /><Point X="-2.28346" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="33" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="4" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-2.67717" Y="-0.314961" /></Points><TextLines><TextLine>UART CTRL</TextLine></TextLines></Shape><Shape Enabled="Y" Id="34" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-1.9685" Y="0.393701" /><Point X="-1.9685" Y="-0.590551" /></Points></Shape><Shape Enabled="Y" Id="35" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-1.9685" Y="-0.590551" /><Point X="2.8937" Y="-0.590551" /></Points></Shape><Shape Enabled="Y" Id="36" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="-0.807087" Y="-0.590551" /><Point X="-0.807087" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="37" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="0.964567" Y="-0.590551" /><Point X="0.964567" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="38" Type="Line" Sheet="0" LineWidth="0.011811" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="2.8937" Y="-0.590551" /><Point X="2.8937" Y="-0.984252" /></Points></Shape><Shape Enabled="Y" Id="39" Type="Text" Sheet="0" Angle="0" HorzAlign="Center" VertAlign="Center" TextAlign="Center" FontVector="Y" FontSize="4" FontWidth="-2" FontScale="1" LineSpacing="1.2" NetId="-1" BusId="-1" Group="-1" Selected="N" Locked="N"><Points><Point X="0.472441" Y="-0.393701" /></Points><TextLines><TextLine>I2C_SDA / I2C_SCL</TextLine></TextLines></Shape></Shapes>
+<Simulator Type="None" GndNetId="-1">
+<SmallSignalAC>
+<Variation>#</Variation>
+<NumberOfPoints>#</NumberOfPoints>
+<StartFrequency>#</StartFrequency>
+<StopFrequency>#</StopFrequency>
+</SmallSignalAC>
+<DCTransferFunc>
+<SourceType>#</SourceType>
+<SourceRefDes>#</SourceRefDes>
+<StartValue>#</StartValue>
+<Step>#</Step>
+<StopValue>#</StopValue>
+<SecondSource>-</SecondSource>
+<SecondSourceType>#</SecondSourceType>
+<SecondSourceRefDes>#</SecondSourceRefDes>
+<SecondStartValue>#</SecondStartValue>
+<SecondStep>#</SecondStep>
+<SecondStopValue>#</SecondStopValue>
+</DCTransferFunc>
+<Transient>
+<StartTime>#</StartTime>
+<Step>#</Step>
+<StopTime>#</StopTime>
+</Transient>
+<Noise>
+<OutputNet>#</OutputNet>
+<ReferenceNet>#</ReferenceNet>
+<Source>#</Source>
+<Variation>#</Variation>
+<NumberOfPoints>#</NumberOfPoints>
+<StartFrequency>#</StartFrequency>
+<StopFrequency>#</StopFrequency>
+<PointsPerSummary>#</PointsPerSummary>
+</Noise>
+<Digital>
+<StartTime>#</StartTime>
+<Step>#</Step>
+<StopTime>#</StopTime>
+<Item>-</Item>
+</Digital>
+<OptionsGeneral NoPrintStat="Y" NoPrintModelParams="Y">
+<Temp>27.0</Temp>
+<TempNomMeasure>27.0</TempNomMeasure>
+</OptionsGeneral>
+<OptionsDC ConductanceSteps="25" SkipConductanceStepping="N" Iteration="100" TransferCurveIteration="50" StartFromConductanceStepping="N">
+<AbsCurrentTolerance>1p</AbsCurrentTolerance>
+<MinConductance>1p</MinConductance>
+<PivotRation>1e-3</PivotRation>
+<PivotTolerance>1e-13</PivotTolerance>
+<RelativeError>1e-3</RelativeError>
+<GroundResistor>1T</GroundResistor>
+<VoltageError>1u</VoltageError>
+</OptionsDC>
+<OptionsAC NoOPAnalysis="Y" />
+<OptionsTransient LowIteration="4" PointIteration="10" TotalIteration="5000" SourceStepping="25" MethodMaxOrder="2" Method="1">
+<ChargeTolerance>1e-14</ChargeTolerance>
+<SourceSteppingChange>0</SourceSteppingChange>
+<ErrorTolerance>1</ErrorTolerance>
+<TrapezoidalDampingFactor>0.5</TrapezoidalDampingFactor>
+</OptionsTransient>
+<GndNetName />
+</Simulator>
+</Schematic>
+</Source>

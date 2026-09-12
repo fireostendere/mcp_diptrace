@@ -1,8 +1,8 @@
 {
-  "canonical_descriptor_bytes": 150777,
-  "canonical_descriptor_sha256": "6b111fd9e1197b6bed901e7141c1d077195f4bde1a12929c97d31c98bd66f526",
+  "canonical_descriptor_bytes": 160442,
+  "canonical_descriptor_sha256": "c2f3d5da98fa8f2a71c02a7c92c30f97a8a64fd3c08c8bb4698aa0bb3726c8b5",
   "format_version": 1,
-  "tool_count": 167,
+  "tool_count": 171,
   "tools": [
     {
       "description": "Abandon stale local session state without applying its working XML.",
@@ -104,6 +104,16 @@
             "default": 4,
             "title": "Font Size",
             "type": "integer"
+          },
+          "horizontal_align": {
+            "default": "Left",
+            "enum": [
+              "Left",
+              "Center",
+              "Right"
+            ],
+            "title": "Horizontal Align",
+            "type": "string"
           },
           "net": {
             "title": "Net",
@@ -1705,6 +1715,69 @@
       "outputSchema": {
         "additionalProperties": true,
         "title": "apply_xml_editsDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Load 1–50 hash-bound XML edits from an allowed UTF-8 JSON file. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
+      "inputSchema": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "edits_path": {
+            "title": "Edits Path",
+            "type": "string"
+          },
+          "expected_edits_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Edits Sha256"
+          },
+          "expected_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Sha256"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          }
+        },
+        "required": [
+          "edits_path"
+        ],
+        "title": "apply_xml_edits_from_fileArguments",
+        "type": "object"
+      },
+      "name": "apply_xml_edits_from_file",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "apply_xml_edits_from_fileDictOutput",
         "type": "object"
       }
     },
@@ -5303,6 +5376,92 @@
       }
     },
     {
+      "description": "Transplant generated schematic/PCB content into a DipTrace-native template so the real editor parses it without hanging. Detects kind (schematic or PCB) automatically.",
+      "inputSchema": {
+        "properties": {
+          "input_path": {
+            "title": "Input Path",
+            "type": "string"
+          },
+          "output_path": {
+            "title": "Output Path",
+            "type": "string"
+          },
+          "template_path": {
+            "title": "Template Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "input_path",
+          "template_path",
+          "output_path"
+        ],
+        "title": "pipeline_nativeize_documentArguments",
+        "type": "object"
+      },
+      "name": "pipeline_nativeize_document",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "pipeline_nativeize_documentDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Render Top + Bottom SVG previews of a .dipxml board without opening DipTrace. Shows outline, copper traces, pours, vias and board edge.",
+      "inputSchema": {
+        "properties": {
+          "output_dir": {
+            "default": ".",
+            "title": "Output Dir",
+            "type": "string"
+          },
+          "pcb_path": {
+            "title": "Pcb Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pcb_path"
+        ],
+        "title": "pipeline_render_board_previewArguments",
+        "type": "object"
+      },
+      "name": "pipeline_render_board_preview",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "pipeline_render_board_previewDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Resolve an MPN to its LCSC part code and download component JSON + datasheet PDF from EasyEDA. Returns code, package, pin/pad counts and file paths for downstream schematic building.",
+      "inputSchema": {
+        "properties": {
+          "mpn_or_code": {
+            "title": "Mpn Or Code",
+            "type": "string"
+          },
+          "output_dir": {
+            "default": "vendor",
+            "title": "Output Dir",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mpn_or_code"
+        ],
+        "title": "pipeline_source_componentArguments",
+        "type": "object"
+      },
+      "name": "pipeline_source_component",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "pipeline_source_componentDictOutput",
+        "type": "object"
+      }
+    },
+    {
       "description": "Find an installed component by catalog id/name and place a private schematic copy. All distances are in millimetres, regardless of the document's own Units attribute. `dry_run=true` previews without writing. Set `dry_run=false` only after inspecting the preview and pass its `expected_sha256`.",
       "inputSchema": {
         "properties": {
@@ -6266,15 +6425,444 @@
       }
     },
     {
-      "description": "Rank schematic candidates with optional sourced engineering rules.",
+      "description": "Rank schematic candidates with optional sourced rules and bounded config. All distances are in millimetres, regardless of the document's own Units attribute.",
       "inputSchema": {
         "$defs": {
           "EngineeringRulePack": {
             "description": "Strict diptrace-engineering-rules-v1 object with sources, schematic_motifs, pcb_components, and pcb_nets; validated fully at runtime.",
             "type": "object"
+          },
+          "SchematicCongestionConfig": {
+            "additionalProperties": false,
+            "properties": {
+              "cell_size_mm": {
+                "default": 20.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 500.0,
+                "title": "Cell Size Mm",
+                "type": "number"
+              },
+              "compactness_weight": {
+                "default": 0.01,
+                "minimum": 0.0,
+                "title": "Compactness Weight",
+                "type": "number"
+              },
+              "hotspot_occupancy": {
+                "default": 3,
+                "maximum": 100,
+                "minimum": 2,
+                "title": "Hotspot Occupancy",
+                "type": "integer"
+              },
+              "hotspot_weight": {
+                "default": 250.0,
+                "minimum": 0.0,
+                "title": "Hotspot Weight",
+                "type": "number"
+              },
+              "local_pressure_weight": {
+                "default": 15.0,
+                "minimum": 0.0,
+                "title": "Local Pressure Weight",
+                "type": "number"
+              },
+              "neighbor_radius_cells": {
+                "default": 1,
+                "maximum": 8,
+                "minimum": 0,
+                "title": "Neighbor Radius Cells",
+                "type": "integer"
+              }
+            },
+            "title": "SchematicCongestionConfig",
+            "type": "object"
+          },
+          "SchematicEnsembleConfig": {
+            "additionalProperties": false,
+            "properties": {
+              "congestion": {
+                "$ref": "#/$defs/SchematicCongestionConfig"
+              },
+              "infer_builtin_motifs": {
+                "default": true,
+                "title": "Infer Builtin Motifs",
+                "type": "boolean"
+              },
+              "max_ranked_candidates": {
+                "default": 12,
+                "maximum": 64,
+                "minimum": 1,
+                "title": "Max Ranked Candidates",
+                "type": "integer"
+              },
+              "optimizer": {
+                "$ref": "#/$defs/SchematicOptimizerConfig"
+              },
+              "repair_iterations": {
+                "default": 2,
+                "maximum": 8,
+                "minimum": 0,
+                "title": "Repair Iterations",
+                "type": "integer"
+              },
+              "repair_seed_count": {
+                "default": 2,
+                "maximum": 8,
+                "minimum": 0,
+                "title": "Repair Seed Count",
+                "type": "integer"
+              },
+              "route": {
+                "$ref": "#/$defs/SchematicJointRouteConfig"
+              }
+            },
+            "title": "SchematicEnsembleConfig",
+            "type": "object"
+          },
+          "SchematicJointRouteConfig": {
+            "additionalProperties": false,
+            "properties": {
+              "allow_existing_wires": {
+                "default": false,
+                "title": "Allow Existing Wires",
+                "type": "boolean"
+              },
+              "append_completed_nets_as_obstacles": {
+                "default": true,
+                "title": "Append Completed Nets As Obstacles",
+                "type": "boolean"
+              },
+              "include_ground_nets": {
+                "default": false,
+                "title": "Include Ground Nets",
+                "type": "boolean"
+              },
+              "include_power_nets": {
+                "default": true,
+                "title": "Include Power Nets",
+                "type": "boolean"
+              },
+              "max_edges": {
+                "default": 128,
+                "maximum": 2048,
+                "minimum": 1,
+                "title": "Max Edges",
+                "type": "integer"
+              },
+              "wire_planner": {
+                "$ref": "#/$defs/SchematicWirePlannerConfig"
+              }
+            },
+            "title": "SchematicJointRouteConfig",
+            "type": "object"
+          },
+          "SchematicLayoutWeights": {
+            "additionalProperties": false,
+            "properties": {
+              "bend": {
+                "default": 1.0,
+                "minimum": 0.0,
+                "title": "Bend",
+                "type": "number"
+              },
+              "block_span": {
+                "default": 0.2,
+                "minimum": 0.0,
+                "title": "Block Span",
+                "type": "number"
+              },
+              "diagonal_segment": {
+                "default": 250.0,
+                "minimum": 0.0,
+                "title": "Diagonal Segment",
+                "type": "number"
+              },
+              "motif_violation": {
+                "default": 100.0,
+                "minimum": 0.0,
+                "title": "Motif Violation",
+                "type": "number"
+              },
+              "occupied_area": {
+                "default": 0.001,
+                "minimum": 0.0,
+                "title": "Occupied Area",
+                "type": "number"
+              },
+              "part_overlap": {
+                "default": 10000.0,
+                "minimum": 0.0,
+                "title": "Part Overlap",
+                "type": "number"
+              },
+              "sheet_containment": {
+                "default": 10000.0,
+                "minimum": 0.0,
+                "title": "Sheet Containment",
+                "type": "number"
+              },
+              "wire_crossing": {
+                "default": 1000.0,
+                "minimum": 0.0,
+                "title": "Wire Crossing",
+                "type": "number"
+              },
+              "wire_length": {
+                "default": 0.05,
+                "minimum": 0.0,
+                "title": "Wire Length",
+                "type": "number"
+              },
+              "wire_overlap": {
+                "default": 5000.0,
+                "minimum": 0.0,
+                "title": "Wire Overlap",
+                "type": "number"
+              }
+            },
+            "title": "SchematicLayoutWeights",
+            "type": "object"
+          },
+          "SchematicOptimizerConfig": {
+            "additionalProperties": false,
+            "properties": {
+              "include_power_in_interconnect_estimate": {
+                "default": true,
+                "title": "Include Power In Interconnect Estimate",
+                "type": "boolean"
+              },
+              "local_styles": {
+                "items": {
+                  "enum": [
+                    "support_right",
+                    "support_below",
+                    "support_balanced"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 3,
+                "minItems": 1,
+                "title": "Local Styles",
+                "type": "array"
+              },
+              "max_candidates": {
+                "default": 12,
+                "maximum": 64,
+                "minimum": 1,
+                "title": "Max Candidates",
+                "type": "integer"
+              },
+              "optimizer_weights": {
+                "$ref": "#/$defs/SchematicOptimizerWeights"
+              },
+              "order_strategies": {
+                "items": {
+                  "enum": [
+                    "role_then_id",
+                    "connector_flow",
+                    "connectivity_degree"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 3,
+                "minItems": 1,
+                "title": "Order Strategies",
+                "type": "array"
+              },
+              "placement": {
+                "$ref": "#/$defs/SchematicPlacementConfig"
+              },
+              "row_width_scales": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 8,
+                "minItems": 1,
+                "title": "Row Width Scales",
+                "type": "array"
+              }
+            },
+            "title": "SchematicOptimizerConfig",
+            "type": "object"
+          },
+          "SchematicOptimizerWeights": {
+            "additionalProperties": false,
+            "properties": {
+              "backward_connector_flow": {
+                "default": 200.0,
+                "minimum": 0.0,
+                "title": "Backward Connector Flow",
+                "type": "number"
+              },
+              "estimated_crossing": {
+                "default": 750.0,
+                "minimum": 0.0,
+                "title": "Estimated Crossing",
+                "type": "number"
+              },
+              "estimated_interconnect": {
+                "default": 0.5,
+                "minimum": 0.0,
+                "title": "Estimated Interconnect",
+                "type": "number"
+              },
+              "layout_score": {
+                "default": 1.0,
+                "minimum": 0.0,
+                "title": "Layout Score",
+                "type": "number"
+              },
+              "movement": {
+                "default": 0.02,
+                "minimum": 0.0,
+                "title": "Movement",
+                "type": "number"
+              }
+            },
+            "title": "SchematicOptimizerWeights",
+            "type": "object"
+          },
+          "SchematicPlacementConfig": {
+            "additionalProperties": false,
+            "properties": {
+              "allow_existing_wires": {
+                "default": false,
+                "title": "Allow Existing Wires",
+                "type": "boolean"
+              },
+              "anchor_gap_y_mm": {
+                "default": 10.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 500.0,
+                "title": "Anchor Gap Y Mm",
+                "type": "number"
+              },
+              "block_gap_x_mm": {
+                "default": 20.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 500.0,
+                "title": "Block Gap X Mm",
+                "type": "number"
+              },
+              "block_gap_y_mm": {
+                "default": 15.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 500.0,
+                "title": "Block Gap Y Mm",
+                "type": "number"
+              },
+              "grid_mm": {
+                "default": 2.5,
+                "exclusiveMinimum": 0.0,
+                "maximum": 100.0,
+                "title": "Grid Mm",
+                "type": "number"
+              },
+              "max_parts": {
+                "default": 200,
+                "maximum": 2000,
+                "minimum": 1,
+                "title": "Max Parts",
+                "type": "integer"
+              },
+              "member_gap_x_mm": {
+                "default": 15.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 500.0,
+                "title": "Member Gap X Mm",
+                "type": "number"
+              },
+              "member_gap_y_mm": {
+                "default": 10.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 500.0,
+                "title": "Member Gap Y Mm",
+                "type": "number"
+              },
+              "origin_x_mm": {
+                "default": 20.0,
+                "title": "Origin X Mm",
+                "type": "number"
+              },
+              "origin_y_mm": {
+                "default": 20.0,
+                "title": "Origin Y Mm",
+                "type": "number"
+              },
+              "target_row_width_mm": {
+                "default": 140.0,
+                "exclusiveMinimum": 20.0,
+                "maximum": 2000.0,
+                "title": "Target Row Width Mm",
+                "type": "number"
+              },
+              "weights": {
+                "$ref": "#/$defs/SchematicLayoutWeights"
+              }
+            },
+            "title": "SchematicPlacementConfig",
+            "type": "object"
+          },
+          "SchematicWirePlannerConfig": {
+            "additionalProperties": false,
+            "properties": {
+              "max_bends": {
+                "default": 6,
+                "maximum": 1000,
+                "minimum": 0,
+                "title": "Max Bends",
+                "type": "integer"
+              },
+              "max_detour_ratio": {
+                "default": 2.5,
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "title": "Max Detour Ratio",
+                "type": "number"
+              },
+              "require_orthogonal": {
+                "default": true,
+                "title": "Require Orthogonal",
+                "type": "boolean"
+              },
+              "require_zero_crossings": {
+                "default": true,
+                "title": "Require Zero Crossings",
+                "type": "boolean"
+              },
+              "require_zero_obstacle_hits": {
+                "default": true,
+                "title": "Require Zero Obstacle Hits",
+                "type": "boolean"
+              },
+              "require_zero_overlaps": {
+                "default": true,
+                "title": "Require Zero Overlaps",
+                "type": "boolean"
+              },
+              "require_zero_self_intersections": {
+                "default": true,
+                "title": "Require Zero Self Intersections",
+                "type": "boolean"
+              }
+            },
+            "title": "SchematicWirePlannerConfig",
+            "type": "object"
           }
         },
         "properties": {
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SchematicEnsembleConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "engineering_rules": {
             "anyOf": [
               {

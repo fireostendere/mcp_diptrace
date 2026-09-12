@@ -1,56 +1,83 @@
-# DipTrace MCP skills
+# DipTrace engineering skills
 
-This wheel ships eight compact workflows selected by
-[the mechanical survival rule](SURVIVAL_CRITERIA.md). They are agent instructions over the
-registered MCP/CLI surface, not additional EDA engines and not proof of DipTrace compatibility.
+The canonical catalog is this root `skills/` directory. Its fifteen workflows cover
+requirements, schematic and PCB work, native verification, production preparation,
+bring-up, and revisions. The same files ship as `diptrace_mcp/skills/` in the wheel;
+do not maintain separate edited copies under agent-host directories.
 
-## Installed catalog
+Start with [runtime access](shared/runtime.md) when deciding what the agent can do.
+It distinguishes explicit-path MCP, a live XML bridge, native/headless opening,
+PCB acceptance, real-window recording, and unavailable export operations.
+The [capability map](capability-map.json) lists tool groups, local CLI entry points,
+backend requirements, and executable example arguments.
 
-| Skill | Mode | Use it for |
-| --- | --- | --- |
-| [`pcb-project-intake`](pcb-project-intake/SKILL.md) | read-only | project identity, scope, rules, and model inventory |
-| [`library-quality-audit`](library-quality-audit/SKILL.md) | read-only | component/pattern validation without mutation |
-| [`schematic-erc-review`](schematic-erc-review/SKILL.md) | read-only | ERC, connectivity, BOM, and engineering triage |
-| [`testpoint-planner`](testpoint-planner/SKILL.md) | guarded write | explicit standalone-pad testpoint coverage |
-| [`critical-net-router`](critical-net-router/SKILL.md) | guarded write | bounded single-net or coupled-pair routing |
-| [`signal-integrity-review`](signal-integrity-review/SKILL.md) | read-only | analytical impedance, return path, and configured solvers |
-| [`release-gate`](release-gate/SKILL.md) | read-only | explicit evidence-based release decision |
-| [`diptrace-evidence-capture`](diptrace-evidence-capture/SKILL.md) | operator-assisted | quarantined round-trip evidence candidates |
+All fifteen skills are **RAG-backed**: the agent works in hardware-engineering mode
+by default, without a repeated expert-role prompt. [RAG engineering memory](shared/rag.md)
+explains how to assemble, apply and carry forward context from the user's MIT/theory,
+schematic/PCB, DipTrace courses and project lessons. Use it to understand the problem,
+compare alternatives, anticipate failures and verify results throughout the work,
+not only to look up an unknown fact. The marker appears in each skill's discovery
+description and body, and as `rag: true` in `catalog.json`.
 
-All results use [one shared schema](shared/result.schema.json). Every finding and measurement labels
-its evidence as `caller`, `document`, `analytical`, `heuristic`, `external_solver`, or `operator`;
-one class must never be silently promoted to another.
+## Catalog
 
-## Safety and discovery
+| Skill | RAG | CAD mode | Outcome |
+|---|---|---|---|
+| [pcb-design-workflow](pcb-design-workflow/SKILL.md) | [RAG](shared/rag.md) | scoped workflow | specification, stage selection, ordered gates and checkpoint |
+| [pcb-project-intake](pcb-project-intake/SKILL.md) | [RAG](shared/rag.md) | read-only | existing project identity, scope, rules and inventory |
+| [diptrace-datasheet-rules](diptrace-datasheet-rules/SKILL.md) | [RAG](shared/rag.md) | read-only | official requirements, package and layout evidence |
+| [diptrace-bom-sourcing](diptrace-bom-sourcing/SKILL.md) | [RAG](shared/rag.md) | read-only | procurement BOM, stock, variants and substitutions |
+| [library-quality-audit](library-quality-audit/SKILL.md) | [RAG](shared/rag.md) | read-only | component/pattern/pin-map validation and installed-library inspection |
+| [schematic-engineer](schematic-engineer/SKILL.md) | [RAG](shared/rag.md) | guarded write or review | architecture and editable, visibly wired schematic |
+| [schematic-erc-review](schematic-erc-review/SKILL.md) | [RAG](shared/rag.md) | read-only | offline ERC/connectivity/BOM and native-check disposition |
+| [critical-net-router](critical-net-router/SKILL.md) | [RAG](shared/rag.md) | guarded write | constrained single-net/pair routes and autorouter handoff |
+| [signal-integrity-review](signal-integrity-review/SKILL.md) | [RAG](shared/rag.md) | read-only | analytical impedance, return paths and configured solvers |
+| [testpoint-planner](testpoint-planner/SKILL.md) | [RAG](shared/rag.md) | guarded write | standalone probe pads and physical copper connection checks |
+| [release-gate](release-gate/SKILL.md) | [RAG](shared/rag.md) | read-only | explicit release decision from required evidence |
+| [diptrace-evidence-capture](diptrace-evidence-capture/SKILL.md) | [RAG](shared/rag.md) | native/copy or operator | headless opening/saving, PCB native acceptance, recording and formal evidence |
+| [diptrace-production-pack](diptrace-production-pack/SKILL.md) | [RAG](shared/rag.md) | native/copy or operator | actual CAM/assembly artifacts, reconciliation and release package |
+| [diptrace-board-bringup](diptrace-board-bringup/SKILL.md) | [RAG](shared/rag.md) | plan or guided hardware | first article, programming, measurements and production tests |
+| [diptrace-revision-review](diptrace-revision-review/SKILL.md) | [RAG](shared/rag.md) | read-only; scoped ECO when requested | revision differences, affected gates and revalidation |
 
-Start with `diptrace_status`, then `get_capabilities`; document-bound runs also freeze the SHA-256
-returned by `get_document_info`. Exact callable names come from public `tools/list`; capability
-reports supply session, document, policy, feature, and configured-adapter availability rather than
-an exact tool-name inventory.
-[The capability map](capability-map.json) records repository-revision scope and limitations but
-does not override discovery.
+CAD read-only modes may create reports/exports or run native verification on isolated
+copies; they do not modify the source design. A plan never authorizes applying the plan.
+Use the task's existing authorization for edits and local verification. Ordering,
+payment, supplier messages, and publication remain separate actions.
 
-Writes require dry-run staging, bounded preview, validation, explicit confirmation, an
-`expected_sha256` commit, and applicable post-checks. The shared implementation limits are
-100 staged operations and 500 conservatively counted affected objects/elements per write; the
-counter includes normalized, changed-XML, and compiler-only identities, so it may refuse fewer
-unique physical objects. Runtime capabilities remain authoritative.
+## Discovery and handoff
 
-## Delivery and verification
+For MCP, use public `tools/list` for exact callable names and `get_capabilities` for
+feature/policy/document support. No active editor is needed for explicit-path XML work.
+For native operations, discover the local helper and backend separately. Lack of a
+native MCP tool does not make supported headless CLI unavailable.
 
-`skills/` is force-included in the wheel as `diptrace_mcp/skills/`; no separate file-copy step is
-required. Wheel delivery does not auto-register workflows in Codex or another agent host: configure
-the host to discover the installed `diptrace_mcp/skills` directory. The evidence package contains
-byte-identical mirrors of the capture and dry-run ingest CLIs so an installed wheel keeps the
-operator workflow.
+All workflows use [one result schema](shared/result.schema.json). Evidence is labeled
+`caller`, `document`, `analytical`, `heuristic`, `external_solver`, or `operator`.
+Specifications without CAD can use `document: null`. A successful scoped report, a
+native-accepted design, verified CAM, and tested hardware are different outcomes.
+
+Writes require preview, validation, current `expected_sha256`, and applicable
+post-checks. Default limits are 100 staged operations and 500 conservatively counted
+affected objects/elements; runtime values win. Native roundtrip saves its input, so
+protect originals with copies. Formal operator evidence has its own attestation and
+metadata-record boundary; ordinary native opening does not require that pipeline.
+
+## Host registration and verification
+
+In this checkout, root `AGENTS.md` routes engineering requests here and root
+`opencode.json` registers `./skills` through `skills.paths`, supported by the
+[OpenCode configuration schema](https://opencode.ai/config.json).
+Wheel installation includes the catalog but does not itself register an agent-host
+search path; point that host to the installed `diptrace_mcp/skills` directory.
 
 From a source checkout:
 
 ```bash
 python scripts/generate_pcb_skills.py --check
 python -m pytest -q tests/test_skill_packages.py
-python -m pip wheel --no-deps --no-build-isolation --wheel-dir /tmp/diptrace-wheel .
 ```
 
-`SOURCES.sha256` is generated from every delivered skill artifact and verifies that the packaged
-CLI mirrors match their maintained root scripts.
+The tests check RAG marker consistency, catalog/tool contracts, actual native CLI parsers, host registration,
+handoff-template parsing, evidence handling, and wheel contents/relative links.
+`SOURCES.sha256` covers delivered artifacts and the maintained capture/ingest mirrors.
+[Survival criteria](SURVIVAL_CRITERIA.md) prevent duplication without a fixed skill quota.

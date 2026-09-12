@@ -135,11 +135,18 @@ def _translate_bbox(box: dict[str, float], dx: float, dy: float) -> dict[str, fl
 def _virtualize_snapshot(
     snapshot: DocumentSnapshot,
     placements: dict[str, dict[str, float]],
-) -> tuple[DocumentSnapshot, list[str]]:
+) -> tuple[DocumentSnapshot, dict[str, Point], list[str]]:
+    """Return the translated snapshot plus the per-part translation deltas.
+
+    The deltas let downstream wire planning translate document-resolved pin
+    anchors into the virtual snapshot's coordinate system; orientations are
+    translation-invariant and stay valid.
+    """
     virtual = copy.deepcopy(snapshot)
     warnings: list[str] = []
+    deltas: dict[str, Point] = {}
     if virtual.schematic is None:
-        return virtual, ["Snapshot has no schematic model."]
+        return virtual, deltas, ["Snapshot has no schematic model."]
     parts = {part.stable_id: part for part in virtual.schematic.parts}
     for part_id, raw_target in sorted(placements.items()):
         part = parts.get(part_id)
@@ -159,12 +166,14 @@ def _virtualize_snapshot(
                 f"Part {part_id} has a bounding box but no source position; its virtual "
                 "obstacle could not be translated."
             )
+        if previous is not None:
+            deltas[part_id] = Point(target.x - previous.x, target.y - previous.y)
         part.position = target.as_dict()
         object_record = virtual.objects.get(part_id)
         if object_record is not None and object_record is not part:
             object_record.position = dict(part.position)
             object_record.bbox = dict(part.bbox) if part.bbox is not None else None
-    return virtual, warnings
+    return virtual, deltas, warnings
 
 
 def _resolution_source(
@@ -534,7 +543,7 @@ def score_schematic_placement_candidate_routes(
             "Joint placement route scoring currently requires an unwired schematic"
         )
     pin_geometry = pin_geometry or resolve_document_schematic_pin_geometry(document)
-    virtual, warnings = _virtualize_snapshot(original, candidate.placements)
+    virtual, part_deltas, warnings = _virtualize_snapshot(original, candidate.placements)
     affected_keys: set[tuple[str, int]] = set()
     if original.schematic.wires:
         # Model the same world the atomic reroute planner will actually apply:
@@ -617,6 +626,7 @@ def score_schematic_placement_candidate_routes(
                 virtual,
                 operation,
                 config=config.wire_planner,
+                part_deltas=part_deltas,
             )
             wire_metrics = plan.selected.metrics
             edge_results.append(

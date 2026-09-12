@@ -355,12 +355,23 @@ def audit_wheel(path: Path, allowlist: Sequence[str] | None = None) -> dict[str,
             raise ReleaseArtifactError(f"unexpected console entry points: {entry_points}")
 
         catalog = json.loads(archive.read("diptrace_mcp/skills/catalog.json"))
+        if not isinstance(catalog, list) or not catalog or any(
+            not isinstance(item, dict)
+            or not isinstance(item.get("slug"), str)
+            or not item["slug"]
+            for item in catalog
+        ):
+            raise ReleaseArtifactError("wheel skill catalog must contain named packages")
         expected_skill_files = {
             f"diptrace_mcp/skills/{item['slug']}/SKILL.md" for item in catalog
         }
-        if len(expected_skill_files) != 8 or not expected_skill_files <= files:
+        actual_skill_files = {
+            name for name in files
+            if name.startswith("diptrace_mcp/skills/") and name.endswith("/SKILL.md")
+        }
+        if len(expected_skill_files) != len(catalog) or actual_skill_files != expected_skill_files:
             raise ReleaseArtifactError(
-                "wheel must contain exactly the eight catalogued skill packages"
+                "wheel must contain exactly the distinct catalogued skill packages"
             )
         _check_record(archive, f"{dist_info}/RECORD", files)
 

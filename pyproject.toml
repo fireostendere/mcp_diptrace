@@ -70,7 +70,7 @@ path = "scripts/hatch_build.py"
 
 [tool.pytest.ini_options]
 addopts = "-ra"
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
 
 [tool.ruff]
@@ -90,6 +90,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "src/diptrace_mcp/release_readiness.py" = ["E501"]
 "src/diptrace_mcp/synthetic_fixture_pack.py" = ["E501", "I001"]
 "tests/test_manual_acceptance.py" = ["E501"]
+"scripts/*" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["diptrace_mcp"]

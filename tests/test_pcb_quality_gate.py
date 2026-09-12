@@ -32,3 +32,7 @@ def test_monotonic_handoff_has_no_violations(tmp_path: Path):
 
 def test_unknown_status_fails_closed():
     assert check_order({1: ("ERC", "probably fine")}) != []
+
+
+def test_partial_gate_is_open_and_blocks_later_pass():
+    assert check_order({1: ("Placement", "PARTIAL"), 2: ("Routing", "PASS")})

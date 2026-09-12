@@ -12,12 +12,12 @@ import anyio
 from mcp import types
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.message import SessionMessage
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from . import __version__
 from .config import Settings
 from .domain import BoardModelSection, QuerySelector
-from .errors import ObjectNotFoundError
+from .errors import EditError, ObjectNotFoundError, Sha256MismatchError
 from .operations import (
     AddTestpointOperation,
     PinEndpoint,
@@ -35,6 +35,7 @@ from .scaffolding import (
     DEFAULT_FORMAT_VERSION,
     PcbScaffold,
 )
+from .schematic_ensemble import SchematicEnsembleConfig
 from .server_inputs import (
     _INPUT_SCHEMA_RESOURCE,
     AbandonLiveSessionResult,
@@ -56,8 +57,11 @@ from .server_inputs import (
     _finalize_tool_descriptions,
 )
 from .service import DipTraceService
+from .services.xml_writes import MAX_RAW_XML_EDITS, _finalize_raw_edit_response
 from .synchronization import ComponentSyncMapping, SyncPlacement
-from .xml_document import XmlEdit
+from .xml_document import XmlEdit, sha256_bytes
+
+MAX_XML_EDITS_FILE_BYTES = 128 * 1024
 
 
 def create_server(
@@ -467,6 +471,56 @@ def create_server(
         """Store a bounded diff resource, or write with its SHA/match guards and a backup."""
         operations = [XmlEdit(**edit.model_dump()) for edit in edits]
         return service.apply_edits(operations, path, dry_run, expected_sha256)
+
+    @mcp.tool()
+    def apply_xml_edits_from_file(
+        edits_path: str,
+        expected_edits_sha256: str | None = None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+    ) -> dict[str, Any]:
+        """Load 1–50 hash-bound XML edits from an allowed UTF-8 JSON file."""
+        if not dry_run and (not expected_edits_sha256 or not expected_sha256):
+            raise EditError(
+                "expected_edits_sha256 and expected_sha256 are required when dry_run=false"
+            )
+        edit_file = service.settings.resolve_allowed_path(edits_path)
+        if not edit_file.is_file():
+            raise EditError("edits_path must identify a regular JSON file")
+        with edit_file.open("rb") as handle:
+            raw_edits = handle.read(MAX_XML_EDITS_FILE_BYTES + 1)
+        if len(raw_edits) > MAX_XML_EDITS_FILE_BYTES:
+            raise EditError("Edit file exceeds the 128 KiB limit")
+        actual_edits_sha256 = sha256_bytes(raw_edits)
+        if expected_edits_sha256 and actual_edits_sha256 != expected_edits_sha256:
+            raise Sha256MismatchError(
+                "Edit file changed since its SHA-256 was recorded",
+                details={
+                    "expected_edits_sha256": expected_edits_sha256,
+                    "current_edits_sha256": actual_edits_sha256,
+                },
+            )
+        try:
+            payload = json.loads(raw_edits.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise EditError("Edit file must contain valid UTF-8 JSON") from exc
+        if not isinstance(payload, list):
+            raise EditError("Edit file must contain a flat JSON array of edits")
+        if not 1 <= len(payload) <= MAX_RAW_XML_EDITS:
+            raise EditError(
+                f"Edit file must contain between 1 and {MAX_RAW_XML_EDITS} edits"
+            )
+        try:
+            operations = [
+                XmlEdit(**XmlEditInput.model_validate(edit, extra="forbid").model_dump())
+                for edit in payload
+            ]
+        except ValidationError as exc:
+            raise EditError("Edit file contains invalid edit operations") from exc
+        result = service.apply_edits(operations, path, dry_run, expected_sha256)
+        result["edits_file_sha256"] = actual_edits_sha256
+        return _finalize_raw_edit_response(result)
 
     @mcp.tool()
     def create_schematic_document(
@@ -1148,6 +1202,7 @@ def create_server(
         sheet: int = 0,
         text: str | None = None,
         font_size: int = 4,
+        horizontal_align: Literal["Left", "Center", "Right"] = "Left",
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
@@ -1155,7 +1210,8 @@ def create_server(
     ) -> dict[str, Any]:
         """Add a net-bound text label shape to a schematic sheet."""
         return service.add_net_label(
-            net, x, y, sheet, text, font_size, path, dry_run, expected_sha256, txid
+            net, x, y, sheet, text, font_size, path, dry_run, expected_sha256, txid,
+            horizontal_align=horizontal_align,
         )
 
     @mcp.tool()
@@ -1560,11 +1616,13 @@ def create_server(
     def rank_schematic_placement_candidates(
         path: str | None = None,
         engineering_rules: EngineeringRulePack | None = None,
+        config: SchematicEnsembleConfig | None = None,
     ) -> dict[str, Any]:
-        """Rank schematic candidates with optional sourced engineering rules."""
+        """Rank schematic candidates with optional sourced rules and bounded config."""
         return service.rank_schematic_placement_candidates(
             path,
             engineering_rules=engineering_rules,
+            config=config,
         )
 
     @mcp.tool()
@@ -2880,6 +2938,54 @@ def create_server(
             "commit with the returned source SHA only after pin-to-pad mapping is complete. "
             "Then legalize placement and rerun connectivity and DRC."
         )
+
+    # --- pipeline tools (Rev.A DUT controller + generic board build) ------
+
+    @mcp.tool(
+        description=(
+            "Resolve an MPN to its LCSC part code and download component JSON + "
+            "datasheet PDF from EasyEDA. Returns code, package, pin/pad counts and "
+            "file paths for downstream schematic building."
+        )
+    )
+    def pipeline_source_component(
+        mpn_or_code: str,
+        output_dir: str = "vendor",
+    ) -> dict[str, Any]:
+        """Resolve an MPN to its LCSC data and download it."""
+        from diptrace_mcp.pipeline import lcsc_fetch
+        return lcsc_fetch(mpn_or_code, output_dir)
+
+    @mcp.tool(
+        description=(
+            "Transplant generated schematic/PCB content into a DipTrace-native "
+            "template so the real editor parses it without hanging. Detects kind "
+            "(schematic or PCB) automatically."
+        )
+    )
+    def pipeline_nativeize_document(
+        input_path: str,
+        template_path: str,
+        output_path: str,
+    ) -> dict[str, Any]:
+        """Transplant generated content into a DipTrace-native template."""
+        from diptrace_mcp.pipeline import nativeize_document
+        return nativeize_document(input_path, template_path, output_path)
+
+    @mcp.tool(
+        description=(
+            "Render Top + Bottom SVG previews of a .dipxml board without opening "
+            "DipTrace. Shows outline, copper traces, pours, vias and board edge."
+        )
+    )
+    def pipeline_render_board_preview(
+        pcb_path: str,
+        output_dir: str = ".",
+    ) -> dict[str, Any]:
+        """Render Top + Bottom SVG previews of a board."""
+        from diptrace_mcp.pipeline import render_board_svg
+        return render_board_svg(pcb_path, output_dir)
+
 
     _finalize_tool_descriptions(mcp)
     service.set_workflow_prompt_names(tuple(mcp._prompt_manager._prompts))

@@ -9,6 +9,43 @@ Apply these house rules while creating, generating, or visually cleaning a
 DipTrace schematic. Datasheets, electrical safety, ERC/DRC, mechanical limits,
 and manufacturability take precedence.
 
+## Run gated learning builds one sheet at a time
+
+When the user is using a board as a training run for repeatable one-prompt
+generation:
+
+1. Apply the repository Knowledge/RAG policy before searching. Query the
+   configured engineering RAG only when a material unknown fact is required to
+   decide the design. Pure visual rearrangement, alignment, spacing, or cleanup
+   must use the user's instruction and current DipTrace state without
+   `knowledge_search`. When retrieval is required, record returned document
+   IDs/sections and distinguish retrieved requirements from model inference.
+2. Freeze the purpose, interfaces, component evidence and acceptance checks of
+   one sheet only. Do not create the next sheet until the current sheet passes
+   its declared structural, electrical, readability and native-roundtrip gates.
+3. On an explicit clean restart, delete only the resolved schematic targets;
+   preserve PCB artifacts unless the user separately includes them. Never use
+   rejected schematic coordinates, wires or generated netlist XML as inputs to
+   the replacement.
+4. Keep an append-only engineering journal with the query, retrieved sources,
+   mutations, tool results, failures, exact resume point and artifact hashes.
+   RAG is retrieval memory, not gate authority.
+5. After a gate passes, ingest the journal update and add only reusable,
+   observed workflow rules to this skill. Keep project-specific MPNs, nets and
+   coordinates in project evidence rather than universal skill instructions.
+6. When native acceptance is required, start from `create_document_from_seed`
+   with a known DipTrace export so native `Settings`, `Simulator`, and unknown
+   loader fields survive. A synthetic scaffold that parses in MCP is not proof
+   that DipTrace will open it as a normal project.
+7. Opening schematic XML can show DipTrace's `Shift Origin` import dialog even
+   for an unchanged control seed. Automation may confirm it only by exact title
+   plus one enabled `OK` button through a Win32 message; otherwise fail closed.
+   Keep page geometry centered at `(0, 0)` and do not infer a coordinate defect
+   from this dialog alone.
+8. Respect the MCP per-write object limit. If cleaning a native seed exceeds
+   it, split the cleanup into guarded dry-run/commit operations by container or
+   component. Never raise or bypass the limit for convenience.
+
 ## Resolve components before placement
 
 For every component, record the result of this exact lookup order before
@@ -55,6 +92,18 @@ Apply the same order to connectors and catalog passives.
 - Avoid crossings and gratuitous U/staple detours. Rearrange or rotate parts
   first; use a compact multi-bend route only when endpoint orientations require
   it.
+- Use one straight segment when the endpoints can be connected directly. Add a
+  bend only to avoid a real obstacle or to enter the intended side of a block.
+- Align peer blocks to a shared edge or centerline and keep their sizes and gaps
+  visually consistent. Do not stagger equivalent tiles without a functional
+  reason.
+- Every documentary line must terminate on a visible block, endpoint, port, or
+  intentional junction. Never leave a line ending in empty page space.
+- Route intersections are a visual-gate failure unless they are intentional
+  connected junctions. Prefer moving blocks over adding detours.
+- A documentary DipTrace `Shape Type="Line"` is exactly one two-point segment.
+  Encode every bend as another line shape with a shared endpoint; never accept
+  a preview renderer that silently treats one multi-point shape as a polyline.
 - Extend a net label away from its pin or wire end and keep its text corridor
   clear of support parts and wires.
 - Reject any generated name matching `Net <number>`. Repair the native Net Port
@@ -82,7 +131,10 @@ For a multi-sheet design, add one top-level overview sheet similar to an Altium
 hierarchy diagram:
 
 - use one named block per functional sheet;
-- arrange blocks in left-to-right functional flow;
+- keep the primary functional flow left-to-right, but place secondary blocks as
+  a fan, star, or compact pipeline when that makes their relationships clearer;
+  never force every block into decorative rows, but align blocks that are peers
+  in the chosen composition;
 - put input ports on each block's left edge and output ports on its right edge;
 - connect blocks with visible orthogonal lines labelled with the key cross-sheet
   nets;
@@ -91,6 +143,9 @@ hierarchy diagram:
   entries.
 
 Do not duplicate the detailed circuitry on the overview sheet.
+Do not draw sheet-wide power-distribution rails on an architecture overview
+unless power distribution is the point of that view; prefer only the logical
+or control relationships the overview is meant to explain.
 
 ## Finish checks
 

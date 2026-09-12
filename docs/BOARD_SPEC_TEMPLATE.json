@@ -1,0 +1,60 @@
+{
+  "$schema": "https://mcp-diptrace.local/board-spec-v1.json",
+  "project": "my-new-board",
+  "version": "1.0.0",
+  "description": "Template — fill in your parts, nets and placement. "
+                 + "Drive it with: PYTHONPATH=src python scripts/build_generic_board.py --spec this.json",
+
+  "sheets": ["SYSTEM_OVERVIEW", "MCU", "POWER", "IO"],
+
+  "components": [
+    {
+      "refdes": "U1",
+      "lcsc_or_builtin": "C6186",
+      "value": "AMS1117-3.3",
+      "sheet": 1,
+      "x": 30.0, "y": 60.0
+    },
+    {
+      "refdes": "R1",
+      "lcsc_or_builtin": "std:COMP_R0603",
+      "value": "10k",
+      "sheet": 1,
+      "x": 40.0, "y": 55.0
+    }
+  ],
+
+  "nets": {
+    "GND": [["U1", "1"], ["R1", "2"]],
+    "+3V3": [["U1", "2"], ["R1", "1"]]
+  },
+
+  "no_connect": [["U1", "3"]],
+
+  "board": {
+    "width_mm": 50,
+    "height_mm": 40,
+    "placement": {
+      "U1": [25, 20], "R1": [15, 15]
+    },
+    "rotations": {},
+    "priority_nets": ["GND", "+3V3"],
+    "routing": {
+      "grid_mm": 0.25,
+      "clearance_mm": 0.15,
+      "max_nodes": 1000000,
+      "route_time_budget_ms": 900000
+    },
+    "pours": {
+      "net": "GND",
+      "layers": ["Top", "Bottom"],
+      "clearance_mm": 0.22,
+      "stitch_pitch_mm": 4.0
+    }
+  },
+
+  "notes": [
+    "See docs/DUT_CONTROLLER_REVA_DESIGN.md for a full real-world example.",
+    "See EXTRACTION_INDEX.md for which proven pattern backs each field."
+  ]
+}

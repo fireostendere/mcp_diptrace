@@ -58,7 +58,7 @@ Version `0.4.0` is the current published unsigned development release. The
 immutable GitHub release is `v0.4.0`, and the matching Python package is
 `diptrace-mcp==0.4.0` on PyPI.
 
-The published release keeps the public MCP contract frozen at 167 tools and
+The published release keeps the public MCP contract frozen at 170 tools and
 contains the A1-A8 roadmap closure plus tested cross-platform host paths:
 
 - Windows split per-user/admin installers and portable bundle;
@@ -109,7 +109,7 @@ is not yet published.
 
 ## What it provides
 
-The public MCP surface currently registers 167 tools. Runtime
+The public MCP surface currently registers 171 tools. Runtime
 `get_capabilities` remains authoritative for the active
 installation and document.
 
@@ -395,6 +395,17 @@ See [Testing](docs/TESTING.md) and [Development](docs/DEVELOPMENT.md).
 
 - [Usage](docs/USAGE.md)
 - [MCP tools and resources](docs/MCP_TOOLS.md)
+- [Packaged MCP skills catalog](skills/README.md)
+- [Full PCB lifecycle and project skill map](skills/pcb-design-workflow/SKILL.md):
+  requirements, [schematic engineering](skills/schematic-engineer/SKILL.md),
+  datasheet evidence, sourcing, PCB gates, production files, bring-up, and revisions.
+- [MCP versus native/headless commands](skills/shared/runtime.md)
+- [Engineering skill review and corrections](docs/SKILL_REVIEW_2026-09-10.md)
+- Legacy agent-host recipes under [.agents/skills/](.agents/skills/):
+  [`diptrace-pcb-testpoints`](.agents/skills/diptrace-pcb-testpoints/SKILL.md),
+  [`diptrace-pcb-grounding`](.agents/skills/diptrace-pcb-grounding/SKILL.md),
+  [`diptrace-schematic-style`](.agents/skills/diptrace-schematic-style/SKILL.md),
+  [`easyeda-lcsc-sourcing`](.agents/skills/easyeda-lcsc-sourcing/SKILL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [EDA intelligence map](docs/EDA_INTELLIGENCE.md)
 - [Schematic layout engine](docs/SCHEMATIC_LAYOUT_ENGINE.md)

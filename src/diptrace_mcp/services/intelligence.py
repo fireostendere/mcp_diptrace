@@ -10,7 +10,7 @@ from ..pattern_recommendation import PatternRequirement, recommend_patterns
 from ..pcb_candidate_ensemble import PCBEnsembleConfig, build_pcb_candidate_ensemble
 from ..reference_rules import EngineeringRulePack, ingest_engineering_rule_pack
 from ..release_readiness import run_release_readiness
-from ..schematic_ensemble import rank_schematic_ensemble
+from ..schematic_ensemble import SchematicEnsembleConfig, rank_schematic_ensemble
 from .context import DocumentGateway, ServiceContext, read_success
 
 _RANK_LIMITATIONS = (
@@ -49,6 +49,7 @@ class IntelligenceService:
         path: str | None = None,
         *,
         engineering_rules: EngineeringRulePack | None = None,
+        config: SchematicEnsembleConfig | None = None,
     ) -> dict[str, Any]:
         document, target = self.gateway.load(path)
         snapshot = self.context.model_cache.get(document, live_session=target.is_live)
@@ -60,6 +61,7 @@ class IntelligenceService:
         result = rank_schematic_ensemble(
             document,
             motifs=ingestion.motifs if ingestion is not None else None,
+            config=config,
         )
         payload = result.model_dump(mode="json")
         if ingestion is not None:

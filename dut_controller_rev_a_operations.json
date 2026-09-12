@@ -1,0 +1,1580 @@
+[
+  [
+    "place_part",
+    {
+      "component_style": "C2980299",
+      "refdes": "U1",
+      "x": -99.06,
+      "y": 0.0,
+      "sheet": 0,
+      "value": "ESP32-S3-MINI-1U-N8",
+      "lib_key": "ESP32-S3-MINI-1U",
+      "pin_count": 41,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C1",
+      "x": -76.2,
+      "y": 30.48,
+      "sheet": 0,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C2",
+      "x": -68.58,
+      "y": 30.48,
+      "sheet": 0,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C3",
+      "x": -60.96,
+      "y": 30.48,
+      "sheet": 0,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C4",
+      "x": -53.34,
+      "y": 30.48,
+      "sheet": 0,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C5",
+      "x": -48.26,
+      "y": 30.48,
+      "sheet": 0,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C6",
+      "x": -40.64,
+      "y": 30.48,
+      "sheet": 0,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C7",
+      "x": -33.02,
+      "y": 30.48,
+      "sheet": 0,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C8",
+      "x": -25.4,
+      "y": 30.48,
+      "sheet": 0,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R1",
+      "x": -99.06,
+      "y": 40.64,
+      "sheet": 0,
+      "value": "15k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R2",
+      "x": -99.06,
+      "y": 50.8,
+      "sheet": 0,
+      "value": "100k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R3",
+      "x": -99.06,
+      "y": 60.96,
+      "sheet": 0,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R4",
+      "x": -88.9,
+      "y": 60.96,
+      "sheet": 0,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C83574",
+      "refdes": "D1",
+      "x": -88.9,
+      "y": 50.8,
+      "sheet": 0,
+      "value": "BAT54S",
+      "lib_key": "BAT54S",
+      "pin_count": 3,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C83574",
+      "refdes": "D2",
+      "x": -88.9,
+      "y": 40.64,
+      "sheet": 0,
+      "value": "BAT54S",
+      "lib_key": "BAT54S",
+      "pin_count": 3,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "Y1",
+      "x": -99.06,
+      "y": 71.12,
+      "sheet": 0,
+      "value": "32.768kHz",
+      "lib_key": "R_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1525896499:55",
+      "refdes": "J1",
+      "x": 40.64,
+      "y": 0.0,
+      "sheet": 0,
+      "value": "DEBUG_UART",
+      "lib_key": "HDR-1x4",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1525896499:94",
+      "refdes": "J2",
+      "x": 60.96,
+      "y": 0.0,
+      "sheet": 0,
+      "value": "JTAG",
+      "lib_key": "HDR-2x5",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1525896499:55",
+      "refdes": "J3",
+      "x": 40.64,
+      "y": -30.48,
+      "sheet": 0,
+      "value": "GPIO_EXP",
+      "lib_key": "HDR-1x4",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C7519",
+      "refdes": "U14",
+      "x": -78.74,
+      "y": 0.0,
+      "sheet": 0,
+      "value": "USBLC6-2SC6",
+      "lib_key": "USBLC6-2SC6",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C8465",
+      "refdes": "J4",
+      "x": -119.38,
+      "y": 40.64,
+      "sheet": 1,
+      "value": "DC_J1",
+      "lib_key": "WJ500V-5.08-2P",
+      "pin_count": 2,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C8465",
+      "refdes": "J5",
+      "x": -119.38,
+      "y": 20.32,
+      "sheet": 1,
+      "value": "DC_J2",
+      "lib_key": "WJ500V-5.08-2P",
+      "pin_count": 2,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C8465",
+      "refdes": "J6",
+      "x": -119.38,
+      "y": 0.0,
+      "sheet": 1,
+      "value": "DC_J3",
+      "lib_key": "WJ500V-5.08-2P",
+      "pin_count": 2,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C8465",
+      "refdes": "J7",
+      "x": -119.38,
+      "y": -20.32,
+      "sheet": 1,
+      "value": "DC_J4",
+      "lib_key": "WJ500V-5.08-2P",
+      "pin_count": 2,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C910842",
+      "refdes": "F1",
+      "x": -99.06,
+      "y": 40.64,
+      "sheet": 1,
+      "value": "PTC_2A",
+      "lib_key": "BSMD2920-200",
+      "pin_count": 2,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C910842",
+      "refdes": "F2",
+      "x": -99.06,
+      "y": 20.32,
+      "sheet": 1,
+      "value": "PTC_2A",
+      "lib_key": "BSMD2920-200",
+      "pin_count": 2,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C910842",
+      "refdes": "F3",
+      "x": -99.06,
+      "y": 0.0,
+      "sheet": 1,
+      "value": "PTC_2A",
+      "lib_key": "BSMD2920-200",
+      "pin_count": 2,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C910842",
+      "refdes": "F4",
+      "x": -99.06,
+      "y": -20.32,
+      "sheet": 1,
+      "value": "PTC_2A",
+      "lib_key": "BSMD2920-200",
+      "pin_count": 2,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C123820",
+      "refdes": "D3",
+      "x": -83.82000000000001,
+      "y": 40.64,
+      "sheet": 1,
+      "value": "SMBJ26A",
+      "lib_key": "SMBJ26A",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C10758",
+      "refdes": "D4",
+      "x": -83.82000000000001,
+      "y": 20.32,
+      "sheet": 1,
+      "value": "SMAJ5.0A",
+      "lib_key": "SMAJ5.0A",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C10758",
+      "refdes": "D5",
+      "x": -83.82000000000001,
+      "y": 0.0,
+      "sheet": 1,
+      "value": "SMAJ5.0A",
+      "lib_key": "SMAJ5.0A",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C15127",
+      "refdes": "Q1",
+      "x": -71.12,
+      "y": 40.64,
+      "sheet": 1,
+      "value": "P-FET_1",
+      "lib_key": "AO3401A",
+      "pin_count": 3,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C15127",
+      "refdes": "Q2",
+      "x": -71.12,
+      "y": 20.32,
+      "sheet": 1,
+      "value": "P-FET_2",
+      "lib_key": "AO3401A",
+      "pin_count": 3,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C15127",
+      "refdes": "Q3",
+      "x": -71.12,
+      "y": 0.0,
+      "sheet": 1,
+      "value": "P-FET_3",
+      "lib_key": "AO3401A",
+      "pin_count": 3,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C15127",
+      "refdes": "Q4",
+      "x": -71.12,
+      "y": -20.32,
+      "sheet": 1,
+      "value": "P-FET_4",
+      "lib_key": "AO3401A",
+      "pin_count": 3,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C55136",
+      "refdes": "U2",
+      "x": -50.8,
+      "y": 40.64,
+      "sheet": 1,
+      "value": "OCP_1",
+      "lib_key": "SY6280",
+      "pin_count": 8,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C55136",
+      "refdes": "U3",
+      "x": -50.8,
+      "y": 20.32,
+      "sheet": 1,
+      "value": "OCP_2",
+      "lib_key": "SY6280",
+      "pin_count": 8,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C55136",
+      "refdes": "U4",
+      "x": -50.8,
+      "y": 0.0,
+      "sheet": 1,
+      "value": "OCP_3",
+      "lib_key": "SY6280",
+      "pin_count": 8,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:178",
+      "refdes": "U5",
+      "x": -30.48,
+      "y": 0.0,
+      "sheet": 1,
+      "value": "LDO_3V3",
+      "lib_key": "AMS1117-3.3",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C9",
+      "x": -30.48,
+      "y": 20.32,
+      "sheet": 1,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1007963616:8",
+      "refdes": "C10",
+      "x": -20.32,
+      "y": 20.32,
+      "sheet": 1,
+      "value": "22uF",
+      "lib_key": "C_0805",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R5",
+      "x": -50.8,
+      "y": 60.96,
+      "sheet": 1,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R6",
+      "x": -40.64,
+      "y": 60.96,
+      "sheet": 1,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R7",
+      "x": -30.48,
+      "y": 60.96,
+      "sheet": 1,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C165948",
+      "refdes": "J8",
+      "x": -119.38,
+      "y": 30.48,
+      "sheet": 2,
+      "value": "USB-C_DUT1",
+      "lib_key": "TYPE-C-31-M-12",
+      "pin_count": 24,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C165948",
+      "refdes": "J9",
+      "x": -119.38,
+      "y": -30.48,
+      "sheet": 2,
+      "value": "USB-C_DUT2",
+      "lib_key": "TYPE-C-31-M-12",
+      "pin_count": 24,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C698206",
+      "refdes": "J10",
+      "x": -119.38,
+      "y": 60.96,
+      "sheet": 2,
+      "value": "USB-A_UPLINK",
+      "lib_key": "UK-USB-AF",
+      "pin_count": 5,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C7519",
+      "refdes": "D6",
+      "x": -99.06,
+      "y": 60.96,
+      "sheet": 2,
+      "value": "ESD_UPLINK",
+      "lib_key": "USBLC6-2SC6",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C7519",
+      "refdes": "D7",
+      "x": -99.06,
+      "y": 30.48,
+      "sheet": 2,
+      "value": "ESD_DUT1",
+      "lib_key": "USBLC6-2SC6",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C7519",
+      "refdes": "D8",
+      "x": -99.06,
+      "y": -30.48,
+      "sheet": 2,
+      "value": "ESD_DUT2",
+      "lib_key": "USBLC6-2SC6",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C130085",
+      "refdes": "U6",
+      "x": -71.12,
+      "y": 30.48,
+      "sheet": 2,
+      "value": "MUX_USB1",
+      "lib_key": "TS3USB221",
+      "pin_count": 10,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C130085",
+      "refdes": "U7",
+      "x": -71.12,
+      "y": -30.48,
+      "sheet": 2,
+      "value": "MUX_USB2",
+      "lib_key": "TS3USB221",
+      "pin_count": 10,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C7843",
+      "refdes": "U12",
+      "x": -40.64,
+      "y": 50.8,
+      "sheet": 2,
+      "value": "LS_UART1",
+      "lib_key": "SN74LVC1T45",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C7843",
+      "refdes": "U13",
+      "x": -40.64,
+      "y": 30.48,
+      "sheet": 2,
+      "value": "LS_UART2",
+      "lib_key": "SN74LVC1T45",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C146332",
+      "refdes": "U15",
+      "x": 0.0,
+      "y": 50.8,
+      "sheet": 2,
+      "value": "PHOTO_1",
+      "lib_key": "TLP176A",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C146332",
+      "refdes": "U16",
+      "x": 0.0,
+      "y": 30.48,
+      "sheet": 2,
+      "value": "PHOTO_2",
+      "lib_key": "TLP176A",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C146332",
+      "refdes": "U17",
+      "x": 0.0,
+      "y": 10.16,
+      "sheet": 2,
+      "value": "PHOTO_3",
+      "lib_key": "TLP176A",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C146332",
+      "refdes": "U18",
+      "x": 0.0,
+      "y": -10.16,
+      "sheet": 2,
+      "value": "PHOTO_4",
+      "lib_key": "TLP176A",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C146332",
+      "refdes": "U19",
+      "x": 0.0,
+      "y": -30.48,
+      "sheet": 2,
+      "value": "PHOTO_5",
+      "lib_key": "TLP176A",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C146332",
+      "refdes": "U20",
+      "x": 0.0,
+      "y": -50.8,
+      "sheet": 2,
+      "value": "PHOTO_6",
+      "lib_key": "TLP176A",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C146332",
+      "refdes": "U21",
+      "x": 0.0,
+      "y": -71.12,
+      "sheet": 2,
+      "value": "PHOTO_7",
+      "lib_key": "TLP176A",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C146332",
+      "refdes": "U22",
+      "x": 20.32,
+      "y": 50.8,
+      "sheet": 2,
+      "value": "PHOTO_8",
+      "lib_key": "TLP176A",
+      "pin_count": 6,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C129516",
+      "refdes": "U16",
+      "x": 40.64,
+      "y": 30.48,
+      "sheet": 2,
+      "value": "GPIO_EXP",
+      "lib_key": "PCA9539",
+      "pin_count": 24,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1525896499:94",
+      "refdes": "J11",
+      "x": 60.96,
+      "y": 30.48,
+      "sheet": 2,
+      "value": "DUT_HDR1",
+      "lib_key": "HDR-2x5",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1525896499:94",
+      "refdes": "J12",
+      "x": 60.96,
+      "y": -30.48,
+      "sheet": 2,
+      "value": "DUT_HDR2",
+      "lib_key": "HDR-2x5",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R8",
+      "x": -71.12,
+      "y": 50.8,
+      "sheet": 2,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R9",
+      "x": -60.96,
+      "y": 50.8,
+      "sheet": 2,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R10",
+      "x": 40.64,
+      "y": 50.8,
+      "sheet": 2,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R11",
+      "x": 40.64,
+      "y": 60.96,
+      "sheet": 2,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C83574",
+      "refdes": "D9",
+      "x": -99.06,
+      "y": 0.0,
+      "sheet": 2,
+      "value": "SW_DUT1",
+      "lib_key": "BAT54S",
+      "pin_count": 3,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C83574",
+      "refdes": "D10",
+      "x": -99.06,
+      "y": -10.16,
+      "sheet": 2,
+      "value": "SW_DUT2",
+      "lib_key": "BAT54S",
+      "pin_count": 3,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1525896499:97",
+      "refdes": "J13",
+      "x": 78.74,
+      "y": 0.0,
+      "sheet": 2,
+      "value": "AUX_HDR",
+      "lib_key": "HDR-2x8",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1525896499:55",
+      "refdes": "J14",
+      "x": 78.74,
+      "y": 40.64,
+      "sheet": 2,
+      "value": "ISP_HDR",
+      "lib_key": "HDR-1x4",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1525896499:55",
+      "refdes": "J15",
+      "x": 78.74,
+      "y": -40.64,
+      "sheet": 2,
+      "value": "SAFE_HDR",
+      "lib_key": "HDR-1x4",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "WFL_custom",
+      "refdes": "J16",
+      "x": 60.96,
+      "y": 60.96,
+      "sheet": 2,
+      "value": "ANT",
+      "lib_key": "WFL-R-SMT-1",
+      "pin_count": 3,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C2653870",
+      "refdes": "U24",
+      "x": -119.38,
+      "y": 30.48,
+      "sheet": 3,
+      "value": "INA_1",
+      "lib_key": "INA226",
+      "pin_count": 10,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C2653870",
+      "refdes": "U25",
+      "x": -119.38,
+      "y": 0.0,
+      "sheet": 3,
+      "value": "INA_2",
+      "lib_key": "INA226",
+      "pin_count": 10,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C2653870",
+      "refdes": "U26",
+      "x": -119.38,
+      "y": -30.48,
+      "sheet": 3,
+      "value": "INA_3",
+      "lib_key": "INA226",
+      "pin_count": 10,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C2653870",
+      "refdes": "U27",
+      "x": -78.74,
+      "y": 0.0,
+      "sheet": 3,
+      "value": "INA_4",
+      "lib_key": "INA226",
+      "pin_count": 10,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R12",
+      "x": -129.54,
+      "y": 30.48,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R13",
+      "x": -129.54,
+      "y": 0.0,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R14",
+      "x": -129.54,
+      "y": -30.48,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R15",
+      "x": -88.9,
+      "y": 0.0,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C68608",
+      "refdes": "R16",
+      "x": -129.54,
+      "y": 50.8,
+      "sheet": 3,
+      "value": "SHUNT_1",
+      "lib_key": "MS122WF200",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C68608",
+      "refdes": "R17",
+      "x": -129.54,
+      "y": 20.32,
+      "sheet": 3,
+      "value": "SHUNT_2",
+      "lib_key": "MS122WF200",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C68608",
+      "refdes": "R18",
+      "x": -129.54,
+      "y": -10.16,
+      "sheet": 3,
+      "value": "SHUNT_3",
+      "lib_key": "MS122WF200",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C68608",
+      "refdes": "R19",
+      "x": -88.9,
+      "y": 20.32,
+      "sheet": 3,
+      "value": "SHUNT_4",
+      "lib_key": "MS122WF200",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C161747",
+      "refdes": "U23",
+      "x": -50.8,
+      "y": 0.0,
+      "sheet": 3,
+      "value": "ADC",
+      "lib_key": "ADS7830",
+      "pin_count": 20,
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R20",
+      "x": -60.96,
+      "y": 30.48,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R21",
+      "x": -50.8,
+      "y": 30.48,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R22",
+      "x": -40.64,
+      "y": 30.48,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R23",
+      "x": -30.48,
+      "y": 30.48,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R24",
+      "x": -60.96,
+      "y": -30.48,
+      "sheet": 3,
+      "value": "4.7k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R25",
+      "x": -50.8,
+      "y": -30.48,
+      "sheet": 3,
+      "value": "4.7k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R26",
+      "x": -40.64,
+      "y": -30.48,
+      "sheet": 3,
+      "value": "4.7k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R27",
+      "x": -30.48,
+      "y": -30.48,
+      "sheet": 3,
+      "value": "4.7k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R28",
+      "x": -20.32,
+      "y": 30.48,
+      "sheet": 3,
+      "value": "100k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C11",
+      "x": -109.22,
+      "y": 30.48,
+      "sheet": 3,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C12",
+      "x": -109.22,
+      "y": 0.0,
+      "sheet": 3,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C13",
+      "x": -109.22,
+      "y": -30.48,
+      "sheet": 3,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C14",
+      "x": -71.12,
+      "y": 0.0,
+      "sheet": 3,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C15",
+      "x": -50.8,
+      "y": -20.32,
+      "sheet": 3,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:390090902:67",
+      "refdes": "C16",
+      "x": -20.32,
+      "y": -20.32,
+      "sheet": 3,
+      "value": "100nF",
+      "lib_key": "C_0603",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C108176",
+      "refdes": "D11",
+      "x": -88.9,
+      "y": -20.32,
+      "sheet": 3,
+      "value": "Zener_5V6",
+      "lib_key": "BZT52C5V6S",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C14643",
+      "refdes": "D12",
+      "x": -71.12,
+      "y": -20.32,
+      "sheet": 3,
+      "value": "Zener_12V",
+      "lib_key": "BZT52C12",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R29",
+      "x": 30.48,
+      "y": 0.0,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R30",
+      "x": 30.48,
+      "y": 10.16,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R31",
+      "x": 30.48,
+      "y": 20.32,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R32",
+      "x": 30.48,
+      "y": 30.48,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R33",
+      "x": 30.48,
+      "y": -10.16,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R34",
+      "x": 30.48,
+      "y": -20.32,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R35",
+      "x": 30.48,
+      "y": -30.48,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "R36",
+      "x": 30.48,
+      "y": -40.64,
+      "sheet": 3,
+      "value": "10k",
+      "lib_key": "R_0603",
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:1525896499:97",
+      "refdes": "J17",
+      "x": 50.8,
+      "y": 0.0,
+      "sheet": 3,
+      "value": "ADC_HDR",
+      "lib_key": "HDR-2x8",
+      "angle_deg": 0
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C108176",
+      "refdes": "D13",
+      "x": -20.32,
+      "y": -30.48,
+      "sheet": 3,
+      "value": "Zener_5V6_b",
+      "lib_key": "BZT52C5V6S",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_part",
+    {
+      "component_style": "C14643",
+      "refdes": "D14",
+      "x": -20.32,
+      "y": -40.64,
+      "sheet": 3,
+      "value": "Zener_12V_b",
+      "lib_key": "BZT52C12",
+      "pin_count": 2,
+      "angle_deg": 90
+    }
+  ],
+  [
+    "place_builtin",
+    {
+      "component": "builtin-component:445731070:1",
+      "refdes": "F5",
+      "x": 30.48,
+      "y": -50.8,
+      "sheet": 3,
+      "value": "Ferrite_100R",
+      "lib_key": "R_0603",
+      "angle_deg": 0
+    }
+  ]
+]

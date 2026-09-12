@@ -1281,9 +1281,45 @@ def unified_xml_diff_preview(
     )
     before_lines = before_body.decode(before_encoding.codec, errors="replace").splitlines()
     after_lines = after_body.decode(after_encoding.codec, errors="replace").splitlines()
+
+    common_prefix = 0
+    shared_line_count = min(len(before_lines), len(after_lines))
+    while (
+        common_prefix < shared_line_count
+        and before_lines[common_prefix] == after_lines[common_prefix]
+    ):
+        common_prefix += 1
+    common_suffix = 0
+    while (
+        common_suffix < shared_line_count - common_prefix
+        and before_lines[-(common_suffix + 1)] == after_lines[-(common_suffix + 1)]
+    ):
+        common_suffix += 1
+
+    # difflib's popular-line heuristic can turn a tiny XML edit surrounded by
+    # repetitive elements into a document-wide diff. Keep its usual context,
+    # but trim exact shared edges before it selects matching blocks.
+    trim_start = max(0, common_prefix - 3)
+    before_diff_lines = before_lines[trim_start : len(before_lines) - common_suffix + 3]
+    after_diff_lines = after_lines[trim_start : len(after_lines) - common_suffix + 3]
+    hunk_header = re.compile(
+        r"^@@ -(?P<before>\d+)(?P<before_count>,\d+)? "
+        r"\+(?P<after>\d+)(?P<after_count>,\d+)? @@(?P<tail>.*)$"
+    )
+
+    def offset_hunk_header(line: str) -> str:
+        match = hunk_header.match(line)
+        if match is None:
+            return line
+        return (
+            f"@@ -{int(match['before']) + trim_start}{match['before_count'] or ''} "
+            f"+{int(match['after']) + trim_start}{match['after_count'] or ''} "
+            f"@@{match['tail']}"
+        )
+
     diff_lines = difflib.unified_diff(
-        before_lines,
-        after_lines,
+        before_diff_lines,
+        after_diff_lines,
         fromfile="before.xml",
         tofile="after.xml",
         lineterm="",
@@ -1293,7 +1329,7 @@ def unified_xml_diff_preview(
     total_line_count = 0
     total_character_count = 0
     prefix_open = True
-    for line in diff_lines:
+    for line in map(offset_hunk_header, diff_lines):
         if total_line_count:
             total_character_count += 1
         total_line_count += 1

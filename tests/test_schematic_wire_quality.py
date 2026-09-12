@@ -86,6 +86,25 @@ def test_clean_wire_is_preserved(tmp_path: Path) -> None:
     assert _wire_points(target, "VCC") == [(0.0, 50.0), (50.0, 50.0)]
 
 
+def test_clean_u_shaped_detour_is_simplified(tmp_path: Path) -> None:
+    service, target = _prepare(tmp_path)
+    service.add_wire(
+        "VCC",
+        [
+            {"x": 0.0, "y": 50.0},
+            {"x": 0.0, "y": 100.0},
+            {"x": 50.0, "y": 100.0},
+            {"x": 50.0, "y": 50.0},
+        ],
+        {"type": "Free"},
+        {"type": "Free"},
+        path="main.dch",
+        dry_run=False,
+        expected_sha256=_sha(service),
+    )
+    assert _wire_points(target, "VCC") == [(0.0, 50.0), (50.0, 50.0)]
+
+
 def test_wire_routes_around_component_region(tmp_path: Path) -> None:
     service, target = _prepare(tmp_path)
     service.add_wire(
@@ -167,6 +186,7 @@ def test_wire_routes_around_schematic_text(tmp_path: Path) -> None:
         25.0,
         10.0,
         text="IMPORTANT_LABEL",
+        horizontal_align="Right",
         path="main.dch",
         dry_run=False,
         expected_sha256=_sha(service),

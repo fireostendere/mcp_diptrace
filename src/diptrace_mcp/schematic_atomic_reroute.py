@@ -370,7 +370,7 @@ def plan_atomic_schematic_placement_reroute(
         document
     )
     pin_geometry = pin_geometry or source_pin_geometry
-    virtual, virtualization_warnings = _virtualize_snapshot(
+    virtual, part_deltas, virtualization_warnings = _virtualize_snapshot(
         planning_snapshot,
         placements,
     )
@@ -455,12 +455,17 @@ def plan_atomic_schematic_placement_reroute(
                     part_id=end.part.stable_id,
                     pin=end.pin_index,
                 ),
+                # Replacement geometry is connectivity-safe: when congestion
+                # leaves no escape-compliant route, keep the replacement and
+                # surface the readability problem as quality feedback.
+                pin_escape_policy="best_effort",
             )
             plan = plan_schematic_wire_candidate(
                 planning_document,
                 virtual,
                 operation,
                 config=config.wire_planner,
+                part_deltas=part_deltas,
             )
             if not plan.accept_route:
                 feedback = _readability_feedback(

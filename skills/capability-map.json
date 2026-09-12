@@ -1,6 +1,13 @@
 {
-  "schema_version": "2.0.0",
-  "discovery_rule": "Use public tools/list for exact callable names; use diptrace_status and get_capabilities for session, document, feature, policy, and configured-adapter availability.",
+  "schema_version": "2.2.0",
+  "external_knowledge": {
+    "provider": "User-configured Knowledge MCP / RAG, separate from DipTrace MCP",
+    "workflow": "shared/rag.md",
+    "role": "Default hardware-engineering working memory across design, implementation, review and production; no extra expert-role prompt or uncertainty threshold.",
+    "corpus": "User-ingested MIT/theory, schematic/PCB guides, DipTrace courses and project lessons; discover actual indexed sources rather than inventing titles or IDs.",
+    "discovery": "Discover search, document-read and figure tools/resources on the configured Knowledge provider. No Knowledge server or course corpus is bundled with this package."
+  },
+  "discovery_rule": "Use public tools/list for exact callable names; use diptrace_status and get_capabilities for session, document, feature, policy, and configured-adapter availability. Native/headless helpers are separate local CLI interfaces; inspect their installed entry points and backend prerequisites before declaring native work unavailable. Missing live sessions do not prevent explicit-path XML work.",
   "runtime_tools": {
     "analyze_controlled_impedance": {
       "runtime_tool": "analyze_controlled_impedance",
@@ -49,11 +56,233 @@
     "record_roundtrip_evidence": {
       "runtime_tool": "record_roundtrip_evidence",
       "claim": "Writes metadata sidecars only after validation; it never changes design bytes or grants high trust."
+    },
+    "query_builtin_library_catalog": {
+      "runtime_tool": "query_builtin_library_catalog",
+      "claim": "Searches installed native components; on a supported host it can export .eli to an XML cache with hidden Component Editor without mutating the source library."
+    },
+    "create_document_from_seed": {
+      "runtime_tool": "create_document_from_seed",
+      "claim": "Preserves unknown XML from a seed; trust comes from verified provenance, not from copying alone."
+    },
+    "pipeline_source_component": {
+      "runtime_tool": "pipeline_source_component",
+      "claim": "Downloads catalog JSON/PDF to an explicit directory; not a guarded CAD transaction, stock check, or native library importer."
+    },
+    "pipeline_nativeize_document": {
+      "runtime_tool": "pipeline_nativeize_document",
+      "claim": "Transplants generated content into a native-shaped template file. No native process runs; use fresh outputs and validate units, mappings and roundtrip."
+    },
+    "pipeline_render_board_preview": {
+      "runtime_tool": "pipeline_render_board_preview",
+      "claim": "Writes derived Top/Bottom SVG previews; not a real-editor screenshot, native refill, or DRC."
+    },
+    "export_bom": {
+      "runtime_tool": "export_bom",
+      "claim": "Generic CSV and provenance; assembler-specific reconciliation is separate."
+    },
+    "export_fabrication_outputs": {
+      "runtime_tool": "export_fabrication_outputs",
+      "claim": "Review manifest only; request_native_outputs=true is unavailable."
+    },
+    "export_assembly_outputs": {
+      "runtime_tool": "export_assembly_outputs",
+      "claim": "Generic BOM/placement; request_native_outputs=true is unavailable."
     }
   },
   "unavailable_contracts": {
     "native_library_mutation": "No public native Component/Pattern Library mutation MCP contract is registered; an internal raw-preserving core has separately scoped real-editor evidence.",
     "differential_stripline": "The analytical model does not implement coupled differential stripline.",
-    "native_fabrication_export": "The server emits review manifests, not Gerber, NC Drill, ODB++, or IPC-2581."
+    "native_fabrication_export": "The server emits review manifests, not Gerber, NC Drill, ODB++, or IPC-2581.",
+    "generic_native_schematic_erc": "Base headless roundtrip opens/saves Schematic but does not execute native ERC.",
+    "generic_native_xml_export": "Base roundtrip does not export XML. PCB acceptance exports PCB XML; installed .eli catalog export is a separate supported path. These do not imply arbitrary document export.",
+    "bridge_headless_gui": "bridge --headless is apply/cancel exchange control without the bridge dialog; it does not open the CAD GUI."
+  },
+  "tool_groups": {
+    "inspection": [
+      "scan_diptrace_documents",
+      "get_document_info",
+      "get_board_model",
+      "get_schematic_model",
+      "get_connectivity_graph",
+      "query_objects",
+      "get_object"
+    ],
+    "library": [
+      "query_builtin_library_catalog",
+      "query_library_items",
+      "get_library_component",
+      "get_library_pattern",
+      "validate_library_component",
+      "validate_library_pattern",
+      "validate_pin_pad_mapping",
+      "recommend_patterns"
+    ],
+    "schematic": [
+      "create_document_from_seed",
+      "create_schematic_document",
+      "add_sheet",
+      "place_part",
+      "place_builtin_component",
+      "connect_pins",
+      "add_wire",
+      "add_net_label",
+      "rename_net",
+      "set_pin_no_connect",
+      "set_component_fields",
+      "rank_schematic_placement_candidates",
+      "plan_schematic_placement_repair",
+      "apply_schematic_placement_repair_plan"
+    ],
+    "board": [
+      "create_pcb_document",
+      "sync_schematic_to_pcb",
+      "compare_schematic_to_pcb",
+      "analyze_placement",
+      "generate_placement_candidates",
+      "score_placement",
+      "plan_component_placement",
+      "legalize_component_placement",
+      "apply_component_placement_plan",
+      "move_components",
+      "rotate_components",
+      "set_component_side"
+    ],
+    "rules_and_planes": [
+      "get_design_rules",
+      "get_stackup",
+      "update_net_class_rules",
+      "assign_nets_to_class",
+      "set_diff_pair_rules",
+      "set_length_constraints",
+      "list_copper_pours",
+      "analyze_plane_continuity",
+      "analyze_return_path"
+    ],
+    "routing": [
+      "route_connection",
+      "route_net",
+      "route_diff_pair",
+      "plan_route_nets",
+      "plan_diff_pair_route",
+      "apply_route_plan",
+      "add_trace",
+      "add_via",
+      "get_route_details",
+      "list_unrouted_connections",
+      "export_autorouter_dsn",
+      "run_external_autorouter",
+      "inspect_autorouter_result",
+      "import_autorouter_ses"
+    ],
+    "finishing": [
+      "list_testpoints",
+      "find_testpoint_candidates",
+      "add_testpoints",
+      "review_testpoint_coverage",
+      "check_silkscreen",
+      "plan_silkscreen",
+      "apply_silkscreen_plan",
+      "set_panelization"
+    ],
+    "verification": [
+      "run_erc",
+      "run_drc",
+      "run_connectivity_check",
+      "run_schematic_review",
+      "run_board_review",
+      "run_manufacturing_review",
+      "run_assembly_review",
+      "run_testability_review",
+      "run_bom_review",
+      "run_thermal_review",
+      "analyze_release_readiness"
+    ],
+    "transaction_and_jobs": [
+      "begin_transaction",
+      "stage_operations",
+      "preview_transaction",
+      "validate_transaction",
+      "commit_transaction",
+      "rollback_transaction",
+      "get_job_status",
+      "get_job_result",
+      "cancel_job",
+      "finish_live_session"
+    ]
+  },
+  "local_cli": {
+    "headless_gui": {
+      "module": "diptrace_mcp.headless_gui",
+      "commands": [
+        "smoke",
+        "native-smoke",
+        "doctor",
+        "roundtrip"
+      ],
+      "editors": [
+        "pcb",
+        "schematic",
+        "component",
+        "pattern"
+      ],
+      "example_args": [
+        "roundtrip",
+        "--diptrace-root",
+        "C:\\Program Files\\DipTrace",
+        "--editor",
+        "schematic",
+        "--project",
+        "C:\\work\\checks\\design.dch",
+        "--timeout",
+        "30"
+      ],
+      "claim": "Real native open/save/close on the selected editor; saves the input, returns hashes/process evidence; no ERC/DRC or XML export. Windows/Wine backend, hidden desktop default."
+    },
+    "pcb_native_acceptance": {
+      "module": "diptrace_mcp.pcb_native_acceptance",
+      "commands": [
+        "run"
+      ],
+      "example_args": [
+        "run",
+        "--diptrace-root",
+        "C:\\Program Files\\DipTrace",
+        "--project",
+        "C:\\work\\checks\\board.dipxml",
+        "--output-xml",
+        "C:\\work\\checks\\board.native.dipxml"
+      ],
+      "claim": "Real native refill/DRC/save/close/reopen/XML export and immutable-baseline comparison; saves input. PASS/FAIL/HUMAN_REVIEW_REQUIRED, not a CAM exporter."
+    },
+    "cinematic_capture": {
+      "module": "diptrace_mcp.cinematic_recording",
+      "commands": [
+        "headless-capture"
+      ],
+      "example_args": [
+        "headless-capture",
+        "capture",
+        "--diptrace-root",
+        "C:\\Program Files\\DipTrace",
+        "--editor",
+        "pcb",
+        "--project",
+        "C:\\work\\checks\\board.dip",
+        "--manifest",
+        "C:\\work\\checks\\demo.cinematic.json",
+        "--video",
+        "C:\\work\\checks\\demo.mp4",
+        "--gif",
+        "C:\\work\\checks\\demo.gif"
+      ],
+      "claim": "Real-window hidden recording/replay; requires ffmpeg and a validated manifest/profile. Can mutate its copy and clear output paths; no engineering acceptance."
+    }
+  },
+  "host_backends": {
+    "windows": "Windows Python modules or bundled app/tools/diptrace_mcp_headless_gui/diptrace_mcp_headless_gui.exe. Frozen helper dispatches headless commands, pcb-acceptance and cinematic.",
+    "wsl": "Use Windows executable/Python through available interoperability with Windows paths, or a separately installed Linux Wine backend; Linux Python's Windows-required failure does not test these alternatives.",
+    "linux": "Installed diptrace-gui-headless wrapper uses private Xvfb + Wine. Only roundtrip translates project/root and forces native desktop inside Xvfb; smoke is refused, use native-smoke. Other subcommands are forwarded without complete path/root conversion.",
+    "macos": "Installed diptrace-gui-headless uses bundled Wine/private Win32 desktop without Xvfb. Converts separate --project PATH only; resolve diptrace-root and other Windows paths explicitly."
   }
 }

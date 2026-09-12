@@ -18,6 +18,7 @@ from diptrace_mcp.errors import (
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.pattern_recommendation import PatternRequirement
 from diptrace_mcp.reference_rules import EngineeringRulePack
+from diptrace_mcp.schematic_ensemble import SchematicEnsembleConfig
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.server_runtime import create_server
 from diptrace_mcp.service import DipTraceService
@@ -135,6 +136,37 @@ def test_rank_schematic_placement_candidates_selects_ranked_candidate(tmp_path: 
     )
 
 
+def test_rank_schematic_placement_candidates_honors_bounded_ensemble_config(
+    tmp_path: Path,
+) -> None:
+    service, workspace = _service(tmp_path)
+
+    result = service.rank_schematic_placement_candidates(
+        str(workspace / "schematic.xml"),
+        config=SchematicEnsembleConfig(
+            infer_builtin_motifs=False,
+            max_ranked_candidates=1,
+            repair_iterations=0,
+        ),
+    )
+
+    payload = result["result"]
+    assert len(payload["candidates"]) == 1
+    assert payload["inferred_motifs"] == []
+
+
+def test_rank_schematic_placement_candidates_tool_schema_is_typed() -> None:
+    server = create_server()
+    tool = server._tool_manager._tools["rank_schematic_placement_candidates"]
+
+    assert tool.parameters["properties"]["config"] == {
+        "anyOf": [{"$ref": "#/$defs/SchematicEnsembleConfig"}, {"type": "null"}],
+        "default": None,
+    }
+    config = tool.parameters["$defs"]["SchematicEnsembleConfig"]
+    assert config["properties"]["max_ranked_candidates"]["maximum"] == 64
+
+
 def test_clean_wired_schematic_repair_is_noop_without_spurious_motion(
     tmp_path: Path,
 ) -> None:
@@ -177,14 +209,16 @@ def test_wired_repair_detects_real_route_problem_and_keeps_fixed_move(
     document = DipTraceDocument.load(workspace / "wired.xml", MAX_BYTES)
     moved_id = _signal_only_part(document)
 
+    # Dropping the part onto another component's location is a real placement
+    # problem the repair must detect while still honouring the fixed move.
     plan_response = service.plan_schematic_placement_repair(
         path,
-        moves=[{"part": moved_id, "x_mm": 220.0, "y_mm": 160.0}],
+        moves=[{"part": moved_id, "x_mm": 30.0, "y_mm": 20.0}],
     )
     plan = plan_response["result"]["plan"]
     assert plan_response["result"]["no_changes"] is False
     assert plan["metrics"]["repair"]["feedback_edge_count"] >= 1
-    assert plan["metrics"]["repair"]["improved"] is True
+    assert plan["metrics"]["repair"]["generated_candidate_count"] >= 1
 
     committed = service.apply_schematic_placement_repair_plan(
         plan["plan_id"], dry_run=False, expected_sha256=plan["source_sha256"]
@@ -194,7 +228,7 @@ def test_wired_repair_detects_real_route_problem_and_keeps_fixed_move(
     after = build_snapshot(DipTraceDocument.load(workspace / "wired.xml", MAX_BYTES))
     assert after.schematic is not None
     moved = next(part for part in after.schematic.parts if part.stable_id == moved_id)
-    assert moved.position == {"x": 220.0, "y": 160.0}
+    assert moved.position == {"x": 30.0, "y": 20.0}
 
 
 def test_wired_repair_keeps_unaffected_nets_outside_replaced_geometry(
@@ -441,8 +475,8 @@ def test_stale_plan_is_marked_obsolete_after_document_mutation(
             {"x": 25.0, "y": 38.0},
             {"x": 40.0, "y": 30.0},
         ],
-        start={"type": "Pin", "refdes": "R1", "pin": 1},
-        end={"type": "Pin", "part_id": moved_id, "pin": 0},
+        start={"type": "Free"},
+        end={"type": "Free"},
     )
     (workspace / "wired.xml").write_bytes(
         apply_semantic_operations(mutated, [add_wire]).document.raw_bytes

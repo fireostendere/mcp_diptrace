@@ -26,7 +26,7 @@ SERVER_PATHS = (
     ROOT / "src" / "diptrace_mcp" / "server.py",
     ROOT / "src" / "diptrace_mcp" / "server_runtime.py",
 )
-SURVIVORS = {
+REQUIRED_SKILLS = {
     "pcb-project-intake",
     "library-quality-audit",
     "schematic-erc-review",
@@ -35,6 +35,13 @@ SURVIVORS = {
     "signal-integrity-review",
     "release-gate",
     "diptrace-evidence-capture",
+    "schematic-engineer",
+    "pcb-design-workflow",
+    "diptrace-datasheet-rules",
+    "diptrace-bom-sourcing",
+    "diptrace-production-pack",
+    "diptrace-board-bringup",
+    "diptrace-revision-review",
 }
 EVIDENCE_CLASSES = {
     "caller",
@@ -137,29 +144,54 @@ def tree_hash(root: Path) -> str:
     return digest.hexdigest()
 
 
-def test_mechanical_survival_rule_produces_exactly_eight_distinct_skills() -> None:
+def test_catalog_covers_review_and_lifecycle_without_duplicate_packages() -> None:
     entries = catalog()
-    assert 5 <= len(entries) <= 8
-    assert len(entries) == 8
-    assert {entry["slug"] for entry in entries} == SURVIVORS
-    assert len({entry["trigger"] for entry in entries}) == 8
+    slugs = {entry["slug"] for entry in entries}
+    assert slugs >= REQUIRED_SKILLS
+    assert len(slugs) == len(entries)
+    assert len({entry["trigger"] for entry in entries}) == len(entries)
     assert (SKILLS_ROOT / "SURVIVAL_CRITERIA.md").exists()
-    assert {path.parent.name for path in skill_files()} == SURVIVORS
+    assert {path.parent.name for path in skill_files()} == slugs
 
     for entry in entries:
         metadata, body = parse_frontmatter(SKILLS_ROOT / entry["slug"] / "SKILL.md")
         assert metadata["name"] == entry["slug"]
         assert entry["trigger"] in metadata["description"]
+        assert entry["rag"] is True
+        assert metadata["description"].startswith("RAG-backed. ")
+        assert "../shared/rag.md" in body
         assert "../shared/result.schema.json" in body
-        assert "public `tools/list` for exact callable names" in body
-        assert "`get_capabilities` for" in body
+        assert "../shared/runtime.md" in body
         assert len(body.splitlines()) < 500
+
+
+@pytest.mark.parametrize(
+    ("rag", "error"),
+    [
+        (None, "rag must be a boolean"),
+        ("conditional", "rag must be a boolean"),
+        (1, "rag must be a boolean"),
+        (False, "RAG discovery marker differs"),
+    ],
+)
+def test_rag_catalog_rejects_invalid_or_inconsistent_markers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, rag: object, error: str,
+) -> None:
+    from scripts import generate_pcb_skills as generator
+
+    entries = catalog()
+    entries[0]["rag"] = rag
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(entries), encoding="utf-8")
+    monkeypatch.setattr(generator, "CATALOG_PATH", path)
+    with pytest.raises(generator.CatalogError, match=error):
+        generator.validate_catalog()
 
 
 def test_consolidation_removes_duplicate_generated_package_artifacts() -> None:
     banned_directories = {"agents", "evals", "examples", "schemas"}
-    for slug in SURVIVORS:
-        package = SKILLS_ROOT / slug
+    for entry in catalog():
+        package = SKILLS_ROOT / entry["slug"]
         assert not any(
             path.is_dir() and path.name in banned_directories
             for path in package.rglob("*")
@@ -187,6 +219,8 @@ def test_every_catalog_capability_is_a_registered_public_tool() -> None:
     ]
     for name, mapping in capability_map["runtime_tools"].items():
         assert mapping["runtime_tool"] in tools, name
+    for group, names in capability_map["tool_groups"].items():
+        assert names and set(names) <= tools, group
 
     assert capability_map["runtime_tools"]["run_ngspice_simulation"][
         "runtime_tool"
@@ -202,12 +236,61 @@ def test_every_catalog_capability_is_a_registered_public_tool() -> None:
 def test_every_backticked_tool_like_name_is_real_or_explicit_cli() -> None:
     tools = registered_tools()
     errors: list[str] = []
-    for path in [*skill_files(), *SKILLS_ROOT.rglob("references/*.md")]:
+    for path in SKILLS_ROOT.rglob("*.md"):
         text = path.read_text(encoding="utf-8")
         for token in BACKTICK_IDENTIFIER.findall(text):
             if token.startswith(TOOL_PREFIXES) and token not in tools | CLI_ALLOWLIST:
                 errors.append(f"{path.relative_to(ROOT)}: {token}")
     assert not errors, "Unknown backticked tool-like names:\n" + "\n".join(errors)
+
+
+def test_native_cli_examples_match_real_parsers_without_launching_editors() -> None:
+    from diptrace_mcp import cinematic_recording, headless_gui, pcb_native_acceptance
+
+    local_cli = load_json(SKILLS_ROOT / "capability-map.json")["local_cli"]
+    headless = local_cli["headless_gui"]
+    parser = headless_gui._build_parser()
+    args = parser.parse_args(headless["example_args"])
+    assert args.command == "roundtrip"
+    assert args.desktop == "hidden"
+    assert set(headless["editors"]) == {"pcb", "schematic", "component", "pattern"}
+    for editor in headless["editors"]:
+        parsed = parser.parse_args([*headless["example_args"], "--editor", editor])
+        assert parsed.editor == editor
+    for command in ("smoke", "native-smoke", "doctor"):
+        assert command in headless["commands"]
+        assert parser.parse_args([command]).command == command
+
+    native = pcb_native_acceptance._build_parser().parse_args(
+        local_cli["pcb_native_acceptance"]["example_args"]
+    )
+    assert native.command == "run" and native.desktop == "hidden"
+    assert native.project != native.output_xml
+    capture = local_cli["cinematic_capture"]["example_args"]
+    assert capture[0] == "headless-capture"
+    recording = cinematic_recording._build_headless_parser().parse_args(capture[1:])
+    assert recording.command == "capture"
+    assert recording.manifest and recording.video and recording.gif
+
+
+def test_opencode_uses_the_canonical_catalog_without_duplicate_skills() -> None:
+    config = load_json(ROOT / "opencode.json")
+    assert config["skills"]["paths"] == ["./skills"]
+    assert (ROOT / config["skills"]["paths"][0]).resolve() == SKILLS_ROOT.resolve()
+    assert not list((ROOT / ".opencode" / "skills").rglob("SKILL.md"))
+
+
+def test_lifecycle_handoff_template_matches_the_repository_quality_gate() -> None:
+    from scripts.pcb_quality_gate import check_order, parse_handoff
+
+    template = (
+        SKILLS_ROOT / "pcb-design-workflow" / "references" / "pcb-build-template.md"
+    ).read_text(encoding="utf-8")
+    gates, shas = parse_handoff(template.replace("<64 lowercase hexadecimal characters>", "a" * 64))
+    assert list(gates) == list(range(1, 14))
+    assert all(status == "PENDING" for _, status in gates.values())
+    assert check_order(gates) == []
+    assert shas == {"input schematic": "a" * 64, "current board": "a" * 64}
 
 
 def test_all_skill_relative_markdown_links_exist() -> None:
@@ -403,13 +486,15 @@ def test_generator_check_covers_links_capabilities_mirrors_and_hashes() -> None:
         text=True,
     )
     assert completed.returncode == 0, completed.stderr
-    assert "8 skills" in completed.stdout
+    assert f"{len(catalog())} skills" in completed.stdout
     assert "links, capabilities, mirrors, and hashes" in completed.stdout
 
 
 def test_wheel_ships_only_the_consolidated_catalog_with_skill_payload_under_400_kib(
     tmp_path: Path,
 ) -> None:
+    from scripts.audit_release_artifacts import audit_wheel
+
     completed = subprocess.run(
         [
             sys.executable,
@@ -431,6 +516,7 @@ def test_wheel_ships_only_the_consolidated_catalog_with_skill_payload_under_400_
     wheels = list(tmp_path.glob("diptrace_mcp-*.whl"))
     assert len(wheels) == 1
     wheel = wheels[0]
+    assert audit_wheel(wheel)["files"] > 0
 
     source_files = {
         path.relative_to(SKILLS_ROOT).as_posix(): path.read_bytes()
@@ -440,6 +526,8 @@ def test_wheel_ships_only_the_consolidated_catalog_with_skill_payload_under_400_
     assert sum(len(content) for content in source_files.values()) <= 400 * 1024
     with zipfile.ZipFile(wheel) as archive:
         names = set(archive.namelist())
+        for entry in load_json(SKILLS_ROOT / "capability-map.json")["local_cli"].values():
+            assert entry["module"].replace(".", "/") + ".py" in names
         delivered = {
             name.removeprefix("diptrace_mcp/skills/"): archive.read(name)
             for name in names

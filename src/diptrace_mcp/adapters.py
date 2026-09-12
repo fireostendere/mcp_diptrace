@@ -52,7 +52,7 @@ from .domain import (
     ViaStyleModel,
 )
 from .errors import DocumentError
-from .geometry import BBox, Point, Transform, distance, trace_path_length
+from .geometry import BBox, Point, Transform, distance, to_mm, trace_path_length
 from .geometry_backend import shape_bbox, transform_shape
 from .numeric_inputs import (
     xml_number_mm,
@@ -410,12 +410,8 @@ def _component_records(
                                     1.0,
                                 )
                             ),
-                            rotation_deg=(
-                                parent_record.rotation_deg if markings_rotate else 0.0
-                            )
-                            + math.degrees(
-                                _float_attr(document, settings, "Angle") or 0.0
-                            ),
+                            rotation_deg=(parent_record.rotation_deg if markings_rotate else 0.0)
+                            + math.degrees(_float_attr(document, settings, "Angle") or 0.0),
                             mirrored=parent_record.side == "Bottom",
                             geometry_source="xml-component-marking",
                             confidence=0.65,
@@ -480,12 +476,39 @@ def _component_records(
 
     if document.kind == "schematic":
         part_types = {
-            (component.get("ComponentStyle", ""), part.get("Id", "")): part.get(
-                "PartType", ""
-            )
+            (component.get("ComponentStyle", ""), part.get("Id", "")): part.get("PartType", "")
             for component in document.root.findall("./Library/Components/Component")
             for part in component.findall("./Part")
         }
+        part_bounds: dict[tuple[str, str], BBox] = {}
+        part_body_bounds: dict[tuple[str, str], BBox] = {}
+        for component in document.root.findall("./Library/Components/Component"):
+            for library_part in component.findall("./Part"):
+                width = _float_attr_mm(document, library_part, "Width")
+                height = _float_attr_mm(document, library_part, "Height")
+                if width is None or height is None or width <= 0 or height <= 0:
+                    continue
+                body_box = BBox(-width / 2.0, -height / 2.0, width / 2.0, height / 2.0)
+                box = body_box
+                for pin in library_part.findall("./Pins/Pin"):
+                    pin_x = _float_attr_mm(document, pin, "X")
+                    pin_y = _float_attr_mm(document, pin, "Y")
+                    length = _float_attr_mm(document, pin, "Length")
+                    if pin_x is None or pin_y is None or length is None:
+                        continue
+                    angle = math.radians(_float_attr(document, pin, "Orientation") or 0.0)
+                    outer_x = pin_x - math.cos(angle) * length
+                    outer_y = pin_y + math.sin(angle) * length
+                    box = BBox(
+                        min(box.min_x, pin_x, outer_x),
+                        min(box.min_y, pin_y, outer_y),
+                        max(box.max_x, pin_x, outer_x),
+                        max(box.max_y, pin_y, outer_y),
+                    )
+                key = (component.get("ComponentStyle", ""), library_part.get("Id", ""))
+                part_bounds[key] = box
+                part_body_bounds[key] = body_box
+        inherited_pin_types = _schematic_library_pin_types(document)
         for part in document.container.findall("./Components/Part"):
             xml_id = part.get("Id", "")
             refdes = _text(part, "RefDes")
@@ -496,6 +519,22 @@ def _component_records(
             x = _float_attr_mm(document, part, "X")
             y = _float_attr_mm(document, part, "Y")
             angle_rad = _float_attr(document, part, "Angle") or 0.0
+            part_key = (part.get("ComponentStyle", ""), part.get("ComponentPart", ""))
+            local_symbol_bbox = part_bounds.get(part_key)
+            local_body_bbox = part_body_bounds.get(part_key)
+            symbol_bbox = None
+            body_bbox = None
+            if x is not None and y is not None and local_symbol_bbox is not None:
+                transform = Transform(
+                    translate_x=x,
+                    translate_y=y,
+                    rotation_deg=math.degrees(angle_rad),
+                    mirror_x=_bool_attr(part, "HorzFlip"),
+                    mirror_y=_bool_attr(part, "VertFlip"),
+                )
+                symbol_bbox = transform.apply_bbox(local_symbol_bbox)
+                if local_body_bbox is not None:
+                    body_bbox = transform.apply_bbox(local_body_bbox)
             stable = stable_id(
                 "part",
                 document.source_type,
@@ -513,11 +552,11 @@ def _component_records(
                 locked=_bool_attr(part, "Locked"),
                 selected=_bool_attr(part, "Selected"),
                 position=_point_dict(Point(x, y)) if x is not None and y is not None else None,
-                bbox=_bbox_dict(_bbox_from_center(x, y, 1.0, 1.0)),
+                bbox=_bbox_dict(symbol_bbox or _bbox_from_center(x, y, 1.0, 1.0)),
                 rotation_deg=math.degrees(angle_rad),
                 mirrored=_bool_attr(part, "HorzFlip") or _bool_attr(part, "VertFlip"),
-                geometry_source="xml-position",
-                confidence=0.55,
+                geometry_source=("embedded-symbol-bounds" if symbol_bbox else "xml-position"),
+                confidence=0.9 if symbol_bbox else 0.55,
                 attributes={
                     "component_style": part.get("ComponentStyle", ""),
                     "part_type": part_types.get(
@@ -527,6 +566,9 @@ def _component_records(
                     "component_part": part.get("ComponentPart", ""),
                     "part_number": part.get("PartNumber", ""),
                     "sheet": part.get("Sheet", ""),
+                    "body_bbox": _bbox_dict(body_bbox),
+                    "horz_flip": _bool_attr(part, "HorzFlip"),
+                    "vert_flip": _bool_attr(part, "VertFlip"),
                     "part_refdes": part_refdes,
                     "part_name": part_name,
                     "additional_fields": _additional_fields(part),
@@ -547,6 +589,11 @@ def _component_records(
                 pin_id = f"{part.get('Id', '')}:{pin_index}"
                 pin_stable = _pin_stable_id(document, parent, pin_id)
                 parent_record.relationships.setdefault("pins", []).append(pin_stable)
+                attributes = dict(pin.attrib)
+                if "ElectricType" not in attributes and "ElectricalType" not in attributes:
+                    electrical_type = inherited_pin_types.get((part.get("Id", ""), pin_index))
+                    if electrical_type is not None:
+                        attributes["ElectricType"] = electrical_type
                 records.append(
                     ObjectRecord(
                         stable_id=pin_stable,
@@ -557,7 +604,7 @@ def _component_records(
                         parent_id=parent,
                         locked=_bool_attr(part, "Locked"),
                         selected=_bool_attr(part, "Selected"),
-                        attributes=dict(pin.attrib),
+                        attributes=attributes,
                         geometry_source="xml-structure",
                         confidence=0.4,
                     )
@@ -565,6 +612,103 @@ def _component_records(
         return records, by_xml_id, by_refdes
 
     return records, by_xml_id, by_refdes
+
+
+def _schematic_library_pin_types(document: DipTraceDocument) -> dict[tuple[str, int], str]:
+    """Return electrical types only for an unambiguous embedded-library binding."""
+    library_components = document.root.findall("./Library/Components/Component")
+    result: dict[tuple[str, int], str] = {}
+    schematic_parts = document.container.findall("./Components/Part")
+    part_id_counts: dict[str, int] = {}
+    for schematic_part in schematic_parts:
+        part_id = schematic_part.get("Id", "")
+        part_id_counts[part_id] = part_id_counts.get(part_id, 0) + 1
+    for schematic_part in schematic_parts:
+        schematic_part_id = schematic_part.get("Id", "")
+        if not schematic_part_id or part_id_counts[schematic_part_id] != 1:
+            continue
+        component_part = schematic_part.get("ComponentPart", "")
+        schematic_pins = schematic_part.findall("./Pins/Pin")
+        style = schematic_part.get("ComponentStyle", "")
+        explicit_components = [
+            component
+            for component in library_components
+            if component.get("ComponentStyle") is not None
+            and component.get("ComponentStyle") == style
+        ]
+        if explicit_components:
+            candidates = explicit_components
+        elif any(component.get("ComponentStyle") is not None for component in library_components):
+            candidates = []
+        elif style.startswith("CompType") and style[8:].isdigit():
+            style_index = int(style[8:])
+            candidates = (
+                [library_components[style_index]]
+                if style_index < len(library_components)
+                else []
+            )
+        else:
+            candidates = library_components
+        name = _text(schematic_part, "Name").strip().casefold()
+        refdes = _text(schematic_part, "RefDes").strip()
+        prefix = "".join(char for char in refdes if char.isalpha()).casefold()
+        matches: list[tuple[ET.Element, list[ET.Element]]] = []
+        for component in candidates:
+            parts = component.findall("./Part")
+            explicit_parts = [part for part in parts if part.get("Id") == component_part]
+            if any(part.get("Id") is not None for part in parts):
+                if len(explicit_parts) != 1:
+                    continue
+                library_part = explicit_parts[0]
+            elif component_part.isdigit() and int(component_part) < len(parts):
+                # Native index dialect: only when the library exposes no Part Id values.
+                library_part = parts[int(component_part)]
+            else:
+                continue
+            library_name = _text(library_part, "Name").strip().casefold()
+            library_prefix = library_part.get("RefDes", "").strip().casefold()
+            library_pins = library_part.findall("./Pins/Pin")
+            if len(library_pins) != len(schematic_pins):
+                continue
+            native_net_port = (
+                len(explicit_components) == 1
+                and library_part.get("PartType") in {"Net Port", "2"}
+                and len(library_pins) == 1
+            )
+            if (
+                (name and library_name and name != library_name)
+                or (prefix and library_prefix and prefix != library_prefix)
+            ) and not native_net_port:
+                continue
+            matches.append((library_part, library_pins))
+        if len(matches) != 1:
+            continue
+        _, library_pins = matches[0]
+        library_pin_ids = [pin.get("Id") for pin in library_pins]
+        explicit_pin_ids = [pin_id for pin_id in library_pin_ids if pin_id is not None]
+        if len(set(explicit_pin_ids)) != len(explicit_pin_ids):
+            continue
+        schematic_pin_ids = [pin.get("Id") for pin in schematic_pins]
+        explicit_schematic_pin_ids = [pin_id for pin_id in schematic_pin_ids if pin_id is not None]
+        if len(set(explicit_schematic_pin_ids)) != len(explicit_schematic_pin_ids):
+            continue
+        for pin_index, schematic_pin in enumerate(schematic_pins):
+            pin_id = schematic_pin.get("Id")
+            if pin_id is not None:
+                pin_matches = [pin for pin in library_pins if pin.get("Id") == pin_id]
+                if len(pin_matches) != 1:
+                    continue
+                library_pin = pin_matches[0]
+            elif any(pin.get("Id") is not None for pin in schematic_pins):
+                continue
+            else:
+                library_pin = library_pins[pin_index]
+            electrical_type = library_pin.get("ElectricType")
+            if electrical_type is not None:
+                result[(schematic_part_id, pin_index)] = electrical_type
+    return result
+
+
 def _net_records(
     document: DipTraceDocument,
     owner_map: dict[str, str],
@@ -745,6 +889,8 @@ def _net_records(
             )
         )
     return records
+
+
 def _static_via_records(
     document: DipTraceDocument,
     normalized_via_styles: list[ViaStyleModel],
@@ -837,6 +983,8 @@ def _static_via_records(
         if net is not None:
             net.relationships.setdefault("vias", []).append(via_stable)
     return records
+
+
 def _enrich_endpoint_connectivity(records: list[ObjectRecord]) -> None:
     records_by_id = {record.stable_id: record for record in records}
     for net in records:
@@ -849,6 +997,8 @@ def _enrich_endpoint_connectivity(records: list[ObjectRecord]) -> None:
             endpoint.net_id = net.xml_id
             endpoint.net_name = net.name
             endpoint.relationships.setdefault("net", []).append(net.stable_id)
+
+
 def _trace_layer(trace: ET.Element) -> str | None:
     points = trace.findall("./Points/Point")
     for point in points[1:] or points:
@@ -856,6 +1006,8 @@ def _trace_layer(trace: ET.Element) -> str | None:
         if layer is not None:
             return layer
     return trace.get("Layer")
+
+
 def _trace_point_is_physical_via(points: list[ET.Element], index: int) -> bool:
     """Return true only for a styled trace point that changes the active layer.
 
@@ -877,8 +1029,12 @@ def _trace_point_is_physical_via(points: list[ET.Element], index: int) -> bool:
         and outgoing_layer is not None
         and incoming_layer != outgoing_layer
     )
+
+
 def point_bbox(point: Point, radius: float) -> BBox:
     return BBox(point.x - radius, point.y - radius, point.x + radius, point.y + radius)
+
+
 def _board_outline(document: DipTraceDocument) -> dict[str, Any] | None:
     if document.kind != "pcb":
         return None
@@ -897,6 +1053,8 @@ def _board_outline(document: DipTraceDocument) -> dict[str, Any] | None:
         "bbox": box.as_dict(),
         "point_count": len(points),
     }
+
+
 def _board_layers(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "pcb":
         return []
@@ -908,6 +1066,8 @@ def _board_layers(document: DipTraceDocument) -> list[dict[str, Any]]:
         }
         for layer in document.container.findall("./CopperLayers/Lay")
     ]
+
+
 def _board_net_classes(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "pcb":
         return []
@@ -915,6 +1075,8 @@ def _board_net_classes(document: DipTraceDocument) -> list[dict[str, Any]]:
         {"id": item.get("Id", ""), "name": _text(item, "Name"), "attributes": dict(item.attrib)}
         for item in document.container.findall("./NetClasses/NetClass")
     ]
+
+
 def _board_via_styles(document: DipTraceDocument) -> list[ViaStyleModel]:
     if document.kind != "pcb":
         return []
@@ -947,6 +1109,8 @@ def _board_via_styles(document: DipTraceDocument) -> list[ViaStyleModel]:
             )
         )
     return styles
+
+
 def _board_ratlines(document: DipTraceDocument, owner_map: dict[str, str]) -> list[dict[str, Any]]:
     if document.kind != "pcb":
         return []
@@ -974,6 +1138,8 @@ def _board_ratlines(document: DipTraceDocument, owner_map: dict[str, str]) -> li
             )
         records.append({"attributes": attributes, "endpoints": endpoints})
     return records
+
+
 def _net_class_pair_rules(
     document: DipTraceDocument, net_class: ET.Element | None
 ) -> DifferentialPairRules:
@@ -1005,6 +1171,8 @@ def _net_class_pair_rules(
         length_delta_mm=_float_attr_mm(document, net_class, "LengthDelta"),
         layer_rules=layer_rules,
     )
+
+
 def _differential_center_point(document: DipTraceDocument, item: ET.Element) -> dict[str, Any]:
     point: dict[str, Any] = {
         "position": {
@@ -1035,6 +1203,8 @@ def _differential_center_point(document: DipTraceDocument, item: ET.Element) -> 
             for child in item.findall(path)
         ]
     return point
+
+
 def _board_differential_pairs(
     document: DipTraceDocument, owner_map: dict[str, str]
 ) -> list[DifferentialPairModel]:
@@ -1131,6 +1301,8 @@ def _board_differential_pairs(
             )
         )
     return result
+
+
 def _board_stackup(document: DipTraceDocument) -> StackupModel:
     if document.kind != "pcb":
         return StackupModel()
@@ -1220,6 +1392,8 @@ def _board_stackup(document: DipTraceDocument) -> StackupModel:
         missing_fields=sorted(set(missing)),
         warnings=warnings,
     )
+
+
 def _board_shape_records(document: DipTraceDocument) -> list[ObjectRecord]:
     if document.kind != "pcb":
         return []
@@ -1295,23 +1469,61 @@ def _board_shape_records(document: DipTraceDocument) -> list[ObjectRecord]:
                 )
             )
     return records
+
+
 def _side_from_layer(layer: str) -> str | None:
     if layer.startswith("Top"):
         return "Top"
     if layer.startswith("Bottom"):
         return "Bottom"
     return None
+
+
 def _schematic_sheets(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "schematic":
         return []
-    return [
-        {
-            "id": _text(sheet, "Id"),
-            "name": _text(sheet, "Name"),
-            "type": _text(sheet, "Type"),
+
+    def dimension(sheet: ET.Element, field: str) -> float | None:
+        raw = sheet.findtext(f"./{field}")
+        if raw is None:
+            return None
+        return to_mm(_float_text(document, sheet, field, raw, 0.0), document.units)
+
+    result: list[dict[str, Any]] = []
+    for index, sheet in enumerate(document.container.findall("./SheetSettings/Sheets/Sheet")):
+        page = {
+            "width_mm": dimension(sheet, "SheetWidth"),
+            "height_mm": dimension(sheet, "SheetHeight"),
+            "left_margin_mm": dimension(sheet, "LeftMargin"),
+            "top_margin_mm": dimension(sheet, "TopMargin"),
+            "right_margin_mm": dimension(sheet, "RightMargin"),
+            "bottom_margin_mm": dimension(sheet, "BottomMargin"),
         }
-        for sheet in document.container.findall("./SheetSettings/Sheets/Sheet")
-    ]
+        values = list(page.values())
+        usable_bbox = None
+        if all(value is not None for value in values):
+            width, height, left, top, right, bottom = (
+                float(value) for value in values if value is not None
+            )
+            usable_bbox = {
+                "min_x": -width / 2.0 + left,
+                "min_y": -height / 2.0 + bottom,
+                "max_x": width / 2.0 - right,
+                "max_y": height / 2.0 - top,
+            }
+        result.append(
+            {
+                "index": index,
+                "id": _text(sheet, "Id"),
+                "name": _text(sheet, "Name"),
+                "type": _text(sheet, "Type"),
+                **page,
+                "usable_bbox": usable_bbox,
+            }
+        )
+    return result
+
+
 def _schematic_erc(document: DipTraceDocument) -> dict[str, Any]:
     if document.kind != "schematic":
         return {}
@@ -1323,6 +1535,8 @@ def _schematic_erc(document: DipTraceDocument) -> dict[str, Any]:
         "vcctemplate": _text(erc, "VCCTemplate"),
         "gndtemplate": _text(erc, "GNDTemplate"),
     }
+
+
 def _schematic_buses(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "schematic":
         return []
@@ -1335,6 +1549,8 @@ def _schematic_buses(document: DipTraceDocument) -> list[dict[str, Any]]:
         }
         for item in document.container.findall("./Buses/Bus")
     ]
+
+
 def _schematic_differential_pairs(document: DipTraceDocument) -> list[dict[str, Any]]:
     if document.kind != "schematic":
         return []
@@ -1342,6 +1558,8 @@ def _schematic_differential_pairs(document: DipTraceDocument) -> list[dict[str, 
         {"attributes": dict(item.attrib), "name": _text(item, "Name")}
         for item in document.container.findall("./DifferentialPairs/DifferentialPair")
     ]
+
+
 @dataclass(slots=True)
 class DocumentSnapshot:
     document: DipTraceDocument
@@ -1386,6 +1604,8 @@ class DocumentSnapshot:
             for item in self.objects.values()
             if item.kind in kinds and _matches_selector(item, selector)
         ]
+
+
 def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) -> DocumentSnapshot:
     document_id = document_id_for(document)
     warnings: list[str] = []
@@ -1641,6 +1861,8 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
         schematic=schematic,
         warnings=warnings,
     )
+
+
 def _compatibility_for(document: DipTraceDocument) -> dict[str, Any]:
     format_context = {
         "format_version": document.version or None,
@@ -1766,6 +1988,8 @@ def _compatibility_for(document: DipTraceDocument) -> dict[str, Any]:
         "limitations": ["non-XML native formats are not parsed"],
         "roundtrip": "limited",
     }
+
+
 def _element_data(element: ET.Element | None, depth: int = 3) -> Any:
     if element is None:
         return None
@@ -1778,6 +2002,8 @@ def _element_data(element: ET.Element | None, depth: int = 3) -> Any:
         if len(children) > 200:
             result["children_truncated"] = len(children) - 200
     return result
+
+
 def _routing_defaults_data(document: DipTraceDocument) -> Any:
     routing = document.container.find("./Settings/Routing")
     if routing is None:
@@ -1789,13 +2015,19 @@ def _routing_defaults_data(document: DipTraceDocument) -> Any:
         if routing.get(attribute) not in {None, ""}:
             xml_number_mm(document, routing, attribute)
     return _element_data(routing)
+
+
 def get_document_info(document: DipTraceDocument, *, live_session: bool = False) -> DocumentInfo:
     return build_snapshot(document, live_session=live_session).info
+
+
 def get_board_model(document: DipTraceDocument, *, live_session: bool = False) -> BoardModel:
     snapshot = build_snapshot(document, live_session=live_session)
     if snapshot.board is None:
         raise DocumentError("PCB model is only available for PCB documents")
     return snapshot.board
+
+
 def get_schematic_model(
     document: DipTraceDocument, *, live_session: bool = False
 ) -> SchematicModel:
@@ -1803,6 +2035,8 @@ def get_schematic_model(
     if snapshot.schematic is None:
         raise DocumentError("Schematic model is only available for schematic documents")
     return snapshot.schematic
+
+
 def query_objects(
     document: DipTraceDocument,
     request: QueryRequest,
@@ -1810,6 +2044,8 @@ def query_objects(
     live_session: bool = False,
 ) -> QueryResult:
     return build_snapshot(document, live_session=live_session).query(request)
+
+
 def get_object(
     document: DipTraceDocument,
     stable_id_value: str,
@@ -1823,6 +2059,8 @@ def get_object(
     payload["source_xml"] = _element_short(element) if element is not None else None
     payload["document"] = snapshot.info.model_dump()
     return payload
+
+
 def summarize(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
     snapshot = build_snapshot(document, live_session=live_session)
     result = snapshot.info.model_dump()
@@ -1890,6 +2128,8 @@ def summarize(document: DipTraceDocument, *, live_session: bool = False) -> dict
             child.tag for child in document.root if isinstance(child.tag, str)
         ]
     return result
+
+
 def components(
     document: DipTraceDocument,
     query: str | None = None,
@@ -2016,6 +2256,8 @@ def components(
         "limit": limit,
         "items": payload,
     }
+
+
 def component(
     document: DipTraceDocument, refdes: str, *, live_session: bool = False
 ) -> dict[str, Any]:
@@ -2043,6 +2285,8 @@ def component(
         "component": target,
         "connected_nets": connected_nets,
     }
+
+
 def nets(
     document: DipTraceDocument,
     query: str | None = None,
@@ -2118,6 +2362,8 @@ def nets(
         "limit": limit,
         "items": payload,
     }
+
+
 def design_rules(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
     snapshot = build_snapshot(document, live_session=live_session)
     if snapshot.board is not None:
@@ -2144,6 +2390,8 @@ def design_rules(document: DipTraceDocument, *, live_session: bool = False) -> d
             ],
         }
     raise DocumentError("Design rules support PCB and Schematic XML only")
+
+
 def apply_low_level_edits(
     document: DipTraceDocument,
     edits: list[XmlEdit],
