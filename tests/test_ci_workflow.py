@@ -70,7 +70,7 @@ def test_static_analysis_covers_plugin_python_but_excludes_generated_dist() -> N
     assert "python -m ruff check --no-cache src tests benchmarks scripts plugin" in commands
     assert "python -m mypy --no-incremental src/diptrace_mcp plugin" in commands
     assert "measure_mcp_surface.py" in commands
-    assert "--baseline-bytes 121335" in commands
+    assert "--baseline-bytes 147757" in commands
     assert "--max-growth-percent 15" in commands
     assert "generate_mcp_tools_snapshot.py --check" in commands
     assert "python -m hatchling build -d release-dist" in commands
