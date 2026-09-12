@@ -32,6 +32,7 @@ from .windows_configurator import (
     detect_diptrace_installations,
     validate_diptrace_directory,
 )
+from .windows_job import KillOnCloseJob, resume_suspended_process
 
 _EDITOR_EXECUTABLES = {
     "pcb": "Pcb.exe",
@@ -435,10 +436,21 @@ class HiddenDesktop:
         self._handle = int(handle)
         return self
 
-    def launch(self, argv: Sequence[str], *, cwd: Path | None = None) -> CreatedProcess:
+    def launch(
+        self,
+        argv: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        job: KillOnCloseJob | None = None,
+    ) -> CreatedProcess:
         if self._handle is None:
             raise HeadlessGuiError("hidden desktop is not open")
-        return _launch_process_on_desktop(argv, self.qualified_name, cwd=cwd)
+        return _launch_process_on_desktop(
+            argv,
+            self.qualified_name,
+            cwd=cwd,
+            job=job,
+        )
 
     def close(self) -> None:
         if self._handle is None:
@@ -593,6 +605,7 @@ def _launch_process_on_desktop(
     qualified_desktop: str,
     *,
     cwd: Path | None = None,
+    job: KillOnCloseJob | None = None,
 ) -> CreatedProcess:
     if not argv or not str(argv[0]).strip():
         raise ValueError("argv must contain an executable")
@@ -612,7 +625,7 @@ def _launch_process_on_desktop(
         None,
         None,
         False,
-        0,
+        0x00000004 if job is not None else 0,
         None,
         str(cwd) if cwd is not None else None,
         ctypes.byref(startup),
@@ -620,7 +633,20 @@ def _launch_process_on_desktop(
     )
     if not created:
         raise api.error("CreateProcessW")
-    return CreatedProcess(api, info)
+    child = CreatedProcess(api, info)
+    if job is None:
+        return child
+    try:
+        job.assign(child.pid)
+        resume_suspended_process(child.pid)
+    except BaseException:
+        with suppress(Exception):
+            child.terminate()
+        with suppress(Exception):
+            child.wait(2.0)
+        child.close()
+        raise
+    return child
 
 
 def _launch_on_current_desktop(
@@ -1085,7 +1111,17 @@ def _main_window(app: Any, project: Path, timeout_seconds: float) -> Any:
     while True:
         fallback_handle: int | None = None
         candidate_handle: int | None = None
-        for window in app.windows(visible_only=False, enabled_only=True):
+        try:
+            windows = app.windows(visible_only=False, enabled_only=True)
+        except Exception as exc:
+            # pywinauto can wrap a dialog just after its HWND is destroyed.
+            if (type(exc).__module__, type(exc).__name__) != (
+                "pywinauto.controls.hwndwrapper",
+                "InvalidWindowHandle",
+            ):
+                raise
+            windows = []
+        for window in windows:
             title = ""
             with suppress(Exception):
                 title = str(window.window_text()).casefold()

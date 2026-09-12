@@ -10,7 +10,7 @@ DipTrace MCP is split into four concerns:
    bypassing safety boundaries;
 4. optional Windows presentation automation for visible replay or isolated hidden capture.
 
-The public MCP surface currently registers **167 tools**. Roadmap A1-A8 additions are
+The public MCP surface currently registers **171 tools**. Roadmap A1-A8 additions are
 package-level unless explicitly productized; they do not silently expand that public
 surface.
 
@@ -57,7 +57,7 @@ UI replay and MP4/GIF capture. It is not a second semantic write authority.
 
 `server.py` owns FastMCP registration, local stdio/trusted-loopback HTTP transport, the
 stable error envelope and server-owned worker-thread offload. The frozen
-`reference/mcp-tools-list.snapshot.json` plus CI guard the 167-tool contract.
+`reference/mcp-tools-list.snapshot.json` plus CI guard the 171-tool contract.
 
 The transport responsiveness regression exercises repeated in-memory `tools/list`,
 `summarize_design` calls and teardown under the existing five-second read budget. The old
@@ -202,7 +202,7 @@ client evidence. Historical checkpoint wording remains historical.
 
 ## Cross-platform GUI host backends
 
-The semantic MCP/service layer remains platform-neutral and keeps the frozen 167-tool
+The semantic MCP/service layer remains platform-neutral and keeps the frozen 171-tool
 contract. Host GUI actions reuse one packaged Win32 automation core through three
 bounded deployment backends:
 

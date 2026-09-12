@@ -1,9 +1,16 @@
 ---
 name: signal-integrity-review
-description: Review DipTrace PCB impedance, stackup, routed geometry, return paths, and configured external-solver evidence without inventing targets. Use when the user says “Review impedance and return-path evidence for these PCB nets.”
+description: RAG-backed. Review DipTrace PCB impedance, stackup, routed geometry, return paths, and configured external-solver evidence without inventing targets. Use when the user says “Review impedance and return-path evidence for these PCB nets.”
 ---
 
+Read [runtime access](../shared/runtime.md) before choosing between explicit-path
+MCP, a live bridge session, and native/headless CLI. Their availability is separate.
+
 # Signal-integrity review
+
+RAG: **engineering memory by default** — [shared workflow](../shared/rag.md).
+Use the indexed transmission-line, grounding and EMC material to justify the model,
+assumptions and return-path checklist; solver output does not replace that basis.
 
 Keep analytical equations, geometry heuristics, and external solver output in separate evidence
 classes. No result is fabrication sign-off.
@@ -30,7 +37,10 @@ feature and adapter availability.
    `analyze_stackup_for_impedance` for complete outer-layer microstrip stackups, and
    `validate_impedance_constraints` or `analyze_controlled_impedance` for named routed nets.
 4. Use `analyze_return_path` only as a caller-radius geometry heuristic. Disclose boundary-only
-   pour geometry, layer-transition ambiguity, and confidence limits.
+   pour geometry, layer-transition ambiguity, and confidence limits. If native refill evidence
+   is needed, use the PCB headless profile on a copy and retain its exported geometry and verdict;
+   do not call all native work unavailable based on the MCP tool list. Even refilled geometry
+   does not turn this heuristic into a field solution.
 5. Invoke ngspice/openEMS only when runtime discovery says the configured adapter is available.
    For openEMS retain request SHA-256, solver version, convergence, result SHA-256, and resources.
    For ngspice retain the netlist SHA-256, job status, return code/log summary, and resources; its

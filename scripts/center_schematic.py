@@ -5,7 +5,6 @@ From attiny85/layout_and_wire.py -> center_sheet_content.
 Also emits a provenance table row per component showing the lookup order.
 """
 
-import math
 import xml.etree.ElementTree as ET
 from pathlib import Path
 

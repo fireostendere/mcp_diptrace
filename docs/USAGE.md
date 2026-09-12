@@ -67,7 +67,7 @@ Do not expose the HTTP transport as a general remote network service unless the 
 
 ## Discover capabilities first
 
-The public MCP contract contains **167 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
+The public MCP contract contains **171 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
 
 Call `get_capabilities` before assuming that a particular write or adapter path is available.
 
@@ -136,6 +136,14 @@ It remains bounded and does not claim a global optimum.
 `engineering_rules` pack. `reference_rules.py` validates source/rule SHA-256
 provenance and redistribution metadata before mapping facts into schematic
 motifs or PCB intent overrides.
+
+`rank_schematic_placement_candidates` also accepts optional strict
+`SchematicEnsembleConfig`; its nested optimizer, route, congestion, candidate,
+and repair limits are validated before the deterministic ranking runs.
+For a bounded read-only score of an existing wired schematic, set both
+`optimizer.placement.allow_existing_wires` and `route.allow_existing_wires` to
+`true`, with an explicit `optimizer.placement.max_parts` and
+`max_ranked_candidates` appropriate to the design; this never repairs or commits.
 
 See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 

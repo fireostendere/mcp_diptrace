@@ -4,6 +4,10 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from diptrace_mcp.adapters import build_snapshot
+from diptrace_mcp.advanced_review import (
+    check_schematic_duplicate_units,
+    check_schematic_electrical_conflicts,
+)
 from diptrace_mcp.bom import extract_bom, group_bom, review_bom
 from diptrace_mcp.config import Settings
 from diptrace_mcp.design_compare import compare_schematic_to_pcb
@@ -13,6 +17,14 @@ from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def _with_component_library(root: ET.Element) -> None:
+    library = ET.parse(FIXTURES / "component_library.xml").getroot()
+    old = root.find("./Library[@Type='DipTrace-ComponentLibrary']")
+    assert old is not None
+    root.remove(old)
+    root.insert(0, library)
 
 
 def test_copper_pour_and_return_path_use_exported_geometry() -> None:
@@ -155,6 +167,209 @@ def test_bom_deduplicates_schematic_units_and_groups_exact_identity() -> None:
     assert len(u1.source_object_ids) == 2
     assert review_bom(records)["finding_count"] >= 1
     assert sum(item.quantity for item in group_bom(records)) == 2
+
+
+def test_erc_inherits_unique_library_pin_types_and_keeps_undefined_visible() -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    _with_component_library(root)
+    pins = root.findall("./Library/Components/Component/Part/Pins/Pin")
+    assert len(pins) == 2
+    for pin in pins:
+        pin.set("ElectricType", "Output")
+    net = root.find("./Schematic/Nets/Net[@Id='0']/Pins")
+    assert net is not None
+    net[:] = [
+        ET.Element("Item", {"Part": "0", "Pin": "0"}),
+        ET.Element("Item", {"Part": "0", "Pin": "1"}),
+    ]
+    document = DipTraceDocument.from_bytes(
+        original.path, ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    )
+    snapshot = build_snapshot(document)
+    findings, metrics = check_schematic_electrical_conflicts(snapshot)
+    assert [finding.check_id for finding in findings] == ["schematic.electrical_conflict"]
+    assert metrics == {
+        "typed_pins_checked": 2,
+        "unknown_pins": 4,
+        "partial_skipped": "electrical_pin_types_incomplete",
+    }
+
+    pins[1].set("ElectricType", "Undefined")
+    undefined_document = DipTraceDocument.from_bytes(
+        original.path, ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    )
+    findings, metrics = check_schematic_electrical_conflicts(build_snapshot(undefined_document))
+    assert findings == []
+    assert metrics == {
+        "typed_pins_checked": 1,
+        "unknown_pins": 5,
+        "partial_skipped": "electrical_pin_types_incomplete",
+    }
+
+    pins[0].set("ElectricType", " ")
+    findings, metrics = check_schematic_electrical_conflicts(
+        build_snapshot(
+            DipTraceDocument.from_bytes(
+                original.path, ET.tostring(root, encoding="utf-8", xml_declaration=True)
+            )
+        )
+    )
+    assert not any(finding.check_id == "schematic.electrical_conflict" for finding in findings)
+    assert metrics == {"skipped": "electrical_pin_types_unavailable", "unknown_pins": 6}
+
+
+def test_partial_erc_types_reduce_review_completeness(tmp_path: Path) -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    pin = root.find("./Schematic/Components/Part[@Id='0']/Pins/Pin")
+    assert pin is not None
+    pin.set("ElectricType", "Input")
+    partial_path = tmp_path / "partial_erc.xml"
+    partial_path.write_bytes(ET.tostring(root, encoding="utf-8", xml_declaration=True))
+
+    findings, metrics, skipped, _count = run_checks(
+        build_snapshot(DipTraceDocument.load(partial_path, 10_000_000))
+    )
+    assert not any(finding.check_id == "schematic.electrical_conflict" for finding in findings)
+    assert metrics["schematic.electrical_conflict"] == {
+        "typed_pins_checked": 1,
+        "unknown_pins": 5,
+    }
+    assert {
+        (item["check_id"], item["reason"])
+        for item in skipped
+    } >= {("schematic.electrical_conflict", "electrical_pin_types_incomplete")}
+
+    review = DipTraceService(
+        Settings(workspace=tmp_path, allowed_roots=(tmp_path,), state_dir=tmp_path / ".state")
+    ).run_review("partial_erc.xml", profile="default")
+    assert review["result"]["summary"]["completeness"] < 1.0
+    assert {
+        (item["check_id"], item["reason"])
+        for item in review["result"]["skipped_checks"]
+    } >= {("schematic.electrical_conflict", "electrical_pin_types_incomplete")}
+
+
+def test_erc_library_types_use_explicit_component_part_and_pin_ids() -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    _with_component_library(root)
+    component = root.find("./Library/Components/Component")
+    assert component is not None
+    component.set("ComponentStyle", "CompType9")
+    library_part = component.find("./Part")
+    assert library_part is not None
+    library_part.set("Id", "7")
+    library_pins = library_part.findall("./Pins/Pin")
+    assert len(library_pins) == 2
+    library_pins[0].set("Id", "11")
+    library_pins[0].set("ElectricType", "Output")
+    library_pins[1].set("Id", "10")
+    library_pins[1].set("ElectricType", "Input")
+    pins_element = library_part.find("./Pins")
+    assert pins_element is not None
+    pins_element[:] = list(reversed(library_pins))
+    decoy_part = ET.fromstring(ET.tostring(library_part))
+    decoy_part.set("Id", "0")
+    component.insert(0, decoy_part)
+    decoy = ET.Element("Component")
+    decoy.append(ET.fromstring(ET.tostring(library_part)))
+    library_components = root.find("./Library/Components")
+    assert library_components is not None
+    library_components.insert(0, decoy)
+    schematic_part = root.find("./Schematic/Components/Part[@Id='0']")
+    assert schematic_part is not None
+    schematic_part.set("ComponentStyle", "CompType9")
+    schematic_part.set("ComponentPart", "7")
+    schematic_pins = schematic_part.findall("./Pins/Pin")
+    schematic_pins[0].set("Id", "10")
+    schematic_pins[1].set("Id", "11")
+
+    snapshot = build_snapshot(
+        DipTraceDocument.from_bytes(
+            original.path, ET.tostring(root, encoding="utf-8", xml_declaration=True)
+        )
+    )
+    assert snapshot.schematic is not None
+    r1_pins = [pin for pin in snapshot.schematic.pins if pin.refdes == "R1"]
+    assert [pin.attributes.get("ElectricType") for pin in r1_pins] == ["Input", "Output"]
+
+    schematic_part.set("ComponentPart", "404")
+    missing = build_snapshot(
+        DipTraceDocument.from_bytes(
+            original.path, ET.tostring(root, encoding="utf-8", xml_declaration=True)
+        )
+    )
+    assert missing.schematic is not None
+    assert all(
+        "ElectricType" not in pin.attributes
+        for pin in missing.schematic.pins
+        if pin.refdes == "R1"
+    )
+
+    schematic_part.set("ComponentPart", "7")
+    schematic_pins[1].set("Id", "10")
+    duplicate_pin_id = build_snapshot(
+        DipTraceDocument.from_bytes(
+            original.path, ET.tostring(root, encoding="utf-8", xml_declaration=True)
+        )
+    )
+    assert all(
+        "ElectricType" not in pin.attributes
+        for pin in duplicate_pin_id.schematic.pins
+        if pin.refdes == "R1"
+    )
+
+    schematic_pins[1].set("Id", "11")
+    library_components.append(ET.fromstring(ET.tostring(component)))
+    ambiguous = build_snapshot(
+        DipTraceDocument.from_bytes(
+            original.path, ET.tostring(root, encoding="utf-8", xml_declaration=True)
+        )
+    )
+    assert all(
+        "ElectricType" not in pin.attributes
+        for pin in ambiguous.schematic.pins
+        if pin.refdes == "R1"
+    )
+
+
+def test_erc_instance_pin_type_overrides_library_and_excludes_net_ports_from_duplicates() -> None:
+    original = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
+    root = ET.fromstring(original.raw_bytes)
+    _with_component_library(root)
+    first_pin = root.find("./Schematic/Components/Part[@Id='0']/Pins/Pin")
+    assert first_pin is not None
+    first_pin.set("ElectricType", "Input")
+    library_components = root.find("./Library/Components")
+    assert library_components is not None
+    net_port = ET.SubElement(library_components, "Component", {"ComponentStyle": "CompType1"})
+    ET.SubElement(net_port, "Part", {"Id": "0", "PartType": "Net Port"})
+    components = root.find("./Schematic/Components")
+    assert components is not None
+    for xml_id in ("10", "11"):
+        part = ET.SubElement(
+            components,
+            "Part",
+            {"Id": xml_id, "ComponentStyle": "CompType1", "ComponentPart": "0", "PartNumber": "0"},
+        )
+        ET.SubElement(part, "RefDes").text = "PORT"
+    snapshot = build_snapshot(
+        DipTraceDocument.from_bytes(
+            original.path, ET.tostring(root, encoding="utf-8", xml_declaration=True)
+        )
+    )
+    assert snapshot.schematic is not None
+    r1_pin = next(
+        pin
+        for pin in snapshot.schematic.pins
+        if pin.parent_id == snapshot.schematic.parts[0].stable_id
+    )
+    assert r1_pin.attributes["ElectricType"] == "Input"
+    findings, metrics = check_schematic_duplicate_units(snapshot)
+    assert findings == []
+    assert metrics["units_checked"] == 2
 
 
 def test_schematic_pcb_comparison_is_structured() -> None:

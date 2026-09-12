@@ -508,6 +508,7 @@ def _component_records(
                 key = (component.get("ComponentStyle", ""), library_part.get("Id", ""))
                 part_bounds[key] = box
                 part_body_bounds[key] = body_box
+        inherited_pin_types = _schematic_library_pin_types(document)
         for part in document.container.findall("./Components/Part"):
             xml_id = part.get("Id", "")
             refdes = _text(part, "RefDes")
@@ -588,6 +589,11 @@ def _component_records(
                 pin_id = f"{part.get('Id', '')}:{pin_index}"
                 pin_stable = _pin_stable_id(document, parent, pin_id)
                 parent_record.relationships.setdefault("pins", []).append(pin_stable)
+                attributes = dict(pin.attrib)
+                if "ElectricType" not in attributes and "ElectricalType" not in attributes:
+                    electrical_type = inherited_pin_types.get((part.get("Id", ""), pin_index))
+                    if electrical_type is not None:
+                        attributes["ElectricType"] = electrical_type
                 records.append(
                     ObjectRecord(
                         stable_id=pin_stable,
@@ -598,7 +604,7 @@ def _component_records(
                         parent_id=parent,
                         locked=_bool_attr(part, "Locked"),
                         selected=_bool_attr(part, "Selected"),
-                        attributes=dict(pin.attrib),
+                        attributes=attributes,
                         geometry_source="xml-structure",
                         confidence=0.4,
                     )
@@ -606,6 +612,101 @@ def _component_records(
         return records, by_xml_id, by_refdes
 
     return records, by_xml_id, by_refdes
+
+
+def _schematic_library_pin_types(document: DipTraceDocument) -> dict[tuple[str, int], str]:
+    """Return electrical types only for an unambiguous embedded-library binding."""
+    library_components = document.root.findall("./Library/Components/Component")
+    result: dict[tuple[str, int], str] = {}
+    schematic_parts = document.container.findall("./Components/Part")
+    part_id_counts: dict[str, int] = {}
+    for schematic_part in schematic_parts:
+        part_id = schematic_part.get("Id", "")
+        part_id_counts[part_id] = part_id_counts.get(part_id, 0) + 1
+    for schematic_part in schematic_parts:
+        schematic_part_id = schematic_part.get("Id", "")
+        if not schematic_part_id or part_id_counts[schematic_part_id] != 1:
+            continue
+        component_part = schematic_part.get("ComponentPart", "")
+        schematic_pins = schematic_part.findall("./Pins/Pin")
+        style = schematic_part.get("ComponentStyle", "")
+        explicit_components = [
+            component
+            for component in library_components
+            if component.get("ComponentStyle") is not None
+            and component.get("ComponentStyle") == style
+        ]
+        if explicit_components:
+            candidates = explicit_components
+        elif any(component.get("ComponentStyle") is not None for component in library_components):
+            candidates = []
+        elif style.startswith("CompType") and style[8:].isdigit():
+            style_index = int(style[8:])
+            candidates = (
+                [library_components[style_index]]
+                if style_index < len(library_components)
+                else []
+            )
+        else:
+            candidates = library_components
+        name = _text(schematic_part, "Name").strip().casefold()
+        refdes = _text(schematic_part, "RefDes").strip()
+        prefix = "".join(char for char in refdes if char.isalpha()).casefold()
+        matches: list[tuple[ET.Element, list[ET.Element]]] = []
+        for component in candidates:
+            parts = component.findall("./Part")
+            explicit_parts = [part for part in parts if part.get("Id") == component_part]
+            if any(part.get("Id") is not None for part in parts):
+                if len(explicit_parts) != 1:
+                    continue
+                library_part = explicit_parts[0]
+            elif component_part.isdigit() and int(component_part) < len(parts):
+                # Native index dialect: only when the library exposes no Part Id values.
+                library_part = parts[int(component_part)]
+            else:
+                continue
+            library_name = _text(library_part, "Name").strip().casefold()
+            library_prefix = library_part.get("RefDes", "").strip().casefold()
+            library_pins = library_part.findall("./Pins/Pin")
+            if len(library_pins) != len(schematic_pins):
+                continue
+            native_net_port = (
+                len(explicit_components) == 1
+                and library_part.get("PartType") in {"Net Port", "2"}
+                and len(library_pins) == 1
+            )
+            if (
+                (name and library_name and name != library_name)
+                or (prefix and library_prefix and prefix != library_prefix)
+            ) and not native_net_port:
+                continue
+            matches.append((library_part, library_pins))
+        if len(matches) != 1:
+            continue
+        _, library_pins = matches[0]
+        library_pin_ids = [pin.get("Id") for pin in library_pins]
+        explicit_pin_ids = [pin_id for pin_id in library_pin_ids if pin_id is not None]
+        if len(set(explicit_pin_ids)) != len(explicit_pin_ids):
+            continue
+        schematic_pin_ids = [pin.get("Id") for pin in schematic_pins]
+        explicit_schematic_pin_ids = [pin_id for pin_id in schematic_pin_ids if pin_id is not None]
+        if len(set(explicit_schematic_pin_ids)) != len(explicit_schematic_pin_ids):
+            continue
+        for pin_index, schematic_pin in enumerate(schematic_pins):
+            pin_id = schematic_pin.get("Id")
+            if pin_id is not None:
+                pin_matches = [pin for pin in library_pins if pin.get("Id") == pin_id]
+                if len(pin_matches) != 1:
+                    continue
+                library_pin = pin_matches[0]
+            elif any(pin.get("Id") is not None for pin in schematic_pins):
+                continue
+            else:
+                library_pin = library_pins[pin_index]
+            electrical_type = library_pin.get("ElectricType")
+            if electrical_type is not None:
+                result[(schematic_part_id, pin_index)] = electrical_type
+    return result
 
 
 def _net_records(

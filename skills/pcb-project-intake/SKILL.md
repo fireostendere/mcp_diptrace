@@ -1,9 +1,16 @@
 ---
 name: pcb-project-intake
-description: Inventory a bounded DipTrace project, its document identity, models, rules, connectivity, unknowns, and evidence before planning changes. Use when the user says “Inventory this DipTrace project before we plan work.”
+description: RAG-backed. Inventory a bounded DipTrace project, its document identity, models, rules, connectivity, unknowns, and evidence before planning changes. Use when the user says “Inventory this DipTrace project before we plan work.”
 ---
 
+Read [runtime access](../shared/runtime.md) before choosing between explicit-path
+MCP, a live bridge session, and native/headless CLI. Their availability is separate.
+
 # PCB project intake
+
+RAG: **engineering memory by default** — [shared workflow](../shared/rag.md).
+Build project context from recorded requirements, architecture and prior lessons;
+relate the exact file/model inventory to design intent and the next engineering decisions.
 
 Produce a read-only project baseline. Do not turn absent fields into assumed requirements.
 Use public `tools/list` for exact callable names and `get_capabilities` for document/configured
@@ -12,7 +19,10 @@ feature availability.
 ## Workflow
 
 1. Call `diptrace_status`, then `get_capabilities`.
-2. Resolve every named document with `get_document_info`; record kind, literal format version,
+2. Resolve each document as XML or a native binary before `get_document_info`. Explicit-path XML
+   inspection does not require a live editor. For a binary, find its corresponding XML export or
+   use the supported native workflow on a copy; base roundtrip alone does not export XML.
+   Record kind, literal format version,
    document units, byte size, and SHA-256. Treat PCB, schematic, component library, and pattern
    library as different source types.
 3. Read only advertised models: `get_board_model`, `get_schematic_model`, `get_design_rules`, and
@@ -45,6 +55,7 @@ These limits come from
 - Do not call a tool absent from runtime discovery; follow
   [`../capability-map.json`](../capability-map.json).
 - Do not collapse schematic logical connectivity and PCB ratlines into one completion claim.
-- Do not mutate, export, or start external processes.
+- Keep source designs unchanged. Native checks requested as part of intake use isolated copies;
+  discover the helper before calling native opening unavailable. Do not start unrelated processes.
 
 Label every returned fact `caller` or `document`; label derived prioritization `heuristic`.

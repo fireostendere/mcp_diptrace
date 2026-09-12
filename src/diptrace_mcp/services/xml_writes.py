@@ -31,6 +31,7 @@ from ..xml_document import (
 
 RAW_EDIT_RESPONSE_BYTE_LIMIT = 128 * 1024
 RAW_EDIT_XPATH_CHARACTER_LIMIT = 128
+MAX_RAW_XML_EDITS = 50
 
 
 class RawPreviewStoreProvider(Protocol):
@@ -146,8 +147,8 @@ class XmlWriteService:
         expected_sha256: str | None = None,
     ) -> dict[str, Any]:
         self.context.policy.require_write(dry_run=dry_run, operation="apply_xml_edits")
-        if len(edits) > 50:
-            raise EditError("A single call can contain at most 50 edits")
+        if len(edits) > MAX_RAW_XML_EDITS:
+            raise EditError(f"A single call can contain at most {MAX_RAW_XML_EDITS} edits")
         if not dry_run and not expected_sha256:
             raise EditError("expected_sha256 from a dry-run is required when dry_run=false")
         document, target = self.gateway.load(path)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -899,6 +899,141 @@ def test_backup_age_prunes_the_only_backup_and_empty_history(
     assert not backup.exists()
     assert not history.exists()
     assert reopened.backups_for(target) == ()
+
+
+def test_backup_startup_scan_skips_validation_when_nothing_can_expire(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = tmp_path / "state"
+    target = tmp_path / "board.xml"
+    target.write_bytes(b"original")
+    policy = RetentionPolicy(max_records=10, max_age_days=30)
+    store = BackupStore(state, retention=policy, clock=_clock())
+    backup = store.write_with_backup(target, b"changed")
+
+    hashed: list[bytes] = []
+
+    def counting_sha256(data: bytes) -> str:
+        hashed.append(data)
+        return sha256_bytes(data)
+
+    monkeypatch.setattr("diptrace_mcp.backups.sha256_bytes", counting_sha256)
+
+    # Startup retention must not read backup contents it cannot delete.
+    reopened = BackupStore(state, retention=policy, clock=_clock())
+    assert b"original" not in hashed
+    assert backup.exists()
+
+    # The restore listing still validates every recovery point.
+    assert reopened.backups_for(target) == (backup,)
+    assert b"original" in hashed
+
+    # An expirable history is still scanned and pruned at startup.
+    hashed.clear()
+    expired = BackupStore(state, retention=policy, clock=_clock(FUTURE))
+    assert b"original" in hashed
+    assert not backup.exists()
+    assert expired.backups_for(target) == ()
+
+
+def _backup_history(tmp_path: Path, count: int) -> tuple[BackupStore, Path, list[Path]]:
+    current = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    def clock() -> datetime:
+        return current
+
+    target = tmp_path / "board.xml"
+    target.write_bytes(b"v0")
+    store = BackupStore(
+        tmp_path / "state",
+        retention=RetentionPolicy(max_records=50, max_age_days=30),
+        clock=clock,
+    )
+    backups: list[Path] = []
+    for index in range(1, count + 1):
+        current = current + timedelta(seconds=1)
+        backups.append(store.write_with_backup(target, f"v{index}".encode()))
+    return store, target, backups
+
+
+def test_backup_prune_reads_only_the_records_it_deletes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = tmp_path / "state"
+    _store, target, backups = _backup_history(tmp_path, 6)
+
+    hashed: list[bytes] = []
+
+    def counting_sha256(data: bytes) -> str:
+        hashed.append(data)
+        return sha256_bytes(data)
+
+    monkeypatch.setattr("diptrace_mcp.backups.sha256_bytes", counting_sha256)
+
+    reopened = BackupStore(
+        state,
+        retention=RetentionPolicy(max_records=2, max_age_days=30),
+        clock=_clock(),
+    )
+
+    # Exactly the four doomed records are read, oldest first: pruning costs the
+    # deleted bytes, not the whole history, and never scans a survivor twice.
+    # (The short path-string hashes re-prove the target binding and are tiny.)
+    assert [item for item in hashed if item.startswith(b"v")] == [
+        b"v0",
+        b"v1",
+        b"v2",
+        b"v3",
+    ]
+    assert not backups[0].exists()
+    assert not backups[3].exists()
+    assert backups[4].exists()
+    assert backups[5].exists()
+    assert reopened.backups_for(target) == (backups[5], backups[4])
+
+
+def test_backup_prune_retains_a_doomed_record_that_fails_validation(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    _store, target, backups = _backup_history(tmp_path, 4)
+    backups[0].write_bytes(b"corrupt")
+
+    reopened = BackupStore(
+        state,
+        retention=RetentionPolicy(max_records=2, max_age_days=30),
+        clock=_clock(),
+    )
+
+    # Doomed by count but unverifiable: fail closed, retain it.
+    assert backups[0].exists()
+    # The valid doomed record is still pruned.
+    assert not backups[1].exists()
+    assert backups[2].exists()
+    assert backups[3].exists()
+    assert reopened.backups_for(target) == (backups[3], backups[2])
+
+
+def test_unverifiable_backup_occupies_a_retention_slot(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    _store, target, backups = _backup_history(tmp_path, 4)
+    backups[2].write_bytes(b"corrupt")
+
+    reopened = BackupStore(
+        state,
+        retention=RetentionPolicy(max_records=2, max_age_days=30),
+        clock=_clock(),
+    )
+
+    assert not backups[0].exists()
+    assert not backups[1].exists()
+    # The corrupt record is inside the kept window, is never deleted, and is
+    # never offered as a recovery point, so fewer valid backups than the
+    # configured count can survive.
+    assert backups[2].exists()
+    assert reopened.backups_for(target) == (backups[3],)
 
 
 def test_backups_for_deleted_target_uses_stable_non_strict_key(

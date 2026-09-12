@@ -1,9 +1,16 @@
 ---
 name: testpoint-planner
-description: Measure and improve explicit standalone-pad testpoint coverage through a guarded DipTrace PCB transaction. Use when the user says “Plan guarded fixture testpoints for these PCB nets.”
+description: RAG-backed. Measure and improve explicit standalone-pad testpoint coverage through a guarded DipTrace PCB transaction. Use when the user says “Plan guarded fixture testpoints for these PCB nets.”
 ---
 
+Read [runtime access](../shared/runtime.md) before choosing between explicit-path
+MCP, a live bridge session, and native/headless CLI. Their availability is separate.
+
 # Testpoint planner
+
+RAG: **engineering memory by default** — [shared workflow](../shared/rag.md).
+Consult measurement/DFT material for probe loading, coverage and fixture access,
+and DipTrace guidance when selecting the placement/connection workflow.
 
 Plan only explicit MCP/DipTrace standalone-pad testpoints; reported coverage is not a fixture-access
 simulation.
@@ -20,9 +27,12 @@ feature availability.
    candidates per net. Ask the operator when fixture-side access or sensitive-net policy is absent.
 4. Stage `add_testpoints(..., dry_run=true)` in a transaction. Never commit from a request for a
    plan.
-5. Inspect `preview_transaction`, then `validate_transaction`. Commit only after explicit
-   confirmation with `expected_sha256`.
-6. Re-run `run_testability_review`, `run_drc`, and `run_connectivity_check`; rollback on regression.
+5. Inspect `preview_transaction`, then `validate_transaction`. When placement is authorized,
+   commit with `expected_sha256`; retain authorization already given for the selected scope.
+6. A testpoint's net assignment is logical membership, not proof of copper connection. Inspect
+   pads/traces/vias around candidates, route required short stubs with `route_connection`, or
+   verify the same-net pour after native refill. Re-run `run_testability_review`, `run_drc`, and
+   `run_connectivity_check`. Revert only this session's failed changes with a current hash guard.
 7. Emit [`../shared/result.schema.json`](../shared/result.schema.json).
 
 ## Quantitative boundaries

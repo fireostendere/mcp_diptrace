@@ -1,9 +1,16 @@
 ---
 name: release-gate
-description: Produce an explicit evidence-based PASS or BLOCKED decision from implemented DipTrace review profiles and disclosed missing checks. Use when the user says “Run the final evidence-based release gate for this design.”
+description: RAG-backed. Produce an explicit evidence-based PASS or BLOCKED decision from implemented DipTrace review profiles and disclosed missing checks. Use when the user says “Run the final evidence-based release gate for this design.”
 ---
 
+Read [runtime access](../shared/runtime.md) before choosing between explicit-path
+MCP, a live bridge session, and native/headless CLI. Their availability is separate.
+
 # Release gate
+
+RAG: **engineering memory by default** — [shared workflow](../shared/rag.md).
+Audit source-backed design decisions and DFM/DFA/DFT criteria carried from earlier
+stages; consult missing criteria, including DipTrace verification/export course material.
 
 Return `PASS` only for the exact requested revision and declared review scope. A green MCP run is
 not fab-house approval or DipTrace-format certification.
@@ -25,7 +32,12 @@ feature availability.
    [`REVIEW_ENGINE.md`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/docs/REVIEW_ENGINE.md).
 4. Deduplicate by check ID and stable object identity. Preserve waivers, DNP state, explicit
    no-connects, confidence, approximation flags, and every `skipped` disclosure.
-5. Decide `PASS` only when no critical/error finding remains, all caller-mandatory implemented
+5. For native acceptance, consume SHA-bound evidence or run the supported headless workflow on
+   a copy through [evidence capture](../diptrace-evidence-capture/SKILL.md). A full PCB release
+   requires native refill/DRC and the specified connectivity evidence; a fabrication release also
+   requires actual CAM inspection through [production pack](../diptrace-production-pack/SKILL.md).
+   Do not mark these requirements outside scope merely because an MCP tool is absent.
+   Decide `PASS` only when no critical/error finding remains, all caller-mandatory implemented
    checks ran, the SHA stayed stable, and every unavailable category was accepted as outside scope.
 6. Otherwise decide `BLOCKED` and list the shortest evidence-producing next actions.
 7. Emit [`../shared/result.schema.json`](../shared/result.schema.json); put the decision in summary

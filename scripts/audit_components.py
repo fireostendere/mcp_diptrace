@@ -14,15 +14,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from diptrace_mcp.services.builtin_library import query_catalog
+from diptrace_mcp.services.builtin_library import query_catalog  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Catalog of every part type on the Rev.A board.

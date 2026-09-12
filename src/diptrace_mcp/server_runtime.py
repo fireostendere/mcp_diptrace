@@ -12,12 +12,12 @@ import anyio
 from mcp import types
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.message import SessionMessage
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from . import __version__
 from .config import Settings
 from .domain import BoardModelSection, QuerySelector
-from .errors import ObjectNotFoundError
+from .errors import EditError, ObjectNotFoundError, Sha256MismatchError
 from .operations import (
     AddTestpointOperation,
     PinEndpoint,
@@ -35,6 +35,7 @@ from .scaffolding import (
     DEFAULT_FORMAT_VERSION,
     PcbScaffold,
 )
+from .schematic_ensemble import SchematicEnsembleConfig
 from .server_inputs import (
     _INPUT_SCHEMA_RESOURCE,
     AbandonLiveSessionResult,
@@ -56,8 +57,11 @@ from .server_inputs import (
     _finalize_tool_descriptions,
 )
 from .service import DipTraceService
+from .services.xml_writes import MAX_RAW_XML_EDITS, _finalize_raw_edit_response
 from .synchronization import ComponentSyncMapping, SyncPlacement
-from .xml_document import XmlEdit
+from .xml_document import XmlEdit, sha256_bytes
+
+MAX_XML_EDITS_FILE_BYTES = 128 * 1024
 
 
 def create_server(
@@ -467,6 +471,56 @@ def create_server(
         """Store a bounded diff resource, or write with its SHA/match guards and a backup."""
         operations = [XmlEdit(**edit.model_dump()) for edit in edits]
         return service.apply_edits(operations, path, dry_run, expected_sha256)
+
+    @mcp.tool()
+    def apply_xml_edits_from_file(
+        edits_path: str,
+        expected_edits_sha256: str | None = None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+    ) -> dict[str, Any]:
+        """Load 1–50 hash-bound XML edits from an allowed UTF-8 JSON file."""
+        if not dry_run and (not expected_edits_sha256 or not expected_sha256):
+            raise EditError(
+                "expected_edits_sha256 and expected_sha256 are required when dry_run=false"
+            )
+        edit_file = service.settings.resolve_allowed_path(edits_path)
+        if not edit_file.is_file():
+            raise EditError("edits_path must identify a regular JSON file")
+        with edit_file.open("rb") as handle:
+            raw_edits = handle.read(MAX_XML_EDITS_FILE_BYTES + 1)
+        if len(raw_edits) > MAX_XML_EDITS_FILE_BYTES:
+            raise EditError("Edit file exceeds the 128 KiB limit")
+        actual_edits_sha256 = sha256_bytes(raw_edits)
+        if expected_edits_sha256 and actual_edits_sha256 != expected_edits_sha256:
+            raise Sha256MismatchError(
+                "Edit file changed since its SHA-256 was recorded",
+                details={
+                    "expected_edits_sha256": expected_edits_sha256,
+                    "current_edits_sha256": actual_edits_sha256,
+                },
+            )
+        try:
+            payload = json.loads(raw_edits.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise EditError("Edit file must contain valid UTF-8 JSON") from exc
+        if not isinstance(payload, list):
+            raise EditError("Edit file must contain a flat JSON array of edits")
+        if not 1 <= len(payload) <= MAX_RAW_XML_EDITS:
+            raise EditError(
+                f"Edit file must contain between 1 and {MAX_RAW_XML_EDITS} edits"
+            )
+        try:
+            operations = [
+                XmlEdit(**XmlEditInput.model_validate(edit, extra="forbid").model_dump())
+                for edit in payload
+            ]
+        except ValidationError as exc:
+            raise EditError("Edit file contains invalid edit operations") from exc
+        result = service.apply_edits(operations, path, dry_run, expected_sha256)
+        result["edits_file_sha256"] = actual_edits_sha256
+        return _finalize_raw_edit_response(result)
 
     @mcp.tool()
     def create_schematic_document(
@@ -1562,11 +1616,13 @@ def create_server(
     def rank_schematic_placement_candidates(
         path: str | None = None,
         engineering_rules: EngineeringRulePack | None = None,
+        config: SchematicEnsembleConfig | None = None,
     ) -> dict[str, Any]:
-        """Rank schematic candidates with optional sourced engineering rules."""
+        """Rank schematic candidates with optional sourced rules and bounded config."""
         return service.rank_schematic_placement_candidates(
             path,
             engineering_rules=engineering_rules,
+            config=config,
         )
 
     @mcp.tool()

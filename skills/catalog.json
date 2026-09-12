@@ -4,6 +4,7 @@
     "title": "PCB project intake",
     "trigger": "Inventory this DipTrace project before we plan work.",
     "mode": "read_only",
+    "rag": true,
     "capabilities": [
       "diptrace_status",
       "get_capabilities",
@@ -19,6 +20,7 @@
     "title": "Library quality audit",
     "trigger": "Audit these DipTrace component and pattern libraries.",
     "mode": "read_only",
+    "rag": true,
     "capabilities": [
       "diptrace_status",
       "get_capabilities",
@@ -27,7 +29,9 @@
       "get_library_component",
       "get_library_pattern",
       "validate_library_component",
-      "validate_library_pattern"
+      "validate_library_pattern",
+      "query_builtin_library_catalog",
+      "recommend_patterns"
     ]
   },
   {
@@ -35,6 +39,7 @@
     "title": "Schematic ERC review",
     "trigger": "Review this DipTrace schematic before layout.",
     "mode": "read_only",
+    "rag": true,
     "capabilities": [
       "diptrace_status",
       "get_capabilities",
@@ -52,6 +57,7 @@
     "title": "Testpoint planner",
     "trigger": "Plan guarded fixture testpoints for these PCB nets.",
     "mode": "preview_write",
+    "rag": true,
     "capabilities": [
       "diptrace_status",
       "get_capabilities",
@@ -66,7 +72,8 @@
       "rollback_transaction",
       "run_testability_review",
       "run_drc",
-      "run_connectivity_check"
+      "run_connectivity_check",
+      "route_connection"
     ]
   },
   {
@@ -74,6 +81,7 @@
     "title": "Critical-net router",
     "trigger": "Route this explicitly named critical PCB net.",
     "mode": "preview_write",
+    "rag": true,
     "capabilities": [
       "diptrace_status",
       "get_capabilities",
@@ -92,7 +100,13 @@
       "commit_transaction",
       "rollback_transaction",
       "run_drc",
-      "run_connectivity_check"
+      "run_connectivity_check",
+      "export_autorouter_dsn",
+      "run_external_autorouter",
+      "inspect_autorouter_result",
+      "import_autorouter_ses",
+      "get_job_status",
+      "get_job_result"
     ]
   },
   {
@@ -100,6 +114,7 @@
     "title": "Signal-integrity review",
     "trigger": "Review impedance and return-path evidence for these PCB nets.",
     "mode": "read_only",
+    "rag": true,
     "capabilities": [
       "diptrace_status",
       "get_capabilities",
@@ -120,6 +135,7 @@
     "title": "Release gate",
     "trigger": "Run the final evidence-based release gate for this design.",
     "mode": "read_only",
+    "rag": true,
     "capabilities": [
       "diptrace_status",
       "get_capabilities",
@@ -133,7 +149,8 @@
       "run_thermal_review",
       "run_drc",
       "run_erc",
-      "run_connectivity_check"
+      "run_connectivity_check",
+      "analyze_release_readiness"
     ]
   },
   {
@@ -141,12 +158,148 @@
     "title": "DipTrace evidence capture",
     "trigger": "Guide an operator through a reviewable DipTrace round-trip capture.",
     "mode": "operator_assisted",
+    "rag": true,
     "capabilities": [
       "diptrace_status",
       "get_capabilities",
       "get_document_info",
       "validate_roundtrip_evidence",
       "record_roundtrip_evidence"
+    ]
+  },
+  {
+    "slug": "pcb-design-workflow",
+    "title": "PCB design workflow",
+    "trigger": "Take this board through the complete design and production cycle.",
+    "mode": "preview_write",
+    "rag": true,
+    "capabilities": [
+      "diptrace_status",
+      "get_capabilities",
+      "get_document_info",
+      "create_document_from_seed",
+      "sync_schematic_to_pcb",
+      "plan_component_placement",
+      "apply_component_placement_plan",
+      "plan_route_nets",
+      "apply_route_plan",
+      "run_board_review",
+      "commit_transaction",
+      "rollback_transaction"
+    ]
+  },
+  {
+    "slug": "schematic-engineer",
+    "title": "Schematic engineer",
+    "trigger": "Design or modify this DipTrace schematic.",
+    "mode": "preview_write",
+    "rag": true,
+    "capabilities": [
+      "diptrace_status",
+      "get_capabilities",
+      "get_document_info",
+      "create_document_from_seed",
+      "query_builtin_library_catalog",
+      "place_builtin_component",
+      "place_part",
+      "add_sheet",
+      "connect_pins",
+      "add_wire",
+      "set_pin_no_connect",
+      "plan_schematic_placement_repair",
+      "apply_schematic_placement_repair_plan",
+      "preview_transaction",
+      "validate_transaction",
+      "commit_transaction",
+      "rollback_transaction",
+      "run_erc",
+      "run_schematic_review"
+    ]
+  },
+  {
+    "slug": "diptrace-datasheet-rules",
+    "title": "Datasheet design rules",
+    "trigger": "Extract official component rules for this DipTrace design.",
+    "mode": "read_only",
+    "rag": true,
+    "capabilities": [
+      "diptrace_status",
+      "get_capabilities",
+      "get_document_info",
+      "get_library_component",
+      "get_library_pattern",
+      "validate_pin_pad_mapping"
+    ]
+  },
+  {
+    "slug": "diptrace-bom-sourcing",
+    "title": "BOM and sourcing",
+    "trigger": "Prepare a purchasable BOM for this DipTrace revision.",
+    "mode": "read_only",
+    "rag": true,
+    "capabilities": [
+      "diptrace_status",
+      "get_capabilities",
+      "get_document_info",
+      "get_bom",
+      "run_bom_review",
+      "export_bom",
+      "query_builtin_library_catalog",
+      "pipeline_source_component",
+      "compare_schematic_to_pcb"
+    ]
+  },
+  {
+    "slug": "diptrace-production-pack",
+    "title": "Production package",
+    "trigger": "Prepare this DipTrace board for fabrication and assembly.",
+    "mode": "operator_assisted",
+    "rag": true,
+    "capabilities": [
+      "diptrace_status",
+      "get_capabilities",
+      "get_document_info",
+      "export_bom",
+      "export_fabrication_outputs",
+      "export_assembly_outputs",
+      "list_exports",
+      "run_manufacturing_review",
+      "run_assembly_review",
+      "compare_schematic_to_pcb"
+    ]
+  },
+  {
+    "slug": "diptrace-board-bringup",
+    "title": "Board bring-up and production test",
+    "trigger": "Plan or run bring-up for this DipTrace board.",
+    "mode": "operator_assisted",
+    "rag": true,
+    "capabilities": [
+      "diptrace_status",
+      "get_capabilities",
+      "get_document_info",
+      "get_schematic_model",
+      "get_connectivity_graph",
+      "get_bom",
+      "list_testpoints",
+      "review_testpoint_coverage"
+    ]
+  },
+  {
+    "slug": "diptrace-revision-review",
+    "title": "Revision review and ECO",
+    "trigger": "Compare these DipTrace revisions and prepare an ECO.",
+    "mode": "read_only",
+    "rag": true,
+    "capabilities": [
+      "diptrace_status",
+      "get_capabilities",
+      "get_document_info",
+      "get_schematic_model",
+      "get_board_model",
+      "get_connectivity_graph",
+      "get_bom",
+      "compare_schematic_to_pcb"
     ]
   }
 ]

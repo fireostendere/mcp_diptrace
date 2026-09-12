@@ -120,6 +120,73 @@ def test_visible_content_bbox_ignores_faint_grid_and_finds_board() -> None:
     ) == (10, 12, 50, 36)
 
 
+def test_visible_content_bbox_handles_light_and_dark_backgrounds() -> None:
+    width = height = 64
+    white = bytearray(bytes((255, 255, 255, 255)) * (width * height))
+    for y in range(16, 48):
+        for x in range(16, 48):
+            white[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((255, 0, 0))
+    assert recording._visible_content_bbox(
+        bytes(white), width=width, viewport=(0, 0, width, height)
+    ) == (
+        16,
+        16,
+        48,
+        48,
+    )
+
+    black = bytearray(bytes((255, 255, 255, 255)) * (width * height))
+    for y in range(16, 48):
+        for x in range(16, 48):
+            black[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((0, 0, 0))
+    assert recording._visible_content_bbox(
+        bytes(black), width=width, viewport=(0, 0, width, height)
+    ) == (
+        16,
+        16,
+        48,
+        48,
+    )
+
+
+def test_visible_content_bbox_ignores_faint_light_grid_and_empty_frames() -> None:
+    width = height = 64
+    white = bytearray(bytes((255, 255, 255, 255)) * (width * height))
+    for y in range(0, height, 4):
+        for x in range(0, width, 4):
+            white[(y * width + x) * 4 : (y * width + x) * 4 + 3] = bytes((230, 230, 230))
+    assert (
+        recording._visible_content_bbox(bytes(white), width=width, viewport=(0, 0, width, height))
+        is None
+    )
+    empty_white = bytes((255, 255, 255, 255)) * (width * height)
+    assert (
+        recording._visible_content_bbox(empty_white, width=width, viewport=(0, 0, width, height))
+        is None
+    )
+    empty_black = bytes((0, 0, 0, 255)) * (width * height)
+    assert (
+        recording._visible_content_bbox(empty_black, width=width, viewport=(0, 0, width, height))
+        is None
+    )
+
+
+def test_fit_content_uses_one_deadline_across_captures(monkeypatch: pytest.MonkeyPatch) -> None:
+    driver = object.__new__(HiddenMessageDesktopDriver)
+    driver.default_window = "DipTrace Schematic"
+    driver._window = lambda _title: 1
+    driver._drawing_viewport = lambda _window, width, height: (0, 0, width, height)
+    driver._scrollbars = lambda _window: {}
+    driver._zoom_edit = lambda _window: 2
+    driver._set_zoom = lambda *_args: None
+    monkeypatch.setattr(recording.time, "sleep", lambda _seconds: None)
+    ticks = iter((0.0, 0.0, 1.0, 6.0))
+    monkeypatch.setattr(recording.time, "monotonic", lambda: next(ticks))
+
+    with pytest.raises(RuntimeError, match="framing timed out"):
+        driver.fit_content(lambda: bytes(100 * 100 * 4), 100, 100)
+
+
 def test_purple_outline_bbox_finds_clipped_board_edge() -> None:
     width, height = 64, 48
     frame = bytearray(bytes((0, 0, 0, 255)) * (width * height))
@@ -295,7 +362,7 @@ def test_hidden_driver_discovers_viewport_and_controls(
             return 1
 
         def GetDpiForWindow(self, _window):
-            return 96
+            return 144
 
         def EnumChildWindows(self, _window, callback, _lparam):
             for hwnd in (1, 2, 3, 4, 5):
@@ -422,6 +489,76 @@ def test_printwindow_client_check_rejects_titlebar_only() -> None:
         )
         is False
     )
+
+
+def test_physical_pixel_dpi_context_restores_previous_context() -> None:
+    calls: list[object] = []
+
+    class Setter:
+        argtypes = None
+        restype = None
+
+        def __call__(self, value):
+            calls.append(value)
+            return 123 if len(calls) == 1 else -1
+
+    user32 = SimpleNamespace(SetThreadDpiAwarenessContext=Setter())
+    with recording._physical_pixel_dpi_context(user32):
+        assert recording.ctypes.c_ssize_t(calls[0].value).value == -4
+    assert calls[1] == 123
+
+
+def test_physical_pixel_dpi_context_restores_on_exception() -> None:
+    calls: list[object] = []
+
+    class Setter:
+        argtypes = None
+        restype = None
+
+        def __call__(self, value):
+            calls.append(value)
+            return 456
+
+    with pytest.raises(ValueError, match="capture"), recording._physical_pixel_dpi_context(
+        SimpleNamespace(SetThreadDpiAwarenessContext=Setter())
+    ):
+        raise ValueError("capture")
+    assert calls[1] == 456
+
+
+def test_physical_pixel_dpi_context_fails_without_windows_api() -> None:
+    context = recording._physical_pixel_dpi_context(SimpleNamespace())
+    with pytest.raises(RuntimeError, match="SetThreadDpiAwarenessContext"), context:
+        pass
+
+
+def test_physical_pixel_dpi_context_fails_when_windows_rejects_it() -> None:
+    class Setter:
+        argtypes = None
+        restype = None
+
+        def __call__(self, _value):
+            return 0
+
+    context = recording._physical_pixel_dpi_context(
+        SimpleNamespace(SetThreadDpiAwarenessContext=Setter())
+    )
+    with pytest.raises(RuntimeError, match="cannot enable"), context:
+        pass
+
+
+def test_physical_pixel_dpi_context_reports_restore_failure() -> None:
+    class Setter:
+        argtypes = None
+        restype = None
+
+        def __call__(self, value):
+            return 123 if isinstance(value, recording.ctypes.c_void_p) else 0
+
+    with pytest.raises(RuntimeError, match="cannot restore"), recording._physical_pixel_dpi_context(
+        SimpleNamespace(SetThreadDpiAwarenessContext=Setter())
+    ):
+        pass
 
 
 def test_capture_command_rejects_invalid_inputs() -> None:
@@ -611,7 +748,21 @@ def test_headless_request_and_result_json_contract(tmp_path: Path) -> None:
     )
     assert request.editor == "pcb"
     assert request.effective_window_title == "board"
+    assert request.auto_frame is True
+    assert request.native_extents is False
     assert HeadlessCinematicRequest.from_json(request.as_json()) == request
+    legacy = {key: value for key, value in request.as_json().items() if key != "auto_frame"}
+    assert HeadlessCinematicRequest.from_json(legacy).auto_frame is True
+    legacy = {key: value for key, value in request.as_json().items() if key != "native_extents"}
+    assert HeadlessCinematicRequest.from_json(legacy).native_extents is False
+    window_frame = HeadlessCinematicRequest.from_json(
+        {**request.as_json(), "auto_frame": False}
+    )
+    assert window_frame.auto_frame is False
+    native_extents = HeadlessCinematicRequest.from_json(
+        {**request.as_json(), "native_extents": True}
+    )
+    assert native_extents.native_extents is True
     result = HeadlessCinematicResult(
         True,
         "hidden",
@@ -625,6 +776,8 @@ def test_headless_request_and_result_json_contract(tmp_path: Path) -> None:
         "v",
         gif_output="demo.gif",
         gif_sha256="g",
+        auto_frame=False,
+        native_extents=True,
     )
     assert HeadlessCinematicResult.from_json(result.as_json()) == result
 
@@ -638,6 +791,8 @@ def test_headless_request_and_result_json_contract(tmp_path: Path) -> None:
         ({"video_output": tmp_path / "demo.avi"}, "mp4"),
         ({"gif_output": tmp_path / "demo.png"}, "gif"),
         ({"window_title": " "}, "window_title"),
+        ({"auto_frame": "false"}, "auto_frame"),
+        ({"native_extents": "true"}, "native_extents"),
     ]:
         values = dict(
             diptrace_root=tmp_path,
@@ -781,8 +936,13 @@ def test_hidden_driver_window_and_click_messages(monkeypatch: pytest.MonkeyPatch
     assert recording._BUTTON_MESSAGES["left"][1] in user32.messages
 
 
+@pytest.mark.parametrize("auto_frame", [True, False])
+@pytest.mark.parametrize("native_extents", [False, True])
 def test_hidden_capture_records_resolved_window_with_printwindow(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    auto_frame: bool,
+    native_extents: bool,
 ) -> None:
     request = HeadlessCinematicRequest(
         tmp_path / "DipTrace",
@@ -790,6 +950,8 @@ def test_hidden_capture_records_resolved_window_with_printwindow(
         tmp_path / "manifest.json",
         tmp_path / "demo.mp4",
         "schematic",
+        auto_frame=auto_frame,
+        native_extents=native_extents,
     )
     preflight = SimpleNamespace(duration_ms=100, content_sha256="manifest-sha")
     diptrace = SimpleNamespace(
@@ -830,6 +992,12 @@ def test_hidden_capture_records_resolved_window_with_printwindow(
     monkeypatch.setattr(recording, "_dismiss_project_ok_dialog", lambda *_args: False)
     monkeypatch.setattr(recording, "_record_printwindow_video", record)
     monkeypatch.setattr(recording, "play_manifest", lambda *_args: None)
+    native_calls: list[tuple[int, int]] = []
+    monkeypatch.setattr(
+        recording,
+        "_zoom_extents_via_native_menu",
+        lambda pid, hwnd, executable: native_calls.append((pid, hwnd, executable)) or "text-path",
+    )
     monkeypatch.setattr(
         recording,
         "HiddenMessageDesktopDriver",
@@ -854,7 +1022,363 @@ def test_hidden_capture_records_resolved_window_with_printwindow(
     assert result.ffmpeg_pid == 11
     assert captured["hwnd"] == 0xCAFE
     assert captured["user32"] is user32
-    assert callable(captured["prepare"])
+    assert callable(captured["prepare"]) is auto_frame
+    assert result.auto_frame is auto_frame
+    assert native_calls == ([(10, 0xCAFE, request.executable)] if native_extents else [])
+    assert result.native_extents is native_extents
+    assert result.native_view_profile == ("text-path" if native_extents else None)
+
+
+def test_native_zoom_extents_initializes_each_menu_before_exact_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ready: set[int] = set()
+    initialized: list[tuple[int, int]] = []
+    posted: list[object] = []
+
+    class Menu:
+        def __init__(self, handle: int, items: list[Item], *, requires_init: bool = False) -> None:
+            self.handle = handle
+            self._items = items
+            self.requires_init = requires_init
+
+        def items(self) -> list[Item]:
+            return self._items if not self.requires_init or self.handle in ready else []
+
+        def item_count(self) -> int:
+            return len(self.items())
+
+    class Item:
+        def __init__(
+            self,
+            label: str,
+            index: int,
+            submenu: Menu | None = None,
+        ) -> None:
+            self.label = label
+            self._index = index
+            self._submenu = submenu
+
+        def text(self) -> str:
+            return self.label
+
+        def index(self) -> int:
+            return self._index
+
+        def item_id(self) -> int:
+            return self._index + 100
+
+        def item_type(self) -> int:
+            return 0
+
+        def is_checked(self) -> bool:
+            return False
+
+        def is_enabled(self) -> bool:
+            return True
+
+        def sub_menu(self) -> Menu | None:
+            return self._submenu
+
+    zoom_menu = Menu(300, [Item("Zoom Extents", 0)])
+    scale_menu = Menu(200, [Item("Scale", 1, zoom_menu)], requires_init=True)
+    root_menu = Menu(100, [Item("&View\tAlt+V", 2, scale_menu)])
+
+    class Sender:
+        argtypes: object | None = None
+        restype: object | None = None
+
+        def __call__(self, _hwnd, message, submenu, index, flags, timeout, _result) -> int:
+            assert message == recording._WM_INITMENUPOPUP
+            assert flags == recording._SEND_TIMEOUT_FLAGS
+            assert timeout == 2_000
+            ready.add(int(submenu))
+            initialized.append((int(submenu), int(index)))
+            return 1
+
+    class Window:
+        handle = 0xCAFE
+
+        def wait(self, state: str, *, timeout: int) -> None:
+            assert (state, timeout) == ("exists enabled", 5)
+
+        def menu(self) -> Menu:
+            return root_menu
+
+    class App:
+        def connect(self, *, process: int, timeout: int) -> None:
+            assert (process, timeout) == (12, 5)
+
+        def window(self, *, handle: int) -> Window:
+            assert handle == 0xCAFE
+            return Window()
+
+    sender = Sender()
+    monkeypatch.setattr(recording.hg, "_pywinauto_application", lambda: lambda **_kwargs: App())
+    monkeypatch.setattr(
+        recording.ctypes,
+        "windll",
+        SimpleNamespace(user32=SimpleNamespace(SendMessageTimeoutW=sender)),
+        raising=False,
+    )
+    monkeypatch.setattr(recording.hg, "_post_menu_item", lambda _window, item: posted.append(item))
+
+    assert recording._zoom_extents_via_native_menu(12, 0xCAFE) == "text-path"
+
+    assert initialized == [(200, 2), (300, 1)]
+    assert posted == [zoom_menu.items()[0]]
+
+
+def test_native_zoom_extents_refuses_unknown_menu_with_bounded_diagnostic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ready: set[int] = set()
+    posted: list[object] = []
+
+    class Menu:
+        def __init__(self, handle: int, items: list[Item], *, requires_init: bool = False) -> None:
+            self.handle = handle
+            self._items = items
+            self.requires_init = requires_init
+
+        def items(self) -> list[Item]:
+            return self._items if not self.requires_init or self.handle in ready else []
+
+        def item_count(self) -> int:
+            return len(self.items())
+
+    class Item:
+        def __init__(self, label: str, index: int, submenu: Menu | None = None) -> None:
+            self.label = label
+            self._index = index
+            self._submenu = submenu
+
+        def text(self) -> str:
+            return self.label
+
+        def index(self) -> int:
+            return self._index
+
+        def item_id(self) -> int:
+            return self._index + 100
+
+        def item_type(self) -> int:
+            return 0
+
+        def is_checked(self) -> bool:
+            return False
+
+        def is_enabled(self) -> bool:
+            return True
+
+        def sub_menu(self) -> Menu | None:
+            return self._submenu
+
+    child = Menu(300, [Item("Child", 0)])
+    view_menu = Menu(
+        200,
+        [Item(f"Unknown {index} {'x' * 80}", index, child) for index in range(40)],
+        requires_init=True,
+    )
+    root_menu = Menu(100, [Item("View", 0, view_menu)])
+
+    class Sender:
+        def __call__(self, _hwnd, _message, submenu, _index, _flags, _timeout, _result) -> int:
+            ready.add(int(submenu))
+            return 1
+
+    class Window:
+        handle = 0xCAFE
+
+        def wait(self, _state: str, *, timeout: int) -> None:
+            assert timeout == 5
+
+        def menu(self) -> Menu:
+            return root_menu
+
+    class App:
+        def connect(self, *, process: int, timeout: int) -> None:
+            assert (process, timeout) == (12, 5)
+
+        def window(self, *, handle: int) -> Window:
+            assert handle == 0xCAFE
+            return Window()
+
+    monkeypatch.setattr(recording.hg, "_pywinauto_application", lambda: lambda **_kwargs: App())
+    monkeypatch.setattr(
+        recording.ctypes,
+        "windll",
+        SimpleNamespace(user32=SimpleNamespace(SendMessageTimeoutW=Sender())),
+        raising=False,
+    )
+    monkeypatch.setattr(recording.hg, "_post_menu_item", lambda *_args: posted.append(True))
+
+    with pytest.raises(HeadlessGuiError, match="exact menu item 'Scale'") as error:
+        recording._zoom_extents_via_native_menu(12, 0xCAFE)
+
+    diagnostic = json.loads(str(error.value).split(": ", 1)[1])
+    assert diagnostic["menu"] == "View"
+    assert diagnostic["items"][0]["children"][0] == {
+        "index": 0,
+        "id": 100,
+        "item_type": 0,
+        "separator": False,
+        "text": "Child",
+    }
+    assert diagnostic["truncated"] is True
+    assert len(str(error.value).encode()) <= recording._MENU_DIAGNOSTIC_MAX_BYTES + 100
+    assert posted == []
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [None, "binary", "id", "order", "separator", "count", "caption", "disabled"],
+)
+def test_native_zoom_extents_pinned_schematic_5303_profile_is_exact_or_refuses(
+    monkeypatch: pytest.MonkeyPatch,
+    defect: str | None,
+) -> None:
+    ready: set[int] = set()
+    posted: list[object] = []
+
+    class Menu:
+        def __init__(self, handle: int, items: list[Item], *, requires_init: bool = False) -> None:
+            self.handle = handle
+            self._items = items
+            self.requires_init = requires_init
+
+        def items(self) -> list[Item]:
+            return self._items if not self.requires_init or self.handle in ready else []
+
+        def item_count(self) -> int:
+            return len(self.items())
+
+    class Item:
+        def __init__(
+            self,
+            index: int,
+            item_id: int,
+            item_type: int,
+            *,
+            submenu: Menu | None = None,
+        ) -> None:
+            self.index_value = index
+            self.id_value = item_id
+            self.type_value = item_type
+            self.label = ""
+            self.enabled = True
+            self.submenu = submenu
+
+        def text(self) -> str:
+            return self.label
+
+        def index(self) -> int:
+            return self.index_value
+
+        def item_id(self) -> int:
+            return self.id_value
+
+        def item_type(self) -> int:
+            return self.type_value
+
+        def is_checked(self) -> bool:
+            return False
+
+        def is_enabled(self) -> bool:
+            return self.enabled
+
+        def sub_menu(self) -> Menu | None:
+            return self.submenu
+
+    def profile_items(ids: tuple[int, ...], separators: frozenset[int]) -> list[Item]:
+        return [
+            Item(
+                index,
+                item_id,
+                recording._MF_SEPARATOR if index in separators else recording._MF_OWNERDRAW,
+            )
+            for index, item_id in enumerate(ids)
+        ]
+
+    scale_items = profile_items(
+        recording._SCHEMATIC_5303_SCALE_IDS,
+        recording._SCHEMATIC_5303_SCALE_SEPARATORS,
+    )
+    scale_menu = Menu(300, scale_items, requires_init=True)
+    view_items = profile_items(
+        recording._SCHEMATIC_5303_VIEW_IDS,
+        recording._SCHEMATIC_5303_VIEW_SEPARATORS,
+    )
+    view_items[recording._SCHEMATIC_5303_SCALE_INDEX].submenu = scale_menu
+    view_menu = Menu(200, view_items, requires_init=True)
+    root_menu = Menu(100, [Item(0, 1, 0, submenu=view_menu)])
+    root_menu.items()[0].label = "&View\tAlt+V"
+
+    if defect == "id":
+        view_items[0].id_value = 999
+    elif defect == "order":
+        view_items[0].id_value, view_items[2].id_value = (
+            view_items[2].id_value,
+            view_items[0].id_value,
+        )
+    elif defect == "separator":
+        view_items[1].type_value = recording._MF_OWNERDRAW
+    elif defect == "count":
+        view_items.pop()
+    elif defect == "caption":
+        view_items[0].label = "Unexpected"
+    elif defect == "disabled":
+        scale_items[recording._SCHEMATIC_5303_ZOOM_EXTENTS_INDEX].enabled = False
+
+    class Sender:
+        argtypes: object | None = None
+        restype: object | None = None
+
+        def __call__(self, _hwnd, _message, submenu, _index, _flags, _timeout, _result) -> int:
+            ready.add(int(submenu))
+            return 1
+
+    class Window:
+        handle = 0xCAFE
+
+        def wait(self, _state: str, *, timeout: int) -> None:
+            assert timeout == 5
+
+        def menu(self) -> Menu:
+            return root_menu
+
+    class App:
+        def connect(self, *, process: int, timeout: int) -> None:
+            assert (process, timeout) == (12, 5)
+
+        def window(self, *, handle: int) -> Window:
+            assert handle == 0xCAFE
+            return Window()
+
+    monkeypatch.setattr(recording.hg, "_pywinauto_application", lambda: lambda **_kwargs: App())
+    monkeypatch.setattr(
+        recording.ctypes,
+        "windll",
+        SimpleNamespace(user32=SimpleNamespace(SendMessageTimeoutW=Sender())),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        recording.hg,
+        "_sha256",
+        lambda _path: recording._SCHEMATIC_5303_SHA256 if defect != "binary" else "wrong",
+    )
+    monkeypatch.setattr(recording.hg, "_post_menu_item", lambda _window, item: posted.append(item))
+
+    if defect is None:
+        assert (
+            recording._zoom_extents_via_native_menu(12, 0xCAFE, Path("Schematic.exe"))
+            == recording._SCHEMATIC_5303_NATIVE_VIEW_PROFILE
+        )
+        assert posted == [scale_items[recording._SCHEMATIC_5303_ZOOM_EXTENTS_INDEX]]
+    else:
+        with pytest.raises(HeadlessGuiError, match="pinned profile"):
+            recording._zoom_extents_via_native_menu(12, 0xCAFE, Path("Schematic.exe"))
+        assert posted == []
 
 
 def test_window_lookup_filters_pid_and_title(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1162,7 +1686,8 @@ def test_run_headless_cinematic_removes_stale_outputs_before_worker(
         def __init__(self, _name: str) -> None:
             pass
 
-        def launch(self, argv: list[str]) -> Worker:
+        def launch(self, argv: list[str], *, job: object) -> Worker:
+            assert job is owned_job
             return Worker(argv)
 
         def __enter__(self):
@@ -1171,11 +1696,19 @@ def test_run_headless_cinematic_removes_stale_outputs_before_worker(
         def __exit__(self, *_exc: object) -> None:
             return None
 
+    class Job:
+        def terminate_and_close(self) -> None:
+            terminated.append(True)
+
+    owned_job = Job()
+    terminated: list[bool] = []
+    monkeypatch.setattr(recording.KillOnCloseJob, "create", lambda: owned_job)
     monkeypatch.setattr(recording.hg, "HiddenDesktop", Desktop)
 
     result = recording.run_headless_cinematic(request)
 
     assert result.ok is False
+    assert terminated == [True]
     assert not video.exists()
     assert not gif.exists()
 
@@ -1195,7 +1728,12 @@ def test_headless_cli_delegates_and_prints_result(
         str(tmp_path / "demo.mp4"),
         "v",
     )
-    monkeypatch.setattr(recording, "run_headless_cinematic", lambda _request: result)
+    captured: dict[str, HeadlessCinematicRequest] = {}
+    monkeypatch.setattr(
+        recording,
+        "run_headless_cinematic",
+        lambda request: captured.setdefault("request", request) and result,
+    )
     code = recording.headless_main(
         [
             "capture",
@@ -1209,10 +1747,14 @@ def test_headless_cli_delegates_and_prints_result(
             str(tmp_path / "manifest.json"),
             "--video",
             str(tmp_path / "demo.mp4"),
+            "--window-frame",
+            "--native-extents",
         ]
     )
     assert code == 0
     assert json.loads(capsys.readouterr().out)["ok"] is True
+    assert captured["request"].auto_frame is False
+    assert captured["request"].native_extents is True
 
 
 def test_cmd_headless_worker_records_failure(tmp_path: Path) -> None:

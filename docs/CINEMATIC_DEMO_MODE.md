@@ -116,6 +116,8 @@ python -m diptrace_mcp.cinematic_cli ffmpeg raw-demo.mp4 demo --preset cinematic
 
 The visible recorder resolves a title substring to a real HWND and uses Windows ffmpeg `gdigrab`.
 
+Hidden PrintWindow capture temporarily uses Windows per-monitor-v2 DPI awareness so its window geometry and bitmap pixels share one physical-pixel coordinate space. Windows versions without `SetThreadDpiAwarenessContext` fail that capture clearly rather than emit a cropped result.
+
 ## Design-boundary framing
 
 Hidden capture prepares a stable drawing crop before recording:
@@ -130,6 +132,30 @@ Hidden capture prepares a stable drawing crop before recording:
 
 If the complete design boundary cannot be found or disappears while fitting,
 capture fails instead of silently recording a cropped or control-heavy frame.
+
+Use `--native-extents` when the hidden capture must start from DipTrace's own
+`View->Scale->Zoom Extents` command. The worker resolves the project window by
+PID and posts that exact enabled native menu item before PrintWindow recording;
+it fails before recording if the menu cannot be resolved or invoked. This is
+independent of the default image-based framing and does not use physical input.
+
+For textless owner-draw menus, it has one fail-closed exception: the reviewed
+English Schematic 5.3.0.3 executable with SHA-256
+`d85632b2c8fb445471339e875416782e3e62fb56ea13ab7d973052122352f568` and the
+exact reviewed View/Scale item IDs, ordering, separators, owner-draw flags and
+enabled target. Any mismatch is rejected before posting. The result reports
+`native_view_profile` as `text-path` or the pinned profile identifier.
+
+For verification or debugging, `cinematic_recording` hidden capture accepts
+`--window-frame` to record the full owned window at its current view without
+automatic fit/page containment:
+
+```bash
+python -m diptrace_mcp.cinematic_recording headless-capture --editor schematic --window-frame ...
+```
+
+This still uses the hidden-window backend and all capture guards; it is not
+proof that the design is framed. Operators must inspect the native frames.
 
 `assess_design_frame()` provides the same deterministic final-frame gate to
 tests and evidence tooling. It reports the UI-free padded crop, design fill

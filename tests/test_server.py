@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -30,6 +31,7 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             tool_descriptions = {tool.name: tool.description or "" for tool in tools.tools}
             assert "summarize_design" in tool_names
             assert "apply_xml_edits" in tool_names
+            assert "apply_xml_edits_from_file" in tool_names
             assert "get_capabilities" in tool_names
             assert "get_connectivity_graph" in tool_names
             assert "begin_transaction" in tool_names
@@ -205,6 +207,200 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
                 {"scope": "selected power stage"},
             )
             assert "Review scope: selected power stage" in prompt.messages[0].content.text
+
+    asyncio.run(verify())
+
+
+def test_mcp_file_edit_batch_is_hash_bound_and_accepts_50_edits(tmp_path: Path) -> None:
+    async def verify() -> None:
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        board = workspace / "board.dip"
+        board.write_bytes((FIXTURES / "pcb.xml").read_bytes())
+        edits = [
+            {
+                "operation": "set_text",
+                "xpath": "./Board/Components/Component[@Id='0']/Value",
+                "value": str(index),
+            }
+            for index in range(50)
+        ]
+        raw_edits = json.dumps(edits).encode("utf-8")
+        (workspace / "edits.json").write_bytes(raw_edits)
+        edits_sha256 = hashlib.sha256(raw_edits).hexdigest()
+        server = create_server(
+            Settings(
+                workspace=workspace,
+                allowed_roots=(workspace,),
+                state_dir=tmp_path / "state",
+            )
+        )
+        async with create_connected_server_and_client_session(
+            server,
+            read_timeout_seconds=timedelta(seconds=10),
+        ) as session:
+            preview = await session.call_tool(
+                "apply_xml_edits_from_file",
+                {"edits_path": "edits.json", "path": "board.dip"},
+            )
+            assert not preview.isError
+            assert preview.structuredContent is not None
+            assert preview.structuredContent["operations_metadata"]["edit_count"] == 50
+            assert preview.structuredContent["edits_file_sha256"] == edits_sha256
+
+            (workspace / "too-many-edits.json").write_text(
+                json.dumps(edits + [edits[0]]), encoding="utf-8"
+            )
+            too_many = await session.call_tool(
+                "apply_xml_edits_from_file",
+                {"edits_path": "too-many-edits.json", "path": "board.dip"},
+            )
+            assert too_many.isError
+            assert too_many.structuredContent["error"]["code"] == "VALIDATION_ERROR"
+
+            missing_file_guard = await session.call_tool(
+                "apply_xml_edits_from_file",
+                {
+                    "edits_path": "edits.json",
+                    "path": "board.dip",
+                    "dry_run": False,
+                    "expected_sha256": preview.structuredContent["before_sha256"],
+                },
+            )
+            assert missing_file_guard.isError
+            assert missing_file_guard.structuredContent["error"]["code"] == "VALIDATION_ERROR"
+
+            stale_file_guard = await session.call_tool(
+                "apply_xml_edits_from_file",
+                {
+                    "edits_path": "edits.json",
+                    "path": "board.dip",
+                    "expected_edits_sha256": "0" * 64,
+                },
+            )
+            assert stale_file_guard.isError
+            assert stale_file_guard.structuredContent["error"]["code"] == "CONFLICT"
+
+            committed = await session.call_tool(
+                "apply_xml_edits_from_file",
+                {
+                    "edits_path": "edits.json",
+                    "path": "board.dip",
+                    "dry_run": False,
+                    "expected_edits_sha256": preview.structuredContent["edits_file_sha256"],
+                    "expected_sha256": preview.structuredContent["before_sha256"],
+                },
+            )
+            assert not committed.isError
+            assert committed.structuredContent["written"] is True
+        assert b"<Value>49</Value>" in board.read_bytes()
+
+    asyncio.run(verify())
+
+
+def test_mcp_file_edit_batch_path_guards_preserve_read_only_targets(tmp_path: Path) -> None:
+    async def verify() -> None:
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        board = workspace / "board.dip"
+        original = (FIXTURES / "pcb.xml").read_bytes()
+        board.write_bytes(original)
+        edits = json.dumps(
+            [
+                {
+                    "operation": "set_text",
+                    "xpath": "./Board/Components/Component[@Id='0']/Value",
+                    "value": "47k",
+                }
+            ]
+        ).encode()
+        (workspace / "edits.json").write_bytes(edits)
+        (workspace / "oversized.json").write_bytes(b"x" * (128 * 1024 + 1))
+        outside = tmp_path / "outside.json"
+        outside.write_bytes(edits)
+        outside_link = workspace / "outside-link.json"
+        try:
+            outside_link.symlink_to(outside)
+        except OSError:
+            outside_link = None
+        server = create_server(
+            Settings(
+                workspace=workspace,
+                allowed_roots=(workspace,),
+                state_dir=tmp_path / "state",
+            )
+        )
+        original_mode = board.stat().st_mode
+        board.chmod(original_mode & ~0o222)
+        try:
+            async with create_connected_server_and_client_session(
+                server,
+                read_timeout_seconds=timedelta(seconds=5),
+            ) as session:
+                for edits_path in ("oversized.json", str(outside)):
+                    result = await session.call_tool(
+                        "apply_xml_edits_from_file",
+                        {"edits_path": edits_path, "path": "board.dip"},
+                    )
+                    assert result.isError
+                if outside_link is not None:
+                    link_result = await session.call_tool(
+                        "apply_xml_edits_from_file",
+                        {"edits_path": outside_link.name, "path": "board.dip"},
+                    )
+                    assert link_result.isError
+                preview = await session.call_tool(
+                    "apply_xml_edits_from_file",
+                    {"edits_path": "edits.json", "path": "board.dip"},
+                )
+                assert not preview.isError
+                assert preview.structuredContent["written"] is False
+        finally:
+            board.chmod(original_mode)
+        assert board.read_bytes() == original
+
+    asyncio.run(verify())
+
+
+def test_mcp_file_edit_batch_normalizes_invalid_edit_payloads(tmp_path: Path) -> None:
+    async def verify() -> None:
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        (workspace / "board.dip").write_bytes((FIXTURES / "pcb.xml").read_bytes())
+        server = create_server(
+            Settings(
+                workspace=workspace,
+                allowed_roots=(workspace,),
+                state_dir=tmp_path / "state",
+            )
+        )
+        invalid_payloads = {
+            "malformed.json": b"{",
+            "extra.json": json.dumps(
+                [
+                    {
+                        "operation": "set_text",
+                        "xpath": "./Board/Components/Component[@Id='0']/Value",
+                        "value": "INTERNAL_SECRET_VALUE",
+                        "unexpected": "forbidden",
+                    }
+                ]
+            ).encode(),
+        }
+        for name, payload in invalid_payloads.items():
+            (workspace / name).write_bytes(payload)
+        async with create_connected_server_and_client_session(
+            server,
+            read_timeout_seconds=timedelta(seconds=5),
+        ) as session:
+            for name in invalid_payloads:
+                result = await session.call_tool(
+                    "apply_xml_edits_from_file",
+                    {"edits_path": name, "path": "board.dip"},
+                )
+                assert result.isError
+                assert result.structuredContent["error"]["code"] == "VALIDATION_ERROR"
+                assert "INTERNAL_SECRET_VALUE" not in json.dumps(result.model_dump())
 
     asyncio.run(verify())
 

@@ -18,6 +18,7 @@ from diptrace_mcp.errors import (
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.pattern_recommendation import PatternRequirement
 from diptrace_mcp.reference_rules import EngineeringRulePack
+from diptrace_mcp.schematic_ensemble import SchematicEnsembleConfig
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
 from diptrace_mcp.server_runtime import create_server
 from diptrace_mcp.service import DipTraceService
@@ -133,6 +134,37 @@ def test_rank_schematic_placement_candidates_selects_ranked_candidate(tmp_path: 
     assert any(
         "builtin" in limitation for limitation in result["limitations"]
     )
+
+
+def test_rank_schematic_placement_candidates_honors_bounded_ensemble_config(
+    tmp_path: Path,
+) -> None:
+    service, workspace = _service(tmp_path)
+
+    result = service.rank_schematic_placement_candidates(
+        str(workspace / "schematic.xml"),
+        config=SchematicEnsembleConfig(
+            infer_builtin_motifs=False,
+            max_ranked_candidates=1,
+            repair_iterations=0,
+        ),
+    )
+
+    payload = result["result"]
+    assert len(payload["candidates"]) == 1
+    assert payload["inferred_motifs"] == []
+
+
+def test_rank_schematic_placement_candidates_tool_schema_is_typed() -> None:
+    server = create_server()
+    tool = server._tool_manager._tools["rank_schematic_placement_candidates"]
+
+    assert tool.parameters["properties"]["config"] == {
+        "anyOf": [{"$ref": "#/$defs/SchematicEnsembleConfig"}, {"type": "null"}],
+        "default": None,
+    }
+    config = tool.parameters["$defs"]["SchematicEnsembleConfig"]
+    assert config["properties"]["max_ranked_candidates"]["maximum"] == 64
 
 
 def test_clean_wired_schematic_repair_is_noop_without_spurious_motion(

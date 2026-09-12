@@ -1,9 +1,16 @@
 ---
 name: schematic-erc-review
-description: Review a DipTrace schematic with bounded ERC, logical connectivity, metadata, and BOM checks before layout. Use when the user says “Review this DipTrace schematic before layout.”
+description: RAG-backed. Review a DipTrace schematic with bounded ERC, logical connectivity, metadata, and BOM checks before layout. Use when the user says “Review this DipTrace schematic before layout.”
 ---
 
+Read [runtime access](../shared/runtime.md) before choosing between explicit-path
+MCP, a live bridge session, and native/headless CLI. Their availability is separate.
+
 # Schematic ERC review
+
+RAG: **engineering memory by default** — [shared workflow](../shared/rag.md).
+Derive an engineering checklist from the circuit-analysis/design corpus and DipTrace
+schematic/ERC courses, then inspect the actual circuit beyond automated ERC findings.
 
 Produce a read-only disposition with explicit implemented, skipped, and unavailable checks.
 Use public `tools/list` for exact callable names and `get_capabilities` for document/configured
@@ -17,7 +24,10 @@ feature availability.
    explicit no-connect state, RefDes, pin numbers, and net names.
 3. Run `run_erc`, `run_schematic_review`, `run_connectivity_check`, and `run_bom_review` only when
    advertised.
-4. Deduplicate findings by check ID plus object identity, not by message text.
+4. For native opening/roundtrip evidence, use the headless schematic workflow on a protected
+   copy through [evidence capture](../diptrace-evidence-capture/SKILL.md). Generic native schematic
+   ERC is not implemented by the base helper; report that specific missing check rather than
+   saying headless Schematic is unavailable. Deduplicate by check ID plus object identity.
 5. Report every missing mandatory category in `skipped_checks`; a skipped mandatory check forbids
    `completed`.
 6. Validate the report with [`../shared/result.schema.json`](../shared/result.schema.json).

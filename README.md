@@ -109,7 +109,7 @@ is not yet published.
 
 ## What it provides
 
-The public MCP surface currently registers 170 tools. Runtime
+The public MCP surface currently registers 171 tools. Runtime
 `get_capabilities` remains authoritative for the active
 installation and document.
 
@@ -396,7 +396,12 @@ See [Testing](docs/TESTING.md) and [Development](docs/DEVELOPMENT.md).
 - [Usage](docs/USAGE.md)
 - [MCP tools and resources](docs/MCP_TOOLS.md)
 - [Packaged MCP skills catalog](skills/README.md)
-- Agent-host skills under [.agents/skills/](.agents/skills/):
+- [Full PCB lifecycle and project skill map](skills/pcb-design-workflow/SKILL.md):
+  requirements, [schematic engineering](skills/schematic-engineer/SKILL.md),
+  datasheet evidence, sourcing, PCB gates, production files, bring-up, and revisions.
+- [MCP versus native/headless commands](skills/shared/runtime.md)
+- [Engineering skill review and corrections](docs/SKILL_REVIEW_2026-09-10.md)
+- Legacy agent-host recipes under [.agents/skills/](.agents/skills/):
   [`diptrace-pcb-testpoints`](.agents/skills/diptrace-pcb-testpoints/SKILL.md),
   [`diptrace-pcb-grounding`](.agents/skills/diptrace-pcb-grounding/SKILL.md),
   [`diptrace-schematic-style`](.agents/skills/diptrace-schematic-style/SKILL.md),

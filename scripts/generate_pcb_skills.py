@@ -25,9 +25,6 @@ SERVER_PATHS = (
 )
 PYPROJECT_PATH = ROOT / "pyproject.toml"
 
-MIN_SURVIVORS = 5
-MAX_SURVIVORS = 8
-EXPECTED_SURVIVORS = 8
 ALLOWED_MODES = {"read_only", "preview_write", "operator_assisted"}
 BANNED_PACKAGE_DIRECTORIES = {"agents", "evals", "examples", "schemas"}
 MIRRORS = {
@@ -105,10 +102,10 @@ def _resolve_markdown_link(source: Path, raw: str) -> Path | None:
         return None
     resolved = (source.parent / value).resolve()
     try:
-        resolved.relative_to(ROOT.resolve())
+        resolved.relative_to(SKILLS_ROOT.resolve())
     except ValueError as exc:
         raise CatalogError(
-            f"{source.relative_to(ROOT)}: link escapes repository: {raw!r}"
+            f"{source.relative_to(ROOT)}: link escapes packaged skills: {raw!r}"
         ) from exc
     return resolved
 
@@ -121,13 +118,18 @@ def _catalog_entries() -> list[dict[str, Any]]:
     for index, raw in enumerate(value):
         if not isinstance(raw, dict):
             raise CatalogError(f"catalog entry {index} must be an object")
-        required = {"slug", "title", "trigger", "mode", "capabilities"}
+        required = {"slug", "title", "trigger", "mode", "rag", "capabilities"}
         if set(raw) != required:
             raise CatalogError(
                 f"catalog entry {index} keys differ: {sorted(set(raw) ^ required)}"
             )
-        if not all(isinstance(raw[key], str) and raw[key] for key in required - {"capabilities"}):
+        if not all(
+            isinstance(raw[key], str) and raw[key]
+            for key in required - {"rag", "capabilities"}
+        ):
             raise CatalogError(f"catalog entry {index} has an empty string field")
+        if not isinstance(raw["rag"], bool):
+            raise CatalogError(f"{raw['slug']}: rag must be a boolean")
         capabilities = raw["capabilities"]
         if (
             not isinstance(capabilities, list)
@@ -142,12 +144,8 @@ def _catalog_entries() -> list[dict[str, Any]]:
 
 def validate_catalog() -> list[dict[str, Any]]:
     entries = _catalog_entries()
-    if not MIN_SURVIVORS <= len(entries) <= MAX_SURVIVORS:
-        raise CatalogError(
-            f"catalog must contain {MIN_SURVIVORS}..{MAX_SURVIVORS} survivors"
-        )
-    if len(entries) != EXPECTED_SURVIVORS:
-        raise CatalogError(f"this consolidation must ship exactly {EXPECTED_SURVIVORS} skills")
+    if not entries:
+        raise CatalogError("skill catalog must not be empty")
 
     slugs = [entry["slug"] for entry in entries]
     triggers = [entry["trigger"] for entry in entries]
@@ -181,10 +179,14 @@ def validate_catalog() -> list[dict[str, Any]]:
             raise CatalogError(f"{entry['slug']}: frontmatter name differs")
         if entry["trigger"] not in metadata["description"]:
             raise CatalogError(f"{entry['slug']}: distinct trigger is missing from description")
+        if metadata["description"].startswith("RAG-backed. ") != entry["rag"]:
+            raise CatalogError(f"{entry['slug']}: RAG discovery marker differs from catalog")
+        if entry["rag"] and "../shared/rag.md" not in body:
+            raise CatalogError(f"{entry['slug']}: RAG engineering memory is not linked")
         if "../shared/result.schema.json" not in body:
             raise CatalogError(f"{entry['slug']}: shared result schema is not linked")
-        if len(re.findall(r"\b\d+(?:\.\d+)?\b", body)) < 3:
-            raise CatalogError(f"{entry['slug']}: quantitative operating content is missing")
+        if "../shared/runtime.md" not in body:
+            raise CatalogError(f"{entry['slug']}: runtime access guidance is not linked")
         for child in package.rglob("*"):
             if child.is_dir() and child.name in BANNED_PACKAGE_DIRECTORIES:
                 raise CatalogError(
@@ -203,6 +205,25 @@ def validate_catalog() -> list[dict[str, Any]]:
     for key, value in mapped.items():
         if not isinstance(value, dict) or value.get("runtime_tool") not in tools:
             raise CatalogError(f"capability map target {key!r} is not a registered tool")
+    tool_groups = capability_map.get("tool_groups")
+    if not isinstance(tool_groups, dict) or not tool_groups:
+        raise CatalogError("capability map must describe public tool groups")
+    for group, names in tool_groups.items():
+        if (
+            not isinstance(names, list)
+            or not names
+            or any(not isinstance(name, str) or name not in tools for name in names)
+        ):
+            raise CatalogError(f"tool group {group!r} contains unregistered tools")
+    local_cli = capability_map.get("local_cli")
+    if not isinstance(local_cli, dict) or not local_cli:
+        raise CatalogError("capability map must describe local native/headless CLI")
+    for name, entry in local_cli.items():
+        module = entry.get("module", "") if isinstance(entry, dict) else ""
+        if not isinstance(module, str) or not re.fullmatch(r"diptrace_mcp\.[a-z_]+", module):
+            raise CatalogError(f"local CLI {name!r} has an invalid module")
+        if not (ROOT / "src" / (module.replace(".", "/") + ".py")).is_file():
+            raise CatalogError(f"local CLI {name!r} has no shipped module")
     for solver in ("run_ngspice_simulation", "run_openems_stripline_analysis"):
         if mapped.get(solver, {}).get("runtime_tool") != solver:
             raise CatalogError(f"{solver} must be mapped as a registered adapter")

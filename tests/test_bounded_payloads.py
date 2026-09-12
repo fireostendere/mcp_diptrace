@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -400,3 +401,80 @@ def test_diff_marker_is_inside_both_stored_caps() -> None:
     assert exact_metadata["truncated"] is False
     assert exact_metadata["stored_line_count"] == exact_metadata["line_limit"]
     assert exact_diff == full_diff
+
+
+def test_diff_trims_repetitive_edges_with_global_hunk_positions() -> None:
+    prefix = ["  <Shape/>"] * 25_766
+    suffix = ["  <Shape/>"] * 9_188
+    before = "\n".join(prefix + ["  <Name>old</Name>"] + suffix).encode()
+    after = "\n".join(prefix + ["  <Name>new</Name>"] + suffix).encode()
+
+    diff, metadata = unified_xml_diff_preview(before, after)
+
+    assert metadata["truncated"] is False
+    assert diff.splitlines() == [
+        "--- before.xml",
+        "+++ after.xml",
+        "@@ -25764,7 +25764,7 @@",
+        "   <Shape/>",
+        "   <Shape/>",
+        "   <Shape/>",
+        "-  <Name>old</Name>",
+        "+  <Name>new</Name>",
+        "   <Shape/>",
+        "   <Shape/>",
+        "   <Shape/>",
+    ]
+
+
+def test_diff_offsets_unequal_hunks_and_preserves_zero_ranges() -> None:
+    before_lines = ["<P/>"] * 10 + ["<Old/>"] + ["<Tail/>"] * 5
+    after_lines = ["<P/>"] * 10 + ["<New/>", "<Added/>"] + ["<Tail/>"] * 5
+
+    diff, metadata = unified_xml_diff_preview(
+        "\n".join(before_lines).encode(),
+        "\n".join(after_lines).encode(),
+    )
+
+    assert metadata["truncated"] is False
+    assert "@@ -8,7 +8,8 @@" in diff
+    assert "-<Old/>" in diff
+    assert "+<New/>" in diff
+    assert "+<Added/>" in diff
+
+    deleted, _ = unified_xml_diff_preview(b"<Only/>\n", b"")
+    inserted, _ = unified_xml_diff_preview(b"", b"<Only/>\n")
+    assert "@@ -1 +0,0 @@" in deleted
+    assert "@@ -0,0 +1 @@" in inserted
+
+
+def test_large_diff_keeps_accurate_totals_when_truncated() -> None:
+    before_lines = ["<Root>"] + [f"  <Item>{index}</Item>" for index in range(250)] + ["</Root>"]
+    after_lines = (
+        ["<Root>"]
+        + [f"  <Changed>{index}</Changed>" for index in range(250)]
+        + ["</Root>"]
+    )
+    expected = list(
+        difflib.unified_diff(
+            before_lines,
+            after_lines,
+            fromfile="before.xml",
+            tofile="after.xml",
+            lineterm="",
+        )
+    )
+
+    diff, metadata = unified_xml_diff_preview(
+        "\n".join(before_lines).encode(),
+        "\n".join(after_lines).encode(),
+        max_lines=20,
+        max_characters=800,
+    )
+
+    assert metadata["truncated"] is True
+    assert metadata["truncated_by_lines"] is True
+    assert metadata["truncated_by_characters"] is True
+    assert metadata["total_line_count"] == len(expected)
+    assert metadata["total_character_count"] == sum(map(len, expected)) + len(expected) - 1
+    assert diff.endswith("... diff truncated; see metadata for total size ...")

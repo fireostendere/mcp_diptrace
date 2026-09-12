@@ -67,6 +67,73 @@ def test_entry_argv_supports_python_and_frozen_modes(monkeypatch: pytest.MonkeyP
     ]
 
 
+def test_desktop_launcher_assigns_job_before_resuming(monkeypatch: pytest.MonkeyPatch) -> None:
+    flags: list[int] = []
+    events: list[object] = []
+
+    class Api:
+        kernel32 = types.SimpleNamespace(CreateProcessW=lambda *_args: flags.append(_args[5]) or 1)
+
+        def error(self, operation: str) -> RuntimeError:
+            return RuntimeError(operation)
+
+    child = types.SimpleNamespace(pid=42)
+    job = types.SimpleNamespace(assign=lambda pid: events.append(("assign", pid)))
+    monkeypatch.setattr(headless_gui, "_Win32Api", Api)
+    monkeypatch.setattr(headless_gui, "CreatedProcess", lambda _api, _info: child)
+    monkeypatch.setattr(
+        headless_gui,
+        "resume_suspended_process",
+        lambda pid: events.append(("resume", pid)),
+    )
+
+    assert headless_gui._launch_process_on_desktop(["worker"], "WinSta0\\hidden", job=job) is child
+    assert flags == [0x00000004]
+    assert events == [("assign", 42), ("resume", 42)]
+
+    assert headless_gui._launch_process_on_desktop(["worker"], "WinSta0\\hidden") is child
+    assert flags == [0x00000004, 0]
+
+
+def test_desktop_launcher_cleans_suspended_child_when_job_setup_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+
+    class Api:
+        kernel32 = types.SimpleNamespace(CreateProcessW=lambda *_args: 1)
+
+        def error(self, operation: str) -> RuntimeError:
+            return RuntimeError(operation)
+
+    class Child:
+        pid = 42
+
+        def terminate(self) -> None:
+            events.append("terminate")
+
+        def wait(self, timeout: float) -> None:
+            assert timeout == 2.0
+            events.append("wait")
+
+        def close(self) -> None:
+            events.append("close")
+
+    monkeypatch.setattr(headless_gui, "_Win32Api", Api)
+    monkeypatch.setattr(headless_gui, "CreatedProcess", lambda _api, _info: Child())
+    monkeypatch.setattr(
+        headless_gui,
+        "resume_suspended_process",
+        lambda _pid: (_ for _ in ()).throw(OSError("resume failed")),
+    )
+
+    with pytest.raises(OSError, match="resume failed"):
+        headless_gui._launch_process_on_desktop(
+            ["worker"], "WinSta0\\hidden", job=types.SimpleNamespace(assign=lambda _pid: None)
+        )
+    assert events == ["terminate", "wait", "close"]
+
+
 def test_roundtrip_result_json_roundtrip() -> None:
     result = RoundtripResult(
         ok=True,
@@ -101,8 +168,7 @@ def test_sha256_handles_missing_and_existing_files(tmp_path: Path) -> None:
     assert headless_gui._sha256(path) is None
     path.write_bytes(b"abc")
     assert headless_gui._sha256(path) == (
-        "ba7816bf8f01cfea414140de5dae2223"
-        "b00361a396177a9cb410ff61f20015ad"
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     )
 
 
@@ -222,9 +288,7 @@ class _FakeWorker:
 
     def wait(self, timeout: float) -> int:
         index = self.argv.index("--result")
-        Path(self.argv[index + 1]).write_text(
-            json.dumps(self.payload), encoding="utf-8"
-        )
+        Path(self.argv[index + 1]).write_text(json.dumps(self.payload), encoding="utf-8")
         return 0
 
     def terminate(self, exit_code: int = 1) -> None:
@@ -551,6 +615,41 @@ def test_main_window_confirms_only_known_shift_origin_dialog(
     assert messages == [(7, headless_gui._WM_COMMAND, 1, 8)]
 
 
+def test_main_window_retries_only_destroyed_handle_enumeration(monkeypatch):
+    from types import SimpleNamespace
+
+    stale = type(
+        "InvalidWindowHandle",
+        (RuntimeError,),
+        {
+            "__module__": "pywinauto.controls.hwndwrapper",
+        },
+    )
+    window = SimpleNamespace(
+        handle=9,
+        window_text=lambda: "Schematics - board.dchxml",
+        menu=lambda: object(),
+        wait=lambda *a, **k: None,
+    )
+    samples = iter([stale(), *[[window]] * 5])
+
+    def enumerate_windows(**kwargs):
+        sample = next(samples)
+        if isinstance(sample, Exception):
+            raise sample
+        return sample
+
+    app = SimpleNamespace(windows=enumerate_windows, window=lambda **k: window)
+    monkeypatch.setattr(headless_gui.time, "sleep", lambda seconds: None)
+    assert headless_gui._main_window(app, Path("board.dchxml"), 1) is window
+    samples = iter([RuntimeError("transport failed")])
+    with pytest.raises(RuntimeError, match="transport failed"):
+        headless_gui._main_window(app, Path("board.dchxml"), 1)
+    samples = iter([stale()])
+    with pytest.raises(headless_gui.HeadlessGuiError, match="not found"):
+        headless_gui._main_window(app, Path("board.dchxml"), 0)
+
+
 def test_shift_origin_ignores_only_a_destroyed_dialog(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -633,9 +732,7 @@ def test_save_window_sends_wm_command_for_native_menu(
     messages: list[tuple[int, int, int]] = []
 
     class User32:
-        def PostMessageW(
-            self, _handle: int, message: int, wparam: int, lparam: int
-        ) -> bool:
+        def PostMessageW(self, _handle: int, message: int, wparam: int, lparam: int) -> bool:
             messages.append((message, wparam, lparam))
             return True
 
@@ -719,9 +816,7 @@ def test_save_dialog_selects_xml_and_submits_without_physical_input(
     posted: list[tuple[int, int, int, int]] = []
 
     class User32:
-        def SendMessageW(
-            self, handle: int, message: int, wparam: int, lparam: int
-        ) -> int:
+        def SendMessageW(self, handle: int, message: int, wparam: int, lparam: int) -> int:
             sent.append((handle, message, wparam, lparam))
             if message == headless_gui._CB_GETCOUNT:
                 return 2
@@ -731,9 +826,7 @@ def test_save_dialog_selects_xml_and_submits_without_physical_input(
                 buffer.value = value
             return 0
 
-        def PostMessageW(
-            self, handle: int, message: int, wparam: int, lparam: int
-        ) -> bool:
+        def PostMessageW(self, handle: int, message: int, wparam: int, lparam: int) -> bool:
             posted.append((handle, message, wparam, lparam))
             return True
 
@@ -748,9 +841,7 @@ def test_save_dialog_selects_xml_and_submits_without_physical_input(
 
     assert (20, headless_gui._CB_SETCURSEL, 1, 0) in sent
     assert posted[-1] == (30, headless_gui._WM_COMMAND, 1, 0)
-    assert {message for _handle, message, _wparam, _lparam in posted} == {
-        headless_gui._WM_COMMAND
-    }
+    assert {message for _handle, message, _wparam, _lparam in posted} == {headless_gui._WM_COMMAND}
 
 
 def test_worker_roundtrip_posts_fifo_close_and_fails_when_exit_is_forced(

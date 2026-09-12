@@ -303,7 +303,8 @@ Historical dated release/acceptance/audit records remain excluded from current-s
 
 # Public contracts
 
-- 167 registered MCP tools (165 existing tools plus the read-only built-in-library bridge);
+- 171 registered MCP tools (the frozen public contract recorded in
+  `reference/mcp-tools-list.snapshot.json`);
 - stable structured error envelope;
 - server-owned worker-thread boundary;
 - SHA/policy/backup/atomic-write/session-lease/trust/transaction boundaries.

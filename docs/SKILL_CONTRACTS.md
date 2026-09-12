@@ -7,18 +7,41 @@ SHA, show a preview, and run post-write checks.
 
 ## Delivered Catalog
 
-The wheel ships eight source-authored skills: project intake, library quality audit,
-schematic ERC review, testpoint planning, critical-net routing, signal-integrity review,
-release gating, and operator-assisted evidence capture. The
-[mechanical survival criteria](../skills/SURVIVAL_CRITERIA.md) reduced the former 57
-duplicated packages to distinct user outcomes. All eight share
-[one result schema](../skills/shared/result.schema.json); no package-local eval suite,
-agent metadata, example result, or duplicated schema is shipped.
+The canonical `skills/` catalog ships fifteen source-authored workflows: the original
+eight inspection, editing and evidence skills plus schematic engineering, lifecycle
+coordination, datasheet rules, BOM sourcing, production packaging, bring-up, and revision
+review. The [catalog](../skills/README.md) links each distinct outcome. Shared
+[runtime access](../skills/shared/runtime.md) explains explicit-path MCP, the live bridge,
+and native/headless CLI; [one result schema](../skills/shared/result.schema.json) records
+evidence. Package references stay within the shipped skill tree. The old fixed eight-skill
+quota has been removed; [survival criteria](../skills/SURVIVAL_CRITERIA.md) still prohibit
+duplicate workflows and invented capabilities.
 
-The evidence skill also ships byte-identical copies of the maintained capture and
-dry-run ingest CLIs. Its candidate -> ingest dry-run -> MCP validation -> explicit
-operator confirmation -> metadata-record sequence cannot promote trust or modify the
-acceptance fixture tree.
+The evidence skill first uses supported headless opening/saving, PCB acceptance, or
+native recording. These are local CLI interfaces and do not have to appear in MCP
+`tools/list`. Read-only review uses isolated copies because native roundtrip saves its
+input. The base helper opens all four editors but does not implement generic native
+ERC or CAM export. Linux and macOS wrappers have different path-conversion behavior.
+
+For formal operator-supplied evidence, the skill also ships byte-identical capture and
+dry-run ingest scripts. Their candidate -> ingest dry-run -> MCP validation -> operator
+confirmation -> metadata-record sequence cannot promote trust or modify acceptance
+fixtures. Ordinary headless opening does not require this legacy candidate pipeline.
+
+## RAG-backed Hardware Engineering
+
+All catalog skills carry `rag: true`, a discovery-description marker and a link to
+[shared engineering memory](../skills/shared/rag.md). Hardware-engineering mode is
+the default; the user does not need to restate an expert persona or request retrieval.
+Build a focused working context from the user's MIT/theory courses, schematic/PCB
+guides, DipTrace courses and project lessons. Use it throughout problem framing,
+tradeoffs, implementation, failure analysis and review; carry it between stages.
+Model confidence is not a gate on retrieval. Source-based learning supplements
+current CAD facts, exact official part/process constraints and actual verification.
+
+Knowledge search/read is a separate configured MCP capability, not a DipTrace tool
+or a bundled corpus. Disclose unavailable retrieval and any fallback; do not fabricate
+course references or count a retrieved recommendation as a passed native check.
 
 ## Release Review
 
@@ -45,7 +68,8 @@ body geometry are unknown.
 ## Routing and SI
 
 `route_critical_net`: rules/stackup/unrouted/details -> bounded route plan -> preview ->
-DRC/connectivity -> commit. Stop when vias, push-and-shove behavior, or unknown rules are required.
+DRC/connectivity -> commit. Stop when required via geometry/policy is unsupported,
+push-and-shove is needed, or applicable rules are unknown.
 
 `route_diff_pair_with_constraints`: stackup/pair/length/analytical impedance ->
 `plan_diff_pair_route` -> SVG/JSON plus skew/via metrics -> `apply_route_plan` -> pair
@@ -70,18 +94,21 @@ selection -> dry-run -> testability/DRC -> commit. Accessibility remains an esti
 is labeled accordingly.
 
 `prepare_fabrication_export`: applicable registered release checks -> explicit review of
-skips and missing categories -> generic manifest only. Stop because the MCP server does
-not generate Gerber or NC Drill; the bundle must not be described as fabrication-ready.
+skips and missing categories -> generic manifest only. The MCP server does not generate
+Gerber or NC Drill. Obtain them through a supported native export or operator workflow;
+until actual CAM is inspected, do not describe the bundle as fabrication-ready.
 
 `prepare_assembly_export`: assembly/BOM/silkscreen -> generic BOM/placement. The model
 selects the assembly variant. Stop on DNP ambiguity or an unknown assembler coordinate convention.
 
-`review_bom`: normalized BOM -> missing fields and MPN/value-pattern consistency. Online
-sourcing is unavailable; substitution remains a model decision.
+`review_bom`: normalized BOM -> missing fields and MPN/value-pattern consistency.
+`pipeline_source_component` can fetch catalog JSON/PDF, not reserve stock or certify
+assembly availability. Verify current supplier stock separately; substitution requires
+an engineering decision and authorization to change CAD.
 
 `compare_schematic_and_pcb`: exact document pair -> compare RefDes, values, nets, and
 endpoints. Stop before edits on ambiguous pin-to-pad mapping or a changed SHA.
 
 The server also exposes concise MCP prompts for several lower-level contracts. Prompt
-count is independent of the eight delivered skill packages; a prompt or registered tool
+count is independent of the delivered skill catalog; a prompt or registered tool
 does not by itself qualify a distinct wheel-shipped skill.

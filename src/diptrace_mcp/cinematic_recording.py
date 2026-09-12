@@ -13,10 +13,10 @@ import threading
 import time
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from contextlib import ExitStack, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 
 from . import headless_gui as hg
 from .cinematic import CinematicEvent
@@ -29,6 +29,7 @@ from .cinematic_host import (
 from .cinematic_preflight import CinematicPreflightResult, preflight_cinematic_manifest
 from .diptrace_window import find_window_handle
 from .windows_configurator import ConfiguratorError, validate_diptrace_directory
+from .windows_job import KillOnCloseJob
 
 _WM_CLOSE = 0x0010
 _WM_KEYDOWN = 0x0100
@@ -64,11 +65,58 @@ _SINGLE_KEYS = {
 _SEND_TIMEOUT_FLAGS = 0x0001 | 0x0002
 _CHILD_FLAGS = 0x0001 | 0x0002
 _PW_RENDERFULLCONTENT = 0x00000002
+_WM_INITMENUPOPUP = 0x0117
+_MENU_DIAGNOSTIC_MAX_BYTES = 8 * 1024
+_MENU_DIAGNOSTIC_MAX_ITEMS = 32
+_MENU_DIAGNOSTIC_MAX_CHILDREN = 25
+_MF_OWNERDRAW = 0x0100
+_MF_SEPARATOR = 0x0800
+_SCHEMATIC_5303_NATIVE_VIEW_PROFILE = "schematic-5.3.0.3-en-zoom-extents-d85632b2"
+_SCHEMATIC_5303_SHA256 = "d85632b2c8fb445471339e875416782e3e62fb56ea13ab7d973052122352f568"
+_SCHEMATIC_5303_VIEW_IDS = (
+    102,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    133,
+    134,
+    157,
+    173,
+    174,
+    175,
+    176,
+    177,
+    178,
+    179,
+    197,
+    198,
+    199,
+    203,
+    207,
+    208,
+    209,
+    210,
+    215,
+    216,
+    217,
+    218,
+    229,
+)
+_SCHEMATIC_5303_VIEW_SEPARATORS = frozenset((1, 5, 11, 13, 16, 23, 26))
+_SCHEMATIC_5303_SCALE_INDEX = 17
+_SCHEMATIC_5303_SCALE_IDS = tuple(range(180, 197))
+_SCHEMATIC_5303_SCALE_SEPARATORS = frozenset((11, 14))
+_SCHEMATIC_5303_ZOOM_EXTENTS_INDEX = 16
 _PRF_RENDER_ALL = 0x0002 | 0x0004 | 0x0008 | 0x0010
 _CAPTURE_LEAD_SECONDS = 0.35
 _FRAME_PADDING = 0.14
 _OUTPUT_PADDING = 0.1
 _MIN_GIF_TIMEOUT_SECONDS = 300.0
+_FIT_CONTENT_TIMEOUT_SECONDS = 5.0
 
 
 class _BitmapInfoHeader(ctypes.Structure):
@@ -108,6 +156,8 @@ class HeadlessCinematicRequest:
     gif_output: Path | None = None
     gif_fps: int = 20
     gif_width: int = 1280
+    auto_frame: bool = True
+    native_extents: bool = False
 
     def __post_init__(self) -> None:
         editor = self.editor.strip().lower()
@@ -126,6 +176,10 @@ class HeadlessCinematicRequest:
             raise ValueError("startup_timeout_seconds must be > 0 and <= 300")
         if not 0 <= self.tail_seconds <= 10:
             raise ValueError("tail_seconds must be between 0 and 10")
+        if not isinstance(self.auto_frame, bool):
+            raise ValueError("auto_frame must be a boolean")
+        if not isinstance(self.native_extents, bool):
+            raise ValueError("native_extents must be a boolean")
         video = Path(self.video_output)
         gif = Path(self.gif_output) if self.gif_output is not None else None
         if video.suffix.lower() != ".mp4":
@@ -161,6 +215,8 @@ class HeadlessCinematicRequest:
             "gif_output": str(self.gif_output) if self.gif_output else None,
             "gif_fps": self.gif_fps,
             "gif_width": self.gif_width,
+            "auto_frame": self.auto_frame,
+            "native_extents": self.native_extents,
         }
 
     @classmethod
@@ -179,6 +235,8 @@ class HeadlessCinematicRequest:
             gif_output=Path(gif) if gif else None,
             gif_fps=hg._coerce_int(value.get("gif_fps"), 20),
             gif_width=hg._coerce_int(value.get("gif_width"), 1280),
+            auto_frame=value.get("auto_frame", True),
+            native_extents=value.get("native_extents", False),
         )
 
 
@@ -202,6 +260,9 @@ class HeadlessCinematicResult:
     session_id: int | None = None
     forced_termination: bool = False
     error: str | None = None
+    auto_frame: bool = True
+    native_extents: bool = False
+    native_view_profile: str | None = None
 
     def as_json(self) -> dict[str, object]:
         return cast(dict[str, object], asdict(self))
@@ -227,6 +288,9 @@ class HeadlessCinematicResult:
             session_id=hg._optional_int(value.get("session_id")),
             forced_termination=bool(value.get("forced_termination", False)),
             error=hg._optional_string(value.get("error")),
+            auto_frame=value.get("auto_frame", True),
+            native_extents=value.get("native_extents", False),
+            native_view_profile=hg._optional_string(value.get("native_view_profile")),
         )
 
 
@@ -266,6 +330,16 @@ class HiddenMessageDesktopDriver:
     ) -> tuple[int, int, int, int]:
         """Center the drawing and return its UI-free recording crop."""
 
+        deadline = time.monotonic() + _FIT_CONTENT_TIMEOUT_SECONDS
+
+        def checked_capture() -> bytes:
+            if time.monotonic() >= deadline:
+                raise RuntimeError("DipTrace drawing framing timed out")
+            frame = capture()
+            if time.monotonic() >= deadline:
+                raise RuntimeError("DipTrace drawing framing timed out")
+            return frame
+
         window = self._window(self.default_window)
         viewport = self._drawing_viewport(window, width, height)
         usable_width = (viewport[2] - viewport[0]) * (1.0 - 2.0 * _FRAME_PADDING)
@@ -276,7 +350,7 @@ class HiddenMessageDesktopDriver:
             drawing, _ = self._target(window, 0.65, 0.65)
             self._hotkey(drawing, ("home",))
             time.sleep(0.1)
-        current_bounds = bounds_detector(capture(), width=width, viewport=viewport)
+        current_bounds = bounds_detector(checked_capture(), width=width, viewport=viewport)
         if current_bounds is not None and is_pcb:
             scale = min(
                 usable_width / (current_bounds[2] - current_bounds[0]),
@@ -291,9 +365,13 @@ class HiddenMessageDesktopDriver:
                 )
                 time.sleep(0.1)
                 scrollbars = self._scrollbars(window)
-                self._center_with_scrollbars(capture, width, viewport, scrollbars, bounds_detector)
-                self._center_with_scrollbars(capture, width, viewport, scrollbars, bounds_detector)
-                enlarged = bounds_detector(capture(), width=width, viewport=viewport)
+                self._center_with_scrollbars(
+                    checked_capture, width, viewport, scrollbars, bounds_detector
+                )
+                self._center_with_scrollbars(
+                    checked_capture, width, viewport, scrollbars, bounds_detector
+                )
+                enlarged = bounds_detector(checked_capture(), width=width, viewport=viewport)
                 if enlarged is not None and (
                     enlarged[0] > viewport[0] + 16
                     and enlarged[1] > viewport[1] + 16
@@ -303,7 +381,7 @@ class HiddenMessageDesktopDriver:
                     return _padded_content_box(enlarged, viewport)
                 self._hotkey(drawing, ("home",))
                 time.sleep(0.1)
-                current_bounds = bounds_detector(capture(), width=width, viewport=viewport)
+                current_bounds = bounds_detector(checked_capture(), width=width, viewport=viewport)
                 if current_bounds is None:
                     raise RuntimeError("DipTrace PCB overview was not restored")
             return _padded_content_box(current_bounds, viewport)
@@ -316,9 +394,9 @@ class HiddenMessageDesktopDriver:
         for source_zoom in (100, 50, 25):
             self._set_zoom(zoom_edit, source_zoom)
             time.sleep(0.1)
-            bounds = _visible_content_bbox(capture(), width=width, viewport=viewport)
+            bounds = _visible_content_bbox(checked_capture(), width=width, viewport=viewport)
             if bounds is None:
-                bounds = self._find_visible_bounds(capture, width, viewport, scrollbars)
+                bounds = self._find_visible_bounds(checked_capture, width, viewport, scrollbars)
             if bounds is None:
                 continue
             if (
@@ -334,12 +412,16 @@ class HiddenMessageDesktopDriver:
             usable_width / (bounds[2] - bounds[0]),
             usable_height / (bounds[3] - bounds[1]),
         )
-        self._center_with_scrollbars(capture, width, viewport, scrollbars, _visible_content_bbox)
+        self._center_with_scrollbars(
+            checked_capture, width, viewport, scrollbars, _visible_content_bbox
+        )
         self._set_zoom(zoom_edit, min(3200, max(25, round(source_zoom * scale))))
         time.sleep(0.1)
-        self._find_visible_bounds(capture, width, viewport, scrollbars)
-        self._center_with_scrollbars(capture, width, viewport, scrollbars, _visible_content_bbox)
-        final_bounds = _visible_content_bbox(capture(), width=width, viewport=viewport)
+        self._find_visible_bounds(checked_capture, width, viewport, scrollbars)
+        self._center_with_scrollbars(
+            checked_capture, width, viewport, scrollbars, _visible_content_bbox
+        )
+        final_bounds = _visible_content_bbox(checked_capture(), width=width, viewport=viewport)
         if final_bounds is None:
             raise RuntimeError("DipTrace drawing disappeared during framing")
         return _padded_content_box(final_bounds, viewport)
@@ -358,11 +440,6 @@ class HiddenMessageDesktopDriver:
         window_rect = wintypes.RECT()
         if not self.user32.GetWindowRect(window, ctypes.byref(window_rect)):
             return (0, 0, frame_width, frame_height)
-        scale = (
-            max(1.0, float(self.user32.GetDpiForWindow(window)) / 96.0)
-            if hasattr(self.user32, "GetDpiForWindow")
-            else 1.0
-        )
         panels: list[tuple[int, int, int, int]] = []
 
         def callback(hwnd: int, _lparam: int) -> bool:
@@ -374,15 +451,15 @@ class HiddenMessageDesktopDriver:
             if self.user32.GetWindowRect(hwnd, ctypes.byref(rect)):
                 panels.append(
                     (
-                        max(0, round((rect.left - window_rect.left) * scale)),
-                        max(0, round((rect.top - window_rect.top) * scale)),
+                        max(0, rect.left - window_rect.left),
+                        max(0, rect.top - window_rect.top),
                         min(
                             frame_width,
-                            round((rect.right - window_rect.left) * scale),
+                            rect.right - window_rect.left,
                         ),
                         min(
                             frame_height,
-                            round((rect.bottom - window_rect.top) * scale),
+                            rect.bottom - window_rect.top,
                         ),
                     )
                 )
@@ -790,6 +867,264 @@ def _wait_for_window(user32: Any, pid: int, title: str, timeout: float) -> int:
     raise RuntimeError(f"DipTrace window did not appear within {timeout:g}s")
 
 
+def _zoom_extents_via_native_menu(
+    pid: int,
+    hwnd: int,
+    executable: Path | None = None,
+) -> str:
+    """Invoke DipTrace's View -> Scale -> Zoom Extents menu command."""
+
+    app = hg._pywinauto_application()(backend="win32")
+    app.connect(process=pid, timeout=5)
+    window = app.window(handle=hwnd)
+    window.wait("exists enabled", timeout=5)
+    view = _find_exact_menu_item(window.menu(), "View", menu_name="root")
+    scale_menu = _initialized_submenu(window, view)
+    scales = _menu_items_named(scale_menu, "Scale")
+    if len(scales) > 1:
+        _raise_exact_menu_error(scale_menu, "Scale", "View", "ambiguous")
+    if not scales:
+        if executable is None:
+            _raise_exact_menu_error(scale_menu, "Scale", "View", "not found")
+        return _zoom_extents_via_pinned_profile(window, scale_menu, executable)
+    scale = scales[0]
+    zoom_menu = _initialized_submenu(window, scale)
+    zoom_extents = _find_exact_menu_item(zoom_menu, "Zoom Extents", menu_name="View->Scale")
+    if not bool(_menu_value(zoom_extents, "is_enabled")):
+        _raise_exact_menu_error(zoom_menu, "Zoom Extents", "View->Scale", "was disabled")
+    hg._post_menu_item(window, zoom_extents)
+    return "text-path"
+
+
+def _menu_label(item: Any) -> str | None:
+    try:
+        return str(item.text()).split("\t", 1)[0].replace("&", "").strip().casefold()
+    except Exception:
+        return None
+
+
+def _find_exact_menu_item(menu: Any, label: str, *, menu_name: str) -> Any:
+    matches = _menu_items_named(menu, label)
+    if len(matches) == 1:
+        return matches[0]
+    _raise_exact_menu_error(menu, label, menu_name, "ambiguous" if matches else "not found")
+
+
+def _menu_items_named(menu: Any, label: str) -> list[Any]:
+    normalized = label.casefold()
+    return [item for item in menu.items() if _menu_label(item) == normalized]
+
+
+def _raise_exact_menu_error(menu: Any, label: str, menu_name: str, reason: str) -> NoReturn:
+    detail = _menu_snapshot(menu, menu_name)
+    raise hg.HeadlessGuiError(
+        f"native exact menu item {label!r} {reason}: "
+        f"{json.dumps(detail, ensure_ascii=False, separators=(',', ':'))}"
+    )
+
+
+def _initialized_submenu(window: Any, item: Any) -> Any:
+    submenu = item.sub_menu()
+    if submenu is None:
+        raise hg.HeadlessGuiError(f"native menu item {_menu_label(item)!r} has no submenu")
+    _initialize_menu_popup(window, submenu.handle, item.index())
+    return submenu
+
+
+def _initialize_menu_popup(window: Any, submenu_handle: int, index: int) -> None:
+    """Synchronously initialize one known popup menu on its owning window."""
+
+    windll = getattr(ctypes, "windll", None)
+    if windll is None:
+        raise hg.HeadlessGuiError("Windows user32 bindings are unavailable")
+    sender: Any = windll.user32.SendMessageTimeoutW
+    sender.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_uint,
+        ctypes.c_size_t,
+        ctypes.c_ssize_t,
+        ctypes.c_uint,
+        ctypes.c_uint,
+        ctypes.POINTER(ctypes.c_size_t),
+    ]
+    sender.restype = ctypes.c_ssize_t
+    result = ctypes.c_size_t()
+    if not sender(
+        int(window.handle),
+        _WM_INITMENUPOPUP,
+        int(submenu_handle),
+        int(index),
+        _SEND_TIMEOUT_FLAGS,
+        2_000,
+        ctypes.byref(result),
+    ):
+        raise hg.HeadlessGuiError("native menu popup initialization timed out or failed")
+
+
+def _zoom_extents_via_pinned_profile(
+    window: Any,
+    view_menu: Any,
+    executable: Path | None,
+) -> str:
+    """Use the one reviewed owner-draw menu structure when text is unavailable."""
+
+    if executable is None or hg._sha256(executable) != _SCHEMATIC_5303_SHA256:
+        _reject_pinned_profile(view_menu, "View", "executable SHA-256 did not match")
+    view_items = _pinned_menu_items(
+        view_menu,
+        _SCHEMATIC_5303_VIEW_IDS,
+        _SCHEMATIC_5303_VIEW_SEPARATORS,
+        menu_name="View",
+    )
+    scale = view_items[_SCHEMATIC_5303_SCALE_INDEX]
+    if not bool(_menu_value(scale, "is_enabled")):
+        _reject_pinned_profile(view_menu, "View", "Scale profile item was disabled")
+    try:
+        zoom_menu = _initialized_submenu(window, scale)
+    except hg.HeadlessGuiError as exc:
+        _reject_pinned_profile(view_menu, "View", f"Scale submenu unavailable: {exc}")
+    scale_items = _pinned_menu_items(
+        zoom_menu,
+        _SCHEMATIC_5303_SCALE_IDS,
+        _SCHEMATIC_5303_SCALE_SEPARATORS,
+        menu_name="View->Scale",
+    )
+    zoom_extents = scale_items[_SCHEMATIC_5303_ZOOM_EXTENTS_INDEX]
+    if not bool(_menu_value(zoom_extents, "is_enabled")):
+        _reject_pinned_profile(zoom_menu, "View->Scale", "Zoom Extents profile item was disabled")
+    hg._post_menu_item(window, zoom_extents)
+    return _SCHEMATIC_5303_NATIVE_VIEW_PROFILE
+
+
+def _pinned_menu_items(
+    menu: Any,
+    expected_ids: tuple[int, ...],
+    expected_separators: frozenset[int],
+    *,
+    menu_name: str,
+) -> list[Any]:
+    items = list(menu.items())
+    if len(items) != len(expected_ids):
+        _reject_pinned_profile(menu, menu_name, "item count did not match")
+    if tuple(_menu_value(item, "item_id") for item in items) != expected_ids:
+        _reject_pinned_profile(menu, menu_name, "item IDs or order did not match")
+    separators = frozenset(
+        index for index, item in enumerate(items) if _menu_type_has_flag(item, _MF_SEPARATOR)
+    )
+    if separators != expected_separators:
+        _reject_pinned_profile(menu, menu_name, "separator positions did not match")
+    if any(_menu_label(item) != "" for item in items):
+        _reject_pinned_profile(menu, menu_name, "owner-draw captions were not all blank")
+    if any(
+        index not in separators and not _menu_type_has_flag(item, _MF_OWNERDRAW)
+        for index, item in enumerate(items)
+    ):
+        _reject_pinned_profile(menu, menu_name, "owner-draw item type did not match")
+    return items
+
+
+def _reject_pinned_profile(menu: Any, menu_name: str, reason: str) -> NoReturn:
+    detail = _menu_snapshot(menu, menu_name)
+    raise hg.HeadlessGuiError(
+        f"native pinned profile {_SCHEMATIC_5303_NATIVE_VIEW_PROFILE!r} rejected: {reason}: "
+        f"{json.dumps(detail, ensure_ascii=False, separators=(',', ':'))}"
+    )
+
+
+def _menu_snapshot(menu: Any, menu_name: str) -> dict[str, object]:
+    """Return bounded read-only menu metadata for a fail-closed resolution error."""
+
+    snapshot: dict[str, object] = {"menu": menu_name, "items": []}
+    items = cast(list[dict[str, object]], snapshot["items"])
+    truncated = False
+    for index, item in enumerate(menu.items()):
+        if index >= _MENU_DIAGNOSTIC_MAX_ITEMS:
+            truncated = True
+            break
+        record = _menu_item_snapshot(item, index)
+        candidate = {**snapshot, "items": [*items, record], "truncated": True}
+        if (
+            len(json.dumps(candidate, ensure_ascii=False, separators=(",", ":")).encode())
+            > _MENU_DIAGNOSTIC_MAX_BYTES
+        ):
+            record.pop("children", None)
+            record["children_truncated"] = True
+            candidate = {**snapshot, "items": [*items, record], "truncated": True}
+            if (
+                len(json.dumps(candidate, ensure_ascii=False, separators=(",", ":")).encode())
+                > _MENU_DIAGNOSTIC_MAX_BYTES
+            ):
+                truncated = True
+                break
+        items.append(record)
+    if truncated:
+        snapshot["truncated"] = True
+    return snapshot
+
+
+def _menu_item_snapshot(item: Any, index: int) -> dict[str, object]:
+    text = _menu_text(item)
+    item_type = _menu_value(item, "item_type")
+    record: dict[str, object] = {
+        "index": index,
+        "id": _menu_value(item, "item_id"),
+        "item_type": item_type,
+        "checked": _menu_value(item, "is_checked"),
+        "enabled": _menu_value(item, "is_enabled"),
+        "separator": _menu_type_has_flag(item, _MF_SEPARATOR),
+        "text": text,
+    }
+    try:
+        submenu = item.sub_menu()
+        submenu_count = int(submenu.item_count()) if submenu is not None else 0
+    except Exception as exc:
+        record["submenu_error"] = _limit_menu_text(str(exc))
+        return record
+    record["submenu_count"] = submenu_count
+    if submenu is not None and submenu_count <= _MENU_DIAGNOSTIC_MAX_CHILDREN:
+        record["children"] = [
+            _menu_child_snapshot(child, child_index)
+            for child_index, child in enumerate(submenu.items())
+        ]
+    return record
+
+
+def _menu_child_snapshot(item: Any, index: int) -> dict[str, object]:
+    item_type = _menu_value(item, "item_type")
+    return {
+        "index": index,
+        "id": _menu_value(item, "item_id"),
+        "item_type": item_type,
+        "separator": _menu_type_has_flag(item, _MF_SEPARATOR),
+        "text": _menu_text(item),
+    }
+
+
+def _menu_value(item: Any, method: str) -> object | None:
+    try:
+        return getattr(item, method)()
+    except Exception:
+        return None
+
+
+def _menu_type_has_flag(item: Any, flag: int) -> bool:
+    try:
+        return bool(int(_menu_value(item, "item_type")) & flag)
+    except (TypeError, ValueError):
+        return False
+
+
+def _menu_text(item: Any) -> str | None:
+    try:
+        return _limit_menu_text(str(item.text()))
+    except Exception:
+        return None
+
+
+def _limit_menu_text(value: str) -> str:
+    return value[:80]
+
+
 def _dismiss_project_ok_dialog(user32: Any, pid: int, title: str) -> bool:
     """Dismiss DipTrace's informational XML-open dialog without physical input."""
 
@@ -1068,10 +1403,9 @@ def _visible_content_bbox(
         row = y * width * 4
         for x in range(left + 2, right - 2, 2):
             offset = row + x * 4
-            if (
-                max(frame[offset : offset + 3]) < 220
-                or max(abs(frame[offset + index] - background[index]) for index in range(3)) < 48
-            ):
+            channels = frame[offset : offset + 3]
+            contrast = max(abs(channels[index] - background[index]) for index in range(3))
+            if contrast < 48 or (max(background) < 220 and max(channels) < 220):
                 continue
             min_x = min(min_x, x)
             min_y = min(min_y, y)
@@ -1248,7 +1582,51 @@ def build_windows_capture_command(
     return command
 
 
+@contextmanager
+def _physical_pixel_dpi_context(user32: Any):
+    """Temporarily make this capture thread use physical-pixel window geometry."""
+
+    setter = getattr(user32, "SetThreadDpiAwarenessContext", None)
+    if setter is None:
+        raise RuntimeError("SetThreadDpiAwarenessContext is required for physical-pixel capture")
+    setter.argtypes = [ctypes.c_void_p]
+    setter.restype = ctypes.c_void_p
+    previous = setter(ctypes.c_void_p(-4))  # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+    if not previous:
+        raise RuntimeError("cannot enable physical-pixel DPI context for PrintWindow capture")
+    try:
+        yield
+    finally:
+        if not setter(previous):
+            raise RuntimeError("cannot restore DPI context after PrintWindow capture")
+
+
 def _record_printwindow_video(
+    *,
+    user32: Any,
+    hwnd: int,
+    ffmpeg: str,
+    output: Path,
+    fps: int,
+    duration_seconds: float,
+    playback: Callable[[], None],
+    prepare: Callable[[Callable[[], bytes], int, int], tuple[int, int, int, int] | None]
+    | None = None,
+) -> int:
+    with _physical_pixel_dpi_context(user32):
+        return _record_printwindow_video_in_physical_pixels(
+            user32=user32,
+            hwnd=hwnd,
+            ffmpeg=ffmpeg,
+            output=output,
+            fps=fps,
+            duration_seconds=duration_seconds,
+            playback=playback,
+            prepare=prepare,
+        )
+
+
+def _record_printwindow_video_in_physical_pixels(
     *,
     user32: Any,
     hwnd: int,
@@ -1645,6 +2023,7 @@ def _perform_hidden_capture(
     hwnd: int | None = None
     forced = False
     error: str | None = None
+    native_view_profile: str | None = None
     try:
         windll = getattr(ctypes, "windll", None)
         if windll is None:
@@ -1662,6 +2041,11 @@ def _perform_hidden_capture(
         user32.ShowWindow(hwnd, 3)
         user32.UpdateWindow(hwnd)
         time.sleep(1.0)
+        if request.native_extents:
+            native_view_profile = _zoom_extents_via_native_menu(
+                diptrace.pid, hwnd, request.executable
+            )
+            time.sleep(0.2)
         capture_seconds = _capture_seconds(manifest, preflight, request.tail_seconds)
         message_driver: Any = HiddenMessageDesktopDriver(
             expected_pid=diptrace.pid,
@@ -1675,7 +2059,7 @@ def _perform_hidden_capture(
             fps=request.fps,
             duration_seconds=capture_seconds,
             playback=lambda: play_manifest(manifest, message_driver),
-            prepare=message_driver.fit_content,
+            prepare=message_driver.fit_content if request.auto_frame else None,
         )
         if not request.video_output.is_file() or request.video_output.stat().st_size <= 0:
             raise hg.HeadlessGuiError("headless cinematic capture produced no video")
@@ -1717,6 +2101,9 @@ def _perform_hidden_capture(
         session_id=session,
         forced_termination=forced,
         error=error,
+        auto_frame=request.auto_frame,
+        native_extents=request.native_extents,
+        native_view_profile=native_view_profile,
     )
 
 
@@ -1759,13 +2146,17 @@ def run_headless_cinematic(
                 "--desktop-name",
                 desktop_name,
             )
-            with desktop.launch(argv) as worker:
-                exit_code = worker.wait(timeout)
-                if exit_code is None:
-                    worker.terminate(124)
-                    with suppress(Exception):
-                        worker.wait(2.0)
-                    raise hg.HeadlessGuiError("headless cinematic worker timed out")
+            job = KillOnCloseJob.create()
+            try:
+                with desktop.launch(argv, job=job) as worker:
+                    exit_code = worker.wait(timeout)
+                    if exit_code is None:
+                        job.terminate_and_close()
+                        with suppress(Exception):
+                            worker.wait(2.0)
+                        raise hg.HeadlessGuiError("headless cinematic worker timed out")
+            finally:
+                job.terminate_and_close()
         if not result_path.is_file():
             raise hg.HeadlessGuiError(
                 f"cinematic worker exited with code {exit_code} without a result"
@@ -1844,6 +2235,9 @@ def _cmd_headless_worker(args: argparse.Namespace) -> int:
             None,
             gif_output=hg._optional_string(payload.get("gif_output")),
             error=f"{type(exc).__name__}: {exc}",
+            auto_frame=payload.get("auto_frame", True),
+            native_extents=payload.get("native_extents", False),
+            native_view_profile=None,
         )
     hg._write_json(result_path, result.as_json())
     return 0 if result.ok else 1
@@ -1863,6 +2257,8 @@ def _cmd_headless_capture(args: argparse.Namespace) -> int:
         Path(str(args.gif)) if args.gif else None,
         int(args.gif_fps),
         int(args.gif_width),
+        not bool(args.window_frame),
+        bool(args.native_extents),
     )
     try:
         result = run_headless_cinematic(request)
@@ -1895,6 +2291,16 @@ def _build_headless_parser() -> argparse.ArgumentParser:
     capture.add_argument("--gif-width", type=int, default=1280)
     capture.add_argument("--startup-timeout", type=float, default=30.0)
     capture.add_argument("--tail", type=float, default=0.75)
+    capture.add_argument(
+        "--window-frame",
+        action="store_true",
+        help="Record the owned window at its current view without automatic drawing framing.",
+    )
+    capture.add_argument(
+        "--native-extents",
+        action="store_true",
+        help="Before recording, invoke View->Scale->Zoom Extents through DipTrace's native menu.",
+    )
     capture.set_defaults(handler=_cmd_headless_capture)
 
     worker = subs.add_parser("_worker", help=argparse.SUPPRESS)

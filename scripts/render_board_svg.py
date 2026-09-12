@@ -80,7 +80,7 @@ def load(root):
         }
     for pat in patterns.values():
         for pd_ in pat["pads"]:
-            st = styles.get(pd_.get("_style_placeholder", ""), None)
+            st = styles.get(pd_.get("_style_placeholder", ""))
     # second pass with real style names stored during first parse
     return board, pts, patterns, styles
 
@@ -190,7 +190,7 @@ def main() -> None:
         mirror = side == "Bottom"
         s = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W*SCALE:.0f}" '
              f'height="{H*SCALE:.0f}" viewBox="0 0 {W*SCALE:.0f} {H*SCALE:.0f}">',
-             f'<rect width="100%" height="100%" fill="#111"/>',
+             '<rect width="100%" height="100%" fill="#111"/>',
              f'<g transform="translate({MARGIN*SCALE:.0f},{MARGIN*SCALE:.0f})">']
         # local helper inside translated frame
         def t(x, y):
@@ -277,10 +277,10 @@ def main() -> None:
     emit("Top", ROOT / "dut-controller-reva-pcb-top.svg")
     emit("Bottom", ROOT / "dut-controller-reva-pcb-bottom.svg")
 
-    html = f'''<!doctype html><html><head><meta charset="utf-8">
+    html = '''<!doctype html><html><head><meta charset="utf-8">
 <title>DUT Controller Rev.A preview</title>
-<style>body{{background:#000;color:#eee;font-family:sans-serif;margin:0;padding:10px}}
-img{{max-width:100%;border:1px solid #444;margin-bottom:10px}}</style></head><body>
+<style>body{background:#000;color:#eee;font-family:sans-serif;margin:0;padding:10px}
+img{max-width:100%;border:1px solid #444;margin-bottom:10px}</style></head><body>
 <h2>Top</h2><img src="dut-controller-reva-pcb-top.svg">
 <h2>Bottom (mirrored)</h2><img src="dut-controller-reva-pcb-bottom.svg">
 </body></html>'''

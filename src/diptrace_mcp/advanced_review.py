@@ -452,7 +452,7 @@ def check_schematic_duplicate_units(
             str(part.attributes.get("part_number") or part.attributes.get("component_part")),
         )
         for part in snapshot.schematic.parts
-        if part.refdes
+        if part.refdes and part.attributes.get("part_type") != "Net Port"
     ]
     duplicates = {key for key, count in Counter(keys).items() if count > 1}
     findings: list[Finding] = []
@@ -461,6 +461,7 @@ def check_schematic_duplicate_units(
             part.stable_id
             for part in snapshot.schematic.parts
             if (part.refdes or "").casefold() == refdes
+            and part.attributes.get("part_type") != "Net Port"
             and str(part.attributes.get("part_number") or part.attributes.get("component_part"))
             == unit
         ]
@@ -481,14 +482,22 @@ def check_schematic_electrical_conflicts(
     snapshot: DocumentSnapshot,
 ) -> tuple[list[Finding], dict[str, Any]]:
     assert snapshot.schematic is not None
-    typed_pins = [
+
+    def electrical_type(pin: Any) -> str:
+        raw = pin.attributes.get("ElectricType") or pin.attributes.get("ElectricalType") or ""
+        return str(raw).strip()
+
+    known_pins = [
         pin
         for pin in snapshot.schematic.pins
-        if pin.attributes.get("ElectricType") or pin.attributes.get("ElectricalType")
+        if electrical_type(pin).casefold() != "undefined" and electrical_type(pin)
     ]
-    if not typed_pins:
-        return [], {"skipped": "electrical_pin_types_unavailable"}
-    by_id = {pin.stable_id: pin for pin in typed_pins}
+    if not known_pins:
+        return [], {
+            "skipped": "electrical_pin_types_unavailable",
+            "unknown_pins": len(snapshot.schematic.pins),
+        }
+    by_id = {pin.stable_id: pin for pin in known_pins}
     findings: list[Finding] = []
     for net in snapshot.schematic.nets:
         pins = [
@@ -499,9 +508,7 @@ def check_schematic_electrical_conflicts(
         outputs = [
             pin
             for pin in pins
-            if str(
-                pin.attributes.get("ElectricType") or pin.attributes.get("ElectricalType")
-            ).casefold()
+            if electrical_type(pin).casefold()
             in {"output", "power output"}
         ]
         if len(outputs) > 1:
@@ -517,7 +524,13 @@ def check_schematic_electrical_conflicts(
                     confidence=1.0,
                 )
             )
-    return findings, {"typed_pins_checked": len(typed_pins)}
+    metrics: dict[str, Any] = {
+        "typed_pins_checked": len(known_pins),
+        "unknown_pins": len(snapshot.schematic.pins) - len(known_pins),
+    }
+    if metrics["unknown_pins"]:
+        metrics["partial_skipped"] = "electrical_pin_types_incomplete"
+    return findings, metrics
 
 
 def register_advanced_checks(registry: _Registry) -> None:

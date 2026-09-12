@@ -1,19 +1,80 @@
 ---
 name: diptrace-evidence-capture
-description: Collect reviewable DipTrace evidence with native headless PCB acceptance when supported, otherwise guide a human operator through quarantined source/open-save/re-export capture, dry-run ingest, MCP validation, explicit confirmation, and metadata recording. Use when the user says “Guide an operator through a reviewable DipTrace round-trip capture.”
+description: RAG-backed. Collect reviewable DipTrace evidence with native headless PCB acceptance when supported, open/save/close for all four editors and supported native capture; for unsupported actions guide an operator through quarantined source/open-save/re-export capture, dry-run ingest, MCP validation, explicit confirmation, and metadata recording. Use when the user says “Guide an operator through a reviewable DipTrace round-trip capture.”
 ---
+
+Read [runtime access](../shared/runtime.md) before choosing between explicit-path
+MCP, a live bridge session, and native/headless CLI. Their availability is separate.
 
 # DipTrace evidence capture
 
+RAG: **engineering memory by default** — [shared workflow](../shared/rag.md).
+Use DipTrace course knowledge as working context for editor, verification and export
+procedures; translate it to verified native profiles and actual MCP/CLI capabilities.
+
 Prefer the most deterministic available evidence path without promoting runtime or operator claims
-to trusted provenance. For current whole-board PCB validation on a real Windows DipTrace host, use
-the native headless profile first. For unsupported native actions, editors, format probes, or human
-visual questions, use the legacy operator workflow in
+to trusted provenance. For supported opening/saving, PCB validation, or recording, use the native headless helper
+first. Windows, WSL-to-Windows, and installed Linux/macOS Wine backends are described in
+[runtime access](../shared/runtime.md), including their different path/desktop handling.
+For a formal operator-supplied format-evidence candidate or an unsupported native action,
+use the legacy operator workflow in
 [`references/operator-workflow.md`](references/operator-workflow.md).
 
 Use public `tools/list` for exact callable names and `get_capabilities` for session, document,
 and feature availability. Native host orchestration is a local helper and does not expand the MCP
 tool contract.
+
+## Open/save/close and capture
+
+The base headless `roundtrip` opens and saves `pcb`, `schematic`, `component`, and
+`pattern` documents in the actual editor. It is a local CLI, so it need not appear in
+MCP `tools/list`. Check the installed helper/module and backend before reporting that
+native opening is unavailable. The command saves its input: use an isolated copy for
+a read-only review, and retain original/copy hashes and process evidence.
+
+Base roundtrip does not re-export XML or run native ERC/DRC. Use the separate bounded
+schematic helper below when present in the installed/source package; use the PCB
+profile for PCB XML re-export, refill and DRC. Preserve supported evidence and report
+the exact remaining unsupported action. Do not invent an export command.
+
+For requested real-window MP4/GIF capture, use the cinematic headless command in
+[runtime access](../shared/runtime.md); it requires ffmpeg and a valid replay/profile.
+Ordinary native verification does not require the legacy quarantine/attestation
+pipeline. Use that pipeline only when a formal evidence candidate is requested.
+
+## Bounded schematic evidence
+
+The source module `diptrace_mcp.schematic_native_acceptance` supports `.dchxml` on
+non-elevated Windows, with an owned hidden desktop and a binary/menu-pinned English
+Schematic 5.3.0.3 profile. It is a local CLI, not a public MCP tool; check module
+availability, `--help`, the selected executable and source version first.
+
+```powershell
+py -B -m diptrace_mcp.schematic_native_acceptance `
+  --diptrace-root "C:\Program Files\DipTrace" `
+  --project "C:\work\design.dchxml" --expected-sha256 <actual-source-sha256> `
+  --output-dir "C:\work\new-evidence-directory" --erc --capture
+```
+
+The output directory must not exist. The helper copies the guarded input, uses Save
+As to a separate XML, reopens/exports in another process, then independently reopens
+the final export. `--inspect` only opens/captures/closes its isolated input. Optional
+`--erc` captures a known native ERC result; a complete positive-error-list profile is
+not yet verified. ffmpeg is required for capture, ERC images and startup-dialog images.
+
+Unknown startup dialogs are not dismissed. First inspect their lossless client PNG;
+`--startup-dialog-sha256` authorizes only that reviewed exact image with a unique
+visible/enabled OK button. Never guess the hash or use a blanket nag dismissor.
+Focus/locale/rendering differences may require another review, not a weaker match.
+
+`completed: true` / exit 0 reports native execution only, NOT schematic acceptance.
+Keep `erc_status: review_required` when the exact success image does not match; record
+image review separately without rewriting the native report or inventing an operator
+attestation. Independently compare pin/net/NC/pad mappings, shared units, symbol
+geometry and wire contacts. Native imports may renumber ports, recenter symbols or
+embedded patterns, add pin length and reroute wires, even over successive exports.
+Do not classify these geometric changes as harmless rounding or replace the source
+until the differences are resolved. No helper result grants trusted provenance.
 
 ## Native PCB acceptance first
 

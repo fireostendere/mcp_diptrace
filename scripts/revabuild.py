@@ -17,8 +17,6 @@ Returns JSON of all Part + ConnectPins + Wire operations for MCP commit.
 from __future__ import annotations
 
 import json
-import sys
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]

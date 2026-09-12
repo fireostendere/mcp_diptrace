@@ -1,9 +1,16 @@
 ---
 name: critical-net-router
-description: Plan and optionally commit one bounded critical-net or differential-pair route in DipTrace with explicit rules and post-checks. Use when the user says “Route this explicitly named critical PCB net.”
+description: RAG-backed. Plan and optionally commit one bounded critical-net or differential-pair route in DipTrace with explicit rules and post-checks. Use when the user says “Route this explicitly named critical PCB net.”
 ---
 
+Read [runtime access](../shared/runtime.md) before choosing between explicit-path
+MCP, a live bridge session, and native/headless CLI. Their availability is separate.
+
 # Critical-net router
+
+RAG: **engineering memory by default** — [shared workflow](../shared/rag.md).
+Consult routing/return-path and transmission-line material before choosing constraints;
+use DipTrace PCB courses for implementation and verify the actual route.
 
 Route an explicitly named scope. The local router is deterministic bounded 45-degree A*, not
 push-and-shove.
@@ -21,8 +28,11 @@ feature availability.
 4. Omit clearance only to resolve the document DRC TraceToTrace rule. An explicit caller value is
    millimetres and must be named in the report.
 5. Prefer `plan_route_nets` plus `apply_route_plan` for a reviewable plan. Inspect SVG/JSON, then
-   validate and obtain explicit confirmation before an `expected_sha256` commit.
-6. Run `run_drc` and `run_connectivity_check`; rollback on regression.
+   validate and use an `expected_sha256` commit within the already authorized routing scope.
+   A request for a plan alone never authorizes committing it.
+6. Run `run_drc` and `run_connectivity_check`; rollback only this session's failed changes with
+   a current hash guard. When native validation is in scope, use the headless PCB acceptance
+   workflow; offline DRC does not invoke the real editor.
 7. Emit [`../shared/result.schema.json`](../shared/result.schema.json).
 
 ## Quantitative boundaries

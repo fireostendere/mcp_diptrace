@@ -15,7 +15,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from diptrace_mcp.adapters import build_snapshot  # noqa: E402
-from diptrace_mcp.xml_document import RawTreeSnapshot  # noqa: E402
 from diptrace_mcp.domain import QuerySelector  # noqa: E402
 from diptrace_mcp.operations import (  # noqa: E402
     AddTraceOperation,
@@ -24,8 +23,14 @@ from diptrace_mcp.operations import (  # noqa: E402
 )
 from diptrace_mcp.scaffolding import PcbScaffold, build_pcb_document, default_layers  # noqa: E402
 from diptrace_mcp.semantic_compiler import apply_semantic_operations  # noqa: E402
-from diptrace_mcp.synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan  # noqa: E402
-from diptrace_mcp.xml_document import DipTraceDocument  # noqa: E402
+from diptrace_mcp.synchronization import (  # noqa: E402
+    ComponentSyncMapping,
+    SyncPlacement,
+    build_sync_plan,
+)
+from diptrace_mcp.xml_document import (
+    DipTraceDocument,  # noqa: E402
+    )
 
 SCHEMATIC_PATH = ROOT / "dut-controller-reva.dchxml"
 BOARD_PATH = ROOT / "dut-controller-reva-pcb.dipxml"
@@ -460,7 +465,11 @@ def finish() -> None:
     )
     doc = pour.document
 
-    from diptrace_mcp.silkscreen import SilkscreenPlanConfig, hide_assembly_markings, plan_silkscreen
+    from diptrace_mcp.silkscreen import (
+        SilkscreenPlanConfig,
+        hide_assembly_markings,
+        plan_silkscreen,
+    )
     doc = hide_assembly_markings(doc)
     snap_mid = build_snapshot(doc)
     extra = [r.stable_id for r in snap_mid.objects.values()
@@ -487,9 +496,12 @@ def finish() -> None:
         print("-", str(f.message)[:120])
 
 
-def _intent_for(batch: str) -> "PCBIntentOverrides":
+def _intent_for(batch: str) -> PCBIntentOverrides:
     from diptrace_mcp.pcb_design_intent import (
-        PCBComponentOverride, PCBElectricalConstraints, PCBIntentOverrides, PCBNetOverride,
+        PCBComponentOverride,
+        PCBElectricalConstraints,
+        PCBIntentOverrides,
+        PCBNetOverride,
     )
     cfg = BATCHES[batch]
     nets = [
