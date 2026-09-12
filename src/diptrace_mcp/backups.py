@@ -114,7 +114,15 @@ class BackupStore:
         canonical_path: str,
     ) -> datetime:
         requested = _aware_utc(self.clock())
-        existing = self._validated_candidates(target_dir, key, canonical_path)
+        # Only ordering matters here, and the stamp is part of the record name.
+        # Reading every history byte to pick the next stamp made each write
+        # cost O(history size).
+        existing = self._validated_candidates(
+            target_dir,
+            key,
+            canonical_path,
+            verify_content=False,
+        )
         latest = max(
             (candidate.timestamp for candidate in existing),
             default=None,
@@ -226,19 +234,64 @@ class BackupStore:
         key: str,
         canonical_path: str,
     ) -> RetentionReport:
-        candidates = self._validated_candidates(target_dir, key, canonical_path)
-        # The limit is per target history. Age expiry applies even to the sole
-        # or newest backup; retaining it unconditionally would make max_age
-        # advisory rather than enforced.
-        report = prune_terminal_records(
-            state_root=self.state_dir,
-            store_root=target_dir,
-            candidates=candidates,
-            policy=self.retention,
-            clock=self.clock,
-        )
+        report = RetentionReport()
+        if self._history_can_expire(target_dir):
+            candidates = self._validated_candidates(
+                target_dir,
+                key,
+                canonical_path,
+                verify_content=False,
+            )
+            # The limit is per target history. Age expiry applies even to the
+            # sole or newest backup; retaining it unconditionally would make
+            # max_age advisory rather than enforced. Integrity is proved only
+            # for records this pass actually deletes, so pruning costs the
+            # doomed bytes instead of the whole history.
+            report = prune_terminal_records(
+                state_root=self.state_dir,
+                store_root=target_dir,
+                candidates=candidates,
+                policy=self.retention,
+                clock=self.clock,
+                validate=self._record_is_intact,
+            )
         self._remove_empty_history(target_dir, key, canonical_path)
         return report
+
+    def _history_can_expire(self, target_dir: Path) -> bool:
+        """Report whether a retention pass over this history could delete anything.
+
+        A history within the record limit whose oldest recorded stamp is still
+        inside the age window has nothing doomed, and the pass is skipped
+        without enumerating or resolving its records. Both bounds are
+        conservative: unverifiable records can only shrink the valid count and
+        raise the oldest stamp, so a negative answer proves the pass would
+        return an empty report.
+        """
+
+        stamps: list[datetime] = []
+        try:
+            with os.scandir(target_dir) as entries:
+                names = [entry.name for entry in entries]
+        except OSError:
+            return True
+        for name in names:
+            match = _BACKUP_NAME.fullmatch(name)
+            if match is None:
+                continue
+            try:
+                stamps.append(
+                    datetime.strptime(
+                        match.group("stamp"),
+                        "%Y%m%dT%H%M%S.%fZ",
+                    ).replace(tzinfo=timezone.utc)
+                )
+            except ValueError:
+                return True
+        if len(stamps) > self.retention.max_records:
+            return True
+        cutoff = _aware_utc(self.clock()) - timedelta(days=self.retention.max_age_days)
+        return any(stamp <= cutoff for stamp in stamps)
 
     def _remove_empty_history(
         self,
@@ -290,7 +343,17 @@ class BackupStore:
         target_dir: Path,
         key: str,
         canonical_path: str,
+        *,
+        verify_content: bool = True,
     ) -> list[RetentionCandidate]:
+        """Enumerate one history; ``verify_content`` gates the full-content read.
+
+        The filename already binds a record to its stamp and content hash, so
+        ordering and retention ranking need no I/O beyond metadata. Content
+        verification stays mandatory wherever bytes are handed back as a
+        recovery point or are about to be destroyed.
+        """
+
         if self._validated_target_metadata(target_dir, key, canonical_path) is None:
             return []
         candidates: list[RetentionCandidate] = []
@@ -308,7 +371,7 @@ class BackupStore:
                     match.group("stamp"),
                     "%Y%m%dT%H%M%S.%fZ",
                 ).replace(tzinfo=timezone.utc)
-                if sha256_bytes(path.read_bytes()) != match.group("sha256"):
+                if verify_content and not self._content_matches_name(path, match):
                     continue
             except (OSError, ValueError):
                 continue
@@ -320,6 +383,20 @@ class BackupStore:
                 )
             )
         return candidates
+
+    def _content_matches_name(self, path: Path, match: re.Match[str]) -> bool:
+        try:
+            return sha256_bytes(path.read_bytes()) == match.group("sha256")
+        except OSError:
+            return False
+
+    def _record_is_intact(self, candidate: RetentionCandidate) -> bool:
+        """Validate one already-doomed record before its deletion."""
+
+        match = _BACKUP_NAME.fullmatch(candidate.path.name)
+        if match is None:
+            return False
+        return self._content_matches_name(candidate.path, match)
 
     def _validated_target_metadata(
         self,

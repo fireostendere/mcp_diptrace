@@ -130,9 +130,15 @@ Valid offline backups are pruned per target at construction and after replacemen
 Age expiry applies even to the sole or newest backup, and an empty validated history
 directory is removed. A corrupt record, unknown status, ID mismatch, symbolic link,
 junction, or path outside the state tree fails closed: it is neither followed nor
-deleted. The configured count and age values are cleanup targets, not storage quotas:
-protected or unverifiable records can keep the on-disk count above a threshold, and
-cleanup failure does not make startup destructive.
+deleted. Backup retention ranks records by their validated names, which already bind
+each record to its stamp and content hash, and proves content integrity only for the
+records a pass has already doomed. Pruning I/O is therefore proportional to what is
+deleted rather than to the whole history. An unverifiable backup is still never
+deleted, but it occupies a retention slot, so a history holding corrupt records can
+keep fewer valid recovery points than the configured count. The configured count and
+age values are cleanup targets, not storage quotas: protected or unverifiable records
+can keep the on-disk count above a threshold, and cleanup failure does not make
+startup destructive.
 
 ## Trust Boundary
 
