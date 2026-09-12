@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import ctypes.wintypes as wintypes
 import json
 import math
 import os
@@ -13,6 +14,7 @@ import sys
 import time
 import traceback
 import uuid
+from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -82,12 +84,19 @@ def _capture(window: Any, folder: Path, name: str) -> str:
     client_image = folder / f"{name}.client.png"
     if any(path.exists() for path in (video, image, client_image)):
         raise FileExistsError("capture output already exists")
-    user32 = ctypes.windll.user32
+    windll = getattr(ctypes, "windll", None)
+    if windll is None:
+        raise hg.HeadlessGuiError("Win32 API is required for native capture")
+    user32 = windll.user32
 
-    def snapshot(capture, width, height):
+    def snapshot(
+        capture: Callable[[], bytes],
+        width: int,
+        height: int,
+    ) -> None:
         frame = capture()
-        bounds, client = hg.wintypes.RECT(), hg.wintypes.RECT()
-        origin = hg.wintypes.POINT()
+        bounds, client = wintypes.RECT(), wintypes.RECT()
+        origin = wintypes.POINT()
         if not (
             user32.GetWindowRect(int(window.handle), ctypes.byref(bounds))
             and user32.GetClientRect(int(window.handle), ctypes.byref(client))
@@ -137,7 +146,10 @@ def _capture(window: Any, folder: Path, name: str) -> str:
         playback=lambda: None,
         prepare=snapshot,
     )
-    return hg._sha256(client_image)
+    digest = hg._sha256(client_image)
+    if digest is None:
+        raise hg.HeadlessGuiError("captured client image is missing or unreadable")
+    return digest
 
 
 def _worker(request: dict[str, Any]) -> dict[str, Any]:
@@ -221,7 +233,10 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
                     )
                 _write_new(folder / "menus.json", menus)
                 if request["capture"]:
-                    user32 = ctypes.windll.user32
+                    windll = getattr(ctypes, "windll", None)
+                    if windll is None:
+                        raise hg.HeadlessGuiError("Win32 API is required for capture")
+                    user32 = windll.user32
                     with cr._physical_pixel_dpi_context(user32):
                         user32.ShowWindow(int(window.handle), 9)
                         window.move_window(x=0, y=0, width=3000, height=2000, repaint=True)

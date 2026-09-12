@@ -2941,36 +2941,48 @@ def create_server(
 
     # --- pipeline tools (Rev.A DUT controller + generic board build) ------
 
-    @mcp.tool()
+    @mcp.tool(
+        description=(
+            "Resolve an MPN to its LCSC part code and download component JSON + "
+            "datasheet PDF from EasyEDA. Returns code, package, pin/pad counts and "
+            "file paths for downstream schematic building."
+        )
+    )
     def pipeline_source_component(
         mpn_or_code: str,
         output_dir: str = "vendor",
     ) -> dict[str, Any]:
-        """Resolve an MPN to its LCSC part code and download component JSON +
-        datasheet PDF from EasyEDA. Returns code, package, pin/pad counts and
-        file paths for downstream schematic building."""
+        """Resolve an MPN to its LCSC data and download it."""
         from diptrace_mcp.pipeline import lcsc_fetch
         return lcsc_fetch(mpn_or_code, output_dir)
 
-    @mcp.tool()
+    @mcp.tool(
+        description=(
+            "Transplant generated schematic/PCB content into a DipTrace-native "
+            "template so the real editor parses it without hanging. Detects kind "
+            "(schematic or PCB) automatically."
+        )
+    )
     def pipeline_nativeize_document(
         input_path: str,
         template_path: str,
         output_path: str,
     ) -> dict[str, Any]:
-        """Transplant generated schematic/PCB content into a DipTrace-native
-        template so the real editor parses it without hanging. Detects kind
-        (schematic or PCB) automatically."""
+        """Transplant generated content into a DipTrace-native template."""
         from diptrace_mcp.pipeline import nativeize_document
         return nativeize_document(input_path, template_path, output_path)
 
-    @mcp.tool()
+    @mcp.tool(
+        description=(
+            "Render Top + Bottom SVG previews of a .dipxml board without opening "
+            "DipTrace. Shows outline, copper traces, pours, vias and board edge."
+        )
+    )
     def pipeline_render_board_preview(
         pcb_path: str,
         output_dir: str = ".",
     ) -> dict[str, Any]:
-        """Render Top + Bottom SVG previews of a .dipxml board without opening
-        DipTrace. Shows outline, copper traces, pours, vias and board edge."""
+        """Render Top + Bottom SVG previews of a board."""
         from diptrace_mcp.pipeline import render_board_svg
         return render_board_svg(pcb_path, output_dir)
 

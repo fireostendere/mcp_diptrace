@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 160487,
-  "canonical_descriptor_sha256": "5d36c326362f4b823fea92103a63e61bbd8a0f894298f5591ecf1df9a82bab5c",
+  "canonical_descriptor_bytes": 160442,
+  "canonical_descriptor_sha256": "c2f3d5da98fa8f2a71c02a7c92c30f97a8a64fd3c08c8bb4698aa0bb3726c8b5",
   "format_version": 1,
   "tool_count": 171,
   "tools": [
@@ -5376,7 +5376,7 @@
       }
     },
     {
-      "description": "Transplant generated schematic/PCB content into a DipTrace-native\n        template so the real editor parses it without hanging. Detects kind\n        (schematic or PCB) automatically.",
+      "description": "Transplant generated schematic/PCB content into a DipTrace-native template so the real editor parses it without hanging. Detects kind (schematic or PCB) automatically.",
       "inputSchema": {
         "properties": {
           "input_path": {
@@ -5408,7 +5408,7 @@
       }
     },
     {
-      "description": "Render Top + Bottom SVG previews of a .dipxml board without opening\n        DipTrace. Shows outline, copper traces, pours, vias and board edge.",
+      "description": "Render Top + Bottom SVG previews of a .dipxml board without opening DipTrace. Shows outline, copper traces, pours, vias and board edge.",
       "inputSchema": {
         "properties": {
           "output_dir": {
@@ -5435,7 +5435,7 @@
       }
     },
     {
-      "description": "Resolve an MPN to its LCSC part code and download component JSON +\n        datasheet PDF from EasyEDA. Returns code, package, pin/pad counts and\n        file paths for downstream schematic building.",
+      "description": "Resolve an MPN to its LCSC part code and download component JSON + datasheet PDF from EasyEDA. Returns code, package, pin/pad counts and file paths for downstream schematic building.",
       "inputSchema": {
         "properties": {
           "mpn_or_code": {

@@ -1,120 +1,121 @@
-# Ревью инженерных навыков — 2026-09-10
+# Engineering Skills Review — 2026-09-10
 
-## Вывод
+## Conclusion
 
-Исходный набор из восьми `skills/*/SKILL.md` недостаточно объяснял доступ к
-нативному DipTrace. Он концентрировался на публичных MCP-инструментах и мог
-подталкивать модель к ложному выводу: «нет инструмента или live-сессии — нельзя
-открыть редактор». Это дефект инструкций, а не доказательство отсутствия headless.
+The original set of eight `skills/*/SKILL.md` files did not sufficiently explain
+native DipTrace access. It focused on the public MCP tools and could push the model
+toward a false conclusion: "no tool or live session — the editor cannot be opened".
+That is an instruction defect, not evidence that headless access is absent.
 
-Проверены все восемь навыков, каталог, карта возможностей, генератор/тесты,
-release-упаковка и соответствующий код. Все восемь обновлены; семь новых перенесены
-из `.opencode/skills` в каноническую корневую `skills/`. Самостоятельные копии новых
-навыков в `.opencode/skills` удалены; их содержимое сохранено в корневом наборе.
-Существующие рецепты `.agents/skills` не изменялись.
+All eight skills, the catalog, the capability map, the generator/tests, the release
+packaging, and the corresponding code were reviewed. All eight were updated; seven
+new skills were moved from `.opencode/skills` into the canonical root `skills/`.
+Standalone copies of the new skills under `.opencode/skills` were removed; their
+content is preserved in the root set. Existing `.agents/skills` recipes were not
+modified.
 
-## Замечания и исправления
+## Findings and fixes
 
-| Приоритет | Проблема | Исправление |
+| Priority | Problem | Fix |
 |---|---|---|
-| Высокий | MCP-каталог воспринимался как весь доступный интерфейс; явный XML-путь смешивался с live-сессией | Общий [runtime access](../skills/shared/runtime.md) связан со всеми 15 навыками; отдельно описаны MCP, bridge и локальные native CLI |
-| Высокий | Обычное открытие всех четырёх редакторов было скрыто за PCB/operator-evidence сценарием | Добавлены команды roundtrip для Schematic/PCB/Component/Pattern и обнаружение Windows, WSL, Linux/macOS Wine backend |
-| Высокий | `bridge --headless`, XML-nativeization, SVG и настоящий GUI могли смешиваться | Для каждого указан реальный результат, побочные эффекты и предел доказательности |
-| Высокий | Native roundtrip сохраняет входной файл; read-only ревью могло его изменить | Для ревью предписана изолированная копия с привязкой исходного SHA; неизвестный диалог не разрешает перехват мыши/клавиатуры |
-| Высокий | Новые навыки находились вне поставляемого набора; генератор и release-аудитор ограничивали его восемью | Единый каталог из 15, обновлённый allowlist, проверка точного состава wheel без числовой квоты, внутренние переносимые ссылки |
-| Средний | Native library write отсутствует, но из этого мог следовать отказ от чтения установленной `.eli` | Описан `query_builtin_library_catalog` с экспортом через скрытый CompEdit в XML-кэш; это не произвольное редактирование библиотек |
-| Средний | Назначение testpoint цепи могло выглядеть как готовое физическое подключение | Добавлена проверка меди, коротких stub-трасс либо связи с полигоном после native refill |
-| Средний | Повторные общие подтверждения и откат без ограничения собственными изменениями | Сохраняется уже выданное разрешение; план не разрешает commit, откат ограничен своими изменениями и актуальным SHA |
-| Средний | Генератор требовал произвольное количество чисел, а не полезное покрытие | Проверяются реальные MCP-имена, native-модули/CLI-примеры, ссылки, шаблон handoff, состав и хэши пакета |
+| High | The MCP catalog was perceived as the entire available interface; the explicit XML path was conflated with a live session | A shared [runtime access](../skills/shared/runtime.md) document is linked from all 15 skills; MCP, bridge, and local native CLI are described separately |
+| High | Ordinary opening of all four editors was hidden behind the PCB/operator-evidence scenario | Roundtrip commands added for Schematic/PCB/Component/Pattern plus Windows, WSL, and Linux/macOS Wine backend discovery |
+| High | `bridge --headless`, XML nativeization, SVG, and the real GUI could be conflated | Each now states its real result, side effects, and evidence limit |
+| High | Native roundtrip preserves the input file; a read-only review could modify it | Reviews must use an isolated copy bound to the source SHA; an unknown dialog never authorizes mouse/keyboard interception |
+| High | New skills lived outside the shipped set; the generator and release auditor capped it at eight | A single catalog of 15, updated allowlist, exact wheel-content verification without a numeric quota, internal portable links |
+| Medium | Native library write is absent, but that could imply refusing to read the installed `.eli` | `query_builtin_library_catalog` is documented, exporting via the hidden CompEdit into the XML cache; this is not arbitrary library editing |
+| Medium | Testpoint net assignment could look like a finished physical connection | Added a check for copper, short stub traces, or polygon attachment after native refill |
+| Medium | Repeated common confirmations and rollback not limited to own changes | An already granted permission is preserved; the plan never authorizes commits; rollback is limited to own changes and the current SHA |
+| Medium | The generator demanded arbitrary numeric counts instead of useful coverage | It now verifies real MCP names, native modules/CLI examples, links, the handoff template, package composition and hashes |
 
-## Изменения по исходным навыкам
+## Changes to the original skills
 
-| Навык | Существенное уточнение |
+| Skill | Substantive clarification |
 |---|---|
-| `pcb-project-intake` | XML против binary до парсинга, explicit path без live-сессии, native-проверки на копиях |
-| `library-quality-audit` | Чтение установленного каталога через XML-кэш и native roundtrip обоих библиотечных редакторов |
-| `schematic-erc-review` | Скрытый Schematic доступен отдельно от MCP; base roundtrip не выполняет native ERC |
-| `testpoint-planner` | Физическое подключение testpoint, область разрешённых изменений, защищённый откат |
-| `critical-net-router` | Plan/commit, hash guard, границы локального роутера и native PCB-проверка |
-| `signal-integrity-review` | Native refill как источник геометрии, но не замена решателю поля или инженерной валидации |
-| `release-gate` | Native acceptance и реальные CAM-артефакты нельзя исключать лишь из-за отсутствия MCP-команды |
-| `diptrace-evidence-capture` | Открытие всех четырёх редакторов, native PCB acceptance и запись; формальный operator-candidate pipeline только для соответствующей задачи |
+| `pcb-project-intake` | XML versus binary before parsing, explicit path without a live session, native checks on copies |
+| `library-quality-audit` | Reading the installed catalog via the XML cache and native roundtrip of both library editors |
+| `schematic-erc-review` | The hidden Schematic editor is available separately from MCP; a base roundtrip does not run native ERC |
+| `testpoint-planner` | Physical testpoint connection, allowed-change area, protected rollback |
+| `critical-net-router` | Plan/commit, hash guard, local router boundaries, native PCB verification |
+| `signal-integrity-review` | Native refill as a geometry source, but not a replacement for a field solver or engineering validation |
+| `release-gate` | Native acceptance and real CAM artifacts cannot be excluded merely because an MCP command is missing |
+| `diptrace-evidence-capture` | Opening all four editors, native PCB acceptance and recording; the formal operator-candidate pipeline only for the matching task |
 
-## Добавленные этапы полного цикла
+## Added full-cycle stages
 
-[Каталог](../skills/README.md) теперь включает `pcb-design-workflow`,
+The [catalog](../skills/README.md) now includes `pcb-design-workflow`,
 `schematic-engineer`, `diptrace-datasheet-rules`, `diptrace-bom-sourcing`,
-`diptrace-production-pack`, `diptrace-board-bringup`, `diptrace-revision-review`.
-Это покрывает ТЗ, компонентные доказательства, схему, PCB, снабжение, производство,
-первое включение, производственный тест и ECO. Наличие инструкции не означает
-автоматизацию физического измерения, native CAM или размещения заказа.
+`diptrace-production-pack`, `diptrace-board-bringup`, and `diptrace-revision-review`.
+This covers specifications, component evidence, schematic, PCB, sourcing, production,
+first power-on, production test, and ECO. Having an instruction does not mean physical
+measurement, native CAM, or order placement is automated.
 
-`schematic-engineer` адаптирован из исходного OpenCode-навыка с сохранением SHA
-источника. Добавлены настоящие MCP-команды авторинга и native/headless-пути;
-границы схемы, PCB и выпуска сохранены. Первоначальная политика обращения к RAG
-только при нехватке фактов заменена по последующему уточнению пользователя:
-RAG — рабочая инженерная память по умолчанию, а не условный справочник.
+`schematic-engineer` is adapted from the original OpenCode skill with the source SHA
+preserved. Real MCP authoring commands and native/headless paths were added; the
+schematic, PCB, and release boundaries are kept. The initial policy of consulting RAG
+only when facts are missing was replaced by a later user clarification: RAG is the
+default working engineering memory, not a conditional reference.
 
-Все 15 навыков помечены `RAG-backed` в описаниях, в теле и `rag: true` в каталоге.
-[Общий процесс](../skills/shared/rag.md) автоматически формирует и переносит между
-этапами контекст из MIT/теории, руководств по схемам/PCB, курсов DipTrace и проектных
-уроков. Модель использует его для понимания задачи, сравнения вариантов, поиска
-рисков, реализации и проверки без повторного задания роли опытного инженера.
-Это контекстное применение знаний, не обучение весов модели. Реальные источники
-нужно получать через подключённый Knowledge MCP; содержание базы при этом изменении
-навыков не проверялось и не импортировалось.
+All 15 skills are marked `RAG-backed` in their descriptions, bodies, and `rag: true`
+in the catalog. The [shared process](../skills/shared/rag.md) automatically builds and
+carries context across stages from MIT/theory courses, schematic/PCB guides, DipTrace
+courses, and project lessons. The model uses it to understand the task, compare
+alternatives, find risks, implement, and verify without re-stating the experienced
+engineer role. This is contextual application of knowledge, not training of model
+weights. Real sources must be fetched through the connected Knowledge MCP; the corpus
+content was not inspected or imported during this skill change.
 
-Общие правила требуют официальных package/land-pattern/layout/revision evidence,
-соблюдения 13 ворот `PCB_BUILD.md`, двухслойной стратегии и запрета via-in-pad по
-умолчанию. Проверяемый шаблон не содержит заранее выданных PASS. Указано, что
-репозиторный `pcb_quality_gate.py` не входит в wheel и его exit 0 не закрывает
-ожидающие ручные проверки.
+Shared rules require official package/land-pattern/layout/revision evidence, the
+13 `PCB_BUILD.md` gates, the two-layer strategy, and the default via-in-pad ban. The
+verifiable template contains no pre-issued PASS results. It is stated that the
+repository `pcb_quality_gate.py` is not part of the wheel and its exit 0 does not
+close pending manual checks.
 
-## Что действительно реализовано
+## What is actually implemented
 
-| Интерфейс | Подтверждение в исходниках | Ограничение |
+| Interface | Confirmation in sources | Limit |
 |---|---|---|
-| MCP по XML-пути | [server_runtime.py](../src/diptrace_mcp/server_runtime.py) | Парсер/модель/guarded edit, не запуск GUI |
-| `headless_gui roundtrip` | [headless_gui.py](../src/diptrace_mcp/headless_gui.py) | Настоящие четыре редактора, open/save/close; не generic XML export, ERC или CAM |
-| `pcb_native_acceptance run` | [pcb_native_acceptance.py](../src/diptrace_mcp/pcb_native_acceptance.py) | Refill/DRC/save/reopen/XML, версия/локаль профиля и точный verdict; не Gerber |
-| Native MP4/GIF | [cinematic_recording.py](../src/diptrace_mcp/cinematic_recording.py), [helper dispatch](../scripts/headless_gui_entry.py) | Нужны ffmpeg, допустимый manifest и профиль; replay может менять копию и выходные файлы |
-| Wine-обёртки | [install_linux.sh](../scripts/install_linux.sh), [install_macos.sh](../scripts/install_macos.sh) | Linux автоматически подставляет root/desktop и переводит пути только для roundtrip; macOS переводит только отдельный `--project PATH` |
-| Fabrication/assembly MCP | [exports.py](../src/diptrace_mcp/services/exports.py) | Generic CSV/placement/manifest; native Gerber/NC Drill требует отдельного экспорта |
+| MCP over the XML path | [server_runtime.py](../src/diptrace_mcp/server_runtime.py) | Parser/model/guarded edit, not GUI launching |
+| `headless_gui roundtrip` | [headless_gui.py](../src/diptrace_mcp/headless_gui.py) | The real four editors, open/save/close; not generic XML export, ERC, or CAM |
+| `pcb_native_acceptance run` | [pcb_native_acceptance.py](../src/diptrace_mcp/pcb_native_acceptance.py) | Refill/DRC/save/reopen/XML, profile version/locale and the exact verdict; not Gerber |
+| Native MP4/GIF | [cinematic_recording.py](../src/diptrace_mcp/cinematic_recording.py), [helper dispatch](../scripts/headless_gui_entry.py) | Requires ffmpeg, a valid manifest, and a profile; replay can modify the copy and output files |
+| Wine wrappers | [install_linux.sh](../scripts/install_linux.sh), [install_macos.sh](../scripts/install_macos.sh) | Linux automatically provides root/desktop and translates paths for roundtrip only; macOS translates only a separate `--project PATH` |
+| Fabrication/assembly MCP | [exports.py](../src/diptrace_mcp/services/exports.py) | Generic CSV/placement/manifest; native Gerber/NC Drill requires a separate export |
 
-Native `PASS`, `FAIL` и `HUMAN_REVIEW_REQUIRED` не взаимозаменяемы. Успешный
-roundtrip подтверждает только выполненный сценарий; SVG, smoke-test и XML-адаптация
-не являются native DRC. Отсутствие автоматического ERC/CAM блокирует конкретную
-приёмку, но не отменяет доступное открытие/сохранение или другие независимые этапы.
+Native `PASS`, `FAIL`, and `HUMAN_REVIEW_REQUIRED` are not interchangeable. A
+successful roundtrip confirms only the executed scenario; SVG, smoke tests, and XML
+adaptation are not native DRC. Missing automatic ERC/CAM blocks that specific
+acceptance but does not cancel the available open/save or other independent stages.
 
-## Проверка
+## Verification
 
-- Проверка формата через `skill-creator/scripts/quick_validate.py`: все 15 навыков
-  валидны. Общий runtime и предметные references разделены по назначению.
-- `python scripts/generate_pcb_skills.py --check`: каталог, реальные MCP-имена,
-  внутренние ссылки, зеркала скриптов и SHA-манифест согласованы.
+- Format check via `skill-creator/scripts/quick_validate.py`: all 15 skills are
+  valid. The shared runtime and topic references are separated by purpose.
+- `python scripts/generate_pcb_skills.py --check`: catalog, real MCP names, internal
+  links, script mirrors, and the SHA manifest are consistent.
 - `python -m pytest -q tests/test_skill_packages.py tests/test_release_artifacts.py`:
-  **35 passed**. Проверены реальные CLI-парсеры, 13 строк handoff-шаблона, регистрация
-  пути OpenCode, сборка wheel, точные байты всех файлов навыков, ссылки после
-  распаковки и release-аудит; native CLI-модули присутствуют в wheel.
+  **35 passed**. Verified real CLI parsers, the 13-line handoff template, OpenCode
+  path registration, wheel build, exact bytes of all skill files, links after
+  unpacking, and the release audit; native CLI modules are present in the wheel.
 - `python -m pytest -q tests/test_headless_gui.py tests/test_pcb_native_acceptance.py tests/test_pcb_quality_gate.py`:
-  **60 passed, 2 skipped**. Пропуски требуют настоящих Win32 desktop objects.
-- Ruff для изменённых Python-файлов и `git diff --check`: без ошибок.
+  **60 passed, 2 skipped**. The skips require real Win32 desktop objects.
+- Ruff for the changed Python files and `git diff --check`: no errors.
 
-Строгая проверка allowlist сравнивает его с Git-индексом. Для проверки ещё не
-добавленных пользователем новых файлов использован временный индекс и отдельный
-каталог Git-объектов под `/tmp`, с HEAD и точным набором добавлений. Рабочий индекс
-и история проекта не изменены. Обычный `--check-allowlist` в рабочем дереве будет
-требовать добавления новых файлов в Git; ограничение публикации не ослаблялось.
+The strict allowlist check compares it against the Git index. To verify new files not
+yet added by the user, a temporary index and a separate Git object directory under
+`/tmp` were used, with HEAD and the exact addition set. The working index and project
+history were not modified. A normal `--check-allowlist` in the working tree would
+require adding the new files to Git; the publication constraint was not weakened.
 
-Реальные пользовательские CAD-файлы при этом ревью не открывались и не сохранялись.
-Эти результаты подтверждают инструкции, CLI-контракты и упаковку, а не новый
-native roundtrip на установленном GUI и не качество конкретной физической платы.
+No real user CAD files were opened or saved during this review. These results confirm
+the instructions, CLI contracts, and packaging — not a new native roundtrip on the
+installed GUI and not the quality of a specific physical board.
 
-### Повторная проверка после изменения RAG-режима
+### Re-verification after the RAG mode change
 
-`python -m pytest -q tests/test_skill_packages.py`: **19 passed**, включая
-согласованность пометок RAG, отказ при некорректных значениях каталога и сборку
-wheel с общим `shared/rag.md`. Все 15 навыков повторно прошли `quick_validate.py`;
-SHA-манифест и ссылки проверены. Эти проверки не обращаются к корпусу: инструменты
-Knowledge MCP в текущей сессии не опубликованы, поэтому реальный поиск по курсам
-не проверялся. Это не ограничение использования RAG, внесённое в навыки.
+`python -m pytest -q tests/test_skill_packages.py`: **19 passed**, including RAG
+marking consistency, rejection of invalid catalog values, and the wheel build with the
+shared `shared/rag.md`. All 15 skills passed `quick_validate.py` again; the SHA
+manifest and links were verified. These checks do not access the corpus: the Knowledge
+MCP tools were not published in the current session, so a real course search was not
+exercised. This is not a restriction on RAG usage built into the skills.

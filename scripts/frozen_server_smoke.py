@@ -78,6 +78,9 @@ def run_smoke(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            # Wine/native probes can emit locale-encoded bytes on stderr; a
+            # strict decoder killed the reader thread and starved the handshake.
+            errors="replace",
             shell=False,
         )
         assert process.stdin is not None

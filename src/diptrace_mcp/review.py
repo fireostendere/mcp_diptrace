@@ -752,16 +752,16 @@ def check_schematic_sheet_containment(
     ]
 
     checked = 0
-    outside: list[tuple[str, str | None, str, BBox]] = []
+    outside: list[tuple[str, str | None, str | None, BBox]] = []
     for record in [*snapshot.schematic.parts, *snapshot.schematic.wires]:
         sheet = str(record.attributes.get("sheet", "0"))
         bound = bounds.get(sheet)
         if bound is None or record.bbox is None:
             continue
         checked += 1
-        box = BBox(**record.bbox)
-        if not bound.contains_bbox(box):
-            outside.append((sheet, record.stable_id, record.label, box))
+        record_box = BBox(**record.bbox)
+        if not bound.contains_bbox(record_box):
+            outside.append((sheet, record.stable_id, record.label, record_box))
 
     for shape in snapshot.document.container.findall("./Shapes/Shape"):
         if shape.get("Enabled", "Y") != "Y":
@@ -851,6 +851,8 @@ def check_schematic_label_support_overlap(
         corridor = label_box.expand(1.27)
         for part in supports:
             if str(part.attributes.get("sheet", "0")) != sheet:
+                continue
+            if part.bbox is None:
                 continue
             pairs_checked += 1
             part_box = BBox(**part.bbox)

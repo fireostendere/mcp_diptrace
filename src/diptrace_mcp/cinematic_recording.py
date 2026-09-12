@@ -12,7 +12,7 @@ import tempfile
 import threading
 import time
 import uuid
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
@@ -235,8 +235,8 @@ class HeadlessCinematicRequest:
             gif_output=Path(gif) if gif else None,
             gif_fps=hg._coerce_int(value.get("gif_fps"), 20),
             gif_width=hg._coerce_int(value.get("gif_width"), 1280),
-            auto_frame=value.get("auto_frame", True),
-            native_extents=value.get("native_extents", False),
+            auto_frame=bool(value.get("auto_frame", True)),
+            native_extents=bool(value.get("native_extents", False)),
         )
 
 
@@ -288,8 +288,8 @@ class HeadlessCinematicResult:
             session_id=hg._optional_int(value.get("session_id")),
             forced_termination=bool(value.get("forced_termination", False)),
             error=hg._optional_string(value.get("error")),
-            auto_frame=value.get("auto_frame", True),
-            native_extents=value.get("native_extents", False),
+            auto_frame=bool(value.get("auto_frame", True)),
+            native_extents=bool(value.get("native_extents", False)),
             native_view_profile=hg._optional_string(value.get("native_view_profile")),
         )
 
@@ -1100,7 +1100,7 @@ def _menu_child_snapshot(item: Any, index: int) -> dict[str, object]:
     }
 
 
-def _menu_value(item: Any, method: str) -> object | None:
+def _menu_value(item: Any, method: str) -> Any:
     try:
         return getattr(item, method)()
     except Exception:
@@ -1583,7 +1583,7 @@ def build_windows_capture_command(
 
 
 @contextmanager
-def _physical_pixel_dpi_context(user32: Any):
+def _physical_pixel_dpi_context(user32: Any) -> Iterator[None]:
     """Temporarily make this capture thread use physical-pixel window geometry."""
 
     setter = getattr(user32, "SetThreadDpiAwarenessContext", None)
@@ -2235,8 +2235,8 @@ def _cmd_headless_worker(args: argparse.Namespace) -> int:
             None,
             gif_output=hg._optional_string(payload.get("gif_output")),
             error=f"{type(exc).__name__}: {exc}",
-            auto_frame=payload.get("auto_frame", True),
-            native_extents=payload.get("native_extents", False),
+            auto_frame=bool(payload.get("auto_frame", True)),
+            native_extents=bool(payload.get("native_extents", False)),
             native_view_profile=None,
         )
     hg._write_json(result_path, result.as_json())

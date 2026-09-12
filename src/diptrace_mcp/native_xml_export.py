@@ -218,8 +218,10 @@ def _save_as(window: Any, executable: Path) -> None:
         "d85632b2c8fb445471339e875416782e3e62fb56ea13ab7d973052122352f568": schematic_ids,
         "d8cf49f62e9bdc02c4a8009de28af9fc9a9bc4986a3054331ee23de740aef801": pcb_ids,
     }
+    executable_sha256 = hg._sha256(executable)
     if (
-        ids == profiles.get(hg._sha256(executable))
+        executable_sha256 is not None
+        and ids == profiles.get(executable_sha256)
         and all(not item.text().strip() for item in items)
         and items[4].sub_menu() is None
     ):
