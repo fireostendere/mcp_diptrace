@@ -62,6 +62,7 @@ docs/MACOS.md
 docs/MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md
 docs/MCP_DISTRIBUTION.md
 docs/MCP_TOOLS.md
+docs/NATIVE_XML_EXPORT.md
 docs/OPEN_QUESTIONS.md
 docs/PCB_DESIGN_ENGINE.md
 docs/PLACEMENT_ENGINE.md
@@ -440,6 +441,7 @@ tests/test_acceptance_seed_audit.py
 tests/test_advanced_review.py
 tests/test_adversarial_xml_corpus.py
 tests/test_audit_reference_materials.py
+tests/test_backups_fail_safe_coverage.py
 tests/test_badges.py
 tests/test_bounded_payloads.py
 tests/test_bridge.py
@@ -460,6 +462,9 @@ tests/test_component_sourcing_skill.py
 tests/test_config_paths.py
 tests/test_connectivity.py
 tests/test_copper_pour_obstacles.py
+tests/test_coverage_wave2_review.py
+tests/test_coverage_wave3_pure.py
+tests/test_coverage_wave4_native.py
 tests/test_creation_sha_gate.py
 tests/test_cross_platform_exchange_paths.py
 tests/test_diptrace53_fixture_manifest.py
@@ -505,15 +510,18 @@ tests/test_mcpb_distribution.py
 tests/test_model_cache.py
 tests/test_models.py
 tests/test_multirouter.py
+tests/test_native_export_process.py
 tests/test_native_net_port_types.py
 tests/test_native_xml_export.py
 tests/test_ngspice.py
 tests/test_nonfinite_inputs.py
+tests/test_nonphysical_pad_styles.py
 tests/test_openems.py
 tests/test_operation_schema.py
 tests/test_pattern_recommendation.py
 tests/test_pattern_validation.py
 tests/test_pcb_autorouter.py
+tests/test_pcb_build_kit.py
 tests/test_pcb_candidate_ensemble.py
 tests/test_pcb_design_engine.py
 tests/test_pcb_joint_optimizer.py
@@ -525,6 +533,7 @@ tests/test_pcb_routing_policy.py
 tests/test_phase4.py
 tests/test_physics_estimates.py
 tests/test_pin_mapping.py
+tests/test_pipeline.py
 tests/test_placement.py
 tests/test_plugin_settings.py
 tests/test_policy.py
@@ -533,6 +542,7 @@ tests/test_power_multilayer_fixture.py
 tests/test_preview.py
 tests/test_probe_pack.py
 tests/test_prompt_acceptance.py
+tests/test_provenance.py
 tests/test_provenance_registry.py
 tests/test_public_compliance.py
 tests/test_quality_gate_memory.py
@@ -566,6 +576,7 @@ tests/test_schematic_rotation.py
 tests/test_schematic_topology.py
 tests/test_schematic_wire_planner.py
 tests/test_schematic_wire_quality.py
+tests/test_schematic_wiring.py
 tests/test_semantic_dispatch.py
 tests/test_semantic_operations_service_coverage.py
 tests/test_server.py
@@ -599,4 +610,5 @@ tests/test_write_object_limit.py
 tests/test_write_path_trust_closure.py
 tests/test_xml_analysis.py
 tests/test_xml_document.py
+tests/test_xml_document_coverage.py
 tests/test_xml_encoding_preservation.py

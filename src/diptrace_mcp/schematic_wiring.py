@@ -66,7 +66,9 @@ def compute_endpoints(doc: DipTraceDocument) -> dict[str, list[Endpoint]]:
         lib_comp = style_map.get(part.get("ComponentStyle"))
         if lib_comp is None:
             continue
-        lp_all = (lib_comp.find("./Part[@Id='0']") or lib_comp.find("./Part"))
+        lp_all = lib_comp.find("./Part[@Id='0']")
+        if lp_all is None:
+            lp_all = lib_comp.find("./Part")
         if lp_all is None:
             continue
         lib_pins = lp_all.findall("./Pins/Pin")
@@ -96,7 +98,9 @@ def compute_body_boxes(doc: DipTraceDocument) -> dict[str, tuple[int, float, flo
         lc = style_map.get(part.get("ComponentStyle"))
         if lc is None:
             continue
-        lp = lc.find("./Part[@Id='0']") or lc.find("./Part")
+        lp = lc.find("./Part[@Id='0']")
+        if lp is None:
+            lp = lc.find("./Part")
         if lp is None:
             continue
         px, py = float(part.get("X", "0")), float(part.get("Y", "0"))

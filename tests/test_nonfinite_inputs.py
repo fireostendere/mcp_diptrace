@@ -283,7 +283,8 @@ def test_client_parsers_translate_pydantic_errors_to_document_errors() -> None:
         b'Width="-1"',
     )
 
-    with pytest.raises(DocumentError, match="Invalid normalized document data"):
-        get_library_model(invalid_library)
+    library = get_library_model(invalid_library)
+    assert any(style.width == -1 for style in library.pad_styles)
+    assert any("nonphysical" in warning for warning in library.warnings)
     with pytest.raises(DocumentError, match="Invalid normalized document data"):
         parse_ses(_ses(width="-1"))

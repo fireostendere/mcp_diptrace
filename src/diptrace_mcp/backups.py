@@ -152,7 +152,14 @@ class BackupStore:
         direct = self.root / key
         # A corrupt or redirected direct binding must remain visible to
         # _prepare_target_dir rather than being bypassed via another history.
-        if direct.exists() or is_link_like(direct) or not self._safe_root():
+        # An unreadable root fails closed the same way: pathlib re-raises
+        # EACCES from exists()/is_symlink(), and leaking it would turn an
+        # unwritable state directory into a hard error for read-only callers.
+        try:
+            direct_bound = direct.exists() or is_link_like(direct)
+        except OSError:
+            direct_bound = False
+        if direct_bound or not self._safe_root():
             return key, canonical_path
         try:
             path_exists = path.exists()
