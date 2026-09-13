@@ -1135,6 +1135,9 @@ def _main_window(app: Any, project: Path, timeout_seconds: float) -> Any:
                     if window.menu() is not None:
                         candidate_handle = fallback_handle
                         break
+                    if window.is_visible() and window.class_name() == "TFMyMessage":
+                        # Let the caller inspect the modal; never acknowledge it here.
+                        return app.window(handle=fallback_handle)
         if candidate_handle is None:
             stable_handle = None
             stable_samples = 0
