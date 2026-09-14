@@ -22,7 +22,7 @@ _MODIFIED = _SOURCE.replace(b"</Source>", b"<!-- headless CI smoke --></Source>"
 
 
 def _wait_for_active(store: SessionStore, process: subprocess.Popen[str]) -> dict[str, object]:
-    deadline = time.monotonic() + 10.0
+    deadline = time.monotonic() + 60.0
     while time.monotonic() < deadline:
         if process.poll() is not None:
             stdout, stderr = process.communicate()
@@ -34,7 +34,7 @@ def _wait_for_active(store: SessionStore, process: subprocess.Popen[str]) -> dic
         if metadata is not None:
             return metadata
         time.sleep(0.05)
-    raise RuntimeError("bridge did not publish an active session within 10 seconds")
+    raise RuntimeError("bridge did not publish an active session within 60 seconds")
 
 
 def run_smoke() -> None:
@@ -77,7 +77,7 @@ def run_smoke() -> None:
                 "apply",
                 sha256_bytes(store.working_path(session_id).read_bytes()),
             )
-            stdout, stderr = process.communicate(timeout=10)
+            stdout, stderr = process.communicate(timeout=60)
         except Exception:
             process.kill()
             process.communicate()

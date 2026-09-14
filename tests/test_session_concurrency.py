@@ -106,6 +106,7 @@ def test_two_processes_create_exactly_one_active_session(tmp_path: Path) -> None
     SessionStore(state_dir, 10_000_000)
     context = multiprocessing.get_context("spawn")
     barrier = context.Barrier(2)
+    queue_timeout_seconds = max(5.0, float(sessions_module._SESSION_LEASE_WAIT_SECONDS) + 5.0)
     results = context.Queue()
     release = context.Event()
     processes = [
@@ -120,7 +121,7 @@ def test_two_processes_create_exactly_one_active_session(tmp_path: Path) -> None
         process.start()
     try:
         try:
-            outcomes = [results.get(timeout=5) for _ in processes]
+            outcomes = [results.get(timeout=queue_timeout_seconds) for _ in processes]
         except Empty:
             pytest.fail("A session-create worker exited without reporting an outcome")
 
