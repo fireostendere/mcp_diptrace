@@ -1055,8 +1055,10 @@ class LibraryPadStyle(StrictModel):
     pad_type: str
     side: str
     shape: str
-    width: float = Field(ge=0.0)
-    height: float = Field(ge=0.0)
+    # Native caches can retain invalid defaults. Preserve them for review;
+    # _pad_geometry rejects nonphysical sizes instead of inventing copper.
+    width: float = Field(allow_inf_nan=False)
+    height: float = Field(allow_inf_nan=False)
     x_offset: float = Field(default=0.0, allow_inf_nan=False)
     y_offset: float = Field(default=0.0, allow_inf_nan=False)
     corner_percent: float = Field(default=0.0, ge=0.0, le=50.0)

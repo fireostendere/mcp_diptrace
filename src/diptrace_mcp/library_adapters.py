@@ -561,6 +561,17 @@ def get_library_model(document: DipTraceDocument) -> LibraryModel:
     pattern_root = _pattern_library_root(document)
     styles = _pad_styles(document, pattern_root, document.units)
     patterns = _patterns(document, pattern_root, styles)
+    warnings = [
+        f"Pad style {style.name!r} has nonphysical dimensions "
+        f"({style.width:g}, {style.height:g}) mm; no copper geometry is derived."
+        for style in styles
+        if style.width <= 0 or style.height <= 0
+    ]
+    if document.version and not document.version.startswith("4.3"):
+        warnings.append(
+            "Parser coverage for newer library fields is incomplete; unknown fields are "
+            "preserved and real DipTrace round-trip verification is still required."
+        )
     return LibraryModel(
         document_id=document_id_for(document),
         source_type=document.source_type,
@@ -571,12 +582,7 @@ def get_library_model(document: DipTraceDocument) -> LibraryModel:
         components=_components(document),
         patterns=patterns,
         pad_styles=styles,
-        warnings=[
-            "Parser coverage for newer library fields is incomplete; unknown fields are "
-            "preserved and real DipTrace round-trip verification is still required."
-        ]
-        if document.version and not document.version.startswith("4.3")
-        else [],
+        warnings=warnings,
     )
 
 

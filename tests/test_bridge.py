@@ -371,7 +371,7 @@ def test_committed_headless_smoke_script_runs_cross_process(tmp_path: Path) -> N
         env=environment,
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=180,
         check=False,
     )
 

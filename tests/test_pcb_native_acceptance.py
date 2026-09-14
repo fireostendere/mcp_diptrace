@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -112,6 +113,122 @@ def test_drc_dialog_classification_is_fail_closed() -> None:
         )
         == "pass"
     )
+
+
+@pytest.mark.parametrize(("suffix", "exports"), [(".dip", 1), (".dipxml", 2)])
+def test_native_worker_evidence_runs_dip_pipeline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str, exports: int
+) -> None:
+    root = tmp_path / "DipTrace"
+    root.mkdir()
+    (root / "Pcb.exe").write_bytes(b"exe")
+    project = tmp_path / f"board{suffix}"
+    project.write_bytes(b"board")
+    output = tmp_path / "roundtrip.dipxml"
+    request = _request(tmp_path, diptrace_root=root, project=project, output_xml=output)
+    calls: list[str] = []
+
+    class Window:
+        handle = 101
+
+        def wait(self, state: str, *, timeout: float) -> None:
+            calls.append(f"wait:{state}")
+
+    class App:
+        def __init__(self, pid: int) -> None:
+            self.process = pid
+            self.killed = False
+
+        def start(self, command: str, *, timeout: float):
+            calls.append(f"start:{command}")
+            return self
+
+        def kill(self, *, soft: bool) -> None:
+            self.killed = True
+
+    apps = iter((App(111), App(222)))
+    monkeypatch.setattr(
+        native, "_pywinauto_application", lambda: lambda **_kwargs: next(apps)
+    )
+    monkeypatch.setattr(native, "_main_window", lambda *_args: Window())
+    monkeypatch.setattr(
+        native,
+        "_post_menu_path",
+        lambda _window, path, *_args, **_kwargs: calls.append(path) or path,
+    )
+    monkeypatch.setattr(
+        native,
+        "_visible_dialog",
+        lambda *_args: SimpleNamespace(
+            handle=202,
+            class_name=lambda: "Dialog",
+            descendants=lambda: [],
+            window_text=lambda: "No Errors Found",
+        ),
+    )
+    monkeypatch.setattr(native, "_dismiss_dialog", lambda *_args: calls.append("dismiss"))
+    monkeypatch.setattr(native, "_save_window", lambda *_args: calls.append("save"))
+    monkeypatch.setattr(
+        native,
+        "_post_window_message",
+        lambda handle, message: calls.append(f"close:{handle}:{message}"),
+    )
+    monkeypatch.setattr(native, "_wait_for_exit", lambda *_args: calls.append("exit"))
+    monkeypatch.setattr(native, "_wait_for_export", lambda *_args: calls.append("export"))
+    monkeypatch.setattr(
+        native,
+        "_save_dialog_as_xml",
+        lambda _handle, path: path.write_bytes(b"<DipTrace-PCB/>"),
+    )
+    monkeypatch.setattr(native, "process_window_station_name", lambda: "WinSta0")
+    monkeypatch.setattr(native, "process_session_id", lambda: 7)
+
+    evidence = native._native_worker_evidence(request, desktop_name="Hidden")
+
+    assert evidence.completed and evidence.drc_status == "pass"
+    assert evidence.diptrace_pids == [111, 222]
+    assert [step["name"] for step in evidence.native_steps] == [
+        "open",
+        "refill_copper",
+        "run_drc",
+        "save",
+        "close",
+        "reopen",
+        "export_xml",
+        "close_reopened",
+    ]
+    assert output.is_file()
+    assert not evidence.forced_termination
+    assert calls.count("exit") == 2 and calls.count("export") == exports
+
+
+def test_native_worker_evidence_reports_failed_pipeline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "DipTrace"
+    root.mkdir()
+    (root / "Pcb.exe").write_bytes(b"exe")
+    project = tmp_path / "board.dip"
+    project.write_bytes(b"board")
+    app = SimpleNamespace(process=111, kill=lambda **_kwargs: None)
+    runner = SimpleNamespace(start=lambda *_args, **_kwargs: app)
+    monkeypatch.setattr(native, "_pywinauto_application", lambda: lambda **_kwargs: runner)
+    monkeypatch.setattr(
+        native,
+        "_main_window",
+        lambda *_args: (_ for _ in ()).throw(RuntimeError("window unavailable")),
+    )
+    monkeypatch.setattr(native, "_window_titles", lambda _app: ["board.dip"])
+    monkeypatch.setattr(native, "process_window_station_name", lambda: "WinSta0")
+    monkeypatch.setattr(native, "process_session_id", lambda: 7)
+
+    evidence = native._native_worker_evidence(
+        _request(tmp_path, diptrace_root=root), desktop_name="Hidden"
+    )
+
+    assert not evidence.completed and evidence.forced_termination
+    assert evidence.native_steps[-1]["name"] == "pipeline"
+    assert "window unavailable" in (evidence.error or "")
 
 
 def test_pcb_summary_exposes_whole_board_native_invariants() -> None:

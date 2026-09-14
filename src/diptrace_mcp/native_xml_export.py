@@ -16,13 +16,14 @@ import subprocess
 import sys
 import tempfile
 import uuid
-from contextlib import suppress
+from contextlib import ExitStack, suppress
 from ctypes import wintypes
 from pathlib import Path
 from typing import Any
 
 from . import headless_gui as hg
 from .windows_configurator import validate_diptrace_directory
+from .windows_job import KillOnCloseJob
 from .xml_document import DipTraceDocument
 
 _KINDS = {
@@ -116,7 +117,9 @@ def _run_hidden(
             "startup_dialog_sha256": startup_dialog_sha256,
         },
     )
-    with hg.HiddenDesktop(desktop_name) as desktop:
+    with hg.HiddenDesktop(desktop_name) as desktop, ExitStack() as cleanup:
+        job = KillOnCloseJob.create()
+        cleanup.callback(job.terminate_and_close)
         argv = [
             sys.executable,
             "-m",
@@ -125,7 +128,7 @@ def _run_hidden(
             str(request_path),
             str(result_path),
         ]
-        with desktop.launch(argv) as worker:
+        with desktop.launch(argv, job=job) as worker:
             exit_code = worker.wait(timeout)
             if exit_code is None:
                 worker.terminate(124)
@@ -258,6 +261,19 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
         result["desktop_name"] = hg.thread_desktop_name()
         window = hg._main_window(app, source, min(20, request["timeout"] / 2))
         if window.menu() is None:
+            # Disable only this owned button's animated theme, not its action.
+            # Default-button glow otherwise changes identical dialog hashes.
+            if window.class_name() == "TFMyMessage":
+                set_theme = windll.uxtheme.SetWindowTheme
+                set_theme.argtypes = [wintypes.HWND, wintypes.LPCWSTR, wintypes.LPCWSTR]
+                set_theme.restype = ctypes.c_long
+                for child in window.descendants():
+                    if (
+                        child.class_name() == "TButton"
+                        and child.window_text() == "OK"
+                        and set_theme(int(child.handle), "", "") != 0
+                    ):
+                        raise hg.HeadlessGuiError("cannot stabilize dialog button rendering")
             ffmpeg = shutil.which("ffmpeg")
             if ffmpeg:
                 from .cinematic_recording import _record_printwindow_video

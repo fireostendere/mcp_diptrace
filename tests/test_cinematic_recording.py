@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -85,6 +86,156 @@ def test_printwindow_encoder_crops_away_editor_controls() -> None:
     )
 
     assert command[command.index("-vf") + 1] == ("crop=80:60:10:12,pad=ceil(iw/2)*2:ceil(ih/2)*2")
+
+
+def test_printwindow_physical_pixel_capture_happy_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Api:
+        def __init__(self, callback):
+            self.callback = callback
+
+        def __call__(self, *args):
+            return self.callback(*args)
+
+    class User32:
+        def __init__(self) -> None:
+            self.print_calls = 0
+            self.GetWindowRect = Api(self.get_window_rect)
+            self.GetClientRect = Api(self.get_client_rect)
+            self.ClientToScreen = Api(self.client_to_screen)
+            self.PrintWindow = Api(self.print_window)
+            self.SendMessageTimeoutW = Api(self.send_message_timeout)
+
+        @staticmethod
+        def get_window_rect(_hwnd, pointer):
+            rect = pointer._obj
+            rect.left, rect.top, rect.right, rect.bottom = 10, 20, 14, 23
+            return 1
+
+        @staticmethod
+        def get_client_rect(_hwnd, pointer):
+            rect = pointer._obj
+            rect.left, rect.top, rect.right, rect.bottom = 0, 0, 3, 2
+            return 1
+
+        @staticmethod
+        def client_to_screen(_hwnd, pointer):
+            point = pointer._obj
+            point.x, point.y = 11, 21
+            return 1
+
+        def print_window(self, *_args):
+            self.print_calls += 1
+            return 0
+
+        @staticmethod
+        def send_message_timeout(*args):
+            args[-1]._obj.value = 1
+            return 1
+
+    class Gdi32:
+        def __init__(self) -> None:
+            self.buffer = ctypes.create_string_buffer(4 * 3 * 4)
+            self.deleted: list[int] = []
+            self.CreateCompatibleDC = Api(lambda _dc: 7)
+            self.CreateDIBSection = Api(self.create_dib)
+            self.SelectObject = Api(lambda _dc, object_: 9 if object_ == 8 else 1)
+            self.DeleteObject = Api(lambda object_: self.deleted.append(object_) or 1)
+            self.DeleteDC = Api(lambda dc: self.deleted.append(dc) or 1)
+            self.GdiFlush = Api(lambda: 1)
+
+        def create_dib(self, _dc, _info, _usage, bits, _section, _offset):
+            bits._obj.value = ctypes.addressof(self.buffer)
+            return 8
+
+    class Pipe:
+        closed = False
+
+        def __init__(self) -> None:
+            self.frames: list[bytes] = []
+
+        def write(self, frame: bytes) -> int:
+            self.frames.append(frame)
+            return len(frame)
+
+        def close(self) -> None:
+            self.closed = True
+
+    class Process:
+        pid = 321
+
+        def __init__(self) -> None:
+            self.stdin = Pipe()
+            self.waited = False
+            self.terminated = False
+
+        def wait(self, *, timeout: float) -> int:
+            self.waited = True
+            return 0
+
+        def poll(self) -> int:
+            return 0 if self.waited else None
+
+        def terminate(self) -> None:
+            self.terminated = True
+
+    class Thread:
+        def __init__(self, *, target, daemon: bool) -> None:
+            self.target = target
+            self.daemon = daemon
+            self.started = False
+
+        def start(self) -> None:
+            self.started = True
+            self.target()
+
+        def join(self, _timeout: float) -> None:
+            pass
+
+        def is_alive(self) -> bool:
+            return False
+
+    user32 = User32()
+    gdi32 = Gdi32()
+    process = Process()
+    commands: list[list[str]] = []
+    prepared: list[tuple[bytes, int, int]] = []
+    playback: list[str] = []
+    monkeypatch.setattr(recording.ctypes, "windll", SimpleNamespace(gdi32=gdi32), raising=False)
+    monkeypatch.setattr(
+        recording.subprocess,
+        "Popen",
+        lambda command, **_kwargs: commands.append(command) or process,
+    )
+    monkeypatch.setattr(recording.threading, "Thread", Thread)
+    monkeypatch.setattr(
+        recording, "_frame_has_visible_client_content", lambda *_args, **_kwargs: True
+    )
+    monkeypatch.setattr(recording.time, "monotonic", lambda: 0)
+    monkeypatch.setattr(recording.time, "sleep", lambda _seconds: None)
+
+    pid = recording._record_printwindow_video_in_physical_pixels(
+        user32=user32,
+        hwnd=42,
+        ffmpeg="ffmpeg.exe",
+        output=tmp_path / "capture.mp4",
+        fps=2,
+        duration_seconds=1,
+        playback=lambda: playback.append("played"),
+        prepare=lambda capture, width, height: prepared.append((capture(), width, height))
+        or (0, 0, 4, 3),
+    )
+
+    assert pid == 321
+    assert user32.print_calls >= 1
+    assert prepared[0][1:] == (4, 3)
+    assert len(process.stdin.frames) == 2
+    assert len(process.stdin.frames[0]) == 48
+    assert playback == ["played"]
+    assert "crop=4:3:0:0" in commands[0][commands[0].index("-vf") + 1]
+    assert process.stdin.closed and process.waited and not process.terminated
+    assert gdi32.deleted == [8, 7]
 
 
 def test_printwindow_black_frame_check_ignores_alpha() -> None:

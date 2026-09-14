@@ -1614,6 +1614,8 @@ def build_snapshot(document: DipTraceDocument, *, live_session: bool = False) ->
         from .library_adapters import get_embedded_pattern_model
 
         pattern_model = get_embedded_pattern_model(document)
+        if pattern_model is not None:
+            warnings.extend(pattern_model.warnings)
     via_styles = _board_via_styles(document)
     component_records, component_map, component_refdes_map = _component_records(document)
     net_records = _net_records(document, component_map, via_styles)
