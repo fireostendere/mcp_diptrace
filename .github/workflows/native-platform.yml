@@ -36,7 +36,8 @@ jobs:
           curl.exe --fail --location --retry 3 --max-time 180 https://diptrace.com/downloads/dipfree_en64.exe --output $installer
           if ($LASTEXITCODE -ne 0) { throw 'DipTrace download failed' }
           $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actual -ne '87a9d4cb14e01b0561d6a88d540a5775d92d011359b465d12c7c5d0f0e527e74') { throw "Pinned DipTrace installer mismatch: $actual" }
+          # DipTrace 5.3.5.1; Authenticode: NOVARM LIMITED via GlobalSign EV CodeSigning (verified 2026-10-08).
+          if ($actual -ne '8845d6e6e72f9671ea270ac462bd25c0c7794f68a7f4015b88aece980bfb848c') { throw "Pinned DipTrace installer mismatch: $actual" }
           $process = Start-Process $installer -ArgumentList '/silent','/hide' -PassThru
           if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Installer timeout' }
           if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
