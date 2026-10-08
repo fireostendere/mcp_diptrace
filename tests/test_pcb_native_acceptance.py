@@ -150,7 +150,14 @@ def test_native_worker_evidence_runs_dip_pipeline(
     monkeypatch.setattr(
         native, "_pywinauto_application", lambda: lambda **_kwargs: next(apps)
     )
-    monkeypatch.setattr(native, "_main_window", lambda *_args: Window())
+    startup = SimpleNamespace(handle=303, descendants=lambda: [], window_text=lambda: "Warning")
+    monkeypatch.setattr(native, "_visible", lambda _app, _cls: [startup] if len(calls) < 3 else [])
+
+    def ready(app: App, _project: Path, _timeout: float, acknowledge) -> Window:
+        acknowledge(app)
+        return Window()
+
+    monkeypatch.setattr(native, "_ready_main_window", ready)
     monkeypatch.setattr(
         native,
         "_post_menu_path",
@@ -187,7 +194,10 @@ def test_native_worker_evidence_runs_dip_pipeline(
 
     assert evidence.completed and evidence.drc_status == "pass"
     assert evidence.diptrace_pids == [111, 222]
-    assert [step["name"] for step in evidence.native_steps] == [
+    assert evidence.native_steps[0] == {
+        "name": "startup_dialog", "status": "acknowledged", "dialog_texts": ["Warning"]
+    }
+    assert [step["name"] for step in evidence.native_steps[1:]] == [
         "open",
         "refill_copper",
         "run_drc",
@@ -215,7 +225,7 @@ def test_native_worker_evidence_reports_failed_pipeline(
     monkeypatch.setattr(native, "_pywinauto_application", lambda: lambda **_kwargs: runner)
     monkeypatch.setattr(
         native,
-        "_main_window",
+        "_ready_main_window",
         lambda *_args: (_ for _ in ()).throw(RuntimeError("window unavailable")),
     )
     monkeypatch.setattr(native, "_window_titles", lambda _app: ["board.dip"])

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -80,3 +81,25 @@ def test_update_pours_fails_closed_on_unexpected_group() -> None:
     del objects[6]  # leaves a two-item pour group
     with pytest.raises(native_cad.HeadlessGuiError, match="copper-pour group"):
         native_cad._update_pours_item(_window(objects))
+
+
+def test_ready_main_window_acknowledges_until_menu_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Pcb.exe on a private desktop: the Direct3D warning disables the form at first.
+    states = iter((False, False, True))
+    acknowledged: list[str] = []
+    monkeypatch.setattr(native_cad, "_main_window", lambda *_args: "form")
+    monkeypatch.setattr(native_cad, "_is_ready", lambda _window: next(states))
+    monkeypatch.setattr(native_cad.time, "sleep", lambda _seconds: None)
+
+    window = native_cad._ready_main_window("app", Path("b.dip"), 5, acknowledged.append)
+
+    assert window == "form" and acknowledged == ["app"] * 3
+
+
+def test_ready_main_window_fails_closed_at_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(native_cad, "_main_window", lambda *_args: "modal")
+    monkeypatch.setattr(native_cad, "_is_ready", lambda _window: False)
+    monkeypatch.setattr(native_cad.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(native_cad.HeadlessGuiError, match="never became ready"):
+        native_cad._ready_main_window("app", Path("b.dip"), 0, lambda _app: None)
