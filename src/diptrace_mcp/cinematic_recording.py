@@ -111,7 +111,8 @@ _SCHEMATIC_5303_SCALE_INDEX = 17
 _SCHEMATIC_5303_SCALE_IDS = tuple(range(180, 197))
 _SCHEMATIC_5303_SCALE_SEPARATORS = frozenset((11, 14))
 _SCHEMATIC_5303_ZOOM_EXTENTS_INDEX = 16
-# 5.3.5.1 keeps the View/Scale layout above; only runtime command IDs differ (CI inventory).
+# 5.3.5.1 has the same View/Scale items at these positions; its command IDs shift
+# because File > Import and View > Drawing Mode gained entries (CI inventory).
 _SCHEMATIC_VIEW_PROFILES = {
     _SCHEMATIC_5303_SHA256: (
         _SCHEMATIC_5303_NATIVE_VIEW_PROFILE,

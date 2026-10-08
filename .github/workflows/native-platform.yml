@@ -5,6 +5,11 @@ on:
     paths:
       - '.github/workflows/native-platform.yml'
       - 'src/diptrace_mcp/native_cad.py'
+      - 'src/diptrace_mcp/headless_gui.py'
+      - 'src/diptrace_mcp/pcb_native_acceptance.py'
+      - 'src/diptrace_mcp/schematic_native_acceptance.py'
+      - 'src/diptrace_mcp/native_xml_export.py'
+      - 'src/diptrace_mcp/cinematic_recording.py'
       - 'scripts/validate_native_platform.py'
   workflow_dispatch:
 
@@ -21,7 +26,7 @@ env:
 jobs:
   native-windows:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -49,6 +54,57 @@ jobs:
       - name: Run real native save-reopen and manufacturing export
         shell: pwsh
         run: python scripts/validate_native_platform.py --diptrace-root "$env:DIPTRACE_ROOT" --output native-evidence
+      - name: Run schematic acceptance, XML export, recording and hidden PCB acceptance
+        shell: pwsh
+        run: |
+          # These tools refuse elevated tokens by design; runas /trustlevel drops the
+          # runner's Administrators group in the same session and window station.
+          choco install ffmpeg --version=9.0.2 -y --no-progress --limit-output
+          if ($LASTEXITCODE -ne 0) { throw 'ffmpeg install failed' }
+          $root = 'native-evidence/standard-user'
+          $evidence = (New-Item -ItemType Directory -Force $root).FullName
+          New-Item -ItemType Directory -Force "$root/xml-export", "$root/pcb-acceptance" | Out-Null
+          $py = (Get-Command python).Source
+          $paths = "$(Split-Path $py);$(Split-Path $py)\Scripts;C:\ProgramData\chocolatey\bin"
+          function Invoke-StandardUser([string]$Name, [string]$Arguments) {
+            $cmd = Join-Path $evidence "$Name.cmd"; $log = Join-Path $evidence "$Name.log"; $done = Join-Path $evidence "$Name.exit"
+            Set-Content -Path $cmd -Encoding ascii -Value "@echo off`r`ncd /d `"$PWD`"`r`nset PATH=$paths;%PATH%`r`n`"$py`" $Arguments > `"$log`" 2>&1`r`n(echo %ERRORLEVEL%)> `"$done`""
+            runas /trustlevel:0x20000 "cmd /c `"$cmd`""
+            $deadline = (Get-Date).AddMinutes(6)
+            while (-not (Test-Path $done) -and (Get-Date) -lt $deadline) { Start-Sleep 1 }
+            if (-not (Test-Path $done)) { throw "$Name timed out" }
+            $code = [int](Get-Content $done)
+            if ($code -ne 0) { Get-Content $log -Tail 60; throw "$Name failed with exit code $code" }
+          }
+          function Assert-Equal($Actual, $Expected, [string]$What) {
+            if ($Actual -ne $Expected) { throw "${What}: expected '$Expected', got '$Actual'" }
+          }
+          Invoke-StandardUser token '-c "import ctypes, sys; sys.exit(ctypes.windll.shell32.IsUserAnAdmin())"'
+
+          $source = 'i2c-level-shifter/i2c-level-shifter-module.dchxml'
+          $sha = (Get-FileHash $source -Algorithm SHA256).Hash.ToLowerInvariant()
+          $schematic = "-B -m diptrace_mcp.schematic_native_acceptance --diptrace-root `"$env:DIPTRACE_ROOT`" --project $source --expected-sha256 $sha --erc"
+          Invoke-StandardUser schematic-inspect "$schematic --output-dir $root/schematic-inspect --inspect --capture"
+          Invoke-StandardUser schematic-export "$schematic --output-dir $root/schematic-export"
+          foreach ($run in 'schematic-inspect', 'schematic-export') {
+            $erc = Get-Content "$root/$run/erc.json" -Raw | ConvertFrom-Json
+            Assert-Equal $erc.status 'no_errors_found' "$run ERC"
+            Assert-Equal $erc.menu_profile 'schematic-5.3.5.1-en-Verification-285-0ba7c412' "$run ERC menu"
+          }
+          $steps = (Get-Content "$root/schematic-export/result.json" -Raw | ConvertFrom-Json).native_steps
+          Assert-Equal (($steps | Where-Object closed).Count) 3 'closed schematic phases'
+          Assert-Equal $steps[0].menu_profile 'schematic-5.3.5.1-en-File-11-0ba7c412' 'schematic Save As menu'
+
+          Set-Content -Path "$root/empty-manifest.json" -Value '{"format":"diptrace-cinematic-v1","cues":[]}' -Encoding utf8NoBOM
+          Invoke-StandardUser recording "-m diptrace_mcp.cinematic_recording headless-capture capture --diptrace-root `"$env:DIPTRACE_ROOT`" --project $((Resolve-Path $source).Path) --editor schematic --manifest $root/empty-manifest.json --video $root/recording.mp4 --window-frame --native-extents --tail 1.0"
+          if (-not (Select-String -Path "$root/recording.log" -SimpleMatch '"native_view_profile": "schematic-5.3.5.1-en-zoom-extents-0ba7c412"')) { throw 'recording did not use the 5.3.5.1 Zoom Extents profile' }
+
+          Invoke-StandardUser xml-export "-m diptrace_mcp.native_xml_export --diptrace-root `"$env:DIPTRACE_ROOT`" --project native-evidence/i2c-board/saved.dip --output-xml $root/xml-export/saved.dipxml"
+
+          Invoke-StandardUser pcb-acceptance "-m diptrace_mcp.pcb_native_acceptance run --diptrace-root `"$env:DIPTRACE_ROOT`" --project native-evidence/i2c-board/reexport.dipxml --output-xml $root/pcb-acceptance/roundtrip.dipxml --evidence-json $root/pcb-acceptance/evidence.json --desktop hidden"
+          $pcb = Get-Content "$root/pcb-acceptance/evidence.json" -Raw | ConvertFrom-Json
+          if ($pcb.verdict -eq 'FAIL' -or @($pcb.structural_delta.PSObject.Properties).Count -ne 0) { throw "PCB acceptance: $($pcb.verdict) $($pcb.error)" }
+          "PCB acceptance verdict: $($pcb.verdict); DRC: $($pcb.drc_status)"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

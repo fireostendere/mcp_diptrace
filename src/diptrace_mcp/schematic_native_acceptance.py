@@ -38,7 +38,8 @@ _MENU_PROFILES = {
     ("Verification", "Electrical Rule Check"): ((282, 283, 284), frozenset(), 0),
 }
 # Reviewed builds: version, initialized menu inventory, "No errors found" ERC images.
-# 5.3.5.1 keeps the 5.3.0.3 menu layout; only runtime command IDs differ (CI inventory).
+# 5.3.5.1 has the same main-form menu items at these positions; its command IDs
+# shift because File > Import and View > Drawing Mode gained entries (CI inventory).
 _BUILDS: dict[str, tuple[str, dict[tuple[str, str], Any], frozenset[str]]] = {
     _EXE_SHA: ("5.3.0.3", _MENU_PROFILES, frozenset({_ERC_CLEAR_SHA})),
     "0ba7c41229b3c63766e7c67f5624cc6b284d4498de9a45768496667e4a0e8ea0": (
