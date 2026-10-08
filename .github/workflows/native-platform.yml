@@ -66,7 +66,7 @@ jobs:
           New-Item -ItemType Directory -Force "$root/xml-export", "$root/pcb-acceptance" | Out-Null
           $py = (Get-Command python).Source
           $paths = "$(Split-Path $py);$(Split-Path $py)\Scripts;C:\ProgramData\chocolatey\bin"
-          function Invoke-StandardUser([string]$Name, [string]$Arguments) {
+          function Invoke-StandardUser([string]$Name, [string]$Arguments, [int[]]$Allowed = @(0)) {
             $cmd = Join-Path $evidence "$Name.cmd"; $log = Join-Path $evidence "$Name.log"; $done = Join-Path $evidence "$Name.exit"
             Set-Content -Path $cmd -Encoding ascii -Value "@echo off`r`ncd /d `"$PWD`"`r`nset PATH=$paths;%PATH%`r`n`"$py`" $Arguments > `"$log`" 2>&1`r`n(echo %ERRORLEVEL%)> `"$done`""
             runas /trustlevel:0x20000 "cmd /c `"$cmd`""
@@ -74,7 +74,7 @@ jobs:
             while (-not (Test-Path $done) -and (Get-Date) -lt $deadline) { Start-Sleep 1 }
             if (-not (Test-Path $done)) { throw "$Name timed out" }
             $code = [int](Get-Content $done)
-            if ($code -ne 0) { Get-Content $log -Tail 60; throw "$Name failed with exit code $code" }
+            if ($code -notin $Allowed) { Get-Content $log -Tail 60; throw "$Name failed with exit code $code" }
           }
           function Assert-Equal($Actual, $Expected, [string]$What) {
             if ($Actual -ne $Expected) { throw "${What}: expected '$Expected', got '$Actual'" }
@@ -101,9 +101,10 @@ jobs:
 
           Invoke-StandardUser xml-export "-m diptrace_mcp.native_xml_export --diptrace-root `"$env:DIPTRACE_ROOT`" --project native-evidence/i2c-board/saved.dip --output-xml $root/xml-export/saved.dipxml"
 
-          Invoke-StandardUser pcb-acceptance "-m diptrace_mcp.pcb_native_acceptance run --diptrace-root `"$env:DIPTRACE_ROOT`" --project native-evidence/i2c-board/reexport.dipxml --output-xml $root/pcb-acceptance/roundtrip.dipxml --evidence-json $root/pcb-acceptance/evidence.json --desktop hidden"
+          Invoke-StandardUser pcb-acceptance "-m diptrace_mcp.pcb_native_acceptance run --diptrace-root `"$env:DIPTRACE_ROOT`" --project native-evidence/i2c-board/reexport.dipxml --output-xml $root/pcb-acceptance/roundtrip.dipxml --evidence-json $root/pcb-acceptance/evidence.json --desktop hidden" -Allowed 0, 2
           $pcb = Get-Content "$root/pcb-acceptance/evidence.json" -Raw | ConvertFrom-Json
-          if ($pcb.verdict -eq 'FAIL' -or @($pcb.structural_delta.PSObject.Properties).Count -ne 0) { throw "PCB acceptance: $($pcb.verdict) $($pcb.error)" }
+          # Exit 2 is HUMAN_REVIEW_REQUIRED: native refill recomputes pour fills and the project path changes.
+          if ($pcb.verdict -eq 'FAIL' -or $pcb.drc_status -ne 'pass' -or @($pcb.structural_delta.PSObject.Properties).Count -ne 0) { throw "PCB acceptance: $($pcb.verdict) $($pcb.drc_status) $($pcb.error)" }
           "PCB acceptance verdict: $($pcb.verdict); DRC: $($pcb.drc_status)"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
