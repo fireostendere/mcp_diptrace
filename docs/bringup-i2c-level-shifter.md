@@ -85,6 +85,10 @@ py -m diptrace_mcp.pcb_native_acceptance run `
   --save-as-menu "#0->#4"
 ```
 
+On DipTrace 5.3.5.1 omit `--refill-menu`: the default now resolves the
+copper-pour menu group, while the position `#3->#14` is *Clear All Copper Pours*
+in that build.
+
 - [x] Native copper refill completed without error.
 - [x] Native DRC reported `0` blocking errors and `No errors found`. Evidence screenshot: `.local/physical-validation/phase-a/inset-visible-verdict.png`.
 - [x] After refill the GND ratline disappeared; J1.1, J2.1, and both pours retained one NetId. No unexplained ratline remains.

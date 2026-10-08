@@ -40,7 +40,16 @@ from .windows_configurator import detect_diptrace_installations, validate_diptra
 from .windows_job import KillOnCloseJob
 from .xml_document import DipTraceDocument, sha256_bytes
 
-PROFILE = "diptrace-5.3.0.3-en"
+# English builds whose native menus and dialogs were verified for this adapter.
+# Command IDs are not usable identities: Delphi numbers items at runtime, and the
+# same 5.3.0.3 build shifted File > Export IDs by one between two launches.
+SUPPORTED_BUILDS = ("5.3.0.3", "5.3.5.1")
+_SAVE_AS_MENU = "#0->#4"
+_DRC_MENU = "#7->#0"
+_NC_DRILL_MENU = "#0->#9->#5"
+_GERBER_X2_MENU = "#0->#9->#4"
+_PICK_AND_PLACE_MENU = "#0->#9->#12"
+_MF_SEPARATOR = 0x0800
 EXTENSIONS = {
     "pcb": ("Pcb.exe", ".dipxml", ".dip"),
     "schematic": ("Schematic.exe", ".dchxml", ".dch"),
@@ -65,7 +74,9 @@ def installation_root() -> Path:
         return validate_diptrace_directory(Path(configured)).root
     installations = detect_diptrace_installations()
     if not installations:
-        raise HeadlessGuiError("A configured DipTrace 5.3.0.3 installation is required")
+        raise HeadlessGuiError(
+            f"A configured DipTrace installation is required ({', '.join(SUPPORTED_BUILDS)})"
+        )
     return installations[0].root
 
 
@@ -250,10 +261,50 @@ def _acknowledge_startup(app: Any, output: Path) -> None:
     time.sleep(0.2)
 
 
+def _menu_command(window: Any, path: str) -> None:
+    _post_menu_item(window, window.menu_item(path))
+
+
+def _update_pours_item(window: Any) -> Any:
+    """Objects > Update All Copper Pours, located by menu structure.
+
+    A fixed position does not survive 5.3.5.1: it adds Objects > "New Part
+    Request..." only when the menu opens, so 5.3.0.3's #3->#14 resolves to
+    "Clear All Copper Pours" there. In both verified builds the pour commands
+    are their own separator-delimited group of three (Place, Update, Clear).
+    """
+    top = window.menu().item(3)
+    if top.text().replace("&", "") != "Objects":
+        raise HeadlessGuiError("Native Objects menu is not where it was verified")
+    groups: list[list[Any]] = [[]]
+    for item in top.sub_menu().items():
+        if item.item_type() & _MF_SEPARATOR:
+            groups.append([])
+        else:
+            groups[-1].append(item)
+    pours = groups[2] if len(groups) > 2 else []
+    if len(pours) != 3 or any(item.sub_menu() is not None for item in pours):
+        raise HeadlessGuiError("Native Objects menu has no Place/Update/Clear copper-pour group")
+    return pours[1]
+
+
+def _is_ready(window: Any) -> bool:
+    """The main form is usable once its menu exists and no modal message disables it.
+
+    5.3.5.1 attaches the main menu after the form appears, and a startup message
+    can open after the first acknowledgement pass (the resolved window is then
+    the disabled-form fallback without a menu).
+    """
+    import win32gui
+
+    hwnd = int(window.handle)
+    return bool(win32gui.GetMenu(hwnd)) and bool(win32gui.IsWindowEnabled(hwnd))
+
+
 def _save_as(app: Any, window: Any, target: Path, timeout: float, *, xml: bool) -> None:
     if target.exists():
         raise HeadlessGuiError("Native output must not overwrite an existing file")
-    _post_menu_item(window, window.menu_item("#0->#4"))
+    _menu_command(window, _SAVE_AS_MENU)
     dialog = _dialog(app, timeout, "#32770")
     deadline = time.monotonic() + min(timeout, 10)
     while True:
@@ -357,7 +408,7 @@ def _menu_owner(thread_id: int) -> int:
 def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[str, Any]:
     import win32gui
 
-    _post_menu_item(window, window.menu_item("#0->#9->#5"))
+    _menu_command(window, _NC_DRILL_MENU)
     drill = _dialog(app, min(timeout, 20), "TDrillForm")
     time.sleep(0.2)
     _dump(output / "drill-controls.json", {"controls": _controls(drill)})
@@ -367,7 +418,7 @@ def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[
     _capture(drill, output / "drill-settings.png")
     _click_caption(drill, "Close")
     time.sleep(0.2)
-    _post_menu_item(window, window.menu_item("#0->#9->#4"))  # observed 5.3.0.3 Export/Gerber X2
+    _menu_command(window, _GERBER_X2_MENU)
     dialog = _dialog(app, timeout, "TExpForm")
     _dump(output / "gerber-controls.json", {"controls": _controls(dialog)})
     _capture(dialog, output / "gerber-dialog.png")
@@ -414,7 +465,6 @@ def _native_export(app: Any, window: Any, output: Path, timeout: float) -> dict[
     return {
         "assembly_exporter": "DipTrace Pick and Place",
         "exporter": "DipTrace Gerber X2 + NC Drill ZIP",
-        "ui_profile": PROFILE,
         "units_requested": "mm",
         "origin": "design_origin",
         "mirror": False,
@@ -450,7 +500,7 @@ def _choose_combo(hwnd: int, index: int) -> None:
 
 
 def _native_placement(app: Any, window: Any, output: Path, timeout: float) -> None:
-    _post_menu_item(window, window.menu_item("#0->#9->#12"))
+    _menu_command(window, _PICK_AND_PLACE_MENU)
     dialog = _dialog(app, min(timeout, 20), "TForm54")
     time.sleep(0.2)
     _dump(output / "placement-controls.json", {"controls": _controls(dialog)})
@@ -501,8 +551,10 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
     version_info = win32api.GetFileVersionInfo(str(executable), "\\")
     ms, ls = version_info["FileVersionMS"], version_info["FileVersionLS"]
     version = ".".join(str(value) for value in (ms >> 16, ms & 65535, ls >> 16, ls & 65535))
-    if version != "5.3.0.3":
-        raise HeadlessGuiError(f"Unsupported native UI build {version}; expected 5.3.0.3")
+    if version not in SUPPORTED_BUILDS:
+        raise HeadlessGuiError(
+            f"Unsupported native UI build {version}; verified: {', '.join(SUPPORTED_BUILDS)}"
+        )
     output = request.output_dir
     working = output / ("input" + xml_extension)
     working.write_bytes(source.raw_bytes)
@@ -512,7 +564,7 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
         "schema_version": 1,
         "source_sha256": source.sha256,
         "source_type": source.source_type,
-        "ui_profile": PROFILE,
+        "ui_profile": f"diptrace-{version}-en",
         "version": version,
         "executable_sha256": sha256_bytes(executable.read_bytes()),
         "desktop": desktop,
@@ -533,18 +585,21 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
                 try:
                     _acknowledge_startup(app, output)
                     window = _main_window(app, opened, min(2.0, request.timeout_seconds))
-                    break
+                    if _is_ready(window):
+                        break
                 except Exception:
                     if time.monotonic() >= deadline:
                         raise
-                    time.sleep(0.1)
+                if time.monotonic() >= deadline:
+                    raise HeadlessGuiError("Native main window never became ready")
+                time.sleep(0.1)
             report["steps"].append({"step": phase, "pid": int(app.process)})
             if phase == "open_save_close":
                 _save_as(app, window, binary, request.timeout_seconds, xml=False)
             else:
                 if source.kind == "pcb":
-                    _post_menu_item(window, window.menu_item("#3->#14"))
-                    _post_menu_item(window, window.menu_item("#7->#0"))
+                    _post_menu_item(window, _update_pours_item(window))
+                    _menu_command(window, _DRC_MENU)
                     dialog = _dialog(app, request.timeout_seconds, "TFMyMessage", "TForm60")
                     report["drc_texts"] = _texts(dialog, app)
                     report["drc_dialog_class"] = dialog.class_name()

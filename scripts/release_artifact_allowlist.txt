@@ -518,6 +518,7 @@ tests/test_model_cache.py
 tests/test_models.py
 tests/test_multirouter.py
 tests/test_native_acceptance_edge_coverage.py
+tests/test_native_cad_menus.py
 tests/test_native_export_process.py
 tests/test_native_net_port_types.py
 tests/test_native_platform_edge_coverage.py

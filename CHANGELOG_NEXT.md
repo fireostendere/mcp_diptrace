@@ -26,6 +26,11 @@ Changes in this section are later development and are not silently part of those
 
 ## Changed
 
+- the native PCB round-trip (`native_cad`) supports DipTrace 5.3.5.1 next to
+  5.3.0.3: it waits until the main form has its menu, and resolves Objects >
+  Update All Copper Pours by its menu group because 5.3.5.1 reveals an extra
+  Objects item only when the menu opens (a fixed position would have run
+  Clear All Copper Pours before DRC);
 - PCB ensemble candidates are now reviewed after their hypothetical operations
   are applied in memory, so hard physical/layout findings affect selection;
 - PCB placement scoring now includes board compactness, centering, simple

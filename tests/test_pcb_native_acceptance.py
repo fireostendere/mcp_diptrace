@@ -414,7 +414,7 @@ def test_parser_exposes_native_run_contract() -> None:
         ]
     )
     assert args.desktop == "hidden"
-    assert args.refill_menu == "#3->#14"
+    assert args.refill_menu == "copper-pour-group:update"
     assert args.drc_menu == "#7->#0"
     assert args.save_as_menu == "#0->#4"
     assert args.evidence_json is None

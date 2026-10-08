@@ -47,12 +47,17 @@ from .headless_gui import (
     process_window_station_name,
     thread_desktop_name,
 )
+from .native_cad import _update_pours_item
 from .windows_configurator import ConfiguratorError, validate_diptrace_directory
 from .xml_analysis import analyze_xml_semantics, compare_xml_semantics
 from .xml_document import DipTraceDocument
 
 _MAX_XML_BYTES = 128 * 1024 * 1024
-_DEFAULT_REFILL_MENU = "#3->#14"
+# Named target, not a position: DipTrace 5.3.5.1 reveals Objects > "New Part
+# Request..." only when the menu opens, so the 5.3.0.3 position #3->#14 is
+# "Clear All Copper Pours" there and DRC would run on an emptied board.
+_UPDATE_POURS_TARGET = "copper-pour-group:update"
+_DEFAULT_REFILL_MENU = _UPDATE_POURS_TARGET
 _REFILL_MENU_FALLBACKS = (
     "Objects->Update All Copper Pours",
     "Object->Update All Copper Pours",
@@ -278,18 +283,27 @@ def _post_menu_path(
     *,
     timeout_seconds: float = 0.0,
 ) -> str:
-    menu: Any = None
-    with suppress(Exception):
-        menu = window.menu()
-    if menu is None:
-        raise HeadlessGuiError("DipTrace PCB window has no native menu")
     deadline = time.monotonic() + timeout_seconds
+    while True:  # 5.3.5.1 attaches the main menu after the window appears
+        menu: Any = None
+        with suppress(Exception):
+            menu = window.menu()
+        if menu is not None:
+            break
+        if time.monotonic() >= deadline:
+            raise HeadlessGuiError("DipTrace PCB window has no native menu")
+        time.sleep(0.1)
     while True:
         errors: list[str] = []
         disabled = False
         for candidate in (path, *fallbacks):
             try:
-                _post_menu_item(window, window.menu_item(candidate))
+                item = (
+                    _update_pours_item(window)
+                    if candidate == _UPDATE_POURS_TARGET
+                    else window.menu_item(candidate)
+                )
+                _post_menu_item(window, item)
                 return candidate
             except Exception as exc:
                 disabled |= str(exc) == "native menu item is disabled"
