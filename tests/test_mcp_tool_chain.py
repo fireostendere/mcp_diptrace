@@ -45,7 +45,7 @@ def test_fixture_workflow_invokes_at_least_forty_public_mcp_tools(
         invoked: set[str] = set()
 
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=15),
         ) as session:
 

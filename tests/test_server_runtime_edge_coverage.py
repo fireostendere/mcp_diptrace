@@ -119,3 +119,40 @@ def test_robust_stdio_forwards_valid_invalid_input_and_output(monkeypatch: Any) 
     rendered = output.getvalue()
     assert '"jsonrpc":"2.0"' in rendered
     assert '"method":"ping"' in rendered
+
+
+def test_streamable_http_app_serves_the_project_version() -> None:
+    import httpx
+
+    request = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": {"name": "t", "version": "0"},
+        },
+    }
+
+    async def exercise() -> httpx.Response:
+        server = DipTraceFastMCP(name="http-test", version="9.9.9", json_response=True)
+        app = server.streamable_http_app()
+        # The default localhost transport security only admits loopback hosts.
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app),
+                base_url="http://127.0.0.1:8765",
+            ) as client,
+        ):
+            return await client.post(
+                "/mcp",
+                json=request,
+                headers={"Accept": "application/json, text/event-stream"},
+            )
+
+    response = anyio.run(exercise)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["result"]["serverInfo"] == {"name": "http-test", "version": "9.9.9"}

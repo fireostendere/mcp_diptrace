@@ -8,7 +8,13 @@ from typing import Annotated, Any, Literal, cast
 from mcp import types
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.fastmcp.server import StreamableHTTPASGIApp
+from mcp.server.lowlevel import Server
+from mcp.server.stdio import stdio_server
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from starlette.applications import Starlette
+from starlette.routing import Route
 
 from .error_boundary import (
     ToolBodyFailure,
@@ -379,28 +385,48 @@ def _finalize_listed_tool(tool: types.Tool) -> types.Tool:
 
 
 class DipTraceFastMCP(FastMCP):
-    """FastMCP with the project boundary attached only through public overrides.
+    """FastMCP used only through its public API.
 
-    Tool bodies are wrapped before registration, tools/list is finalized on
-    the listed copies, and ``call_tool`` maps every failure to the stable
-    envelope. No SDK-owned tool, metadata or manager object is mutated.
+    FastMCP remains the registry (tools, resources, prompts) and supplies the
+    public request handlers. The wire protocol is served by a project-owned
+    lowlevel ``Server`` so the version is ours and no FastMCP internals are
+    read or mutated. Tool bodies are wrapped before registration, tools/list
+    is finalized on the listed copies, and ``call_tool`` maps every failure to
+    the stable envelope.
     """
 
     def __init__(self, *args: Any, version: str, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        # FastMCP v1 exposes neither a version argument nor its lowlevel
-        # server; this subclass is the only place that touches ``_mcp_server``.
-        # Without it, initialize reports the MCP SDK's version as ours.
-        self._mcp_server.version = version
         self.prompt_names: list[str] = []
+        # Registered (wrapped) tool bodies by name, for audits; FastMCP keeps its own private.
+        self.tool_bodies: dict[str, Any] = {}
         # Optional replacement for the SDK stdio transport (see run_stdio_async).
         self.stdio_streams: Callable[[], AbstractAsyncContextManager[Any]] | None = None
+        # The same public handlers FastMCP wires into its own private server.
+        protocol: Server[Any, Any] = Server(
+            self.name, version=version, instructions=self.instructions
+        )
+        # FastMCP validates arguments itself, so the lowlevel check stays off.
+        protocol.call_tool(validate_input=False)(self.call_tool)
+        for register, handler in (
+            (protocol.list_tools, self.list_tools),
+            (protocol.list_resources, self.list_resources),
+            (protocol.read_resource, self.read_resource),
+            (protocol.list_prompts, self.list_prompts),
+            (protocol.get_prompt, self.get_prompt),
+            (protocol.list_resource_templates, self.list_resource_templates),
+        ):
+            register()(handler)  # type: ignore[no-untyped-call]  # SDK decorators are unannotated
+        self.protocol_server = protocol
 
     def tool(self, *args: Any, **kwargs: Any) -> Callable[[Any], Any]:
         register = super().tool(*args, **kwargs)
+        explicit_name = kwargs.get("name") or (args[0] if args else None)
 
         def decorator(function: Any) -> Any:
-            register(capture_tool_failures(function))
+            body = capture_tool_failures(function)
+            register(body)
+            self.tool_bodies[explicit_name or function.__name__] = body
             return function
 
         return decorator
@@ -422,15 +448,34 @@ class DipTraceFastMCP(FastMCP):
         thread-backed reader instead.
         """
 
-        if self.stdio_streams is None:
-            await super().run_stdio_async()
-            return
-        async with self.stdio_streams() as (read_stream, write_stream):
-            await self._mcp_server.run(
+        streams = self.stdio_streams or stdio_server
+        async with streams() as (read_stream, write_stream):
+            await self.protocol_server.run(
                 read_stream,
                 write_stream,
-                self._mcp_server.create_initialization_options(),
+                self.protocol_server.create_initialization_options(),
             )
+
+    def streamable_http_app(self) -> Starlette:
+        """Streamable HTTP app served by the project-owned protocol server.
+
+        Mirrors FastMCP's unauthenticated app; the session manager's own
+        defaults equal FastMCP's body-size, idle-timeout and session limits.
+        """
+
+        manager = StreamableHTTPSessionManager(
+            app=self.protocol_server,
+            json_response=self.settings.json_response,
+            stateless=self.settings.stateless_http,
+            security_settings=self.settings.transport_security,
+        )
+        return Starlette(
+            debug=self.settings.debug,
+            routes=[
+                Route(self.settings.streamable_http_path, endpoint=StreamableHTTPASGIApp(manager))
+            ],
+            lifespan=lambda _app: manager.run(),
+        )
 
     async def list_tools(self) -> list[types.Tool]:
         return [_finalize_listed_tool(tool) for tool in await super().list_tools()]

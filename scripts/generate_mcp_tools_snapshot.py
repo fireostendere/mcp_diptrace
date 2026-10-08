@@ -133,7 +133,7 @@ async def collect_public_tools(repository_root: Path) -> list[dict[str, Any]]:
             )
         )
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=30),
         ) as session:
             tools = await collect_tool_pages(session)

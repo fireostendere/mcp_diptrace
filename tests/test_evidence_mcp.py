@@ -59,7 +59,7 @@ async def _call_tool(
 ) -> Any:
     server = create_server(settings)
     async with create_connected_server_and_client_session(
-        server,
+        server.protocol_server,
         read_timeout_seconds=timedelta(seconds=10),
     ) as session:
         return await session.call_tool(name, arguments)
@@ -78,7 +78,7 @@ def test_evidence_tools_publish_typed_honest_schemas(tmp_path: Path) -> None:
         workspace.mkdir()
         server = create_server(_settings(workspace))
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=10),
         ) as session:
             tools = await session.list_tools()

@@ -36,25 +36,25 @@ def audit_event_loop_boundary() -> dict[str, Any]:
         )
         server = create_server(settings)
 
-    tools = server._tool_manager._tools
+    tools = server.tool_bodies
     offloaded_tools = sorted(
-        name for name, tool in tools.items() if getattr(tool.fn, _OFFLOAD_MARKER, False)
+        name for name, body in tools.items() if getattr(body, _OFFLOAD_MARKER, False)
     )
     unprotected_sync_tools = sorted(
         name
-        for name, tool in tools.items()
-        if not inspect.iscoroutinefunction(tool.fn) and not getattr(tool.fn, _OFFLOAD_MARKER, False)
+        for name, body in tools.items()
+        if not inspect.iscoroutinefunction(body) and not getattr(body, _OFFLOAD_MARKER, False)
     )
     unreviewed_async_tools = sorted(
         name
-        for name, tool in tools.items()
-        if inspect.iscoroutinefunction(tool.fn) and not getattr(tool.fn, _OFFLOAD_MARKER, False)
+        for name, body in tools.items()
+        if inspect.iscoroutinefunction(body) and not getattr(body, _OFFLOAD_MARKER, False)
     )
     missing_heavy_tools = sorted(HEAVY_TOOL_NAMES.difference(tools))
     heavy_tools_without_offload = sorted(
         name
         for name in HEAVY_TOOL_NAMES.intersection(tools)
-        if not getattr(tools[name].fn, _OFFLOAD_MARKER, False)
+        if not getattr(tools[name], _OFFLOAD_MARKER, False)
     )
 
     reasons: list[str] = []

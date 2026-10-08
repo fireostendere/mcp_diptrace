@@ -205,7 +205,7 @@ def test_every_public_tool_wrapper_reaches_the_service_with_schema_valid_input(
         assert service is not None
 
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=10),
         ) as session:
             listed = await session.list_tools()

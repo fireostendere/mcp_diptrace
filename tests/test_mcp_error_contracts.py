@@ -60,7 +60,7 @@ async def _call(
 ) -> CallToolResult:
     server = create_server(_settings(state_dir))
     async with create_connected_server_and_client_session(
-        server,
+        server.protocol_server,
         read_timeout_seconds=timedelta(seconds=10),
     ) as session:
         result = await session.call_tool(name, arguments)
@@ -208,7 +208,7 @@ def test_successful_tool_result_is_not_nested_by_boundary(tmp_path: Path) -> Non
             )
         )
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=10),
         ) as session:
             result = await session.call_tool(
@@ -297,7 +297,9 @@ def test_every_tool_is_bounded_without_mutating_sdk_objects(tmp_path: Path) -> N
     tools = server._tool_manager._tools
 
     assert len(tools) == 152
+    assert set(server.tool_bodies) == set(tools)
     for tool in tools.values():
+        assert tool.fn is server.tool_bodies[tool.name], tool.name
         body = inspect.unwrap(tool.fn)
         assert tool.fn is not body, tool.name
         assert not inspect.iscoroutinefunction(body), tool.name

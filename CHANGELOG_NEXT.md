@@ -46,10 +46,11 @@ Changes in this section are later development and are not silently part of those
   `plan_component_placement` and `set_component_properties`; `set_diff_pair_rules` and
   `set_length_constraints` fold into `update_net_class_rules`; `unlock_components` is
   `lock_components(locked=false)`;
-- the MCP boundary uses only public FastMCP overrides (`tool`, `prompt`, `list_tools`,
-  `call_tool`, `run_stdio_async`) instead of mutating SDK tool objects; the console
-  entry point always starts through `server.run()`, and `initialize` reports the
-  DipTrace MCP version rather than the SDK's;
+- FastMCP is used only through its public API: the boundary overrides `tool`,
+  `prompt`, `list_tools` and `call_tool` instead of mutating SDK tool objects, and
+  stdio and Streamable HTTP are served by a project-owned lowlevel `Server`
+  (`protocol_server`) wired to FastMCP's public handlers, so `initialize` reports
+  the DipTrace MCP version rather than the SDK's;
 - coverage-wave test files are renamed after the modules they cover
   (`test_<module>_edge_coverage.py`); 28 tests that added no unique line coverage
   were removed, keeping total coverage at 93.9%;
