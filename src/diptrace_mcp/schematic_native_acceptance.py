@@ -37,6 +37,24 @@ _MENU_PROFILES = {
     ),
     ("Verification", "Electrical Rule Check"): ((282, 283, 284), frozenset(), 0),
 }
+# Reviewed builds: version, initialized menu inventory, "No errors found" ERC images.
+# 5.3.5.1 has the same main-form menu items at these positions; its command IDs
+# shift because File > Import and View > Drawing Mode gained entries (CI inventory).
+_BUILDS: dict[str, tuple[str, dict[tuple[str, str], Any], frozenset[str]]] = {
+    _EXE_SHA: ("5.3.0.3", _MENU_PROFILES, frozenset({_ERC_CLEAR_SHA})),
+    "0ba7c41229b3c63766e7c67f5624cc6b284d4498de9a45768496667e4a0e8ea0": (
+        "5.3.5.1",
+        {
+            ("File", "Save As..."): (
+                (2, 3, 4, 10, 11, 12, 13, 14, 28, *range(50, 63)),
+                frozenset({6, 9, 13, 17, 20}),
+                4,
+            ),
+            ("Verification", "Electrical Rule Check"): ((285, 286, 287), frozenset(), 0),
+        },
+        frozenset({"91d51dc32df6900dbfabf84dc04dd9cb6fe104bb4d4a171677e9b8387447fcac"}),
+    ),
+}
 
 
 def _write_new(path: Path, payload: dict[str, Any]) -> None:
@@ -59,14 +77,16 @@ def _menu(window: Any, executable: Path, section: str, label: str) -> str:
     submenu = cr._initialized_submenu(window, root_item)
     matches = cr._menu_items_named(submenu, label)
     if not matches and (section, label) in _MENU_PROFILES:
-        if hg._sha256(executable) != _EXE_SHA:
+        digest = hg._sha256(executable) or ""
+        if digest not in _BUILDS:
             raise hg.HeadlessGuiError("unverified schematic menu executable")
-        ids, separators, target = _MENU_PROFILES[section, label]
+        version, profiles, _ = _BUILDS[digest]
+        ids, separators, target = profiles[section, label]
         items = cr._pinned_menu_items(submenu, ids, separators, menu_name=section)
         if items[target].sub_menu() is not None:
             raise hg.HeadlessGuiError("expected schematic menu leaf")
         hg._post_menu_item(window, items[target])
-        return f"schematic-5.3.0.3-en-{section}-{ids[target]}-d85632b2"
+        return f"schematic-{version}-en-{section}-{ids[target]}-{digest[:8]}"
     if len(matches) != 1:
         raise hg.HeadlessGuiError(
             f"unverified {section}->{label} menu: "
@@ -180,7 +200,7 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
             request["session"],
         ):
             raise hg.HeadlessGuiError("worker station/session mismatch")
-        if report["executable_sha256"] != _EXE_SHA:
+        if report["executable_sha256"] not in _BUILDS:
             raise hg.HeadlessGuiError("unverified Schematic.exe build")
         _validate_source(source, request["source_sha256"])
         phases = (
@@ -294,7 +314,7 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
                 }
                 if (
                     evidence["class"] == "TFMyMessage"
-                    and evidence["client_sha256"] == _ERC_CLEAR_SHA
+                    and evidence["client_sha256"] in _BUILDS[report["executable_sha256"]][2]
                 ):
                     report["erc_status"] = "no_errors_found"
                 evidence["status"] = report["erc_status"]
@@ -359,7 +379,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("timeout must be finite and between 30 and 300 seconds")
     if os.name != "nt" or hg.process_is_elevated():
         raise hg.HeadlessGuiError("non-elevated Windows process required")
-    if hg._sha256(Path(args.diptrace_root) / "Schematic.exe") != _EXE_SHA:
+    if hg._sha256(Path(args.diptrace_root) / "Schematic.exe") not in _BUILDS:
         raise hg.HeadlessGuiError("unverified Schematic.exe build")
     if any(path.is_symlink() for path in (folder, *folder.parents)):
         raise ValueError("output directory must not traverse symlinks")

@@ -29,7 +29,6 @@ from .headless_gui import (
     _interactive_context,
     _launch_on_current_desktop,
     _load_json,
-    _main_window,
     _post_menu_item,
     _post_window_message,
     _pywinauto_application,
@@ -47,7 +46,7 @@ from .headless_gui import (
     process_window_station_name,
     thread_desktop_name,
 )
-from .native_cad import _update_pours_item
+from .native_cad import _ready_main_window, _update_pours_item, _visible
 from .windows_configurator import ConfiguratorError, validate_diptrace_directory
 from .xml_analysis import analyze_xml_semantics, compare_xml_semantics
 from .xml_document import DipTraceDocument
@@ -374,14 +373,23 @@ def _native_worker_evidence(
     def step(name: str, status: str, **evidence: Any) -> None:
         steps.append({"name": name, "status": status, **evidence})
 
+    def acknowledge_startup(running: Any) -> None:
+        # Private desktops open with a Direct3D warning; record and close it.
+        # The semantic XML comparison still decides whether the design survived.
+        for dialog in _visible(running, "TFMyMessage"):
+            texts = _dialog_texts(dialog)
+            _dismiss_dialog(dialog, request.timeout_seconds)
+            step("startup_dialog", "acknowledged", dialog_texts=texts)
+
     try:
         command = subprocess.list2cmdline(
             [str(request.diptrace_root / "Pcb.exe"), str(request.project)]
         )
         app = application_class(backend="win32").start(command, timeout=request.timeout_seconds)
         pids.append(int(app.process))
-        window = _main_window(app, request.project, request.timeout_seconds)
-        window.wait("exists enabled", timeout=request.timeout_seconds)
+        window = _ready_main_window(
+            app, request.project, request.timeout_seconds, acknowledge_startup
+        )
         step("open", "completed", pid=int(app.process))
 
         refill_menu = _post_menu_path(
@@ -436,8 +444,9 @@ def _native_worker_evidence(
             reopen_command, timeout=request.timeout_seconds
         )
         pids.append(int(app.process))
-        reopened = _main_window(app, saved_project, request.timeout_seconds)
-        reopened.wait("exists enabled", timeout=request.timeout_seconds)
+        reopened = _ready_main_window(
+            app, saved_project, request.timeout_seconds, acknowledge_startup
+        )
         step("reopen", "completed", pid=int(app.process))
 
         save_as_menu = _post_menu_path(

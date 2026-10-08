@@ -31,6 +31,14 @@ Changes in this section are later development and are not silently part of those
   Update All Copper Pours by its menu group because 5.3.5.1 reveals an extra
   Objects item only when the menu opens (a fixed position would have run
   Clear All Copper Pours before DRC);
+- schematic native acceptance, native XML export and the schematic Zoom
+  Extents step of cinematic recording also accept DipTrace 5.3.5.1. Its menus
+  have the same items at the pinned positions, but command IDs shift, so each
+  build has its own reviewed profile. The native-windows CI job now runs these
+  tools and hidden-desktop PCB acceptance on 5.3.5.1 as a standard user;
+- `pcb_native_acceptance --desktop hidden` works again: it records and
+  acknowledges the Direct3D startup message that a private desktop shows, and
+  waits until the main form has its menu and is enabled before posting commands;
 - PCB ensemble candidates are now reviewed after their hypothetical operations
   are applied in memory, so hard physical/layout findings affect selection;
 - PCB placement scoring now includes board compactness, centering, simple

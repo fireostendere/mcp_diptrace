@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 import uuid
+from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -301,6 +302,29 @@ def _is_ready(window: Any) -> bool:
     return bool(win32gui.GetMenu(hwnd)) and bool(win32gui.IsWindowEnabled(hwnd))
 
 
+def _ready_main_window(
+    app: Any, project: Path, timeout: float, acknowledge: Callable[[Any], None]
+) -> Any:
+    """Acknowledge startup messages until the project form is menu-ready.
+
+    On a private desktop Pcb.exe opens with a Direct3D warning that disables the
+    form, so a plain main-window lookup returns the modal instead.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            acknowledge(app)
+            window = _main_window(app, project, min(2.0, timeout))
+            if _is_ready(window):
+                return window
+        except Exception:
+            if time.monotonic() >= deadline:
+                raise
+        if time.monotonic() >= deadline:
+            raise HeadlessGuiError("Native main window never became ready")
+        time.sleep(0.1)
+
+
 def _save_as(app: Any, window: Any, target: Path, timeout: float, *, xml: bool) -> None:
     if target.exists():
         raise HeadlessGuiError("Native output must not overwrite an existing file")
@@ -580,19 +604,12 @@ def _worker(request: NativeCadRequest, desktop: str) -> dict[str, Any]:
                 subprocess.list2cmdline([str(executable), str(opened)]),
                 timeout=request.timeout_seconds,
             )
-            deadline = time.monotonic() + request.timeout_seconds
-            while True:
-                try:
-                    _acknowledge_startup(app, output)
-                    window = _main_window(app, opened, min(2.0, request.timeout_seconds))
-                    if _is_ready(window):
-                        break
-                except Exception:
-                    if time.monotonic() >= deadline:
-                        raise
-                if time.monotonic() >= deadline:
-                    raise HeadlessGuiError("Native main window never became ready")
-                time.sleep(0.1)
+            window = _ready_main_window(
+                app,
+                opened,
+                request.timeout_seconds,
+                lambda running: _acknowledge_startup(running, output),
+            )
             report["steps"].append({"step": phase, "pid": int(app.process)})
             if phase == "open_save_close":
                 _save_as(app, window, binary, request.timeout_seconds, xml=False)
