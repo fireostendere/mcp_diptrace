@@ -468,7 +468,6 @@ tests/test_config_paths.py
 tests/test_connectivity.py
 tests/test_copper_pour_obstacles.py
 tests/test_copper_pours_edge_coverage.py
-tests/test_coverage_wave28_platform_deep.py
 tests/test_creation_sha_gate.py
 tests/test_cross_platform_exchange_paths.py
 tests/test_diptrace53_fixture_manifest.py
@@ -522,6 +521,7 @@ tests/test_native_acceptance_edge_coverage.py
 tests/test_native_export_process.py
 tests/test_native_net_port_types.py
 tests/test_native_platform_edge_coverage.py
+tests/test_native_workers_edge_coverage.py
 tests/test_native_xml_export.py
 tests/test_ngspice.py
 tests/test_nonfinite_inputs.py
