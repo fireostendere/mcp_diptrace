@@ -13,6 +13,7 @@ from ..model_cache import ModelCache
 from ..plans import PlanStore
 from ..policy import Policy
 from ..provenance_registry import TrustedProvenanceRegistry
+from ..retention import prune_in_background
 from ..sessions import SessionStore
 from ..transactions import TransactionStore
 from .context import DocumentGateway, ServiceContext
@@ -48,17 +49,21 @@ def build_service_container(settings: Settings) -> ServiceContainer:
         allowed_roots=settings.allowed_roots,
         retention=retention,
         active_ttl_seconds=settings.live_session_ttl_seconds,
+        prune_on_init=False,
     )
-    transactions = TransactionStore(settings.state_dir, retention=retention)
-    plans = PlanStore(settings.state_dir, retention=retention)
-    findings = FindingStore(settings.state_dir, retention=retention)
+    transactions = TransactionStore(settings.state_dir, retention=retention, prune_on_init=False)
+    plans = PlanStore(settings.state_dir, retention=retention, prune_on_init=False)
+    findings = FindingStore(settings.state_dir, retention=retention, prune_on_init=False)
+    # Jobs prune synchronously: interrupted jobs must be inspected before they are failed.
     jobs = JobStore(settings.state_dir, retention=retention)
     exports = ExportStore(
         settings.state_dir,
         settings.max_document_bytes,
         retention=retention,
+        prune_on_init=False,
     )
-    backups = BackupStore(settings.state_dir, retention=retention)
+    backups = BackupStore(settings.state_dir, retention=retention, prune_on_init=False)
+    prune_in_background((sessions, transactions, plans, findings, exports, backups))
     external_jobs = ExternalJobManager(settings, jobs)
     models = ModelCache(max_bytes=settings.model_cache_max_bytes)
     trusted_provenance_registry = TrustedProvenanceRegistry.load_embedded()

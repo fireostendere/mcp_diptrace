@@ -67,7 +67,7 @@ Do not expose the HTTP transport as a general remote network service unless the 
 
 ## Discover capabilities first
 
-The public MCP contract contains **171 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
+The public MCP contract contains **152 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
 
 Call `get_capabilities` before assuming that a particular write or adapter path is available.
 
@@ -271,8 +271,8 @@ explicit staged macros exist.
 
 The repository contains operator-accepted Schematic and PCB examples:
 
-- [schematic GIF](../i2c-level-shifter-demo.gif) / [MP4](../i2c-level-shifter-demo.mp4);
-- [PCB GIF](../i2c-level-shifter-pcb-demo.gif) / [MP4](../i2c-level-shifter-pcb-demo.mp4).
+- [schematic GIF](../i2c-level-shifter/i2c-level-shifter-demo.gif) / [MP4](../i2c-level-shifter/i2c-level-shifter-demo.mp4);
+- [PCB GIF](../i2c-level-shifter/i2c-level-shifter-pcb-demo.gif) / [MP4](../i2c-level-shifter/i2c-level-shifter-pcb-demo.mp4).
 
 See [CINEMATIC_DEMO_MODE.md](CINEMATIC_DEMO_MODE.md).
 

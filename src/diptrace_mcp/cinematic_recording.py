@@ -1914,7 +1914,12 @@ def record_windows(
         duration_seconds=duration_seconds,
         draw_mouse=draw_mouse,
     )
-    return subprocess.run(command, check=False).returncode
+    # A timed capture whose window vanished can leave ffmpeg waiting forever.
+    timeout = None if duration_seconds is None else duration_seconds + 30.0
+    try:
+        return subprocess.run(command, check=False, timeout=timeout).returncode
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"ffmpeg capture did not stop within {timeout:g}s") from exc
 
 
 def _convert_video_to_gif(

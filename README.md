@@ -22,18 +22,18 @@ It consists of:
 
 ### Schematic assembly
 
-[![I2C level-shifter assembly in DipTrace](i2c-level-shifter-demo.gif)](i2c-level-shifter-demo.mp4)
+[![I2C level-shifter assembly in DipTrace](i2c-level-shifter/i2c-level-shifter-demo.gif)](i2c-level-shifter/i2c-level-shifter-demo.mp4)
 
 This real DipTrace Schematic capture assembles a two-channel BSS138 I²C level
 shifter: all 16 symbols appear one at a time, followed by the six electrical
 nets. The recording was produced on an isolated Win32 desktop without taking
 over the operator's cursor or keyboard. The editable source is
-[`i2c-level-shifter.dchxml`](i2c-level-shifter.dchxml); the full-resolution
-recording is [`i2c-level-shifter-demo.mp4`](i2c-level-shifter-demo.mp4).
+[`i2c-level-shifter.dchxml`](i2c-level-shifter/i2c-level-shifter.dchxml); the full-resolution
+recording is [`i2c-level-shifter-demo.mp4`](i2c-level-shifter/i2c-level-shifter-demo.mp4).
 
 ### PCB layout
 
-[![I2C level-shifter PCB in DipTrace](i2c-level-shifter-pcb-demo.gif)](i2c-level-shifter-pcb-demo.mp4)
+[![I2C level-shifter PCB in DipTrace](i2c-level-shifter/i2c-level-shifter-pcb-demo.gif)](i2c-level-shifter/i2c-level-shifter-pcb-demo.mp4)
 
 The matching 25×12 mm PCB uses compact straight 1×4 2.54 mm headers, symmetric
 device placement, 14 routed traces, Top and Bottom GND pours, and 17 distributed
@@ -42,9 +42,9 @@ Components and routes appear in construction order; GND pours and stitching
 appear in the final stage. The
 capture is cropped to the complete purple board outline with margin instead of
 the editor controls. The editable source is
-[`i2c-level-shifter-pcb.dipxml`](i2c-level-shifter-pcb.dipxml); the
+[`i2c-level-shifter-pcb.dipxml`](i2c-level-shifter/i2c-level-shifter-pcb.dipxml); the
 full-resolution recording is
-[`i2c-level-shifter-pcb-demo.mp4`](i2c-level-shifter-pcb-demo.mp4).
+[`i2c-level-shifter-pcb-demo.mp4`](i2c-level-shifter/i2c-level-shifter-pcb-demo.mp4).
 
 The operator confirmed both repository examples in the current DipTrace
 configuration on 2026-08-16. This is scoped presentation evidence, not universal
@@ -109,7 +109,7 @@ is not yet published.
 
 ## What it provides
 
-The public MCP surface currently registers 171 tools. Runtime
+The public MCP surface currently registers 152 tools. Runtime
 `get_capabilities` remains authoritative for the active
 installation and document.
 

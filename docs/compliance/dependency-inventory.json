@@ -55,7 +55,7 @@
         "runtime"
       ],
       "declared_requirements": [
-        "mcp>=1.28.1,<2"
+        "mcp>=1.28.1,<1.31"
       ],
       "human_review_required": true,
       "license": "MIT",

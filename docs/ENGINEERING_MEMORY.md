@@ -2,7 +2,8 @@
 
 The durable engineering record has three layers:
 
-1. `PCB_BUILD.md` and `SCHEMATIC_BUILD.md` are the authoritative live handoffs:
+1. A project's `PCB_BUILD.md` and `SCHEMATIC_BUILD.md` (for example in
+   `dut-controller-reva/`) are the authoritative live handoffs:
    gate status, exact SHAs, failure evidence, resume command, deviations, and
    checkpoint. A schematic-only run must not rewrite the PCB handoff.
 2. `docs/engineering-memory/*.md` is an append-only retrieval mirror. It contains
@@ -14,10 +15,10 @@ The durable engineering record has three layers:
 After updating a project's handoff, capture the current result:
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/record_quality_gate_memory.py . \
+PYTHONPATH=src .venv/bin/python scripts/record_quality_gate_memory.py dut-controller-reva \
   --board dut-controller-reva-pcb.dipxml \
   --schematic dut-controller-reva.dchxml \
-  --memory docs/engineering-memory/dut-controller-reva.md
+  --memory ../docs/engineering-memory/dut-controller-reva.md
 ```
 
 The command is idempotent for the same handoff/artifact state. A blocked result
@@ -30,7 +31,7 @@ remain listed and are not silently promoted to `PASS`.
 
 ```text
 knowledge_ingest(source="/mnt/c/Users/fireo/mcp_diptrace/docs/engineering-memory")
-knowledge_ingest(source="/mnt/c/Users/fireo/mcp_diptrace/PCB_BUILD.md")
+knowledge_ingest(source="/mnt/c/Users/fireo/mcp_diptrace/dut-controller-reva/PCB_BUILD.md")
 ```
 
 Never record an unverified datasheet claim as a fact. Put the source, revision,

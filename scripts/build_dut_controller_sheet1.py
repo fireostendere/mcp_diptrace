@@ -14,8 +14,8 @@ from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.xml_document import XmlEdit
 
 ROOT = Path(__file__).resolve().parents[1]
-ARTIFACT = ROOT / "dut-controller-reva.dchxml"
-SEED = ROOT / "i2c-level-shifter-module.dchxml"
+ARTIFACT = ROOT / "dut-controller-reva" / "dut-controller-reva.dchxml"
+SEED = ROOT / "i2c-level-shifter" / "i2c-level-shifter-module.dchxml"
 STATE = ROOT / ".local" / "state"
 SHEET = "SYSTEM_OVERVIEW"
 BLOCKS = {

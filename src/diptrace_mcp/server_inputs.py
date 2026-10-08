@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Sequence
 from typing import Annotated, Any, Literal, cast
 
 from mcp import types
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .error_boundary import (
+    ToolBodyFailure,
+    capture_tool_failures,
     error_result_to_mcp_result,
     exception_to_error_result,
-    wrap_tool_callable,
 )
 from .errors import DipTraceMcpError, InternalStateError
 from .scaffolding import (
@@ -115,9 +118,8 @@ class AbandonLiveSessionResult(BaseModel):
     diptrace_host_acknowledged: Literal[False]
     acknowledgement_scope: Literal["local_session_state_only"]
     message: str
-DISTANCE_UNITS_DESCRIPTION = (
-    "All distances are in millimetres, regardless of the document's own Units attribute."
-)
+# Repeated in ~70 tool descriptions: every character here costs ~70 in tools/list.
+DISTANCE_UNITS_DESCRIPTION = "Distances are mm, regardless of the document Units attribute."
 _INPUT_SCHEMA_RESOURCE = "diptrace://schemas/tool-inputs"
 FormatVersionInput = Annotated[
     str,
@@ -175,6 +177,14 @@ ComponentSyncMappingInput = Annotated[
             "x-diptrace-schema": (
                 f"{_INPUT_SCHEMA_RESOURCE}#/component_sync_mapping"
             )
+        }
+    ),
+]
+SchematicEnsembleConfigInput = Annotated[
+    dict[str, object],
+    Field(
+        json_schema_extra={
+            "x-diptrace-schema": f"{_INPUT_SCHEMA_RESOURCE}#/schematic_ensemble_config"
         }
     ),
 ]
@@ -241,14 +251,15 @@ _GEOMETRIC_FIELD_NAMES = {
 _GENERIC_SCHEMA_TOOLS = {
     "analyze_routing_congestion",
     "create_pcb_document",
+    "rank_schematic_placement_candidates",
     "route_connections",
     "set_panelization",
     "stage_operations",
     "sync_schematic_to_pcb",
 }
 _DRY_RUN_DESCRIPTION = (
-    "`dry_run=true` previews without writing. Set `dry_run=false` only after "
-    "inspecting the preview and pass its `expected_sha256`."
+    "dry_run=true only previews; write with dry_run=false after reviewing it, "
+    "passing its expected_sha256."
 )
 _COMPONENT_ANGLE_CAVEAT = (
     "Component angle semantics have not yet been independently validated against "
@@ -269,28 +280,6 @@ _CLEARANCE_TOOLS = {
     "plan_diff_pair_route",
     "analyze_routing_congestion",
 }
-_COMPATIBILITY_ALIAS_DESCRIPTIONS = {
-    "analyze_controlled_impedance": "Alias: validate_impedance_constraints.",
-    "check_silkscreen": "Alias: run_silkscreen_check.",
-    "legalize_component_placement": "Preset: plan_component_placement.",
-    "run_assembly_review": "Assembly review profile.",
-    "run_board_review": "Complete registered PCB review profile.",
-    "run_bom_review": "BOM review profile.",
-    "run_component_clearance_check": "Placement-clearance review profile.",
-    "run_connectivity_check": "Connectivity review profile.",
-    "run_drc": "PCB placement, connectivity and clearance profile.",
-    "run_erc": "Schematic connectivity and metadata profile.",
-    "run_manufacturing_geometry_check": "Manufacturing-geometry review profile.",
-    "run_manufacturing_review": "Manufacturing review profile.",
-    "run_schematic_review": "Complete registered schematic review profile.",
-    "run_silkscreen_check": "Silkscreen review profile.",
-    "run_testability_review": "Testability review profile.",
-    "run_thermal_review": "Thermal-metadata review profile.",
-    "set_component_fields": "Custom-field-only component update.",
-    "set_diff_pair_rules": "Net-class differential-pair preset.",
-    "set_length_constraints": "Net-class length preset.",
-    "unlock_components": "Unlock selected components.",
-}
 def _schema_property_names(schema: Any) -> set[str]:
     names: set[str] = set()
     if isinstance(schema, dict):
@@ -303,97 +292,155 @@ def _schema_property_names(schema: Any) -> set[str]:
         for value in schema:
             names.update(_schema_property_names(value))
     return names
-def _finalize_tool_descriptions(mcp: FastMCP) -> None:
-    """Add shared schema and unit disclosures to the concrete MCP surface."""
+_SCHEMA_VALUE_KEYWORDS = frozenset({"default", "examples", "const", "enum"})
 
-    for tool in mcp._tool_manager._tools.values():
-        property_names = _schema_property_names(tool.parameters)
-        has_selector = "selector" in tool.parameters.get("properties", {})
-        has_geometric_input = (
-            has_selector
-            or tool.name in _GENERIC_SCHEMA_TOOLS
-            or any(
-                name in _GEOMETRIC_FIELD_NAMES or name.endswith("_mm")
-                for name in property_names
+
+def _compact_schema(schema: Any, *, collapse_nullable: bool) -> Any:
+    """Shrink pydantic JSON schema noise that clients pay for on every session.
+
+    Auto ``title`` annotations repeat the property name (~20% of tools/list).
+    With ``collapse_nullable``, an optional ``X | None = None`` becomes plain
+    ``X``: omitting it already means None, and arguments are validated by the
+    pydantic signature, not this schema. Output schemas keep their null
+    branches because the SDK validates structured results against them. Value
+    keywords are copied verbatim.
+    """
+
+    if isinstance(schema, list):
+        return [_compact_schema(item, collapse_nullable=collapse_nullable) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    compact = {
+        key: (
+            value
+            if key in _SCHEMA_VALUE_KEYWORDS
+            else _compact_schema(value, collapse_nullable=collapse_nullable)
+        )
+        for key, value in schema.items()
+        if not (key == "title" and isinstance(value, str))
+    }
+    branches = compact.get("anyOf")
+    if (
+        collapse_nullable
+        and "default" in compact
+        and compact["default"] is None
+        and isinstance(branches, list)
+        and {"type": "null"} in branches
+    ):
+        kept = [branch for branch in branches if branch != {"type": "null"}]
+        del compact["default"], compact["anyOf"]
+        if len(kept) == 1 and isinstance(kept[0], dict):
+            # Outer annotations (description) win over the branch's.
+            compact = {**kept[0], **compact}
+        else:
+            compact["anyOf"] = kept
+    return compact
+
+
+def _finalize_listed_tool(tool: types.Tool) -> types.Tool:
+    """Compact schemas and add shared disclosures to one tools/list entry."""
+
+    input_schema = _compact_schema(tool.inputSchema, collapse_nullable=True)
+    property_names = _schema_property_names(input_schema)
+    properties = input_schema.get("properties", {})
+    has_selector = "selector" in properties
+    has_geometric_input = (
+        has_selector
+        or tool.name in _GENERIC_SCHEMA_TOOLS
+        or any(
+            name in _GEOMETRIC_FIELD_NAMES or name.endswith("_mm") for name in property_names
+        )
+    )
+    description = (tool.description or "").strip()
+    if tool.name == "rotate_components" and _COMPONENT_ANGLE_CAVEAT not in description:
+        description = f"{description} {_COMPONENT_ANGLE_CAVEAT}".strip()
+    if tool.name in _CLEARANCE_TOOLS and _NETCLASS_CLEARANCE_DISCLOSURE not in description:
+        description = f"{description} {_NETCLASS_CLEARANCE_DISCLOSURE}".strip()
+    if has_geometric_input and DISTANCE_UNITS_DESCRIPTION not in description:
+        description = f"{description} {DISTANCE_UNITS_DESCRIPTION}".strip()
+    if (has_selector or tool.name in _GENERIC_SCHEMA_TOOLS) and (
+        _INPUT_SCHEMA_RESOURCE not in description
+    ):
+        description = f"{description} Input schema: {_INPUT_SCHEMA_RESOURCE}.".strip()
+    if "dry_run" in properties and _DRY_RUN_DESCRIPTION not in description:
+        description = f"{description} {_DRY_RUN_DESCRIPTION}".strip()
+    return tool.model_copy(
+        update={
+            "description": description,
+            "inputSchema": input_schema,
+            "outputSchema": (
+                None
+                if tool.outputSchema is None
+                else _compact_schema(tool.outputSchema, collapse_nullable=False)
+            ),
+        }
+    )
+
+
+class DipTraceFastMCP(FastMCP):
+    """FastMCP with the project boundary attached only through public overrides.
+
+    Tool bodies are wrapped before registration, tools/list is finalized on
+    the listed copies, and ``call_tool`` maps every failure to the stable
+    envelope. No SDK-owned tool, metadata or manager object is mutated.
+    """
+
+    def __init__(self, *args: Any, version: str, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # FastMCP v1 has no version argument; without this the initialize
+        # handshake reports the MCP SDK's own version as the server version.
+        self._mcp_server.version = version
+        self.prompt_names: list[str] = []
+
+    def tool(self, *args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+        register = super().tool(*args, **kwargs)
+
+        def decorator(function: Any) -> Any:
+            register(capture_tool_failures(function))
+            return function
+
+        return decorator
+
+    def prompt(self, name: str | None = None, *args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+        register = super().prompt(name, *args, **kwargs)
+
+        def decorator(function: Any) -> Any:
+            self.prompt_names.append(name or function.__name__)
+            return register(function)
+
+        return decorator
+
+    async def list_tools(self) -> list[types.Tool]:
+        return [_finalize_listed_tool(tool) for tool in await super().list_tools()]
+
+    async def call_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> Sequence[types.ContentBlock] | dict[str, Any]:
+        try:
+            return await super().call_tool(name, arguments)
+        except ToolError as exc:
+            cause = exc.__cause__
+            failure: BaseException
+            if isinstance(cause, ToolBodyFailure):
+                failure = cause.original
+            elif isinstance(cause, ValidationError):
+                # Arguments are validated before the body runs; any other model
+                # is FastMCP converting a body's successful return value.
+                failure = (
+                    cause
+                    if cause.title == f"{name}Arguments"
+                    else InternalStateError("MCP tool output conversion failed", cause=cause)
+                )
+            elif cause is None:
+                raise  # unknown tool: the SDK reports it as a protocol-level error
+            else:
+                failure = cause
+            if not isinstance(failure, (DipTraceMcpError, ValidationError)):
+                logger.error("Unexpected failure in MCP tool %s", name, exc_info=failure)
+            # The lowlevel server passes a CallToolResult through untouched, so
+            # the narrower declared return type of the SDK method is satisfied in
+            # practice; mypy needs the cast.
+            return cast(
+                "Sequence[types.ContentBlock] | dict[str, Any]",
+                error_result_to_mcp_result(exception_to_error_result(failure)),
             )
-        )
-        description = _COMPATIBILITY_ALIAS_DESCRIPTIONS.get(
-            tool.name,
-            (tool.description or "").strip(),
-        )
-        if tool.name == "rotate_components" and _COMPONENT_ANGLE_CAVEAT not in description:
-            description = f"{description} {_COMPONENT_ANGLE_CAVEAT}".strip()
-        if tool.name in _CLEARANCE_TOOLS and _NETCLASS_CLEARANCE_DISCLOSURE not in description:
-            description = f"{description} {_NETCLASS_CLEARANCE_DISCLOSURE}".strip()
-        if has_geometric_input and DISTANCE_UNITS_DESCRIPTION not in description:
-            description = f"{description} {DISTANCE_UNITS_DESCRIPTION}".strip()
-        if (has_selector or tool.name in _GENERIC_SCHEMA_TOOLS) and (
-            _INPUT_SCHEMA_RESOURCE not in description
-        ):
-            description = f"{description} Input schema: {_INPUT_SCHEMA_RESOURCE}.".strip()
-        if "dry_run" in tool.parameters.get("properties", {}) and (
-            _DRY_RUN_DESCRIPTION not in description
-        ):
-            description = f"{description} {_DRY_RUN_DESCRIPTION}".strip()
-        tool.description = description
-        tool.fn = wrap_tool_callable(
-            tool.fn,
-            tool.name,
-            mcp_result=True,
-            offload_sync=True,
-        )
-        if getattr(tool.fn, "__diptrace_mcp_thread_offload__", False):
-            object.__setattr__(tool, "is_async", True)
-
-        original_validate = tool.fn_metadata.call_fn_with_arg_validation
-
-        async def validate_with_boundary(
-            *args: Any,
-            _original_validate: Any = original_validate,
-            **kwargs: Any,
-        ) -> Any:
-            try:
-                return await _original_validate(*args, **kwargs)
-            except Exception as exc:
-                if not isinstance(exc, ValidationError):
-                    raise
-                return error_result_to_mcp_result(exception_to_error_result(exc))
-
-        object.__setattr__(
-            tool.fn_metadata,
-            "call_fn_with_arg_validation",
-            validate_with_boundary,
-        )
-        cast(Any, validate_with_boundary).__diptrace_mcp_validation_boundary__ = True
-
-        original_run = tool.run
-
-        async def run_with_boundary(
-            *args: Any,
-            _original_run: Any = original_run,
-            _metadata: Any = tool.fn_metadata,
-            **kwargs: Any,
-        ) -> Any:
-            try:
-                # FastMCP's output conversion validates typed return models.  An
-                # error CallToolResult cannot satisfy a successful tool's output
-                # schema, so stop conversion at this boundary and pass transport
-                # errors through exactly once. Successful values are converted by
-                # the same SDK metadata after this check.
-                kwargs["convert_result"] = False
-                raw_result = await _original_run(*args, **kwargs)
-                if isinstance(raw_result, types.CallToolResult):
-                    return raw_result
-                return _metadata.convert_result(raw_result)
-            except Exception as exc:
-                if not isinstance(exc, (DipTraceMcpError, ValidationError)):
-                    logger.exception("Unexpected MCP tool boundary failure")
-                if isinstance(exc, ValidationError):
-                    exc = InternalStateError(
-                        "MCP tool output conversion failed",
-                        cause=exc,
-                    )
-                return error_result_to_mcp_result(exception_to_error_result(exc))
-
-        cast(Any, run_with_boundary).__diptrace_mcp_run_boundary__ = True
-        object.__setattr__(tool, "run", run_with_boundary)

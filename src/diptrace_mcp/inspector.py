@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from .adapters import DocumentSnapshot
 from .adapters import component as _component
 from .adapters import components as _components
 from .adapters import design_rules as _design_rules
@@ -107,8 +108,13 @@ def _project_settings_payload(document: DipTraceDocument) -> dict[str, Any]:
     return get_board_project_settings(document).model_dump(mode="json")
 
 
-def summarize(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
-    result = _summarize(document, live_session=live_session)
+def summarize(
+    document: DipTraceDocument,
+    *,
+    live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
+) -> dict[str, Any]:
+    result = _summarize(document, live_session=live_session, snapshot=snapshot)
     if document.kind == "pcb":
         result["project_settings"] = _project_settings_payload(document)
     return result
@@ -121,8 +127,9 @@ def components(
     limit: int = 100,
     *,
     live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
 ) -> dict[str, Any]:
-    return _components(document, query, offset, limit, live_session=live_session)
+    return _components(document, query, offset, limit, live_session=live_session, snapshot=snapshot)
 
 
 def component(
@@ -130,8 +137,9 @@ def component(
     refdes: str,
     *,
     live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
 ) -> dict[str, Any]:
-    return _component(document, refdes, live_session=live_session)
+    return _component(document, refdes, live_session=live_session, snapshot=snapshot)
 
 
 def nets(
@@ -142,6 +150,7 @@ def nets(
     limit: int = 100,
     *,
     live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
 ) -> dict[str, Any]:
     return _nets(
         document,
@@ -150,11 +159,17 @@ def nets(
         offset,
         limit,
         live_session=live_session,
+        snapshot=snapshot,
     )
 
 
-def design_rules(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
-    result = _design_rules(document, live_session=live_session)
+def design_rules(
+    document: DipTraceDocument,
+    *,
+    live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
+) -> dict[str, Any]:
+    result = _design_rules(document, live_session=live_session, snapshot=snapshot)
     if document.kind == "pcb":
         result["project_settings"] = _project_settings_payload(document)
     return result

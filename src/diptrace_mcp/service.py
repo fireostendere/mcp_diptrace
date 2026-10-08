@@ -14,6 +14,7 @@ from .operations import SemanticOperation, parse_semantic_operations
 from .preview import PREVIEW_COPPER_POINT_LIMIT, PREVIEW_COPPER_RECORD_LIMIT
 from .previews import RawPreviewStore
 from .provenance_registry import TrustedProvenanceRegistry
+from .retention import prune_in_background
 from .services.bom import BomService
 from .services.builtin_library import BuiltinLibraryService, CatalogKind
 from .services.container import build_service_container
@@ -297,7 +298,9 @@ class DipTraceService:
             self._raw_previews = RawPreviewStore(
                 self.settings.state_dir,
                 retention=self._raw_preview_retention,
+                prune_on_init=False,
             )
+            prune_in_background((self._raw_previews,))
         return self._raw_previews
 
     def _raw_preview_store_provider(self) -> RawPreviewStore:
@@ -451,7 +454,8 @@ class DipTraceService:
             "active_session": active,
             "last_session_transition": self.sessions.last_session_transition(),
             "model_cache": self.models.stats(),
-            "capabilities": self.get_capabilities(),
+            # Capabilities are ~11 KB; get_capabilities serves them on demand.
+            "capabilities_tool": "get_capabilities",
         }
 
     def get_capabilities(self, path: str | None = None) -> dict[str, Any]:

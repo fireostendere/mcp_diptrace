@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -17,7 +18,6 @@ from diptrace_mcp.scaffolding import (
     build_pcb_document,
     build_schematic_document,
 )
-from diptrace_mcp.server import create_server
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.write_limits import WriteImpact
 from diptrace_mcp.xml_document import sha256_bytes
@@ -347,32 +347,30 @@ def test_overwrite_gate_preserves_path_and_validation_error_precedence(
     assert seed_mismatch.value.payload.code == "sha256_mismatch"
 
 
-def test_creation_tool_schemas_expose_conditional_target_sha_gate() -> None:
-    server = create_server()
-
+def test_creation_tool_schemas_expose_conditional_target_sha_gate(
+    listed_tools: dict[str, Any],
+) -> None:
     for name in (
         "create_schematic_document",
         "create_pcb_document",
         "create_document_from_seed",
     ):
-        tool = server._tool_manager._tools[name]
-        expected = tool.parameters["properties"]["expected_sha256"]["anyOf"][0]
+        tool = listed_tools[name]
+        expected = tool.inputSchema["properties"]["expected_sha256"]
         assert expected["pattern"] == "^[0-9a-f]{64}$"
         assert "existing target" in expected["description"]
-        assert "expected_sha256" not in tool.parameters.get("required", [])
+        assert "expected_sha256" not in tool.inputSchema.get("required", [])
         assert "current SHA" in (tool.description or "")
 
 
-def test_scaffold_tool_descriptions_disclose_synthetic_validation() -> None:
-    server = create_server()
-
+def test_scaffold_tool_descriptions_disclose_synthetic_validation(
+    listed_tools: dict[str, Any],
+) -> None:
     for name in ("create_schematic_document", "create_pcb_document"):
-        description = server._tool_manager._tools[name].description or ""
+        description = listed_tools[name].description or ""
         assert "synthetic" in description.casefold()
 
-    schematic_description = (
-        server._tool_manager._tools["create_schematic_document"].description or ""
-    )
+    schematic_description = listed_tools["create_schematic_document"].description or ""
     assert "not DipTrace-verified" in schematic_description
 
 

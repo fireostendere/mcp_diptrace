@@ -30,7 +30,7 @@ feature availability.
 5. Prefer `plan_route_nets` plus `apply_route_plan` for a reviewable plan. Inspect SVG/JSON, then
    validate and use an `expected_sha256` commit within the already authorized routing scope.
    A request for a plan alone never authorizes committing it.
-6. Run `run_drc` and `run_connectivity_check`; rollback only this session's failed changes with
+6. Run `run_review(profile="drc_basic")` and `run_review(profile="connectivity")`; rollback only this session's failed changes with
    a current hash guard. When native validation is in scope, use the headless PCB acceptance
    workflow; offline DRC does not invoke the real editor.
 7. Emit [`../shared/result.schema.json`](../shared/result.schema.json).

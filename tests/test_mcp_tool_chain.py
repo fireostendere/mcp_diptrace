@@ -484,7 +484,9 @@ def test_fixture_workflow_invokes_at_least_forty_public_mcp_tools(
             )
             assert plane["result"]["pour_count"] == 1
 
-            board_review = await invoke("run_board_review", {"path": "pcb.xml"})
+            board_review = await invoke(
+                "run_review", {"profile": "board_review", "path": "pcb.xml"}
+            )
             report_id = board_review["result"]["summary"]["report_id"]
             assert report_id.startswith("report_")
 

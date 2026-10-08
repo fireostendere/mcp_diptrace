@@ -174,7 +174,7 @@ The script `nativeize_reva.py` shows the full implementation:
 - Sets SheetWidth/SheetHeight (A4 landscape = 297×210)
 
 Templates proven to work:
-- `i2c-level-shifter-module.dchxml` — schematic (headless-built, opens clean)
+- `i2c-level-shifter/i2c-level-shifter-module.dchxml` — schematic (headless-built, opens clean)
 - `attiny85-arduino-clone-pcb.dipxml` — PCB (native gate11-saved)
 
 ## Phase 4: PCB Sync + Placement
@@ -276,8 +276,8 @@ Also hide Name/Value markings on ICs (keep RefDes visible only).
 
 | Gate | Tool | Pass criteria |
 |---|---|---|
-| ERC | `run_erc(path=...)` | 0 findings |
-| Connectivity | `run_connectivity_check(path=...)` | 0 findings |
+| ERC | `run_review(profile="erc_basic", path=...)` | 0 findings |
+| Connectivity | `run_review(profile="connectivity", path=...)` | 0 findings |
 | Headless QC | `review_pcb_quality(snapshot)` | hard_error_count == 0 |
 | Native roundtrip | `headless_gui roundtrip --editor schematic` | ok=true |
 | Native DRC | `diptrace_native_gate11.py` | errors = fab-tolerance only |

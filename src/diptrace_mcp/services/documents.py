@@ -9,13 +9,15 @@ from pathlib import Path
 from typing import Any
 
 from .. import inspector
-from ..adapters import get_board_model, get_schematic_model
+from ..adapters import DocumentSnapshot, get_board_model, get_schematic_model
 from ..connectivity import build_connectivity_graph
 from ..domain import BOARD_MODEL_COLLECTION_SECTIONS, BoardModelSection, QueryRequest
 from ..errors import DocumentError
 from ..library_adapters import get_library_model
+from ..xml_document import DipTraceDocument
 from .context import (
     DocumentGateway,
+    DocumentTarget,
     ServiceContext,
     bounded_text,
     json_size,
@@ -23,7 +25,8 @@ from .context import (
     validate_page,
 )
 
-BOARD_MODEL_RESPONSE_BYTE_LIMIT = 256 * 1024
+# ~16k tokens: under common MCP client output caps (Claude Code: 25k tokens).
+BOARD_MODEL_RESPONSE_BYTE_LIMIT = 64 * 1024
 BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT = 32 * 1024
 
 ResolveDocumentTrust = Callable[[Path, str], Any]
@@ -312,7 +315,9 @@ class DocumentService:
     def document_resource(self, document_id: str, resource: str) -> str:
         document, target = self.gateway.load_document_id(document_id)
         if resource == "summary":
-            payload = inspector.summarize(document, live_session=target.is_live)
+            payload = inspector.summarize(
+                document, live_session=target.is_live, snapshot=self._snapshot(document, target)
+            )
         elif resource == "board-model":
             payload = get_board_model(document, live_session=target.is_live).model_dump()
         elif resource == "schematic-model":
@@ -332,9 +337,17 @@ class DocumentService:
             )
         return json.dumps(payload, ensure_ascii=False, indent=2)
 
+    def _snapshot(self, document: DipTraceDocument, target: DocumentTarget) -> DocumentSnapshot:
+        # Read paths load the document fresh from disk, so its SHA identifies
+        # the tree and the shared cache is safe; rebuilding costs ~0.5 s on
+        # a 4 MB board.
+        return self.context.model_cache.get(document, live_session=target.is_live)
+
     def summarize(self, path: str | None = None) -> dict[str, Any]:
         document, target = self.gateway.load(path)
-        return inspector.summarize(document, live_session=target.is_live)
+        return inspector.summarize(
+            document, live_session=target.is_live, snapshot=self._snapshot(document, target)
+        )
 
     def components(
         self,
@@ -346,7 +359,14 @@ class DocumentService:
         validate_page(offset, limit)
         document, target = self.gateway.load(path)
         return {
-            **inspector.components(document, query, offset, limit, live_session=target.is_live),
+            **inspector.components(
+                document,
+                query,
+                offset,
+                limit,
+                live_session=target.is_live,
+                snapshot=self._snapshot(document, target),
+            ),
             "live_session": target.is_live,
         }
 
@@ -355,7 +375,12 @@ class DocumentService:
             raise DocumentError("refdes cannot be empty")
         document, target = self.gateway.load(path)
         return {
-            **inspector.component(document, refdes, live_session=target.is_live),
+            **inspector.component(
+                document,
+                refdes,
+                live_session=target.is_live,
+                snapshot=self._snapshot(document, target),
+            ),
             "live_session": target.is_live,
         }
 
@@ -377,6 +402,7 @@ class DocumentService:
                 offset,
                 limit,
                 live_session=target.is_live,
+                snapshot=self._snapshot(document, target),
             ),
             "live_session": target.is_live,
         }
@@ -384,7 +410,11 @@ class DocumentService:
     def rules(self, path: str | None = None) -> dict[str, Any]:
         document, target = self.gateway.load(path)
         return {
-            **inspector.design_rules(document, live_session=target.is_live),
+            **inspector.design_rules(
+                document,
+                live_session=target.is_live,
+                snapshot=self._snapshot(document, target),
+            ),
             "live_session": target.is_live,
         }
 

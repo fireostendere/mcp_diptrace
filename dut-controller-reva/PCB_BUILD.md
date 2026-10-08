@@ -9,10 +9,10 @@ Engineering memory: `docs/engineering-memory/dut-controller-reva.md`
 Capture a reproducible gate snapshot after each handoff update:
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/record_quality_gate_memory.py . \
+PYTHONPATH=src .venv/bin/python scripts/record_quality_gate_memory.py dut-controller-reva \
   --board dut-controller-reva-pcb.dipxml \
   --schematic dut-controller-reva.dchxml \
-  --memory docs/engineering-memory/dut-controller-reva.md
+  --memory ../docs/engineering-memory/dut-controller-reva.md
 ```
 
 Build / iterate commands (exact environment):
@@ -113,7 +113,7 @@ D10 to the receptacle side).
 `build_schematic_document()` scaffold produces a minimal XML skeleton that
 DipTrace 5.3 cannot parse (missing Settings/Categories/Simulator/Terminals/
 BorderZones sections). Fix: `scripts/nativeize_reva.py` transplants generated
-content into proven-native templates (i2c-level-shifter-module.dchxml for
+content into proven-native templates (i2c-level-shifter/i2c-level-shifter-module.dchxml for
 schematic, attiny85-pcb.dipxml for board).
 
 ### Remaining DRC classes (Rev.A known)

@@ -15,7 +15,7 @@ PyInstaller bundle and requires a separate per-build contents and notice review.
 | `hatchling` | build, development | hatchling>=1.27,<2 | `MIT` | human review required |
 | `hypothesis` | development | hypothesis>=6.135,<7 | `MPL-2.0` | human review required |
 | `jsonschema` | development | jsonschema>=4.24,<5 | `MIT` | human review required |
-| `mcp` | runtime | mcp>=1.28.1,<2 | `MIT` | human review required |
+| `mcp` | runtime | mcp>=1.28.1,<1.31 | `MIT` | human review required |
 | `mypy` | development | mypy>=1.16,<2 | `MIT` | human review required |
 | `pydantic` | runtime | pydantic>=2.11,<3 | `MIT` | human review required |
 | `pyinstaller` | bridge | pyinstaller==6.14.2 | `GPL-2.0-or-later WITH Bootloader-exception` | human review required |

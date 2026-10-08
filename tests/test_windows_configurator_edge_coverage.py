@@ -423,3 +423,13 @@ def test_configure_clients_recovery_defaults_and_text_cli(
 
     assert configurator.main(["--client", "claude"]) == 1
     assert "Configuration failed:" in capsys.readouterr().err
+
+def test_run_codex_timeout_becomes_configurator_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    def hang(*_args: object, **kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd="codex", timeout=float(str(kwargs["timeout"])))
+
+    monkeypatch.setattr(configurator.subprocess, "run", hang)
+    with pytest.raises(configurator.ConfiguratorError, match="did not finish"):
+        configurator._run_codex(("codex", "mcp", "list"), {})

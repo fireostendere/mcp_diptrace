@@ -55,7 +55,7 @@ manufacturability override anything here.
 6. `add_testpoints(..., dry_run=true)` → inspect preview → commit.
 7. Route stubs where the net has no pour: `route_connection` from the new TP
    pad object id to the nearest same-net pad, width per net class.
-8. Verify: `run_connectivity_check` with zero opens, `run_drc`,
+8. Verify: `run_review(profile="connectivity")` with zero opens, `run_review(profile="drc_basic")`,
    `review_testpoint_coverage`, then continue the house gate order
    (`scripts/pcb_quality_gate.py`) if this board uses one.
 

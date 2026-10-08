@@ -21,13 +21,13 @@ feature availability.
 
 1. Call `diptrace_status`, `get_capabilities`, and `get_document_info`; record the exact SHA-256.
 2. Select profiles by document kind:
-   - PCB: `run_board_review`, `run_drc`, `run_connectivity_check`,
-     `run_manufacturing_review`, `run_assembly_review`, `run_testability_review`,
-     `run_bom_review`, and `run_thermal_review`; supplement with
+   - PCB: `run_review` with profiles `board_review`, `drc_basic`, `connectivity`,
+     `dfm_basic`, `dfa_basic`, `dft_basic`, `bom_basic`, and `thermal_basic`;
+     supplement with
      `analyze_release_readiness` for bounded DFM/DFA/DFT findings available from
      exported XML (it supplements, not replaces, DipTrace sign-off).
-   - schematic: `run_schematic_review`, `run_erc`, `run_connectivity_check`, and
-     `run_bom_review`.
+   - schematic: `run_review` with profiles `schematic_review`, `erc_basic`,
+     `connectivity`, and `bom_basic`.
 3. Compare each result against the implemented/partial/missing matrix in
    [`REVIEW_ENGINE.md`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/docs/REVIEW_ENGINE.md).
 4. Deduplicate by check ID and stable object identity. Preserve waivers, DNP state, explicit

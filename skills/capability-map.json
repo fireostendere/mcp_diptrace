@@ -9,8 +9,8 @@
   },
   "discovery_rule": "Use public tools/list for exact callable names; use diptrace_status and get_capabilities for session, document, feature, policy, and configured-adapter availability. Native/headless helpers are separate local CLI interfaces; inspect their installed entry points and backend prerequisites before declaring native work unavailable. Missing live sessions do not prevent explicit-path XML work.",
   "runtime_tools": {
-    "analyze_controlled_impedance": {
-      "runtime_tool": "analyze_controlled_impedance",
+    "validate_impedance_constraints": {
+      "runtime_tool": "validate_impedance_constraints",
       "claim": "Analytical controlled-impedance review; no target is inferred."
     },
     "analyze_return_path": {
@@ -129,7 +129,7 @@
       "add_net_label",
       "rename_net",
       "set_pin_no_connect",
-      "set_component_fields",
+      "set_component_properties",
       "rank_schematic_placement_candidates",
       "plan_schematic_placement_repair",
       "apply_schematic_placement_repair_plan"
@@ -142,7 +142,6 @@
       "generate_placement_candidates",
       "score_placement",
       "plan_component_placement",
-      "legalize_component_placement",
       "apply_component_placement_plan",
       "move_components",
       "rotate_components",
@@ -153,8 +152,6 @@
       "get_stackup",
       "update_net_class_rules",
       "assign_nets_to_class",
-      "set_diff_pair_rules",
-      "set_length_constraints",
       "list_copper_pours",
       "analyze_plane_continuity",
       "analyze_return_path"
@@ -180,22 +177,12 @@
       "find_testpoint_candidates",
       "add_testpoints",
       "review_testpoint_coverage",
-      "check_silkscreen",
       "plan_silkscreen",
       "apply_silkscreen_plan",
       "set_panelization"
     ],
     "verification": [
-      "run_erc",
-      "run_drc",
-      "run_connectivity_check",
-      "run_schematic_review",
-      "run_board_review",
-      "run_manufacturing_review",
-      "run_assembly_review",
-      "run_testability_review",
-      "run_bom_review",
-      "run_thermal_review",
+      "run_review",
       "analyze_release_readiness"
     ],
     "transaction_and_jobs": [

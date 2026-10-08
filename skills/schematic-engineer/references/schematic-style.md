@@ -55,7 +55,7 @@ point of the overview or the user asks for it.
 ## Supported editing and verification
 
 Use `add_sheet`, `place_builtin_component`/`place_part`, `connect_pins`, `add_wire`,
-`add_net_label`, `set_pin_no_connect`, `set_component_fields`, and `rename_net` as
+`add_net_label`, `set_pin_no_connect`, `set_component_properties`, and `rename_net` as
 advertised. For placement/wiring repair, inspect
 `rank_schematic_placement_candidates` and `plan_schematic_placement_repair`, then
 apply the stored plan through `apply_schematic_placement_repair_plan` with normal

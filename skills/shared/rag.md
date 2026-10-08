@@ -37,6 +37,17 @@ no artificial query quota or uncertainty threshold. Routine actions can use the
 accumulated context. Keep the user's requested scope: noticing an adjacent risk
 permits reporting it, not silently redesigning unrelated circuitry.
 
+Scale retrieval depth to how new the decision is, not to model confidence:
+
+| Situation | Retrieval |
+|---|---|
+| New board, architecture, or a subsystem/stage the journal does not cover | Full brief as above. |
+| Resume or next lifecycle stage | Start from the journal/`PCB_BUILD.md` brief; retrieve for decisions that changed or were never covered. |
+| Narrow edit (move, rename, one value, export rerun) | Accumulated context; retrieve only if the edit reaches an unreviewed engineering constraint. |
+
+Keep reports proportional: cite the sources that changed or confirmed a decision,
+not a reading log.
+
 ## Retrieve, apply, verify
 
 1. Identify the current design stage, functional block, decision, and relevant design

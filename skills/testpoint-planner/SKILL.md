@@ -31,8 +31,9 @@ feature availability.
    commit with `expected_sha256`; retain authorization already given for the selected scope.
 6. A testpoint's net assignment is logical membership, not proof of copper connection. Inspect
    pads/traces/vias around candidates, route required short stubs with `route_connection`, or
-   verify the same-net pour after native refill. Re-run `run_testability_review`, `run_drc`, and
-   `run_connectivity_check`. Revert only this session's failed changes with a current hash guard.
+   verify the same-net pour after native refill. Re-run `run_review` with profiles `dft_basic`,
+   `drc_basic`, and `connectivity`. Revert only this session's failed changes with a current hash
+   guard.
 7. Emit [`../shared/result.schema.json`](../shared/result.schema.json).
 
 ## Quantitative boundaries

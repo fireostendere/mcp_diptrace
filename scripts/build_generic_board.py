@@ -62,7 +62,9 @@ def main() -> None:
     p.add_argument("--spec", required=True, type=Path)
     p.add_argument("--from", dest="from_stage", choices=STAGES, default=STAGES[0])
     p.add_argument("--to", dest="to_stage", choices=STAGES, default=STAGES[-1])
-    p.add_argument("--native-sch-template", default="i2c-level-shifter-module.dchxml")
+    p.add_argument(
+        "--native-sch-template", default="i2c-level-shifter/i2c-level-shifter-module.dchxml"
+    )
     p.add_argument(
         "--native-pcb-template",
         default="attiny85-arduino-clone/attiny85-arduino-clone-pcb.dipxml",
@@ -103,7 +105,7 @@ def main() -> None:
 
     if active("wire"):
         # Wire the most recent native or synthetic file
-        for cand in [f"{project}.dchxml", "dut-controller-reva.dchxml"]:
+        for cand in [f"{project}.dchxml", "dut-controller-reva/dut-controller-reva.dchxml"]:
             if Path(cand).exists():
                 run(f".venv/bin/python scripts/wire_schematic.py {cand}")
                 break

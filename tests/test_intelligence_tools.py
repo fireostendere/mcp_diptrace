@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -20,7 +21,6 @@ from diptrace_mcp.pattern_recommendation import PatternRequirement
 from diptrace_mcp.reference_rules import EngineeringRulePack
 from diptrace_mcp.schematic_ensemble import SchematicEnsembleConfig
 from diptrace_mcp.semantic_compiler import apply_semantic_operations
-from diptrace_mcp.server_runtime import create_server
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.xml_document import DipTraceDocument
 
@@ -155,15 +155,20 @@ def test_rank_schematic_placement_candidates_honors_bounded_ensemble_config(
     assert payload["inferred_motifs"] == []
 
 
-def test_rank_schematic_placement_candidates_tool_schema_is_typed() -> None:
-    server = create_server()
-    tool = server._tool_manager._tools["rank_schematic_placement_candidates"]
+def test_rank_schematic_placement_candidates_tool_schema_is_typed(
+    listed_tools: dict[str, Any],
+) -> None:
+    tool = listed_tools["rank_schematic_placement_candidates"]
 
-    assert tool.parameters["properties"]["config"] == {
-        "anyOf": [{"$ref": "#/$defs/SchematicEnsembleConfig"}, {"type": "null"}],
-        "default": None,
+    # The ~5 KB nested config is published once through the tool-input schema
+    # resource instead of being inlined into every tools/list response.
+    assert tool.inputSchema["properties"]["config"] == {
+        "additionalProperties": True,
+        "type": "object",
+        "x-diptrace-schema": "diptrace://schemas/tool-inputs#/schematic_ensemble_config",
     }
-    config = tool.parameters["$defs"]["SchematicEnsembleConfig"]
+    assert "SchematicEnsembleConfig" not in tool.inputSchema.get("$defs", {})
+    config = SchematicEnsembleConfig.model_json_schema()
     assert config["properties"]["max_ranked_candidates"]["maximum"] == 64
 
 
@@ -568,13 +573,12 @@ def test_recommend_patterns_applies_hard_filters(tmp_path: Path) -> None:
         assert candidate["features"]["pad_count"] == 2
 
 
-def test_recommend_patterns_tool_schema_is_typed() -> None:
-    server = create_server()
-    tool = server._tool_manager._tools["recommend_patterns"]
+def test_recommend_patterns_tool_schema_is_typed(listed_tools: dict[str, Any]) -> None:
+    tool = listed_tools["recommend_patterns"]
 
-    requirement_schema = tool.parameters["properties"]["requirement"]
+    requirement_schema = tool.inputSchema["properties"]["requirement"]
     assert requirement_schema == {"$ref": "#/$defs/PatternRequirement"}
-    defined = tool.parameters["$defs"]["PatternRequirement"]
+    defined = tool.inputSchema["$defs"]["PatternRequirement"]
     assert defined["type"] == "object"
     assert "pad_count" in defined["properties"]
     assert "width_mm" in defined["properties"]

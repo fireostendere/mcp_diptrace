@@ -765,7 +765,9 @@ class SessionStore(RecordStore):
         retention: RetentionPolicy | None = None,
         clock: Clock = system_clock,
         active_ttl_seconds: int = DEFAULT_LIVE_SESSION_TTL_SECONDS,
+        prune_on_init: bool = True,
     ):
+        self.prune_on_init = prune_on_init
         if active_ttl_seconds <= 0:
             raise ValueError("active_ttl_seconds must be greater than zero")
         self.state_dir = state_dir

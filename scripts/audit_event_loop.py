@@ -80,8 +80,8 @@ def audit_event_loop_boundary() -> dict[str, Any]:
         "missing_heavy_tools": missing_heavy_tools,
         "heavy_tools_without_offload": heavy_tools_without_offload,
         "execution_contract": (
-            "FastMCP v1 invokes synchronous tools on the event loop. DipTrace MCP replaces "
-            "each registered synchronous callable with an async wrapper that executes the "
+            "FastMCP v1 invokes synchronous tools on the event loop. DipTrace MCP wraps "
+            "each synchronous tool body before registration in an async wrapper that runs the "
             "original callable through anyio.to_thread.run_sync."
         ),
         "reasons": reasons,
