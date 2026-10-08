@@ -212,15 +212,15 @@ For safety, hidden replay currently accepts normalized click/path commands, text
 
 ### Schematic
 
-[![I2C level-shifter assembly](../i2c-level-shifter-demo.gif)](../i2c-level-shifter-demo.mp4)
+[![I2C level-shifter assembly](../i2c-level-shifter/i2c-level-shifter-demo.gif)](../i2c-level-shifter/i2c-level-shifter-demo.mp4)
 
-The repository example opens [`i2c-level-shifter.dchxml`](../i2c-level-shifter.dchxml) in real DipTrace Schematic. Sixteen symbols appear one at a time, then six nets are added one at a time. Its MP4 is 1280×720 at 30 FPS; the GIF is 960×540 at 18 FPS. This is exact-host evidence only.
+The repository example opens [`i2c-level-shifter.dchxml`](../i2c-level-shifter/i2c-level-shifter.dchxml) in real DipTrace Schematic. Sixteen symbols appear one at a time, then six nets are added one at a time. Its MP4 is 1280×720 at 30 FPS; the GIF is 960×540 at 18 FPS. This is exact-host evidence only.
 
 ### PCB
 
-[![I2C level-shifter PCB](../i2c-level-shifter-pcb-demo.gif)](../i2c-level-shifter-pcb-demo.mp4)
+[![I2C level-shifter PCB](../i2c-level-shifter/i2c-level-shifter-pcb-demo.gif)](../i2c-level-shifter/i2c-level-shifter-pcb-demo.mp4)
 
-The matching [`i2c-level-shifter-pcb.dipxml`](../i2c-level-shifter-pcb.dipxml)
+The matching [`i2c-level-shifter-pcb.dipxml`](../i2c-level-shifter/i2c-level-shifter-pcb.dipxml)
 shows eight components followed by 14 traces in a human construction order. The
 25×12 mm board remains completely visible with margin around its purple outline;
 the recording excludes editor controls. The operator accepted both repository

@@ -30,6 +30,7 @@ class RecordStore:
     retention: RetentionPolicy
     clock: Clock
     last_retention_report: RetentionReport
+    prune_on_init: bool
 
     def _initialize_record_store(
         self,
@@ -40,7 +41,12 @@ class RecordStore:
         self._record_store_root = prepare_safe_store_root(state_dir, store_root)
 
     def _initial_retention_report(self) -> RetentionReport:
+        if not getattr(self, "prune_on_init", True):
+            return RetentionReport()
         return self._prune_retention()
+
+    def prune_deferred_retention(self) -> None:
+        self._prune_retention()
 
     def _prune_retention(self) -> RetentionReport:
         raise NotImplementedError

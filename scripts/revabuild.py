@@ -276,10 +276,10 @@ def main():
             print(f"  OUTSIDE: {a['refdes']} at ({x},{y}) sheet={a['sheet']}")
     print(f"  outside usable area: {out}")
     # Dump JSON for MCP tool consumption
-    Path("dut_controller_rev_a_operations.json").write_text(
+    Path("dut-controller-reva/dut_controller_rev_a_operations.json").write_text(
         json.dumps(ops, indent=2, ensure_ascii=False)
     )
-    print("wrote dut_controller_rev_a_operations.json")
+    print("wrote dut-controller-reva/dut_controller_rev_a_operations.json")
 
 
 if __name__ == "__main__":

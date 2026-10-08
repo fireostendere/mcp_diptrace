@@ -163,9 +163,11 @@ class FindingStore(RecordStore):
         *,
         retention: RetentionPolicy | None = None,
         clock: Callable[[], datetime] = system_clock,
+        prune_on_init: bool = True,
     ):
         self.state_dir = state_dir
         self.reports_dir = state_dir / "reviews"
+        self.prune_on_init = prune_on_init
         self.retention = retention or RetentionPolicy()
         self.clock = clock
         self._initialize_record_store(

@@ -23,7 +23,9 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
 ]
 dependencies = [
-  "mcp>=1.28.1,<2",
+  # Upper bound = newest SDK the suite passed on: the runtime wraps FastMCP
+  # internals (Tool.run, fn_metadata, _tool_manager). Raise it after a green run.
+  "mcp>=1.28.1,<1.31",
   "pydantic>=2.11,<3",
   "tomli>=2.0,<3; python_version < '3.11'",
   "typing-extensions>=4.12,<5",

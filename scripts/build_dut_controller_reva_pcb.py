@@ -31,8 +31,8 @@ from diptrace_mcp.synchronization import (  # noqa: E402
 )
 from diptrace_mcp.xml_document import DipTraceDocument  # noqa: E402
 
-SCHEMATIC_PATH = ROOT / "dut-controller-reva.dchxml"
-BOARD_PATH = ROOT / "dut-controller-reva-pcb.dipxml"
+SCHEMATIC_PATH = ROOT / "dut-controller-reva" / "dut-controller-reva.dchxml"
+BOARD_PATH = ROOT / "dut-controller-reva" / "dut-controller-reva-pcb.dipxml"
 
 BOARD_W = 132.0
 BOARD_H = 96.0

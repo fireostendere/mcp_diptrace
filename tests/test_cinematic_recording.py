@@ -811,8 +811,9 @@ def test_record_windows_resolves_hwnd_and_runs_shell_free_command(
     monkeypatch.setattr(recording.shutil, "which", lambda _name: "ffmpeg")
     monkeypatch.setattr(recording, "find_window_handle", lambda title: 0xCAFE)
 
-    def fake_run(command: list[str], *, check: bool):
+    def fake_run(command: list[str], *, check: bool, timeout: float | None):
         assert check is False
+        assert timeout == 32.5
         seen.append(command)
         return SimpleNamespace(returncode=7)
 
@@ -842,7 +843,7 @@ def test_record_windows_desktop_skips_window_lookup(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(
         recording.subprocess,
         "run",
-        lambda _command, check: SimpleNamespace(returncode=0),
+        lambda _command, check, timeout: SimpleNamespace(returncode=0 if timeout is None else 1),
     )
 
     assert recording.record_windows("desktop.mp4", desktop=True) == 0

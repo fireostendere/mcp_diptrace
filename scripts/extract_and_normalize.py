@@ -160,8 +160,8 @@ def main():
         xs, ys = [p['x'] for p in sp], [p['y'] for p in sp]
         print(f"  Sheet {s}: {len(sp)}  X=[{min(xs):.0f}..{max(xs):.0f}]  Y=[{min(ys):.0f}..{max(ys):.0f}]")
 
-    Path("dut_controller_rev_a_corrected.json").write_text(json.dumps(parts, indent=2))
-    print("\nwrote dut_controller_rev_a_corrected.json")
+    Path("dut-controller-reva/dut_controller_rev_a_corrected.json").write_text(json.dumps(parts, indent=2))
+    print("\nwrote dut-controller-reva/dut_controller_rev_a_corrected.json")
 
 
 if __name__ == "__main__":

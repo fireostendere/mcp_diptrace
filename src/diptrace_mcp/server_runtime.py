@@ -5,12 +5,13 @@ import json
 import os
 import sys
 import threading
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from queue import Empty, Queue
 from typing import Annotated, Any, Literal
 
 import anyio
 from mcp import types
-from mcp.server.fastmcp import FastMCP
 from mcp.shared.message import SessionMessage
 from pydantic import Field, ValidationError
 
@@ -40,6 +41,7 @@ from .server_inputs import (
     _INPUT_SCHEMA_RESOURCE,
     AbandonLiveSessionResult,
     ComponentSyncMappingInput,
+    DipTraceFastMCP,
     ExpectedLiveWorkingSha256Input,
     ExpectedTargetSha256Input,
     ExternalBomRecordInput,
@@ -50,11 +52,11 @@ from .server_inputs import (
     PcbScaffoldInput,
     RoundtripEvidenceInput,
     RouteConnectionInput,
+    SchematicEnsembleConfigInput,
     SchematicRepairMoveInput,
     SelectorInput,
     SyncPlacementInput,
     XmlEditInput,
-    _finalize_tool_descriptions,
 )
 from .service import DipTraceService
 from .services.xml_writes import MAX_RAW_XML_EDITS, _finalize_raw_edit_response
@@ -63,15 +65,47 @@ from .xml_document import XmlEdit, sha256_bytes
 
 MAX_XML_EDITS_FILE_BYTES = 128 * 1024
 
+ReviewProfile = Literal[
+    "board_review",
+    "schematic_review",
+    "drc_basic",
+    "erc_basic",
+    "connectivity",
+    "component_clearance",
+    "silkscreen",
+    "manufacturing_geometry",
+    "dfm_basic",
+    "dfa_basic",
+    "dft_basic",
+    "bom_basic",
+    "thermal_basic",
+]
+# None runs every registered check for the document kind.
+_REVIEW_PROFILE_CATEGORIES: dict[str, set[str] | None] = {
+    "board_review": None,
+    "schematic_review": None,
+    "drc_basic": {"placement", "connectivity", "clearance"},
+    "erc_basic": {"connectivity", "metadata"},
+    "connectivity": {"connectivity"},
+    "component_clearance": {"placement"},
+    "silkscreen": {"silkscreen"},
+    "manufacturing_geometry": {"manufacturing"},
+    "dfm_basic": {"manufacturing"},
+    "dfa_basic": {"assembly"},
+    "dft_basic": {"testability"},
+    "bom_basic": {"bom"},
+    "thermal_basic": {"thermal"},
+}
+
 
 def create_server(
     settings: Settings | None = None,
     *,
     host: str = "127.0.0.1",
     port: int = 8765,
-) -> FastMCP:
+) -> DipTraceFastMCP:
     service = DipTraceService(settings or Settings.from_env())
-    mcp = FastMCP(
+    mcp = DipTraceFastMCP(
         name="DipTrace MCP",
         instructions=(
             "Inspect and safely edit DipTrace XML. Without a path, tools use the active live "
@@ -83,6 +117,7 @@ def create_server(
         json_response=True,
         host=host,
         port=port,
+        version=__version__,
     )
 
     @mcp.tool()
@@ -726,23 +761,11 @@ def create_server(
         dry_run: bool = True,
         expected_sha256: str | None = None,
         txid: str | None = None,
+        locked: bool = True,
     ) -> dict[str, Any]:
-        """Lock selected PCB components or schematic parts."""
+        """Lock (locked=true) or unlock (locked=false) selected components or parts."""
         return service.set_component_lock(
-            selector, True, path, dry_run, expected_sha256, txid
-        )
-
-    @mcp.tool()
-    def unlock_components(
-        selector: SelectorInput | None = None,
-        path: str | None = None,
-        dry_run: bool = True,
-        expected_sha256: str | None = None,
-        txid: str | None = None,
-    ) -> dict[str, Any]:
-        """Unlock selected PCB components or schematic parts."""
-        return service.set_component_lock(
-            selector, False, path, dry_run, expected_sha256, txid
+            selector, locked, path, dry_run, expected_sha256, txid
         )
 
     @mcp.tool()
@@ -1006,27 +1029,6 @@ def create_server(
         )
 
     @mcp.tool()
-    def set_component_fields(
-        fields: dict[str, str],
-        selector: SelectorInput | None = None,
-        path: str | None = None,
-        dry_run: bool = True,
-        expected_sha256: str | None = None,
-        txid: str | None = None,
-        allow_locked: bool = False,
-    ) -> dict[str, Any]:
-        """Set custom fields on selected schematic parts or PCB components."""
-        return service.set_component_properties(
-            selector,
-            fields=fields,
-            path=path,
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
-            allow_locked=allow_locked,
-        )
-
-    @mcp.tool()
     def rename_net(
         new_name: str,
         selector: SelectorInput | None = None,
@@ -1244,12 +1246,18 @@ def create_server(
         max_width: float | None = None,
         clearance: float | None = None,
         neck_width: float | None = None,
+        differential_gap: float | None = None,
+        max_uncoupled_length: float | None = None,
+        tolerance: float | None = None,
+        check_length: bool | None = None,
+        fixed_length: float | None = None,
+        length_delta: float | None = None,
         path: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        """Update verified per-layer width and clearance fields of a PCB net class."""
+        """Update verified width, clearance, differential-pair and length fields of a net class."""
         return service.update_net_class_rules(
             class_name,
             layer=layer,
@@ -1258,6 +1266,12 @@ def create_server(
             max_width=max_width,
             clearance=clearance,
             neck_width=neck_width,
+            differential_gap=differential_gap,
+            max_uncoupled_length=max_uncoupled_length,
+            tolerance=tolerance,
+            check_length=check_length,
+            fixed_length=fixed_length,
+            length_delta=length_delta,
             path=path,
             dry_run=dry_run,
             expected_sha256=expected_sha256,
@@ -1276,58 +1290,6 @@ def create_server(
         """Assign selected PCB or schematic nets to an existing net class."""
         return service.assign_nets_to_class(
             selector, class_name, path, dry_run, expected_sha256, txid
-        )
-
-    @mcp.tool()
-    def set_diff_pair_rules(
-        class_name: str,
-        differential_gap: float,
-        width: float | None = None,
-        neck_width: float | None = None,
-        max_uncoupled_length: float | None = None,
-        tolerance: float | None = None,
-        layer: str | None = None,
-        path: str | None = None,
-        dry_run: bool = True,
-        expected_sha256: str | None = None,
-        txid: str | None = None,
-    ) -> dict[str, Any]:
-        """Update documented differential-pair fields on an existing net class."""
-        return service.update_net_class_rules(
-            class_name,
-            layer=layer,
-            width=width,
-            neck_width=neck_width,
-            differential_gap=differential_gap,
-            max_uncoupled_length=max_uncoupled_length,
-            tolerance=tolerance,
-            path=path,
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
-        )
-
-    @mcp.tool()
-    def set_length_constraints(
-        class_name: str,
-        fixed_length: float,
-        length_delta: float,
-        check_length: bool = True,
-        path: str | None = None,
-        dry_run: bool = True,
-        expected_sha256: str | None = None,
-        txid: str | None = None,
-    ) -> dict[str, Any]:
-        """Set documented fixed-length and tolerance fields on an existing net class."""
-        return service.update_net_class_rules(
-            class_name,
-            check_length=check_length,
-            fixed_length=fixed_length,
-            length_delta=length_delta,
-            path=path,
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
         )
 
     @mcp.tool()
@@ -1428,12 +1390,26 @@ def create_server(
         return service.review_testpoint_coverage(target_nets, path)
 
     @mcp.tool()
-    def check_silkscreen(path: str | None = None) -> dict[str, Any]:
-        """Run the implemented deterministic silkscreen checks."""
+    def run_review(
+        profile: Annotated[
+            ReviewProfile,
+            Field(
+                description=(
+                    "board_review / schematic_review: every registered PCB / schematic "
+                    "check. drc_basic: PCB placement, connectivity, clearance. erc_basic: "
+                    "schematic connectivity and metadata. connectivity. component_clearance: "
+                    "overlap and board containment. silkscreen. manufacturing_geometry: "
+                    "minimum feature, edge, drill, annular ring. dfm_basic: DFM geometry and "
+                    "stackup. dfa_basic: assembly. dft_basic: testpoint coverage. bom_basic: "
+                    "MPN/DNP metadata. thermal_basic: power and thermal metadata."
+                )
+            ),
+        ],
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        """Run one deterministic offline review profile and store its report."""
         return service.run_review(
-            path,
-            profile="silkscreen",
-            categories={"silkscreen"},
+            path, profile=profile, categories=_REVIEW_PROFILE_CATEGORIES[profile]
         )
 
     @mcp.tool()
@@ -1577,27 +1553,6 @@ def create_server(
         )
 
     @mcp.tool()
-    def legalize_component_placement(
-        selector: SelectorInput,
-        path: str | None = None,
-        grid: float = 0.5,
-        search_steps: int = 8,
-        spacing: float = 0.2,
-        board_edge_clearance: float = 0.5,
-        time_budget_ms: int = 5_000,
-    ) -> dict[str, Any]:
-        """Plan local moves that remove component overlap and containment violations."""
-        return service.plan_component_placement(
-            selector,
-            path,
-            grid=grid,
-            search_steps=search_steps,
-            spacing=spacing,
-            board_edge_clearance=board_edge_clearance,
-            time_budget_ms=time_budget_ms,
-        )
-
-    @mcp.tool()
     def apply_component_placement_plan(
         plan_id: str,
         dry_run: bool = True,
@@ -1616,13 +1571,13 @@ def create_server(
     def rank_schematic_placement_candidates(
         path: str | None = None,
         engineering_rules: EngineeringRulePack | None = None,
-        config: SchematicEnsembleConfig | None = None,
+        config: SchematicEnsembleConfigInput | None = None,
     ) -> dict[str, Any]:
         """Rank schematic candidates with optional sourced rules and bounded config."""
         return service.rank_schematic_placement_candidates(
             path,
             engineering_rules=engineering_rules,
-            config=config,
+            config=None if config is None else SchematicEnsembleConfig.model_validate(config),
         )
 
     @mcp.tool()
@@ -2007,17 +1962,6 @@ def create_server(
         )
 
     @mcp.tool()
-    def analyze_controlled_impedance(
-        constraints: list[ImpedanceConstraintInput],
-        path: str | None = None,
-    ) -> dict[str, Any]:
-        """Analyze explicit controlled-impedance nets; no target is inferred silently."""
-        return service.analyze_controlled_impedance_nets(
-            [constraint.model_dump() for constraint in constraints],
-            path=path,
-        )
-
-    @mcp.tool()
     def list_copper_pours(
         path: str | None = None, offset: int = 0, limit: int = 100
     ) -> dict[str, Any]:
@@ -2036,10 +1980,7 @@ def create_server(
         nets: list[str] | None = None,
         reference_nets: list[str] | None = None,
     ) -> dict[str, Any]:
-        (
-            "Run low-confidence geometry heuristics with a caller-supplied radius.\n\n"
-            "All distances are in millimetres, regardless of the document's own Units attribute."
-        )
+        """Run low-confidence geometry heuristics with a caller-supplied radius."""
         return service.analyze_return_path(
             path,
             stitching_radius_mm=stitching_radius_mm,
@@ -2410,95 +2351,6 @@ def create_server(
         return service.list_jobs(status)
 
     @mcp.tool()
-    def run_drc(path: str | None = None) -> dict[str, Any]:
-        """Run implemented offline PCB geometry and connectivity checks."""
-        return service.run_review(
-            path,
-            profile="drc_basic",
-            categories={"placement", "connectivity", "clearance"},
-        )
-
-    @mcp.tool()
-    def run_connectivity_check(path: str | None = None) -> dict[str, Any]:
-        """Run deterministic PCB or schematic connectivity checks."""
-        return service.run_review(
-            path,
-            profile="connectivity",
-            categories={"connectivity"},
-        )
-
-    @mcp.tool()
-    def run_silkscreen_check(path: str | None = None) -> dict[str, Any]:
-        """Run implemented offline silkscreen overlap checks."""
-        return service.run_review(
-            path,
-            profile="silkscreen",
-            categories={"silkscreen"},
-        )
-
-    @mcp.tool()
-    def run_component_clearance_check(path: str | None = None) -> dict[str, Any]:
-        """Run component overlap and board-containment checks."""
-        return service.run_review(
-            path,
-            profile="component_clearance",
-            categories={"placement"},
-        )
-
-    @mcp.tool()
-    def run_erc(path: str | None = None) -> dict[str, Any]:
-        """Run implemented offline schematic connectivity and metadata checks."""
-        return service.run_review(
-            path,
-            profile="erc_basic",
-            categories={"connectivity", "metadata"},
-        )
-
-    @mcp.tool()
-    def run_board_review(path: str | None = None) -> dict[str, Any]:
-        """Aggregate all currently registered deterministic PCB checks."""
-        return service.run_review(path, profile="board_review")
-
-    @mcp.tool()
-    def run_schematic_review(path: str | None = None) -> dict[str, Any]:
-        """Aggregate deterministic schematic connectivity, metadata and BOM checks."""
-        return service.run_review(path, profile="schematic_review")
-
-    @mcp.tool()
-    def run_manufacturing_review(path: str | None = None) -> dict[str, Any]:
-        """Run available offline DFM geometry and stackup checks."""
-        return service.run_review(
-            path, profile="dfm_basic", categories={"manufacturing"}
-        )
-
-    @mcp.tool()
-    def run_manufacturing_geometry_check(path: str | None = None) -> dict[str, Any]:
-        """Run deterministic minimum feature, edge, drill and annular-ring checks."""
-        return service.run_review(
-            path, profile="manufacturing_geometry", categories={"manufacturing"}
-        )
-
-    @mcp.tool()
-    def run_assembly_review(path: str | None = None) -> dict[str, Any]:
-        """Run available footprint/design-cache assembly checks."""
-        return service.run_review(path, profile="dfa_basic", categories={"assembly"})
-
-    @mcp.tool()
-    def run_testability_review(path: str | None = None) -> dict[str, Any]:
-        """Review explicit standalone testpoint coverage."""
-        return service.run_review(path, profile="dft_basic", categories={"testability"})
-
-    @mcp.tool()
-    def run_bom_review(path: str | None = None) -> dict[str, Any]:
-        """Review deterministic manufacturer/MPN/DNP metadata completeness."""
-        return service.run_review(path, profile="bom_basic", categories={"bom"})
-
-    @mcp.tool()
-    def run_thermal_review(path: str | None = None) -> dict[str, Any]:
-        """Review explicit power and thermal-strategy metadata when available."""
-        return service.run_review(path, profile="thermal_basic", categories={"thermal"})
-
-    @mcp.tool()
     def get_findings(report_id: str) -> dict[str, Any]:
         """Read all structured findings from a stored review report."""
         return service.get_findings(report_id)
@@ -2571,6 +2423,7 @@ def create_server(
                 "sync_placement": SyncPlacement.model_json_schema(),
                 "panelization": SetPanelizationOperation.model_json_schema(),
                 "route_connection": RouteConnectionConfig.model_json_schema(),
+                "schematic_ensemble_config": SchematicEnsembleConfig.model_json_schema(),
             },
             ensure_ascii=False,
             indent=2,
@@ -2853,12 +2706,12 @@ def create_server(
     def clean_silkscreen_for_manufacturing(scope: str = "whole board") -> str:
         """Plan and validate silkscreen cleanup for the requested board scope."""
         return (
-            f"Required scope={scope}. Call check_silkscreen, plan_silkscreen, inspect the "
-            "plan score, "
+            f"Required scope={scope}. Call run_review(profile=silkscreen), plan_silkscreen, "
+            "inspect the plan score, "
             "unresolved labels and SVG preview, then apply_silkscreen_plan with dry_run=true. The "
             "model decides how to handle unresolved labels. Commit only after preview; rerun "
-            "check_silkscreen and manufacturing review. Stop on locked labels, incomplete mask "
-            "geometry, unexpected scope or a new finding."
+            "run_review with profiles silkscreen and dfm_basic. Stop on locked labels, "
+            "incomplete mask geometry, unexpected scope or a new finding."
         )
 
     @mcp.prompt()
@@ -2987,10 +2840,10 @@ def create_server(
         return render_board_svg(pcb_path, output_dir)
 
 
-    _finalize_tool_descriptions(mcp)
-    service.set_workflow_prompt_names(tuple(mcp._prompt_manager._prompts))
+    service.set_workflow_prompt_names(tuple(mcp.prompt_names))
     return mcp
-async def _robust_stdio_server() -> Any:
+@asynccontextmanager
+async def _robust_stdio_server() -> AsyncIterator[tuple[Any, Any]]:
     """Provide MCP stdio streams without anyio's stdin file wrapper.
 
     Some Windows/WSL combinations do not wake an ``anyio.wrap_file`` worker
@@ -3020,12 +2873,20 @@ async def _robust_stdio_server() -> Any:
         incoming.put(None)
 
     async def forward_input() -> None:
+        # A blocking get on a private worker thread wakes as soon as a line
+        # arrives instead of polling at 100 Hz; the timeout bounds shutdown.
+        # The private limiter keeps busy tool threads from starving input.
+        reader_limiter = anyio.CapacityLimiter(1)
         try:
             while True:
                 try:
-                    message = incoming.get_nowait()
+                    message = await anyio.to_thread.run_sync(
+                        incoming.get,
+                        True,
+                        0.5,
+                        limiter=reader_limiter,
+                    )
                 except Empty:
-                    await anyio.sleep(0.01)
                     continue
                 if message is None:
                     return
@@ -3045,13 +2906,6 @@ async def _robust_stdio_server() -> Any:
         task_group.start_soon(forward_input)
         task_group.start_soon(forward_output)
         yield read_stream, write_stream
-async def _run_stdio(server: FastMCP) -> None:
-    async with _robust_stdio_server() as (read_stream, write_stream):
-        await server._mcp_server.run(
-            read_stream,
-            write_stream,
-            server._mcp_server.create_initialization_options(),
-        )
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="MCP server for DipTrace XML and live projects")
     parser.add_argument(
@@ -3076,8 +2930,7 @@ def main(argv: list[str] | None = None) -> None:
         "DIPTRACE_MCP_FROZEN_STDIO", ""
     ).strip().casefold() in {"1", "true", "yes"}
     if args.transport == "stdio" and use_frozen_stdio:
-        anyio.run(_run_stdio, server)
-    else:
-        server.run(transport=args.transport)
+        server.stdio_streams = _robust_stdio_server
+    server.run(transport=args.transport)
 if __name__ == "__main__":
     main()

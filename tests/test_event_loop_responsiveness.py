@@ -60,7 +60,7 @@ def _run_responsiveness_probe(
         monkeypatch.setattr(DipTraceService, "get_capabilities", slow_get_capabilities)
         server = create_server(_settings(tmp_path))
 
-        async with create_connected_server_and_client_session(server) as session:
+        async with create_connected_server_and_client_session(server.protocol_server) as session:
             probe_started = time.perf_counter()
             slow_call = asyncio.create_task(session.call_tool("get_capabilities", {}))
             started_in_time = await asyncio.to_thread(started.wait, 3.0)

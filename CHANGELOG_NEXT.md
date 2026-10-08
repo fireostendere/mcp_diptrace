@@ -34,7 +34,41 @@ Changes in this section are later development and are not silently part of those
   text, may cross solder-masked traces, and still avoid foreign mounting areas,
   pads, holes and vias;
 - the two public candidate-ranking tools accept optional validated engineering
-  rule packs without adding another MCP tool.
+  rule packs without adding another MCP tool;
+- **breaking:** the public surface is 152 tools. Fourteen review-profile tools
+  (`run_drc`, `run_erc`, `run_connectivity_check`, `run_board_review`,
+  `run_schematic_review`, `run_manufacturing_review`,
+  `run_manufacturing_geometry_check`, `run_assembly_review`, `run_testability_review`,
+  `run_bom_review`, `run_thermal_review`, `run_silkscreen_check`, `check_silkscreen`,
+  `run_component_clearance_check`) become `run_review(profile=...)`; the duplicate
+  `analyze_controlled_impedance`, `legalize_component_placement` and
+  `set_component_fields` are removed in favour of `validate_impedance_constraints`,
+  `plan_component_placement` and `set_component_properties`; `set_diff_pair_rules` and
+  `set_length_constraints` fold into `update_net_class_rules`; `unlock_components` is
+  `lock_components(locked=false)`;
+- FastMCP is used only through its public API: the boundary overrides `tool`,
+  `prompt`, `list_tools` and `call_tool` instead of mutating SDK tool objects, and
+  stdio and Streamable HTTP are served by a project-owned lowlevel `Server`
+  (`protocol_server`) wired to FastMCP's public handlers, so `initialize` reports
+  the DipTrace MCP version rather than the SDK's;
+- coverage-wave test files are renamed after the modules they cover
+  (`test_<module>_edge_coverage.py`); 28 tests that added no unique line coverage
+  were removed, keeping total coverage at 93.9%;
+- `tools/list` is ~40% smaller: auto-generated schema titles are dropped, optional
+  `X | None = None` inputs are published as plain `X`, the units and dry-run
+  disclosures are shorter, and `rank_schematic_placement_candidates.config` is
+  published through `diptrace://schemas/tool-inputs#/schematic_ensemble_config`;
+- `get_board_model` pages are capped at 64 KiB (was 256 KiB) so a page fits common
+  client output limits, and `diptrace_status` no longer embeds the full
+  `get_capabilities` report;
+- the first retention pass runs in a background thread and proves path confinement
+  only for deletable records, so the server answers `initialize` without waiting
+  for state I/O; repeated document reads reuse the cached model snapshot;
+- unexpected internal failures report `details.exception_type` (class name only);
+- the stdin transport blocks on its queue instead of polling at 100 Hz, timed
+  screen capture and Codex configuration commands have timeouts, and the `mcp`
+  SDK is bounded to the tested `<1.31` range because the runtime wraps FastMCP
+  internals.
 
 # 0.3.0 detailed release changes
 

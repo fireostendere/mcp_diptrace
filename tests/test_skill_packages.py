@@ -17,7 +17,6 @@ from jsonschema import Draft202012Validator
 from yaml import safe_load
 
 from diptrace_mcp.errors import DocumentError
-from diptrace_mcp.server import create_server
 from diptrace_mcp.service import DipTraceService
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -350,9 +349,11 @@ def test_shared_result_schema_is_strict_and_evidence_typed() -> None:
     assert "evidence_ids" in measurement["required"]
 
 
-def test_quantitative_skill_defaults_match_public_tool_schemas() -> None:
-    tools = create_server()._tool_manager._tools
-    testpoint = tools["find_testpoint_candidates"].parameters["properties"]
+def test_quantitative_skill_defaults_match_public_tool_schemas(
+    listed_tools: dict[str, Any],
+) -> None:
+    tools = listed_tools
+    testpoint = tools["find_testpoint_candidates"].inputSchema["properties"]
     assert testpoint["probe_diameter"]["default"] == 1.0
     assert testpoint["clearance"]["default"] == 0.5
     assert testpoint["grid"]["default"] == 2.54
@@ -362,7 +363,7 @@ def test_quantitative_skill_defaults_match_public_tool_schemas() -> None:
     for expected in ("1.0 mm", "0.5 mm", "2.54 mm", "1 through 100", "5,000"):
         assert expected in text
 
-    library = tools["query_library_items"].parameters["properties"]
+    library = tools["query_library_items"].inputSchema["properties"]
     assert library["limit"]["default"] == 100
     DipTraceService._validate_page(0, 1)
     DipTraceService._validate_page(0, 500)

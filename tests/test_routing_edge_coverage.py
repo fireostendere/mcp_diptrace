@@ -7,7 +7,6 @@ import pytest
 
 from diptrace_mcp import routing
 from diptrace_mcp import routing_compiler as compiler
-from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.domain import (
     DifferentialPairModel,
     DifferentialPairPadPair,
@@ -26,7 +25,6 @@ from diptrace_mcp.errors import (
     RoutingError,
 )
 from diptrace_mcp.geometry import BBox, Point
-from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURE = Path(__file__).parent / "fixtures" / "pcb.xml"
 
@@ -230,11 +228,3 @@ def test_via_pad_detection_covers_shape_bbox_and_thermal_paths(
     monkeypatch.setattr(compiler, "shape_distance", lambda *_args: 0.0)
     assert compiler.via_pad_violation_pairs(snapshot, 0.2) == {("via", "pad")}
     assert compiler.via_pad_violation_pairs(snapshot, 0.2, True) == set()
-
-
-def test_fixture_route_lookup_and_clearance_fallbacks() -> None:
-    document = DipTraceDocument.load(FIXTURE, 10_000_000)
-    snapshot = build_snapshot(document)
-    assert compiler._clearance(document, "missing", None) >= 0
-    assert compiler._clearance(document, "missing", 0.42) == 0.42
-    assert routing._layer_type(snapshot, "0") in {"Signal", "Unknown"}

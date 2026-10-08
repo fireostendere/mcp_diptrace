@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 import diptrace_mcp.sessions as sessions_module
 from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import SessionError
-from diptrace_mcp.server import create_server
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.sessions import SessionStore
 from diptrace_mcp.xml_document import sha256_bytes
@@ -295,9 +295,11 @@ def test_finalize_reports_uncertain_state_for_persistently_corrupt_exchange_writ
     assert store.control_path(session_id).exists()
 
 
-def test_finish_live_session_schema_binds_apply_to_latest_working_sha() -> None:
-    tool = create_server()._tool_manager._tools["finish_live_session"]
-    expected = tool.parameters["properties"]["expected_sha256"]["anyOf"][0]
+def test_finish_live_session_schema_binds_apply_to_latest_working_sha(
+    listed_tools: dict[str, Any],
+) -> None:
+    tool = listed_tools["finish_live_session"]
+    expected = tool.inputSchema["properties"]["expected_sha256"]
 
     assert expected["pattern"] == "^[0-9a-f]{64}$"
     assert "latest working XML" in expected["description"]

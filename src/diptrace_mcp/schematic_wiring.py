@@ -179,7 +179,7 @@ class SchematicWireBuilder:
         def ea(side: int, rd: str | None, pn: int | None) -> dict[str, str]:
             if rd and pn is not None:
                 part = parts_by_ref.get(rd.casefold())
-                pid = part.get("Id", "") if part else "-1"
+                pid = part.get("Id", "") if part is not None else "-1"
                 return {f"Connected{side}": "Pin", f"Object{side}": pid,
                         f"SubObject{side}": str(pn), f"Bus{side}": "-1"}
             return {f"Connected{side}": "Free", f"Object{side}": "-1",

@@ -131,6 +131,7 @@ def test_file_in_place_of_backup_root_keeps_startup_read_only(tmp_path: Path) ->
     assert store._safe_root() is False
 
 
+@pytest.mark.skipif(os.name == "nt", reason="chmod cannot make a directory unreadable on Windows")
 def test_unreadable_backup_root_fails_closed(tmp_path: Path) -> None:
     state = tmp_path / "state"
     store = _store(state)
@@ -148,6 +149,7 @@ def test_unreadable_backup_root_fails_closed(tmp_path: Path) -> None:
         root.chmod(0o755)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="chmod cannot make a directory unreadable on Windows")
 def test_history_can_expire_treats_unreadable_history_as_expirable(
     tmp_path: Path,
 ) -> None:

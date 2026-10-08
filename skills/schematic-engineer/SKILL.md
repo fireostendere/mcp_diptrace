@@ -75,7 +75,7 @@ alone is synthetic. Query installed libraries with `query_builtin_library_catalo
 verified parts with `place_builtin_component` or `place_part`, and add sheets with `add_sheet`.
 Use `connect_pins` for logical membership, `add_wire` for visible wiring, `add_net_label` for
 labels, and `set_pin_no_connect` only for intentional NCs. Keep fields and names through
-`set_component_fields` and `rename_net`. Their schemas and current tool availability win.
+`set_component_properties` and `rename_net`. Their schemas and current tool availability win.
 
 For an existing wired layout, inspect `plan_schematic_placement_repair` and its stored preview,
 then apply through `apply_schematic_placement_repair_plan` within the authorized scope. For
@@ -176,7 +176,7 @@ Begin only after schematic acceptance and PCB work is authorized. Use
 
 Use separate gates. An offline MCP check is not a native acceptance substitute.
 
-1. Run available offline MCP reviews such as `run_erc` or `run_drc`, but identify when they are
+1. Run available offline MCP reviews such as `run_review(profile="erc_basic")` or `run_review(profile="drc_basic")`, but identify when they are
    XML-profile checks rather than native execution.
 2. Schematic acceptance requires native open/save/re-export plus native connectivity and ERC.
    If native evidence is unavailable, acceptance is `BLOCKED`, never `PASS` or `N/A`.

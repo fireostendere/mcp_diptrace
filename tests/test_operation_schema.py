@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import math
 from pathlib import Path
-from typing import get_args
+from typing import Any, get_args
 
 import pytest
 from pydantic import ValidationError
@@ -35,37 +35,37 @@ from diptrace_mcp.server import (
     _DRY_RUN_DESCRIPTION,
     DISTANCE_UNITS_DESCRIPTION,
     ImpedanceConstraintInput,
-    create_server,
 )
+from diptrace_mcp.server_inputs import _compact_schema
 from diptrace_mcp.silkscreen import SilkscreenPlanConfig
 from diptrace_mcp.synchronization import ComponentSyncMapping, SyncPlacement
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_stage_operation_kind_schema_matches_parser_registry() -> None:
+def test_stage_operation_kind_schema_matches_parser_registry(
+    listed_tools: dict[str, Any],
+) -> None:
     registry_kinds = set(semantic_operation_kinds())
     assert len(registry_kinds) == 39
     assert set(get_args(OperationKind)) == registry_kinds
 
-    stage_tool = create_server()._tool_manager._tools["stage_operations"]
-    staged_definition = stage_tool.parameters["$defs"]["StagedOperationInput"]
+    stage_tool = listed_tools["stage_operations"]
+    staged_definition = stage_tool.inputSchema["$defs"]["StagedOperationInput"]
     assert set(staged_definition["properties"]["kind"]["enum"]) == registry_kinds
 
 
-def test_document_creation_schema_exposes_honest_format_version_control() -> None:
-    server = create_server()
-
+def test_document_creation_schema_exposes_honest_format_version_control(
+    listed_tools: dict[str, Any],
+) -> None:
     for name in ("create_schematic_document", "create_pcb_document"):
-        schema = server._tool_manager._tools[name].parameters["properties"]["format_version"]
+        schema = listed_tools[name].inputSchema["properties"]["format_version"]
         assert schema["default"] == DEFAULT_FORMAT_VERSION
         assert schema["minLength"] == 1
         assert schema["maxLength"] == MAX_FORMAT_VERSION_LENGTH
         assert schema["description"] == FORMAT_VERSION_DESCRIPTION
 
-    seed_properties = server._tool_manager._tools["create_document_from_seed"].parameters[
-        "properties"
-    ]
+    seed_properties = listed_tools["create_document_from_seed"].inputSchema["properties"]
     assert "format_version" not in seed_properties
 
 
@@ -175,16 +175,17 @@ def _schema_resource_references(value: object) -> set[str]:
     return set()
 
 
-def test_schema_backed_object_inputs_are_typed_without_inlining_large_models() -> None:
-    server = create_server()
+def test_schema_backed_object_inputs_are_typed_without_inlining_large_models(
+    listed_tools: dict[str, Any],
+) -> None:
     selector_tools = {
         name
-        for name, tool in server._tool_manager._tools.items()
-        if "selector" in tool.parameters.get("properties", {})
+        for name, tool in listed_tools.items()
+        if "selector" in tool.inputSchema.get("properties", {})
     }
-    assert len(selector_tools) == 37
+    assert len(selector_tools) == 34
     for name in selector_tools:
-        selector = server._tool_manager._tools[name].parameters["properties"]["selector"]
+        selector = listed_tools[name].inputSchema["properties"]["selector"]
         assert _schema_resource_references(selector) == {
             "diptrace://schemas/tool-inputs#/query_selector"
         }, name
@@ -196,11 +197,10 @@ def test_schema_backed_object_inputs_are_typed_without_inlining_large_models() -
         ("set_panelization", "panel"): "panelization",
         ("route_connections", "connections"): "route_connection",
         ("analyze_routing_congestion", "connections"): "route_connection",
+        ("rank_schematic_placement_candidates", "config"): "schematic_ensemble_config",
     }
     for (tool_name, parameter_name), fragment in expected.items():
-        parameter = server._tool_manager._tools[tool_name].parameters["properties"][
-            parameter_name
-        ]
+        parameter = listed_tools[tool_name].inputSchema["properties"][parameter_name]
         assert _schema_resource_references(parameter) == {
             f"diptrace://schemas/tool-inputs#/{fragment}"
         }
@@ -232,7 +232,9 @@ def test_public_tool_parameters_do_not_fall_back_to_dict_str_any() -> None:
     assert untyped == []
 
 
-def test_geometric_tool_descriptions_disclose_millimetre_normalization() -> None:
+def test_geometric_tool_descriptions_disclose_millimetre_normalization(
+    listed_tools: dict[str, Any],
+) -> None:
     geometric_names = {
         "absolute_x",
         "absolute_y",
@@ -268,11 +270,10 @@ def test_geometric_tool_descriptions_disclose_millimetre_normalization() -> None
         "stage_operations",
         "sync_schematic_to_pcb",
     }
-    server = create_server()
     checked: set[str] = set()
-    for name, tool in server._tool_manager._tools.items():
-        top_level = set(tool.parameters.get("properties", {}))
-        properties = _property_names(tool.parameters)
+    for name, tool in listed_tools.items():
+        top_level = set(tool.inputSchema.get("properties", {}))
+        properties = _property_names(tool.inputSchema)
         if (
             "selector" in top_level
             or name in generic_geometric_tools
@@ -289,19 +290,20 @@ def test_geometric_tool_descriptions_disclose_millimetre_normalization() -> None
     } <= checked
 
 
-def test_every_write_tool_description_discloses_dry_run_contract() -> None:
-    server = create_server()
+def test_every_write_tool_description_discloses_dry_run_contract(
+    listed_tools: dict[str, Any],
+) -> None:
     write_tools = {
         name
-        for name, tool in server._tool_manager._tools.items()
-        if "dry_run" in tool.parameters.get("properties", {})
+        for name, tool in listed_tools.items()
+        if "dry_run" in tool.inputSchema.get("properties", {})
     }
 
-    assert len(write_tools) == 56
+    assert len(write_tools) == 52
     for name in write_tools:
-        tool = server._tool_manager._tools[name]
+        tool = listed_tools[name]
         assert _DRY_RUN_DESCRIPTION in (tool.description or ""), name
-        assert "expected_sha256" in tool.parameters["properties"], name
+        assert "expected_sha256" in tool.inputSchema["properties"], name
 
 
 def test_geometric_input_models_describe_distance_fields() -> None:
@@ -344,3 +346,37 @@ def test_geometric_input_models_describe_distance_fields() -> None:
                 model.__name__,
                 field_name,
             )
+
+
+def test_compact_schema_drops_titles_and_collapses_only_optional_none_inputs() -> None:
+    schema = {
+        "title": "Args",
+        "type": "object",
+        "properties": {
+            "path": {
+                "anyOf": [{"type": "string"}, {"type": "null"}],
+                "default": None,
+                "description": "Document path.",
+                "title": "Path",
+            },
+            "mode": {
+                "anyOf": [{"type": "string"}, {"type": "null"}],
+                "default": "fast",
+                "title": "Mode",
+            },
+            "style": {"type": "object", "default": {"title": "kept"}, "title": "Style"},
+        },
+    }
+
+    assert _compact_schema(schema, collapse_nullable=True) == {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "Document path."},
+            "mode": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": "fast"},
+            "style": {"type": "object", "default": {"title": "kept"}},
+        },
+    }
+    # Output schemas are validated by the SDK, so their null branches stay.
+    output = _compact_schema(schema, collapse_nullable=False)
+    assert output["properties"]["path"]["anyOf"][1] == {"type": "null"}
+    assert "title" not in output["properties"]["path"]

@@ -138,7 +138,7 @@ def _capture(window: Any, path: Path) -> Any:
 
     import win32gui
     import win32ui  # type: ignore[import-untyped]
-    from PIL import Image  # type: ignore[import-not-found]
+    from PIL import Image  # type: ignore[import-not-found, unused-ignore]  # Pillow is optional
 
     left, top, right, bottom = win32gui.GetWindowRect(window.handle)
     width, height = right - left, bottom - top

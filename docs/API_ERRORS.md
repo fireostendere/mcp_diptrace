@@ -21,7 +21,10 @@ point. Domain exceptions preserve only safe structured details. Absolute paths,
 XML bodies, credentials, causes and tracebacks are removed. Unexpected
 `KeyError`, `AssertionError`, raw `ValueError`, and other programming failures
 are logged locally and returned as `INTERNAL_ERROR`; filesystem and
-external-process failures use `EXTERNAL_TOOL_ERROR`. Caller validation uses
+external-process failures use `EXTERNAL_TOOL_ERROR`. For these unexpected
+failures `details` carries only `exception_type` (the class name, such as
+`PermissionError`) and a pointer to the server stderr log; the exception
+message is never returned. Caller validation uses
 Pydantic `ValidationError` or the typed `InvalidArgumentError`. On the wire,
 failures also set MCP's native `isError` flag; `structuredContent` and the text
 content carry the same stable envelope.
@@ -76,7 +79,7 @@ post-boundary contract.
 | Semantic mutations/transactions | `create_*`, `stage_*`, `preview_*`, `commit_*`, component/text/net/testpoint edits | `PolicyDeniedError`, `ConfirmationRequiredError`, `TransactionConflictError`, `EditError`, `ObjectNotFoundError` | internal exception text could cross the tool call | `SAFETY_GATE`, `CONFLICT`, `VALIDATION_ERROR`, `OBJECT_NOT_FOUND` | only conflict according to payload | transaction id, stable object ids, SHA names; no filesystem path |
 | Routing and congestion | `route_*`, `plan_*route`, `analyze_routing_congestion` | `RoutingError`, `GeometryError`, `CapabilityUnavailableError`, `NetClassResolutionError` | raw routing or NetClass-resolution text | `VALIDATION_ERROR`, `UNSUPPORTED_OPERATION` | no | net/object ids, layer ids, clearance status; no XML |
 | Differential-pair routing | `route_diff_pair`, `plan_diff_pair_route` | `GeometryError`, `RoutingError`, `NetClassResolutionError` | raw geometry text | `VALIDATION_ERROR` | no | pair id, layer ids, bounded numeric constraints |
-| Review/analysis | `run_*review`, `run_drc`, `run_erc`, report methods | `DocumentError`, `CapabilityUnavailableError`, `ObjectNotFoundError` | mixed exception/result forms | `VALIDATION_ERROR`, `UNSUPPORTED_OPERATION`, `OBJECT_NOT_FOUND` | no | check id, finding id, skip reason |
+| Review/analysis | `run_review` profiles, report methods | `DocumentError`, `CapabilityUnavailableError`, `ObjectNotFoundError` | mixed exception/result forms | `VALIDATION_ERROR`, `UNSUPPORTED_OPERATION`, `OBJECT_NOT_FOUND` | no | check id, finding id, skip reason |
 | Live-session lifecycle | `begin_live_session`, `finish_live_session`, `abandon_live_session` | `SessionError`, `PolicyDeniedError`, `Sha256MismatchError`, `OSError` | bridge/internal messages were not uniformly bounded | `OBJECT_NOT_FOUND`, `SAFETY_GATE`, `CONFLICT`, `EXTERNAL_TOOL_ERROR` | conflict/external only | session id, SHA field names, local acknowledgement scope |
 | External adapters/jobs | DSN/SES, autorouter, ngspice/openEMS and job methods | `ExternalToolUnavailableError`, `ExternalToolFailedError`, `JobTimeoutError`, `OSError` | external command or filesystem text | `EXTERNAL_TOOL_ERROR`, `UNSUPPORTED_OPERATION` | external failures/timeouts | job id, adapter name, bounded status |
 | Library and fabrication exports | library reads/validation, BOM and generic export methods | `DocumentError`, `EditError`, external-tool exceptions, `OSError` | raw path/artifact errors were possible | `VALIDATION_ERROR`, `OBJECT_NOT_FOUND`, `EXTERNAL_TOOL_ERROR` | external only | artifact kind, stable id, bounded validation fields |

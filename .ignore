@@ -1,0 +1,6 @@
+# ripgrep-only excludes, so agent Grep/Glob tools skip large generated files.
+# Git, tests and scripts are unaffected; read these by explicit path.
+uv.lock
+reference/mcp-tools-list.snapshot.json
+# Orphan 4 MB board export; no script or doc references it.
+kvm-main/kvm-main-pcb-2026-07-21.dipxml

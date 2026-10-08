@@ -2063,8 +2063,14 @@ def get_object(
     return payload
 
 
-def summarize(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
-    snapshot = build_snapshot(document, live_session=live_session)
+def summarize(
+    document: DipTraceDocument,
+    *,
+    live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
+) -> dict[str, Any]:
+    if snapshot is None:
+        snapshot = build_snapshot(document, live_session=live_session)
     result = snapshot.info.model_dump()
     result.update(
         {
@@ -2139,8 +2145,10 @@ def components(
     limit: int = 100,
     *,
     live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
 ) -> dict[str, Any]:
-    snapshot = build_snapshot(document, live_session=live_session)
+    if snapshot is None:
+        snapshot = build_snapshot(document, live_session=live_session)
     if document.kind == "schematic":
         grouped: dict[str, dict[str, Any]] = {}
         for part in document.container.findall("./Components/Part"):
@@ -2261,9 +2269,15 @@ def components(
 
 
 def component(
-    document: DipTraceDocument, refdes: str, *, live_session: bool = False
+    document: DipTraceDocument,
+    refdes: str,
+    *,
+    live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
 ) -> dict[str, Any]:
-    listing = components(document, limit=10_000, live_session=live_session)
+    if snapshot is None:
+        snapshot = build_snapshot(document, live_session=live_session)
+    listing = components(document, limit=10_000, live_session=live_session, snapshot=snapshot)
     matches = [
         item
         for item in listing["items"]
@@ -2274,9 +2288,13 @@ def component(
     target = matches[0]
     connected_nets = [
         net
-        for net in nets(document, include_endpoints=True, limit=10_000, live_session=live_session)[
-            "items"
-        ]
+        for net in nets(
+            document,
+            include_endpoints=True,
+            limit=10_000,
+            live_session=live_session,
+            snapshot=snapshot,
+        )["items"]
         if any(
             str(endpoint.get("refdes", "")).casefold() == refdes.casefold()
             for endpoint in net.get("endpoints", [])
@@ -2297,6 +2315,7 @@ def nets(
     limit: int = 100,
     *,
     live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
 ) -> dict[str, Any]:
     endpoint_map: dict[str, dict[str, Any]] = {}
     endpoint_key: str
@@ -2357,7 +2376,9 @@ def nets(
     total = len(items)
     payload = items[offset : offset + limit]
     return {
-        "document": build_snapshot(document, live_session=live_session).info.model_dump(),
+        "document": (
+            snapshot or build_snapshot(document, live_session=live_session)
+        ).info.model_dump(),
         "path": str(document.path),
         "total": total,
         "offset": offset,
@@ -2366,8 +2387,14 @@ def nets(
     }
 
 
-def design_rules(document: DipTraceDocument, *, live_session: bool = False) -> dict[str, Any]:
-    snapshot = build_snapshot(document, live_session=live_session)
+def design_rules(
+    document: DipTraceDocument,
+    *,
+    live_session: bool = False,
+    snapshot: DocumentSnapshot | None = None,
+) -> dict[str, Any]:
+    if snapshot is None:
+        snapshot = build_snapshot(document, live_session=live_session)
     if snapshot.board is not None:
         return {
             "document": snapshot.info.model_dump(),

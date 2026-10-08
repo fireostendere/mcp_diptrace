@@ -165,3 +165,55 @@ def test_prune_ignores_delete_errors(tmp_path: Path, monkeypatch: pytest.MonkeyP
     )
     assert report.removed == ()
     assert record.exists()
+
+
+def test_prune_proves_only_doomed_candidates_under_count_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = tmp_path / "state"
+    store = state / "records"
+    store.mkdir(parents=True)
+    old = store / "old.json"
+    new = store / "new.json"
+    old.write_text("x", encoding="utf-8")
+    new.write_text("x", encoding="utf-8")
+    proven: list[str] = []
+    real_proof = retention._safe_candidate_path
+
+    def counting_proof(state_root: Path, store_root: Path, candidate: Path) -> bool:
+        proven.append(candidate.name)
+        return real_proof(state_root, store_root, candidate)
+
+    monkeypatch.setattr(retention, "_safe_candidate_path", counting_proof)
+    report = retention.prune_terminal_records(
+        state_root=state,
+        store_root=store,
+        candidates=[
+            retention.RetentionCandidate("old", old, datetime(2020, 1, 1, tzinfo=timezone.utc)),
+            retention.RetentionCandidate("new", new, datetime(2029, 12, 31, tzinfo=timezone.utc)),
+        ],
+        policy=retention.RetentionPolicy(max_records=10, max_age_days=30),
+        clock=lambda: datetime(2030, 1, 1, tzinfo=timezone.utc),
+    )
+
+    assert report.removed == (old,)
+    assert new.exists()
+    assert set(proven) == {"old.json"}
+
+
+def test_prune_in_background_keeps_going_after_a_store_fails() -> None:
+    calls: list[bool] = []
+
+    class Store:
+        def __init__(self, fail: bool) -> None:
+            self.fail = fail
+
+        def prune_deferred_retention(self) -> None:
+            calls.append(self.fail)
+            if self.fail:
+                raise OSError("unreadable state")
+
+    retention.prune_in_background([Store(True), Store(False)]).join(timeout=5)
+
+    assert calls == [True, False]

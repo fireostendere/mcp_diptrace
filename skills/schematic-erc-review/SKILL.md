@@ -22,8 +22,8 @@ feature availability.
    and freeze its SHA-256.
 2. Read `get_schematic_model` and `get_connectivity_graph`. Preserve sheet identity, hierarchy,
    explicit no-connect state, RefDes, pin numbers, and net names.
-3. Run `run_erc`, `run_schematic_review`, `run_connectivity_check`, and `run_bom_review` only when
-   advertised.
+3. Run `run_review` with profiles `erc_basic`, `schematic_review`, `connectivity`, and
+   `bom_basic` only when advertised.
 4. For native opening/roundtrip evidence, use the headless schematic workflow on a protected
    copy through [evidence capture](../diptrace-evidence-capture/SKILL.md). Generic native schematic
    ERC is not implemented by the base helper; report that specific missing check rather than

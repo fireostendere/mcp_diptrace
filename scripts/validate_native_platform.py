@@ -15,7 +15,7 @@ def main() -> None:
     parser.add_argument("--diptrace-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    source = Path("i2c-level-shifter-pcb.dipxml").resolve()
+    source = Path("i2c-level-shifter/i2c-level-shifter-pcb.dipxml").resolve()
     document = DipTraceDocument.load(source, 64 * 1024 * 1024)
     result = run_native_cad(
         NativeCadRequest(

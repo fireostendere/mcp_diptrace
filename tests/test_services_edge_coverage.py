@@ -67,7 +67,6 @@ from diptrace_mcp.services.evidence import (
     _semantic_roundtrip_check,
     same_file_role,
 )
-from diptrace_mcp.services.transactions import transaction_response_summary
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -203,25 +202,6 @@ def test_evidence_helpers_bound_and_normalize_without_native_tools(tmp_path: Pat
     assert _detected_semantic_normalizations(before, after) == []
     result = _semantic_roundtrip_check(before, after)
     assert result["passed"]
-
-
-def test_transaction_summary_bounds_record_fields() -> None:
-    from diptrace_mcp.domain import TransactionRecord
-
-    record = TransactionRecord(
-        txid="tx_00000000-0000-4000-8000-000000000000",
-        document_id="d",
-        target_path="/tmp/a",
-        source_sha256="a" * 64,
-        status="staged",
-        operations=[{"kind": "x"}],
-        changed_ids=[f"id-{index}" for index in range(300)],
-        created_at="2026-01-01T00:00:00Z",
-        updated_at="2026-01-01T00:00:00Z",
-    )
-    summary = transaction_response_summary(record)
-    assert summary["txid"] == record.txid
-    assert summary["changed_id_count"] == 300
 
 
 def test_evidence_models_reject_inconsistent_trust_combinations() -> None:

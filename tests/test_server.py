@@ -23,7 +23,7 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
         )
         server = create_server(settings)
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=5),
         ) as session:
             tools = await session.list_tools()
@@ -236,7 +236,7 @@ def test_mcp_file_edit_batch_is_hash_bound_and_accepts_50_edits(tmp_path: Path) 
             )
         )
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=10),
         ) as session:
             preview = await session.call_tool(
@@ -334,7 +334,7 @@ def test_mcp_file_edit_batch_path_guards_preserve_read_only_targets(tmp_path: Pa
         board.chmod(original_mode & ~0o222)
         try:
             async with create_connected_server_and_client_session(
-                server,
+                server.protocol_server,
                 read_timeout_seconds=timedelta(seconds=5),
             ) as session:
                 for edits_path in ("oversized.json", str(outside)):
@@ -390,7 +390,7 @@ def test_mcp_file_edit_batch_normalizes_invalid_edit_payloads(tmp_path: Path) ->
         for name, payload in invalid_payloads.items():
             (workspace / name).write_bytes(payload)
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=5),
         ) as session:
             for name in invalid_payloads:
@@ -431,7 +431,7 @@ def test_mcp_transport_repeated_calls_and_teardown_fit_existing_budget(tmp_path:
             loop = asyncio.get_running_loop()
             opened = loop.time()
             async with create_connected_server_and_client_session(
-                server,
+                server.protocol_server,
                 read_timeout_seconds=timedelta(seconds=5),
             ) as session:
                 list_started = loop.time()

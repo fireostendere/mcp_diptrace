@@ -133,6 +133,17 @@ def _validation_details(exc: ValidationError) -> dict[str, Any]:
     return {"fields": errors[:100]}
 
 
+def _unexpected_details(exc: BaseException) -> dict[str, Any]:
+    """Name the failure class without its message, which may carry secrets.
+
+    The class alone (``PermissionError``, ``KeyError``, ``ParseError``) tells
+    a client whether a retry or a different argument can help; the traceback
+    stays in the server's stderr log.
+    """
+
+    return {"exception_type": type(exc).__name__, "see": "server stderr log"}
+
+
 def exception_to_error_result(exc: BaseException) -> dict[str, Any]:
     """Translate an exception without serializing its cause or implementation data."""
 
@@ -174,7 +185,7 @@ def exception_to_error_result(exc: BaseException) -> dict[str, Any]:
             "error": {
                 "code": "INTERNAL_ERROR",
                 "message": "An internal validation failure occurred while executing the tool.",
-                "details": {},
+                "details": _unexpected_details(exc),
                 "retryable": False,
             },
         }
@@ -185,7 +196,7 @@ def exception_to_error_result(exc: BaseException) -> dict[str, Any]:
             "error": {
                 "code": "EXTERNAL_TOOL_ERROR",
                 "message": "A filesystem or external-tool operation failed.",
-                "details": {},
+                "details": _unexpected_details(exc),
                 "retryable": True,
             },
         }
@@ -195,7 +206,7 @@ def exception_to_error_result(exc: BaseException) -> dict[str, Any]:
         "error": {
             "code": "INTERNAL_ERROR",
             "message": "An internal error occurred while executing the tool.",
-            "details": {},
+            "details": _unexpected_details(exc),
             "retryable": False,
         },
     }
@@ -234,62 +245,48 @@ def invoke_with_error_boundary(
         return error_result_to_mcp_result(result) if mcp_result else result
 
 
-def wrap_tool_callable(
-    function: _F,
-    tool_name: str,
-    *,
-    mcp_result: bool = False,
-    offload_sync: bool = False,
-) -> _F:
-    """Wrap sync or async registered functions while preserving their signature."""
+class ToolBodyFailure(Exception):
+    """A tool body's exception, carried past FastMCP's result conversion.
+
+    FastMCP wraps every failure in ``ToolError``; this marker lets the server's
+    ``call_tool`` tell body failures from argument-validation failures. Its own
+    message is only the class name, so the original message never reaches the
+    SDK's error text.
+    """
+
+    def __init__(self, original: Exception) -> None:
+        super().__init__(type(original).__name__)
+        self.original = original
+
+
+def capture_tool_failures(function: _F) -> _F:
+    """Wrap a tool body before registration: offload sync work, tag failures.
+
+    ``functools.wraps`` keeps the signature FastMCP introspects. Synchronous
+    bodies run on a worker thread because FastMCP v1 would otherwise call them
+    on the event loop.
+    """
 
     if inspect.iscoroutinefunction(function):
 
         @wraps(function)
-        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+        async def async_body(*args: Any, **kwargs: Any) -> Any:
             try:
                 return await cast(Awaitable[Any], function(*args, **kwargs))
             except Exception as exc:
-                if not isinstance(exc, (DipTraceMcpError, ValidationError)):
-                    logger.exception("Unexpected failure in MCP tool %s", tool_name)
-                result = exception_to_error_result(exc)
-                return error_result_to_mcp_result(result) if mcp_result else result
+                raise ToolBodyFailure(exc) from exc
 
-        wrapped = cast(_F, async_wrapper)
-        cast(Any, wrapped).__diptrace_mcp_error_boundary__ = True
-        return wrapped
-
-    if offload_sync:
-
-        @wraps(function)
-        async def thread_wrapper(*args: Any, **kwargs: Any) -> Any:
-            try:
-                call = partial(function, *args, **kwargs)
-                return await anyio.to_thread.run_sync(
-                    call,
-                    abandon_on_cancel=False,
-                )
-            except Exception as exc:
-                if not isinstance(exc, (DipTraceMcpError, ValidationError)):
-                    logger.exception("Unexpected failure in MCP tool %s", tool_name)
-                result = exception_to_error_result(exc)
-                return error_result_to_mcp_result(result) if mcp_result else result
-
-        wrapped = cast(_F, thread_wrapper)
-        cast(Any, wrapped).__diptrace_mcp_error_boundary__ = True
-        cast(Any, wrapped).__diptrace_mcp_thread_offload__ = True
-        return wrapped
+        return cast(_F, async_body)
 
     @wraps(function)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        return invoke_with_error_boundary(
-            function,
-            tool_name,
-            *args,
-            mcp_result=mcp_result,
-            **kwargs,
-        )
+    async def thread_body(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return await anyio.to_thread.run_sync(
+                partial(function, *args, **kwargs),
+                abandon_on_cancel=False,
+            )
+        except Exception as exc:
+            raise ToolBodyFailure(exc) from exc
 
-    wrapped = cast(_F, wrapper)
-    cast(Any, wrapped).__diptrace_mcp_error_boundary__ = True
-    return wrapped
+    cast(Any, thread_body).__diptrace_mcp_thread_offload__ = True
+    return cast(_F, thread_body)

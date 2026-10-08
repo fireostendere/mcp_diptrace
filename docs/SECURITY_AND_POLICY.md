@@ -118,7 +118,11 @@ An orphaned recovery-gate directory is likewise fail-closed and requires externa
 administrative coordination; availability never overrides the single-writer safety
 boundary.
 
-Count-and-age retention runs when a store is constructed. It deletes only fully
+Count-and-age retention runs when a store is constructed. The MCP server defers
+that first pass to a background thread so `initialize` is not delayed by state I/O
+(seconds on WSL `/mnt` drives); job records still prune synchronously because
+interrupted jobs must be inspected before they are failed. Path-confinement proofs
+run only for records the pass can actually delete. It deletes only fully
 parsed, validated terminal records confined to that store. For transactions,
 `committed`, `rolled_back`, and `failed` are terminal cleanup candidates;
 `planned`, `staged`, and `validated` remain protected. Applied, cancelled, and

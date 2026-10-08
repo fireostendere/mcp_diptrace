@@ -206,10 +206,21 @@ def test_catalog_location_connect_and_helpers_fail_closed(
     with pytest.raises(CapabilityUnavailableError, match="not found"):
         builtin._catalog_location(None)
 
-    def fail_connect(*_args: object, **_kwargs: object) -> sqlite3.Connection:
-        raise sqlite3.OperationalError("locked")
+    class LockedSqlite:
+        """Fail connect() for the module under test only.
 
-    monkeypatch.setattr(builtin.sqlite3, "connect", fail_connect)
+        Patching the global ``sqlite3.connect`` also breaks coverage.py's own
+        SQLite data writes (for example under ``--cov-context=test``).
+        """
+
+        def __getattr__(self, name: str) -> object:
+            return getattr(sqlite3, name)
+
+        @staticmethod
+        def connect(*_args: object, **_kwargs: object) -> sqlite3.Connection:
+            raise sqlite3.OperationalError("locked")
+
+    monkeypatch.setattr(builtin, "sqlite3", LockedSqlite())
     with pytest.raises(CapabilityUnavailableError, match="read-only"):
         builtin._connect(location)
 

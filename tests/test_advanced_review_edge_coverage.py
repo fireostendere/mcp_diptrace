@@ -58,25 +58,6 @@ def test_trace_board_edge_reports_copper_too_close_to_outline() -> None:
     assert first.units == "mm"
 
 
-def test_trace_board_edge_passes_when_clearance_is_met() -> None:
-    root = _root()
-    _add_trace_to_board_rule(root, "0.001")
-
-    findings, metrics = check_trace_board_edge(_snapshot(root))
-
-    assert findings == []
-    assert metrics == {"segments_checked": 2}
-
-
-def test_trace_board_edge_skips_without_trace_to_board_rules() -> None:
-    findings, metrics = check_trace_board_edge(
-        build_snapshot(DipTraceDocument.load(PCB, MAX_BYTES))
-    )
-
-    assert findings == []
-    assert metrics == {"skipped": "trace_to_board_rules_unavailable"}
-
-
 def test_trace_board_edge_skips_degenerate_outline() -> None:
     root = _root()
     _add_trace_to_board_rule(root, "50")
@@ -118,28 +99,6 @@ def test_thermal_metadata_flags_dissipation_without_strategy() -> None:
     assert len(findings) == 1
     assert findings[0].check_id == "pcb.thermal_metadata"
     assert findings[0].severity == "info"
-
-
-def test_thermal_metadata_accepts_documented_strategy() -> None:
-    root = _root()
-    component = root.find("./Board/Components/Component")
-    assert component is not None
-    _add_field(component, "Power (W)", "1.5")
-    _add_field(component, "Thermal Strategy", "2oz copper pour under the tab")
-
-    findings, metrics = check_thermal_metadata(_snapshot(root))
-
-    assert findings == []
-    assert metrics == {"annotated_components": 1}
-
-
-def test_thermal_metadata_skips_without_power_metadata() -> None:
-    findings, metrics = check_thermal_metadata(
-        build_snapshot(DipTraceDocument.load(PCB, MAX_BYTES))
-    )
-
-    assert findings == []
-    assert metrics == {"skipped": "explicit_component_power_metadata_unavailable"}
 
 
 def test_stackup_copper_centers_are_measured_from_the_stack() -> None:

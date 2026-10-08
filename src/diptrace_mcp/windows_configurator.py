@@ -485,20 +485,31 @@ def _codex_entry_matches(
     )
 
 
+_CODEX_TIMEOUT_SECONDS = 120
+
+
 def _write_codex_setup_file(path: Path, command: Sequence[str]) -> None:
     rendered = subprocess.list2cmdline(list(command)) if os.name == "nt" else shlex.join(command)
     _atomic_write(path, (rendered + "\n").encode("utf-8"))
 
 
 def _run_codex(command: Sequence[str], env: Mapping[str, str]) -> None:
-    completed = subprocess.run(
-        list(command),
-        check=False,
-        capture_output=True,
-        text=True,
-        shell=False,
-        env=dict(env),
-    )
+    try:
+        completed = subprocess.run(
+            list(command),
+            check=False,
+            capture_output=True,
+            text=True,
+            shell=False,
+            env=dict(env),
+            # A Codex CLI waiting for login or a prompt must not hang setup;
+            # ConfiguratorError lets the caller restore its config backup.
+            timeout=_CODEX_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ConfiguratorError(
+            f"Codex command did not finish within {_CODEX_TIMEOUT_SECONDS}s"
+        ) from exc
     if completed.returncode != 0:
         raise ConfiguratorError(f"Codex command failed with exit code {completed.returncode}")
 

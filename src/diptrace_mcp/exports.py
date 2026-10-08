@@ -73,9 +73,11 @@ class ExportStore(RecordStore):
         *,
         retention: RetentionPolicy | None = None,
         clock: Callable[[], datetime] = system_clock,
+        prune_on_init: bool = True,
     ):
         self.state_dir = state_dir
         self.root = state_dir / "exports"
+        self.prune_on_init = prune_on_init
         self.max_artifact_bytes = max_artifact_bytes
         self.retention = retention or RetentionPolicy()
         self.clock = clock

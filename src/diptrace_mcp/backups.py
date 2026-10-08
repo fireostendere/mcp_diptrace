@@ -55,6 +55,7 @@ class BackupStore:
         *,
         retention: RetentionPolicy | None = None,
         clock: Clock = system_clock,
+        prune_on_init: bool = True,
     ) -> None:
         self.state_dir = state_dir
         self.root = state_dir / "offline_backups"
@@ -65,7 +66,10 @@ class BackupStore:
         self.retention = retention or RetentionPolicy()
         self.clock = clock
         self._lock = threading.RLock()
-        self.last_retention_reports = self._prune_all()
+        self.last_retention_reports = self._prune_all() if prune_on_init else {}
+
+    def prune_deferred_retention(self) -> None:
+        self._prune_all()
 
     def write_with_backup(
         self,

@@ -98,7 +98,7 @@ def test_every_resource_and_prompt_callback_executes_through_fastmcp(
         server = server_runtime.create_server(settings)
 
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=10),
         ) as session:
             resources = await session.list_resources()

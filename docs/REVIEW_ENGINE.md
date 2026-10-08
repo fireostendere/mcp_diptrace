@@ -130,8 +130,8 @@ conflict detection is partial: it reports multiple output-type pins on a net onl
 the export carries electrical pin types. It is not a complete DipTrace ERC
 implementation, and missing electrical types produce a structured skip.
 
-Tools aggregate registry checks by category: `run_drc`, `run_erc`, `run_board_review`,
-`run_schematic_review`, and manufacturing, assembly, testability, BOM, and thermal reviews.
+`run_review(profile=...)` aggregates registry checks by category: `drc_basic`, `erc_basic`,
+`board_review`, `schematic_review`, and manufacturing, assembly, testability, BOM, and thermal profiles.
 
 ## Finding Contract
 

@@ -46,10 +46,7 @@
       "get_document_info",
       "get_schematic_model",
       "get_connectivity_graph",
-      "run_erc",
-      "run_schematic_review",
-      "run_connectivity_check",
-      "run_bom_review"
+      "run_review"
     ]
   },
   {
@@ -70,9 +67,7 @@
       "validate_transaction",
       "commit_transaction",
       "rollback_transaction",
-      "run_testability_review",
-      "run_drc",
-      "run_connectivity_check",
+      "run_review",
       "route_connection"
     ]
   },
@@ -99,8 +94,7 @@
       "validate_transaction",
       "commit_transaction",
       "rollback_transaction",
-      "run_drc",
-      "run_connectivity_check",
+      "run_review",
       "export_autorouter_dsn",
       "run_external_autorouter",
       "inspect_autorouter_result",
@@ -124,7 +118,6 @@
       "calculate_impedance",
       "analyze_stackup_for_impedance",
       "validate_impedance_constraints",
-      "analyze_controlled_impedance",
       "analyze_return_path",
       "run_ngspice_simulation",
       "run_openems_stripline_analysis"
@@ -140,16 +133,7 @@
       "diptrace_status",
       "get_capabilities",
       "get_document_info",
-      "run_board_review",
-      "run_schematic_review",
-      "run_manufacturing_review",
-      "run_assembly_review",
-      "run_testability_review",
-      "run_bom_review",
-      "run_thermal_review",
-      "run_drc",
-      "run_erc",
-      "run_connectivity_check",
+      "run_review",
       "analyze_release_readiness"
     ]
   },
@@ -183,7 +167,7 @@
       "apply_component_placement_plan",
       "plan_route_nets",
       "apply_route_plan",
-      "run_board_review",
+      "run_review",
       "commit_transaction",
       "rollback_transaction"
     ]
@@ -212,8 +196,7 @@
       "validate_transaction",
       "commit_transaction",
       "rollback_transaction",
-      "run_erc",
-      "run_schematic_review"
+      "run_review"
     ]
   },
   {
@@ -242,7 +225,7 @@
       "get_capabilities",
       "get_document_info",
       "get_bom",
-      "run_bom_review",
+      "run_review",
       "export_bom",
       "query_builtin_library_catalog",
       "pipeline_source_component",
@@ -263,8 +246,7 @@
       "export_fabrication_outputs",
       "export_assembly_outputs",
       "list_exports",
-      "run_manufacturing_review",
-      "run_assembly_review",
+      "run_review",
       "compare_schematic_to_pcb"
     ]
   },

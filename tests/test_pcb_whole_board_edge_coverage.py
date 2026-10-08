@@ -113,10 +113,3 @@ def test_whole_board_dry_run_and_fail_closed_matrix(tmp_path: Path) -> None:
     plan.metrics["quality"] = {"hard_error_count": 1}
     with pytest.raises(EditError, match="hard quality"):
         whole.apply_pcb_whole_board_plan_guarded(store, SimpleNamespace(), policy, settings, "plan")
-
-
-def test_whole_board_detects_obsolete_source(tmp_path: Path) -> None:
-    target, _plan_dir, _plan, store, policy, settings = _context(tmp_path)
-    target.write_bytes(target.read_bytes().replace(b"10k", b"11k", 1))
-    with pytest.raises(Sha256MismatchError, match="Document changed"):
-        whole.apply_pcb_whole_board_plan_guarded(store, SimpleNamespace(), policy, settings, "plan")

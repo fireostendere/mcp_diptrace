@@ -34,6 +34,7 @@ class PlanStore(RecordStore):
     state_dir: Path
     retention: RetentionPolicy = dataclass_field(default_factory=RetentionPolicy)
     clock: Clock = dataclass_field(default=system_clock, repr=False)
+    prune_on_init: bool = dataclass_field(default=True, repr=False, kw_only=True)
     plans_dir: Path = dataclass_field(init=False)
     last_retention_report: RetentionReport = dataclass_field(init=False)
     _lock: threading.RLock = dataclass_field(init=False, repr=False)

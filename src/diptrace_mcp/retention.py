@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
 import shutil
+import threading
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from .record_ids import is_link_like
 
@@ -13,6 +16,30 @@ DEFAULT_RETENTION_MAX_RECORDS = 500
 DEFAULT_RETENTION_MAX_AGE_DAYS = 180
 
 Clock = Callable[[], datetime]
+
+logger = logging.getLogger(__name__)
+
+
+def prune_in_background(stores: Iterable[Any]) -> threading.Thread:
+    """Run each store's deferred retention pass off the server startup path.
+
+    A pass stats and reads every record; on WSL ``/mnt`` drives that costs
+    seconds, long enough for MCP clients to time out ``initialize``. Pruning
+    only removes terminal records, so it is safe beside live requests.
+    """
+
+    pending = tuple(stores)
+
+    def run() -> None:
+        for store in pending:
+            try:
+                store.prune_deferred_retention()
+            except Exception:
+                logger.exception("Deferred retention failed for %s", type(store).__name__)
+
+    thread = threading.Thread(target=run, name="diptrace-mcp-retention", daemon=True)
+    thread.start()
+    return thread
 
 
 def system_clock() -> datetime:
@@ -75,21 +102,27 @@ def prune_terminal_records(
 
     if not _safe_store_root(state_root, store_root):
         return RetentionReport()
-    safe_candidates = [
-        candidate
-        for candidate in candidates
-        if _safe_candidate_path(state_root, store_root, candidate.path)
-    ]
-    safe_candidates.sort(
-        key=lambda candidate: (candidate.timestamp, candidate.identifier),
-        reverse=True,
-    )
     now = clock()
     if now.tzinfo is None or now.utcoffset() is None:
         now = now.replace(tzinfo=timezone.utc)
     else:
         now = now.astimezone(timezone.utc)
     cutoff = now - timedelta(days=policy.max_age_days)
+    pending = list(candidates)
+    if len(pending) <= policy.max_records:
+        # Unsafe candidates can only shift the count limit, which cannot bite
+        # here, so only age-expired records need the path proof. Each proof
+        # costs several stats, which is seconds on WSL /mnt drives.
+        pending = [candidate for candidate in pending if candidate.timestamp <= cutoff]
+    safe_candidates = [
+        candidate
+        for candidate in pending
+        if _safe_candidate_path(state_root, store_root, candidate.path)
+    ]
+    safe_candidates.sort(
+        key=lambda candidate: (candidate.timestamp, candidate.identifier),
+        reverse=True,
+    )
     doomed = {
         candidate.path
         for candidate in safe_candidates

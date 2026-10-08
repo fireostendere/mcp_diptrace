@@ -20,9 +20,9 @@ Scope decision, 2026-08-20: the operator accepted the native checks, visual mate
 | Field | Value |
 | --- | --- |
 | Git base commit | `2506ca1` |
-| PCB source | `i2c-level-shifter-pcb.dipxml` |
+| PCB source | `i2c-level-shifter/i2c-level-shifter-pcb.dipxml` |
 | PCB SHA-256 before BOM correction | `0478717d8fe7fa21746c836a6eaed9d9d0f5f17f87b5ab2fbd1288971cde480c` |
-| Schematic source | `i2c-level-shifter-module.dchxml` |
+| Schematic source | `i2c-level-shifter/i2c-level-shifter-module.dchxml` |
 | Schematic SHA-256 before BOM correction | `88b030b7712c0238897b021f3d572a2a93b20303aca8aca83321d335b56ce51a` |
 | Board size from XML | 25 × 12 mm |
 | Layers | 2; signals and power on Top; GND pours on Top/Bottom |

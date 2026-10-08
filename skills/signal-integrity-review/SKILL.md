@@ -35,7 +35,7 @@ feature and adapter availability.
    pass/fail judgment is requested.
 3. Use `calculate_impedance` for standalone inputs,
    `analyze_stackup_for_impedance` for complete outer-layer microstrip stackups, and
-   `validate_impedance_constraints` or `analyze_controlled_impedance` for named routed nets.
+   `validate_impedance_constraints` for named routed nets.
 4. Use `analyze_return_path` only as a caller-radius geometry heuristic. Disclose boundary-only
    pour geometry, layer-transition ambiguity, and confidence limits. If native refill evidence
    is needed, use the PCB headless profile on a copy and retain its exported geometry and verdict;

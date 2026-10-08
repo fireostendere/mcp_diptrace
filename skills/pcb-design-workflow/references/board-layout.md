@@ -33,14 +33,14 @@ alternatives, anticipate failure modes and review the finished geometry.
 - Follow the exact IC layout figures for decoupling, hot loops, feedback/Kelvin paths,
   clocks, RF/antenna keepouts and thermal paths. Record every intentional deviation.
 - Use `analyze_placement`, `generate_placement_candidates`, `score_placement`,
-  `plan_component_placement`, `legalize_component_placement`, and
+  `plan_component_placement` and
   `apply_component_placement_plan` as applicable. Geometric ranking cannot decide
   which component implements a hot loop; identify that from the circuit first.
 - For ordinary two-layer boards, prefer signals/positive supply on Top, continuous
   Bottom GND, and Top GND pour. Source other stackups from actual requirements and fab
   evidence. Configure explicit netclasses/pair rules with
-  `update_net_class_rules`, `assign_nets_to_class`, `set_diff_pair_rules`, and
-  `set_length_constraints` where supported.
+  `update_net_class_rules` (including differential-pair and length fields) and
+  `assign_nets_to_class` where supported.
 - Route critical nets first through [critical-net-router](../../critical-net-router/SKILL.md),
   then the remaining nets. Coupled pairs stay paired. Check return paths, width,
   clearance, layer transitions, and actual zero-ratline connectivity.
@@ -71,7 +71,7 @@ thermal relief. Keep vias outside pads unless the requested process permits them
 Use [testpoint-planner](../../testpoint-planner/SKILL.md) for accessible probes and
 route their physical copper connections.
 
-Run `check_silkscreen`, `plan_silkscreen`, `apply_silkscreen_plan`, and post-checks.
+Run `run_review(profile="silkscreen")`, `plan_silkscreen`, `apply_silkscreen_plan`, and post-checks.
 Keep labels readable and near their parts, clear of mounting space, pads, holes and
 vias. Covered traces do not by themselves forbid silkscreen.
 

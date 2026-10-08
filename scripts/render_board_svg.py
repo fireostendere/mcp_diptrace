@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BOARD = ROOT / "dut-controller-reva-pcb.dipxml"
+BOARD = ROOT / "dut-controller-reva" / "dut-controller-reva-pcb.dipxml"
 SCALE = 12          # px per mm
 MARGIN = 3          # mm
 
@@ -262,8 +262,8 @@ def main() -> None:
         path.write_text("\n".join(s), encoding="utf-8")
         print(f"wrote {path} ({path.stat().st_size//1024} KB)")
 
-    emit("Top", ROOT / "dut-controller-reva-pcb-top.svg")
-    emit("Bottom", ROOT / "dut-controller-reva-pcb-bottom.svg")
+    emit("Top", ROOT / "dut-controller-reva" / "dut-controller-reva-pcb-top.svg")
+    emit("Bottom", ROOT / "dut-controller-reva" / "dut-controller-reva-pcb-bottom.svg")
 
     html = '''<!doctype html><html><head><meta charset="utf-8">
 <title>DUT Controller Rev.A preview</title>
@@ -272,8 +272,8 @@ img{max-width:100%;border:1px solid #444;margin-bottom:10px}</style></head><body
 <h2>Top</h2><img src="dut-controller-reva-pcb-top.svg">
 <h2>Bottom (mirrored)</h2><img src="dut-controller-reva-pcb-bottom.svg">
 </body></html>'''
-    (ROOT / "dut-controller-reva-preview.html").write_text(html, encoding="utf-8")
-    print("wrote dut-controller-reva-preview.html")
+    (ROOT / "dut-controller-reva" / "dut-controller-reva-preview.html").write_text(html, encoding="utf-8")
+    print("wrote dut-controller-reva/dut-controller-reva-preview.html")
 
 
 if __name__ == "__main__":

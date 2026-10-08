@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -774,14 +775,14 @@ def test_public_finish_and_abandon_tools_expose_honest_local_contract(
     assert result["diptrace_host_acknowledged"] is False
     assert not worker.is_alive()
 
-    tools = create_server()._tool_manager._tools
+    tools = {tool.name: tool for tool in asyncio.run(create_server().list_tools())}
     assert "abandon_live_session" in tools
-    reason = tools["abandon_live_session"].parameters["properties"]["reason"]
+    reason = tools["abandon_live_session"].inputSchema["properties"]["reason"]
     assert reason["minLength"] == 1
     assert reason["maxLength"] == 500
     assert "without applying" in (tools["abandon_live_session"].description or "")
     for name in ("finish_live_session", "abandon_live_session"):
-        schema = tools[name].output_schema
+        schema = tools[name].outputSchema
         assert schema["additionalProperties"] is False
         assert schema["properties"]["written"]["type"] == "boolean"
         assert schema["properties"]["diptrace_host_acknowledged"]["const"] is False

@@ -3,7 +3,7 @@
 DipTrace-native templates so the real editor parses them cleanly.
 
 Templates (proven to open in the installed DipTrace):
-  - schematic: i2c-level-shifter-module.dchxml   (repo, headless-built)
+  - schematic: i2c-level-shifter/i2c-level-shifter-module.dchxml   (repo, headless-built)
   - pcb:       attiny85-arduino-clone-pcb.dipxml (repo, native gate11 save)
 
 The templates contribute every standard section the 5.3 loader expects
@@ -20,11 +20,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SCH_TPL = ROOT / "i2c-level-shifter-module.dchxml"
+SCH_TPL = ROOT / "i2c-level-shifter" / "i2c-level-shifter-module.dchxml"
 PCB_TPL = ROOT / "attiny85-arduino-clone" / "attiny85-arduino-clone-pcb.dipxml"
 
-SCH_MINE = ROOT / "dut-controller-reva.dchxml"
-PCB_MINE = ROOT / "dut-controller-reva-pcb.dipxml"
+SCH_MINE = ROOT / "dut-controller-reva" / "dut-controller-reva.dchxml"
+PCB_MINE = ROOT / "dut-controller-reva" / "dut-controller-reva-pcb.dipxml"
 
 SHEET_NAMES = [
     "SYSTEM_OVERVIEW", "ESP32_CONTROL", "POWER", "USB_DUT",
@@ -201,7 +201,7 @@ def nativeize_pcb() -> None:
             for c in msh:
                 tsh.append(copy.deepcopy(c))
 
-    out = ROOT / "dut-controller-reva-native.dipxml"
+    out = ROOT / "dut-controller-reva" / "dut-controller-reva-native.dipxml"
     ET.indent(tpl, space="  ")
     out.write_bytes(ET.tostring(tpl, encoding="utf-8", xml_declaration=True))
     print("wrote", out)

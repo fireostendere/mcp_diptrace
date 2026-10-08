@@ -14,6 +14,7 @@ from mcp.types import CallToolResult
 
 from diptrace_mcp.config import Settings
 from diptrace_mcp.server import create_server
+from diptrace_mcp.server_inputs import DipTraceFastMCP
 from diptrace_mcp.service import DipTraceService
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -59,7 +60,7 @@ async def _call(
 ) -> CallToolResult:
     server = create_server(_settings(state_dir))
     async with create_connected_server_and_client_session(
-        server,
+        server.protocol_server,
         read_timeout_seconds=timedelta(seconds=10),
     ) as session:
         result = await session.call_tool(name, arguments)
@@ -87,6 +88,10 @@ def test_missing_document_is_bounded_through_connected_mcp_session(tmp_path: Pat
     ("name", "arguments"),
     [
         ("validate_impedance_constraints", {}),
+        (
+            "rank_schematic_placement_candidates",
+            {"path": "pcb.xml", "config": {"max_ranked_candidates": 999}},
+        ),
         (
             "get_board_model",
             {"path": "pcb.xml", "section": "traces", "limit": "bad"},
@@ -203,7 +208,7 @@ def test_successful_tool_result_is_not_nested_by_boundary(tmp_path: Path) -> Non
             )
         )
         async with create_connected_server_and_client_session(
-            server,
+            server.protocol_server,
             read_timeout_seconds=timedelta(seconds=10),
         ) as session:
             result = await session.call_tool(
@@ -251,7 +256,12 @@ def test_successful_tool_result_is_not_nested_by_boundary(tmp_path: Path) -> Non
             },
             "OBJECT_NOT_FOUND",
         ),
-        ("review", "run_board_review", {"path": "missing.xml"}, "OBJECT_NOT_FOUND"),
+        (
+            "review",
+            "run_review",
+            {"profile": "board_review", "path": "missing.xml"},
+            "OBJECT_NOT_FOUND",
+        ),
         ("live-session", "finish_live_session", {"action": "cancel"}, "OBJECT_NOT_FOUND"),
         (
             "external adapter",
@@ -279,17 +289,20 @@ def test_representative_tool_groups_use_one_error_contract(
     asyncio.run(verify())
 
 
-def test_every_registered_tool_has_all_boundary_layers(tmp_path: Path) -> None:
+def test_every_tool_is_bounded_without_mutating_sdk_objects(tmp_path: Path) -> None:
     server = create_server(_settings(tmp_path / "registry-state"))
+    assert isinstance(server, DipTraceFastMCP)
+    # Test-only look inside FastMCP: the runtime itself reaches the SDK only
+    # through public overrides (tool, prompt, list_tools, call_tool).
     tools = server._tool_manager._tools
 
-    assert len(tools) == 171
+    assert len(tools) == 152
+    assert set(server.tool_bodies) == set(tools)
     for tool in tools.values():
-        assert getattr(tool.fn, "__diptrace_mcp_error_boundary__", False), tool.name
-        assert getattr(
-            tool.fn_metadata.call_fn_with_arg_validation,
-            "__diptrace_mcp_validation_boundary__",
-            False,
-        ), tool.name
-        assert getattr(tool.run, "__diptrace_mcp_run_boundary__", False), tool.name
-        assert not inspect.iscoroutinefunction(inspect.unwrap(tool.fn)), tool.name
+        assert tool.fn is server.tool_bodies[tool.name], tool.name
+        body = inspect.unwrap(tool.fn)
+        assert tool.fn is not body, tool.name
+        assert not inspect.iscoroutinefunction(body), tool.name
+        assert getattr(tool.fn, "__diptrace_mcp_thread_offload__", False), tool.name
+        assert "run" not in vars(tool), tool.name
+        assert "call_fn_with_arg_validation" not in vars(tool.fn_metadata), tool.name

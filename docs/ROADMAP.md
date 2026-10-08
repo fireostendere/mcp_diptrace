@@ -303,7 +303,7 @@ Historical dated release/acceptance/audit records remain excluded from current-s
 
 # Public contracts
 
-- 171 registered MCP tools (the frozen public contract recorded in
+- 152 registered MCP tools (the frozen public contract recorded in
   `reference/mcp-tools-list.snapshot.json`);
 - stable structured error envelope;
 - server-owned worker-thread boundary;

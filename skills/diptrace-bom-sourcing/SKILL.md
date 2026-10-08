@@ -19,7 +19,7 @@ scope; purchasing or changing the circuit requires authorization for those actio
 
 1. Resolve schematic/PCB revision, assembly variant, fitted/DNP state, board count,
    assembler, and allowed substitutions from the request and project.
-2. Discover live MCP tools, then use `get_document_info`, `run_bom_review`, and
+2. Discover live MCP tools, then use `get_document_info`, `run_review(profile="bom_basic")`, and
    `export_bom`. When both CAD documents exist, use `compare_schematic_to_pcb`.
    Keep source hashes and original exports.
 3. Normalize one row per exact manufacturer/MPN/package/variant combination, preserving

@@ -232,7 +232,7 @@ def _physical_schematic(source: Path, header_export: Path) -> DipTraceDocument:
             wires.clear()
 
     target = DipTraceDocument.from_bytes(
-        Path("i2c-level-shifter-module.dchxml"),
+        Path("i2c-level-shifter/i2c-level-shifter-module.dchxml"),
         ET.tostring(root, encoding="utf-8", xml_declaration=True),
     )
     exported = DipTraceDocument.load(header_export, 512 * 1024 * 1024)
@@ -296,12 +296,12 @@ def _intent() -> PCBIntentOverrides:
 
 
 def build(header_export: Path) -> dict[str, object]:
-    schematic = _physical_schematic(ROOT / "i2c-level-shifter.dchxml", header_export)
-    schematic_path = ROOT / "i2c-level-shifter-module.dchxml"
+    schematic = _physical_schematic(ROOT / "i2c-level-shifter" / "i2c-level-shifter.dchxml", header_export)
+    schematic_path = ROOT / "i2c-level-shifter" / "i2c-level-shifter-module.dchxml"
     schematic_path.write_bytes(schematic.raw_bytes)
 
     board = DipTraceDocument.from_bytes(
-        ROOT / "i2c-level-shifter-pcb.dipxml",
+        ROOT / "i2c-level-shifter" / "i2c-level-shifter-pcb.dipxml",
         build_pcb_document(
             PcbScaffold(width_mm=25, height_mm=12, trace_width_mm=0.25),
             units=schematic.units,
@@ -457,7 +457,7 @@ def build(header_export: Path) -> dict[str, object]:
     )
     routed = pour_result.document
     stage_count = _write_progress_stages(routed, route_plan.operations)
-    (ROOT / "i2c-level-shifter-pcb.dipxml").write_bytes(routed.raw_bytes)
+    (ROOT / "i2c-level-shifter" / "i2c-level-shifter-pcb.dipxml").write_bytes(routed.raw_bytes)
     (ROOT / f".local/i2c-level-shifter-pcb-stage-{stage_count:03d}.dipxml").write_bytes(
         routed.raw_bytes
     )
