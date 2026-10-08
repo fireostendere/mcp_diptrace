@@ -86,7 +86,9 @@ def _load_candidate(candidate_path: Path) -> tuple[dict[str, Any], bytes]:
 
 def _safe_relative(root: Path, relative: str) -> Path:
     candidate = Path(relative)
-    if candidate.is_absolute() or any(
+    # ``anchor`` also catches Windows rooted ("/x") and drive-relative ("C:x")
+    # paths, which ``is_absolute()`` reports as relative.
+    if candidate.anchor or any(
         part in {"", ".", ".."} for part in candidate.parts
     ):
         raise ValueError(f"Unsafe evidence artifact path: {relative!r}")

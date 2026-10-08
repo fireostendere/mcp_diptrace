@@ -260,7 +260,7 @@ def test_save_as_posts_menu_item_on_text_match(tmp_path, monkeypatch):
     assert posted[0] == save_as_item
 
 
-def test_worker_raises_on_windll_none(tmp_path):
+def test_worker_raises_on_windll_none(tmp_path, monkeypatch):
     """Test that _worker returns error when ctypes.windll is None (Linux).
 
     On Linux, getattr(ctypes, "windll", None) returns None automatically.
@@ -281,7 +281,8 @@ def test_worker_raises_on_windll_none(tmp_path):
         "timeout": 90.0,
     }
 
-    # On Linux, windll is None, so _worker should return error result
+    # Deterministic on every platform: Windows has a real windll.
+    monkeypatch.setattr(nx.ctypes, "windll", None, raising=False)
     result = nx._worker(request)
     assert result["ok"] is False
     assert "Windows bindings are unavailable" in result["error"]

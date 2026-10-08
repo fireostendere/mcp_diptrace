@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -173,3 +174,15 @@ def test_evidence_candidate_and_path_validation(tmp_path: Path) -> None:
     (root / "link").symlink_to(outside)
     with pytest.raises(ValueError, match="escapes"):
         evidence_report._safe_relative(root, "link")
+
+
+@pytest.mark.parametrize(
+    "relative", ["/rooted", "C:drive-relative", "C:/absolute", "\\\\server\\share\\x"]
+)
+def test_safe_relative_rejects_every_anchored_path(tmp_path: Path, relative: str) -> None:
+    from pathlib import PureWindowsPath
+
+    if os.name != "nt" and PureWindowsPath(relative).anchor and not Path(relative).anchor:
+        pytest.skip("POSIX treats this Windows spelling as a plain relative name")
+    with pytest.raises(ValueError, match="Unsafe"):
+        evidence_report._safe_relative(tmp_path, relative)

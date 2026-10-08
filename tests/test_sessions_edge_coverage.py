@@ -38,7 +38,8 @@ def test_stable_file_and_json_readers_fail_closed(tmp_path: Path) -> None:
         sessions._stable_regular_file_bytes(link, 10, purpose="fixture")
     directory = tmp_path / "directory"
     directory.mkdir()
-    with pytest.raises(SessionError, match="regular file"):
+    # POSIX opens the directory and rejects its type; Windows cannot open it.
+    with pytest.raises(SessionError, match="regular file|Cannot open"):
         sessions._stable_regular_file_bytes(directory, 10, purpose="fixture")
 
 
