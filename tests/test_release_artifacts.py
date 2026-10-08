@@ -7,6 +7,7 @@ import sys
 import tarfile
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -158,3 +159,18 @@ def test_hatch_build_hook_excludes_dirty_untracked_files(tmp_path: Path) -> None
         relative = dirty.relative_to(project).as_posix()
         assert not any(name.endswith(relative) for name in sdist_names)
         assert not any(name.endswith(relative) for name in wheel_names)
+
+
+def test_editable_wheel_keeps_hatch_live_src_link() -> None:
+    """Editable installs must not get the release copy (it froze a stale snapshot)."""
+    from scripts.hatch_build import CustomBuildHook
+
+    class EditableWheelHook(CustomBuildHook):
+        target_name = "wheel"  # type: ignore[assignment]
+
+    hook = object.__new__(EditableWheelHook)
+    build_data: dict[str, Any] = {"force_include": {}}
+
+    hook.initialize("editable", build_data)
+
+    assert build_data == {"force_include": {}}

@@ -68,7 +68,11 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
     PLUGIN_NAME = "custom"
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
-        del version
+        if self.target_name == "wheel" and version == "editable":
+            # An editable install must import src/ live. Copying the release
+            # mapping here froze `pip install -e .` into a stale snapshot that
+            # MCP hosts kept serving after the source changed.
+            return
         root = Path(self.root)
         paths = _validated_release_paths(root)
 
