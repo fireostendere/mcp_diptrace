@@ -11,6 +11,6 @@ f6429caff95dd5c6131587a3f56d421e4d99d05fdfdc8ad1e773655205921683  .local/physica
 8e9e3d0bdd5f71db756dfc4068ef6705d5ad06339ef05f71c27bc927da252ac2  .local/physical-validation/phase-a/review/09-physical-fit-1to1-preview.png
 72f865d0ee94734abebcaf81a534c0ca6d440a65eade449e4a22648fe417312d  .local/physical-validation/phase-a/i2c-level-shifter.final10-native-evidence.json
 928e9047390504fdc48e6db4e91266379af17fe4df711d376003899aa407afcf  .local/physical-validation/phase-a/i2c-level-shifter.final10-native.dipxml
-a272793597e556e87250e9b703a878182629995d2d20dbacf03c897f060fc118  i2c-level-shifter-pcb.dipxml
-30c4765e7e0e47948b35ba8de6686df95ada3397eae8752dd4cb622c0b9bfcc4  i2c-level-shifter-pcb-demo.mp4
-05716de6e42220069287aa6d3c8ebd3ea019ac482ff7497991b432f3394d83ba  i2c-level-shifter-pcb-demo.gif
+a272793597e556e87250e9b703a878182629995d2d20dbacf03c897f060fc118  i2c-level-shifter/i2c-level-shifter-pcb.dipxml
+30c4765e7e0e47948b35ba8de6686df95ada3397eae8752dd4cb622c0b9bfcc4  i2c-level-shifter/i2c-level-shifter-pcb-demo.mp4
+05716de6e42220069287aa6d3c8ebd3ea019ac482ff7497991b432f3394d83ba  i2c-level-shifter/i2c-level-shifter-pcb-demo.gif

@@ -319,25 +319,3 @@ def test_autorouter_connection_skips_and_placement_keepout() -> None:
     ]
     report = analyze_placement(snapshot)
     assert any(item["reason"].startswith("keepout:") for item in report["violations"])
-
-
-def test_placement_analysis_scores_static_guards() -> None:
-    snapshot = build_snapshot(_document("pcb.xml"))
-    assert snapshot.board is not None
-    first, second = snapshot.board.components[:2]
-    report = analyze_placement(snapshot)
-    assert report["component_count"] == 2
-    score, violations = score_placement_proposal(
-        snapshot,
-        [
-            PlacementProposal(
-                object_id=first.stable_id, x=second.position["x"], y=second.position["y"]
-            )  # type: ignore[index]
-        ],
-        PlacementConfig(region={"min_x": 0, "min_y": 0, "max_x": 5, "max_y": 5}),
-    )
-    assert score["total"] > 0
-    assert {item["reason"] for item in violations} & {
-        "component_spacing",
-        "containment:requested_region",
-    }

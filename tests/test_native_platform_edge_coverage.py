@@ -15,7 +15,6 @@ from diptrace_mcp import native_xml_export as nxe
 from diptrace_mcp import pcb_native_acceptance as pna
 from diptrace_mcp import schematic_native_acceptance as sna
 from diptrace_mcp import sessions
-from diptrace_mcp.xml_document import sha256_bytes
 
 
 class _Call:
@@ -468,26 +467,6 @@ def test_windows_liveness_and_wsl_detection(monkeypatch: pytest.MonkeyPatch) -> 
         lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("missing")),
     )
     assert sessions._is_wsl_runtime("linux") is False
-
-
-@pytest.mark.parametrize("payload", [b"{", b"[]"])
-def test_finish_request_reader_fails_closed_on_malformed_json(
-    tmp_path: Path,
-    payload: bytes,
-) -> None:
-    exchange = tmp_path / "exchange.xml"
-    exchange.write_bytes((Path(__file__).parent / "fixtures" / "pcb.xml").read_bytes())
-    store = sessions.SessionStore(tmp_path / "state", 10_000_000, allowed_roots=(tmp_path,))
-    metadata = store.create(exchange)
-    session_id = str(metadata["session_id"])
-    working = store.working_path(session_id)
-    store.request_finish("apply", sha256_bytes(working.read_bytes()))
-    store.control_path(session_id).write_bytes(payload)
-
-    request = store.read_finish_request(session_id)
-
-    assert "_parse_error" in request
-    assert len(request["_control_sha256"]) == 64
 
 
 def test_schematic_acceptance_host_pipeline_without_native_gui(

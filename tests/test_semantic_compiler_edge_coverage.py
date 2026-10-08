@@ -8,7 +8,6 @@ from types import SimpleNamespace
 import pytest
 
 from diptrace_mcp import semantic_compiler as compiler
-from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.domain import ObjectRecord, QuerySelector
 from diptrace_mcp.errors import (
     AmbiguousSelectorError,
@@ -233,11 +232,6 @@ def test_sync_endpoint_resolution_guards() -> None:
     assert key == ("1", "1") and pad.get("Number") == "1"
 
 
-def test_real_snapshot_helper_identity() -> None:
-    snapshot = build_snapshot(_load("pcb.xml"))
-    assert compiler._next_testpoint_refdes(snapshot).startswith("TP")
-
-
 def test_sync_repairs_pattern_defaults_and_missing_component_container() -> None:
     pcb, operation = _sync_operation()
     synced = compiler.apply_semantic_operations(pcb, [operation]).document
@@ -376,14 +370,3 @@ def test_sync_repairs_existing_net_metadata_and_detects_duplicate_names() -> Non
     )
     with pytest.raises(AmbiguousSelectorError, match="duplicate net name"):
         compiler.apply_semantic_operations(duplicate, [operation])
-
-
-def test_sync_disables_ratline_generation_explicitly() -> None:
-    pcb, operation = _sync_operation()
-    result = compiler.apply_semantic_operations(
-        pcb, [operation.model_copy(update={"create_ratlines": False})]
-    )
-    assert all(
-        net.get("HideRatlines") == "Y"
-        for net in ET.fromstring(result.raw_bytes).findall("./Board/Nets/Net")
-    )

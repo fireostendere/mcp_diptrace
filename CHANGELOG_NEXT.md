@@ -47,8 +47,12 @@ Changes in this section are later development and are not silently part of those
   `set_length_constraints` fold into `update_net_class_rules`; `unlock_components` is
   `lock_components(locked=false)`;
 - the MCP boundary uses only public FastMCP overrides (`tool`, `prompt`, `list_tools`,
-  `call_tool`) instead of mutating SDK tool objects, and `initialize` reports the
+  `call_tool`, `run_stdio_async`) instead of mutating SDK tool objects; the console
+  entry point always starts through `server.run()`, and `initialize` reports the
   DipTrace MCP version rather than the SDK's;
+- coverage-wave test files are renamed after the modules they cover
+  (`test_<module>_edge_coverage.py`); 28 tests that added no unique line coverage
+  were removed, keeping total coverage at 93.9%;
 - `tools/list` is ~40% smaller: auto-generated schema titles are dropped, optional
   `X | None = None` inputs are published as plain `X`, the units and dry-run
   disclosures are shorter, and `rank_schematic_placement_candidates.config` is

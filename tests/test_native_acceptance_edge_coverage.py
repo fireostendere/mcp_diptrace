@@ -64,41 +64,6 @@ def test_menu_exact_text_path_posts_the_single_match(
     assert posted == [item]
 
 
-def test_menu_rejects_ambiguous_or_missing_label(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _patch_menu_stack(monkeypatch, named=[])
-
-    with pytest.raises(HeadlessGuiError, match="unverified File->Export menu"):
-        sna._menu(_window(), Path("schematic.exe"), "File", "Export")
-
-
-def test_menu_profile_requires_the_pinned_executable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _patch_menu_stack(monkeypatch, named=[])
-    executable = tmp_path / "Schematic.exe"
-    executable.write_bytes(b"not the pinned build")
-
-    with pytest.raises(HeadlessGuiError, match="unverified schematic menu executable"):
-        sna._menu(_window(), executable, "File", "Save As...")
-
-
-def test_menu_profile_posts_the_pinned_leaf(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pinned = [_FakeItem() for _ in range(22)]
-    posted = _patch_menu_stack(monkeypatch, named=[], pinned=pinned)
-    executable = tmp_path / "Schematic.exe"
-    executable.write_bytes(b"exe")
-    monkeypatch.setattr(sna.hg, "_sha256", lambda path: sna._EXE_SHA)
-
-    result = sna._menu(_window(), executable, "File", "Save As...")
-
-    assert result == "schematic-5.3.0.3-en-File-11-d85632b2"
-    assert posted == [pinned[4]]
-
-
 def test_menu_profile_rejects_a_submenu_in_the_leaf_slot(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -121,34 +86,6 @@ _SCHEMATIC = (
     b'<Source Type="DipTrace-Schematic" Version="5.3.0.3" Units="mm">'
     b"<Schematic><Components /></Schematic></Source>"
 )
-
-
-def test_validate_source_rejects_bad_suffix_and_missing_files(
-    tmp_path: Path,
-) -> None:
-    wrong = tmp_path / "board.dip"
-    wrong.write_bytes(_SCHEMATIC)
-
-    with pytest.raises(ValueError, match="regular schematic XML file"):
-        sna._validate_source(wrong, "0" * 64)
-    with pytest.raises(ValueError, match="regular schematic XML file"):
-        sna._validate_source(tmp_path / "absent.dchxml", "0" * 64)
-
-
-def test_validate_source_rejects_wrong_sha(tmp_path: Path) -> None:
-    source = tmp_path / "board.dchxml"
-    source.write_bytes(_SCHEMATIC)
-
-    with pytest.raises(ValueError, match="SHA-256 guard failed"):
-        sna._validate_source(source, "0" * 64)
-
-
-def test_validate_source_accepts_the_exact_schematic(tmp_path: Path) -> None:
-    source = tmp_path / "board.dchxml"
-    source.write_bytes(_SCHEMATIC)
-    digest = hashlib.sha256(_SCHEMATIC).hexdigest()
-
-    sna._validate_source(source, digest)
 
 
 # ---------------------------------------------------------------------------
@@ -480,18 +417,3 @@ def test_validate_request_requires_baseline(
         pna._validate_request(
             _pcb_request(tmp_path, baseline_xml=tmp_path / "missing.dipxml")
         )
-
-
-def test_validate_request_resolves_and_prepares_output(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    root = _prepared_root(tmp_path, monkeypatch)
-    baseline = tmp_path / "baseline.dipxml"
-    baseline.write_bytes(b"<Board/>")
-
-    validated = pna._validate_request(_pcb_request(tmp_path, baseline_xml=baseline))
-
-    assert validated.diptrace_root == root.resolve()
-    assert validated.project == (tmp_path / "board.dip").resolve()
-    assert validated.output_xml.parent.is_dir()
-    assert validated.baseline_xml == baseline.resolve()

@@ -3,13 +3,14 @@ from __future__ import annotations
 import io
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import anyio
+from mcp import types
 from mcp.shared.message import SessionMessage
 
-import diptrace_mcp.server  # noqa: F401 - installs the stdio async-context-manager seam
 import diptrace_mcp.server_runtime as runtime
+from diptrace_mcp.server_inputs import DipTraceFastMCP
 
 
 def test_runtime_main_dispatches_http_and_plain_stdio(monkeypatch: Any) -> None:
@@ -36,51 +37,56 @@ def test_runtime_main_dispatches_http_and_plain_stdio(monkeypatch: Any) -> None:
 
 
 def test_runtime_main_uses_frozen_stdio_runner(monkeypatch: Any) -> None:
-    server = SimpleNamespace()
-    calls: list[tuple[object, ...]] = []
+    calls: list[str] = []
+    server = SimpleNamespace(
+        stdio_streams=None,
+        run=lambda *, transport: calls.append(transport),
+    )
     monkeypatch.setattr(runtime, "create_server", lambda **_kwargs: server)
     monkeypatch.setenv("DIPTRACE_MCP_FROZEN_STDIO", "YES")
 
-    def fake_anyio_run(function: object, argument: object) -> None:
-        calls.append((function, argument))
-
-    monkeypatch.setattr(runtime.anyio, "run", fake_anyio_run)
-
     runtime.main(["--transport", "stdio"])
 
-    assert calls == [(runtime._run_stdio, server)]
+    assert calls == ["stdio"]
+    assert server.stdio_streams is runtime._robust_stdio_server
 
 
-def test_run_stdio_uses_context_streams_and_initialization_options(monkeypatch: Any) -> None:
-    seen: list[object] = []
-    read_stream = object()
-    write_stream = object()
+def test_custom_stdio_streams_serve_the_project_version() -> None:
+    """A real initialize handshake over project-provided streams."""
 
-    @asynccontextmanager
-    async def fake_stdio() -> Any:
-        seen.append("entered")
-        yield read_stream, write_stream
-        seen.append("exited")
+    async def exercise() -> dict[str, Any]:
+        server = DipTraceFastMCP(name="stdio-test", version="9.9.9")
+        to_server, server_reads = anyio.create_memory_object_stream[Any](10)
+        server_writes, from_server = anyio.create_memory_object_stream[Any](10)
 
-    class InnerServer:
-        def create_initialization_options(self) -> dict[str, bool]:
-            seen.append("options")
-            return {"ready": True}
+        @asynccontextmanager
+        async def streams() -> Any:
+            yield server_reads, server_writes
 
-        async def run(self, read: object, write: object, options: object) -> None:
-            seen.append((read, write, options))
+        server.stdio_streams = streams
+        request = types.JSONRPCMessage(
+            types.JSONRPCRequest(
+                jsonrpc="2.0",
+                id=1,
+                method="initialize",
+                params={
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "t", "version": "0"},
+                },
+            )
+        )
+        with anyio.fail_after(10):
+            async with anyio.create_task_group() as task_group:
+                task_group.start_soon(server.run_stdio_async)
+                await to_server.send(SessionMessage(request))
+                reply = await from_server.receive()
+                await to_server.aclose()
+        return cast(dict[str, Any], reply.message.root.result)
 
-    monkeypatch.setattr(runtime, "_robust_stdio_server", fake_stdio)
-    server = SimpleNamespace(_mcp_server=InnerServer())
+    result = anyio.run(exercise)
 
-    anyio.run(runtime._run_stdio, server)
-
-    assert seen == [
-        "entered",
-        "options",
-        (read_stream, write_stream, {"ready": True}),
-        "exited",
-    ]
+    assert result["serverInfo"] == {"name": "stdio-test", "version": "9.9.9"}
 
 
 def test_robust_stdio_forwards_valid_invalid_input_and_output(monkeypatch: Any) -> None:

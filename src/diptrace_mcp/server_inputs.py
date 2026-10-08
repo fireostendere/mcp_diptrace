@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
+from contextlib import AbstractAsyncContextManager
 from typing import Annotated, Any, Literal, cast
 
 from mcp import types
@@ -387,10 +388,13 @@ class DipTraceFastMCP(FastMCP):
 
     def __init__(self, *args: Any, version: str, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        # FastMCP v1 has no version argument; without this the initialize
-        # handshake reports the MCP SDK's own version as the server version.
+        # FastMCP v1 exposes neither a version argument nor its lowlevel
+        # server; this subclass is the only place that touches ``_mcp_server``.
+        # Without it, initialize reports the MCP SDK's version as ours.
         self._mcp_server.version = version
         self.prompt_names: list[str] = []
+        # Optional replacement for the SDK stdio transport (see run_stdio_async).
+        self.stdio_streams: Callable[[], AbstractAsyncContextManager[Any]] | None = None
 
     def tool(self, *args: Any, **kwargs: Any) -> Callable[[Any], Any]:
         register = super().tool(*args, **kwargs)
@@ -409,6 +413,24 @@ class DipTraceFastMCP(FastMCP):
             return register(function)
 
         return decorator
+
+    async def run_stdio_async(self) -> None:
+        """Serve stdio, optionally over a project-provided stream pair.
+
+        The SDK reads stdin through ``anyio.wrap_file``, which some Windows/WSL
+        inherited pipes never wake; frozen builds set ``stdio_streams`` to a
+        thread-backed reader instead.
+        """
+
+        if self.stdio_streams is None:
+            await super().run_stdio_async()
+            return
+        async with self.stdio_streams() as (read_stream, write_stream):
+            await self._mcp_server.run(
+                read_stream,
+                write_stream,
+                self._mcp_server.create_initialization_options(),
+            )
 
     async def list_tools(self) -> list[types.Tool]:
         return [_finalize_listed_tool(tool) for tool in await super().list_tools()]

@@ -5,12 +5,13 @@ import json
 import os
 import sys
 import threading
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from queue import Empty, Queue
 from typing import Annotated, Any, Literal
 
 import anyio
 from mcp import types
-from mcp.server.fastmcp import FastMCP
 from mcp.shared.message import SessionMessage
 from pydantic import Field, ValidationError
 
@@ -102,7 +103,7 @@ def create_server(
     *,
     host: str = "127.0.0.1",
     port: int = 8765,
-) -> FastMCP:
+) -> DipTraceFastMCP:
     service = DipTraceService(settings or Settings.from_env())
     mcp = DipTraceFastMCP(
         name="DipTrace MCP",
@@ -2841,7 +2842,8 @@ def create_server(
 
     service.set_workflow_prompt_names(tuple(mcp.prompt_names))
     return mcp
-async def _robust_stdio_server() -> Any:
+@asynccontextmanager
+async def _robust_stdio_server() -> AsyncIterator[tuple[Any, Any]]:
     """Provide MCP stdio streams without anyio's stdin file wrapper.
 
     Some Windows/WSL combinations do not wake an ``anyio.wrap_file`` worker
@@ -2904,13 +2906,6 @@ async def _robust_stdio_server() -> Any:
         task_group.start_soon(forward_input)
         task_group.start_soon(forward_output)
         yield read_stream, write_stream
-async def _run_stdio(server: FastMCP) -> None:
-    async with _robust_stdio_server() as (read_stream, write_stream):
-        await server._mcp_server.run(
-            read_stream,
-            write_stream,
-            server._mcp_server.create_initialization_options(),
-        )
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="MCP server for DipTrace XML and live projects")
     parser.add_argument(
@@ -2935,8 +2930,7 @@ def main(argv: list[str] | None = None) -> None:
         "DIPTRACE_MCP_FROZEN_STDIO", ""
     ).strip().casefold() in {"1", "true", "yes"}
     if args.transport == "stdio" and use_frozen_stdio:
-        anyio.run(_run_stdio, server)
-    else:
-        server.run(transport=args.transport)
+        server.stdio_streams = _robust_stdio_server
+    server.run(transport=args.transport)
 if __name__ == "__main__":
     main()
