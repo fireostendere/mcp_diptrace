@@ -111,6 +111,23 @@ _SCHEMATIC_5303_SCALE_INDEX = 17
 _SCHEMATIC_5303_SCALE_IDS = tuple(range(180, 197))
 _SCHEMATIC_5303_SCALE_SEPARATORS = frozenset((11, 14))
 _SCHEMATIC_5303_ZOOM_EXTENTS_INDEX = 16
+# 5.3.5.1 keeps the View/Scale layout above; only runtime command IDs differ (CI inventory).
+_SCHEMATIC_VIEW_PROFILES = {
+    _SCHEMATIC_5303_SHA256: (
+        _SCHEMATIC_5303_NATIVE_VIEW_PROFILE,
+        _SCHEMATIC_5303_VIEW_IDS,
+        _SCHEMATIC_5303_SCALE_IDS,
+    ),
+    "0ba7c41229b3c63766e7c67f5624cc6b284d4498de9a45768496667e4a0e8ea0": (
+        "schematic-5.3.5.1-en-zoom-extents-0ba7c412",
+        (
+            *(103, 108, 109, 110, 111, 112, 113, 114, 134, 135, 158),
+            *(174, 175, 176, 177, 178, 179, 180, 198, 199, 200, 206),
+            *(210, 211, 212, 213, 218, 219, 220, 221, 232),
+        ),
+        tuple(range(181, 198)),
+    ),
+}
 _PRF_RENDER_ALL = 0x0002 | 0x0004 | 0x0008 | 0x0010
 _CAPTURE_LEAD_SECONDS = 0.35
 _FRAME_PADDING = 0.14
@@ -968,11 +985,13 @@ def _zoom_extents_via_pinned_profile(
 ) -> str:
     """Use the one reviewed owner-draw menu structure when text is unavailable."""
 
-    if executable is None or hg._sha256(executable) != _SCHEMATIC_5303_SHA256:
+    digest = hg._sha256(executable) if executable is not None else None
+    if digest not in _SCHEMATIC_VIEW_PROFILES:
         _reject_pinned_profile(view_menu, "View", "executable SHA-256 did not match")
+    profile, view_ids, scale_ids = _SCHEMATIC_VIEW_PROFILES[digest]
     view_items = _pinned_menu_items(
         view_menu,
-        _SCHEMATIC_5303_VIEW_IDS,
+        view_ids,
         _SCHEMATIC_5303_VIEW_SEPARATORS,
         menu_name="View",
     )
@@ -985,7 +1004,7 @@ def _zoom_extents_via_pinned_profile(
         _reject_pinned_profile(view_menu, "View", f"Scale submenu unavailable: {exc}")
     scale_items = _pinned_menu_items(
         zoom_menu,
-        _SCHEMATIC_5303_SCALE_IDS,
+        scale_ids,
         _SCHEMATIC_5303_SCALE_SEPARATORS,
         menu_name="View->Scale",
     )
@@ -993,7 +1012,7 @@ def _zoom_extents_via_pinned_profile(
     if not bool(_menu_value(zoom_extents, "is_enabled")):
         _reject_pinned_profile(zoom_menu, "View->Scale", "Zoom Extents profile item was disabled")
     hg._post_menu_item(window, zoom_extents)
-    return _SCHEMATIC_5303_NATIVE_VIEW_PROFILE
+    return profile
 
 
 def _pinned_menu_items(
@@ -1026,7 +1045,7 @@ def _pinned_menu_items(
 def _reject_pinned_profile(menu: Any, menu_name: str, reason: str) -> NoReturn:
     detail = _menu_snapshot(menu, menu_name)
     raise hg.HeadlessGuiError(
-        f"native pinned profile {_SCHEMATIC_5303_NATIVE_VIEW_PROFILE!r} rejected: {reason}: "
+        f"native pinned profile rejected: {reason}: "
         f"{json.dumps(detail, ensure_ascii=False, separators=(',', ':'))}"
     )
 

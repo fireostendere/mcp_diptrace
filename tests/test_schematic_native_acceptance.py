@@ -48,7 +48,13 @@ def test_pinned_save_as_requires_verified_binary_and_structure(monkeypatch, tmp_
     monkeypatch.setattr(native.hg, "_sha256", lambda *a: native._EXE_SHA)
     profile = native._menu(window, tmp_path / "Schematic.exe", "File", "Save As...")
     assert posted == [(window, leaf)] and checked
-    assert "File-11" in profile
+    assert profile == "schematic-5.3.0.3-en-File-11-d85632b2"
+    build_5351 = next(sha for sha, build in native._BUILDS.items() if build[0] == "5.3.5.1")
+    monkeypatch.setattr(native.hg, "_sha256", lambda *a: build_5351)
+    executable = tmp_path / "Schematic.exe"
+    profile = native._menu(window, executable, "Verification", "Electrical Rule Check")
+    assert profile == "schematic-5.3.5.1-en-Verification-285-0ba7c412"
+    assert checked[-1] == ((285, 286, 287), frozenset())
 
 
 def test_exclusive_evidence_and_source_guards(tmp_path):

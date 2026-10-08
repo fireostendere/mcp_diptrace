@@ -220,6 +220,16 @@ def _save_as(window: Any, executable: Path) -> None:
     profiles = {
         "d85632b2c8fb445471339e875416782e3e62fb56ea13ab7d973052122352f568": schematic_ids,
         "d8cf49f62e9bdc02c4a8009de28af9fc9a9bc4986a3054331ee23de740aef801": pcb_ids,
+        # 5.3.5.1: same File layout, runtime IDs from the CI menu inventory.
+        "0ba7c41229b3c63766e7c67f5624cc6b284d4498de9a45768496667e4a0e8ea0": (
+            *(2, 3, 4, 10, 11, 12, 13, 14, 28),
+            *range(50, 63),
+        ),
+        "9937f768029be703adf7d5a5cff2572f0fbe4f2619aff408a578a0abe1fcdbdf": (
+            *(2, 3, 4, 10, 11, 12, 13, 14, 15, 46),
+            *range(73, 81),
+            *(85, 95, 96, 97, 98, 99),
+        ),
     }
     executable_sha256 = hg._sha256(executable)
     if (

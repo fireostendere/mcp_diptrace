@@ -483,3 +483,36 @@ def test_worker_success_path(tmp_path, monkeypatch):
     assert result["editor"] == "schematic"
     assert result["diptrace_pid"] == 456
     assert result["desktop_name"] == "test_desktop"
+
+
+@pytest.mark.parametrize(
+    ("digest", "ids"),
+    [
+        (
+            "0ba7c41229b3c63766e7c67f5624cc6b284d4498de9a45768496667e4a0e8ea0",
+            (2, 3, 4, 10, 11, 12, 13, 14, 28, *range(50, 63)),
+        ),
+        (
+            "9937f768029be703adf7d5a5cff2572f0fbe4f2619aff408a578a0abe1fcdbdf",
+            (2, 3, 4, 10, 11, 12, 13, 14, 15, 46, *range(73, 81), 85, *range(95, 100)),
+        ),
+    ],
+)
+def test_save_as_accepts_reviewed_5351_owner_draw_file_menus(tmp_path, monkeypatch, digest, ids):
+    """DipTrace 5.3.5.1 File menus (CI inventory) resolve Save As at position 4."""
+    from types import SimpleNamespace
+
+    items = [
+        SimpleNamespace(text=lambda: "", item_id=lambda i=i: i, sub_menu=lambda: None) for i in ids
+    ]
+    submenu = SimpleNamespace(items=lambda: items, handle=456)
+    file_item = SimpleNamespace(text=lambda: "&File", sub_menu=lambda: submenu, index=lambda: 0)
+    window = SimpleNamespace(menu=lambda: SimpleNamespace(items=lambda: [file_item]), handle=123)
+    posted = []
+    monkeypatch.setattr(nx.hg, "_send_window_message", lambda *args: None)
+    monkeypatch.setattr(nx.hg, "_sha256", lambda p: digest)
+    monkeypatch.setattr(nx.hg, "_post_menu_item", lambda _window, item: posted.append(item))
+
+    nx._save_as(window, tmp_path / "Pcb.exe")
+
+    assert posted == [items[4]]

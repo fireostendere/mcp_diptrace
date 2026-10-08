@@ -1382,14 +1382,17 @@ def test_native_zoom_extents_refuses_unknown_menu_with_bounded_diagnostic(
     assert posted == []
 
 
+@pytest.mark.parametrize("digest", sorted(recording._SCHEMATIC_VIEW_PROFILES))
 @pytest.mark.parametrize(
     "defect",
     [None, "binary", "id", "order", "separator", "count", "caption", "disabled"],
 )
-def test_native_zoom_extents_pinned_schematic_5303_profile_is_exact_or_refuses(
+def test_native_zoom_extents_pinned_schematic_profile_is_exact_or_refuses(
     monkeypatch: pytest.MonkeyPatch,
     defect: str | None,
+    digest: str,
 ) -> None:
+    profile, view_ids, scale_ids = recording._SCHEMATIC_VIEW_PROFILES[digest]
     ready: set[int] = set()
     posted: list[object] = []
 
@@ -1453,12 +1456,12 @@ def test_native_zoom_extents_pinned_schematic_5303_profile_is_exact_or_refuses(
         ]
 
     scale_items = profile_items(
-        recording._SCHEMATIC_5303_SCALE_IDS,
+        scale_ids,
         recording._SCHEMATIC_5303_SCALE_SEPARATORS,
     )
     scale_menu = Menu(300, scale_items, requires_init=True)
     view_items = profile_items(
-        recording._SCHEMATIC_5303_VIEW_IDS,
+        view_ids,
         recording._SCHEMATIC_5303_VIEW_SEPARATORS,
     )
     view_items[recording._SCHEMATIC_5303_SCALE_INDEX].submenu = scale_menu
@@ -1517,14 +1520,14 @@ def test_native_zoom_extents_pinned_schematic_5303_profile_is_exact_or_refuses(
     monkeypatch.setattr(
         recording.hg,
         "_sha256",
-        lambda _path: recording._SCHEMATIC_5303_SHA256 if defect != "binary" else "wrong",
+        lambda _path: digest if defect != "binary" else "wrong",
     )
     monkeypatch.setattr(recording.hg, "_post_menu_item", lambda _window, item: posted.append(item))
 
     if defect is None:
         assert (
             recording._zoom_extents_via_native_menu(12, 0xCAFE, Path("Schematic.exe"))
-            == recording._SCHEMATIC_5303_NATIVE_VIEW_PROFILE
+            == profile
         )
         assert posted == [scale_items[recording._SCHEMATIC_5303_ZOOM_EXTENTS_INDEX]]
     else:
