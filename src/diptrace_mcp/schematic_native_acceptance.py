@@ -8,6 +8,7 @@ import ctypes.wintypes as wintypes
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -70,6 +71,40 @@ def _validate_source(source: Path, expected_sha: str) -> None:
         raise ValueError("source size or SHA-256 guard failed")
     if DipTraceDocument.load(source, _MAX_BYTES).kind != "schematic":
         raise ValueError("source is not a DipTrace schematic")
+
+
+def _startup_hashes(value: Any) -> list[str]:
+    hashes = [] if value is None else [value] if isinstance(value, str) else value
+    if not isinstance(hashes, list) or any(
+        not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+        for digest in hashes
+    ):
+        raise ValueError("startup dialog hashes must be exact lowercase SHA-256 values")
+    return hashes
+
+
+def _require_menu_ready(app: Any, window: Any) -> None:
+    if hg._owned_dialogs(app, window) or not window.is_enabled() or window.menu() is None:
+        raise hg.HeadlessGuiError("project is blocked by a native dialog, not menu-ready")
+
+
+def _window_evidence(window: Any) -> dict[str, Any]:
+    evidence: dict[str, Any] = {"handle": int(window.handle)}
+    for field, method in (
+        ("title", "window_text"), ("class", "class_name"), ("visible", "is_visible"),
+        ("enabled", "is_enabled"), ("pid", "process_id"),
+    ):
+        with suppress(Exception):
+            evidence[field] = getattr(window, method)()
+    with suppress(Exception):
+        parent = window.parent()
+        evidence["owner_handle"] = int(parent.handle) if parent else None
+    with suppress(Exception):
+        evidence["controls"] = [
+            {"class": child.class_name(), "title": child.window_text(), "id": child.control_id()}
+            for child in window.descendants()[:32]
+        ]
+    return evidence
 
 
 def _menu(window: Any, executable: Path, section: str, label: str) -> str:
@@ -193,6 +228,7 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
     window = None
     app = None
     try:
+        startup_hashes = _startup_hashes(request.get("startup_dialog_sha256"))
         if hg.process_is_elevated() or report["desktop_name"] != request["desktop_name"]:
             raise hg.HeadlessGuiError("worker token or desktop mismatch")
         if (report["window_station_name"], report["session_id"]) != (
@@ -223,9 +259,15 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
             window = hg._main_window(app, project, 30)
             window.wait("exists enabled", timeout=30)
             if window.menu() is None and window.class_name() == "TFMyMessage":
+                if window.process_id() != process.pid or hg._owned_dialogs(app, window):
+                    raise hg.HeadlessGuiError(
+                        "startup dialog ownership or uniqueness is unverified"
+                    )
                 fingerprint = _capture(window, folder, f"{name}-startup")
-                report["startup_dialogs"].append({"phase": name, "client_sha256": fingerprint})
-                if fingerprint != request.get("startup_dialog_sha256"):
+                report["startup_dialogs"].append(
+                    {"phase": name, "client_sha256": fingerprint, **_window_evidence(window)}
+                )
+                if fingerprint not in startup_hashes:
                     raise hg.HeadlessGuiError(
                         "unreviewed startup dialog image; acknowledgement refused"
                     )
@@ -240,10 +282,13 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
                 if len(buttons) != 1:
                     raise hg.HeadlessGuiError("reviewed startup dialog has no unique OK button")
                 hg._post_window_message(int(buttons[0].handle), 0x00F5)
+                report["startup_dialogs"][-1]["acknowledged"] = True
+                app.window(handle=int(window.handle)).wait_not("visible", timeout=10)
                 window = hg._main_window(app, project, 30)
-            if window.menu() is None:
-                raise hg.HeadlessGuiError("project is blocked by a native dialog, not menu-ready")
-            report["native_steps"].append({"step": name, "opened": str(project)})
+            _require_menu_ready(app, window)
+            report["native_steps"].append(
+                {"step": name, "opened": str(project), "status": "started"}
+            )
             if name in {"inspect", "open_save"}:
                 menus = {}
                 for section in ("File", "Verification", "View"):
@@ -253,6 +298,7 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
                     )
                 _write_new(folder / "menus.json", menus)
                 if request["capture"]:
+                    _require_menu_ready(app, window)
                     windll = getattr(ctypes, "windll", None)
                     if windll is None:
                         raise hg.HeadlessGuiError("Win32 API is required for capture")
@@ -261,16 +307,17 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
                         user32.ShowWindow(int(window.handle), 9)
                         window.move_window(x=0, y=0, width=3000, height=2000, repaint=True)
                     time.sleep(0.5)
+                    _require_menu_ready(app, window)
                     cr._zoom_extents_via_native_menu(process.pid, int(window.handle), executable)
                     time.sleep(0.5)
+                    _require_menu_ready(app, window)
                     _capture(window, folder, "sheet")
             if target is not None:
                 if target.exists():
                     raise FileExistsError(target)
+                _require_menu_ready(app, window)
                 profile = _menu(window, executable, "File", "Save As...")
-                dialog = hg._visible_dialog(app, 15)
-                if dialog.class_name() != "#32770":
-                    raise hg.HeadlessGuiError("unexpected Save As dialog")
+                dialog = hg._visible_dialog(app, 15, owner=window, save_as=True)
                 hg._save_dialog_as_xml(int(dialog.handle), target)
                 hg._wait_for_export(app, target, 30)
                 if DipTraceDocument.load(target, _MAX_BYTES).kind != "schematic":
@@ -281,6 +328,7 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
                     menu_profile=profile,
                 )
             if request["erc"] and name in {"inspect", "reopen_final"}:
+                _require_menu_ready(app, window)
                 profile = _menu(window, executable, "Verification", "Electrical Rule Check")
                 deadline = time.monotonic() + 30
                 while True:
@@ -325,6 +373,7 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
             if process.wait(10) is None:
                 raise hg.HeadlessGuiError("owned Schematic.exe did not close normally")
             report["native_steps"][-1]["closed"] = True
+            report["native_steps"][-1]["status"] = "completed"
             process.close()
             process = window = None
         if hg._sha256(source) != request["source_sha256"]:
@@ -333,32 +382,37 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
     except Exception as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"
         report["error_traceback"] = traceback.format_exc()[-8000:]
+        if report["native_steps"] and report["native_steps"][-1]["status"] == "started":
+            report["native_steps"][-1]["status"] = "failed"
         report["error_windows"] = []
         if app is not None:
             candidates = []
             with suppress(Exception):
-                candidates = app.windows(visible_only=False)
+                # Put visible windows first: dozens of hidden Delphi forms must not hide the modal.
+                candidates = app.windows(visible_only=True)
+                seen = {int(candidate.handle) for candidate in candidates}
+                candidates += [
+                    candidate for candidate in app.windows(visible_only=False)
+                    if int(candidate.handle) not in seen
+                ]
+                if window is not None:
+                    modal_handles = {int(modal.handle) for modal in hg._owned_dialogs(app, window)}
+                    candidates.sort(
+                        key=lambda candidate: int(candidate.handle) not in modal_handles
+                    )
+            captures = 0
             for candidate in candidates[:64]:
                 with suppress(Exception):
-                    report["error_windows"].append(
-                        {
-                            "handle": int(candidate.handle),
-                            "title": candidate.window_text(),
-                            "class": candidate.class_name(),
-                            "visible": candidate.is_visible(),
-                            "enabled": candidate.is_enabled(),
-                            "controls": [
-                                {
-                                    "class": child.class_name(),
-                                    "title": child.window_text(),
-                                    "id": child.control_id(),
-                                }
-                                for child in candidate.descendants()[:32]
-                            ]
-                            if candidate.is_visible()
-                            else [],
-                        }
-                    )
+                    evidence = _window_evidence(candidate)
+                    report["error_windows"].append(evidence)
+                    if candidate.is_visible() and candidate.menu() is None and captures < 8:
+                        image_name = f"rejected-dialog-{captures}"
+                        captures += 1
+                        evidence["client_image"] = str(folder / f"{image_name}.client.png")
+                        try:
+                            evidence["client_sha256"] = _capture(candidate, folder, image_name)
+                        except Exception as capture_error:
+                            evidence["capture_error"] = str(capture_error)
     finally:
         if process is not None:
             if window is not None:
@@ -375,6 +429,7 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
 def run(args: argparse.Namespace) -> dict[str, Any]:
     source, folder = Path(args.project), Path(args.output_dir)
     _validate_source(source, args.expected_sha256)
+    startup_hashes = _startup_hashes(args.startup_dialog_sha256)
     if not math.isfinite(args.timeout) or not 30 <= args.timeout <= 300:
         raise ValueError("timeout must be finite and between 30 and 300 seconds")
     if os.name != "nt" or hg.process_is_elevated():
@@ -395,7 +450,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "inspect": args.inspect,
         "capture": args.capture,
         "erc": args.erc,
-        "startup_dialog_sha256": args.startup_dialog_sha256,
+        "startup_dialog_sha256": startup_hashes,
         "station": hg.process_window_station_name(),
         "session": hg.process_session_id(),
         "desktop_name": f"DipTraceSchematic-{os.getpid()}-{uuid.uuid4().hex[:8]}",
@@ -463,7 +518,8 @@ def main() -> int:
             "--erc", action="store_true", help="Capture native ERC result for review"
         )
         parser.add_argument(
-            "--startup-dialog-sha256", help="SHA of an explicitly reviewed client PNG"
+            "--startup-dialog-sha256", action="append",
+            help="Exact SHA-256 of a reviewed client PNG; repeat for reviewed variants"
         )
         report = run(parser.parse_args())
         print(json.dumps(report, ensure_ascii=False, indent=2))

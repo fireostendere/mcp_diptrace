@@ -166,7 +166,7 @@ def test_native_worker_evidence_runs_dip_pipeline(
     monkeypatch.setattr(
         native,
         "_visible_dialog",
-        lambda *_args: SimpleNamespace(
+        lambda *_args, **_kwargs: SimpleNamespace(
             handle=202,
             class_name=lambda: "Dialog",
             descendants=lambda: [],

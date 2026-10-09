@@ -6,6 +6,15 @@ Repository CI separates ordinary regression coverage, platform-specific behavior
 
 A green CI run proves tested repository behavior on configured runners. It does not prove universal DipTrace compatibility, a real GUI workflow, manufacturing semantics or field-solver/EMC/PI/thermal sign-off.
 
+The bounded Windows schematic helper (`python -B -m
+diptrace_mcp.schematic_native_acceptance --help`) accepts repeated
+`--startup-dialog-sha256` arguments for explicitly reviewed **exact** client-PNG
+variants. Unknown images and competing/unowned Save As dialogs remain refused.
+Phase `status: started` or `failed` is not evidence of saving; `completed` requires
+the phase's export validation (when requested) and normal process closure. Visible
+rejected windows are recorded first, with bounded controls and attempted lossless
+client captures. Synthetic tests do not establish native schematic acceptance.
+
 ## Platform matrix and coverage
 
 CI covers supported Python/platform combinations on Linux, macOS and Windows. Linux includes both exact Shapely/GEOS geometry and pure-Python no-Shapely fallback paths.

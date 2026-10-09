@@ -39,6 +39,14 @@ def test_native_xml_worker_dialog_and_cleanup(tmp_path: Path, monkeypatch: pytes
     )
     main = SimpleNamespace(menu=lambda: object(), class_name=lambda: "TForm1", handle=9)
     app = SimpleNamespace(process=12, start=lambda *_a, **_k: None, wait_for_process_exit=lambda **_k: None)
+    posted = []
+    def wait_dismissal(*_a, **_k):
+        assert posted == [(8, 0x00F5)]
+        app.seen = True
+    def dialog_by_handle(**kwargs):
+        assert kwargs == {"handle": 7}
+        return SimpleNamespace(wait_not=wait_dismissal)
+    app.window = dialog_by_handle
     windll = SimpleNamespace(uxtheme=SimpleNamespace(SetWindowTheme=lambda *_a: 0), user32=object())
     monkeypatch.setattr(export.ctypes, "windll", windll, raising=False)
     monkeypatch.setattr(export.hg, "thread_desktop_name", lambda: "desk")
@@ -47,14 +55,16 @@ def test_native_xml_worker_dialog_and_cleanup(tmp_path: Path, monkeypatch: pytes
     monkeypatch.setattr(export.hg, "process_is_elevated", lambda: False)
     monkeypatch.setattr(export.hg, "_pywinauto_application", lambda: lambda **_k: app)
     monkeypatch.setattr(export.hg, "_main_window", lambda *_a: dialog if not getattr(app, "seen", False) else main)
-    monkeypatch.setattr(cinematic_recording, "_record_printwindow_video", lambda **_k: setattr(app, "seen", True))
+    monkeypatch.setattr(cinematic_recording, "_record_printwindow_video", lambda **_k: None)
     monkeypatch.setattr(export.shutil, "which", lambda _name: "ffmpeg")
     monkeypatch.setattr(export.hg, "_sha256", lambda _path: image_hash)
-    monkeypatch.setattr(export, "_save_as", lambda *_a: None)
-    monkeypatch.setattr(export.hg, "_visible_dialog", lambda *_a: SimpleNamespace(class_name=lambda: "#32770", handle=5))
+    def save_as(window, _executable):
+        assert window is main  # A posted click must have completed before main is reacquired.
+    monkeypatch.setattr(export, "_save_as", save_as)
+    monkeypatch.setattr(export.hg, "_visible_dialog", lambda *_a, **_k: SimpleNamespace(class_name=lambda: "#32770", handle=5))
     monkeypatch.setattr(export.hg, "_save_dialog_as_xml", lambda _h, p: p.write_text("<xml/>", encoding="utf-8"))
     monkeypatch.setattr(export.hg, "_wait_for_export", lambda *_a: None)
-    monkeypatch.setattr(export.hg, "_post_window_message", lambda *_a: None)
+    monkeypatch.setattr(export.hg, "_post_window_message", lambda *_a: posted.append(_a))
     result = export._worker({"source": str(source), "output": str(output), "root": str(tmp_path), "desktop": "desk", "station": "WinSta0", "session": 1, "timeout": 10, "startup_dialog_sha256": image_hash})
     assert result["ok"] and result["acknowledged_dialog_sha256"] == image_hash
 
@@ -101,6 +111,7 @@ def test_schematic_worker_captures_owned_window(
         handle=7,
         menu=lambda: object(),
         class_name=lambda: "TForm1",
+        is_enabled=lambda: True,
         wait=lambda *_a, **_k: None,
         move_window=lambda **_k: None,
     )

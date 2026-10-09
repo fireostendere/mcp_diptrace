@@ -403,7 +403,7 @@ def _native_worker_evidence(
         drc_menu = _post_menu_path(
             window, request.drc_menu, timeout_seconds=request.timeout_seconds
         )
-        dialog = _visible_dialog(app, request.timeout_seconds)
+        dialog = _visible_dialog(app, request.timeout_seconds, owner=window)
         dialog_class = str(dialog.class_name())
         drc_texts = _dialog_texts(dialog)
         drc_status = classify_drc_dialog(drc_texts, request.drc_success_tokens, dialog_class)
@@ -422,7 +422,7 @@ def _native_worker_evidence(
             saved_project = request.output_xml.with_name(
                 f".{request.output_xml.stem}.{uuid.uuid4().hex}.saved.dipxml"
             )
-            save_dialog = _visible_dialog(app, request.timeout_seconds)
+            save_dialog = _visible_dialog(app, request.timeout_seconds, owner=window, save_as=True)
             _save_dialog_as_xml(int(save_dialog.handle), saved_project)
             _wait_for_export(app, saved_project, request.timeout_seconds)
             step(
@@ -452,7 +452,7 @@ def _native_worker_evidence(
         save_as_menu = _post_menu_path(
             reopened, request.save_as_menu, timeout_seconds=request.timeout_seconds
         )
-        save_dialog = _visible_dialog(app, request.timeout_seconds)
+        save_dialog = _visible_dialog(app, request.timeout_seconds, owner=reopened, save_as=True)
         _save_dialog_as_xml(int(save_dialog.handle), request.output_xml)
         _wait_for_export(app, request.output_xml, request.timeout_seconds)
         step(
