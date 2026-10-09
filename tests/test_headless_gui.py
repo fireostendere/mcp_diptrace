@@ -6,6 +6,7 @@ import os
 import sys
 import types
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -986,3 +987,122 @@ def test_native_menu_owner_uses_active_gui_thread(monkeypatch: pytest.MonkeyPatc
     assert native_cad._menu_owner(99) == 55
     assert call.argtypes is not None
     assert call.restype is not None
+@pytest.mark.parametrize("reverse", [False, True])
+def test_visible_dialog_rejects_competing_modals_regardless_of_order(reverse):
+    windows = [
+        SimpleNamespace(class_name=lambda: "TFMyMessage", is_visible=lambda: True),
+        SimpleNamespace(class_name=lambda: "#32770", is_visible=lambda: True),
+    ]
+    if reverse:
+        windows.reverse()
+    app = SimpleNamespace(windows=lambda **kwargs: windows)
+    with pytest.raises(headless_gui.HeadlessGuiError, match="ambiguous"):
+        headless_gui._visible_dialog(app, 0)
+
+
+@pytest.mark.parametrize("defect", [None, "message", "unknown", "owner", "pid", "controls"])
+def test_save_dialog_is_unique_process_owned_and_has_native_controls(monkeypatch, defect):
+    owner = SimpleNamespace(handle=7, process_id=lambda: 42)
+    dialog = SimpleNamespace(
+        handle=8,
+        class_name=lambda: "#32770",
+        is_visible=lambda: True,
+        is_enabled=lambda: True,
+        process_id=lambda: 42,
+        parent=lambda: owner,
+    )
+    windows = [dialog]
+    if defect in {"message", "unknown"}:
+        windows.append(SimpleNamespace(
+            handle=9, class_name=lambda: "TFMyMessage" if defect == "message" else "Unknown",
+            is_visible=lambda: True, is_enabled=lambda: True, process_id=lambda: 42,
+            parent=lambda: owner,
+        ))
+    elif defect == "owner":
+        dialog.parent = lambda: SimpleNamespace(handle=99, class_name=lambda: "Foreign")
+    elif defect == "pid":
+        dialog.process_id = lambda: 99
+    checked = []
+
+    def controls(handle):
+        checked.append(handle)
+        if defect == "controls":
+            raise headless_gui.HeadlessGuiError("Save As controls were not found")
+        return 1148, 1136
+
+    monkeypatch.setattr(headless_gui, "_save_dialog_controls", controls)
+    app = SimpleNamespace(process=42, windows=lambda **kwargs: windows)
+    if defect is None:
+        assert headless_gui._visible_dialog(app, 0, owner=owner, save_as=True) is dialog
+        assert checked == [8]
+    else:
+        with pytest.raises(headless_gui.HeadlessGuiError):
+            headless_gui._visible_dialog(app, 0, owner=owner, save_as=True)
+        if defect != "controls":
+            assert not checked
+
+
+def test_save_dialog_waits_for_late_dialog_and_rejects_disabled(monkeypatch):
+    owner = SimpleNamespace(handle=7, process_id=lambda: 42)
+    dialog = SimpleNamespace(
+        handle=8, class_name=lambda: "#32770", is_visible=lambda: True,
+        is_enabled=lambda: True, process_id=lambda: 42, parent=lambda: owner,
+    )
+    frames = iter([[], [dialog]])
+    app = SimpleNamespace(process=42, windows=lambda **kwargs: next(frames))
+    monkeypatch.setattr(headless_gui.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(headless_gui, "_save_dialog_controls", lambda handle: (1, 2))
+    assert headless_gui._visible_dialog(app, 1, owner=owner, save_as=True) is dialog
+    dialog.is_enabled = lambda: False
+    app.windows = lambda **kwargs: [dialog]
+    with pytest.raises(headless_gui.HeadlessGuiError, match="disabled"):
+        headless_gui._visible_dialog(app, 0, owner=owner, save_as=True)
+
+
+@pytest.mark.parametrize("defect", [None, "pid", "ambiguous", "foreign_project"])
+def test_native_delphi_application_owner_is_unique_and_process_bound(monkeypatch, defect):
+    owner = SimpleNamespace(handle=7, process_id=lambda: 42)
+    application = SimpleNamespace(
+        handle=6, class_name=lambda: "TApplication", process_id=lambda: 42,
+        is_visible=lambda: False,
+    )
+    dialog = SimpleNamespace(
+        handle=8, class_name=lambda: "#32770", is_visible=lambda: True,
+        is_enabled=lambda: True, process_id=lambda: 42, parent=lambda: application,
+    )
+    windows = [dialog, application]
+    if defect == "pid":
+        application.process_id = lambda: 99
+    elif defect == "ambiguous":
+        windows.append(SimpleNamespace(
+            handle=9, class_name=lambda: "TApplication", process_id=lambda: 42,
+            is_visible=lambda: False,
+        ))
+    elif defect == "foreign_project":
+        owner.process_id = lambda: 99
+    monkeypatch.setattr(headless_gui, "_save_dialog_controls", lambda handle: (1, 2))
+    app = SimpleNamespace(process=42, windows=lambda **kwargs: windows)
+    if defect is None:
+        assert headless_gui._visible_dialog(app, 0, owner=owner, save_as=True) is dialog
+    else:
+        with pytest.raises(headless_gui.HeadlessGuiError, match="unowned"):
+            headless_gui._visible_dialog(app, 0, owner=owner, save_as=True)
+
+
+def test_generic_dialog_selection_rejects_unknown_competing_owned_popup():
+    owner = SimpleNamespace(handle=7, process_id=lambda: 42)
+    windows = [
+        SimpleNamespace(
+            handle=8 + index, class_name=lambda value=name: value,
+            is_visible=lambda: True, parent=lambda: owner, process_id=lambda: 42,
+        )
+        for index, name in enumerate(["TFMyMessage", "UnknownResult"])
+    ]
+    app = SimpleNamespace(process=42, windows=lambda **kwargs: windows)
+    for frame in [windows, list(reversed(windows))]:
+        app.windows = lambda frame=frame, **kwargs: frame
+        with pytest.raises(headless_gui.HeadlessGuiError, match="ambiguous"):
+            headless_gui._visible_dialog(app, 0, owner=owner)
+    app.windows = lambda **kwargs: [windows[1]]
+    with pytest.raises(headless_gui.HeadlessGuiError, match="unexpected"):
+        headless_gui._visible_dialog(app, 0, owner=owner)

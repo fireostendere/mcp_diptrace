@@ -521,7 +521,7 @@ def test_perform_library_export_worker_success_and_failure(
     monkeypatch.setattr(
         headless_gui,
         "_visible_dialog",
-        lambda *_args: SimpleNamespace(handle=88),
+        lambda *_args, **_kwargs: SimpleNamespace(handle=88),
     )
     monkeypatch.setattr(headless_gui, "_save_dialog_as_xml", lambda *_args: None)
     monkeypatch.setattr(headless_gui, "_post_window_message", lambda *_args: None)

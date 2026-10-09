@@ -362,9 +362,10 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
                     raise hg.HeadlessGuiError("approved dialog has no unique enabled OK button")
                 hg._post_window_message(int(buttons[0].handle), 0x00F5)
                 result["acknowledged_dialog_sha256"] = fingerprint
+                app.window(handle=int(window.handle)).wait_not("visible", timeout=10)
                 window = hg._main_window(app, source, 20)
         _save_as(window, executable)
-        dialog = hg._visible_dialog(app, 10)
+        dialog = hg._visible_dialog(app, 10, owner=window, save_as=True)
         if dialog.class_name() != "#32770":
             raise hg.HeadlessGuiError("unexpected native Save As dialog")
         hg._save_dialog_as_xml(int(dialog.handle), output)

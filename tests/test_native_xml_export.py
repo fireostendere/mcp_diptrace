@@ -466,7 +466,7 @@ def test_worker_success_path(tmp_path, monkeypatch):
     monkeypatch.setattr(
         nx.hg,
         "_visible_dialog",
-        lambda app, timeout: SimpleNamespace(
+        lambda app, timeout, **kwargs: SimpleNamespace(
             handle=789, class_name=lambda: "#32770"
         ),
     )

@@ -1210,16 +1210,67 @@ def _save_window(window: Any, save_menu: str) -> None:
     _post_menu_item(window, item)
 
 
-def _visible_dialog(app: Any, timeout_seconds: float) -> Any:
+def _dialog_owner_matches(app: Any, parent: Any | None, owner: Any) -> bool:
+    if parent is None:
+        return False
+    if parent.handle == owner.handle:
+        return True
+    # Delphi's native common dialog belongs to the unique same-process TApplication,
+    # not the TForm1 project (controlled 5.3.0.3 Save As capture).
+    if parent.class_name() != "TApplication" or parent.process_id() != app.process:
+        return False
+    applications = [
+        window for window in app.windows(visible_only=False)
+        if window.class_name() == "TApplication" and window.process_id() == app.process
+    ]
+    return (
+        owner.process_id() == app.process
+        and len(applications) == 1
+        and applications[0].handle == parent.handle
+    )
+
+
+def _owned_dialogs(app: Any, owner: Any | None = None) -> list[Any]:
+    """Include unknown owned popups; never hide disabled or competing modals."""
+    dialogs = []
+    for window in app.windows(visible_only=False, enabled_only=False):
+        if not window.is_visible() or (owner is not None and window.handle == owner.handle):
+            continue
+        known = window.class_name() in {"#32770", "TFMyMessage", "TForm60"}
+        parent = window.parent() if owner is not None else None
+        if known or (owner is not None and _dialog_owner_matches(app, parent, owner)):
+            dialogs.append(window)
+    return dialogs
+
+
+def _visible_dialog(
+    app: Any, timeout_seconds: float, *, owner: Any | None = None, save_as: bool = False
+) -> Any:
+    if save_as and owner is None:
+        raise HeadlessGuiError("Save As requires an owning project window")
     deadline = time.monotonic() + timeout_seconds
     while True:
-        for window in app.windows(visible_only=False, enabled_only=True):
-            with suppress(Exception):
+        dialogs = _owned_dialogs(app, owner)
+        if len(dialogs) > 1:
+            raise HeadlessGuiError("ambiguous native dialogs; refusing enumeration-order selection")
+        if dialogs:
+            dialog = dialogs[0]
+            if owner is not None:
+                parent = dialog.parent()
                 if (
-                    window.class_name() in {"#32770", "TFMyMessage", "TForm60"}
-                    and window.is_visible()
+                    dialog.process_id() != app.process
+                    or owner.process_id() != app.process
+                    or not _dialog_owner_matches(app, parent, owner)
                 ):
-                    return window
+                    raise HeadlessGuiError("unowned native dialog")
+            allowed = {"#32770"} if save_as else {"#32770", "TFMyMessage", "TForm60"}
+            if dialog.class_name() not in allowed:
+                raise HeadlessGuiError("unexpected native dialog")
+            if save_as:
+                if not dialog.is_enabled():
+                    raise HeadlessGuiError("Save As dialog is disabled")
+                _save_dialog_controls(int(dialog.handle))
+            return dialog
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise HeadlessGuiError("DipTrace Save As dialog was not found")
@@ -1391,7 +1442,7 @@ def _perform_library_export_worker(
         window.wait("exists enabled", timeout=timeout_seconds)
         item = window.menu_item("#0->#4")
         _post_menu_item(window, item)
-        dialog = _visible_dialog(app, timeout_seconds)
+        dialog = _visible_dialog(app, timeout_seconds, owner=window, save_as=True)
         _save_dialog_as_xml(int(dialog.handle), target)
         _wait_for_export(app, target, timeout_seconds)
         _post_window_message(int(window.handle), _WM_CLOSE)
