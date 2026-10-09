@@ -39,6 +39,12 @@ Changes in this section are later development and are not silently part of those
 - `pcb_native_acceptance --desktop hidden` works again: it records and
   acknowledges the Direct3D startup message that a private desktop shows, and
   waits until the main form has its menu and is enabled before posting commands;
+- the packaged skill catalog (capability map 2.3.0) names the native XML exporter
+  and the schematic acceptance helper as local CLIs, states the verified 5.3.0.3
+  and 5.3.5.1 builds, routes native Gerber/NC Drill/pick-and-place export to the
+  Windows-only `native_cad` round-trip instead of an operator-only step, and adds
+  Russian trigger phrases to every skill description
+  ([review](docs/SKILL_REVIEW_2026-10-09.md));
 - PCB ensemble candidates are now reviewed after their hypothetical operations
   are applied in memory, so hard physical/layout findings affect selection;
 - PCB placement scoring now includes board compactness, centering, simple

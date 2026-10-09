@@ -1,6 +1,6 @@
 ---
 name: release-gate
-description: RAG-backed. Produce an explicit evidence-based PASS or BLOCKED decision from implemented DipTrace review profiles and disclosed missing checks. Use when the user says “Run the final evidence-based release gate for this design.”
+description: RAG-backed. Produce an explicit evidence-based PASS or BLOCKED decision from implemented DipTrace review profiles and disclosed missing checks. Use for a final PASS or BLOCKED decision before fabrication, assembly, or release; «финальная проверка перед заказом», «готова ли плата к производству». Use when the user says “Run the final evidence-based release gate for this design.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path

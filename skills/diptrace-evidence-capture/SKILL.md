@@ -1,6 +1,6 @@
 ---
 name: diptrace-evidence-capture
-description: RAG-backed. Collect reviewable DipTrace evidence with native headless PCB acceptance when supported, open/save/close for all four editors and supported native capture; for unsupported actions guide an operator through quarantined source/open-save/re-export capture, dry-run ingest, MCP validation, explicit confirmation, and metadata recording. Use when the user says “Guide an operator through a reviewable DipTrace round-trip capture.”
+description: RAG-backed. Collect reviewable DipTrace evidence with native headless PCB acceptance when supported, open/save/close for all four editors and supported native capture; for unsupported actions guide an operator through quarantined source/open-save/re-export capture, dry-run ingest, MCP validation, explicit confirmation, and metadata recording. Use for native round-trip, refill/DRC, XML re-export or recording evidence; «нативная приёмка платы», «прогони через DipTrace», «сними свидетельство round-trip». Use when the user says “Guide an operator through a reviewable DipTrace round-trip capture.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path
@@ -32,10 +32,12 @@ MCP `tools/list`. Check the installed helper/module and backend before reporting
 native opening is unavailable. The command saves its input: use an isolated copy for
 a read-only review, and retain original/copy hashes and process evidence.
 
-Base roundtrip does not re-export XML or run native ERC/DRC. Use the separate bounded
-schematic helper below when present in the installed/source package; use the PCB
-profile for PCB XML re-export, refill and DRC. Preserve supported evidence and report
-the exact remaining unsupported action. Do not invent an export command.
+Base roundtrip does not re-export XML or run native ERC/DRC. For a native `.dch`/`.dip`,
+export XML with `diptrace_mcp.native_xml_export` on a private copy (the source is never
+saved; see [runtime access](../shared/runtime.md)). Use the separate bounded schematic
+helper below for schematic Save As/re-export/ERC evidence and the PCB profile for PCB
+XML re-export, refill and DRC. Preserve supported evidence and report the exact
+remaining unsupported action. Do not invent another export command.
 
 For requested real-window MP4/GIF capture, use the cinematic headless command in
 [runtime access](../shared/runtime.md); it requires ffmpeg and a valid replay/profile.
@@ -45,8 +47,9 @@ pipeline. Use that pipeline only when a formal evidence candidate is requested.
 ## Bounded schematic evidence
 
 The source module `diptrace_mcp.schematic_native_acceptance` supports `.dchxml` on
-non-elevated Windows, with an owned hidden desktop and a binary/menu-pinned English
-Schematic 5.3.0.3 profile. It is a local CLI, not a public MCP tool; check module
+non-elevated Windows, with an owned hidden desktop and executable-hash-pinned English
+Schematic profiles for 5.3.0.3 and 5.3.5.1 (same menu positions, different command
+IDs, each reviewed separately). It is a local CLI, not a public MCP tool; check module
 availability, `--help`, the selected executable and source version first.
 
 ```powershell
@@ -63,7 +66,7 @@ the final export. `--inspect` only opens/captures/closes its isolated input. Opt
 not yet verified. ffmpeg is required for capture, ERC images and startup-dialog images.
 
 Unknown startup dialogs are not dismissed. First inspect their lossless client PNG;
-`--startup-dialog-sha256` authorizes only that reviewed exact image with a unique
+`--startup-dialog-sha256` authorizes only an explicitly reviewed exact image with a unique
 visible/enabled OK button. Never guess the hash or use a blanket nag dismissor.
 Focus/locale/rendering differences may require another review, not a weaker match.
 
@@ -90,7 +93,10 @@ py -m diptrace_mcp.pcb_native_acceptance run `
 For a binary `.dip` project, provide `--baseline-xml expected.dipxml`. The helper snapshots the
 baseline before GUI mutation, runs the real PCB editor on the isolated Win32 desktop by default,
 invokes the bounded `diptrace-5.3-en-v1` menu profile, saves/closes/reopens, exports distinct XML,
-and writes a `*.native-evidence.json` sidecar.
+and writes a `*.native-evidence.json` sidecar. The profile covers English 5.3.0.3 and
+5.3.5.1: the refill command is resolved by its Objects menu group because 5.3.5.1 reveals
+an extra item only while the menu is open, and the hidden desktop's Direct3D startup
+message is recorded and acknowledged.
 
 Interpret the result exactly:
 

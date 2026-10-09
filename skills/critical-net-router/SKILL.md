@@ -1,6 +1,6 @@
 ---
 name: critical-net-router
-description: RAG-backed. Plan and optionally commit one bounded critical-net or differential-pair route in DipTrace with explicit rules and post-checks. Use when the user says “Route this explicitly named critical PCB net.”
+description: RAG-backed. Plan and optionally commit one bounded critical-net or differential-pair route in DipTrace with explicit rules and post-checks. Use for one named critical net or differential pair, explicit routing constraints, and a reviewable route plan; «разведи критическую цепь», «разведи диффпару». Use when the user says “Route this explicitly named critical PCB net.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path

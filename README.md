@@ -401,6 +401,7 @@ See [Testing](docs/TESTING.md) and [Development](docs/DEVELOPMENT.md).
   datasheet evidence, sourcing, PCB gates, production files, bring-up, and revisions.
 - [MCP versus native/headless commands](skills/shared/runtime.md)
 - [Engineering skill review and corrections](docs/SKILL_REVIEW_2026-09-10.md)
+- [Engineering skill review 2026-10-09: native export coverage](docs/SKILL_REVIEW_2026-10-09.md)
 - Legacy agent-host recipes under [.agents/skills/](.agents/skills/):
   [`diptrace-pcb-testpoints`](.agents/skills/diptrace-pcb-testpoints/SKILL.md),
   [`diptrace-pcb-grounding`](.agents/skills/diptrace-pcb-grounding/SKILL.md),

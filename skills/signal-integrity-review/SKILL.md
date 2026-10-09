@@ -1,6 +1,6 @@
 ---
 name: signal-integrity-review
-description: RAG-backed. Review DipTrace PCB impedance, stackup, routed geometry, return paths, and configured external-solver evidence without inventing targets. Use when the user says “Review impedance and return-path evidence for these PCB nets.”
+description: RAG-backed. Review DipTrace PCB impedance, stackup, routed geometry, return paths, and configured external-solver evidence without inventing targets. Use for controlled-impedance, stackup, and return-path review of named nets; «проверь импеданс», «целостность сигналов», «возвратные токи». Use when the user says “Review impedance and return-path evidence for these PCB nets.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path

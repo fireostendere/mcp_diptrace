@@ -1,6 +1,6 @@
 ---
 name: library-quality-audit
-description: RAG-backed. Audit DipTrace component and pattern libraries for pin, pad, mapping, geometry, and identity defects without mutating native libraries. Use when the user says “Audit these DipTrace component and pattern libraries.”
+description: RAG-backed. Audit DipTrace component and pattern libraries for pin, pad, mapping, geometry, and identity defects without mutating native libraries. Use for symbol, pattern, and pin-to-pad checks of exported or installed libraries; «проверь библиотеку компонентов», «проверь футпринт и пин-пад». Use when the user says “Audit these DipTrace component and pattern libraries.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path
@@ -27,8 +27,9 @@ feature availability.
 2. Require Component/Pattern Library XML for the parser. For installed native `.eli` libraries,
    `query_builtin_library_catalog` can obtain a cached XML export through hidden Component Editor
    when the host supports it; this does not mutate the installed library. Do not reject installed
-   catalogs merely because a live editor session is absent. Arbitrary binary library export is
-   a separate capability: base roundtrip opens/saves but does not export XML.
+   catalogs merely because a live editor session is absent. Binary Component/Pattern Library
+   export is a separate capability: base roundtrip opens/saves but does not export XML, and
+   `diptrace_mcp.native_xml_export` handles only `.dch`/`.dip`.
 3. Page with `query_library_items`. Resolve selected records through
    `get_library_component` or `get_library_pattern`.
 4. Run `validate_library_component` for pin identity, attached pattern, and pin-to-pad mapping.

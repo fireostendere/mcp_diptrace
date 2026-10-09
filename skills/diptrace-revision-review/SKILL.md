@@ -21,7 +21,9 @@ change; it does not authorize overwriting an old release or ordering replacement
    and relevant firmware versions. Hash each source and preserve immutable baselines.
    Do not infer the baseline from filenames or modification dates alone.
 2. Discover MCP capabilities and read models/connectivity for each document with
-   explicit paths. Compare components by stable identity and RefDes, checking
+   explicit paths; export binary `.dch`/`.dip` revisions to XML first with
+   `diptrace_mcp.native_xml_export` on private copies. Compare components by stable
+   identity and RefDes, checking
    manufacturer/MPN, value, fitted/DNP state, pattern, pin numbers, and pin-to-pad map.
 3. Compare nets as endpoint sets: schematic `(sheet, RefDes, pin)` and PCB
    `(RefDes, pad)`. Report renamed nets separately from changed membership.

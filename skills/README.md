@@ -67,6 +67,11 @@ metadata-record boundary; ordinary native opening does not require that pipeline
 In this checkout, root `AGENTS.md` routes engineering requests here and root
 `opencode.json` registers `./skills` through `skills.paths`, supported by the
 [OpenCode configuration schema](https://opencode.ai/config.json).
+`.agents/skills.json` points hosts that read it at the same `../skills` directory.
+Claude Code loads project skills only from `.claude/skills/<name>/SKILL.md` or a
+plugin's `skills/` directory, so this catalog is not listed by its Skill tool or
+`/skill-doctor`; `AGENTS.md` routes it by file path instead, and
+`claude plugin validate skills --strict` checks the files.
 Wheel installation includes the catalog but does not itself register an agent-host
 search path; point that host to the installed `diptrace_mcp/skills` directory.
 

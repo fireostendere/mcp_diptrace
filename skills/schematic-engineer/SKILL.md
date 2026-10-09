@@ -1,6 +1,6 @@
 ---
 name: schematic-engineer
-description: RAG-backed. Design, build, modify, and review electronic devices and schematics through DipTrace MCP with source-backed engineering decisions. Use for architecture, schematic capture, and engineering review; coordinate PCB and production work through pcb-design-workflow when requested. Use when the user says “Design or modify this DipTrace schematic.”
+description: RAG-backed. Design, build, modify, and review electronic devices and schematics through DipTrace MCP with source-backed engineering decisions. Use for architecture, schematic capture, and engineering review; coordinate PCB and production work through pcb-design-workflow when requested; «спроектируй схему», «нарисуй схему в DipTrace», «доработай схему». Use when the user says “Design or modify this DipTrace schematic.”
 ---
 
 Read [runtime access](../shared/runtime.md) before selecting tools or declaring a
