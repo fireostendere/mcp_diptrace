@@ -1,6 +1,6 @@
 ---
 name: schematic-erc-review
-description: RAG-backed. Review a DipTrace schematic with bounded ERC, logical connectivity, metadata, and BOM checks before layout. Use when the user says “Review this DipTrace schematic before layout.”
+description: RAG-backed. Review a DipTrace schematic with bounded ERC, logical connectivity, metadata, and BOM checks before layout. Use for a read-only schematic review or ERC disposition; «проверь схему», «ревью схемы», «ERC схемы». Use when the user says “Review this DipTrace schematic before layout.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path

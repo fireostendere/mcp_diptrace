@@ -1,6 +1,6 @@
 ---
 name: pcb-project-intake
-description: RAG-backed. Inventory a bounded DipTrace project, its document identity, models, rules, connectivity, unknowns, and evidence before planning changes. Use when the user says “Inventory this DipTrace project before we plan work.”
+description: RAG-backed. Inventory a bounded DipTrace project, its document identity, models, rules, connectivity, unknowns, and evidence before planning changes. Use for a read-only baseline of an existing project before planning work; «инвентаризация проекта», «что в этом проекте». Use when the user says “Inventory this DipTrace project before we plan work.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path
@@ -20,8 +20,9 @@ feature availability.
 
 1. Call `diptrace_status`, then `get_capabilities`.
 2. Resolve each document as XML or a native binary before `get_document_info`. Explicit-path XML
-   inspection does not require a live editor. For a binary, find its corresponding XML export or
-   use the supported native workflow on a copy; base roundtrip alone does not export XML.
+   inspection does not require a live editor. For a binary `.dch`/`.dip`, find its corresponding
+   XML export or create one with `diptrace_mcp.native_xml_export` on a private copy (Windows,
+   verified build); base roundtrip alone does not export XML.
    Record kind, literal format version,
    document units, byte size, and SHA-256. Treat PCB, schematic, component library, and pattern
    library as different source types.

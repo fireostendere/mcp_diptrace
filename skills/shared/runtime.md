@@ -15,6 +15,9 @@ keeps these interfaces separate.
 | Work on the active editor exchange | MCP live session | Omitting `path` uses a confirmed bridge session; `finish_live_session` applies/cancels its exchange |
 | Open a native file without desktop interference | Headless GUI `roundtrip` | Launches the selected real editor, opens, saves, closes, and returns process/file evidence |
 | Native PCB refill and DRC | PCB acceptance CLI | Refill, DRC, save/close/reopen, XML Save As, and evidence comparison |
+| Export a native `.dch`/`.dip` to XML for review | Native XML export CLI | Real editor Save As XML from a private copy on an owned hidden desktop; the source is never saved; no refill, ERC/DRC or library export |
+| Bounded native schematic evidence | Schematic acceptance CLI | Guarded `.dchxml` copy through Save As, reopen and re-export with optional ERC-result/dialog capture; execution evidence, not acceptance |
+| Native Gerber X2, NC Drill and pick-and-place from a PCB copy | `diptrace_mcp.native_cad` Python API (Windows) | Drives the real PCB editor's export dialogs on an isolated copy of a verified build; not an MCP tool or packaged CLI, and not inspected CAM |
 | Record the real editor | Cinematic headless capture CLI | Runs a validated replay manifest and records the project window to MP4/GIF |
 | Preview PCB without running DipTrace | `pipeline_render_board_preview` or transaction preview | Derived SVG, not a native screenshot or native DRC |
 | Convert generated XML to a native-shaped template | `pipeline_nativeize_document` | Writes a separate XML file; does not open DipTrace or prove acceptance |
@@ -25,7 +28,8 @@ keeps these interfaces separate.
 An absent live session does not block explicit-path XML work. Binary `.dip`, `.dch`,
 `.eli`, and `.lib` files belong to the native editors; do not feed arbitrary binaries
 to the XML parser or rename a binary to `.xml`. Native opening and native XML export
-are different operations. The base roundtrip does not export XML or run ERC/DRC.
+are different operations. The base roundtrip does not export XML or run ERC/DRC;
+`diptrace_mcp.native_xml_export` is the exporter for a native `.dch`/`.dip`.
 
 `diptrace-mcp-bridge --headless` only services apply/cancel requests without the bridge
 dialog. It does not launch, render, or validate a DipTrace editor.
@@ -67,10 +71,21 @@ installation. It dispatches ordinary headless commands, `pcb-acceptance`, and
 ```powershell
 & "C:\resolved-install\app\tools\diptrace_mcp_headless_gui\diptrace_mcp_headless_gui.exe" roundtrip --diptrace-root "C:\Program Files\DipTrace" --editor pcb --project "C:\work\checks\board.dip"
 py -m diptrace_mcp.pcb_native_acceptance run --diptrace-root "C:\Program Files\DipTrace" --project "C:\work\checks\board.dipxml" --output-xml "C:\work\checks\board.native.dipxml"
+py -m diptrace_mcp.native_xml_export --diptrace-root "C:\Program Files\DipTrace" --project "C:\work\checks\board.dip" --output-xml "C:\work\checks\board.dipxml" --timeout 90
+py -B -m diptrace_mcp.schematic_native_acceptance --diptrace-root "C:\Program Files\DipTrace" --project "C:\work\checks\design.dchxml" --expected-sha256 <actual-source-sha256> --output-dir "C:\work\checks\schematic-evidence" --erc --capture
 ```
 
 For a binary `.dip`, supply `--baseline-xml` for semantic comparison. See
 [evidence capture](../diptrace-evidence-capture/SKILL.md) for verdict interpretation.
+The exporter accepts `.dch`/`.dip` only, refuses symlinks and existing outputs,
+bounds the timeout at 300 seconds, and leaves the source unsaved; the schematic
+helper needs a guarded `.dchxml` and a new output directory. Both run only as
+Python modules on a non-elevated process. Native menu automation is verified for
+English DipTrace 5.3.0.3 and 5.3.5.1 (`SUPPORTED_BUILDS` in `diptrace_mcp.native_cad`;
+per-build menu profiles in the exporter and the schematic helper). Another build or
+locale fails closed until a reviewed profile exists, and an unknown startup dialog
+is approved only through its reviewed client-image hash.
+
 From WSL, use the Windows helper/Windows Python via available Windows interoperability
 and convert host arguments to Windows paths (`wslpath -w` where appropriate). Running
 the Win32 Python module with Linux Python is not a Windows backend test. Check the
@@ -156,7 +171,9 @@ construction order, design-boundary framing, and inspection of sequence/final fr
   A completed scoped report is not a production-release decision.
 
 Implementation references: installed `diptrace_mcp.headless_gui`,
-`diptrace_mcp.pcb_native_acceptance`, `diptrace_mcp.cinematic_recording`, and
+`diptrace_mcp.pcb_native_acceptance`, `diptrace_mcp.native_xml_export`,
+`diptrace_mcp.schematic_native_acceptance`, `diptrace_mcp.native_cad`,
+`diptrace_mcp.cinematic_recording`, and
 `diptrace_mcp.server_runtime`; source-checkout `scripts/headless_gui_entry.py`,
 `scripts/install_linux.sh`, and `scripts/install_macos.sh`. Prefer the installed
 version and actual command schemas over a remembered tool count or old source revision.

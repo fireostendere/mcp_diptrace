@@ -1,6 +1,6 @@
 ---
 name: testpoint-planner
-description: RAG-backed. Measure and improve explicit standalone-pad testpoint coverage through a guarded DipTrace PCB transaction. Use when the user says “Plan guarded fixture testpoints for these PCB nets.”
+description: RAG-backed. Measure and improve explicit standalone-pad testpoint coverage through a guarded DipTrace PCB transaction. Use for test-point coverage review, fixture probe planning, or placing standalone probe pads; «добавь тестпоинты», «контрольные точки на плате». Use when the user says “Plan guarded fixture testpoints for these PCB nets.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path

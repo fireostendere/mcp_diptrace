@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.2.0",
+  "schema_version": "2.3.0",
   "external_knowledge": {
     "provider": "User-configured Knowledge MCP / RAG, separate from DipTrace MCP",
     "workflow": "shared/rag.md",
@@ -93,9 +93,9 @@
   "unavailable_contracts": {
     "native_library_mutation": "No public native Component/Pattern Library mutation MCP contract is registered; an internal raw-preserving core has separately scoped real-editor evidence.",
     "differential_stripline": "The analytical model does not implement coupled differential stripline.",
-    "native_fabrication_export": "The server emits review manifests, not Gerber, NC Drill, ODB++, or IPC-2581.",
+    "native_fabrication_export": "The MCP server emits review manifests, not Gerber, NC Drill, ODB++, or IPC-2581. The Windows-only diptrace_mcp.native_cad round-trip (run_native_cad with export_manufacturing=true, the call shape used by scripts/validate_native_platform.py) drives the real PCB editor's Gerber X2 + NC Drill ZIP and pick-and-place CSV export on an isolated copy of a verified build; it is a Python API, not an MCP tool or packaged CLI, and its output is not inspected CAM.",
     "generic_native_schematic_erc": "Base headless roundtrip opens/saves Schematic but does not execute native ERC.",
-    "generic_native_xml_export": "Base roundtrip does not export XML. PCB acceptance exports PCB XML; installed .eli catalog export is a separate supported path. These do not imply arbitrary document export.",
+    "generic_native_xml_export": "Base roundtrip does not export XML. The diptrace_mcp.native_xml_export CLI exports a native .dch/.dip copy to .dchxml/.dipxml on a verified Windows build without saving the source; PCB acceptance exports PCB XML; installed .eli catalog export is a separate supported path. Component/Pattern Library binaries and other document kinds have no XML export CLI.",
     "bridge_headless_gui": "bridge --headless is apply/cancel exchange control without the bridge dialog; it does not open the CAD GUI."
   },
   "tool_groups": {
@@ -264,10 +264,42 @@
         "C:\\work\\checks\\demo.gif"
       ],
       "claim": "Real-window hidden recording/replay; requires ffmpeg and a validated manifest/profile. Can mutate its copy and clear output paths; no engineering acceptance."
+    },
+    "native_xml_export": {
+      "module": "diptrace_mcp.native_xml_export",
+      "commands": [],
+      "example_args": [
+        "--diptrace-root",
+        "C:\\Program Files\\DipTrace",
+        "--project",
+        "C:\\work\\checks\\design.dch",
+        "--output-xml",
+        "C:\\work\\checks\\design.dchxml",
+        "--timeout",
+        "90"
+      ],
+      "claim": "Real editor Save As XML of a native .dch or .dip from a private copy on an owned hidden desktop; the source hash is compared before and after and the source is never saved. Output must be a new, separate .dchxml/.dipxml; timeout at most 300 s. No refill, ERC/DRC, or library export. Module-only CLI (not dispatched by the frozen helper) on a non-elevated Windows process with a verified build."
+    },
+    "schematic_native_acceptance": {
+      "module": "diptrace_mcp.schematic_native_acceptance",
+      "commands": [],
+      "example_args": [
+        "--diptrace-root",
+        "C:\\Program Files\\DipTrace",
+        "--project",
+        "C:\\work\\checks\\design.dchxml",
+        "--expected-sha256",
+        "<actual-source-sha256>",
+        "--output-dir",
+        "C:\\work\\checks\\schematic-evidence",
+        "--erc",
+        "--capture"
+      ],
+      "claim": "Bounded native Schematic open/Save As/reopen/re-export of a guarded .dchxml copy with optional ERC-result and dialog capture into a new output directory; completed/exit 0 is native execution, not schematic acceptance. Module-only CLI (not dispatched by the frozen helper) on a non-elevated Windows process with a reviewed per-build menu profile."
     }
   },
   "host_backends": {
-    "windows": "Windows Python modules or bundled app/tools/diptrace_mcp_headless_gui/diptrace_mcp_headless_gui.exe. Frozen helper dispatches headless commands, pcb-acceptance and cinematic.",
+    "windows": "Windows Python modules or bundled app/tools/diptrace_mcp_headless_gui/diptrace_mcp_headless_gui.exe. Frozen helper dispatches headless commands, pcb-acceptance and cinematic; the native XML exporter and the schematic acceptance helper run only as Python modules on a non-elevated process. Native menu automation is verified for English DipTrace 5.3.0.3 and 5.3.5.1 with per-build reviewed profiles; other builds or locales fail closed.",
     "wsl": "Use Windows executable/Python through available interoperability with Windows paths, or a separately installed Linux Wine backend; Linux Python's Windows-required failure does not test these alternatives.",
     "linux": "Installed diptrace-gui-headless wrapper uses private Xvfb + Wine. Only roundtrip translates project/root and forces native desktop inside Xvfb; smoke is refused, use native-smoke. Other subcommands are forwarded without complete path/root conversion.",
     "macos": "Installed diptrace-gui-headless uses bundled Wine/private Win32 desktop without Xvfb. Converts separate --project PATH only; resolve diptrace-root and other Windows paths explicitly."
