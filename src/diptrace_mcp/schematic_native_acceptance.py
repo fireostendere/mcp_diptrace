@@ -29,6 +29,9 @@ _EXE_SHA = "d85632b2c8fb445471339e875416782e3e62fb56ea13ab7d973052122352f568"
 _MAX_BYTES = 128 * 1024 * 1024
 # Reviewed lossless client image: English "No errors found", same pinned editor.
 _ERC_CLEAR_SHA = "1338c992f812c02ca9777e8a035d4d23dcd5e8dccde5dd2b3cdbe51a779027e0"
+# Same dialog with the OK button focused (darker border); reviewed 2026-10-13 from
+# fixture proposal-45/native-01/erc.client.png, the only differing pixels.
+_ERC_CLEAR_FOCUSED_SHA = "68e209db9b7936e29a1bc187c562abd024f2fc4f08996cd32e373d1c708b045c"
 # Reviewed native File/Verification images and initialized 5.3.0.3 menu inventory.
 _MENU_PROFILES = {
     ("File", "Save As..."): (
@@ -42,7 +45,9 @@ _MENU_PROFILES = {
 # 5.3.5.1 has the same main-form menu items at these positions; its command IDs
 # shift because File > Import and View > Drawing Mode gained entries (CI inventory).
 _BUILDS: dict[str, tuple[str, dict[tuple[str, str], Any], frozenset[str]]] = {
-    _EXE_SHA: ("5.3.0.3", _MENU_PROFILES, frozenset({_ERC_CLEAR_SHA})),
+    _EXE_SHA: (
+        "5.3.0.3", _MENU_PROFILES, frozenset({_ERC_CLEAR_SHA, _ERC_CLEAR_FOCUSED_SHA})
+    ),
     "0ba7c41229b3c63766e7c67f5624cc6b284d4498de9a45768496667e4a0e8ea0": (
         "5.3.5.1",
         {
@@ -207,6 +212,110 @@ def _capture(window: Any, folder: Path, name: str) -> str:
     return digest
 
 
+def _ready_window(
+    app: Any, project: Path, folder: Path, phase: str,
+    startup_hashes: list[str], report: dict[str, Any],
+) -> Any:
+    # Only the reviewed message/News stack is supported, once each per process.
+    acknowledged: set[str] = set()
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        attempt = len(acknowledged)
+        try:
+            windows = app.windows(visible_only=False, enabled_only=False)
+        except Exception as exc:
+            # Same destroyed-HWND enumeration race handled by hg._main_window.
+            if (type(exc).__module__, type(exc).__name__) != (
+                "pywinauto.controls.hwndwrapper", "InvalidWindowHandle",
+            ):
+                raise
+            time.sleep(0.1)
+            continue
+        popups = [
+            window for window in windows
+            if window.is_visible() and window.class_name() in {"TFMyMessage", "TForm106"}
+        ]
+        if not popups:
+            window = hg._main_window(app, project, max(0, deadline - time.monotonic()))
+            if window.class_name() in {"TFMyMessage", "TForm106"}:
+                continue  # A startup popup appeared during main-window lookup.
+            _require_menu_ready(app, window)
+            return window
+        owners = [
+            window for window in windows
+            if window.class_name() == "TForm1" and window.process_id() == app.process
+            and project.name.casefold() in window.window_text().casefold()
+        ]
+        if len(owners) != 1:
+            raise hg.HeadlessGuiError("startup project ownership is unverified")
+        owner = owners[0]
+        dialogs = hg._owned_dialogs(app, owner)
+        active = [dialog for dialog in dialogs if dialog.is_enabled()]
+        classes = {dialog.class_name() for dialog in dialogs}
+        if (
+            {int(dialog.handle) for dialog in dialogs} != {int(popup.handle) for popup in popups}
+            or len(active) != 1 or len(classes) != len(dialogs)
+            or not classes <= {"TFMyMessage", "TForm106"}
+            or (len(dialogs) == 2 and active[0].class_name() != "TFMyMessage")
+        ):
+            raise hg.HeadlessGuiError("startup dialog ownership or uniqueness is unverified")
+        evidence = []
+        for index, dialog in enumerate(dialogs):
+            if (
+                dialog.process_id() != app.process or dialog.menu() is not None
+                or not hg._dialog_owner_matches(app, dialog.parent(), owner)
+                or dialog.window_text().strip() != (
+                    "DipTrace News" if dialog.class_name() == "TForm106"
+                    else f"Schematics - {project.name}"
+                )
+            ):
+                raise hg.HeadlessGuiError("unowned or unknown startup dialog")
+            fingerprint = _capture(dialog, folder, f"{phase}-startup-{attempt}-{index}")
+            evidence.append({"client_sha256": fingerprint, **_window_evidence(dialog)})
+        dialog = active[0]
+        record = next(item for item in evidence if item["handle"] == int(dialog.handle))
+        report["startup_dialogs"].append({"phase": phase, **record, "pending_dialogs": evidence})
+        if any(item["client_sha256"] not in startup_hashes for item in evidence):
+            raise hg.HeadlessGuiError("unreviewed startup dialog image; acknowledgement refused")
+        fingerprint = _capture(dialog, folder, f"{phase}-startup-{attempt}-confirmed")
+        report["startup_dialogs"][-1]["confirmation_client_sha256"] = fingerprint
+        if fingerprint != record["client_sha256"]:
+            raise hg.HeadlessGuiError("startup dialog image changed before acknowledgement")
+        # Capture can pump GUI messages: recheck the exact stack before acting.
+        current = hg._owned_dialogs(app, owner)
+        dialog_class = dialog.class_name()
+        if (
+            {int(item.handle) for item in current} != {int(item.handle) for item in dialogs}
+            or [int(item.handle) for item in current if item.is_enabled()] != [int(dialog.handle)]
+            or any(
+                item.process_id() != app.process
+                or not hg._dialog_owner_matches(app, item.parent(), owner)
+                for item in current
+            )
+            or dialog_class != record["class"] or dialog.window_text() != record["title"]
+            or dialog_class in acknowledged
+        ):
+            raise hg.HeadlessGuiError("startup dialog stack changed or repeated")
+        if dialog_class == "TFMyMessage":
+            buttons = [
+                child for child in dialog.descendants()
+                if child.class_name() == "TButton" and child.window_text() == "OK"
+                and child.is_enabled() and child.is_visible()
+            ]
+            if len(buttons) != 1:
+                raise hg.HeadlessGuiError("reviewed startup dialog has no unique OK button")
+            target, message, action = int(buttons[0].handle), 0x00F5, "OK"
+        else:
+            # WM_CLOSE only; never click a download link or change a News checkbox.
+            target, message, action = int(dialog.handle), 0x0010, "close_news"
+        hg._post_window_message(target, message)
+        report["startup_dialogs"][-1]["action"] = action
+        app.window(handle=int(dialog.handle)).wait_not("visible", timeout=10)
+        report["startup_dialogs"][-1]["acknowledged"] = True
+        acknowledged.add(dialog_class)
+    raise hg.HeadlessGuiError("startup dialogs did not settle")
+
+
 def _worker(request: dict[str, Any]) -> dict[str, Any]:
     folder = Path(request["output_dir"])
     source = folder / "input.dchxml"
@@ -256,36 +365,7 @@ def _worker(request: dict[str, Any]) -> dict[str, Any]:
             report["diptrace_pids"].append(process.pid)
             app = hg._pywinauto_application()(backend="win32")
             app.connect(process=process.pid, timeout=30)
-            window = hg._main_window(app, project, 30)
-            window.wait("exists enabled", timeout=30)
-            if window.menu() is None and window.class_name() == "TFMyMessage":
-                if window.process_id() != process.pid or hg._owned_dialogs(app, window):
-                    raise hg.HeadlessGuiError(
-                        "startup dialog ownership or uniqueness is unverified"
-                    )
-                fingerprint = _capture(window, folder, f"{name}-startup")
-                report["startup_dialogs"].append(
-                    {"phase": name, "client_sha256": fingerprint, **_window_evidence(window)}
-                )
-                if fingerprint not in startup_hashes:
-                    raise hg.HeadlessGuiError(
-                        "unreviewed startup dialog image; acknowledgement refused"
-                    )
-                buttons = [
-                    child
-                    for child in window.descendants()
-                    if child.class_name() == "TButton"
-                    and child.window_text() == "OK"
-                    and child.is_enabled()
-                    and child.is_visible()
-                ]
-                if len(buttons) != 1:
-                    raise hg.HeadlessGuiError("reviewed startup dialog has no unique OK button")
-                hg._post_window_message(int(buttons[0].handle), 0x00F5)
-                report["startup_dialogs"][-1]["acknowledged"] = True
-                app.window(handle=int(window.handle)).wait_not("visible", timeout=10)
-                window = hg._main_window(app, project, 30)
-            _require_menu_ready(app, window)
+            window = _ready_window(app, project, folder, name, startup_hashes, report)
             report["native_steps"].append(
                 {"step": name, "opened": str(project), "status": "started"}
             )

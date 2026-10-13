@@ -202,6 +202,7 @@ def test_worker_lifecycle_and_unreviewed_dialog(monkeypatch, tmp_path):
     for index, (fingerprint, status) in enumerate(
         [
             (native._ERC_CLEAR_SHA, "no_errors_found"),
+            (native._ERC_CLEAR_FOCUSED_SHA, "no_errors_found"),
             ("different image", "review_required"),
         ]
     ):
@@ -215,45 +216,6 @@ def test_worker_lifecycle_and_unreviewed_dialog(monkeypatch, tmp_path):
         assert not result["forced_termination"]
     request.update(erc=False, output_dir=str(tmp_path))
     app.windows = lambda **k: []
-
-    window.menu = lambda: None
-    window.class_name = lambda: "TFMyMessage"
-    monkeypatch.setattr(native, "_capture", lambda *a: "unreviewed")
-    posted.clear()
-    result = native._worker(request)
-    assert not result["completed"] and "acknowledgement refused" in result["error"]
-    assert all(message[1] == 0x0010 for message in posted)
-    assert all(p.closed for p in processes)
-
-    # Every supplied variant is exact: a neighboring/unknown digest remains refused.
-    button = SimpleNamespace(
-        handle=9, class_name=lambda: "TButton", window_text=lambda: "OK",
-        is_enabled=lambda: True, is_visible=lambda: True,
-    )
-    window.descendants = lambda: [button]
-    # BM_CLICK is asynchronous: dismissal happens only when wait_not observes the HWND.
-    def wait_for_acknowledged_dialog(*args, **kwargs):
-        assert window.menu() is None
-        assert posted[-1][1] == 0x00F5
-        window.menu = lambda: object()
-        window.class_name = lambda: "TForm1"
-    app.window = lambda **k: SimpleNamespace(wait_not=wait_for_acknowledged_dialog)
-    for index, fingerprint in enumerate(["a" * 64, "b" * 64, "c" * 64]):
-        folder = tmp_path / f"startup-{index}"
-        folder.mkdir()
-        (folder / "input.dchxml").write_bytes(b"immutable source")
-        request.update(inspect=True, output_dir=str(folder),
-                       startup_dialog_sha256=["a" * 64, "b" * 64])
-        window.menu = lambda: None
-        window.class_name = lambda: "TFMyMessage"
-        monkeypatch.setattr(native, "_capture", lambda *a, value=fingerprint: value)
-        def acknowledge(*args):
-            posted.append(args)
-        monkeypatch.setattr(native.hg, "_post_window_message", acknowledge)
-        posted.clear()
-        result = native._worker(request)
-        assert result["completed"] == (index < 2)
-        assert any(message[1] == 0x00F5 for message in posted) == (index < 2)
 
     window.menu = lambda: object()
     window.class_name = lambda: "TForm1"
@@ -272,6 +234,8 @@ def test_worker_lifecycle_and_unreviewed_dialog(monkeypatch, tmp_path):
     result = native._worker(request)
     assert not result["completed"] and result["forced_termination"]
     assert processes[-1].closed and processes[-1].terminated
+
+
 def test_startup_authorization_requires_exact_reviewed_hashes():
     first, second = "a" * 64, "b" * 64
     assert native._startup_hashes(None) == []
@@ -297,3 +261,177 @@ def test_menu_readiness_rejects_late_or_unknown_owned_modal():
     window.is_enabled = lambda: False
     with pytest.raises(native.hg.HeadlessGuiError, match="blocked"):
         native._require_menu_ready(app, window)
+
+
+@pytest.mark.parametrize("scenario, success", [
+    ("stack", True), ("news_only", True), ("warning_only", True), ("reviewed_variant", True),
+    ("enumeration_stale", True), ("destroyed_after_dismissal", True),
+    ("unreviewed_news", False), ("unreviewed_warning", False), ("active_news_changed", False),
+    ("unknown_disabled", False), ("competing_enabled", False), ("wrong_pid", False),
+    ("unowned", False), ("duplicate_application", False), ("duplicate_project", False),
+    ("wrong_news_title", False), ("no_ok", False), ("two_ok", False), ("disabled_ok", False),
+    ("stack_changed", False), ("ownership_changed", False), ("dismissal_timeout", False),
+    ("repeated_warning", False), ("content_changed", False), ("wrong_warning_title", False),
+    ("enumeration_error", False),
+])
+def test_worker_acknowledges_reviewed_stacked_startup(monkeypatch, tmp_path, scenario, success):
+    """Synthetic News/Direct3D stack; neither checkbox nor physical input is used."""
+    posted, dismissed = [], []
+    state = {"warning": True, "news": True}
+    application = SimpleNamespace(
+        handle=1, class_name=lambda: "TApplication", process_id=lambda: 42,
+        parent=lambda: None, is_visible=lambda: True, is_enabled=lambda: False,
+    )
+    button = SimpleNamespace(
+        handle=5, class_name=lambda: "TButton", window_text=lambda: "OK",
+        is_enabled=lambda: True, is_visible=lambda: True,
+    )
+    main = SimpleNamespace(
+        handle=2, class_name=lambda: "TForm1", process_id=lambda: 42,
+        parent=lambda: None, is_visible=lambda: True,
+        window_text=lambda: "Schematics - input.dchxml", menu=lambda: object(),
+        is_enabled=lambda: not any(state.values()), wait=lambda *a, **k: None,
+    )
+    warning = SimpleNamespace(
+        handle=3, class_name=lambda: "TFMyMessage", process_id=lambda: 42,
+        parent=lambda: application, is_visible=lambda: state["warning"],
+        is_enabled=lambda: True, menu=lambda: None, wait=lambda *a, **k: None,
+        window_text=lambda: "Schematics - input.dchxml", descendants=lambda: [button],
+    )
+    news = SimpleNamespace(
+        handle=4, class_name=lambda: "TForm106", process_id=lambda: 42,
+        parent=lambda: application, is_visible=lambda: state["news"],
+        is_enabled=lambda: not state["warning"], menu=lambda: None,
+        window_text=lambda: "DipTrace News", descendants=lambda: [],
+    )
+    overlay = SimpleNamespace(
+        handle=6, class_name=lambda: "UAC_InputIndicatorOverlayWnd", process_id=lambda: 42,
+        parent=lambda: None, is_visible=lambda: True, is_enabled=lambda: True,
+    )
+    windows = [application, main, warning, news, overlay]
+    if scenario == "destroyed_after_dismissal":
+        def warning_class():
+            if not state["warning"]:
+                raise RuntimeError("destroyed HWND was queried")
+            return "TFMyMessage"
+        warning.class_name = warning_class
+    if scenario == "news_only":
+        state["warning"] = False
+    elif scenario in {"warning_only", "reviewed_variant"}:
+        state["news"] = False
+    elif scenario == "unknown_disabled":
+        news.class_name = lambda: "UnknownImport"
+    elif scenario == "competing_enabled":
+        news.is_enabled = lambda: True
+    elif scenario == "wrong_pid":
+        warning.process_id = lambda: 99
+    elif scenario == "unowned":
+        warning.parent = lambda: None
+    elif scenario == "duplicate_application":
+        windows.append(SimpleNamespace(**{**vars(application), "handle": 7}))
+    elif scenario == "duplicate_project":
+        windows.append(SimpleNamespace(**{**vars(main), "handle": 7}))
+    elif scenario == "wrong_news_title":
+        news.window_text = lambda: "Another dialog"
+    elif scenario == "wrong_warning_title":
+        warning.window_text = lambda: "Another message"
+    elif scenario == "no_ok":
+        warning.descendants = lambda: []
+    elif scenario == "two_ok":
+        warning.descendants = lambda: [button, button]
+    elif scenario == "disabled_ok":
+        button.is_enabled = lambda: False
+    app = SimpleNamespace(process=42, connect=lambda **k: None)
+    stale_raised = False
+
+    def enumerate_windows(**kwargs):
+        nonlocal stale_raised
+        if (
+            scenario in {"enumeration_stale", "enumeration_error"}
+            and dismissed and not stale_raised
+        ):
+            stale_raised = True
+            error = type("InvalidWindowHandle", (RuntimeError,),
+                         {"__module__": "pywinauto.controls.hwndwrapper"})
+            raise error("destroyed window") if scenario == "enumeration_stale" else RuntimeError(
+                "enumeration transport failure"
+            )
+        return [
+            w for w in windows
+            if not (
+                scenario == "destroyed_after_dismissal" and w is warning and not state["warning"]
+            )
+            and (not kwargs.get("visible_only") or w.is_visible())
+            and (not kwargs.get("enabled_only") or w.is_enabled())
+        ]
+    app.windows = enumerate_windows
+
+    def window_by_handle(*, handle):
+        def wait_not(*args, **kwargs):
+            key = "warning" if handle == warning.handle else "news"
+            assert posted[-1] == ((button.handle, 0x00F5) if key == "warning"
+                                  else (news.handle, 0x0010))
+            if scenario == "dismissal_timeout":
+                raise TimeoutError("dialog did not close")
+            if scenario != "repeated_warning":
+                state[key] = False
+            dismissed.append(handle)
+        return SimpleNamespace(wait_not=wait_not)
+
+    app.window = window_by_handle
+    source = tmp_path / "input.dchxml"
+    source.write_text('<Source Type="DipTrace-Schematic"/>', encoding="utf-8")
+    digest = native.hg._sha256(source)
+    process = SimpleNamespace(pid=42, wait=lambda seconds: 0, close=lambda: None)
+    monkeypatch.setattr(native.hg, "_launch_process_on_desktop", lambda *a: process)
+    monkeypatch.setattr(native.hg, "_pywinauto_application", lambda: lambda **k: app)
+    monkeypatch.setattr(native.hg, "thread_desktop_name", lambda: "owned")
+    monkeypatch.setattr(native.hg, "process_window_station_name", lambda: "WinSta0")
+    monkeypatch.setattr(native.hg, "process_session_id", lambda: 1)
+    monkeypatch.setattr(native.hg, "process_is_elevated", lambda: False)
+    sha256 = native.hg._sha256
+    monkeypatch.setattr(
+        native.hg, "_sha256", lambda p: native._EXE_SHA if p.name == "Schematic.exe"
+        else sha256(p),
+    )
+    monkeypatch.setattr(native.hg, "_main_window", lambda *a: warning if state["warning"]
+                        else main)
+    monkeypatch.setattr(native.hg, "_post_window_message", lambda *a: posted.append(a))
+    def capture(window, *args):
+        if scenario == "stack_changed":
+            news.is_enabled = lambda: True
+        elif scenario == "ownership_changed":
+            warning.parent = lambda: None
+        if window is warning:
+            return ("c" if scenario == "unreviewed_warning"
+                    or (scenario == "content_changed" and args[-1].endswith("confirmed")) else "d"
+                    if scenario == "reviewed_variant" else "a") * 64
+        return ("c" if scenario == "unreviewed_news"
+                or (scenario == "active_news_changed" and not state["warning"]) else "b") * 64
+    monkeypatch.setattr(native, "_capture", capture)
+    monkeypatch.setattr(native.cr, "_find_exact_menu_item", lambda *a, **k: object())
+    monkeypatch.setattr(native.cr, "_initialized_submenu", lambda *a: object())
+    monkeypatch.setattr(native.cr, "_menu_snapshot", lambda *a: {})
+    result = native._worker({
+        "output_dir": str(tmp_path), "diptrace_root": str(tmp_path),
+        "desktop_name": "owned", "station": "WinSta0", "session": 1,
+        "source_sha256": digest, "inspect": True, "capture": False, "erc": False,
+        "startup_dialog_sha256": ["a" * 64, "b" * 64, "d" * 64],
+    })
+    assert result["completed"] is success, result.get("error")
+    if success:
+        expected = [(button.handle, 0x00F5)] if scenario != "news_only" else []
+        if scenario not in {"warning_only", "reviewed_variant"}:
+            expected.append((news.handle, 0x0010))
+        assert posted == [*expected, (main.handle, 0x0010)]
+        assert all(dialog["acknowledged"] for dialog in result["startup_dialogs"])
+    else:
+        expected = [(button.handle, 0x00F5)] if scenario in {
+            "active_news_changed", "dismissal_timeout", "repeated_warning", "enumeration_error",
+        } else []
+        assert posted == expected
+        assert not result["native_steps"]
+        if scenario == "dismissal_timeout":
+            assert not result["startup_dialogs"][-1].get("acknowledged")
+    assert not result["forced_termination"] and result["erc_status"] == "not_run"
+    assert sha256(source) == digest

@@ -180,6 +180,12 @@ Use separate gates. An offline MCP check is not a native acceptance substitute.
    XML-profile checks rather than native execution.
 2. Schematic acceptance requires native open/save/re-export plus native connectivity and ERC.
    If native evidence is unavailable, acceptance is `BLOCKED`, never `PASS` or `N/A`.
+   Native ERC status review_required whose viewed client image reads exactly "No errors found" is
+   clean ERC (operator evidence). Judge connectivity on physical pin/pad/net/NC records;
+   native re-serialization (angle literals, sub-0.001 mm deltas, renumbered ids, pruned
+   unused patterns) is not a defect. Missing-MPN warnings belong to BOM sourcing.
+   Once the schematic-stage gate, native ERC/connectivity, page-fit readability of every sheet
+   and one independent review are clean, the schematic is `PASS`; stop iterating on it.
 3. PCB acceptance requires native refill plus native connectivity and DRC. If native evidence is
    unavailable, acceptance is `BLOCKED`, never `PASS` or `N/A`.
 4. Manufacturing-output inspection is separately required only when fab deliverables or release

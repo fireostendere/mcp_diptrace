@@ -97,7 +97,12 @@ PYTHONPATH=src .venv/bin/python scripts/pcb_quality_gate.py <project-dir>
 ```
 
 If several revisions coexist, supply explicit absolute `--board` and `--schematic`
-paths. Non-zero is BLOCKED. Exit zero checks hash/order consistency and headless QC;
+paths, or record them in the handoff's `Input schematic:`/`Current board:` lines. While
+the schematic is the endpoint, set `Gate stage: schematic` (or pass `--stage schematic`):
+no board is required and the full offline schematic review replaces board QC. Never
+gate a new revision against a protected historical board. Physical qualification (compliance,
+ESD, thermal, measured current) belongs to bring-up and never blocks a design gate.
+Non-zero is BLOCKED. Exit zero checks hash/order consistency and headless QC;
 pending manual gates still need evidence. The checker contains a thermal-via exception
 for a historical board, so independently enforce the current no-via-in-pad rule.
 If only the wheel is installed, record the missing checkout/checker and perform the

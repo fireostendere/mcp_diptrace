@@ -5,6 +5,13 @@ Changes in this section are later development and are not silently part of those
 
 ## Added
 
+- a schematic stage for `scripts/pcb_quality_gate.py`: the handoff's `Gate stage`,
+  `Input schematic` and `Current board` lines (or `--stage/--schematic/--board`) name
+  what is gated; the schematic stage needs no board and requires a clean, complete
+  offline schematic review; AGENTS.md gains reachable per-stage done criteria;
+- the reviewed focused-OK "No errors found" image as a second native ERC token for
+  Schematic 5.3.0.3;
+
 - one-command Linux and macOS host installation, with real visible DipTrace GUI,
   Linux private-Xvfb headless automation, macOS hidden-Win32-desktop automation,
   and permanent fresh-host CI gates for the bounded release claim;

@@ -161,4 +161,50 @@ instead of claiming that a checkpoint exists.
 Verify the handoff mechanically before resuming or handing off:
 `PYTHONPATH=src .venv/bin/python scripts/pcb_quality_gate.py <project-dir>`
 checks gate-table ordering, recorded SHAs against the files on disk, and the
-headless QC (`hard_error_count == 0`); non-zero exit means BLOCKED.
+headless QC (`hard_error_count == 0`); non-zero exit means BLOCKED. Gate the
+stage you are in: the handoff's `Gate stage:`, `Input schematic:` and
+`Current board:` lines name the stage and files (CLI flags override them). In
+the schematic stage no board is needed and the full offline schematic review
+replaces board QC. Point these lines at the files being built, never at a
+protected historical revision.
+
+## Definition of done and stop rules
+
+These rules keep every stage finishable. They decide how evidence is judged;
+they never relax electrical, datasheet, safety or house-style requirements.
+
+- **Schematic stage is PASS** when, on one candidate file: (1) the
+  schematic-stage quality gate exits 0 (zero review errors, no skipped checks);
+  (2) a native open/save/re-export keeps every physical pin/pad/net/NC record;
+  (3) native ERC reports `no_errors_found`, or `review_required` with the ERC
+  client image viewed and reading exactly "No errors found" (record it as
+  operator evidence and hand the new image hash to DipTrace Dev for pinning);
+  (4) the schematic wiring rules above hold on every sheet, inspected once at
+  page fit; (5) one independent review has no open critical/major finding.
+  Then adopt the candidate as the revision's schematic, unless the project
+  contract forbids it, and move to the PCB gates.
+- **Not defects; never block or iterate on them:** native re-serialization of
+  the same design (angle literals such as pi -> 3.1416, coordinate deltas below
+  0.001 mm, renumbered style/pattern ids, pruned unused patterns, reassigned
+  UpdateIds or port object ids, collinear-point pruning); reduced analytical
+  completeness of a native re-export when the source review is complete;
+  `schematic.bom_identity` warnings (missing MPN/manufacturer), which belong to
+  BOM sourcing before the footprint gate.
+- **Physical qualification** (USB compliance, ESD, hot-plug/inrush, thermal
+  rise, measured current) happens on prototypes during bring-up. It is never a
+  schematic or PCB design gate; list it once as post-prototype work.
+- **Fix in batches:** collect every finding of a check or review, fix them in
+  one candidate, re-check once. No new candidate per caption or per finding.
+- **Reviews:** one independent review per milestone (schematic complete,
+  critical placement/routing, release) and one audit before marking a gate
+  PASS. At most one re-review per milestone; a minor finding is fixed or
+  recorded, not a reason for another round.
+- **Decisions that change hardware** (part, package/EP variant, connector
+  population, fabricator/stackup): ask the user once with a recommended default
+  and continue independent work. Without an answer, apply the default as a
+  recorded assumption instead of carrying it OPEN across sessions.
+- **No re-verification loops:** do not re-hash, re-compare or re-audit evidence
+  whose inputs have not changed since it was recorded.
+- **Short handoffs:** `PCB_BUILD.md`/`SCHEMATIC_BUILD.md` hold the current state,
+  last PASS, remaining steps and resume command. History goes to the project
+  journal, not into the handoff.
