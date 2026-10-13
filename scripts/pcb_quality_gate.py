@@ -4,8 +4,12 @@
 Verifies what the prose handoff only claims:
   1. Gate table is parseable and monotonic (no PASS above a non-PASS gate).
   2. Recorded SHAs match the actual schematic/board files on disk.
-  3. The final board passes the offline headless QC (review_pcb_quality,
-     hard_error_count == 0) — the same gate the build scripts assert.
+  3. --stage board (default): the final board passes the offline headless QC
+     (review_pcb_quality, hard_error_count == 0) — the same gate the build
+     scripts assert.
+     --stage schematic: no board is required; the schematic passes the full
+     offline schematic review (every registered check, zero errors, nothing
+     skipped). Warnings are reported, not fatal.
 
 Exit code: 0 = consistent (pending manual gates are reported, not fatal),
 1 = BLOCKED (violations listed). Manual gates (native DRC, media) stay manual.
@@ -24,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.pcb_quality import PCBQualityConfig, review_pcb_quality
+from diptrace_mcp.review import run_checks
 from diptrace_mcp.xml_document import DipTraceDocument
 
 MAX_XML_BYTES = 128 * 1024 * 1024
@@ -31,6 +36,12 @@ OK_STATUSES = {"PASS"}
 OPEN_STATUSES = {"PENDING", "TODO", "MANUAL", "PARTIAL"}
 GATE_ROW = re.compile(r"^\|\s*(\d+)\.\s*(.+?)\s*\|\s*([A-Za-z_ ]+?)\s*\|")
 SHA_LINE = re.compile(r"^(.*?) SHA-256:\s*`([0-9a-f]{64})`", re.MULTILINE)
+# Plain "Label: value" lines naming what this handoff gates; CLI flags override them.
+FIELD_LINE = re.compile(
+    r"^(Gate stage|Input schematic|Current board):[ \t]*`?([^`\n]*?)`?[ \t]*$",
+    re.MULTILINE | re.IGNORECASE,
+)
+STAGES = ("board", "schematic")
 
 
 def parse_handoff(text: str) -> tuple[dict[int, tuple[str, str]], dict[str, str]]:
@@ -41,6 +52,15 @@ def parse_handoff(text: str) -> tuple[dict[int, tuple[str, str]], dict[str, str]
             gates[int(row.group(1))] = (row.group(2), row.group(3).upper())
     shas = {label.strip().casefold(): digest for label, digest in SHA_LINE.findall(text)}
     return gates, shas
+
+
+def parse_fields(text: str) -> dict[str, str]:
+    """Declared stage and file paths; template placeholders and `none` are ignored."""
+    return {
+        label.casefold(): value.strip()
+        for label, value in FIELD_LINE.findall(text)
+        if value.strip() and not value.strip().startswith("<") and value.strip() != "none"
+    }
 
 
 def check_order(gates: dict[int, tuple[str, str]]) -> list[str]:
@@ -92,8 +112,24 @@ def run_board_qc(board: Path, centerline_x: list[str], centerline_y: list[str]) 
     )
 
 
+def run_schematic_review(schematic: Path) -> dict[str, object]:
+    snapshot = build_snapshot(DipTraceDocument.load(schematic, MAX_XML_BYTES))
+    findings, _, skipped, check_count = run_checks(snapshot, categories=None)
+    counts: dict[str, dict[str, int]] = {"error": {}, "warning": {}}
+    for item in findings:
+        bucket = counts.setdefault(item.severity, {})
+        bucket[item.check_id] = bucket.get(item.check_id, 0) + 1
+    return {
+        "check_count": check_count,
+        "errors": counts["error"],
+        "warnings": counts["warning"],
+        "skipped": skipped,
+    }
+
+
 def _report(
     *,
+    stage: str,
     project: Path,
     handoff: Path,
     gates: dict[int, tuple[str, str]],
@@ -101,6 +137,7 @@ def _report(
     board: Path | None,
     schematic: Path | None,
     quality: object | None,
+    schematic_review: dict[str, object] | None,
     blocked: list[str],
     pending: list[str],
 ) -> dict[str, object]:
@@ -133,6 +170,7 @@ def _report(
         "captured_at": datetime.now(timezone.utc).isoformat(),
         "project": str(project.resolve()),
         "handoff": str(handoff.resolve()),
+        "stage": stage,
         "status": "BLOCKED" if blocked else "CONSISTENT",
         "gates": [
             {"number": number, "name": name, "status": status}
@@ -141,6 +179,7 @@ def _report(
         "recorded_shas": shas,
         "artifacts": artifacts,
         "quality": quality_payload,
+        "schematic_review": schematic_review,
         "blocked": blocked,
         "pending": pending,
     }
@@ -156,6 +195,13 @@ def main() -> int:
     parser.add_argument("--board", type=Path, default=None, help="explicit board file override")
     parser.add_argument(
         "--schematic", type=Path, default=None, help="explicit schematic file override"
+    )
+    parser.add_argument(
+        "--stage",
+        choices=("board", "schematic"),
+        default=None,
+        help="schematic: no board required, gate the schematic with the full offline review "
+        "(default: the handoff's 'Gate stage:' line, else board)",
     )
     parser.add_argument("--json", action="store_true", help="emit a machine-readable report")
     args = parser.parse_args()
@@ -175,21 +221,36 @@ def main() -> int:
             return 1
         print(f"BLOCKED: no PCB_BUILD.md in {project}")
         return 1
-    gates, shas = parse_handoff(handoff.read_text(encoding="utf-8"))
+    text = handoff.read_text(encoding="utf-8")
+    gates, shas = parse_handoff(text)
+    fields = parse_fields(text)
+    stage = args.stage or fields.get("gate stage", "board").casefold()
+    if stage not in STAGES:
+        blocked.append(f"unknown Gate stage '{stage}' (expected one of {', '.join(STAGES)})")
+        stage = "board"
+    args.board = args.board or (Path(fields["current board"]) if "current board" in fields else None)
+    args.schematic = args.schematic or (
+        Path(fields["input schematic"]) if "input schematic" in fields else None
+    )
     if not gates:
         blocked.append("PCB_BUILD.md has no parseable gate table rows")
     blocked += check_order(gates)
 
-    board = args.board or resolve_unique(project, "*-pcb.dipxml")
-    if board is not None and not board.is_absolute():
-        board = project / board
-    board_sha = shas.get("current board")
-    if board is None:
-        blocked.append("cannot verify current board SHA (no unique *-pcb.dipxml)")
-    elif board_sha is None:
-        blocked.append("cannot verify current board SHA (PCB_BUILD.md has no record)")
-    elif sha256_of(board) != board_sha:
-        blocked.append(f"board SHA stale: {board.name} does not match PCB_BUILD.md record")
+    board = None
+    if stage == "board":
+        board = args.board or resolve_unique(project, "*-pcb.dipxml")
+        if board is not None and not board.is_absolute():
+            board = project / board
+        board_sha = shas.get("current board")
+        if board is None:
+            blocked.append("cannot verify current board SHA (no unique *-pcb.dipxml)")
+        elif not board.is_file():
+            blocked.append(f"current board not found: {board}")
+            board = None
+        elif board_sha is None:
+            blocked.append("cannot verify current board SHA (PCB_BUILD.md has no record)")
+        elif sha256_of(board) != board_sha:
+            blocked.append(f"board SHA stale: {board.name} does not match PCB_BUILD.md record")
 
     schematic = args.schematic or resolve_unique(project, "*.dchxml")
     if schematic is not None and not schematic.is_absolute():
@@ -197,10 +258,25 @@ def main() -> int:
     schematic_sha = shas.get("input schematic")
     if schematic is None:
         blocked.append("cannot verify input schematic SHA (no unique *.dchxml)")
+    elif not schematic.is_file():
+        blocked.append(f"input schematic not found: {schematic}")
+        schematic = None
     elif schematic_sha is None:
         blocked.append("cannot verify input schematic SHA (PCB_BUILD.md has no record)")
     elif sha256_of(schematic) != schematic_sha:
         blocked.append(f"schematic SHA stale: {schematic.name} does not match PCB_BUILD.md record")
+
+    schematic_review = None
+    if stage == "schematic" and schematic is not None:
+        schematic_review = run_schematic_review(schematic)
+        blocked += [
+            f"schematic review error [{check}] x{count}"
+            for check, count in sorted(schematic_review["errors"].items())
+        ]
+        blocked += [
+            f"schematic review incomplete: {item['check_id']} skipped ({item['reason']})"
+            for item in schematic_review["skipped"]
+        ]
 
     quality = None
     quality_warnings: list[str] = []
@@ -227,6 +303,7 @@ def main() -> int:
         if status in OPEN_STATUSES | {"FAIL"}
     ]
     report = _report(
+        stage=stage,
         project=project,
         handoff=handoff,
         gates=gates,
@@ -234,6 +311,7 @@ def main() -> int:
         board=board,
         schematic=schematic,
         quality=quality,
+        schematic_review=schematic_review,
         blocked=blocked,
         pending=pending,
     )
@@ -244,12 +322,21 @@ def main() -> int:
         print(warning)
     if quality_summary:
         print(quality_summary)
+    if schematic_review is not None:
+        warnings = ", ".join(f"{k} x{v}" for k, v in sorted(schematic_review["warnings"].items()))
+        print(
+            f"Schematic review: {schematic_review['check_count']} checks, "
+            f"errors={sum(schematic_review['errors'].values())}, warnings: {warnings or 'none'}"
+        )
     if blocked:
         print("BLOCKED:")
         for item in blocked:
             print(f"  - {item}")
         return 1
-    print("PASS: handoff consistent, headless QC green")
+    print(
+        "PASS: handoff consistent, "
+        + ("schematic review clean" if stage == "schematic" else "headless QC green")
+    )
     if pending:
         print("Pending manual gates: " + "; ".join(pending))
     return 0

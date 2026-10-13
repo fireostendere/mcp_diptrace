@@ -29,6 +29,9 @@ _EXE_SHA = "d85632b2c8fb445471339e875416782e3e62fb56ea13ab7d973052122352f568"
 _MAX_BYTES = 128 * 1024 * 1024
 # Reviewed lossless client image: English "No errors found", same pinned editor.
 _ERC_CLEAR_SHA = "1338c992f812c02ca9777e8a035d4d23dcd5e8dccde5dd2b3cdbe51a779027e0"
+# Same dialog with the OK button focused (darker border); reviewed 2026-10-13 from
+# fixture proposal-45/native-01/erc.client.png, the only differing pixels.
+_ERC_CLEAR_FOCUSED_SHA = "68e209db9b7936e29a1bc187c562abd024f2fc4f08996cd32e373d1c708b045c"
 # Reviewed native File/Verification images and initialized 5.3.0.3 menu inventory.
 _MENU_PROFILES = {
     ("File", "Save As..."): (
@@ -42,7 +45,9 @@ _MENU_PROFILES = {
 # 5.3.5.1 has the same main-form menu items at these positions; its command IDs
 # shift because File > Import and View > Drawing Mode gained entries (CI inventory).
 _BUILDS: dict[str, tuple[str, dict[tuple[str, str], Any], frozenset[str]]] = {
-    _EXE_SHA: ("5.3.0.3", _MENU_PROFILES, frozenset({_ERC_CLEAR_SHA})),
+    _EXE_SHA: (
+        "5.3.0.3", _MENU_PROFILES, frozenset({_ERC_CLEAR_SHA, _ERC_CLEAR_FOCUSED_SHA})
+    ),
     "0ba7c41229b3c63766e7c67f5624cc6b284d4498de9a45768496667e4a0e8ea0": (
         "5.3.5.1",
         {

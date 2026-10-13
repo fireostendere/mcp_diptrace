@@ -202,6 +202,7 @@ def test_worker_lifecycle_and_unreviewed_dialog(monkeypatch, tmp_path):
     for index, (fingerprint, status) in enumerate(
         [
             (native._ERC_CLEAR_SHA, "no_errors_found"),
+            (native._ERC_CLEAR_FOCUSED_SHA, "no_errors_found"),
             ("different image", "review_required"),
         ]
     ):

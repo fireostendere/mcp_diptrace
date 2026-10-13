@@ -2,7 +2,8 @@
 
 Copy the section below into the board project's `PCB_BUILD.md`. Replace all angle
 brackets with actual values; use `none` where no evidence or commit exists yet.
-The hash labels and numbered table rows are parsed by
+The `Gate stage`, `Input schematic` and `Current board` lines (paths relative to the
+project), the hash labels and the numbered table rows are parsed by
 `scripts/pcb_quality_gate.py`
 in a source checkout. The wheel does not ship that project-specific script.
 
@@ -12,6 +13,7 @@ in a source checkout. The wheel does not ship that project-specific script.
 
 Revision: <revision and assembly variant>
 Requested endpoint: <schematic / PCB / production package / tested board>
+Gate stage: <schematic while the schematic is the deliverable, else board>
 
 Input schematic: <path>
 Input schematic SHA-256: `<64 lowercase hexadecimal characters>`
