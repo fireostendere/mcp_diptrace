@@ -66,9 +66,16 @@ the final export. `--inspect` only opens/captures/closes its isolated input. Opt
 not yet verified. ffmpeg is required for capture, ERC images and startup-dialog images.
 
 Unknown startup dialogs are not dismissed. First inspect their lossless client PNG;
-`--startup-dialog-sha256` authorizes only an explicitly reviewed exact image with a unique
-visible/enabled OK button. Never guess the hash or use a blanket nag dismissor.
-Focus/locale/rendering differences may require another review, not a weaker match.
+`--startup-dialog-sha256` authorizes only explicitly reviewed exact images. The bounded
+schematic profile supports a project-owned `TFMyMessage` with a unique visible/enabled
+OK button and `TForm106` titled `DipTrace News` through `WM_CLOSE` only. Both layers of
+a News/message stack must be authorized, even when News is disabled; only the unique
+enabled dialog can be acted on, once per class per process. The active image is captured
+again and must stay identical, with verified ownership and caption, before the action.
+Unknown or competing dialogs remain blocked. Inspect the News checkbox state before
+approval: closing may persist its existing preferences; the helper never toggles its
+controls or follows its download link. Never guess a hash or use a blanket nag dismissor.
+Focus/locale/rendering differences require another review, not a weaker match or automatic retry.
 
 `completed: true` / exit 0 reports native execution only, NOT schematic acceptance.
 Keep `erc_status: review_required` when the exact success image does not match; record

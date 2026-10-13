@@ -10,6 +10,15 @@ The bounded Windows schematic helper (`python -B -m
 diptrace_mcp.schematic_native_acceptance --help`) accepts repeated
 `--startup-dialog-sha256` arguments for explicitly reviewed **exact** client-PNG
 variants. Unknown images and competing/unowned Save As dialogs remain refused.
+The schematic startup profile handles at most one `TFMyMessage` and one
+`TForm106` titled `DipTrace News` per process, including News disabled beneath
+the message. Every pending image needs explicit authorization; the unique active
+dialog is captured again and must match before OK or News-only `WM_CLOSE`.
+Project/application ownership, captions and the exact dialog stack are rechecked;
+unknown disabled dialogs are not ignored. A destroyed-HWND enumeration error may
+be polled within the startup deadline, never interpreted as an empty dialog set
+or a reason to repeat an action. News controls/links are not clicked; native
+preference persistence on closing News is not established by synthetic tests.
 Phase `status: started` or `failed` is not evidence of saving; `completed` requires
 the phase's export validation (when requested) and normal process closure. Visible
 rejected windows are recorded first, with bounded controls and attempted lossless
