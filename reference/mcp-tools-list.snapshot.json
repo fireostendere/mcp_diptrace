@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 95263,
-  "canonical_descriptor_sha256": "8066e8c30e166672a879a0d66f357e4954959b2f51e035bd187eb3b039e8a9e8",
+  "canonical_descriptor_bytes": 95619,
+  "canonical_descriptor_sha256": "8d26378b6ec4729ea24ff85e3710e0033386428a26e90ab3dedbf826d1a4d375",
   "format_version": 1,
   "tool_count": 152,
   "tools": [
@@ -4630,10 +4630,11 @@
             "type": "string"
           },
           "profile": {
-            "description": "board_review / schematic_review: every registered PCB / schematic check. drc_basic: PCB placement, connectivity, clearance. erc_basic: schematic connectivity and metadata. connectivity. component_clearance: overlap and board containment. silkscreen. manufacturing_geometry: minimum feature, edge, drill, annular ring. dfm_basic: DFM geometry and stackup. dfa_basic: assembly. dft_basic: testpoint coverage. bom_basic: MPN/DNP metadata. thermal_basic: power and thermal metadata.",
+            "description": "board_review / schematic_review: every registered PCB / schematic check. schematic_readability: all-sheet visual geometry, or explicitly selected sheets; not native ERC. drc_basic: PCB placement, connectivity, clearance. erc_basic: schematic connectivity and metadata. connectivity. component_clearance: overlap and board containment. silkscreen. manufacturing_geometry: minimum feature, edge, drill, annular ring. dfm_basic: DFM geometry and stackup. dfa_basic: assembly. dft_basic: testpoint coverage. bom_basic: MPN/DNP metadata. thermal_basic: power and thermal metadata.",
             "enum": [
               "board_review",
               "schematic_review",
+              "schematic_readability",
               "drc_basic",
               "erc_basic",
               "connectivity",
@@ -4647,6 +4648,16 @@
               "thermal_basic"
             ],
             "type": "string"
+          },
+          "sheets": {
+            "description": "Explicit zero-based sheet indices, only for schematic_readability. Omit to check every sheet, including documentary overview.",
+            "items": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
           }
         },
         "required": [

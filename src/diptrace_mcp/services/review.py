@@ -30,17 +30,27 @@ class ReviewService:
         *,
         profile: str,
         categories: set[str] | None = None,
+        sheets: list[int] | None = None,
     ) -> dict[str, Any]:
         document, target = self.gateway.load(path)
         snapshot = self.context.model_cache.get(document, live_session=target.is_live)
+        if profile == "schematic_readability" and snapshot.schematic is None:
+            raise DocumentError("Schematic readability requires a schematic document")
+        if sheets is not None and profile != "schematic_readability":
+            raise DocumentError("sheets is supported only for profile schematic_readability")
         findings, metrics, skipped, registered_check_count = run_checks(
-            snapshot, categories=categories
+            snapshot, categories=categories, sheets=sheets
         )
         unsupported_checks: list[dict[str, str]] = []
         assumptions = [
             "All coordinates are normalized to millimetres.",
             "Checks use exported XML geometry only and do not invoke DipTrace DRC/ERC.",
         ]
+        readability = metrics.get("schematic.readability")
+        if isinstance(readability, dict):
+            assumptions.extend(readability["limitations"])
+            if not readability["all_sheets_checked"]:
+                assumptions.append("Readability coverage is scoped, not whole-design acceptance.")
         if snapshot.board is not None:
             assumptions.append(
                 "Component bboxes are estimated when footprint courtyard/body geometry is absent."

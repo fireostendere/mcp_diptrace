@@ -366,6 +366,7 @@ src/diptrace_mcp/schematic_native_acceptance.py
 src/diptrace_mcp/schematic_optimizer.py
 src/diptrace_mcp/schematic_pin_geometry.py
 src/diptrace_mcp/schematic_placement_repair.py
+src/diptrace_mcp/schematic_readability.py
 src/diptrace_mcp/schematic_rotation.py
 src/diptrace_mcp/schematic_topology.py
 src/diptrace_mcp/schematic_wire_planner.py
@@ -590,6 +591,7 @@ tests/test_schematic_optimizer.py
 tests/test_schematic_pcb_sync.py
 tests/test_schematic_pin_geometry.py
 tests/test_schematic_placement_repair.py
+tests/test_schematic_readability.py
 tests/test_schematic_rotation.py
 tests/test_schematic_topology.py
 tests/test_schematic_wire_planner.py

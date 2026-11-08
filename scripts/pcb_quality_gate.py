@@ -114,7 +114,7 @@ def run_board_qc(board: Path, centerline_x: list[str], centerline_y: list[str]) 
 
 def run_schematic_review(schematic: Path) -> dict[str, object]:
     snapshot = build_snapshot(DipTraceDocument.load(schematic, MAX_XML_BYTES))
-    findings, _, skipped, check_count = run_checks(snapshot, categories=None)
+    findings, metrics, skipped, check_count = run_checks(snapshot, categories=None)
     counts: dict[str, dict[str, int]] = {"error": {}, "warning": {}}
     for item in findings:
         bucket = counts.setdefault(item.severity, {})
@@ -124,6 +124,7 @@ def run_schematic_review(schematic: Path) -> dict[str, object]:
         "errors": counts["error"],
         "warnings": counts["warning"],
         "skipped": skipped,
+        "readability": metrics.get("schematic.readability"),
     }
 
 

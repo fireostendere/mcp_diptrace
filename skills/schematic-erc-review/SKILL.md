@@ -16,6 +16,21 @@ Produce a read-only disposition with explicit implemented, skipped, and unavaila
 Use public `tools/list` for exact callable names and `get_capabilities` for document/configured
 feature availability.
 
+Readability or crossing cleanup covers all sheets by default, including documentary overview
+connections. Only an explicit user restriction permits narrower scope; never silently select
+the active/core sheet. One representative sheet is incremental construction, not final
+acceptance. Report per-sheet coverage with findings and unavailable checks; whole-schematic
+final acceptance includes every sheet and page-fit visual inspection.
+
+Inspect different-net full-polyline crossings, ambiguous collinear overlaps, foreign
+glyph/pin/stub crossings and port-tip-on-foreign-shaft superposition. Treat documentary lines
+separately from electrical wires and rectangle borders; intentional same-net junctions and
+shared documentary endpoints are not errors. Report missing geometry explicitly, not as a
+clean empty result. Claim only implemented checks advertised by the current runtime; disclose
+native font metrics and caption-clearance limits. Clean ERC is not a visual pass, and geometry
+alone cannot prove readability or native/ERC acceptance. Follow the schematic style for
+visible local support wiring and justified exact named native ports, not blanket labels.
+
 ## Workflow
 
 1. Call `diptrace_status`, `get_capabilities`, and `get_document_info`; require a schematic source
@@ -23,7 +38,13 @@ feature availability.
 2. Read `get_schematic_model` and `get_connectivity_graph`. Preserve sheet identity, hierarchy,
    explicit no-connect state, RefDes, pin numbers, and net names.
 3. Run `run_review` with profiles `erc_basic`, `schematic_review`, `connectivity`, and
-   `bom_basic` only when advertised.
+    `bom_basic` only when advertised.
+   For readability, use the advertised `schematic_readability` profile; omit `sheets`
+   to check all sheets. Only an explicit user restriction permits its bounded
+   zero-based `sheets` selector. The full `schematic_review` stays design-wide.
+   Inspect `metrics["schematic.readability"]`: selected/excluded indices, per-sheet
+   counts, `all_sheets_checked`, `geometry_complete` and missing geometry. A scoped
+   result or incomplete geometry is not whole-schematic acceptance.
 4. For native opening/roundtrip evidence, use the headless schematic workflow on a protected
    copy through [evidence capture](../diptrace-evidence-capture/SKILL.md). Generic native schematic
    ERC is not implemented by the base helper; report that specific missing check rather than

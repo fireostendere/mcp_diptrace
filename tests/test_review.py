@@ -449,7 +449,7 @@ def test_erc_reports_unconnected_pin_not_intentional_no_connect() -> None:
     document = DipTraceDocument.load(FIXTURES / "schematic.xml", 10_000_000)
     findings, metrics, _, count = run_checks(build_snapshot(document))
 
-    assert count == 10
+    assert count == 11
     unconnected = [item for item in findings if item.check_id == "schematic.unconnected_pin"]
     assert len(unconnected) == 1
     assert unconnected[0].object_ids

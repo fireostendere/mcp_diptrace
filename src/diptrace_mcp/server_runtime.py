@@ -68,6 +68,7 @@ MAX_XML_EDITS_FILE_BYTES = 128 * 1024
 ReviewProfile = Literal[
     "board_review",
     "schematic_review",
+    "schematic_readability",
     "drc_basic",
     "erc_basic",
     "connectivity",
@@ -84,6 +85,7 @@ ReviewProfile = Literal[
 _REVIEW_PROFILE_CATEGORIES: dict[str, set[str] | None] = {
     "board_review": None,
     "schematic_review": None,
+    "schematic_readability": {"readability"},
     "drc_basic": {"placement", "connectivity", "clearance"},
     "erc_basic": {"connectivity", "metadata"},
     "connectivity": {"connectivity"},
@@ -1396,7 +1398,9 @@ def create_server(
             Field(
                 description=(
                     "board_review / schematic_review: every registered PCB / schematic "
-                    "check. drc_basic: PCB placement, connectivity, clearance. erc_basic: "
+                    "check. schematic_readability: all-sheet visual geometry, or explicitly "
+                    "selected sheets; not native ERC. drc_basic: PCB placement, connectivity, "
+                    "clearance. erc_basic: "
                     "schematic connectivity and metadata. connectivity. component_clearance: "
                     "overlap and board containment. silkscreen. manufacturing_geometry: "
                     "minimum feature, edge, drill, annular ring. dfm_basic: DFM geometry and "
@@ -1406,10 +1410,17 @@ def create_server(
             ),
         ],
         path: str | None = None,
+        sheets: Annotated[
+            list[Annotated[int, Field(strict=True, ge=0)]],
+            Field(min_length=1, max_length=256, description=(
+                "Explicit zero-based sheet indices, only for schematic_readability. "
+                "Omit to check every sheet, including documentary overview."
+            )),
+        ] | None = None,
     ) -> dict[str, Any]:
         """Run one deterministic offline review profile and store its report."""
         return service.run_review(
-            path, profile=profile, categories=_REVIEW_PROFILE_CATEGORIES[profile]
+            path, profile=profile, categories=_REVIEW_PROFILE_CATEGORIES[profile], sheets=sheets
         )
 
     @mcp.tool()

@@ -4,6 +4,15 @@ Project instructions and electrical correctness take precedence. These drawing r
 are adapted from the project's DipTrace schematic-style skill and packaged here so
 the schematic workflow also works outside a source checkout.
 
+## Scope and final acceptance
+
+Readability or crossing cleanup covers all sheets by default, including documentary overview
+connections. Only an explicit user restriction permits narrower scope; never silently select
+the active/core sheet or screenshot. One representative sheet is incremental construction,
+not final acceptance. Report per-sheet coverage, findings and unavailable geometry, then
+inspect every sheet at page fit before declaring whole-schematic completion. Geometry checks
+cannot establish native font metrics or native/ERC acceptance; clean ERC is not a visual pass.
+
 ## Parts and layout
 
 - Search exact installed MPNs with `query_builtin_library_catalog`, then verified
@@ -21,6 +30,10 @@ the schematic workflow also works outside a source checkout.
 
 ## Wiring and connectivity
 
+- Keep short local decoupling/bias/clock/ESD/Rd/button/logic/LED connections visibly wired.
+  Move placement first; justify exact named native ports for long or competing interfaces
+  and verify real pin membership. No blanket labeling, perimeter loops, or smaller fonts to
+  hide clutter. Preserve readable glyphs and horizontal captions with clearance.
 - Logical `connect_pins` and graphical `add_wire` are distinct operations. Check the
   actual connectivity graph and native view; a populated netlist is not visible wiring.
 - Escape straight from a pin before a bend. Prefer short orthogonal paths; do not cross

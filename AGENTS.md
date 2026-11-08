@@ -98,6 +98,16 @@ catalog parts are required for the deliverable.
 
 ## Schematic wiring rules
 
+- Readability or crossing cleanup covers all sheets by default, including documentary overview
+  connections. Only an explicit user restriction permits narrower scope; never silently select
+  the active/core sheet or screenshot. One representative sheet is incremental construction,
+  not final acceptance. Record per-sheet coverage, findings and unavailable geometry; final
+  whole-schematic acceptance requires every sheet to be reviewed and visually inspected.
+- Keep short local decoupling/bias/clock/ESD/Rd/button/logic/LED connections visibly wired.
+  Move placement first; use exact named native ports with verified real pin membership for
+  justified long or competing interfaces. No blanket labeling, perimeter loops, or smaller
+  fonts to hide clutter. Preserve readable glyphs and horizontal captions with clearance.
+  Geometry checks do not establish native font metrics or native/ERC acceptance.
 - Lay out every sheet for human reading, not for an autorouter score: functional
   flow goes left-to-right, positive rails stay above the signal path, and GND
   symbols sit below the components they return.
@@ -206,5 +216,9 @@ they never relax electrical, datasheet, safety or house-style requirements.
 - **No re-verification loops:** do not re-hash, re-compare or re-audit evidence
   whose inputs have not changed since it was recorded.
 - **Short handoffs:** `PCB_BUILD.md`/`SCHEMATIC_BUILD.md` hold the current state,
-  last PASS, remaining steps and resume command. History goes to the project
-  journal, not into the handoff.
+   last PASS, remaining steps and resume command. History goes to the project
+   journal, not into the handoff.
+- **Context continuity:** context pressure or a declined extension is not an
+  engineering gate failure. Preserve the current state and use available runtime
+  compaction to continue the authorized task; do not require a new user session
+  solely for that reason. Never bypass a denied extension or budget approval.

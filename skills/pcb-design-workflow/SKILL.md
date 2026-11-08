@@ -119,6 +119,15 @@ requested compatible filled/capped process. Native DRC failures remain failures.
 
 ## Finish the requested endpoint
 
+Schematic readability or crossing cleanup covers all sheets by default, including documentary
+overview connections. Only an explicit user restriction permits narrower scope, never an
+implicit active/core-sheet selection. One representative sheet is incremental construction,
+not final acceptance. Report per-sheet coverage, findings and unavailable geometry; final
+whole-schematic acceptance includes every sheet's page-fit visual inspection. Follow the
+linked schematic style for balanced visible local wiring and justified native ports, not
+blanket labeling or perimeter loops. Geometry and clean ERC do not prove visual readability
+or replace required native evidence.
+
 Return actual artifact paths, revision and hashes, passed/failed/missing gates, and
 the exact next action when blocked. Regenerate and inspect PCB/MP4/GIF after a visual
 PCB change as required by AGENTS.md, including staged sequence and final frame.

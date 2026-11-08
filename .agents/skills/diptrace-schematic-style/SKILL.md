@@ -9,6 +9,15 @@ Apply these house rules while creating, generating, or visually cleaning a
 DipTrace schematic. Datasheets, electrical safety, ERC/DRC, mechanical limits,
 and manufacturability take precedence.
 
+## Scope and final acceptance
+
+Readability or crossing cleanup covers all sheets by default, including documentary overview
+connections. Only an explicit user restriction permits narrower scope; never silently select
+the active/core sheet or screenshot. One representative sheet is incremental construction,
+not final acceptance. Record per-sheet coverage, findings and unavailable geometry; inspect
+every sheet at page fit before declaring whole-schematic completion. Geometry does not prove
+native font metrics or native/ERC acceptance; clean ERC is not a visual pass.
+
 ## Run gated learning builds one sheet at a time
 
 When the user is using a board as a training run for repeatable one-prompt
@@ -82,6 +91,10 @@ Apply the same order to connectors and catalog passives.
 
 ## Wire visibly and locally
 
+- Keep short local decoupling/bias/clock/ESD/Rd/button/logic/LED connections visibly wired.
+  Move placement first; justify exact named native ports for long or competing interfaces
+  and verify real pin membership. No blanket labeling, perimeter loops, or smaller fonts to
+  hide clutter. Preserve readable glyphs and horizontal captions with clearance.
 - Prefer short orthogonal wires within a sheet. For every cross-sheet/global
   signal, place a native DipTrace Net Port component with the exact intended
   net name on every participating sheet. A root `Shape Type=Text` net label is

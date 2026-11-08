@@ -27,6 +27,10 @@ project `AGENTS.md`, when present, for RAG, build gates, and media.
    retain authorization already given in the session.
 5. Mark gates outside scope as outside scope, not passed. In a machine-checked
    `PCB_BUILD.md`, keep the supported status vocabulary from its handoff template.
+6. Readability or crossing cleanup covers all sheets by default, including documentary overview
+   connections. Only an explicit user restriction permits narrower scope; never silently select
+   the active/core sheet or screenshot. Record per-sheet coverage, findings and unavailable
+   geometry. Final whole-schematic acceptance includes every sheet.
 
 ## Evidence before engineering decisions
 
@@ -137,6 +141,10 @@ permits it.
    wires and clear pin escape. Keep readable labels and notes wholly inside usable page bounds,
    clear of the frame, components, pins, and wires. Verify extents of ALL objects, including
    power symbols and notes; a viewport does not repair geometry.
+   Keep short local decoupling/bias/clock/ESD/Rd/button/logic/LED connections visibly wired.
+   Move placement first; justify exact named native ports for long or competing interfaces
+   and verify real pin membership. No blanket labeling, perimeter loops, or smaller fonts to
+   hide clutter. Preserve readable glyphs and horizontal captions with clearance.
 3. For cross-sheet/global nets, use a visible native Net Port on every participating sheet, wired to
    its actual pin. Use the intended net name as the component `Name` (not pin text), respect hierarchy
    scope, and verify pin-bound membership.
@@ -151,6 +159,9 @@ permits it.
 8. Before scaling, build a representative sheet and pass structural, electrical, readability, and
    open-save-reexport gates. Where supported, make an isolated safe test copy to verify native
    pin/net membership, names, and a port rename.
+   This is incremental construction, not final acceptance: inspect and report every sheet
+   before declaring the whole schematic complete. Geometry does not prove native font metrics
+   or native/ERC acceptance; clean ERC is not a visual pass.
 
 ## PCB stage: explicit scope only
 
@@ -177,7 +188,12 @@ Begin only after schematic acceptance and PCB work is authorized. Use
 Use separate gates. An offline MCP check is not a native acceptance substitute.
 
 1. Run available offline MCP reviews such as `run_review(profile="erc_basic")` or `run_review(profile="drc_basic")`, but identify when they are
-   XML-profile checks rather than native execution.
+    XML-profile checks rather than native execution.
+   Use `run_review(profile="schematic_review")` for the full design-wide schematic
+   review, including readability. The dedicated `schematic_readability` profile
+   also defaults to all sheets; its explicit `sheets` selector is only for a
+   narrower user request. Inspect per-sheet coverage and missing geometry, not
+   only the active sheet or total finding count.
 2. Schematic acceptance requires native open/save/re-export plus native connectivity and ERC.
    If native evidence is unavailable, acceptance is `BLOCKED`, never `PASS` or `N/A`.
    Native ERC status review_required whose viewed client image reads exactly "No errors found" is
