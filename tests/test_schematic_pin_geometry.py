@@ -213,9 +213,9 @@ def test_embedded_design_cache_is_primary_document_geometry_source() -> None:
         (pin for pin in resolution.pins if pin.refdes == "R1"),
         key=lambda pin: pin.pin_index,
     )
-    assert [pin.absolute_position for pin in r1_pins] == pytest.approx(
-        [{"x": 8.5, "y": 20.0}, {"x": 11.5, "y": 20.0}]
-    )
+    # pytest.approx rejects nested structures, so compare the axes separately.
+    assert [pin.absolute_position["x"] for pin in r1_pins] == pytest.approx([8.5, 11.5])
+    assert [pin.absolute_position["y"] for pin in r1_pins] == pytest.approx([20.0, 20.0])
     assert any("embedded design cache" in item for item in resolution.assumptions)
 
 
