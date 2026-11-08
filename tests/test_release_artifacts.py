@@ -151,9 +151,20 @@ def test_hatch_build_hook_excludes_dirty_untracked_files(tmp_path: Path) -> None
     sdist = next(dist.glob("*.tar.gz"))
     with tarfile.open(sdist, "r:*") as archive:
         sdist_names = set(archive.getnames())
+        prefix = next(iter(sdist_names)).split("/", 1)[0]
+        for relative in (
+            "src/diptrace_mcp/schematic_readability.py",
+            "tests/test_schematic_readability.py",
+        ):
+            assert f"{prefix}/{relative}" in sdist_names
+            member = archive.extractfile(f"{prefix}/{relative}")
+            assert member is not None and member.read() == (REPO_ROOT / relative).read_bytes()
     wheel = next(dist.glob("*.whl"))
     with zipfile.ZipFile(wheel) as archive:
         wheel_names = set(archive.namelist())
+        assert archive.read("diptrace_mcp/schematic_readability.py") == (
+            REPO_ROOT / "src/diptrace_mcp/schematic_readability.py"
+        ).read_bytes()
 
     for dirty in dirty_files:
         relative = dirty.relative_to(project).as_posix()

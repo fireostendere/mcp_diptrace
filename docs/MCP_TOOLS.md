@@ -35,6 +35,18 @@ The exact names and schemas are in the generated snapshot. Conceptually the publ
 
 Use MCP introspection rather than copying a manually maintained 152-item list into application code or documentation.
 
+### Schematic readability review
+
+The existing `run_review` tool accepts `profile="schematic_readability"` without
+adding a new tool. Omit `sheets` to check every schematic sheet, including
+documentary overview. Only this dedicated profile accepts the explicit bounded
+`sheets` selector (1–256 unique existing zero-based indices); other profiles reject
+it. `schematic_review` always runs the registered readability check design-wide.
+Reports contain a per-sheet coverage/geometry ledger and deterministic findings;
+missing geometry is a structured skip, not a clean PASS. See
+[the implemented boundaries](REVIEW_ENGINE.md#design-wide-schematic-readability).
+No profile invokes native ERC or establishes native font/visual acceptance.
+
 ## Tool availability
 
 A registered tool may still refuse or report a bounded capability because of:

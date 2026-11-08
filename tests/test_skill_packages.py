@@ -397,6 +397,43 @@ def test_signal_integrity_scope_and_validity_claims_match_implementation() -> No
     assert "exposes no executable version, convergence field, or result SHA-256" in text
 
 
+def test_schematic_readability_rules_cover_whole_design_and_balanced_wiring() -> None:
+    paths = (
+        "AGENTS.md",
+        "skills/schematic-engineer/SKILL.md",
+        "skills/pcb-design-workflow/SKILL.md",
+        "skills/schematic-erc-review/SKILL.md",
+        "skills/schematic-engineer/references/schematic-style.md",
+        ".agents/skills/diptrace-schematic-style/SKILL.md",
+    )
+    for relative in paths:
+        text = " ".join((ROOT / relative).read_text(encoding="utf-8").lower().split())
+        for rule in (
+            "all sheets by default",
+            "including documentary overview",
+            "only an explicit user restriction",
+            "incremental construction, not final acceptance",
+            "per-sheet coverage",
+        ):
+            assert rule in text, f"{relative}: missing scope rule: {rule}"
+
+    for relative in (paths[0], paths[1], paths[4], paths[5]):
+        text = " ".join((ROOT / relative).read_text(encoding="utf-8").lower().split())
+        for rule in (
+            "short local decoupling/bias/clock/esd/rd/button/logic/led",
+            "long or competing interfaces",
+            "exact named native ports",
+            "blanket labeling",
+            "perimeter loops",
+            "readable glyphs and horizontal captions",
+        ):
+            assert rule in text, f"{relative}: missing drawing rule: {rule}"
+
+    review = " ".join((ROOT / paths[3]).read_text(encoding="utf-8").lower().split())
+    for limit in ("missing geometry", "native font metrics", "clean erc is not a visual pass"):
+        assert limit in review
+
+
 def test_evidence_skill_preserves_stage_roles_and_confirmation_boundary() -> None:
     text = (
         SKILLS_ROOT / "diptrace-evidence-capture" / "SKILL.md"

@@ -133,6 +133,63 @@ implementation, and missing electrical types produce a structured skip.
 `run_review(profile=...)` aggregates registry checks by category: `drc_basic`, `erc_basic`,
 `board_review`, `schematic_review`, and manufacturing, assembly, testability, BOM, and thermal profiles.
 
+### Design-wide schematic readability
+
+`schematic.readability` is a registered read-only geometry check included in the
+full `schematic_review` profile and the schematic-stage quality gate. The dedicated
+profile is `run_review(profile="schematic_readability", path="candidate.dchxml")`.
+It checks every declared sheet, including documentary overview, regardless of
+`ActiveSheet`. For an explicitly narrower user request, the dedicated profile
+accepts `sheets=[0, 2]`: 1–256 unique existing zero-based sheet indices (not Sheet
+Id values). Other profiles reject this selector; the full schematic gate cannot
+be silently narrowed.
+
+`metrics["schematic.readability"]` records selected/excluded indices,
+`all_sheets_checked`, `geometry_complete`, and one row per checked sheet with its
+index, Id, name, object counts, conflict counts and `missing_geometry`. Empty
+sheets remain in coverage. Undeclared object sheets appear in `unassigned_objects`.
+Incomplete geometry produces a structured `schematic_readability_geometry_incomplete`
+skip, which blocks the full schematic gate rather than producing a clean empty
+result. The gate JSON retains this ledger as `schematic_review.readability`.
+
+Implemented boundaries:
+
+- Complete exported electrical wire polylines: different-net point contacts
+  (including shared endpoints) and positive-length collinear overlaps are distinct
+  findings. Same-net point junctions are not foreign-net crossings. Findings are
+  deduplicated by sheet, conflict kind and object pair; they do not count every
+  segment of one polyline pair as a separate wire-pair conflict.
+  Positive-length duplicate same-net lanes are reported as visual overlap, not
+  an electrical-short claim; containment and diagonal overlap are order-independent.
+- Documentary `Shape Type="Line"` channels are checked separately. Shared
+  endpoints are allowed; rectangle borders are not connection channels. A Line
+  requires exactly two distinct points; unsupported documentary primitives are
+  disclosed, not silently interpreted as wires.
+- Embedded-cache Line/Polyline/Rectangle/Polygon glyphs, pin shafts and Net Port
+  tips use part rotation/mirroring and normalized millimetres. Missing or
+  ambiguous embedded identities, pin geometry and curved/unknown symbol primitives
+  are explicit gaps. Net Port tips are tested against foreign shafts even when no
+  wire exists. Legitimate same-net tip contacts do not become shaft violations.
+- Visible positioned instance markings and root Text captions are checked for
+  upright horizontal orientation, collision corridors and usable page bounds.
+  Dimensions use stored text bounds or the existing ASCII vector-font estimates;
+  they are not native typography evidence. Stored-bound conflicts are errors;
+  estimate-only conflicts/containment are warnings requiring native page-fit
+  inspection, not assertions of measured failure. Stored/estimated text counts
+  remain separate. Automatic marking alignment, missing
+  metrics, symbol-internal text and native pin-name/number glyphs have disclosed
+  limits. Native page-fit inspection is still required.
+
+This is analytical centerline review with heuristic text corridors, not native
+ERC, proof of electrical shorts, native font measurement or a whole-schematic
+visual PASS. It never rewrites local wiring as labels or changes CAD. All existing
+guarded-write, native re-serialization and BOM-warning exceptions remain intact.
+
+Synthetic regressions live in `tests/test_schematic_readability.py`. The private
+five-sheet reproduction is opt-in via `DIPTRACE_READABILITY_FIXTURE`; it verifies
+the expected source hash, analyzes an isolated temporary copy, and checks that
+both copies retain their original bytes. No private design is redistributed.
+
 ## Finding Contract
 
 A finding contains ID, check, category, severity, confidence, explanation, object and net

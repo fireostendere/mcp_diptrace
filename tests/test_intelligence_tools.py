@@ -13,6 +13,7 @@ from diptrace_mcp.capabilities import get_capabilities
 from diptrace_mcp.config import Settings
 from diptrace_mcp.errors import (
     CapabilityUnavailableError,
+    DrcRegressionError,
     EditError,
     Sha256MismatchError,
 )
@@ -205,7 +206,7 @@ def test_clean_wired_schematic_repair_is_noop_without_spurious_motion(
     assert service.document_info(path)["result"]["sha256"] == original_sha
 
 
-def test_wired_repair_detects_real_route_problem_and_keeps_fixed_move(
+def test_wired_repair_rejects_fixed_move_that_introduces_a_crossing(
     tmp_path: Path,
 ) -> None:
     service, workspace = _service(tmp_path)
@@ -214,26 +215,14 @@ def test_wired_repair_detects_real_route_problem_and_keeps_fixed_move(
     document = DipTraceDocument.load(workspace / "wired.xml", MAX_BYTES)
     moved_id = _signal_only_part(document)
 
-    # Dropping the part onto another component's location is a real placement
-    # problem the repair must detect while still honouring the fixed move.
-    plan_response = service.plan_schematic_placement_repair(
-        path,
-        moves=[{"part": moved_id, "x_mm": 30.0, "y_mm": 20.0}],
-    )
-    plan = plan_response["result"]["plan"]
-    assert plan_response["result"]["no_changes"] is False
-    assert plan["metrics"]["repair"]["feedback_edge_count"] >= 1
-    assert plan["metrics"]["repair"]["generated_candidate_count"] >= 1
-
-    committed = service.apply_schematic_placement_repair_plan(
-        plan["plan_id"], dry_run=False, expected_sha256=plan["source_sha256"]
-    )
-    assert committed["ok"] is True
-
-    after = build_snapshot(DipTraceDocument.load(workspace / "wired.xml", MAX_BYTES))
-    assert after.schematic is not None
-    moved = next(part for part in after.schematic.parts if part.stable_id == moved_id)
-    assert moved.position == {"x": 30.0, "y": 20.0}
+    # Operator-fixed coordinates cannot override the guarded review: this move
+    # places SIGNAL directly on VCC's endpoint and introduces a foreign-net crossing.
+    with pytest.raises(DrcRegressionError) as captured:
+        service.plan_schematic_placement_repair(
+            path, moves=[{"part": moved_id, "x_mm": 30.0, "y_mm": 20.0}],
+        )
+    assert captured.value.details["regressions"]["readability"] == {"before": 0, "after": 1}
+    assert (workspace / "wired.xml").read_bytes() == document.raw_bytes
 
 
 def test_wired_repair_keeps_unaffected_nets_outside_replaced_geometry(
@@ -311,6 +300,10 @@ def test_plan_and_apply_schematic_placement_repair_round_trip(tmp_path: Path) ->
     assert committed["result"]["changed_ids"]
 
     assert service.document_info(path)["result"]["sha256"] != original_sha
+    after = build_snapshot(DipTraceDocument.load(workspace / "wired.xml", MAX_BYTES))
+    assert after.schematic is not None
+    moved = next(part for part in after.schematic.parts if part.stable_id == moved_id)
+    assert moved.position == {"x": 95.0, "y": 70.0}
 
 
 def test_moves_resolution_unique_refdes_case_insensitive_and_stable_id(

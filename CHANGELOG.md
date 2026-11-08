@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Added design-wide schematic readability review through the existing `run_review`
+  tool, with per-sheet coverage, full-polyline crossings/overlaps, documentary-line,
+  glyph/pin-stub, Net Port tip, marking and page-bound checks. Missing geometry is
+  explicit; estimated text corridors are not native font measurements.
+- Included readability in the full schematic profile/quality gate. A dedicated
+  `schematic_readability` profile supports an explicit bounded sheet selector;
+  full acceptance remains all-sheet. Updated canonical/legacy schematic skills
+  and synthetic regressions without changing CAD or guarded-write contracts.
+
 ## 0.4.0 - 2026-08-16
 
 Version `0.4.0` is the current published unsigned development release.

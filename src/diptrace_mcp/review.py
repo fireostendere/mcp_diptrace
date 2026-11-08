@@ -11,7 +11,7 @@ from .adapters import DocumentSnapshot
 from .advanced_review import register_advanced_checks
 from .clearance import clearance_rule_status, clearance_source_label, resolve_clearance
 from .domain import ObjectRecord
-from .errors import CapabilityUnavailableError, NetClassResolutionError
+from .errors import CapabilityUnavailableError, DocumentError, NetClassResolutionError
 from .findings import Finding, make_finding
 from .geometry import (
     BBox,
@@ -24,6 +24,7 @@ from .geometry import (
 from .geometry_backend import line_to_shape_distance, shapely_available
 from .numeric_inputs import xml_number_mm
 from .schematic_layout import infer_schematic_design_intent, schematic_sheet_usable_bounds
+from .schematic_readability import check_schematic_readability
 from .services.schematic_wire_quality import _text_bbox
 from .spatial import SpatialIndex
 
@@ -81,6 +82,9 @@ class CheckRegistry:
 
 registry = CheckRegistry()
 register_advanced_checks(registry)
+registry.register("schematic.readability", "readability", "schematic")(
+    check_schematic_readability
+)
 
 
 @registry.register("pcb.component_overlap", "placement", "pcb")
@@ -1100,8 +1104,13 @@ def run_checks(
     snapshot: DocumentSnapshot,
     *,
     categories: set[str] | None = None,
+    sheets: list[int] | None = None,
 ) -> tuple[list[Finding], dict[str, Any], list[dict[str, str]], int]:
     checks = registry.checks(snapshot.document.kind, categories)
+    if sheets is not None and (snapshot.schematic is None or categories != {"readability"}):
+        raise DocumentError(
+            "Explicit sheets are supported only for the schematic readability review"
+        )
     findings: list[Finding] = []
     metrics: dict[str, Any] = {
         "clearance_rule_status": clearance_rule_status(
@@ -1112,7 +1121,10 @@ def run_checks(
     }
     skipped: list[dict[str, str]] = []
     for check in checks:
-        check_findings, check_metrics = check.function(snapshot)
+        check_findings, check_metrics = (
+            check_schematic_readability(snapshot, sheets=sheets)
+            if check.check_id == "schematic.readability" else check.function(snapshot)
+        )
         reason = check_metrics.pop("skipped", None)
         partial_reason = check_metrics.pop("partial_skipped", None)
         if reason is not None:
