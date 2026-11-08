@@ -602,9 +602,8 @@ class WireEndpoint(StrictModel):
                 raise ValueError("a Pin endpoint requires exactly one of refdes or part_id")
             if self.pin is None:
                 raise ValueError("a Pin endpoint requires a pin index")
-        elif self.type == "Wire":
-            if self.wire_id is None:
-                raise ValueError("a Wire endpoint requires wire_id")
+        elif self.type == "Wire" and self.wire_id is None:
+            raise ValueError("a Wire endpoint requires wire_id")
         return self
 
 
