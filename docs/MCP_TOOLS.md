@@ -6,12 +6,11 @@ DipTrace MCP currently exposes **152 registered MCP tools**. The complete public
 
 `reference/mcp-tools-list.snapshot.json`
 
-CI regenerates that snapshot through the public in-memory MCP transport and fails if the public contract changes unexpectedly. Runtime `get_capabilities` remains authoritative for whether a particular tool/path is usable for the active installation, document, policy and adapters.
+CI regenerates that snapshot through the public in-memory MCP transport and fails if the public contract changes unexpectedly. Runtime `get_capabilities` reports what the active installation, document, policy and adapters allow; it is keyed by capability, not by tool name, and has known disagreements with tool behaviour ([TECH_DEBT.md](TECH_DEBT.md), B14), so also handle the error envelope.
 
-The service contract currently contains:
-
-- 159 public `DipTraceService` methods;
-- 150 explicit Facade-to-domain-service delegations.
+`DipTraceService` is the Facade behind every tool. It resolves public methods on its
+typed domain services (`src/diptrace_mcp/services/`) by attribute delegation, so there is
+no separate hand-maintained delegation list to keep in step.
 
 Internal EDA modules added after `v0.2.1` intentionally do **not** create one public MCP tool per heuristic.
 
@@ -23,7 +22,7 @@ The exact names and schemas are in the generated snapshot. Conceptually the publ
 - PCB, schematic, Component Library and Pattern Library inspection, including
   read-only installed-catalog search and guarded schematic placement;
 - connectivity, BOM, component/library metadata;
-- DRC/ERC/review/comparison;
+- offline review profiles (`run_review`) and comparison — not native DRC/ERC;
 - placement, silkscreen and bounded routing workflows;
 - trace, via, text, component and NetClass semantic edits;
 - schematic authoring and synchronization;
@@ -34,6 +33,25 @@ The exact names and schemas are in the generated snapshot. Conceptually the publ
 - release/readiness and other project-owned analysis helpers.
 
 Use MCP introspection rather than copying a manually maintained 152-item list into application code or documentation.
+
+### Consolidated tools (post-`v0.4.0`)
+
+Clients written against the 167-tool `v0.4.0` contract map removed names as follows:
+
+| Removed tool | Use instead |
+| --- | --- |
+| `run_drc`, `run_erc`, `run_connectivity_check`, `run_board_review`, `run_schematic_review`, `run_manufacturing_review`, `run_manufacturing_geometry_check`, `run_assembly_review`, `run_testability_review`, `run_bom_review`, `run_thermal_review`, `run_silkscreen_check`, `check_silkscreen`, `run_component_clearance_check` | `run_review(profile=...)` |
+| `analyze_controlled_impedance` | `validate_impedance_constraints` |
+| `legalize_component_placement` | `plan_component_placement` |
+| `set_component_fields` | `set_component_properties` |
+| `set_diff_pair_rules`, `set_length_constraints` | `update_net_class_rules` |
+| `unlock_components` | `lock_components(locked=false)` |
+
+`run_review` profiles: `board_review`, `schematic_review`, `schematic_readability`,
+`drc_basic`, `erc_basic`, `connectivity`, `component_clearance`, `silkscreen`,
+`manufacturing_geometry`, `dfm_basic`, `dfa_basic`, `dft_basic`, `bom_basic`,
+`thermal_basic`. They are deterministic offline checks on exported XML; none of them is
+native DipTrace DRC or ERC.
 
 ### Schematic readability review
 
@@ -81,6 +99,15 @@ Write-capable tools remain behind the guarded operation path:
 8. live-session identity checks when applicable.
 
 The public tool surface is not permission to bypass those boundaries.
+
+## Pipeline tools
+
+`pipeline_source_component` (LCSC/EasyEDA catalog download), `pipeline_nativeize_document`
+(graft generated content into a native template) and `pipeline_render_board_preview`
+(Top/Bottom SVG) write files directly instead of through a transaction. They resolve
+every path inside the allowed roots and require a policy that allows commits;
+`pipeline_source_component` also requires external execution. They take no
+`expected_sha256`, so `pipeline_nativeize_document` refuses an existing output path.
 
 ## Schematic intelligence tools
 
@@ -133,7 +160,7 @@ Visible UI replay is presentation automation and does not bypass XML/transaction
 
 Do not use this document as a universal compatibility matrix. Public registration, repository implementation, runtime availability and real-DipTrace verification are different facts.
 
-The later private/manual Q1 Component Angle campaign is PASS on the accepted production checkpoint. Historical `v0.2.0` / `v0.2.1` release records and evidence templates retain the status that was true when those artifacts were created; they are not rewritten retroactively.
+The later private/manual Q1 Component Angle campaign is recorded as PASS on the accepted production checkpoint; the source-controlled gate `evidence_status.Q1_COMPONENT_ANGLE_LIVE_VALIDATED` has not been flipped, so `rotate_components` still carries its validation warning (open status question in [TECH_DEBT.md](TECH_DEBT.md)). Historical `v0.2.0` / `v0.2.1` release records and evidence templates retain the status that was true when those artifacts were created; they are not rewritten retroactively.
 
 For current acceptance status use [ROADMAP.md](ROADMAP.md) and [MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md](MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md).
 

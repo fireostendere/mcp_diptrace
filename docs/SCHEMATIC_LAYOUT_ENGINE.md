@@ -5,7 +5,7 @@
 The schematic intelligence track is a bounded deterministic pipeline behind the existing
 semantic-operation, preview, expected-SHA, transaction and real-DipTrace evidence
 boundaries. Public placement/repair tools remain intentionally narrow; the newer topology
-and rotation helpers are package-level and do not expand the 167-tool MCP contract.
+and rotation helpers are package-level and do not expand the 152-tool MCP contract.
 
 Current modules:
 

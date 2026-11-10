@@ -578,7 +578,7 @@ class TransactionService:
         source = self._load_snapshot_record(record)
         operations = parse_semantic_operations(record.operations)
         preview = self.preview_semantic_operations(source, operations)
-        target_path = self.context.settings.resolve_allowed_path(record.target_path)
+        target_path = self._transaction_target_path(record)
         current = DipTraceDocument.load(target_path, self.context.settings.max_document_bytes)
         current_sha256 = current.sha256
         expected = record.expected_sha256 or record.source_sha256
@@ -966,7 +966,7 @@ class TransactionService:
                     "expected_sha256 is required to roll back a committed transaction",
                     txid=txid,
                 )
-            target_path = self.context.settings.resolve_allowed_path(record.target_path)
+            target_path = self._transaction_target_path(record)
             current = DipTraceDocument.load(target_path, self.context.settings.max_document_bytes)
             if expected_sha256 != record.committed_sha256 or current.sha256 != expected_sha256:
                 raise Sha256MismatchError(
@@ -1157,6 +1157,13 @@ class TransactionService:
                 txid=record.txid,
             )
         return snapshot
+
+    def _transaction_target_path(self, record: TransactionRecord) -> Path:
+        """A live-session working copy is confined to the state dir, not the allowed roots."""
+        path = Path(record.target_path)
+        if self.session_store.session_id_for_working_path(path) is not None:
+            return path
+        return self.context.settings.resolve_allowed_path(record.target_path)
 
     def _session_id_from_working(self, path: Path) -> str | None:
         return self.session_store.session_id_for_working_path(path)

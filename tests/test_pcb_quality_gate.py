@@ -115,3 +115,18 @@ def test_handoff_declares_stage_and_files(tmp_path, monkeypatch, capsys):
     handoff.write_text(text, encoding="utf-8")
     assert _run_gate(monkeypatch, str(project)) == 1
     assert "unknown Gate stage" in capsys.readouterr().out
+
+
+def test_annotated_status_cells_block_instead_of_vanishing() -> None:
+    text = (
+        "| 6. Stackup | PASS | ok |\n"
+        "| 7. Routing | FAIL (10 chains) | see notes |\n"
+        "| 8. Pours | PASS* | *pending |\n"
+        "| 9. Silk | **PASS** | ok |\n"
+    )
+    gates, _ = parse_handoff(text)
+    assert sorted(gates) == [6, 7, 8, 9]
+    assert gates[9][1] == "PASS"
+    violations = check_order(gates)
+    assert any("gate 7" in item for item in violations)
+    assert any("gate 8" in item for item in violations)

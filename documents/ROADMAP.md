@@ -2,8 +2,10 @@
 
 ## Purpose and audit baseline
 
-This is the forward-looking project roadmap after a repository review on
-2026-08-16. It consolidates the current-state records in
+This is the forward-looking project roadmap. It was first written after a repository
+review on 2026-08-16 and re-based on 2026-11-10 after the server review recorded in
+[MCP_REVIEW_2026-11-10.md](../docs/MCP_REVIEW_2026-11-10.md) (`main@3041f00`). It
+consolidates the current-state records in
 [the maintained roadmap](../docs/ROADMAP.md),
 [technical debt](../docs/TECH_DEBT.md),
 [open compatibility questions](../docs/OPEN_QUESTIONS.md), and the implementation.
@@ -11,16 +13,8 @@ The companion [manual roadmap](MANUAL_ROADMAP.md) owns gates that require a real
 operator, licensed software, physical hardware, legal authority, or independent
 approval.
 
-The reviewed local checkout was
-`codex/pcb-physics-reviewer@9733902397698fbe5f11fb3ed112070b9cacbcbd`.
-It was one commit ahead of and six commits behind its remote branch. The same
-feature had already reached
-`origin/main@1a5522537967b57b3401bc4cefdc73c6049b4b6b`, together with follow-up
-schema-budget, snapshot, release-allowlist, and regression-test fixes. No merge,
-commit, tag, release, or push was performed during this audit.
-
-That mainline commit is post-`v0.3.0` unreleased development. The published
-`v0.3.0` artifacts do not contain or inherit the physics-aware changes.
+The published release is still `v0.4.0` (167 tools). Everything below describes
+post-release `main`, whose public surface is 152 tools.
 
 ## Decision model
 
@@ -50,8 +44,9 @@ another implementation project:
 
 - guarded preview/apply, expected SHA, policy, backup, transaction, and live
   session safety;
-- the 167-tool count is retained; the current schemas are snapshot-guarded but
-  still require client/release regression validation when changed;
+- the public surface was consolidated from 167 to 152 tools after `v0.4.0`; the
+  schemas are snapshot-guarded but still require client/release regression
+  validation when changed;
 - schematic intent, bounded placement ensemble, iterative repair, interconnect
   strategy, and atomic affected-net reroute;
 - PCB Generations A-D, candidate-specific physical review, compactness,
@@ -68,212 +63,125 @@ another implementation project:
 Those closed campaigns are rerun only for an impacted path or a new claim, not
 as a blanket release ritual.
 
-## Local workspace prerequisite — not project backlog
+## Closed: the 2026-08-16 plan (A0-A8)
 
-### A0. Reconcile the local feature history with `origin/main`
+Every automated item of the first plan is closed; see
+[AUTOMATABLE_ROADMAP_CLOSURE.md](../docs/AUTOMATABLE_ROADMAP_CLOSURE.md). The manual
+gates they named stay claim-triggered.
 
-This applies to the reviewed checkout only; the fixes are already merged on
-`origin/main`. The local commit has two known release/contract failures:
+| Item | Outcome |
+| --- | --- |
+| A0 reconcile with `origin/main` | done |
+| A1 in-memory MCP transport timeout | resolved; MCP is served by a project-owned protocol server and the transport tests pass |
+| A2 whole-board plan behind preview/apply | package-level guarded preview/apply; default enablement waits for M1 |
+| A3 reviewer evaluation harness | implemented; label approval is M11 |
+| A4 source provenance for rule packs | implemented; each pack needs M3 before it backs a claim |
+| A5 topology-preserving reroute | implemented for proven acyclic graphs; M2 per new topology family |
+| A6 confidence-gated rotation | implemented, disabled by default; M2 |
+| A7 bounded quantitative physics | implemented; M3/M8 for claims |
+| A8 evidence campaign aggregation | implemented; promotion stays M11 |
 
-- the public MCP discovery payload grows by about 26.65% against a 15% budget;
-- the release allowlist omits six new source/test files.
+Since then `main` also gained: the consolidated 152-tool surface, DipTrace 5.3.5.1
+native profiles next to 5.3.0.3, Linux/macOS host installation, the schematic stage
+of the quality gate with per-stage done criteria, design-wide schematic readability
+review, and the reviewed fifteen-skill catalog.
 
-The fixes already exist on `origin/main`; they should be reused rather than
-reimplemented.
+## P0 — stop false passes
 
-Done when:
+A check that reports PASS without having checked is worse than a missing check.
+These come first and need no public-schema change.
 
-- new work starts from, or is cleanly reconciled with, the merged mainline;
-- MCP discovery growth is at or below the configured budget;
-- the generated snapshot check and release artifact audit pass after
-  reconciliation;
-- the full Linux, macOS, Windows, static, coverage, packaging, and contract jobs
-  are green at one exact SHA.
+### B1. Real copper connectivity in headless QC and the board gate
 
-## P0 — restore deterministic MCP transport validation
+Compute per-net connectivity from pads, trace endpoints and vias (union-find), and
+count every net with more than one group as unrouted. Disclose nets that rely on a
+pour instead of guessing: the i2c board's GND has no traces and is legitimately
+pour-connected, so pour-only nets are reported as `native_refill_required`, not as
+errors and not as connected. Run `run_checks` in the board stage of
+`pcb_quality_gate.py` and block on its errors and skipped checks.
 
-### A1. Reproduce and resolve the in-memory MCP call timeout
+Done when: a board with one trace removed fails QC and the gate; the three
+repository boards keep their current verdicts for the right reasons; the pour-only
+disclosure is visible in the QC report.
 
-The audit reproduced a five-second timeout in
-`test_mcp_protocol_lists_and_calls_tools` while calling `summarize_design`, both
-on the local tree and on an isolated `origin/main` archive. A direct service call
-finished in about 23 ms, so the observed delay is in the MCP transport/runtime
-path rather than design summarization itself. The combined transport/event-loop
-run also failed to terminate normally after its first failure.
+### B2. Validate and correct differential microstrip impedance
 
-This is still a diagnosis item: the audit virtual environment uses an older
-pytest than the declared dev range, although its Python and MCP runtime versions
-are supported. Do not label the source broken until the declared environment is
-reproduced.
+Do not ship the reviewer's proposed formula on trust. First pin reference values
+from a cited published table or the openEMS adapter for at least the three
+reproduced geometries, then correct the odd/even-mode expressions, add the copper
+thickness to stripline plane separation, and keep the validity-range warnings.
 
-Done when:
+Done when: the calculator is within a stated tolerance of the pinned references,
+and the references, their source and the tolerance are in the tests. M3 owns source
+applicability.
 
-- a clean environment satisfying `pyproject.toml` reproduces the test at least
-  twice, or records the old virtual environment as the cause;
-- list, call, cancellation, timeout, and session teardown are profiled
-  separately;
-- any source fix is placed at the shared runtime/offload boundary rather than in
-  `summarize_design` alone;
-- the existing server and event-loop responsiveness tests finish without
-  timeout, leaked task, or teardown hang on every supported CI environment;
-- the timeout is not merely increased unless measured latency justifies a new
-  explicit budget.
+### B3-B6. Make skipped geometry visible
 
-## P0 — make the completed PCB pipeline safely usable
+- B3: use the pad bounding box as a fallback obstacle, or count the pad as skipped
+  and set `partial_skipped`; skip placeholder-box components in overlap/edge checks
+  with a reason.
+- B4: unrouted nets yield `net_unrouted` / unavailable in length and pair checks;
+  `within_tolerance` is `null` without a tolerance.
+- B5: add supplier part numbers to the BOM grouping key when the MPN is empty.
+- B6: coarsen the stitching sample pitch instead of returning nothing; rotate and
+  mirror silkscreen text boxes; reject traces outside the outline.
 
-### A2. Put whole-board optimization behind the existing guarded plan/apply path
+Done when each has a regression test built from the reproduction in the review.
 
-The internal optimizer already composes placement, routing, compact outline,
-two-layer GND pours, stitching, silkscreen, and final review. The missing product
-step is a safe authoring entry point; the algorithms themselves should not be
-duplicated.
+## P1 — write-path and contract hardening
 
-Implementation boundary:
+### B7-B12. Write path
 
-- convert the internal result into an expected-SHA-bound plan with a stable
-  stage list, preview, semantic/connectivity delta, warnings, assumptions, and
-  final `PCBQualityReview`;
-- keep source bytes immutable until the existing transaction layer commits;
-- fail closed on stale SHA, stage failure, hard review findings, or rollback
-  failure; mark authoritative refill as unresolved/native-required instead of
-  pretending that boundary geometry is final copper;
-- reuse an existing public authoring contract if it can carry this plan. Add a
-  new MCP tool only after proving that the existing surface cannot express it.
+- B7: with `txid` and `dry_run=false`, commit only what was previewed; appending
+  requires `dry_run=true`. Remove the silent identical-operation dedupe.
+- B10: validate `move_via` / `add_via` with the path validation `_replace_trace`
+  already uses.
+- B11: `place_part` requires a library definition and a matching pin count.
+- B9: resolve nets by name; accept an XML id only in an explicit form.
+- B12: decide an age limit for transactions that never reached commit (retention
+  keeps non-terminal records on purpose today), then prune them.
+- B8: `expected_schematic_sha256` on `sync_schematic_to_pcb` — public-schema change,
+  bundle with B13.
 
-Code-complete when:
+### B13-B16. One intentional contract revision
 
-- preview and commit produce the same planned result identity;
-- fault-injection tests cover every stage and rollback;
-- unchanged/unsupported boards produce an explicit refusal or no-op;
-- package-level experimental preview remains possible without a native claim.
+Batch every change that touches the frozen snapshot into a single revision so
+clients revalidate once (M5):
 
-Manual gate M1 is required before enabling whole-board mutation by default or
-publishing a real-DipTrace quality/refill claim; it does not block the code from
-being implemented and tested.
+- B13: `readOnlyHint` / `destructiveHint` / `openWorldHint` on all tools;
+- B8: the schematic SHA input;
+- B16: `selector` required where it is required, unknown arguments rejected, `ok`
+  on every success envelope, remaining domain error codes mapped;
+- B14: a tool → capability-key map and corrected net-class/testpoint capability
+  answers.
 
-## P1 — measure and improve the reviewer
+B15 (per-instance job ownership in a shared state directory, compare-and-set on
+cancel) is internal and can land separately.
 
-### A3. Add a provider-neutral reviewer evaluation harness
+Also settle the Q1 Component Angle status: either flip
+`Q1_COMPONENT_ANGLE_LIVE_VALIDATED` with the accepted evidence or correct the
+documents that already say PASS.
 
-The largest model-dependent risk is not lack of another heuristic; it is lack of
-measured reviewer quality. Build the smallest fixed evaluation loop around the
-existing schematic/PCB trap catalogs and hard-first selectors.
+## P1 — close the tool gaps the skills work around
 
-Deliverables:
+The review lists twelve gaps (G1-G12). Each adds public tools, so each needs the M12
+decision first. Recommended order, by how often the repository's own board builds
+needed the workaround:
 
-- versioned, sanitized PCB and schematic cases with known hard defects,
-  acceptable alternatives, explicit unknowns, and human-reviewed labels;
-- one structured reviewer response schema;
-- generation followed by deterministic adjudication; add a separate critic pass
-  only if the evaluation shows a measurable benefit worth its cost, and never
-  allow it to waive a deterministic hard violation;
-- metrics for missed hard defects, false alarms, invented facts, rule-source
-  mistakes, connectivity regressions, and candidate-ranking stability;
-- a compact regression report by model/provider/prompt/rule-pack version.
+1. **G3 + G4 copper pours and free stitching vias** — the internal
+   `copper_pours` functions exist; house rules require both on every board.
+2. **G6 + G7 + G12 small authoring deletes** — delete part/sheet/net label, board
+   text add/delete, `place_builtin_component` inside a transaction. Small, and they
+   remove most remaining raw `apply_xml_edits` use.
+3. **G9 + G1 gate and native acceptance as jobs** — wrap `pcb_quality_gate` and the
+   native acceptance CLIs in the existing job store, so a packaged install without a
+   checkout can run the definition of done.
+4. **G5 + G8 outline, holes, net classes, pairs, via styles.**
+5. **G10 + G11 paginated schematic readers and a public wire planner.**
+6. **G2 native manufacturing export** — only after M12 selects it and M6 can follow.
 
-Done when the corpus, scoring, and replay of stored responses are reproducible
-offline, every output is bound to its inputs, hard-failure recall and
-hallucination rates are visible, and a model upgrade can be compared before it
-becomes the default. M11 owns ground-truth label approval; M12 owns promotion of
-a model/prompt/rule-pack version to the default.
-
-### A4. Harden source provenance and extract into the existing rule-pack
-
-The repository already validates structured packs; it does not yet provide a
-source-to-pack workflow for explicitly supported document and section types.
-The three built-in qualitative PCB principles currently link source documents
-but do not carry the same exact revision/SHA/page-locator metadata as a rule
-pack. Fix that first, then add bounded extraction without weakening the existing
-trust model.
-
-Code-complete when:
-
-- every proposed fact carries source SHA-256, document revision, page/table or
-  figure locator, units, limit type, conditions, and applicability;
-- built-in qualitative principles use the same exact provenance discipline or
-  are represented through the existing pack;
-- conflicting, ambiguous, unitless, or unsupported facts fail closed;
-- adversarial fixtures catch wrong citations, unit conversion mistakes, and
-  model-memory substitutions;
-- non-redistributable source bytes are not placed in the repository.
-
-M3 approves technical applicability and rights before a pack can affect an
-engineering claim; that approval is separate from implementation completion.
-
-### A5. Preserve proven schematic topology during reroute
-
-Current affected-net repair can conservatively reuse one nearby degree-three
-junction; otherwise it rebuilds bounded MST edges. Extend it only far enough to
-preserve topology that is actually present and unambiguous.
-
-Code-complete when:
-
-- the original sheet-local net graph and all proven branch/junction nodes are
-  extracted before planning;
-- Y, T, and multi-junction fixtures retain their topology and unaffected
-  geometry;
-- ambiguous or incomplete graphs produce a structured refusal instead of an
-  MST rewrite;
-- atomic reroute and rollback invariants remain unchanged;
-- arbitrary hand-authored topology outside the proven graph remains refused.
-
-M2 is required before enabling or claiming support for each changed topology
-family.
-
-### A6. Add confidence-gated schematic rotation and pin-facing candidates
-
-Rotation operations and bounded pin geometry exist, but automatic optimizer
-rotation is intentionally disabled until host semantics and geometry confidence
-are sufficient.
-
-Code-complete when:
-
-- only unlocked parts with adequate pin-geometry confidence receive
-  0/90/180/270-degree candidates;
-- orientation participates in route/readability scoring and any affected wiring
-  is rebuilt atomically;
-- ambiguous symbols keep their source angle.
-
-M2 is required before enabling a symbol family or making an exact DipTrace
-rotation/pin-facing claim.
-
-### A7. Inventory, validate, and extend quantitative physics from sourced inputs
-
-Start with a gap inventory of existing impedance, resistance, PDN, thermal, and
-external-adapter helpers so nothing is duplicated. Then extend only the missing
-bounded calculations for which all required values are known. Likely useful
-scope includes trace/via DC resistance, voltage-drop/current budgets, simple
-loss budgets, and disclosed first-order thermal estimates.
-
-Code-complete when:
-
-- formulas, validity ranges, units, assumptions, and source references are
-  versioned;
-- every result records its exact inputs and sensitivity;
-- incomplete inputs remain `unknown` and no typical value is silently supplied;
-- analytical estimates remain separate from ngspice/openEMS results;
-- deterministic tests cover limits and unit conversions.
-
-M3 owns source applicability and M8 owns physical correlation/sign-off; neither
-is implied by the calculator implementation.
-
-### A8. Deepen evidence comparison without granting automatic PASS
-
-Extend the existing per-candidate evidence report only where it reduces manual
-review effort.
-
-Useful next increments:
-
-- campaign-level JSON/Markdown aggregation;
-- exported-geometry and exported-manufacturing deltas in addition to
-  domain/connectivity deltas; do not present them as authoritative native refill;
-- hash-bound screenshots and frame metrics;
-- untrusted AI visual findings with links to the exact image and rule;
-- promotion/rejection records in the existing evidence/provenance registry.
-
-Done when tampered or missing inputs are obvious, repeated reports are
-deterministic, and no code path can promote provenance, fixture trust, or PASS
-without the separate human decision in M11.
+Keep the discovery budget: prefer one tool with a `kind`/`action` input over a tool
+per object type, the way `run_review(profile=...)` replaced fourteen tools.
 
 ## P2 — triggered work, not speculative commitments
 
@@ -296,20 +204,14 @@ or a reproducible failing case.
 
 ## Recommended execution order
 
-1. Reconcile this checkout under A0 and establish one green exact SHA.
-2. Reproduce and close A1 before treating local or CI transport results as
-   authoritative.
-3. Implement A2 and run one exact-candidate M1 smoke before default/public
-   mutation or native-quality claims.
-4. Implement A3 and approve its ground-truth labels under M11; promote a new
-   default model/prompt only through M12.
-5. Implement A4, then run M3 on each rule pack or built-in principle intended
-   for engineering use.
-6. Implement A5/A6 only for measured failures, then run the matching focused M2
-   cases before enabling or claiming that scope.
-7. Inventory and implement the justified portion of A7; use M8 only for the
-   corresponding physical-performance claim.
-8. Add A8 or a P2 item only when its trigger exists.
+1. B1, then B3-B6: the gate must not pass what it did not check.
+2. B2 with pinned references.
+3. B7, B10, B11, B9, B12, B15: internal write-path fixes.
+4. One contract revision for B8, B13, B14, B16; run M5 for the named clients.
+5. Tool gaps in the order above, each after its M12 decision; G3/G4 first.
+6. Cut the next release once 1-4 are in: `main` already differs from `v0.4.0` by a
+   breaking surface change, and the fixes in 1 affect release decisions.
+7. A P2 item only when its trigger exists.
 
 ## Definition of done for automated roadmap items
 

@@ -16,6 +16,21 @@ from ..return_path import analyze_return_path as analyze_return_geometry
 from ..review import run_checks
 from .context import DocumentGateway, ServiceContext, read_success, validate_page
 
+_SCHEMATIC_PROFILES = frozenset({"schematic_review", "schematic_readability", "erc_basic"})
+_BOARD_PROFILES = frozenset(
+    {
+        "board_review",
+        "drc_basic",
+        "component_clearance",
+        "silkscreen",
+        "manufacturing_geometry",
+        "dfm_basic",
+        "dfa_basic",
+        "dft_basic",
+        "thermal_basic",
+    }
+)
+
 
 class ReviewService:
     """Implementation for registered review reports and read-only analysis."""
@@ -34,8 +49,13 @@ class ReviewService:
     ) -> dict[str, Any]:
         document, target = self.gateway.load(path)
         snapshot = self.context.model_cache.get(document, live_session=target.is_live)
-        if profile == "schematic_readability" and snapshot.schematic is None:
-            raise DocumentError("Schematic readability requires a schematic document")
+        # A profile run on the wrong document kind has no checks and would read as clean.
+        if profile in _SCHEMATIC_PROFILES and snapshot.schematic is None:
+            raise DocumentError(f"Review profile {profile} requires a schematic document")
+        if profile in _BOARD_PROFILES and snapshot.board is None:
+            raise DocumentError(f"Review profile {profile} requires a PCB document")
+        if snapshot.board is None and snapshot.schematic is None:
+            raise DocumentError("Review profiles require a PCB or schematic document")
         if sheets is not None and profile != "schematic_readability":
             raise DocumentError("sheets is supported only for profile schematic_readability")
         findings, metrics, skipped, registered_check_count = run_checks(

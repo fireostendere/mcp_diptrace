@@ -49,7 +49,7 @@ This file maps every reusable pattern from the two proven builds.
 | Pad order + alphanumeric renumber + EPAD merge | `lcsc_library.py` |
 | Pad width sanitizer | `pcb_build_kit.py` sanitize note |
 | Connection-budget chunking (64-link router bound) | `scripts/build_dut_controller_reva_pcb.py::route_rest` |
-| 3 new MCP tools | `pipeline.py` + `server_runtime.py` (170 tools) |
+| 3 new MCP tools | `pipeline.py` + `server_runtime.py` |
 
 ## What stays project-specific (intentionally NOT extracted)
 

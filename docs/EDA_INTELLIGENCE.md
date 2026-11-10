@@ -10,7 +10,7 @@ The intelligence modules generate facts, candidates, scores, feedback or ordinar
 operations. They do not bypass allowed-root, expected-SHA, policy, preview, transaction,
 backup/recovery, live-session or review boundaries.
 
-The public MCP surface remains **167 registered tools**. New roadmap modules in this document
+The public MCP surface is **152 registered tools**. New roadmap modules in this document
 are package-level unless explicitly productized and added to the frozen public contract.
 
 **All 12 blocking manual gates are PASS across the accepted checkpoints.** The Claude

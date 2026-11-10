@@ -4,7 +4,11 @@ import math
 from typing import Any, Literal
 
 from .domain import ImpedanceInput, ImpedanceResult, StackupModel
-from .errors import CapabilityUnavailableError, InsufficientStackupDataError
+from .errors import (
+    CapabilityUnavailableError,
+    InsufficientStackupDataError,
+    InvalidArgumentError,
+)
 
 _FREE_SPACE_IMPEDANCE_OHM = 376.730313668
 _COUPLED_MICROSTRIP_VALIDITY_REFERENCE = (
@@ -388,7 +392,7 @@ def synthesize_microstrip_width(
     max_iterations: int = 100,
 ) -> dict[str, Any]:
     if minimum_width_mm <= 0 or maximum_width_mm <= minimum_width_mm:
-        raise ValueError("width bounds must satisfy 0 < minimum < maximum")
+        raise InvalidArgumentError("width bounds must satisfy 0 < minimum < maximum")
 
     def evaluate(width: float) -> ImpedanceResult:
         return calculate_impedance(

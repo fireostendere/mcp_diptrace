@@ -184,6 +184,17 @@ def run_release_readiness(snapshot: DocumentSnapshot) -> dict[str, Any]:
         else 1.0
     )
 
+    # Exported ratlines only: a net with no traces may be joined by a pour.
+    metrics["ratline_count"] = len(snapshot.board.ratlines)
+    if snapshot.board.ratlines:
+        findings.append(
+            _finding(
+                "release.unrouted_connections",
+                "error",
+                f"The board exports {len(snapshot.board.ratlines)} unrouted connection(s).",
+            )
+        )
+
     severity_rank = {"error": 3, "warning": 2, "info": 1}
     highest = max((severity_rank[item["severity"]] for item in findings), default=0)
     status = "blocked" if highest >= 3 else "review" if highest >= 2 else "informational"
