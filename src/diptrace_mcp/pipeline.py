@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from .errors import DocumentError
+
 # ---------------------------------------------------------------------------
 # 1. LCSC/EasyEDA component sourcing
 # ---------------------------------------------------------------------------
@@ -306,7 +308,7 @@ def render_board_svg(pcb_path: str, output_dir: str) -> dict[str, Any]:
     root = ET.parse(pcb_path).getroot()
     board = root.find("./Board")
     if board is None:
-        return {"ok": False, "error": "No Board element found", "files": []}
+        raise DocumentError("Board preview requires a PCB document")
 
     scale = 12.0
     margin_mm = 3.0

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any, Literal
 
 from ..design_compare import compare_schematic_to_pcb as compare_design_snapshots
+from ..errors import ConfirmationRequiredError, Sha256MismatchError
 from ..operations import SemanticOperation
 from ..synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan
 from .context import DocumentGateway, ServiceContext, read_success
@@ -62,8 +63,24 @@ class SynchronizationService:
         dry_run: bool = True,
         expected_sha256: str | None = None,
         txid: str | None = None,
+        expected_schematic_sha256: str | None = None,
     ) -> dict[str, Any]:
         schematic_document, _ = self.gateway.load(schematic_path)
+        # The plan is rebuilt from the schematic on every call, so a commit must name
+        # the schematic revision whose dry run was reviewed.
+        if not dry_run and expected_schematic_sha256 is None:
+            raise ConfirmationRequiredError(
+                "expected_schematic_sha256 is required to commit a synchronization; use "
+                "result.schematic_source.sha256 from the dry run"
+            )
+        if expected_schematic_sha256 not in (None, schematic_document.sha256):
+            raise Sha256MismatchError(
+                "The schematic changed since the synchronization was previewed",
+                details={
+                    "expected_sha256": expected_schematic_sha256,
+                    "current_sha256": schematic_document.sha256,
+                },
+            )
         pcb_document, _ = self.gateway.load(pcb_path)
         pattern_documents = [self.gateway.load(path)[0] for path in pattern_library_paths or []]
         plan = build_sync_plan(

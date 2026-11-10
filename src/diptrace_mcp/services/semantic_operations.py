@@ -777,6 +777,8 @@ class SemanticOperationsService:
     ) -> dict[str, Any]:
         document, target = self.gateway.load(path)
         snapshot = self.context.model_cache.get(document, live_session=target.is_live)
+        if snapshot.board is None:
+            raise DocumentError("Testpoints require a PCB document")
         query = QuerySelector.model_validate(selector or {})
         records = snapshot.select(query, kinds={"testpoint"})
         net_names = {
@@ -971,6 +973,8 @@ class SemanticOperationsService:
     ) -> dict[str, Any]:
         document, target = self.gateway.load(path)
         snapshot = self.context.model_cache.get(document, live_session=target.is_live)
+        if snapshot.board is None:
+            raise DocumentError("Testpoint coverage requires a PCB document")
         nets = [record for record in snapshot.objects.values() if record.kind == "net"]
         if target_nets:
             requested = {name.casefold() for name in target_nets}

@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from diptrace_mcp import pipeline
+from diptrace_mcp.errors import DocumentError
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -193,9 +194,8 @@ class TestRenderBoardSvg:
             '<?xml version="1.0"?>'
             '<Source Type="DipTrace-PCB"><Library/></Source>'
         )
-        result = pipeline.render_board_svg(str(p), str(tmp_path / "out"))
-        assert result["ok"] is False
-        assert "No Board" in result["error"]
+        with pytest.raises(DocumentError, match="requires a PCB document"):
+            pipeline.render_board_svg(str(p), str(tmp_path / "out"))
 
     def test_empty_outline(self, tmp_path: Path) -> None:
         p = tmp_path / "empty_outline.dip"

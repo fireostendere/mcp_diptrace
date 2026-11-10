@@ -67,6 +67,18 @@ Nothing here is native DipTrace evidence. Open items are tracked in
 - **B15**: each job records its owning server process; another live server's jobs
   are not failed at startup, and `cancel_job` no longer relabels a finished job.
 
+- **B13**: every tool publishes `readOnlyHint`, `destructiveHint` and `openWorldHint`.
+  Read-only means no change to a user document or external system; stored plans,
+  previews, reports and job records do not count.
+- **B8**: committing `sync_schematic_to_pcb` requires `expected_schematic_sha256`
+  (the dry run returns it) and refuses a changed schematic.
+- **B14** (partly): `net_class_assignment` is a design capability, and the testpoint
+  readers refuse a non-PCB document. The tool → capability-key map is still missing.
+- **B16**: unknown arguments are refused with `INVALID_ARGUMENT`; every successful
+  result carries `ok: true`; write tools publish `selector` as required;
+  `pipeline_render_board_preview` raises on a non-PCB document; the remaining raised
+  domain codes map to public codes (genuine internal failures stay `INTERNAL_ERROR`).
+
 ## Open findings
 
 ### Engineering correctness (false PASS first)

@@ -7,17 +7,14 @@ This document tracks remaining engineering limitations in the current implementa
 ## Review findings — 2026-11-10
 
 The server review in [MCP_REVIEW_2026-11-10.md](MCP_REVIEW_2026-11-10.md) reproduced the
-defects below; B1-B7, B10-B12 and B15 are closed; the rest need the contract revision. The
+defects below; B1-B8, B10-B13, B15 and B16 are closed. The
 `B` numbers match that record and [the project roadmap](../documents/ROADMAP.md).
 
 | Id | Debt | Why it matters |
 | --- | --- | --- |
 | B6 | Silkscreen text boxes ignore rotation and bottom-side mirroring; no repository board has rotated or bottom-side text to verify a fix against | Silkscreen clearance may test the wrong box |
-| B8 | `sync_schematic_to_pcb` does not pin the schematic SHA | Sync of an unpreviewed schematic |
 | B9 | A net reference that matches no name still falls back to an XML id | `connect_pins(net="1")` attaches to net id 1 instead of creating net `1` |
-| B13 | No MCP tool annotations on any tool | Clients cannot auto-allow reads |
-| B14 | `get_capabilities` disagrees with tool behaviour for net classes and testpoints; no tool → capability map | The report is not yet authoritative |
-| B16 | Inconsistent success envelope, silently dropped unknown arguments, `selector` published as optional, unmapped domain error codes | Client-side guesswork |
+| B14 | `get_capabilities` is keyed by capability, with no published tool → capability-key map; the pipeline tools have no key | Clients cannot look a tool up in the report |
 
 Two status questions also remain open: documents record the Q1 Component Angle
 campaign as PASS while `evidence_status.Q1_COMPONENT_ANGLE_LIVE_VALIDATED` is still

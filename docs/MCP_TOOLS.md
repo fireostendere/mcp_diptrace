@@ -65,6 +65,18 @@ missing geometry is a structured skip, not a clean PASS. See
 [the implemented boundaries](REVIEW_ENGINE.md#design-wide-schematic-readability).
 No profile invokes native ERC or establishes native font/visual acceptance.
 
+## Annotations and argument strictness
+
+Every tool publishes MCP annotations. `readOnlyHint` means the tool changes no user
+document and no external system (plans, previews, reports and job records in the
+server's state directory do not count). `destructiveHint` marks writes that can remove
+or replace design content; other writes add or update in place behind the same
+expected-SHA, backup and transaction guards. `openWorldHint` marks the tools that reach
+the network or run an external program.
+
+Unknown arguments are refused with `INVALID_ARGUMENT`, so a misspelled option cannot
+silently fall back to its default. Every successful result carries `ok: true`.
+
 ## Tool availability
 
 A registered tool may still refuse or report a bounded capability because of:
