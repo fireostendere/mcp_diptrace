@@ -1,6 +1,6 @@
 ---
 name: schematic-erc-review
-description: RAG-backed. Review a DipTrace schematic with bounded ERC, logical connectivity, metadata, and BOM checks before layout. Use for a read-only schematic review or ERC disposition; «проверь схему», «ревью схемы», «ERC схемы». Use when the user says “Review this DipTrace schematic before layout.”
+description: RAG-backed. Review a DipTrace schematic with bounded ERC, logical connectivity, metadata, and BOM checks before layout. Use for a read-only schematic review or ERC disposition; «проверь схему DipTrace», «ревью схемы DipTrace», «ERC схемы». Use when the user says “Review this DipTrace schematic before layout.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path
@@ -43,7 +43,8 @@ visible local support wiring and justified exact named native ports, not blanket
    to check all sheets. Only an explicit user restriction permits its bounded
    zero-based `sheets` selector. The full `schematic_review` stays design-wide.
    Inspect `metrics["schematic.readability"]`: selected/excluded indices, per-sheet
-   counts, `all_sheets_checked`, `geometry_complete` and missing geometry. A scoped
+   counts, `all_sheets_checked`, `geometry_complete`, missing geometry and
+   `automatic_markings`. A scoped
    result or incomplete geometry is not whole-schematic acceptance.
 4. For native opening/roundtrip evidence, use the headless schematic workflow on a protected
    copy through [evidence capture](../diptrace-evidence-capture/SKILL.md). The base roundtrip
@@ -55,6 +56,19 @@ visible local support wiring and justified exact named native ports, not blanket
 5. Report every missing mandatory category in `skipped_checks`; a skipped mandatory check forbids
    `completed`.
 6. Validate the report with [`../shared/result.schema.json`](../shared/result.schema.json).
+
+## Known skipped checks
+
+A skipped check blocks the schematic-stage gate. Resolve its cause; do not waive it.
+
+| Skip reason | Cause | Resolution |
+|---|---|---|
+| `electrical_pin_types_unavailable`, `electrical_pin_types_incomplete` | Library pins without `ElectricType`; the metrics count them as `unknown_pins`. Connectors are a common case | Set the pin types in the component source, then re-place or re-import the part |
+| `schematic_readability_geometry_incomplete` | Exported geometry the review cannot read. Each sheet lists it under `missing_geometry`: unsupported symbol primitives such as arcs, missing pin stubs, ambiguous embedded symbols, wires without points | Fix the named objects, or report the unsupported primitive. A clean result is never inferred |
+
+A visible marking on automatic alignment is not a skip. The native editor places it and
+nothing is exported, so each sheet counts it as `automatic_markings` and the native page-fit
+inspection covers it.
 
 ## Quantitative boundaries
 

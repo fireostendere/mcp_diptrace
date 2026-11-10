@@ -1,6 +1,6 @@
 ---
 name: pcb-project-intake
-description: RAG-backed. Inventory a bounded DipTrace project, its document identity, models, rules, connectivity, unknowns, and evidence before planning changes. Use for a read-only baseline of an existing project before planning work; «инвентаризация проекта», «что в этом проекте». Use when the user says “Inventory this DipTrace project before we plan work.”
+description: RAG-backed. Inventory a bounded DipTrace project, its document identity, models, rules, connectivity, unknowns, and evidence before planning changes. Use for a read-only baseline of an existing project before planning work; «инвентаризация проекта DipTrace», «что в этом проекте DipTrace». Use when the user says “Inventory this DipTrace project before we plan work.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path

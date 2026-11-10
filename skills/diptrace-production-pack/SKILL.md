@@ -1,6 +1,6 @@
 ---
 name: diptrace-production-pack
-description: RAG-backed. Prepare and inspect a versioned DipTrace fabrication and assembly package with real native CAM files, reconciled BOM/CPL, production instructions, and release evidence. Use for Gerber/NC Drill, assembly files, JLCPCB handoff, or a fabrication release; «файлы на производство». Use when the user says “Prepare this DipTrace board for fabrication and assembly.”
+description: RAG-backed. Prepare and inspect a versioned DipTrace fabrication and assembly package with real native CAM files, reconciled BOM/CPL, production instructions, and release evidence. Use for Gerber/NC Drill, assembly files, JLCPCB handoff, or a fabrication release; «файлы на производство из DipTrace». Use when the user says “Prepare this DipTrace board for fabrication and assembly.”
 ---
 
 Read [runtime access](../shared/runtime.md) before selecting tools or declaring a

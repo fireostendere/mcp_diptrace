@@ -39,6 +39,7 @@ Current board SHA-256: `<64 lowercase hexadecimal characters>`
 
 Use PASS, FAIL, PENDING, TODO, MANUAL, or PARTIAL in the status column. Describe
 out-of-scope work in the evidence column; the checker does not accept N/A statuses.
+Record a BLOCKED or NOT_RUN gate as PENDING and name the blocker in the evidence column.
 Do not mark checks passed by filling in this template.
 
 Last passing gate: <number or none>

@@ -23,6 +23,36 @@ table were fixed in this change; the recommendations at the end were not applied
 | Medium | Legacy `diptrace-board-build` still instructed practices the house rules forbid: merging a thermal pad array, splitting a merged pad, shrinking EasyEDA copper with `sanitize_pads()`, labels-only wiring, routing USB D+/D- as two nets and accepting native DRC errors as "fab-tolerance"; its description claimed "any new board". `diptrace-pcb-grounding` recommended a via cluster under the exposed pad, and `diptrace-schematic-style` limited RAG to "a material unknown fact". | Fixed in place. The board-build recipe opens with a precedence note and its description no longer competes with pcb-design-workflow. |
 | Low | [NATIVE_XML_EXPORT.md](NATIVE_XML_EXPORT.md) said native checks cover 5.3.0.3 only (noted on 2026-10-09). | It states both verified builds. |
 
+## Second pass: executed workflows
+
+The first pass compared text with code. The second ran each written workflow through the MCP
+server on scratch copies of the three projects in this repository (`attiny85-arduino-clone`,
+`i2c-level-shifter`, `dut-controller-reva`). Read and review steps worked as written, and
+every parameter named in the skills exists in the tool schemas. Two write paths and one
+acceptance bar did not.
+
+| Priority | Problem | Fix |
+|---|---|---|
+| Blocker | `add_testpoints` refused one testpoint on both reference boards: 899 and 3018 counted objects against the limit of 500. The tool looked for the footprint cache as a sibling library; native exports nest it, so a second library shadowed every pattern. | Code, PR #137: writers resolve the cache as readers do. testpoint-planner states the required fields. |
+| Blocker | `sync_schematic_to_pcb` demanded a pattern for native Net Port parts, which the house rules require on every schematic, and reported "no room" for components already on a compact board. | Code, PR #137. The board recipe states what sync skips and when a `pin_map` is needed. |
+| High | "Zero errors, no skipped checks" was unreachable: every schematic in the repository, and anything placed with `place_part`, has markings on automatic alignment, which the readability review reported as missing geometry. | Code, PR #138: automatic markings are counted per sheet for the page-fit inspection. Untyped pins and unsupported symbol primitives still block; schematic-erc-review lists them with their resolution. |
+| High | Release gate could only answer BLOCKED: `pcb.silk_to_pad` is never implemented, thermal review needs a power field, and offline errors from estimated geometry had no stated disposition. | Release gate lists the three structural skips and requires an explicit operator waiver backed by native DRC. |
+| Medium | Three Russian trigger phrases were identical to the user's EasyEDA skills, and the `AGENTS.md` table routed eight of fifteen skills. | Triggers name DipTrace; the table lists all fifteen. |
+| Medium | schematic-engineer told the agent to "take a supported snapshot" (no such tool), repeated the PCB recipe, and kept an import-provenance note. | Rollback wording, a pointer to the board recipe, note removed. |
+| Low | Skills use BLOCKED and NOT_RUN, the handoff checker accepts neither. | The handoff template says how to record them. |
+
+Open after the second pass:
+
+- Symbol arcs make readability geometry incomplete (`unsupported_symbol_shape:Arc`), so a
+  schematic with such a native symbol stays BLOCKED until arcs are measured. Their native
+  semantics need evidence before they are approximated.
+- The connectivity review does not flag net pin items that reference a missing part; the
+  attiny85 schematic has six.
+- Every description still starts with the `RAG-backed.` marker and ends with a fixed English
+  sentence. Both are enforced by the generator and spend the most valuable description words.
+- No skill has been run by an agent end to end, and the native Windows helpers were not
+  launched in either pass.
+
 ## Verified without change
 
 - All 152 registered MCP tools resolve. Every backticked tool-like name is a

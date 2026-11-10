@@ -63,6 +63,11 @@ Changes in this section are later development and are not silently part of those
   differential-pair tools, groups all 152 tools, and re-pins its source links to
   current `main`; the legacy `.agents/skills` recipes no longer contradict the house
   rules ([review](docs/SKILL_REVIEW_2026-11-10.md));
+- after running the skill workflows on the repository's boards: Russian triggers name
+  DipTrace, `AGENTS.md` routes all fifteen skills, the reviews list the known skipped
+  checks and what clears them, the board recipe states what sync skips, and
+  schematic-engineer drops a step with no tool, a duplicated PCB recipe and a provenance
+  note ([second pass](docs/SKILL_REVIEW_2026-11-10.md#second-pass-executed-workflows));
 - PCB ensemble candidates are now reviewed after their hypothetical operations
   are applied in memory, so hard physical/layout findings affect selection;
 - PCB placement scoring now includes board compactness, centering, simple

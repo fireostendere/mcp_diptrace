@@ -1,6 +1,6 @@
 ---
 name: diptrace-datasheet-rules
-description: RAG-backed. Extract auditable schematic, package, footprint, and PCB layout requirements from official component documents into project rules. Use before choosing or placing physical parts, checking a pin map, or resolving component-specific requirements; «требования из даташита». Use when the user says “Extract official component rules for this DipTrace design.”
+description: RAG-backed. Extract auditable schematic, package, footprint, and PCB layout requirements from official component documents into project rules. Use before choosing or placing physical parts, checking a pin map, or resolving component-specific requirements; «требования из даташита для DipTrace». Use when the user says “Extract official component rules for this DipTrace design.”
 ---
 
 Read [runtime access](../shared/runtime.md) before selecting tools or declaring a

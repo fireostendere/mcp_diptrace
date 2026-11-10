@@ -18,7 +18,9 @@ alternatives, anticipate failure modes and review the finished geometry.
    `create_pcb_document` can specify outline, layers, stackup, and rules, but parser
    success is not native acceptance. `pipeline_nativeize_document` prepares a separate
    generated candidate; validate units, geometry, mappings, and native roundtrip.
-3. Preview `sync_schematic_to_pcb` with explicit component mappings. Inspect additions,
+3. Preview `sync_schematic_to_pcb` with explicit component mappings. Net Port parts are
+   skipped and never get a pattern, existing PCB components keep their position, and a pin
+   without a verified embedded pin-to-pad binding needs an explicit `pin_map`. Inspect additions,
    reconnections, existing placements, DNP/documentary objects, and locks before commit.
 4. Freeze mechanical outline, holes, enclosure/connector datums and keepouts. Derive a
    compact outline from occupied space and manufacturing margins; connectors may fix a
@@ -34,7 +36,9 @@ alternatives, anticipate failure modes and review the finished geometry.
   clocks, RF/antenna keepouts and thermal paths. Record every intentional deviation.
 - Use `analyze_placement`, `generate_placement_candidates`, `score_placement`,
   `plan_component_placement` and
-  `apply_component_placement_plan` as applicable. Geometric ranking cannot decide
+  `apply_component_placement_plan` as applicable. `compare_pcb_placement_candidates` ranks
+  bounded whole-board candidates after a candidate-specific physical review and refuses a
+  board whose geometry already contains via-in-pad. Geometric ranking cannot decide
   which component implements a hot loop; identify that from the circuit first.
 - For ordinary two-layer boards, prefer signals/positive supply on Top, continuous
   Bottom GND, and Top GND pour. Source other stackups from actual requirements and fab

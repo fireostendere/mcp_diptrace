@@ -1,6 +1,6 @@
 ---
 name: diptrace-board-bringup
-description: RAG-backed. Plan or guide first power-on, programming, measurements, functional acceptance, and repeatable production tests for a specific DipTrace board revision. Use for assembled boards, bring-up, fixture plans, or production test procedures; «первое включение», «проверка собранной платы». Use when the user says “Plan or run bring-up for this DipTrace board.”
+description: RAG-backed. Plan or guide first power-on, programming, measurements, functional acceptance, and repeatable production tests for a specific DipTrace board revision. Use for assembled boards, bring-up, fixture plans, or production test procedures; «первое включение платы DipTrace», «проверка собранной платы». Use when the user says “Plan or run bring-up for this DipTrace board.”
 ---
 
 Read [runtime access](../shared/runtime.md) before selecting tools or declaring a
