@@ -18,7 +18,7 @@ from diptrace_mcp.semantic_compiler import (
     apply_semantic_operations,
 )
 from diptrace_mcp.service import DipTraceService
-from diptrace_mcp.synchronization import ComponentSyncMapping, build_sync_plan
+from diptrace_mcp.synchronization import ComponentSyncMapping, SyncPlacement, build_sync_plan
 from diptrace_mcp.xml_document import DipTraceDocument
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -671,3 +671,71 @@ def test_sync_rejects_duplicate_net_names() -> None:
             schematic, pcb, mappings=_mapping(),
             pattern_documents=[_load("pattern_library.xml")],
         )
+
+
+def _schematic_with_net_port() -> DipTraceDocument:
+    source = _load("schematic.xml")
+    root = ET.fromstring(source.raw_bytes)
+    library = root.find("./Library")
+    parts = root.find("./Schematic/Components")
+    vcc_pins = root.find("./Schematic/Nets/Net[Name='VCC']/Pins")
+    assert library is not None and parts is not None and vcc_pins is not None
+    component = ET.SubElement(
+        ET.SubElement(library, "Components"), "Component", {"ComponentStyle": "CompTypePort"}
+    )
+    ET.SubElement(component, "Part", {"Id": "0", "RefDes": "NetPort", "PartType": "Net Port"})
+    port = ET.SubElement(
+        parts,
+        "Part",
+        {"Id": "3", "ComponentStyle": "CompTypePort", "ComponentPart": "0", "PartNumber": "0"},
+    )
+    ET.SubElement(port, "RefDes").text = "NetPort1"
+    ET.SubElement(ET.SubElement(port, "Pins"), "Pin", {"NetId": "0", "NotConnected": "N"})
+    ET.SubElement(vcc_pins, "Item", {"Part": "3", "Pin": "0"})
+    return DipTraceDocument.from_bytes(source.path, ET.tostring(root))
+
+
+def test_sync_skips_native_net_ports() -> None:
+    schematic = _schematic_with_net_port()
+    pcb = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    plan = build_sync_plan(
+        schematic, pcb, mappings=_mapping(),
+        pattern_documents=[_load("pattern_library.xml")],
+    )
+    assert [item.refdes for item in plan.operation.components] == ["R1", "U1"]
+    vcc = next(net for net in plan.operation.nets if net.name == "VCC")
+    assert [(item.refdes, item.pad_number) for item in vcc.endpoints] == [("R1", "1"), ("U1", "1")]
+    assert any("1 Net Port part(s)" in warning for warning in plan.warnings)
+
+    with pytest.raises(EditError, match="Net Port parts are not physical"):
+        build_sync_plan(
+            schematic, pcb,
+            mappings=[
+                *_mapping(),
+                ComponentSyncMapping(refdes="NetPort1", pattern_style="PatType0"),
+            ],
+            pattern_documents=[_load("pattern_library.xml")],
+        )
+
+
+def test_sync_keeps_existing_components_out_of_auto_placement() -> None:
+    schematic = _load("schematic.xml")
+    empty = DipTraceDocument.from_bytes(Path("board.dip"), build_pcb_document())
+    patterns = [_load("pattern_library.xml")]
+    first = build_sync_plan(schematic, empty, mappings=_mapping(), pattern_documents=patterns)
+    populated = apply_semantic_operations(empty, [first.operation]).document
+    xs = [float(point.get("X", "0")) for point in ET.fromstring(populated.raw_bytes).findall(
+        "./Board/BoardOutline/Points/Point"
+    )]
+    # No free slot is left for auto-placement; placed components must not need one.
+    crowded = SyncPlacement(origin_x=max(xs))
+    plan = build_sync_plan(
+        schematic, populated, mappings=_mapping(), pattern_documents=patterns, placement=crowded
+    )
+    placed = {
+        item.findtext("./RefDes"): (item.get("X"), item.get("Y"))
+        for item in ET.fromstring(populated.raw_bytes).findall("./Board/Components/Component")
+    }
+    assert {
+        item.refdes: (f"{item.x:g}", f"{item.y:g}") for item in plan.operation.components
+    } == {refdes: (f"{float(x):g}", f"{float(y):g}") for refdes, (x, y) in placed.items()}

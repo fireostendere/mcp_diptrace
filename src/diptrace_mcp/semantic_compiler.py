@@ -26,6 +26,7 @@ from .geometry import (
     point_in_polygon,
     to_mm,
 )
+from .library_adapters import embedded_pattern_library
 from .operations import (
     AddNetLabelOperation,
     AddSheetOperation,
@@ -1011,7 +1012,10 @@ def _apply_add_testpoint(
     component_id = _next_numeric_id(components.findall("./Component"))
     pattern_style = f"MCPTestPoint{component_id}"
     pad_style = f"MCPTestPointPad{component_id}"
-    pattern_library = document.root.find("./Library[@Type='DipTrace-PatternLibrary']")
+    pattern_library = embedded_pattern_library(document)
+    if pattern_library is None:
+        # An empty typed library has no structure to find; fill it instead of adding a second.
+        pattern_library = document.root.find(".//Library[@Type='DipTrace-PatternLibrary']")
     if pattern_library is None:
         pattern_library = ET.Element(
             "Library",
@@ -1154,7 +1158,7 @@ def _apply_remove_testpoints(
         raise ObjectNotFoundError("PCB Components section is absent")
     before: list[dict[str, Any]] = []
     patch_count = 0
-    pattern_library = document.root.find("./Library[@Type='DipTrace-PatternLibrary']")
+    pattern_library = embedded_pattern_library(document)
     for record in targets:
         _ensure_unlocked(record, operation.allow_locked)
         component = _resolved_element(snapshot, record)

@@ -149,6 +149,21 @@ def _board_bounds(pcb: DipTraceDocument) -> tuple[float, float, float, float] | 
     return min(xs), min(ys), max(xs), max(ys)
 
 
+def _net_port_part_ids(schematic: DipTraceDocument) -> set[str]:
+    """Ids of schematic parts whose embedded library part is a native Net Port."""
+    port_parts = {
+        (component.get("ComponentStyle", ""), part.get("Id", ""))
+        for component in schematic.root.findall("./Library/Components/Component")
+        for part in component.findall("./Part")
+        if part.get("PartType") in {"Net Port", "2"}
+    }
+    return {
+        part.get("Id", "")
+        for part in schematic.container.findall("./Components/Part")
+        if (part.get("ComponentStyle", ""), part.get("ComponentPart", "")) in port_parts
+    }
+
+
 def _inferred_pattern(part: ET.Element) -> str | None:
     attached_pattern = part.find("./Pattern")
     candidates = [
@@ -188,19 +203,31 @@ def build_sync_plan(
             raise AmbiguousSelectorError(f"Duplicate component mapping: {provided_mapping.refdes}")
         mapping_by_refdes[key] = provided_mapping
 
+    net_port_ids = _net_port_part_ids(schematic)
+    net_port_refdes: set[str] = set()
     parts_by_refdes: dict[str, list[ET.Element]] = {}
     parts_by_id: dict[str, ET.Element] = {}
     for part in schematic.container.findall("./Components/Part"):
-        refdes = _text(part, "RefDes")
-        if not refdes:
-            raise EditError("Every synchronized schematic part requires a RefDes")
-        parts_by_refdes.setdefault(refdes.casefold(), []).append(part)
         part_id = part.get("Id", "")
         if not part_id or part_id in parts_by_id:
             raise EditError(f"Schematic part has missing or duplicate Id: {part_id!r}")
         parts_by_id[part_id] = part
+        refdes = _text(part, "RefDes")
+        if part_id in net_port_ids:
+            # Net Ports carry connectivity on the sheet and never get a footprint.
+            net_port_refdes.add(refdes.casefold())
+            continue
+        if not refdes:
+            raise EditError("Every synchronized schematic part requires a RefDes")
+        parts_by_refdes.setdefault(refdes.casefold(), []).append(part)
     if not parts_by_refdes:
         raise ObjectNotFoundError("Schematic contains no parts to synchronize")
+    mapped_net_ports = sorted(set(mapping_by_refdes) & net_port_refdes)
+    if mapped_net_ports:
+        raise EditError(
+            "Net Port parts are not physical components and cannot be mapped to a pattern",
+            details={"refdes": mapped_net_ports},
+        )
     unknown_mappings = sorted(set(mapping_by_refdes) - set(parts_by_refdes))
     if unknown_mappings:
         raise ObjectNotFoundError(
@@ -319,7 +346,8 @@ def build_sync_plan(
                 row_right + half_width,
             )
         )
-        has_explicit_position = (
+        # An existing PCB component keeps its position and takes no auto-placement slot.
+        has_explicit_position = target is not None or (
             mapping is not None and mapping.x is not None and mapping.y is not None
         )
         if board_bounds is not None and not has_explicit_position:
@@ -350,9 +378,10 @@ def build_sync_plan(
                 auto_y = origin_y + row_index * placement.pitch_y
         # ponytail: shelf packing uses the outline bounding box; run the existing
         # placement legalizer when polygonal-board containment matters.
-        row_right = auto_x + half_width
-        row_bottom = max(row_bottom, auto_y + half_height)
-        row_count += 1
+        if target is None:
+            row_right = auto_x + half_width
+            row_bottom = max(row_bottom, auto_y + half_height)
+            row_count += 1
         if mapping is not None and mapping.pad_numbers:
             pad_numbers = list(mapping.pad_numbers)
         elif target is not None:
@@ -460,6 +489,8 @@ def build_sync_plan(
         endpoints: list[dict[str, str]] = []
         for item in net.findall("./Pins/Item"):
             part_id = item.get("Part", "")
+            if part_id in net_port_ids:
+                continue
             pin_text = item.get("Pin", "")
             if not pin_text.isascii() or not pin_text.isdecimal():
                 raise EditError(f"Net {name} has an invalid pin index: {pin_text!r}")
@@ -510,6 +541,11 @@ def build_sync_plan(
             "allow_locked_reconciliation": allow_locked_reconciliation,
         }
     )
+    if net_port_ids:
+        warnings.append(
+            f"{len(net_port_ids)} Net Port part(s) are not physical components and were "
+            "not synchronized"
+        )
     if reconciliation_mode == "exact":
         warnings.append(
             "Exact reconciliation may delete unmatched PCB components, nets, ratlines, "
