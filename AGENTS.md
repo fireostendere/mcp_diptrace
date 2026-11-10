@@ -19,6 +19,13 @@ instructions and the repository rules below take precedence.
 | Fabrication/assembly package and production handoff | [diptrace-production-pack](skills/diptrace-production-pack/SKILL.md) |
 | First power-on, programming, measurements, production tests | [diptrace-board-bringup](skills/diptrace-board-bringup/SKILL.md) |
 | Revision comparison, ECO, rework, regression and re-release | [diptrace-revision-review](skills/diptrace-revision-review/SKILL.md) |
+| Existing-project inventory before planning | [pcb-project-intake](skills/pcb-project-intake/SKILL.md) |
+| Read-only schematic ERC, connectivity and readability review | [schematic-erc-review](skills/schematic-erc-review/SKILL.md) |
+| Component/pattern library and pin-to-pad audit | [library-quality-audit](skills/library-quality-audit/SKILL.md) |
+| One named critical net or differential pair | [critical-net-router](skills/critical-net-router/SKILL.md) |
+| Impedance, stackup and return-path review | [signal-integrity-review](skills/signal-integrity-review/SKILL.md) |
+| PCB test-point coverage and probe pads | [testpoint-planner](skills/testpoint-planner/SKILL.md) |
+| Final PASS/BLOCKED release decision | [release-gate](skills/release-gate/SKILL.md) |
 
 ## Default hardware-engineering mode and RAG
 

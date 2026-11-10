@@ -1,6 +1,6 @@
 ---
 name: testpoint-planner
-description: RAG-backed. Measure and improve explicit standalone-pad testpoint coverage through a guarded DipTrace PCB transaction. Use for test-point coverage review, fixture probe planning, or placing standalone probe pads; «добавь тестпоинты», «контрольные точки на плате». Use when the user says “Plan guarded fixture testpoints for these PCB nets.”
+description: RAG-backed. Measure and improve explicit standalone-pad testpoint coverage through a guarded DipTrace PCB transaction. Use for test-point coverage review, fixture probe planning, or placing standalone probe pads; «добавь тестпоинты на плату», «контрольные точки на плате». Use when the user says “Plan guarded fixture testpoints for these PCB nets.”
 ---
 
 Read [runtime access](../shared/runtime.md) before choosing between explicit-path
@@ -25,8 +25,9 @@ feature availability.
    sensitive, high-speed, RF, clock, reset, and user-locked nets.
 3. Call `find_testpoint_candidates` with explicit side, probe diameter, clearance, grid, and
    candidates per net. Ask the operator when fixture-side access or sensitive-net policy is absent.
-4. Stage `add_testpoints(..., dry_run=true)` in a transaction. Never commit from a request for a
-   plan.
+4. Stage `add_testpoints(..., dry_run=true)` in a transaction; each testpoint needs `net`, `x`,
+   `y` and `pad_diameter` (`side`, `hole_diameter` and `refdes` are optional). Never commit
+   from a request for a plan.
 5. Inspect `preview_transaction`, then `validate_transaction`. When placement is authorized,
    commit with `expected_sha256`; retain authorization already given for the selected scope.
 6. A testpoint's net assignment is logical membership, not proof of copper connection. Inspect

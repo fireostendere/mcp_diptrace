@@ -1,6 +1,6 @@
 ---
 name: diptrace-revision-review
-description: RAG-backed. Compare DipTrace hardware revisions, trace electrical/BOM/layout changes, and prepare an ECO with affected verification and release artifacts. Use for netlist diffs, substitutions, rework reconciliation, design regressions, or a new board revision; «сравни ревизии», «ECO платы». Use when the user says “Compare these DipTrace revisions and prepare an ECO.”
+description: RAG-backed. Compare DipTrace hardware revisions, trace electrical/BOM/layout changes, and prepare an ECO with affected verification and release artifacts. Use for netlist diffs, substitutions, rework reconciliation, design regressions, or a new board revision; «сравни ревизии DipTrace», «ECO платы». Use when the user says “Compare these DipTrace revisions and prepare an ECO.”
 ---
 
 Read [runtime access](../shared/runtime.md) before selecting tools or declaring a

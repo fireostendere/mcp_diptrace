@@ -1,6 +1,6 @@
 ---
 name: pcb-design-workflow
-description: RAG-backed. Take a DipTrace board through requirements, source evidence, schematic, PCB, production handoff, bring-up, and revisions using existing project skills and explicit build gates. Use for a full design cycle, a new board specification, or resuming a PCB build; «полный цикл платы», «ТЗ на плату», «продолжи разработку». Use when the user says “Take this board through the complete design and production cycle.”
+description: RAG-backed. Take a DipTrace board through requirements, source evidence, schematic, PCB, production handoff, bring-up, and revisions using existing project skills and explicit build gates. Use for a full design cycle, a new board specification, or resuming a PCB build; «полный цикл платы DipTrace», «ТЗ на плату», «продолжи разработку платы». Use when the user says “Take this board through the complete design and production cycle.”
 ---
 
 Read [runtime access](../shared/runtime.md) before selecting tools or declaring a

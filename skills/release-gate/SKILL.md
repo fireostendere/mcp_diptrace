@@ -43,6 +43,19 @@ feature availability.
 7. Emit [`../shared/result.schema.json`](../shared/result.schema.json); put the decision in summary
    and as a finding, not in the transport `status`.
 
+## Known skipped PCB checks
+
+| Check | Skip reason | What clears it |
+|---|---|---|
+| `pcb.silk_to_pad` | `not_implemented` in every run | Nothing offline. Cover it with native DRC and the silkscreen inspection, and list it as acknowledged |
+| `pcb.thermal_metadata` | `explicit_component_power_metadata_unavailable` | A component field `power_w`, `power (w)`, `mcp.powerw` or `dissipation_w`; otherwise thermal review stays with bring-up |
+| `pcb.trace_board_edge` | `trace_to_board_rules_unavailable` | A `TraceToBoard` value in the document's DRC layer clearances |
+
+An offline `error` from estimated geometry stays a finding: for example `pcb.component_overlap`
+on estimated component boxes, or a connector that intentionally overhangs the outline. Only an
+explicit operator waiver that names the finding, backed by native DRC on the same SHA,
+dispositions it.
+
 ## Quantitative boundaries
 
 - Confidence is bounded from 0 through 1 but cannot overrule evidence class.

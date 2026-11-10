@@ -1,6 +1,6 @@
 ---
 name: diptrace-bom-sourcing
-description: RAG-backed. Build and check a purchasable DipTrace BOM for a specified assembly variant and quantity, verify live stock, and assess substitutions. Use for BOM completeness, component sourcing, JLCPCB/LCSC selection, shortages, or procurement preparation; «подбери компоненты», «проверь BOM». Use when the user says “Prepare a purchasable BOM for this DipTrace revision.”
+description: RAG-backed. Build and check a purchasable DipTrace BOM for a specified assembly variant and quantity, verify live stock, and assess substitutions. Use for BOM completeness, component sourcing, JLCPCB/LCSC selection, shortages, or procurement preparation; «подбери компоненты для платы DipTrace», «проверь BOM DipTrace». Use when the user says “Prepare a purchasable BOM for this DipTrace revision.”
 ---
 
 Read [runtime access](../shared/runtime.md) before selecting tools or declaring a

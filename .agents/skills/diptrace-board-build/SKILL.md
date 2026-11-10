@@ -184,10 +184,10 @@ Templates proven to work:
 Follow attiny85 `build_pcb.py::build()`:
 
 ```python
-physical = strip_net_ports(schematic)  # keep only Parts with Pattern refs
 board = build_pcb_document(PcbScaffold(width_mm=W, height_mm=H, ...))
-sync = build_sync_plan(physical, board, mappings=[ComponentSyncMapping(...)],
-                        pattern_documents=[physical])
+# Net Port parts are skipped by the planner; they never get a pattern.
+sync = build_sync_plan(schematic, board, mappings=[ComponentSyncMapping(...)],
+                        pattern_documents=[schematic])
 placed = apply_semantic_operations(board, [sync.operation]).document
 ```
 

@@ -1,6 +1,6 @@
 ---
 name: schematic-engineer
-description: RAG-backed. Design, build, modify, and review electronic devices and schematics through DipTrace MCP with source-backed engineering decisions. Use for architecture, schematic capture, and engineering review; coordinate PCB and production work through pcb-design-workflow when requested; «спроектируй схему», «нарисуй схему в DipTrace», «доработай схему». Use when the user says “Design or modify this DipTrace schematic.”
+description: RAG-backed. Design, build, modify, and review electronic devices and schematics through DipTrace MCP with source-backed engineering decisions. Use for architecture, schematic capture, and engineering review; coordinate PCB and production work through pcb-design-workflow when requested; «спроектируй схему в DipTrace», «нарисуй схему в DipTrace», «доработай схему DipTrace». Use when the user says “Design or modify this DipTrace schematic.”
 ---
 
 Read [runtime access](../shared/runtime.md) before selecting tools or declaring a
@@ -93,7 +93,8 @@ Apply this protocol only after the user authorized an editable scoped mode and t
 permits it.
 
 1. Confirm scope and protected SHA-256 hashes, including PCB and manufacturing files that must
-   not change. Take a supported snapshot before the first batch.
+   not change. Every committed transaction is its own rollback point; protect an original
+   by working on a copy.
 2. For new documents, use a native verified seed. Preserve unknown loader data, settings, and
    object IDs; do not regenerate a whole document by hand.
 3. Prefer semantic MCP operations. Use the supported dry-run, preview, and validation operations
@@ -169,21 +170,11 @@ permits it.
 
 Begin only after schematic acceptance and PCB work is authorized. Use
 [pcb-design-workflow](../pcb-design-workflow/SKILL.md) for the repository gate order and
-[PCB implementation](../pcb-design-workflow/references/board-layout.md) for implementation recipes.
-
-1. Verify schematic-to-PCB synchronization, exact pin-pad mapping, package land patterns, and
-   vendor layout sources before placement.
-2. Establish board outline, mechanics, connector datums, mounting constraints, and keepouts
-   before component placement.
-3. Select stackup from electrical constraints and authoritative fab/process evidence.
-4. Place decoupling and hot-loop critical components locally. Preserve continuous return paths;
-   handle differential, RF, USB, thermal, ground-fill, stitching, and connector thermal needs
-   from evidence, not habit.
-5. Never use via-in-pad without an approved manufacturing process. Zero ratlines alone is not
-   acceptance.
-6. Validate silkscreen, assembly readability, fab capabilities, DFM, and BOM/CPL correspondence.
-7. Netclass rules may not be enforced by MCP. PCB acceptance requires native refill, connectivity,
-   and DRC; unavailable native evidence blocks acceptance rather than being skipped.
+[PCB implementation](../pcb-design-workflow/references/board-layout.md) for synchronization,
+mechanics, placement, stackup, routing, grounding and silkscreen; they are not repeated here.
+Never use via-in-pad without an approved manufacturing process. Zero ratlines alone is not
+acceptance. Netclass rules may not be enforced by MCP. PCB acceptance requires native refill,
+connectivity, and DRC; unavailable native evidence blocks acceptance rather than being skipped.
 
 ## Acceptance and reporting
 
@@ -202,6 +193,8 @@ Use separate gates. An offline MCP check is not a native acceptance substitute.
    clean ERC (operator evidence). Judge connectivity on physical pin/pad/net/NC records;
    native re-serialization (angle literals, sub-0.001 mm deltas, renumbered ids, pruned
    unused patterns) is not a defect. Missing-MPN warnings belong to BOM sourcing.
+   A skipped check blocks the gate; [schematic-erc-review](../schematic-erc-review/SKILL.md)
+   lists the known causes and their resolution.
    Once the schematic-stage gate, native ERC/connectivity, page-fit readability of every sheet
    and one independent review are clean, the schematic is `PASS`; stop iterating on it.
 3. PCB acceptance requires native refill plus native connectivity and DRC. If native evidence is
@@ -230,11 +223,6 @@ Read relevant local skills directly; their contents do not require RAG retrieval
 - [library-quality-audit](../library-quality-audit/SKILL.md): library pin/pad checks.
 - [pcb-design-workflow](../pcb-design-workflow/SKILL.md): specifications, build gates, production,
   bring-up, and revision handoffs.
-
-## Import provenance
-
-Adapted from OpenCode `~/.config/opencode/skills/schematic-engineer/SKILL.md`,
-original SHA-256 `7d692c27e82fbbb432c24514df22704734870e75744bc47800baefc73994bdac`.
 
 Return [the shared result](../shared/result.schema.json); use `document: null` when
 no CAD document is involved. Record concrete artifacts and unavailable checks; a
