@@ -5,10 +5,16 @@ description: >
   builds (attiny85-arduino-clone 3772 LOC + i2c-level-shifter 532 LOC +
   dut-controller-reva). Covers LCSC sourcing → schematic generation →
   visual wiring → nativeize → PCB placement/routing → pours/silk → SVG
-  preview → native DRC verification. Use when building any new board.
+  preview → native DRC verification. Historical builder-script reference;
+  the catalog skill pcb-design-workflow sets the gates and current rules.
 ---
 
 # DipTrace Board Build Pipeline
+
+> Historical recipe from three finished boards. The reviewed catalog
+> ([pcb-design-workflow](../../../skills/pcb-design-workflow/SKILL.md)) and
+> `AGENTS.md` take precedence; router, clearance and font numbers below are
+> those boards' values, not rules for a new board.
 
 ## The One Rule
 
@@ -62,10 +68,11 @@ EasyEDA geometry:
 Critical transforms:
 - **Pad ordering**: DipTrace sync maps pins↔pads POSITIONALLY. Pattern pads
   MUST be sorted to match symbol pin sequence exactly.
-- **Merged pads**: "A1B12" covers two connector legs. Either split into two
-  half-width pads OR renumber to integers with alias JSON.
-- **Duplicate pad numbers** (ESP32 thermal grid "61"×9): merge into one pad
-  with union bounding box.
+- **Merged pads**: "A1B12" covers two connector legs. Keep the one physical
+  pad and renumber it to an integer with alias JSON; do not split its copper.
+- **Duplicate pad numbers** (ESP32 thermal grid "61"×9): keep every physical
+  pad, give each a unique number with an alias to the shared pin, and tie them
+  to the net after sync. Do not merge a thermal array into one pad.
 - **Alphanumeric pad numbers**: DipTrace sync resolves by numeric Id fallback;
   renumber all non-digit pads sequentially in pin order + save alias map.
 - **Zero-length pins**: nearest-edge body synthesis can produce length=0;
@@ -97,7 +104,7 @@ Key gotchas:
 
 ## Phase 2: Visual Wiring
 
-Without wires, DipTrace shows floating symbols. Three approaches:
+Without wires, DipTrace shows floating symbols. Two approaches:
 
 ### A. Ground Symbols + Net Ports (attiny85 pattern — BEST quality)
 
@@ -146,14 +153,9 @@ For large boards where manual wire specification is impractical:
 - Compute absolute pin positions from library data (`compute_endpoints()`)
 - Greedy nearest-neighbour chaining per net per sheet
 - L-shaped paths between consecutive endpoints
-- Cross-sheet pins get skipped (caller should add net labels separately)
+- Cross-sheet pins get skipped (the caller adds native Net Ports for them)
 
 Generated 92 wires for Rev.A (178 parts, 144 nets).
-
-### C. Net Labels Only (minimal viable)
-
-Place text annotations near pins showing their net name. No wires drawn.
-Fastest but least readable.
 
 ## Phase 3: Nativeize
 
@@ -223,6 +225,9 @@ groups = [
 ]
 ```
 
+That board routed USB D+/D- as two nets. Route a constrained differential pair
+as a pair (`route_diff_pair` / `plan_diff_pair_route`).
+
 Router config (attiny85 proven values):
 ```python
 PCBRouterConfig(
@@ -248,9 +253,10 @@ For boards >100mm: increase grid to 0.25–0.5mm and budgets proportionally.
 
 ## Phase 6: Finishing
 
-### Pad sanitization
-EasyEDA copper often exceeds 0.13mm rule at fine pitches. Shrink width to
-(min_neighbour_distance − 0.35mm). See `sanitize_pads()` in Rev.A builder.
+### Pad geometry
+Rev.A shrank EasyEDA copper with `sanitize_pads()` to pass a 0.13 mm rule. Do
+not repeat that: check the pad against the manufacturer land pattern and fix
+the footprint source, rule or placement instead of resizing verified copper.
 
 ### Pours + stitching
 ```python
@@ -280,7 +286,7 @@ Also hide Name/Value markings on ICs (keep RefDes visible only).
 | Connectivity | `run_review(profile="connectivity", path=...)` | 0 findings |
 | Headless QC | `review_pcb_quality(snapshot)` | hard_error_count == 0 |
 | Native roundtrip | `headless_gui roundtrip --editor schematic` | ok=true |
-| Native DRC | `diptrace_native_gate11.py` | errors = fab-tolerance only |
+| Native DRC | `diptrace_mcp.pcb_native_acceptance run` (or `diptrace_native_gate11.py`) | PASS; a native DRC error stays a failure |
 | Visual | `render_board_svg(pcb_path)` | inspect manually |
 
 ## Debugging patterns
@@ -292,7 +298,7 @@ Also hide Name/Value markings on ICs (keep RefDes visible only).
 | Router produces 0 ops | Node budget exhausted → increase budgets |
 | Trace violates clearance | Check obstacle identity via exc.object_ids |
 | Sync fails "Cannot resolve pad" | Pattern pad order ≠ symbol pin order |
-| Duplicate pad number error | Merge thermal grids, renumber shield tabs |
+| Duplicate pad number error | Renumber thermal-grid pads and shield tabs with an alias map |
 | RawTreeSnapshot.compile mismatch | Capture BEFORE mutation, compile AFTER |
 | Wires not visible in schematic | ConnectPins ≠ AddWire; need both |
 
@@ -322,4 +328,4 @@ All from `attiny85-arduino-clone/layout_and_wire.py` unless noted:
 | `clean_visuals(raw_bytes)` | Strip generated ports, reset markings |
 | `ensure_overview_sheet(root)` | Create overview sheet if missing |
 | `render_board_svg(path)` | SVG Top/Bottom preview (Rev.A) |
-| `sanitize_pads()` | Shrink EasyEDA copper widths (Rev.A) |
+| `sanitize_pads()` | Historical Rev.A pad shrink; do not reuse |

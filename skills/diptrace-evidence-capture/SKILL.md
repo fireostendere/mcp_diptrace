@@ -78,13 +78,21 @@ controls or follows its download link. Never guess a hash or use a blanket nag d
 Focus/locale/rendering differences require another review, not a weaker match or automatic retry.
 
 `completed: true` / exit 0 reports native execution only, NOT schematic acceptance.
-Keep `erc_status: review_required` when the exact success image does not match; record
-image review separately without rewriting the native report or inventing an operator
-attestation. Independently compare pin/net/NC/pad mappings, shared units, symbol
-geometry and wire contacts. Native imports may renumber ports, recenter symbols or
-embedded patterns, add pin length and reroute wires, even over successive exports.
-Do not classify these geometric changes as harmless rounding or replace the source
-until the differences are resolved. No helper result grants trusted provenance.
+`erc_status` is `not_run`, `no_errors_found` (the result image equals a pinned reviewed
+success image of that build) or, for any other result dialog,
+`erc_status: review_required`. In that case view the captured ERC client PNG: an image
+reading exactly "No errors found" is a clean native ERC, recorded separately as
+`operator` evidence with its hash reported for pinning; anything else is an ERC finding
+to resolve. Never rewrite the native report or invent an operator attestation.
+
+Judge the re-export on physical pin/pad/net/NC records, shared units and wire contacts.
+Native re-serialization of the same design is not a defect and needs no new candidate:
+angle literals (pi -> 3.1416), coordinate deltas below 0.001 mm, renumbered style/pattern
+ids, pruned unused patterns, reassigned UpdateIds or port object ids, collinear-point
+pruning. Recentered symbols or embedded patterns, added pin length and rerouted wires,
+which can appear even over successive exports, are real geometry changes, not rounding:
+review them in the page-fit readability inspection and do not replace the source with a
+re-export that carries them unreviewed. No helper result grants trusted provenance.
 
 ## Native PCB acceptance first
 

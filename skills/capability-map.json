@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.3.0",
+  "schema_version": "2.4.0",
   "external_knowledge": {
     "provider": "User-configured Knowledge MCP / RAG, separate from DipTrace MCP",
     "workflow": "shared/rag.md",
@@ -94,19 +94,26 @@
     "native_library_mutation": "No public native Component/Pattern Library mutation MCP contract is registered; an internal raw-preserving core has separately scoped real-editor evidence.",
     "differential_stripline": "The analytical model does not implement coupled differential stripline.",
     "native_fabrication_export": "The MCP server emits review manifests, not Gerber, NC Drill, ODB++, or IPC-2581. The Windows-only diptrace_mcp.native_cad round-trip (run_native_cad with export_manufacturing=true, the call shape used by scripts/validate_native_platform.py) drives the real PCB editor's Gerber X2 + NC Drill ZIP and pick-and-place CSV export on an isolated copy of a verified build; it is a Python API, not an MCP tool or packaged CLI, and its output is not inspected CAM.",
-    "generic_native_schematic_erc": "Base headless roundtrip opens/saves Schematic but does not execute native ERC.",
+    "generic_native_schematic_erc": "Base headless roundtrip opens/saves Schematic but does not execute native ERC. The diptrace_mcp.schematic_native_acceptance CLI with --erc captures the native ERC result of a guarded .dchxml copy on a verified Windows build: erc_status is no_errors_found only when the result image equals a pinned reviewed success image, otherwise review_required for a human reading. A positive error-list profile is not verified.",
     "generic_native_xml_export": "Base roundtrip does not export XML. The diptrace_mcp.native_xml_export CLI exports a native .dch/.dip copy to .dchxml/.dipxml on a verified Windows build without saving the source; PCB acceptance exports PCB XML; installed .eli catalog export is a separate supported path. Component/Pattern Library binaries and other document kinds have no XML export CLI.",
     "bridge_headless_gui": "bridge --headless is apply/cancel exchange control without the bridge dialog; it does not open the CAD GUI."
   },
   "tool_groups": {
     "inspection": [
+      "diptrace_status",
+      "get_capabilities",
       "scan_diptrace_documents",
       "get_document_info",
       "get_board_model",
       "get_schematic_model",
       "get_connectivity_graph",
       "query_objects",
-      "get_object"
+      "get_object",
+      "summarize_design",
+      "list_components",
+      "get_component",
+      "list_nets",
+      "read_xml_fragment"
     ],
     "library": [
       "query_builtin_library_catalog",
@@ -116,7 +123,9 @@
       "validate_library_component",
       "validate_library_pattern",
       "validate_pin_pad_mapping",
-      "recommend_patterns"
+      "recommend_patterns",
+      "scan_component_libraries",
+      "scan_pattern_libraries"
     ],
     "schematic": [
       "create_document_from_seed",
@@ -132,7 +141,10 @@
       "set_component_properties",
       "rank_schematic_placement_candidates",
       "plan_schematic_placement_repair",
-      "apply_schematic_placement_repair_plan"
+      "apply_schematic_placement_repair_plan",
+      "disconnect_pins",
+      "delete_wire",
+      "set_component_value"
     ],
     "board": [
       "create_pcb_document",
@@ -145,7 +157,14 @@
       "apply_component_placement_plan",
       "move_components",
       "rotate_components",
-      "set_component_side"
+      "set_component_side",
+      "compare_pcb_placement_candidates",
+      "align_components",
+      "distribute_components",
+      "group_components",
+      "ungroup_components",
+      "lock_components",
+      "set_component_pattern"
     ],
     "rules_and_planes": [
       "get_design_rules",
@@ -170,7 +189,15 @@
       "export_autorouter_dsn",
       "run_external_autorouter",
       "inspect_autorouter_result",
-      "import_autorouter_ses"
+      "import_autorouter_ses",
+      "route_connections",
+      "replace_trace",
+      "delete_trace",
+      "set_trace_width",
+      "move_via",
+      "delete_via",
+      "set_via_style",
+      "analyze_routing_congestion"
     ],
     "finishing": [
       "list_testpoints",
@@ -179,11 +206,67 @@
       "review_testpoint_coverage",
       "plan_silkscreen",
       "apply_silkscreen_plan",
-      "set_panelization"
+      "set_panelization",
+      "move_testpoints",
+      "remove_testpoints",
+      "list_board_texts",
+      "move_board_texts",
+      "rotate_board_texts",
+      "set_text_style",
+      "set_text_visibility",
+      "clear_panelization"
+    ],
+    "signal_integrity": [
+      "calculate_impedance",
+      "analyze_stackup_for_impedance",
+      "validate_impedance_constraints",
+      "suggest_trace_geometry_for_impedance",
+      "measure_net_lengths",
+      "analyze_length_group",
+      "list_differential_pairs",
+      "get_differential_pair",
+      "analyze_differential_pair",
+      "analyze_differential_pairs",
+      "validate_differential_pair"
+    ],
+    "bom": [
+      "get_bom",
+      "group_bom",
+      "review_bom",
+      "find_missing_component_fields",
+      "detect_duplicate_bom_items",
+      "validate_mpn_consistency",
+      "validate_value_pattern_consistency",
+      "compare_bom_to_design",
+      "export_bom"
+    ],
+    "expert_xml": [
+      "apply_xml_edits",
+      "apply_xml_edits_from_file"
+    ],
+    "external_solvers": [
+      "run_ngspice_simulation",
+      "run_openems_stripline_analysis"
+    ],
+    "exports": [
+      "export_fabrication_outputs",
+      "export_assembly_outputs",
+      "list_exports"
+    ],
+    "pipeline": [
+      "pipeline_source_component",
+      "pipeline_nativeize_document",
+      "pipeline_render_board_preview"
+    ],
+    "evidence": [
+      "validate_roundtrip_evidence",
+      "record_roundtrip_evidence"
     ],
     "verification": [
       "run_review",
-      "analyze_release_readiness"
+      "analyze_release_readiness",
+      "get_findings",
+      "get_finding"
     ],
     "transaction_and_jobs": [
       "begin_transaction",
@@ -195,7 +278,10 @@
       "get_job_status",
       "get_job_result",
       "cancel_job",
-      "finish_live_session"
+      "finish_live_session",
+      "list_transactions",
+      "list_jobs",
+      "abandon_live_session"
     ]
   },
   "local_cli": {

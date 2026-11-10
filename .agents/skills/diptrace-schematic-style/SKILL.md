@@ -23,12 +23,13 @@ native font metrics or native/ERC acceptance; clean ERC is not a visual pass.
 When the user is using a board as a training run for repeatable one-prompt
 generation:
 
-1. Apply the repository Knowledge/RAG policy before searching. Query the
-   configured engineering RAG only when a material unknown fact is required to
-   decide the design. Pure visual rearrangement, alignment, spacing, or cleanup
-   must use the user's instruction and current DipTrace state without
-   `knowledge_search`. When retrieval is required, record returned document
-   IDs/sections and distinguish retrieved requirements from model inference.
+1. Apply the repository Knowledge/RAG policy (`skills/shared/rag.md`): RAG is
+   the default engineering memory, with a full brief for a new sheet or
+   decision. A narrow visual edit (rearrangement, alignment, spacing, cleanup)
+   uses the accumulated context and the current DipTrace state; retrieve only
+   when it reaches an unreviewed engineering constraint. Record returned
+   document IDs/sections and distinguish retrieved requirements from model
+   inference.
 2. Freeze the purpose, interfaces, component evidence and acceptance checks of
    one sheet only. Do not create the next sheet until the current sheet passes
    its declared structural, electrical, readability and native-roundtrip gates.
@@ -39,8 +40,9 @@ generation:
 4. Keep an append-only engineering journal with the query, retrieved sources,
    mutations, tool results, failures, exact resume point and artifact hashes.
    RAG is retrieval memory, not gate authority.
-5. After a gate passes, ingest the journal update and add only reusable,
-   observed workflow rules to this skill. Keep project-specific MPNs, nets and
+5. After a gate passes, update the journal (ingest it into the knowledge base
+   only when authorized) and add only reusable, observed workflow rules to
+   this skill. Keep project-specific MPNs, nets and
    coordinates in project evidence rather than universal skill instructions.
 6. When native acceptance is required, start from `create_document_from_seed`
    with a known DipTrace export so native `Settings`, `Simulator`, and unknown

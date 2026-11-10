@@ -36,6 +36,12 @@ feature and adapter availability.
 3. Use `calculate_impedance` for standalone inputs,
    `analyze_stackup_for_impedance` for complete outer-layer microstrip stackups, and
    `validate_impedance_constraints` for named routed nets.
+   `suggest_trace_geometry_for_impedance` is only a bounded analytical microstrip width
+   synthesis for a caller-supplied target. For routed length and pair evidence use
+   `measure_net_lengths`, `analyze_length_group`, `list_differential_pairs`,
+   `analyze_differential_pair` and `validate_differential_pair`: geometric centerline
+   length, skew, via balance, coupled length and edge gap against exported project rules
+   only. A derived delay is preliminary, not timing sign-off.
 4. Use `analyze_return_path` only as a caller-radius geometry heuristic. Disclose boundary-only
    pour geometry, layer-transition ambiguity, and confidence limits. If native refill evidence
    is needed, use the PCB headless profile on a copy and retain its exported geometry and verdict;
@@ -64,9 +70,9 @@ feature and adapter availability.
 - Every distance is millimetres; impedance is ohms.
 
 These bounds and citations are returned by
-[`impedance.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/impedance.py).
+[`impedance.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/impedance.py).
 Adapter behavior is implemented in
-[`external_adapters.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/external_adapters.py)
+[`external_adapters.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/external_adapters.py)
 and mapped truthfully in
 [`../capability-map.json`](../capability-map.json).
 

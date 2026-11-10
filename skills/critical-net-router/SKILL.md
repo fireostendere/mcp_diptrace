@@ -31,8 +31,10 @@ feature availability.
    validate and use an `expected_sha256` commit within the already authorized routing scope.
    A request for a plan alone never authorizes committing it.
 6. Run `run_review(profile="drc_basic")` and `run_review(profile="connectivity")`; rollback only this session's failed changes with
-   a current hash guard. When native validation is in scope, use the headless PCB acceptance
-   workflow; offline DRC does not invoke the real editor.
+   a current hash guard. For a routed pair, also read `analyze_differential_pair` and
+   `validate_differential_pair` (measured skew, coupling and exported pair rules). When native
+   validation is in scope, use the headless PCB acceptance workflow; offline DRC does not
+   invoke the real editor.
 7. Emit [`../shared/result.schema.json`](../shared/result.schema.json).
 
 ## Quantitative boundaries
@@ -45,11 +47,11 @@ feature availability.
   objects/elements; this can be fewer than 500 unique physical objects.
 
 The limits and defaults are implemented in
-[`server.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/server.py),
-[`service.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/service.py),
-[`routing.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/routing.py),
+[`server_runtime.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/server_runtime.py),
+[`services/routing.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/services/routing.py),
+[`routing.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/routing.py),
 and
-[`write_limits.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/write_limits.py).
+[`write_limits.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/write_limits.py).
 Runtime capabilities win.
 
 ## Refusals

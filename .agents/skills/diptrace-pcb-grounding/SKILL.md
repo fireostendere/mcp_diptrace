@@ -47,8 +47,12 @@ manufacturability take precedence over any rule here.
   part's primary ground and heat path. Example: CP2102 Table 4 footnote 2 —
   thermal resistance assumes a multi-layer PCB with the exposed pad soldered
   to a PCB pad.
-- Put a via cluster under/around the exposed pad into the Bottom plane; each
-  via typically 0.3 mm drill for hand assembly friendliness.
+- Tie the exposed pad to the Bottom plane with a via cluster around the pad,
+  outside its copper plus clearance. Vias inside the pad are via-in-pad:
+  disabled unless the user explicitly requests a compatible filled/capped
+  process. When the datasheet layout shows in-pad thermal vias, record the
+  deviation and its thermal consequence, or ask once. Take drill size and
+  count from the datasheet and fab rules.
 
 ## MCU and analog corners
 
