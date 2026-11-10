@@ -33,6 +33,11 @@ Changes in this section are later development and are not silently part of those
 
 ## Changed
 
+- the schematic readability review counts visible markings on automatic alignment per
+  sheet (`automatic_markings`) for the native page-fit inspection instead of reporting
+  them as missing geometry; the native editor and `place_part` use that alignment by
+  default, so the previous classification blocked the schematic-stage gate for every
+  such schematic. Genuinely missing or ambiguous exported geometry still blocks;
 - the native PCB round-trip (`native_cad`) supports DipTrace 5.3.5.1 next to
   5.3.0.3: it waits until the main form has its menu, and resolves Objects >
   Update All Copper Pours by its menu group because 5.3.5.1 reveals an extra
