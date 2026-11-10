@@ -151,7 +151,7 @@ def check_schematic_readability(
                 'pin_stub_conflicts', 'port_tip_conflicts', 'texts_checked',
                 'stored_texts_checked', 'estimated_texts_checked',
                 'text_orientation_conflicts', 'text_collisions', 'outside_page',
-                'unmeasured_symbol_texts',
+                'unmeasured_symbol_texts', 'automatic_markings',
             ), 0),
             'missing_geometry': [],
         }
@@ -338,10 +338,11 @@ def check_schematic_readability(
                 value = instance.findtext(f'./{field}', '').strip()
                 if marking is None or marking.get('Show', 'Hide') == 'Hide' or not value:
                     continue
-                text_id = stable_id('schematic-marking', part.stable_id, tag)
                 if marking.get('Align', '') != 'Position':
-                    missing(sheet, text_id, 'automatic_marking_position_unavailable')
+                    # The native editor places it; nothing is exported to measure.
+                    rows[sheet]['automatic_markings'] += 1
                     continue
+                text_id = stable_id('schematic-marking', part.stable_id, tag)
                 offset = transform.apply_point(Point(xml_number_mm(document, marking, 'X'),
                                                      xml_number_mm(document, marking, 'Y')))
                 angle = xml_number(document, marking, 'Angle')
@@ -433,6 +434,8 @@ def check_schematic_readability(
             'not native font metrics.',
             'Symbol text and native pin-name/number glyphs are not measured; '
             'inspect native page-fit views.',
+            'Markings on automatic alignment are placed by the native editor: counted, '
+            'not measured; inspect native page-fit views.',
             'Curved/unknown symbol primitives are explicitly missing, '
             'not approximated as clean geometry.',
             'Only Shape Type=Line is a documentary channel; rectangle borders are not connections.',

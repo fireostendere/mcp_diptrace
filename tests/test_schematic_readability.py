@@ -256,6 +256,16 @@ def test_port_tip_on_foreign_pin_shaft_without_any_wire_is_detected():
     assert metrics['sheets'][1]['port_tip_conflicts'] == 1
 
 
+def test_automatic_marking_is_counted_for_page_fit_not_a_geometry_gap():
+    root = _root()
+    part, _ = _part(root)
+    ET.SubElement(part, 'RefDesMarking', Show='Common', Align='Common')
+    _, metrics, skipped = _review(root)
+    assert not skipped and metrics['geometry_complete'] is True
+    assert metrics['sheets'][1]['automatic_markings'] == 1
+    assert not metrics['sheets'][1]['missing_geometry']
+
+
 def test_caption_orientation_clearance_and_containment_with_native_metric_limits():
     root = _root()
     part, _ = _part(root)

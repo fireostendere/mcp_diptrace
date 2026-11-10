@@ -151,6 +151,10 @@ sheets remain in coverage. Undeclared object sheets appear in `unassigned_object
 Incomplete geometry produces a structured `schematic_readability_geometry_incomplete`
 skip, which blocks the full schematic gate rather than producing a clean empty
 result. The gate JSON retains this ledger as `schematic_review.readability`.
+A visible marking on automatic alignment has no exported position: it is counted per
+sheet as `automatic_markings`, does not make geometry incomplete, and is covered by the
+native page-fit inspection. The native editor and `place_part` both use that alignment
+by default, so treating it as missing geometry blocked every such schematic.
 
 Implemented boundaries:
 

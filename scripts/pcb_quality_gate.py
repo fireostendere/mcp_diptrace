@@ -329,6 +329,12 @@ def main() -> int:
             f"Schematic review: {schematic_review['check_count']} checks, "
             f"errors={sum(schematic_review['errors'].values())}, warnings: {warnings or 'none'}"
         )
+        automatic = sum(
+            row.get("automatic_markings", 0)
+            for row in (schematic_review["readability"] or {}).get("sheets", [])
+        )
+        if automatic:
+            print(f"Automatic markings to inspect at native page fit: {automatic}")
     if blocked:
         print("BLOCKED:")
         for item in blocked:
