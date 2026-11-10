@@ -589,3 +589,50 @@ def test_testpoint_service_transaction_and_coverage(tmp_path: Path) -> None:
     coverage = service.review_testpoint_coverage(["VCC", "SIGNAL"], str(board))
     assert coverage["result"]["covered_nets"] == ["VCC"]
     assert coverage["result"]["coverage"] == 0.5
+
+
+def test_testpoint_uses_the_native_nested_pattern_library() -> None:
+    source = _load("pcb.xml")
+    root = ET.fromstring(source.raw_bytes)
+    sibling = root.find("./Library[@Type='DipTrace-PatternLibrary']")
+    component_library = root.find("./Library[@Type='DipTrace-ComponentLibrary']")
+    footprint_cache = ET.fromstring(_load("pcb_patterns.xml").raw_bytes).find(
+        "./Library[@Type='DipTrace-PatternLibrary']"
+    )
+    assert sibling is not None and component_library is not None and footprint_cache is not None
+    # Native PCB exports nest the footprint cache inside the component library.
+    root.remove(sibling)
+    component_library.append(footprint_cache)
+    native = DipTraceDocument.from_bytes(source.path, ET.tostring(root))
+    before = build_snapshot(native)
+    assert before.board is not None
+    existing_styles = {pattern.style for pattern in before.board.patterns}
+    assert "PatType0" in existing_styles
+
+    added = apply_semantic_operations(
+        native, [AddTestpointOperation(net="VCC", x=5, y=5, pad_diameter=1.2, refdes="TP1")]
+    )
+    added_root = ET.fromstring(added.raw_bytes)
+    libraries = [
+        item for item in added_root.iter("Library") if item.find("./Patterns") is not None
+    ]
+    nested = added_root.find(
+        "./Library[@Type='DipTrace-ComponentLibrary']/Library[@Type='DipTrace-PatternLibrary']"
+    )
+    assert libraries == [nested]
+    component = added_root.find("./Board/Components/Component[RefDes='TP1']")
+    assert component is not None and nested is not None
+    pattern_style = component.get("PatternStyle")
+    assert nested.find(f"./Patterns/Pattern[@PatternStyle='{pattern_style}']") is not None
+    after = build_snapshot(added.document)
+    assert after.board is not None
+    # A second library used to shadow the cache and drop every existing pattern.
+    assert {pattern.style for pattern in after.board.patterns} == existing_styles | {pattern_style}
+
+    removed = apply_semantic_operations(
+        added.document, [RemoveTestpointsOperation(selector=QuerySelector(refdes=["TP1"]))]
+    )
+    cleaned = build_snapshot(removed.document)
+    assert cleaned.board is not None
+    assert {pattern.style for pattern in cleaned.board.patterns} == existing_styles
+    assert len(cleaned.board.pad_styles) == len(before.board.pad_styles)

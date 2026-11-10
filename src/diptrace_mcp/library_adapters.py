@@ -586,11 +586,13 @@ def get_library_model(document: DipTraceDocument) -> LibraryModel:
     )
 
 
-def get_embedded_pattern_model(document: DipTraceDocument) -> LibraryModel | None:
-    """Read the PCB design-cache pattern library without mutating the source tree."""
-    if document.kind != "pcb":
-        return None
-    pattern_root = next(
+def embedded_pattern_library(document: DipTraceDocument) -> ET.Element | None:
+    """Locate the PCB design-cache pattern library by structure.
+
+    Native exports nest it inside the embedded component library; older fixtures keep
+    it as a sibling. Writers must resolve it exactly as readers do.
+    """
+    return next(
         (
             item
             for item in document.root.iter("Library")
@@ -598,6 +600,13 @@ def get_embedded_pattern_model(document: DipTraceDocument) -> LibraryModel | Non
         ),
         None,
     )
+
+
+def get_embedded_pattern_model(document: DipTraceDocument) -> LibraryModel | None:
+    """Read the PCB design-cache pattern library without mutating the source tree."""
+    if document.kind != "pcb":
+        return None
+    pattern_root = embedded_pattern_library(document)
     if pattern_root is None:
         return None
     root = copy.deepcopy(pattern_root)
