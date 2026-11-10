@@ -67,6 +67,8 @@ def extract_bom(snapshot: DocumentSnapshot) -> list[BomRecord]:
         raise DocumentError("BOM extraction requires a PCB or schematic document")
     by_refdes: dict[str, list[ObjectRecord]] = defaultdict(list)
     for part in snapshot.schematic.parts:
+        if part.attributes.get("part_type") == "Net Port":
+            continue  # connectivity symbols are not purchasable parts
         by_refdes[(part.refdes or part.stable_id).casefold()].append(part)
     records: list[BomRecord] = []
     for parts in by_refdes.values():

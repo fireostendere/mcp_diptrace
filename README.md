@@ -58,7 +58,7 @@ Version `0.4.0` is the current published unsigned development release. The
 immutable GitHub release is `v0.4.0`, and the matching Python package is
 `diptrace-mcp==0.4.0` on PyPI.
 
-The published release keeps the public MCP contract frozen at 170 tools and
+The published release keeps the public MCP contract frozen at 167 tools (v0.4.0; current `main` registers 152) and
 contains the A1-A8 roadmap closure plus tested cross-platform host paths:
 
 - Windows split per-user/admin installers and portable bundle;
@@ -277,8 +277,8 @@ complete path.
 
 ## MCPB, Registry, and Smithery
 
-The v0.4.0 release candidate preserves the Windows MCPB/Registry/Smithery route
-and adds Linux/macOS host installers without changing the 167-tool MCP contract. The
+The published v0.4.0 release preserves the Windows MCPB/Registry/Smithery route
+and adds Linux/macOS host installers without changing the MCP contract of that release. The
 distribution route provides:
 
 - deterministic Windows MCPB packaging;

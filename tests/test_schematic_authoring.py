@@ -627,3 +627,50 @@ def test_panelization_update_resets_manual_tabs(tmp_path: Path) -> None:
     assert panel.get("Columns") == "4"
     assert panel.get("TabsDone") == "N"
     assert panel.find("./HorzTabsX") is None
+
+
+def _branched_document() -> tuple[DipTraceDocument, str]:
+    first = _wired_document()
+    trunk = _wire_id(first)
+    result = apply_semantic_operations(
+        first,
+        [
+            AddWireOperation(
+                net="VCC",
+                points=[{"x": 10.0, "y": 25.0}, {"x": 40.0, "y": 25.0}],
+                start={"type": "Wire", "wire_id": trunk, "point_index": 1},
+                end={"type": "Free"},
+            )
+        ],
+    )
+    return result.document, _wire_id(result.document)
+
+
+def test_delete_wire_refuses_to_orphan_a_branch_wire() -> None:
+    document, trunk = _branched_document()
+    with pytest.raises(EditError, match="attached to a deleted wire") as excinfo:
+        apply_semantic_operations(document, [DeleteWireOperation(selector={"ids": [trunk]})])
+    assert excinfo.value._code == "connectivity_conflict"
+
+
+def test_delete_wire_accepts_trunk_and_branch_in_one_batch() -> None:
+    document, _ = _branched_document()
+    snapshot = build_snapshot(document)
+    assert snapshot.schematic is not None
+    ids = [wire.stable_id for wire in snapshot.schematic.wires]
+    result = apply_semantic_operations(
+        document, [DeleteWireOperation(selector={"ids": [wire_id]}) for wire_id in ids]
+    )
+    assert build_snapshot(result.document).schematic.wires == []
+
+
+def test_disconnect_pins_refuses_to_leave_a_wire_on_the_pin() -> None:
+    document = _wired_document()
+    snapshot = build_snapshot(document)
+    pin_ids = [
+        record.stable_id
+        for record in snapshot.objects.values()
+        if record.kind == "pin" and record.refdes == "R1"
+    ]
+    with pytest.raises(EditError, match="pin that left their net"):
+        apply_semantic_operations(document, [DisconnectPinsOperation(selector={"ids": pin_ids})])

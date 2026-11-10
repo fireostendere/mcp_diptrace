@@ -4,6 +4,36 @@
 
 This document tracks remaining engineering limitations in the current implementation. Historical release/audit debt remains in dated records and must not be copied here as if it were still current.
 
+## Review findings — 2026-11-10
+
+The server review in [MCP_REVIEW_2026-11-10.md](MCP_REVIEW_2026-11-10.md) reproduced the
+defects below. They rank above the numbered debt because several are false passes. The
+`B` numbers match that record and [the project roadmap](../documents/ROADMAP.md).
+
+| Id | Debt | Why it matters |
+| --- | --- | --- |
+| B1 | Headless QC and the connectivity check do not compute copper connectivity; the board gate does not run `run_checks` | A board with traces removed passes the gate |
+| B2 | Differential microstrip impedance overestimates (up to +23 % reproduced) without a warning | Wrong trace geometry for USB-class pairs |
+| B3 | Pads without geometry and placeholder component boxes are checked as if real, with no skip recorded | Clearance and overlap results look complete when they are not |
+| B4 | Length and differential-pair checks pass on unrouted nets | False pass |
+| B5 | BOM grouping merges parts that differ only by supplier part number | Wrong part ordered |
+| B6 | Stitching coverage disabled above 4096 samples; silkscreen boxes ignore rotation/mirroring; trace-to-edge accepts traces outside the outline | Silent loss of coverage |
+| B7 | `txid` + `dry_run=false` appends operations and commits a batch the caller never previewed; identical repeats are dropped | Surprising commits |
+| B8 | `sync_schematic_to_pcb` does not pin the schematic SHA | Sync of an unpreviewed schematic |
+| B9 | Net lookup accepts a name or an XML id | Pin attached to the wrong net |
+| B10 | `move_via` / `add_via` check only via-to-pad clearance | Via committed off the board |
+| B11 | `place_part` accepts a style with no library definition and any `pin_count` | Dangling style, phantom pins |
+| B12 | Dry-run transactions are never pruned; each holds a full snapshot | Unbounded state directory |
+| B13 | No MCP tool annotations on any tool | Clients cannot auto-allow reads |
+| B14 | `get_capabilities` disagrees with tool behaviour for net classes and testpoints; no tool → capability map | The report is not yet authoritative |
+| B15 | Servers sharing a state directory fail each other's running jobs; cancel/complete race | Job status flips |
+| B16 | Inconsistent success envelope, silently dropped unknown arguments, `selector` published as optional, unmapped domain error codes | Client-side guesswork |
+
+Two status questions also remain open: documents record the Q1 Component Angle
+campaign as PASS while `evidence_status.Q1_COMPONENT_ANGLE_LIVE_VALIDATED` is still
+`False` (one side is stale), and the tool gaps G1–G12 in the review record need a
+product/API decision before any of them is built.
+
 ## Highest-priority current debt
 
 ### 1. Schematic real-world quality acceptance
@@ -75,7 +105,12 @@ The accepted checkpoints have all 12 blocking manual gates PASS.
 
 ### 8. Native manufacturing output
 
-The project still does not claim a verified native DipTrace path for Gerber, NC Drill, ODB++, IPC-2581 or assembler sign-off generation. Generic manifests/reviews are not manufacturing files.
+`native_cad` drives the real PCB editor's Gerber X2, NC Drill and pick-and-place export
+dialogs on an isolated copy for the verified builds (5.3.0.3 and 5.3.5.1, Windows
+only). It is a Python API, not an MCP tool or packaged CLI, and its output is not
+inspected CAM: `export_fabrication_outputs(request_native_outputs=true)` still
+refuses. ODB++, IPC-2581 and assembler sign-off have no path at all. Generic
+manifests/reviews are not manufacturing files.
 
 ### 9. Field/PI/EMC/thermal authority
 
@@ -93,7 +128,7 @@ Remaining debt is a product/API decision, not implementation absence:
 - add transport/error/permission tests;
 - avoid broadening compatibility claims beyond verified operations.
 
-The 167-tool MCP surface includes the bounded intelligence engines and read-only built-in-library bridge; the package-level native-library mutation API remains intentionally unregistered.
+The 152-tool MCP surface includes the bounded intelligence engines and read-only built-in-library bridge; the package-level native-library mutation API remains intentionally unregistered.
 
 ### 11. Evidence review automation depth
 
@@ -127,7 +162,12 @@ The following should no longer be listed as open technical debt:
 - aggregate repository coverage “target 88%” — superseded by the enforced 90% combined supported-environment gate;
 - Q1 Component Angle manual campaign — PASS on the later accepted production checkpoint;
 - “native Component/Pattern mutation does not exist” — superseded by the internal raw-preserving core and controlled real-editor evidence;
-- cinematic branch integration — merged before this development pass.
+- cinematic branch integration — merged before this development pass;
+- pipeline tools bypassing allowed roots and policy, live-session commits failing with
+  the state directory outside the workspace, dangling wire ends after wire/pin edits,
+  review profiles passing on the wrong document kind, Net Ports in the schematic BOM and
+  schematic-to-PCB comparison, annotated gate rows being dropped, and stale public tool
+  counts — fixed with the 2026-11-10 review.
 
 Historical records that said otherwise remain valid snapshots of their original date/release.
 
@@ -138,7 +178,7 @@ Evergreen docs describe current implementation and explicitly link to historical
 evidence. `CHANGELOG_NEXT.md` tracks post-`v0.3.0` development until the next
 release is selected.
 
-`scripts/check_documentation_state.py` guards key current-state relationships against code and the frozen public-tools snapshot. It intentionally does not rewrite or reinterpret immutable historical records.
+`scripts/check_documentation_state.py` guards key current-state relationships against code and the frozen public-tools snapshot, and rejects any other public tool count in an evergreen document. It intentionally does not rewrite or reinterpret immutable historical records.
 
 ## Permanent non-goals / non-claims
 

@@ -334,7 +334,11 @@ def check_bom_identity(
         items = snapshot.board.components
     else:
         assert snapshot.schematic is not None
-        items = snapshot.schematic.parts
+        items = [
+            part
+            for part in snapshot.schematic.parts
+            if part.attributes.get("part_type") != "Net Port"
+        ]
     unique_by_refdes: dict[str, Any] = {}
     for item in items:
         unique_by_refdes.setdefault((item.refdes or item.stable_id).casefold(), item)

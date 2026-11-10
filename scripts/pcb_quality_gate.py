@@ -34,7 +34,8 @@ from diptrace_mcp.xml_document import DipTraceDocument
 MAX_XML_BYTES = 128 * 1024 * 1024
 OK_STATUSES = {"PASS"}
 OPEN_STATUSES = {"PENDING", "TODO", "MANUAL", "PARTIAL"}
-GATE_ROW = re.compile(r"^\|\s*(\d+)\.\s*(.+?)\s*\|\s*([A-Za-z_ ]+?)\s*\|")
+# The status cell is taken whole: "PASS*" or "FAIL (10 chains)" must block, not vanish.
+GATE_ROW = re.compile(r"^\|\s*(\d+)\.\s*(.+?)\s*\|\s*(?:\*\*)?([^|]*?)(?:\*\*)?\s*\|")
 SHA_LINE = re.compile(r"^(.*?) SHA-256:\s*`([0-9a-f]{64})`", re.MULTILINE)
 # Plain "Label: value" lines naming what this handoff gates; CLI flags override them.
 FIELD_LINE = re.compile(

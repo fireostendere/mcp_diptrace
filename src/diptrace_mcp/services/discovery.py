@@ -10,7 +10,7 @@ from ..errors import (
     PathAccessError,
 )
 
-_CANDIDATE_SUFFIXES = {".xml", ".dip", ".dch", ".eli", ".lib"}
+_CANDIDATE_SUFFIXES = {".xml", ".dipxml", ".dchxml", ".dip", ".dch", ".eli", ".lib"}
 _SOURCE_TAG = re.compile(rb"<(?:Source|Library)\b([^>]*)>", re.IGNORECASE)
 _SOURCE_ATTRIBUTE = re.compile(rb"([A-Za-z][A-Za-z0-9_-]*)\s*=\s*['\"]([^'\"]*)['\"]")
 

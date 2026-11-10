@@ -149,7 +149,7 @@ See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
 ## PCB Generations A-D
 
-The internal PCB design engine adds higher-level engineering judgement; bounded read-only candidate comparison is productized as `compare_pcb_placement_candidates` within the 167-tool MCP surface:
+The internal PCB design engine adds higher-level engineering judgement; bounded read-only candidate comparison is productized as `compare_pcb_placement_candidates` within the 152-tool MCP surface:
 
 - Generation A: intent/net intelligence and intent-aware placement;
 - Generation B: physical/stackup/PDN/return-path/noise/via context;

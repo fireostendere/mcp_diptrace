@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 TOOL_COUNT_DOCS = (
@@ -14,6 +15,35 @@ TOOL_COUNT_DOCS = (
     "docs/MCP_TOOLS.md",
     "docs/ARCHITECTURE.md",
 )
+
+# A three-digit count directly attached to "tool(s)"; dated records keep their own counts.
+_TOOL_COUNT_CLAIM = re.compile(
+    r"\b(\d{3})(?:-tool\b|\s+(?:(?:registered|snapshot|public|MCP)\s+)*tools\b)"
+)
+_DATED_DOC = re.compile(r"\d{4}-\d{2}-\d{2}|^RELEASE_\d")
+
+
+def _evergreen_docs(root: Path) -> list[Path]:
+    docs = [root / "README.md", *sorted((root / "documents").glob("*.md"))]
+    docs += [p for p in sorted((root / "docs").glob("*.md")) if not _DATED_DOC.search(p.name)]
+    return [p for p in docs if p.is_file()]
+
+
+def stale_tool_counts(root: Path, tool_count: int) -> list[str]:
+    """Report evergreen lines that state a public tool count other than the snapshot's."""
+    errors: list[str] = []
+    for path in _evergreen_docs(root):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "v0." in line:  # a line that names a release describes that release
+                continue
+            for match in _TOOL_COUNT_CLAIM.finditer(line):
+                if int(match.group(1)) != tool_count:
+                    errors.append(
+                        f"{path.relative_to(root).as_posix()}:{number}: states "
+                        f"{match.group(1)} tools; the frozen snapshot has {tool_count}"
+                    )
+    return errors
+
 
 FEATURE_DOCS: dict[str, tuple[str, ...]] = {
     "schematic_atomic_reroute.py": (
@@ -227,6 +257,7 @@ def check_documentation_state(root: Path) -> list[str]:
                     f"{relative}: does not mention frozen public MCP tool count "
                     f"{tool_count}"
                 )
+        errors.extend(stale_tool_counts(root, tool_count))
 
     for module_name, docs in FEATURE_DOCS.items():
         module_path = root / "src/diptrace_mcp" / module_name

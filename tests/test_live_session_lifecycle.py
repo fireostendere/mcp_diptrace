@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -1441,3 +1442,29 @@ def test_gui_details_disclose_preview_completeness() -> None:
     assert "component-a, trace-b" in text
     assert "incomplete/truncated" in text
     assert "unavailable/incomplete" in unavailable
+
+
+def test_live_semantic_commit_works_with_state_dir_outside_allowed_roots(tmp_path: Path) -> None:
+    # The installed layout: state under AppData, documents under the workspace.
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    exchange = workspace / "pcb.xml"
+    shutil.copyfile(FIXTURES / "pcb.xml", exchange)
+    service = DipTraceService(
+        Settings(workspace=workspace, allowed_roots=(workspace,), state_dir=tmp_path / "state")
+    )
+    service.sessions.create(exchange)
+    listed = service.query_objects(None, {"kinds": ["component"]}, 0, 1)
+    selector = {"ids": [listed["result"]["items"][0]["stable_id"]]}
+    staged = service.move_components(selector, dx=0.5, path=None, dry_run=True)
+
+    committed = service.move_components(
+        selector,
+        dx=0.5,
+        path=None,
+        dry_run=False,
+        expected_sha256=listed["document"]["sha256"],
+        txid=staged["transaction"]["txid"],
+    )
+
+    assert committed["written"] is True

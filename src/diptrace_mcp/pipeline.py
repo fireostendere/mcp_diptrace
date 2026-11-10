@@ -15,6 +15,7 @@ import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 # ---------------------------------------------------------------------------
 # 1. LCSC/EasyEDA component sourcing
@@ -28,7 +29,7 @@ def lcsc_fetch(mpn_or_code: str, output_dir: str) -> dict[str, Any]:
 
     # resolve MPN -> LCSC code
     if not re.fullmatch(r"C[0-9]{4,8}", query):
-        html = _curl(f"https://html.duckduckgo.com/html/?q={query}+lcsc+product-detail")
+        html = _curl(f"https://html.duckduckgo.com/html/?q={quote(query)}+lcsc+product-detail")
         m = re.search(r"lcsc\.com/product-detail/(C[0-9]{5,8})\.html", html)
         if m:
             code = m.group(1)
@@ -87,7 +88,7 @@ def lcsc_fetch(mpn_or_code: str, output_dir: str) -> dict[str, Any]:
 
 def _curl(url: str) -> str:
     r = subprocess.run(
-        ["curl", "-sS", "-L", "-m", "40", "-A", "Mozilla/5.0", "--", url],
+        ["curl", "-g", "-sS", "-L", "-m", "40", "-A", "Mozilla/5.0", "--", url],
         capture_output=True,
         text=True,
         check=True,

@@ -6,11 +6,16 @@ from typing import Any
 from .adapters import DocumentSnapshot
 from .errors import DocumentError
 from .pin_mapping import schematic_pin_pad_numbers
+from .synchronization import _net_port_part_ids
 
 
 def _component_values(snapshot: DocumentSnapshot) -> dict[str, set[str]]:
     if snapshot.schematic is not None:
-        items = snapshot.schematic.parts
+        items = [
+            part
+            for part in snapshot.schematic.parts
+            if part.attributes.get("part_type") != "Net Port"
+        ]
     else:
         assert snapshot.board is not None
         items = snapshot.board.components
@@ -43,9 +48,13 @@ def _net_endpoints(
     ids = Counter(owner.get("Id", "") for owner in owner_elements)
     refs = Counter((owner.findtext("./RefDes") or "").strip().casefold()
                    for owner in owner_elements)
+    # Net Ports carry connectivity on the sheet and never reach the board.
+    net_ports = _net_port_part_ids(snapshot.document) if schematic else set()
     owners = {}
     for owner in owner_elements:
         identity = owner.get("Id", "")
+        if identity in net_ports:
+            continue
         refdes = (owner.findtext("./RefDes") or "").strip().casefold()
         if not identity or ids[identity] != 1:
             issue("missing_or_duplicate_owner_id", identity)
@@ -92,6 +101,8 @@ def _net_endpoints(
         endpoints = result[name]  # Preserve all endpoints, never overwrite duplicate names.
         for item in net.findall(f"./{item_tag}/Item"):
             owner_id, pin_id = item.get(owner_key, ""), item.get(endpoint_key, "")
+            if owner_id in net_ports:
+                continue
             if owner_id not in owners:
                 issue("unresolved_endpoint_owner", f"{identity}:{owner_id}")
                 continue

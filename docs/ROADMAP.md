@@ -41,6 +41,31 @@ The detailed schematic product-quality campaign is in [SCHEMATIC_AUTHORING_VALID
 
 Current cross-domain implementation detail is in [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md).
 
+## Post-release state of `main` — 2026-11-10
+
+Not part of the immutable `v0.4.0` bytes:
+
+- the public surface is consolidated to 152 tools (`run_review(profile=...)` replaces
+  fourteen review tools; see [MCP_TOOLS.md](MCP_TOOLS.md) for the mapping);
+- native PCB round-trip, schematic acceptance, native XML export and recording accept
+  DipTrace 5.3.5.1 next to 5.3.0.3, each with its own reviewed menu profile, and the
+  native-windows CI job runs them as a standard user;
+- `scripts/pcb_quality_gate.py` gates the schematic stage as well as the board stage,
+  with per-stage done criteria in `AGENTS.md`;
+- `run_review(profile="schematic_readability")` reviews every sheet;
+- the packaged skill catalog (capability map 2.4.0) was reviewed by executing its
+  workflows on the repository boards.
+
+The server itself was reviewed on 2026-11-10:
+[MCP_REVIEW_2026-11-10.md](MCP_REVIEW_2026-11-10.md). That pass fixed the pipeline
+tools' missing path/policy guards, live-session commits with an external state
+directory, dangling schematic wire ends, review profiles passing on the wrong document
+kind, Net Ports in BOM/comparison and dropped gate rows. Its open findings (B1-B16)
+and tool gaps (G1-G12) are scheduled in
+[the project roadmap](../documents/ROADMAP.md). The most important open one: headless
+QC does not yet compute copper connectivity, so **a green board gate is not proof of
+complete routing** until B1 lands — native DRC remains the authority.
+
 ## Completed manual gates on the accepted historical checkpoint
 
 PASS:
@@ -313,11 +338,16 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 
 # Next project sequence
 
-1. Keep the completed schematic cases 01–18 closed unless an impact-based production change requires a focused rerun.
-2. Keep the completed 12-gate manual matrix closed unless an impact-based production change requires a focused rerun.
-3. Gather real-DipTrace native refill/DRC evidence for the new whole-board PCB
+1. Close the false-pass findings B1-B6 from the 2026-11-10 review, then the write-path
+   and contract items B7-B16, in the order given in
+   [the project roadmap](../documents/ROADMAP.md).
+2. Decide (M12) which tool gaps G1-G12 to productize; copper pours and free stitching
+   vias first.
+3. Keep the completed schematic cases 01–18 and the 12-gate manual matrix closed unless
+   an impact-based production change requires a focused rerun.
+4. Gather real-DipTrace native refill/DRC evidence for the new whole-board PCB
    pipeline when stronger PCB claims are the active product priority.
-4. Treat cinematic exact-UI acceptance, headless native-action expansion and any future public library-write API as separate claim/product tracks.
+5. Treat cinematic exact-UI acceptance, headless native-action expansion and any future public library-write API as separate claim/product tracks.
 
 # Phase summary
 
@@ -341,7 +371,10 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | library mutation public API | package-level request/preview prepared; public MCP registration pending |
 | cinematic | presentation + mandatory preflight + hidden MP4/GIF capture implemented; exact UI acceptance remains configuration-specific |
 | headless GUI | hidden Win32 desktop helper implemented with selectable `hidden`/`native` open -> Save -> close plus isolated cinematic capture; real DipTrace actions remain claim-specific evidence |
-| documentation drift | evergreen code/docs guard implemented and CI-tested |
+| documentation drift | evergreen code/docs guard implemented and CI-tested; stale public tool counts are rejected |
+| offline review / QC | profiles bound to document kind; copper connectivity, skipped-geometry disclosure and differential impedance are open (B1-B6) |
+| public contract | 152 tools; annotations, strict arguments, envelope and capability map pending one revision (B13-B16) |
+| native manufacturing export | `native_cad` Python API for verified builds on Windows; no MCP tool, CAM not inspected |
 
 # Permanent limitations / non-claims
 
@@ -350,7 +383,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 - Builtin motifs are labelled heuristics, not manufacturer/reference-design approval.
 - Local routing/placement search is bounded, not a globally optimal EDA solver.
 - PCB analytic layers are not field-solver, PI, thermal or EMC proof.
-- Native manufacturing generation is unavailable.
+- Native manufacturing export exists only as the Windows `native_cad` Python API for the verified builds; there is no MCP tool and the output is not inspected CAM.
 - Cinematic replay is presentation automation, not engineering acceptance evidence.
 - Evidence reports do not grant trust/PASS.
 - The completed schematic campaign proves only its recorded scope and does not imply arbitrary hierarchy/topology/global-optimality support.

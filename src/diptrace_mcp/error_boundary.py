@@ -61,6 +61,8 @@ _DOMAIN_CODE_MAP = {
     "sha256_mismatch": "CONFLICT",
     "evidence_output_conflict": "CONFLICT",
     "connectivity_conflict": "CONFLICT",
+    "path_exists": "CONFLICT",
+    "write_object_limit_exceeded": "VALIDATION_ERROR",
     "confirmation_required": "SAFETY_GATE",
     "policy_denied": "SAFETY_GATE",
     "locked_object": "SAFETY_GATE",

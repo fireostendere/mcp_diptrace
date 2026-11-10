@@ -31,6 +31,28 @@ Changes in this section are later development and are not silently part of those
 - evidence-report domain summaries/connectivity fingerprints and deterministic
   design-frame quality assessment for PCB/Schematic recording crops.
 
+## Fixed
+
+- the three `pipeline_*` tools obey the allowed roots and the active policy (they
+  previously wrote anywhere, including under `read_only`), and
+  `pipeline_nativeize_document` no longer replaces an existing file;
+- semantic commits and rollbacks in a live session work when the state directory is
+  outside the workspace, which is the installed layout;
+- `delete_wire`, `disconnect_pins` and `connect_pins(allow_reconnect=true)` refuse a
+  batch that leaves a wire attached to a deleted wire or to a pin that left its net;
+- `run_review` refuses a profile that does not match the document kind instead of
+  returning a clean report;
+- Net Port symbols no longer appear in the schematic BOM, the BOM identity check or
+  `compare_schematic_to_pcb`;
+- `analyze_release_readiness` blocks on exported unrouted connections;
+- `pcb_quality_gate.py` reads annotated gate statuses (`PASS*`, `FAIL (…)`) and
+  blocks on them instead of dropping the row;
+- `scan_diptrace_documents` lists `.dipxml` and `.dchxml`; `path_exists` and
+  `write_object_limit_exceeded` map to public error codes; inverted width bounds are
+  `INVALID_ARGUMENT`;
+- evergreen documents state the current 152-tool surface and the drift checker
+  rejects any other count ([review](docs/MCP_REVIEW_2026-11-10.md)).
+
 ## Changed
 
 - the schematic readability review counts visible markings on automatic alignment per

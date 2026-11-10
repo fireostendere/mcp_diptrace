@@ -163,6 +163,19 @@ def apply_semantic_operations(
                 object_ids=sorted({item for pair in introduced_via_pad for item in pair}),
             )
 
+    if any(
+        isinstance(operation, (DeleteWireOperation, ConnectPinsOperation, DisconnectPinsOperation))
+        for operation in operations
+    ):
+        dangling = _dangling_wire_ends(working.root) - _dangling_wire_ends(document.root)
+        if dangling:
+            raise EditError(
+                "The edit leaves schematic wires attached to a deleted wire or to a pin "
+                "that left their net; delete or re-author those wires in the same batch: "
+                + ", ".join(f"net {n} wire {w} end {e}" for n, w, e in sorted(dangling)),
+                code="connectivity_conflict",
+            )
+
     raw_bytes = raw_tree.compile(working.root, working.path) if patch_count else document.raw_bytes
     try:
         validated = DipTraceDocument.from_bytes(working.path, raw_bytes)
@@ -189,6 +202,25 @@ def apply_semantic_operations(
         validation=validation,
         patch_count=patch_count,
     )
+
+
+def _dangling_wire_ends(root: ET.Element) -> set[tuple[str, str, str]]:
+    """Wire ends that name a wire or pin their own net no longer holds."""
+    dangling: set[tuple[str, str, str]] = set()
+    for net in root.iter("Net"):
+        wires = net.findall("./Wires/Wire")
+        wire_ids = {wire.get("Id") for wire in wires}
+        pins = {(item.get("Part"), item.get("Pin")) for item in net.findall("./Pins/Item")}
+        for wire in wires:
+            for end in ("1", "2"):
+                kind = wire.get(f"Connected{end}")
+                target = wire.get(f"Object{end}")
+                missing = (kind == "Wire" and target not in wire_ids) or (
+                    kind == "Pin" and (target, wire.get(f"SubObject{end}")) not in pins
+                )
+                if missing:
+                    dangling.add((net.get("Id", ""), wire.get("Id", ""), end))
+    return dangling
 
 
 def _select_records(

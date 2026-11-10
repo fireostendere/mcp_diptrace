@@ -2818,7 +2818,10 @@ def create_server(
     ) -> dict[str, Any]:
         """Resolve an MPN to its LCSC data and download it."""
         from diptrace_mcp.pipeline import lcsc_fetch
-        return lcsc_fetch(mpn_or_code, output_dir)
+        service.policy.require_external_execution(operation="pipeline_source_component")
+        service.policy.require_write(dry_run=False, operation="pipeline_source_component")
+        target = service.settings.resolve_allowed_path(output_dir, must_exist=False)
+        return lcsc_fetch(mpn_or_code, str(target))
 
     @mcp.tool(
         description=(
@@ -2834,7 +2837,18 @@ def create_server(
     ) -> dict[str, Any]:
         """Transplant generated content into a DipTrace-native template."""
         from diptrace_mcp.pipeline import nativeize_document
-        return nativeize_document(input_path, template_path, output_path)
+        service.policy.require_write(dry_run=False, operation="pipeline_nativeize_document")
+        resolve = service.settings.resolve_allowed_path
+        target = resolve(output_path, must_exist=False)
+        if target.exists():
+            # No expected-SHA input on this tool, so it never replaces a document.
+            raise EditError(
+                "pipeline_nativeize_document does not overwrite an existing file",
+                code="path_exists",
+            )
+        return nativeize_document(
+            str(resolve(input_path)), str(resolve(template_path)), str(target)
+        )
 
     @mcp.tool(
         description=(
@@ -2848,7 +2862,11 @@ def create_server(
     ) -> dict[str, Any]:
         """Render Top + Bottom SVG previews of a board."""
         from diptrace_mcp.pipeline import render_board_svg
-        return render_board_svg(pcb_path, output_dir)
+        service.policy.require_write(dry_run=False, operation="pipeline_render_board_preview")
+        resolve = service.settings.resolve_allowed_path
+        return render_board_svg(
+            str(resolve(pcb_path)), str(resolve(output_dir, must_exist=False))
+        )
 
 
     service.set_workflow_prompt_names(tuple(mcp.prompt_names))
