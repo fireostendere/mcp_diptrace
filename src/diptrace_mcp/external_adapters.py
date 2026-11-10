@@ -630,7 +630,12 @@ class ExternalJobManager:
                     ).payload.as_dict(),
                 )
             event.set()
-            return self.store.update(jobid, phase="cancelling")
+            # The worker finishes outside this lock; never relabel a terminal record.
+            with self.store._lock:
+                record = self.store.read(jobid)
+                if record.status in {"completed", "failed", "cancelled"}:
+                    return record
+                return self.store.update(jobid, phase="cancelling")
 
     @staticmethod
     def _allowed_environment() -> dict[str, str]:

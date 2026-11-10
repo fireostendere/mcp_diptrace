@@ -150,6 +150,13 @@ class SemanticEngineService:
                         },
                         txid=txid,
                     )
+            if not dry_run and existing.operations != incoming_operations:
+                # A commit applies exactly what was previewed; staging more is a dry run.
+                raise TransactionConflictError(
+                    "Operations differ from the previewed transaction; stage them with "
+                    "dry_run=true or commit with commit_transaction",
+                    txid=txid,
+                )
             combined_operations = (
                 [*existing.operations, *incoming_operations]
                 if existing.operations != incoming_operations

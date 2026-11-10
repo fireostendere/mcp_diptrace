@@ -7,21 +7,16 @@ This document tracks remaining engineering limitations in the current implementa
 ## Review findings — 2026-11-10
 
 The server review in [MCP_REVIEW_2026-11-10.md](MCP_REVIEW_2026-11-10.md) reproduced the
-defects below; B1-B5 and most of B6 (the false passes) are closed. The
+defects below; B1-B7, B10-B12 and B15 are closed; the rest need the contract revision. The
 `B` numbers match that record and [the project roadmap](../documents/ROADMAP.md).
 
 | Id | Debt | Why it matters |
 | --- | --- | --- |
 | B6 | Silkscreen text boxes ignore rotation and bottom-side mirroring; no repository board has rotated or bottom-side text to verify a fix against | Silkscreen clearance may test the wrong box |
-| B7 | `txid` + `dry_run=false` appends operations and commits a batch the caller never previewed; identical repeats are dropped | Surprising commits |
 | B8 | `sync_schematic_to_pcb` does not pin the schematic SHA | Sync of an unpreviewed schematic |
-| B9 | Net lookup accepts a name or an XML id | Pin attached to the wrong net |
-| B10 | `move_via` / `add_via` check only via-to-pad clearance | Via committed off the board |
-| B11 | `place_part` accepts a style with no library definition and any `pin_count` | Dangling style, phantom pins |
-| B12 | Dry-run transactions are never pruned; each holds a full snapshot | Unbounded state directory |
+| B9 | A net reference that matches no name still falls back to an XML id | `connect_pins(net="1")` attaches to net id 1 instead of creating net `1` |
 | B13 | No MCP tool annotations on any tool | Clients cannot auto-allow reads |
 | B14 | `get_capabilities` disagrees with tool behaviour for net classes and testpoints; no tool → capability map | The report is not yet authoritative |
-| B15 | Servers sharing a state directory fail each other's running jobs; cancel/complete race | Job status flips |
 | B16 | Inconsistent success envelope, silently dropped unknown arguments, `selector` published as optional, unmapped domain error codes | Client-side guesswork |
 
 Two status questions also remain open: documents record the Q1 Component Angle

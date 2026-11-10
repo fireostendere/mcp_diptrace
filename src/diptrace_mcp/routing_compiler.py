@@ -407,6 +407,7 @@ def _validate_path(
     exclude_trace_id: str | None = None,
     ignored_net_xml_ids: set[str | None] | None = None,
     allow_via_in_pad: bool = False,
+    check_transitions: bool = True,
 ) -> None:
     if snapshot.board is None or snapshot.board.outline is None:
         raise GeometryError("Board outline is required for safe trace insertion")
@@ -416,7 +417,9 @@ def _validate_path(
     if via_styles and via_styles[-1] is not None:
         raise GeometryError("A via cannot be attached to the final trace point")
     style_by_id = {style.id: style for style in snapshot.board.via_styles}
-    for index, (before, after) in enumerate(zip(layers, layers[1:], strict=False)):
+    # An existing trace keeps its via/layer encoding when only a point moves.
+    transitions = zip(layers, layers[1:], strict=False) if check_transitions else ()
+    for index, (before, after) in enumerate(transitions):
         has_via = via_styles[index] is not None
         if before != after and not has_via:
             raise GeometryError(
@@ -1371,6 +1374,37 @@ def _add_via(
     )
 
 
+def _validate_moved_via_trace(
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    via: ObjectRecord,
+    point: Point,
+    moved: Point,
+    allow_via_in_pad: bool,
+) -> None:
+    """Moving a via drags both adjoining segments, so the whole trace is re-validated."""
+    trace = snapshot.get_object(via.parent_id or "")
+    points = [Point(**item) for item in trace.attributes.get("points", [])]
+    if point not in points:
+        raise GeometryError(
+            "Cannot resolve the via on its trace", object_ids=[via.stable_id]
+        )
+    points[points.index(point)] = moved
+    _validate_path(
+        document,
+        snapshot,
+        snapshot.get_object(trace.relationships["net"][0]),
+        points,
+        [str(item) for item in trace.attributes.get("segment_layers", [])],
+        [float(item) for item in trace.attributes.get("segment_widths_mm", [])],
+        [None] * (len(points) - 1),
+        None,
+        exclude_trace_id=trace.stable_id,
+        allow_via_in_pad=allow_via_in_pad,
+        check_transitions=False,
+    )
+
+
 def _move_vias(
     index: int,
     document: DipTraceDocument,
@@ -1402,6 +1436,9 @@ def _move_vias(
             requested_clearance=None,
             same_net_ids={via.net_id},
             allow_via_in_pad=operation.allow_via_in_pad,
+        )
+        _validate_moved_via_trace(
+            document, snapshot, via, point, moved, operation.allow_via_in_pad
         )
         element = _element(snapshot, via)
         element.set("X", f"{from_mm(moved.x, document.units):.9g}")

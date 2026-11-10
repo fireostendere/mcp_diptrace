@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import threading
 import uuid
 from dataclasses import dataclass
@@ -29,7 +31,10 @@ from .retention import (
     prune_terminal_records,
     system_clock,
 )
+from .sessions import _bridge_process_liveness, _current_bridge_process_identity
 from .xml_document import atomic_write_bytes, utc_now
+
+_OWNER_FILE = "owner.json"
 
 
 @dataclass(slots=True)
@@ -151,7 +156,24 @@ class JobStore(RecordStore):
             self._require_safe_root()
             self.job_dir(record.jobid).mkdir(parents=True, exist_ok=False)
             self.write(record)
+            self._write_store_json(
+                self.job_dir(record.jobid) / _OWNER_FILE,
+                _current_bridge_process_identity(),
+                sort_keys=True,
+            )
         return record
+
+    def _owned_by_another_live_server(self, jobid: str) -> bool:
+        """Servers of several clients share one per-user state directory."""
+        try:
+            owner = json.loads((self.job_dir(jobid) / _OWNER_FILE).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        return (
+            isinstance(owner, dict)
+            and owner.get("pid") != os.getpid()
+            and _bridge_process_liveness({"bridge_process": owner}) == "alive"
+        )
 
     def read(self, jobid: str) -> JobRecord:
         try:
@@ -231,6 +253,8 @@ class JobStore(RecordStore):
     def _fail_interrupted_jobs(self) -> None:
         for record in self.list():
             if record.status not in {"queued", "running"}:
+                continue
+            if self._owned_by_another_live_server(record.jobid):
                 continue
             self.update(
                 record.jobid,

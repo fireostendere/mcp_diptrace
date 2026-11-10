@@ -2558,12 +2558,12 @@ def _apply_sync_schematic_to_pcb(
 
 
 def _schematic_net_element(document: DipTraceDocument, name: str) -> ET.Element | None:
-    for net in document.container.findall("./Nets/Net"):
-        if (net.findtext("./Name") or "").casefold() == name.casefold() or net.get(
-            "Id"
-        ) == name:
+    nets = document.container.findall("./Nets/Net")
+    # A name always wins over an XML id, whatever the document order.
+    for net in nets:
+        if (net.findtext("./Name") or "").casefold() == name.casefold():
             return net
-    return None
+    return next((net for net in nets if net.get("Id") == name), None)
 
 
 def _resolve_part(
@@ -2760,6 +2760,25 @@ def _apply_place_part(
         ),
         None,
     )
+    # A native export always embeds its library; only a library-less synthetic document
+    # may name a style freely.
+    has_library = document.root.find("./Library/Components/Component") is not None
+    if library_part is None and has_library:
+        raise ObjectNotFoundError(
+            f"Component style {operation.component_style!r} part {operation.component_part} "
+            "is not in the document library; supply library_component_xml or use "
+            "place_builtin_component",
+            details={"resource": "library_component"},
+        )
+    library_pin_count = (
+        len(library_part.findall("./Pins/Pin")) if library_part is not None else 0
+    )
+    if library_pin_count and operation.pin_count != library_pin_count:
+        raise EditError(
+            f"pin_count {operation.pin_count} does not match the library part, which has "
+            f"{library_pin_count} pins",
+            code="invalid_argument",
+        )
     is_net_port = library_part is not None and library_part.get("PartType") == "Net Port"
     components = document.container.find("./Components")
     if components is None:

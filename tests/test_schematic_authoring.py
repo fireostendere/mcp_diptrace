@@ -674,3 +674,63 @@ def test_disconnect_pins_refuses_to_leave_a_wire_on_the_pin() -> None:
     ]
     with pytest.raises(EditError, match="pin that left their net"):
         apply_semantic_operations(document, [DisconnectPinsOperation(selector={"ids": pin_ids})])
+
+
+def test_net_name_wins_over_an_xml_id() -> None:
+    from diptrace_mcp.semantic_compiler import _schematic_net_element
+
+    raw = (FIXTURES / "schematic.xml").read_bytes()
+    document = _load_bytes(raw)
+    nets = document.container.findall("./Nets/Net")
+    # Name the last net after the first net's XML id.
+    name = nets[-1].find("./Name")
+    assert name is not None
+    name.text = nets[0].get("Id")
+    assert _schematic_net_element(document, nets[0].get("Id", "")) is nets[-1]
+
+
+def _document_with_library() -> DipTraceDocument:
+    library = (
+        b'<Library><Components><Component ComponentStyle="Known"><Part Id="0">'
+        b"<Pins><Pin/><Pin/></Pins></Part></Component></Components></Library></Source>"
+    )
+    raw = (FIXTURES / "schematic.xml").read_bytes()
+    return _load_bytes(raw.replace(b"</Source>", library))
+
+
+def test_place_part_refuses_a_style_missing_from_the_embedded_library() -> None:
+    with pytest.raises(ObjectNotFoundError, match="not in the document library"):
+        apply_semantic_operations(
+            _document_with_library(),
+            [PlacePartOperation(component_style="Typo", refdes="U9", x=5, y=5, pin_count=2)],
+        )
+
+
+def test_place_part_refuses_a_pin_count_the_library_part_does_not_have() -> None:
+    with pytest.raises(EditError, match="does not match the library part"):
+        apply_semantic_operations(
+            _document_with_library(),
+            [PlacePartOperation(component_style="Known", refdes="U9", x=5, y=5, pin_count=7)],
+        )
+
+
+def test_commit_with_txid_applies_only_the_previewed_operations(tmp_path: Path) -> None:
+    from diptrace_mcp.errors import TransactionConflictError
+
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    shutil.copyfile(FIXTURES / "pcb.xml", workspace / "pcb.xml")
+    service = _service(workspace, tmp_path / "state")
+    listed = service.query_objects("pcb.xml", {"kinds": ["component"]}, 0, 1)
+    selector = {"ids": [listed["result"]["items"][0]["stable_id"]]}
+    staged = service.move_components(selector, dx=1.0, path="pcb.xml", dry_run=True)
+
+    with pytest.raises(TransactionConflictError, match="differ from the previewed"):
+        service.move_components(
+            selector,
+            dx=2.0,
+            path="pcb.xml",
+            dry_run=False,
+            expected_sha256=listed["document"]["sha256"],
+            txid=staged["transaction"]["txid"],
+        )

@@ -572,9 +572,11 @@ def test_transaction_retention_bounds_every_terminal_status(
     assert not directories["committed"].exists()
     assert not directories["rolled_back"].exists()
     assert directories["failed"].exists()
-    assert directories["planned"].exists()
-    assert directories["staged"].exists()
-    assert directories["validated"].exists()
+    # Abandoned previews (no backup, older than the age limit) expire without
+    # counting toward the record limit that kept "failed" above.
+    assert not directories["planned"].exists()
+    assert not directories["staged"].exists()
+    assert not directories["validated"].exists()
 
 
 def test_transaction_retention_ignores_a_record_that_disappears_during_scan(

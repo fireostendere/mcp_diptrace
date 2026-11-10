@@ -449,3 +449,27 @@ def test_semantic_safety_gate_rejects_new_component_overlap(tmp_path: Path) -> N
             absolute_y=10,
             path=str(board),
         )
+
+
+def test_move_via_refuses_to_leave_the_board() -> None:
+    document = _load()
+    trace = build_snapshot(document).board.traces[0]  # type: ignore[union-attr]
+    inserted = apply_semantic_operations(
+        document,
+        [
+            AddViaOperation(
+                trace_id=trace.stable_id,
+                x=12.5,
+                y=10,
+                via_style="Default",
+                layer_before="Top",
+                layer_after="Bottom",
+            )
+        ],
+    )
+    via = build_snapshot(inserted.document).board.vias[0]  # type: ignore[union-attr]
+    with pytest.raises(GeometryError, match="leaves the board outline"):
+        apply_semantic_operations(
+            inserted.document,
+            [MoveViaOperation(selector=QuerySelector(ids=[via.stable_id]), dy=500)],
+        )
