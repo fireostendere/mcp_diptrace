@@ -130,3 +130,25 @@ def test_annotated_status_cells_block_instead_of_vanishing() -> None:
     violations = check_order(gates)
     assert any("gate 7" in item for item in violations)
     assert any("gate 8" in item for item in violations)
+
+
+def test_board_qc_fails_when_one_trace_of_a_routed_net_is_removed(tmp_path) -> None:
+    import re
+    from pathlib import Path
+
+    from scripts.pcb_quality_gate import run_board_qc
+
+    source = Path(__file__).parents[1] / "attiny85-arduino-clone/attiny85-arduino-clone-pcb.dipxml"
+    assert run_board_qc(source, [], []).hard_error_count == 0
+
+    text = source.read_text(encoding="utf-8")
+    net = re.search(r"<Net [^>]*>(?:(?!</Net>).)*?<Name>VBUS</Name>.*?</Net>", text, flags=re.S)
+    assert net is not None
+    broken_net = re.sub(r"<Trace .*?</Trace>", "", net.group(0), count=1, flags=re.S)
+    broken = tmp_path / "broken.dipxml"
+    broken.write_text(text.replace(net.group(0), broken_net), encoding="utf-8")
+
+    quality = run_board_qc(broken, [], [])
+    assert "open_copper_nets" in {item.code for item in quality.findings}
+    assert quality.hard_error_count >= 1
+    assert quality.unrouted_connection_count >= 1

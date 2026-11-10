@@ -308,6 +308,10 @@ def measure_net_length(
     routed_length = (
         geometric_length + barrel_length if barrel_length is not None else None
     )
+    if not traces:
+        # Zero is not a length: an unrouted net must not look matched.
+        routed_length = None
+        unavailable_reasons = [*unavailable_reasons, "net_unrouted"]
     electrical_length: float | None = None
     delay_ps: float | None = None
     warnings: list[str] = []
@@ -643,7 +647,11 @@ def analyze_differential_pair(
     )
     checks: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
-    if pair.rules.length_tolerance_mm is not None:
+    if pair.rules.length_tolerance_mm is not None and not (
+        positive.trace_count and negative.trace_count
+    ):
+        skipped.append(_skip("diff_pair.length_tolerance", "net_unrouted"))
+    elif pair.rules.length_tolerance_mm is not None:
         checks.append(
             _rule_check(
                 "diff_pair.length_tolerance",

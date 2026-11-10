@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any, Literal
 
 from .adapters import DocumentSnapshot
@@ -153,3 +154,92 @@ def build_connectivity_graph(snapshot: DocumentSnapshot) -> ConnectivityGraph:
             "Connected components are logical owner groups, not proof of routed copper continuity."
         ],
     )
+
+
+def _point_segment_distance(
+    point: tuple[float, float], start: tuple[float, float], end: tuple[float, float]
+) -> float:
+    dx, dy = end[0] - start[0], end[1] - start[1]
+    length_sq = dx * dx + dy * dy
+    ratio = 0.0
+    if length_sq:
+        ratio = ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / length_sq
+        ratio = max(0.0, min(1.0, ratio))
+    return math.hypot(point[0] - start[0] - ratio * dx, point[1] - start[1] - ratio * dy)
+
+
+def copper_connectivity(snapshot: DocumentSnapshot) -> list[dict[str, Any]]:
+    """Per-net pad groups joined by exported trace copper.
+
+    A net whose pads fall into more than one group is ``open`` unless a poured copper
+    pour of that net could join them; that case is ``pour_reliant`` because only a
+    native refill decides it. Returned only for nets with at least two pads.
+
+    shortcut: layers are ignored, so same-net copper that overlaps on two layers
+    without a via counts as joined; upgrade when a board needs that distinction.
+    """
+    board = snapshot.board
+    if board is None:
+        raise CapabilityUnavailableError("Copper connectivity requires a PCB document")
+    traces_by_net: dict[str, list[ObjectRecord]] = {}
+    for trace in board.traces:
+        for net_id in trace.relationships.get("net", []):
+            traces_by_net.setdefault(net_id, []).append(trace)
+    poured_net_ids = {
+        pour.net_id for pour in board.copper_pours if pour.attributes.get("poured") is True
+    }
+    result: list[dict[str, Any]] = []
+    for net in board.nets:
+        pads = [
+            snapshot.objects[item]
+            for item in net.relationships.get("endpoints", [])
+            if item in snapshot.objects
+        ]
+        if len(pads) < 2:
+            continue
+        traces = traces_by_net.get(net.stable_id, [])
+        groups = _DisjointSet({item.stable_id for item in (*pads, *traces)})
+        polylines: list[tuple[str, list[tuple[float, float]], float]] = []
+        for trace in traces:
+            points = [(p["x"], p["y"]) for p in trace.attributes.get("points", [])]
+            widths = trace.attributes.get("segment_widths_mm") or [0.0]
+            polylines.append((trace.stable_id, points, max(widths) / 2 + 0.01))
+        for trace_id, points, reach in polylines:
+            for pad in pads:
+                box, centre = pad.bbox, pad.position
+                for x, y in points:
+                    inside = box is not None and (
+                        box["min_x"] - reach <= x <= box["max_x"] + reach
+                        and box["min_y"] - reach <= y <= box["max_y"] + reach
+                    )
+                    at_centre = centre is not None and (
+                        math.hypot(x - centre["x"], y - centre["y"]) <= reach
+                    )
+                    if inside or at_centre:
+                        groups.union(trace_id, pad.stable_id)
+                        break
+            for other_id, other_points, other_reach in polylines:
+                if other_id <= trace_id:
+                    continue
+                touching = any(
+                    _point_segment_distance(point, start, end) <= max(reach, other_reach)
+                    for mine, theirs in ((points, other_points), (other_points, points))
+                    for point in (mine[:1] + mine[-1:] if mine else [])
+                    for start, end in zip(theirs, theirs[1:], strict=False)
+                )
+                if touching:
+                    groups.union(trace_id, other_id)
+        pad_groups = len({groups.find(pad.stable_id) for pad in pads})
+        status = "connected"
+        if pad_groups > 1:
+            status = "pour_reliant" if net.xml_id in poured_net_ids else "open"
+        result.append(
+            {
+                "net_id": net.stable_id,
+                "net_name": net.name,
+                "pad_count": len(pads),
+                "pad_group_count": pad_groups,
+                "status": status,
+            }
+        )
+    return result

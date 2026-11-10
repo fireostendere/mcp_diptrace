@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from typing import Any
 
@@ -15,6 +16,9 @@ _VARIANT_KEYS = ("variant", "assembly variant", "build variant")
 def _fields(item: ObjectRecord) -> dict[str, str]:
     raw = item.attributes.get("additional_fields", {})
     return {str(key): str(value).strip() for key, value in raw.items()}
+
+
+_SUPPLIER_FIELD = re.compile(r"lcsc|jlc|supplier|digi-?key|mouser|order", re.IGNORECASE)
 
 
 def _lookup(fields: dict[str, str], keys: tuple[str, ...]) -> str:
@@ -98,6 +102,12 @@ def group_bom(records: list[BomRecord], *, include_dnp: bool = True) -> list[Bom
             record.pattern.casefold(),
             str(record.dnp),
             record.variant.casefold(),
+            # Without an MPN the supplier order code is the part identity.
+            *(
+                f"{name.casefold()}={value.casefold()}"
+                for name, value in sorted(record.fields.items())
+                if not record.mpn and value and _SUPPLIER_FIELD.search(name)
+            ),
         )
         groups[key].append(record)
     result: list[BomRecord] = []

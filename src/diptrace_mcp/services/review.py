@@ -206,7 +206,12 @@ class ReviewService:
                 "maximum_length_mm": maximum,
                 "delta_mm": delta,
                 "tolerance_mm": tolerance_mm,
-                "within_tolerance": tolerance_mm is None or delta <= tolerance_mm,
+                # null: nothing to compare against, or a net has no copper to measure.
+                "within_tolerance": (
+                    None
+                    if tolerance_mm is None or not all(item.trace_count for item in measurements)
+                    else delta <= tolerance_mm
+                ),
             },
         )
 

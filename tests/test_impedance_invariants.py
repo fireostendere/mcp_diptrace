@@ -208,3 +208,47 @@ def test_coupled_microstrip_decoupling_asymptote() -> None:
             assert any(
                 "Finite copper thickness" in warning for warning in coupled.warnings
             )
+
+
+@pytest.mark.parametrize(
+    ("width", "gap", "height", "er", "expected"),
+    [
+        # Regression pins for the air-impedance/modal-permittivity structure. An
+        # independent Kirschning-Jansen evaluation of the same geometries gave
+        # 122.4 / 94.3 / 122.3 ohm; the previous dielectric-loaded form gave
+        # 150.7 / 99.0 / 127.1.
+        (0.35, 0.2, 1.5, 4.5, 123.0),
+        (0.3, 0.15, 0.2, 4.5, 94.3),
+        (0.2, 0.2, 0.2, 4.3, 122.4),
+    ],
+)
+def test_differential_microstrip_reference_geometries(
+    width: float, gap: float, height: float, er: float, expected: float
+) -> None:
+    result = calculate_impedance(
+        ImpedanceInput(
+            structure="differential_microstrip",
+            width_mm=width,
+            gap_mm=gap,
+            copper_thickness_mm=0.0,
+            dielectric_height_mm=height,
+            dielectric_constant=er,
+        )
+    )
+    assert result.estimated_impedance_ohm == pytest.approx(expected, rel=0.01)
+
+
+def test_differential_microstrip_never_exceeds_twice_the_single_line() -> None:
+    # Odd-mode coupling can only lower the line impedance.
+    for width, gap, height in ((0.35, 0.2, 1.5), (0.3, 0.15, 0.2), (0.2, 2.0, 0.2)):
+        common = {
+            "width_mm": width,
+            "copper_thickness_mm": 0.0,
+            "dielectric_height_mm": height,
+            "dielectric_constant": 4.5,
+        }
+        pair = calculate_impedance(
+            ImpedanceInput(structure="differential_microstrip", gap_mm=gap, **common)
+        )
+        single = calculate_impedance(ImpedanceInput(structure="microstrip", **common))
+        assert pair.estimated_impedance_ohm <= 2 * single.estimated_impedance_ohm * 1.02

@@ -10,7 +10,7 @@ from pydantic import Field
 from .adapters import DocumentSnapshot
 from .domain import StrictModel
 from .findings import Finding, make_finding
-from .geometry import Point, segment_distance
+from .geometry import Point, point_in_polygon, segment_distance
 from .lengths import analyze_differential_pair
 from .numeric_inputs import xml_number_mm
 
@@ -191,6 +191,8 @@ def check_trace_board_edge(
                 min(segment_distance(start, end, left, right) for left, right in edges)
                 - float(raw_width) / 2.0,
             )
+            if not (point_in_polygon(start, polygon) and point_in_polygon(end, polygon)):
+                measured = 0.0  # outside the outline is not "far from the edge"
             if measured + 1e-9 < required:
                 findings.append(
                     make_finding(

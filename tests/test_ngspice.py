@@ -165,7 +165,10 @@ def test_stripline_stackup_candidates_from_generated_document() -> None:
     analysis = analyze_stackup(snapshot.board.stackup)
     stripline = analysis["stripline_candidates"]
     assert [item["signal_layer"] for item in stripline] == ["L2", "L3"]
-    assert stripline[0]["plane_to_plane_separation_mm"] == pytest.approx(1.0)
+    # B = 2H + T: two 0.5 mm dielectrics plus the signal copper between them.
+    assert stripline[0]["plane_to_plane_separation_mm"] == pytest.approx(
+        1.0 + stripline[0]["copper_thickness_mm"]
+    )
     assert stripline[0]["off_center_mm"] == pytest.approx(0.0)
     # Outer layers stay microstrip candidates.
     assert {item["signal_layer"] for item in analysis["microstrip_candidates"]} == {
