@@ -117,6 +117,29 @@ never shrink verified pads or merge thermal-pad geometry to suppress errors; rou
 constrained differential pairs as pairs; permit via-in-pad only with the explicitly
 requested compatible filled/capped process. Native DRC failures remain failures.
 
+## Definition of done and stop rules
+
+These rules decide how evidence is judged; they never relax electrical, datasheet,
+safety or house-style requirements. The project's `AGENTS.md` wins where it differs.
+
+- A stage is done when its gates pass on one candidate file: adopt it and move on. The
+  schematic criteria are in [schematic-engineer](../schematic-engineer/SKILL.md).
+- Not defects, never a reason to iterate: native re-serialization of the same design
+  (listed in [evidence capture](../diptrace-evidence-capture/SKILL.md)), reduced
+  analytical completeness of a native re-export when the source review is complete, and
+  missing MPN/manufacturer warnings, which belong to BOM sourcing before the footprint gate.
+- Fix in batches: collect every finding of a check or review, fix them in one candidate,
+  re-check once.
+- One independent review per milestone (schematic complete, critical placement/routing,
+  release) and one audit before marking a gate PASS; at most one re-review. A minor
+  finding is fixed or recorded, not another round.
+- A decision that changes hardware (part, package variant, connector population,
+  fabricator/stackup) is asked once with a recommended default. Without an answer, apply
+  the default as a recorded assumption and continue independent work.
+- Do not re-hash, re-compare or re-audit evidence whose inputs have not changed.
+- Keep `PCB_BUILD.md` to the current state, last PASS, remaining steps and resume
+  command; history goes to the project journal.
+
 ## Finish the requested endpoint
 
 Schematic readability or crossing cleanup covers all sheets by default, including documentary

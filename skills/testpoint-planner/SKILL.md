@@ -46,10 +46,10 @@ feature availability.
 - All distances are millimetres regardless of root `Units`.
 
 The actual bounds are enforced in
-[`service.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/service.py),
-[`capability_model.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/capability_model.py),
+[`services/semantic_operations.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/services/semantic_operations.py),
+[`capability_model.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/capability_model.py),
 and
-[`write_limits.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/write_limits.py).
+[`write_limits.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/write_limits.py).
 
 ## Refusals
 

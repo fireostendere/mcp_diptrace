@@ -100,7 +100,9 @@
       "inspect_autorouter_result",
       "import_autorouter_ses",
       "get_job_status",
-      "get_job_result"
+      "get_job_result",
+      "analyze_differential_pair",
+      "validate_differential_pair"
     ]
   },
   {
@@ -120,7 +122,13 @@
       "validate_impedance_constraints",
       "analyze_return_path",
       "run_ngspice_simulation",
-      "run_openems_stripline_analysis"
+      "run_openems_stripline_analysis",
+      "suggest_trace_geometry_for_impedance",
+      "measure_net_lengths",
+      "analyze_length_group",
+      "list_differential_pairs",
+      "analyze_differential_pair",
+      "validate_differential_pair"
     ]
   },
   {
@@ -134,7 +142,8 @@
       "get_capabilities",
       "get_document_info",
       "run_review",
-      "analyze_release_readiness"
+      "analyze_release_readiness",
+      "get_findings"
     ]
   },
   {
@@ -229,7 +238,11 @@
       "export_bom",
       "query_builtin_library_catalog",
       "pipeline_source_component",
-      "compare_schematic_to_pcb"
+      "compare_schematic_to_pcb",
+      "group_bom",
+      "review_bom",
+      "find_missing_component_fields",
+      "compare_bom_to_design"
     ]
   },
   {

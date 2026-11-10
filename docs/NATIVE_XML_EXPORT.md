@@ -45,8 +45,9 @@ prevents default-button glow from changing otherwise identical approval images.
 
 Save As is selected by its native menu label. For owner-drawn blank labels, only
 the verified editor executable hashes and complete menu ID sequences in the
-exporter are accepted. Another build or menu layout fails closed. Current native
-checks cover DipTrace 5.3.0.3 on a Windows hidden desktop.
+exporter are accepted. Another build or menu layout fails closed. Native checks
+cover DipTrace 5.3.0.3 and 5.3.5.1 on a Windows hidden desktop; the
+native-platform CI job runs 5.3.5.1.
 
 ## MCP access
 

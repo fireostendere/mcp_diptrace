@@ -21,7 +21,11 @@ scope; purchasing or changing the circuit requires authorization for those actio
    assembler, and allowed substitutions from the request and project.
 2. Discover live MCP tools, then use `get_document_info`, `run_review(profile="bom_basic")`, and
    `export_bom`. When both CAD documents exist, use `compare_schematic_to_pcb`.
-   Keep source hashes and original exports.
+   Keep source hashes and original exports. Read normalized rows with `get_bom` or
+   `group_bom` (exact sourcing identity); use `review_bom` and
+   `find_missing_component_fields` for identity, DNP and value/pattern/MPN gaps, and
+   `compare_bom_to_design` to reconcile an external or sourced BOM with the design by
+   RefDes. These check document fields only, not stock, price or electrical equivalence.
 3. Normalize one row per exact manufacturer/MPN/package/variant combination, preserving
    RefDes membership. Record value, tolerance/rating, footprint, quantity per board,
    supplier code, stock/date, unit price/currency/price break, lead time, and evidence.

@@ -52,6 +52,12 @@ Changes in this section are later development and are not silently part of those
   Windows-only `native_cad` round-trip instead of an operator-only step, and adds
   Russian trigger phrases to every skill description
   ([review](docs/SKILL_REVIEW_2026-10-09.md));
+- the packaged skill catalog (capability map 2.4.0) judges native re-exports by the
+  stop rules, routes native schematic ERC to the schematic helper's `--erc`, carries
+  the definition of done in `pcb-design-workflow`, names the BOM, length and
+  differential-pair tools, groups all 152 tools, and re-pins its source links to
+  current `main`; the legacy `.agents/skills` recipes no longer contradict the house
+  rules ([review](docs/SKILL_REVIEW_2026-11-10.md));
 - PCB ensemble candidates are now reviewed after their hypothetical operations
   are applied in memory, so hard physical/layout findings affect selection;
 - PCB placement scoring now includes board compactness, centering, simple

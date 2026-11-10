@@ -46,9 +46,12 @@ visible local support wiring and justified exact named native ports, not blanket
    counts, `all_sheets_checked`, `geometry_complete` and missing geometry. A scoped
    result or incomplete geometry is not whole-schematic acceptance.
 4. For native opening/roundtrip evidence, use the headless schematic workflow on a protected
-   copy through [evidence capture](../diptrace-evidence-capture/SKILL.md). Generic native schematic
-   ERC is not implemented by the base helper; report that specific missing check rather than
-   saying headless Schematic is unavailable. Deduplicate by check ID plus object identity.
+   copy through [evidence capture](../diptrace-evidence-capture/SKILL.md). The base roundtrip
+   does not run native ERC; the bounded schematic helper's `--erc` captures the native ERC
+   result of a guarded `.dchxml` on a verified build (`erc_status: no_errors_found`, or
+   `erc_status: review_required` until its image is viewed). Report only the portion that
+   stays unavailable rather than saying headless Schematic is unavailable. Deduplicate by
+   check ID plus object identity.
 5. Report every missing mandatory category in `skipped_checks`; a skipped mandatory check forbids
    `completed`.
 6. Validate the report with [`../shared/result.schema.json`](../shared/result.schema.json).
@@ -64,10 +67,11 @@ visible local support wiring and justified exact named native ports, not blanket
 - All geometric distances are millimetres, independent of document `Units`.
 
 The implemented review profiles live in
-[`review.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/review.py),
-[`advanced_review.py`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/src/diptrace_mcp/advanced_review.py),
+[`review.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/review.py),
+[`advanced_review.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/advanced_review.py),
+[`schematic_readability.py`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/src/diptrace_mcp/schematic_readability.py),
 and are summarized in
-[`REVIEW_ENGINE.md`](https://github.com/fireostendere/mcp_diptrace/blob/20e4bc107e3810945f729d3c81d0a379d9af8012/docs/REVIEW_ENGINE.md).
+[`REVIEW_ENGINE.md`](https://github.com/fireostendere/mcp_diptrace/blob/d27f33e9013c6d87cf9c5478bf91f42a1ad9afa9/docs/REVIEW_ENGINE.md).
 Do not claim checks outside that
 matrix.
 
