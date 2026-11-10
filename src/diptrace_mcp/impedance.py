@@ -547,7 +547,7 @@ def analyze_stackup(stackup: StackupModel) -> dict[str, Any]:
                         # B = 2H + T: the signal copper sits between the two dielectrics.
                         "plane_to_plane_separation_mm": below_height
                         + above_height
-                        + layer.material.thickness_mm,
+                        + (layer.material.thickness_mm or 0.0),
                         "off_center_mm": abs(above_height - below_height) / 2.0,
                         "dielectric_constant": dielectric_constant,
                         "reference_plane_confidence": plane_confidence,
