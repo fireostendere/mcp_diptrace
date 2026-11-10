@@ -90,9 +90,8 @@ registry.register("schematic.readability", "readability", "schematic")(
 @registry.register("pcb.component_overlap", "placement", "pcb")
 def check_component_overlap(snapshot: DocumentSnapshot) -> tuple[list[Finding], dict[str, Any]]:
     assert snapshot.board is not None
-    objects = [
-        item for item in [*snapshot.board.components, *snapshot.board.testpoints] if item.bbox
-    ]
+    components, placeholders = _components_with_real_geometry(snapshot)
+    objects = [item for item in [*components, *snapshot.board.testpoints] if item.bbox]
     index = SpatialIndex(cell_size_mm=5.0)
     for item in objects:
         index.insert(item)
@@ -132,7 +131,26 @@ def check_component_overlap(snapshot: DocumentSnapshot) -> tuple[list[Finding], 
                         suggested_actions=["Move one object and rerun localized clearance checks."],
                     )
                 )
-    return findings, {"objects_checked": len(objects), "pairs_checked": len(seen)}
+    return findings, _placeholder_metrics(
+        {"objects_checked": len(objects), "pairs_checked": len(seen)}, placeholders
+    )
+
+
+def _components_with_real_geometry(
+    snapshot: DocumentSnapshot,
+) -> tuple[list[ObjectRecord], int]:
+    """All components, and how many only have a 1 mm stand-in box instead of a pattern."""
+    assert snapshot.board is not None
+    stand_ins = sum(item.geometry_source == "xml-position" for item in snapshot.board.components)
+    # Stand-ins stay in the check (placement planning relies on it); they are disclosed.
+    return list(snapshot.board.components), stand_ins
+
+
+def _placeholder_metrics(metrics: dict[str, Any], placeholders: int) -> dict[str, Any]:
+    metrics["components_without_pattern_geometry"] = placeholders
+    if placeholders:
+        metrics["partial_skipped"] = "component_pattern_geometry_unavailable"
+    return metrics
 
 
 @registry.register("pcb.component_edge", "placement", "pcb")
@@ -144,7 +162,8 @@ def check_component_edge(snapshot: DocumentSnapshot) -> tuple[list[Finding], dic
     polygon = [Point(**item) for item in outline_data.get("points", [])]
     findings: list[Finding] = []
     checked = 0
-    for item in [*snapshot.board.components, *snapshot.board.testpoints]:
+    components, placeholders = _components_with_real_geometry(snapshot)
+    for item in [*components, *snapshot.board.testpoints]:
         if item.bbox is None:
             continue
         checked += 1
@@ -170,7 +189,7 @@ def check_component_edge(snapshot: DocumentSnapshot) -> tuple[list[Finding], dic
                     suggested_actions=["Move the object inward and preserve edge clearance."],
                 )
             )
-    return findings, {"objects_checked": checked}
+    return findings, _placeholder_metrics({"objects_checked": checked}, placeholders)
 
 
 @registry.register("pcb.net_without_traces", "connectivity", "pcb")
@@ -519,6 +538,11 @@ def check_trace_object_clearance(
         ]
         if item.bbox is not None and (item.geometry is not None or item.kind == "copper_pour")
     ]
+    # Pads and vias that cannot be an obstacle are disclosed, not silently dropped.
+    without_geometry = sum(
+        item.bbox is None or item.geometry is None
+        for item in [*snapshot.board.pads, *snapshot.board.vias]
+    )
     index_records = [
         item.model_copy(update={"bbox": BBox(**item.bbox).expand(maximum).as_dict()})
         for item in obstacles
@@ -627,6 +651,8 @@ def check_trace_object_clearance(
             else None
         ),
         "skipped_geometry": skipped_geometry,
+        "copper_without_geometry": without_geometry,
+        **({"partial_skipped": "pad_geometry_unavailable"} if without_geometry else {}),
         "geometry_backend": "shapely_geos" if shapely_available() else "pure_python",
         "clearance_rule_status": clearance_rule_status(
             snapshot, operation="trace_object_clearance"

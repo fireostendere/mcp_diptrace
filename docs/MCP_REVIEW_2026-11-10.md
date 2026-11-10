@@ -25,6 +25,33 @@ Nothing here is native DipTrace evidence. Open items are tracked in
 | Surface | `path_exists` and `write_object_limit_exceeded` surfaced as `INTERNAL_ERROR`; inverted width bounds in `suggest_trace_geometry_for_impedance` raised a bare `ValueError` | Mapped to `CONFLICT` / `VALIDATION_ERROR`; the bounds error is `INVALID_ARGUMENT` |
 | Docs | Nine evergreen documents still stated 167 or 170 tools, and the drift checker only required the right number to appear somewhere | Counts corrected; `check_documentation_state.py` now rejects any other tool count in an evergreen document |
 
+## Closed after this record
+
+- **B1**: `connectivity.copper_connectivity` groups each net's pads by exported trace
+  copper. The board gate enables it (`verify_copper_connectivity`): an open net is the
+  hard error `open_copper_nets`; pads joined only through a pour are disclosed as
+  `pour_connectivity_unverified` (native refill decides). It stays off for candidate
+  ranking, where parts are moved away from their traces hypothetically. Layers are
+  ignored, so same-net copper overlapping on two layers without a via counts as joined.
+  The gate still does not run `run_checks`: its overlap findings on the accepted
+  ATtiny board need triage first.
+- **B2**: the odd/even impedances use the air-line impedance in the coupling term and
+  each mode's own effective permittivity — the structure of the Kirschning-Jansen
+  static form on the page the module already cites. Reference geometries now give
+  123.0 / 94.3 / 122.4 Ω and a wide gap converges to twice the single line. Stripline
+  plane separation includes the signal copper thickness. Not validated against a field
+  solver.
+- **B3**: pads/vias without geometry and components with a stand-in box are reported
+  as partial skips (`pad_geometry_unavailable`,
+  `component_pattern_geometry_unavailable`). Stand-in boxes stay in the overlap check
+  because placement planning relies on it.
+- **B4**: an unrouted net has no routed length (`net_unrouted`), the pair length
+  tolerance is skipped, and `within_tolerance` is `null` without a tolerance or copper.
+- **B5**: without an MPN, supplier order codes are part of the BOM grouping key.
+- **B6**: stitching coverage samples a coarser grid on large boards instead of
+  returning nothing; a trace outside the outline fails the edge check. Silkscreen box
+  rotation/mirroring stays open (no fixture to verify against).
+
 ## Open findings
 
 ### Engineering correctness (false PASS first)

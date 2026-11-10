@@ -74,7 +74,8 @@ def test_review_length_and_pagination_validation_paths(tmp_path: Path) -> None:
         tolerance_mm=100.0,
         path=board,
     )
-    assert group["result"]["within_tolerance"] is True
+    # VCC has no traces in the fixture, so there is nothing to match.
+    assert group["result"]["within_tolerance"] is None
     assert group["result"]["maximum_length_mm"] >= group["result"]["minimum_length_mm"]
 
     with pytest.raises(DocumentError, match="at least two nets"):

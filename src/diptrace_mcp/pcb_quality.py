@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .adapters import DocumentSnapshot
+from .connectivity import copper_connectivity
 from .domain import ObjectRecord, StrictModel
 from .errors import CapabilityUnavailableError
 from .geometry import BBox, Point, distance, point_in_polygon
@@ -28,6 +29,9 @@ class PCBQualityConfig(StrictModel):
     allow_thermal_via_in_pad: bool = False
     centerline_groups: dict[Literal["x", "y"], list[str]] = Field(default_factory=dict)
     centerline_tolerance_mm: float = Field(default=0.25, ge=0.0, le=10.0)
+    # Off for candidate ranking, where parts are moved hypothetically away from their
+    # traces; the release gate turns it on.
+    verify_copper_connectivity: bool = False
 
 
 class PCBQualityFinding(StrictModel):
@@ -203,15 +207,15 @@ def _free_stitching_samples(
         )
         if item.bbox is not None
     ]
-    xs = int(math.floor(box.width / config.stitching_pitch_mm)) + 1
-    ys = int(math.floor(box.height / config.stitching_pitch_mm)) + 1
-    if xs * ys > 4_096:
-        return []
+    # A large board is sampled on a coarser grid rather than not at all.
+    pitch = max(config.stitching_pitch_mm, math.sqrt(box.width * box.height / 4_000))
+    xs = int(math.floor(box.width / pitch)) + 1
+    ys = int(math.floor(box.height / pitch)) + 1
     result: list[Point] = []
     for x_index in range(xs + 1):
-        x = min(box.max_x, box.min_x + x_index * config.stitching_pitch_mm)
+        x = min(box.max_x, box.min_x + x_index * pitch)
         for y_index in range(ys + 1):
-            y = min(box.max_y, box.min_y + y_index * config.stitching_pitch_mm)
+            y = min(box.max_y, box.min_y + y_index * pitch)
             point = Point(x, y)
             if point_in_polygon(point, polygon) and not any(
                 obstacle.contains_point(point) for obstacle in obstacles
@@ -379,6 +383,37 @@ def review_pcb_quality(
     )
     unrouted_count = len(snapshot.board.ratlines)
     findings: list[PCBQualityFinding] = []
+    if config.verify_copper_connectivity:
+        nets = copper_connectivity(snapshot)
+        open_nets = [item for item in nets if item["status"] == "open"]
+        pour_nets = [item for item in nets if item["status"] == "pour_reliant"]
+        missing_links = sum(item["pad_group_count"] - 1 for item in open_nets)
+        unrouted_count = max(unrouted_count, missing_links)
+        if open_nets:
+            findings.append(
+                PCBQualityFinding(
+                    code="open_copper_nets",
+                    category="geometry",
+                    severity="error",
+                    message="Trace copper does not join every pad of: "
+                    + ", ".join(str(item["net_name"]) for item in open_nets[:20]),
+                    object_ids=[str(item["net_id"]) for item in open_nets],
+                    evidence={"open_net_count": len(open_nets), "missing_links": missing_links},
+                )
+            )
+        if pour_nets:
+            findings.append(
+                PCBQualityFinding(
+                    code="pour_connectivity_unverified",
+                    category="ground",
+                    severity="info",
+                    message="Pads joined only through a copper pour need a native refill "
+                    "and DRC to prove continuity: "
+                    + ", ".join(str(item["net_name"]) for item in pour_nets[:20]),
+                    object_ids=[str(item["net_id"]) for item in pour_nets],
+                    evidence={"pour_reliant_net_count": len(pour_nets)},
+                )
+            )
 
     if outline_box is None:
         findings.append(

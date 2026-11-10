@@ -22,6 +22,13 @@ from diptrace_mcp.xml_document import DipTraceDocument
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+# The synthetic fixtures carry no pad geometry; the check says so instead of passing.
+_PAD_GEOMETRY_SKIP = {
+    "check_id": "pcb.trace_object_clearance",
+    "reason": "pad_geometry_unavailable",
+}
+
+
 def _service(workspace: Path, state: Path) -> DipTraceService:
     return DipTraceService(
         Settings(
@@ -44,6 +51,9 @@ def test_registry_runs_real_board_connectivity_checks() -> None:
             "check_id": "pcb.thermal_metadata",
             "reason": "explicit_component_power_metadata_unavailable",
         },
+        {"check_id": "pcb.component_overlap", "reason": "component_pattern_geometry_unavailable"},
+        {"check_id": "pcb.component_edge", "reason": "component_pattern_geometry_unavailable"},
+        _PAD_GEOMETRY_SKIP,
     ]
     codes = [finding.check_id for finding in findings]
     assert "pcb.net_without_traces" in codes
@@ -276,7 +286,10 @@ def test_trace_clearance_discloses_unresolved_owning_net(
 
     trace_metrics = metrics["pcb.trace_clearance"]
     assert findings == []
-    assert skipped == [{"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}]
+    assert skipped == [
+        {"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"},
+        _PAD_GEOMETRY_SKIP,
+    ]
     assert trace_metrics["candidate_pairs_checked"] == 1
     assert trace_metrics["evaluated_pairs"] == 0
     assert trace_metrics["skipped_unresolved_net_pairs"] == 1
@@ -297,7 +310,10 @@ def test_trace_clearance_discloses_unknown_netclass_and_does_not_find_violation(
 
     trace_metrics = metrics["pcb.trace_clearance"]
     assert findings == []
-    assert skipped == [{"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}]
+    assert skipped == [
+        {"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"},
+        _PAD_GEOMETRY_SKIP,
+    ]
     assert trace_metrics["candidate_pairs_checked"] == 1
     assert trace_metrics["evaluated_pairs"] == 0
     assert trace_metrics["skipped_unresolved_net_pairs"] == 0
@@ -317,7 +333,8 @@ def test_trace_clearance_reports_whole_check_skip_when_rules_are_absent() -> Non
         {
             "check_id": "pcb.trace_clearance",
             "reason": "trace_clearance_rules_unavailable",
-        }
+        },
+        _PAD_GEOMETRY_SKIP,
     ]
     assert trace_metrics["candidate_pairs_checked"] == 0
     assert trace_metrics["candidate_pairs_not_enumerated"] is True
@@ -343,7 +360,10 @@ def test_trace_clearance_reports_evaluated_and_skipped_pairs_together() -> None:
 
     trace_metrics = metrics["pcb.trace_clearance"]
     assert any(item.check_id == "pcb.trace_clearance" for item in findings)
-    assert skipped == [{"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"}]
+    assert skipped == [
+        {"check_id": "pcb.trace_clearance", "reason": "trace_clearance_partial"},
+        _PAD_GEOMETRY_SKIP,
+    ]
     assert trace_metrics["candidate_pairs_checked"] >= 2
     assert trace_metrics["evaluated_pairs"] >= 1
     assert trace_metrics["skipped_unresolved_net_pairs"] >= 1
@@ -695,13 +715,16 @@ def test_review_service_persists_report_and_resources(tmp_path: Path) -> None:
     summary = result["result"]["summary"]
     assert summary["finding_count"] == 8
     assert summary["by_severity"]["error"] == 1
-    assert summary["completeness"] == 14 / 16
+    assert summary["completeness"] == 11 / 16  # the fixture has no pattern or pad geometry
     assert result["result"]["skipped_checks"] == [
         {"check_id": "pcb.trace_board_edge", "reason": "trace_to_board_rules_unavailable"},
         {
             "check_id": "pcb.thermal_metadata",
             "reason": "explicit_component_power_metadata_unavailable",
         },
+        {"check_id": "pcb.component_overlap", "reason": "component_pattern_geometry_unavailable"},
+        {"check_id": "pcb.component_edge", "reason": "component_pattern_geometry_unavailable"},
+        _PAD_GEOMETRY_SKIP,
         {"check_id": "pcb.silk_to_pad", "reason": "not_implemented"},
     ]
     report_id = summary["report_id"]

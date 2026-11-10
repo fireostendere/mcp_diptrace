@@ -155,15 +155,20 @@ def _coupled_microstrip_quasi_static(
 
     mu = g * math.exp(-g) + u * (20.0 + g**2.0) / (10.0 + g**2.0)
     f_even = _filling_factor(mu, er)
-    single_effective_er = _effective_dielectric_constant(u, er)
     even_effective_er = (er + 1.0) / 2.0 + (er - 1.0) / 2.0 * f_even
     odd_effective_er = (er + 1.0) / 2.0 + (er - 1.0) / 2.0 * f_odd
-    single_impedance = _air_impedance(u) / math.sqrt(single_effective_er)
-    even_impedance = single_impedance / (
-        1.0 - single_impedance * p_even / _FREE_SPACE_IMPEDANCE_OHM
+    # The coupling terms describe the air-filled pair, so they scale the air-line
+    # impedance; each mode is then loaded by its own effective permittivity. This is
+    # the structure of the Kirschning-Jansen static form on the cited page
+    # (sqrt(er_eff/er_mode) * Z / (1 - Z * sqrt(er_eff) * Q / 377), with
+    # Z * sqrt(er_eff) the air-line impedance). Using the dielectric-loaded
+    # impedance in both places overestimated wide-gap/thick-dielectric pairs by >20 %.
+    air = _air_impedance(u)
+    even_impedance = air / math.sqrt(even_effective_er) / (
+        1.0 - air * p_even / _FREE_SPACE_IMPEDANCE_OHM
     )
-    odd_impedance = single_impedance / (
-        1.0 - single_impedance * p_odd / _FREE_SPACE_IMPEDANCE_OHM
+    odd_impedance = air / math.sqrt(odd_effective_er) / (
+        1.0 - air * p_odd / _FREE_SPACE_IMPEDANCE_OHM
     )
     return (
         2.0 * odd_impedance,
@@ -539,7 +544,10 @@ def analyze_stackup(stackup: StackupModel) -> dict[str, Any]:
                             reference_above.layer_name or reference_above.layer_id,
                         ],
                         "copper_thickness_mm": layer.material.thickness_mm,
-                        "plane_to_plane_separation_mm": below_height + above_height,
+                        # B = 2H + T: the signal copper sits between the two dielectrics.
+                        "plane_to_plane_separation_mm": below_height
+                        + above_height
+                        + (layer.material.thickness_mm or 0.0),
                         "off_center_mm": abs(above_height - below_height) / 2.0,
                         "dielectric_constant": dielectric_constant,
                         "reference_plane_confidence": plane_confidence,

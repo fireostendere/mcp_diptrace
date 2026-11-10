@@ -86,3 +86,28 @@ def test_scan_lists_native_xml_extensions(tmp_path: Path) -> None:
     shutil.copyfile(FIXTURES / "pcb.xml", workspace / "board.dipxml")
     result = _call(tmp_path, "scan_diptrace_documents", {})
     assert "board.dipxml" in str(result)
+
+
+def test_bom_grouping_keeps_parts_with_different_supplier_codes_apart() -> None:
+    from diptrace_mcp.bom import group_bom
+    from diptrace_mcp.domain import BomRecord
+
+    def cap(refdes: str, lcsc: str) -> BomRecord:
+        return BomRecord(
+            stable_id=refdes,
+            refdes=[refdes],
+            quantity=1,
+            value="100nF",
+            pattern="C0603",
+            fields={"LCSC": lcsc},
+        )
+
+    grouped = group_bom([cap("C1", "C14663"), cap("C2", "C1591"), cap("C3", "C14663")])
+    assert sorted(item.refdes for item in grouped) == [["C1", "C3"], ["C2"]]
+
+
+def test_unrouted_net_has_no_length(tmp_path: Path) -> None:
+    result = _call(tmp_path, "measure_net_lengths", {"path": "pcb.xml", "nets": ["VCC"]})
+    measurement = result["result"]["measurements"][0]
+    assert measurement["routed_length_status"] == "unavailable"
+    assert "net_unrouted" in measurement["routed_length_unavailable_reasons"]

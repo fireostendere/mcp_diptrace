@@ -108,6 +108,7 @@ def run_board_qc(board: Path, centerline_x: list[str], centerline_y: list[str]) 
         config=PCBQualityConfig(
             via_pad_clearance_mm=0.13,
             allow_thermal_via_in_pad=True,
+            verify_copper_connectivity=True,
             centerline_groups={"x": centerline_x, "y": centerline_y},
         ),
     )
@@ -293,6 +294,11 @@ def main() -> int:
         warnings = [item for item in quality.findings if item.severity == "warning"]
         blocked += [f"QC error [{item.code}] {item.message}" for item in errors]
         quality_warnings = [f"warning [{item.code}] {item.message}" for item in warnings]
+        quality_warnings += [
+            f"native refill required [{item.code}] {item.message}"
+            for item in quality.findings
+            if item.code == "pour_connectivity_unverified"
+        ]
         quality_summary = (
             f"QC: hard_errors={quality.hard_error_count} warnings={quality.warning_count} "
             f"score={quality.score:.1f} unrouted={quality.unrouted_connection_count} "

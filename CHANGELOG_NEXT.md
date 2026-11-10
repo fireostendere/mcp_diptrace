@@ -50,6 +50,14 @@ Changes in this section are later development and are not silently part of those
 - `scan_diptrace_documents` lists `.dipxml` and `.dchxml`; `path_exists` and
   `write_object_limit_exceeded` map to public error codes; inverted width bounds are
   `INVALID_ARGUMENT`;
+- the board gate computes copper connectivity: a net whose pads are not joined by
+  trace copper is a hard error, and pads joined only through a pour are disclosed as
+  needing a native refill;
+- differential microstrip impedance no longer overestimates (up to +23 % on thick
+  dielectrics); stripline plane separation includes the copper thickness;
+- missing pad/pattern geometry is reported as a partial skip; unrouted nets have no
+  length and cannot pass length matching; BOM grouping keeps different supplier codes
+  apart; large boards keep stitching coverage; traces outside the outline fail;
 - evergreen documents state the current 152-tool surface and the drift checker
   rejects any other count ([review](docs/MCP_REVIEW_2026-11-10.md)).
 

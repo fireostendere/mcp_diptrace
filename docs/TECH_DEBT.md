@@ -7,17 +7,12 @@ This document tracks remaining engineering limitations in the current implementa
 ## Review findings — 2026-11-10
 
 The server review in [MCP_REVIEW_2026-11-10.md](MCP_REVIEW_2026-11-10.md) reproduced the
-defects below. They rank above the numbered debt because several are false passes. The
+defects below; B1-B5 and most of B6 (the false passes) are closed. The
 `B` numbers match that record and [the project roadmap](../documents/ROADMAP.md).
 
 | Id | Debt | Why it matters |
 | --- | --- | --- |
-| B1 | Headless QC and the connectivity check do not compute copper connectivity; the board gate does not run `run_checks` | A board with traces removed passes the gate |
-| B2 | Differential microstrip impedance overestimates (up to +23 % reproduced) without a warning | Wrong trace geometry for USB-class pairs |
-| B3 | Pads without geometry and placeholder component boxes are checked as if real, with no skip recorded | Clearance and overlap results look complete when they are not |
-| B4 | Length and differential-pair checks pass on unrouted nets | False pass |
-| B5 | BOM grouping merges parts that differ only by supplier part number | Wrong part ordered |
-| B6 | Stitching coverage disabled above 4096 samples; silkscreen boxes ignore rotation/mirroring; trace-to-edge accepts traces outside the outline | Silent loss of coverage |
+| B6 | Silkscreen text boxes ignore rotation and bottom-side mirroring; no repository board has rotated or bottom-side text to verify a fix against | Silkscreen clearance may test the wrong box |
 | B7 | `txid` + `dry_run=false` appends operations and commits a batch the caller never previewed; identical repeats are dropped | Surprising commits |
 | B8 | `sync_schematic_to_pcb` does not pin the schematic SHA | Sync of an unpreviewed schematic |
 | B9 | Net lookup accepts a name or an XML id | Pin attached to the wrong net |
@@ -165,7 +160,9 @@ The following should no longer be listed as open technical debt:
 - cinematic branch integration — merged before this development pass;
 - pipeline tools bypassing allowed roots and policy, live-session commits failing with
   the state directory outside the workspace, dangling wire ends after wire/pin edits,
-  review profiles passing on the wrong document kind, Net Ports in the schematic BOM and
+  review profiles passing on the wrong document kind, QC blind to open copper (B1),
+  differential microstrip impedance (B2), undisclosed missing geometry (B3), length
+  checks on unrouted nets (B4), BOM grouping across supplier codes (B5), Net Ports in the schematic BOM and
   schematic-to-PCB comparison, annotated gate rows being dropped, and stale public tool
   counts — fixed with the 2026-11-10 review.
 
