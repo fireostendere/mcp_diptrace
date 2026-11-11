@@ -1246,7 +1246,14 @@ def create_server(
         """Remove panelization settings from a PCB document."""
         return service.clear_panelization(path, dry_run, expected_sha256, txid)
 
-    @mcp.tool()
+    @mcp.tool(
+        description=(
+            "Create or replace full-board four-spoke pours of one net, with optional "
+            "stitching vias placed clear of parts, pads, traces, vias, keepouts and "
+            "silkscreen. Re-running replaces this net's earlier stitching vias. Copper "
+            "needs a native refill."
+        )
+    )
     def add_copper_pours(
         net: str,
         layers: Annotated[
@@ -1269,10 +1276,7 @@ def create_server(
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        """Create or replace full-board four-spoke pours of one net, with optional
-        stitching vias placed clear of parts, pads, traces, vias, keepouts and silkscreen.
-        Re-running replaces this net's earlier stitching vias. Copper needs a native refill.
-        """
+        """See the tool description."""
         return service.add_copper_pours(
             net,
             layers=layers,
@@ -1309,7 +1313,14 @@ def create_server(
             txid=txid,
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        description=(
+            "Replace the board outline polygon. Refused when the outline is locked or when "
+            "a component, pad, via, trace or pour boundary inside the current outline would "
+            "fall outside the new one. Mounting holes, cutouts and arcs are not authored "
+            "here."
+        )
+    )
     def set_board_outline(
         points: Annotated[
             list[dict[str, float]],
@@ -1320,12 +1331,15 @@ def create_server(
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        """Replace the board outline polygon. Refused when the outline is locked or when a
-        component, pad, via, trace or pour boundary inside the current outline would fall
-        outside the new one. Mounting holes, cutouts and arcs are not authored here."""
+        """See the tool description."""
         return service.set_board_outline(points, path, dry_run, expected_sha256, txid)
 
-    @mcp.tool()
+    @mcp.tool(
+        description=(
+            "Delete schematic parts and their net membership. Delete wires attached to "
+            "their pins in the same transaction; a wire left on a deleted pin is refused."
+        )
+    )
     def delete_parts(
         selector: SelectorInput | None = None,
         path: str | None = None,
@@ -1333,11 +1347,15 @@ def create_server(
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        """Delete schematic parts and their net membership. Delete wires attached to their
-        pins in the same transaction; a wire left on a deleted pin is refused."""
+        """See the tool description."""
         return service.delete_parts(selector, path, dry_run, expected_sha256, txid)
 
-    @mcp.tool()
+    @mcp.tool(
+        description=(
+            "Delete the visual labels of one schematic net, on one sheet or all. "
+            "Connectivity is unaffected: labels are annotations."
+        )
+    )
     def delete_net_labels(
         net: str,
         sheet: int | None = None,
@@ -1346,8 +1364,7 @@ def create_server(
         expected_sha256: str | None = None,
         txid: str | None = None,
     ) -> dict[str, Any]:
-        """Delete the visual labels of one schematic net, on one sheet or all. Connectivity
-        is unaffected: labels are annotations."""
+        """See the tool description."""
         return service.delete_net_labels(
             net,
             sheet=sheet,
@@ -2411,7 +2428,14 @@ def create_server(
             txid=txid,
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        description=(
+            "Start a native DipTrace check on a copy of a saved document as a background "
+            "job (poll get_job_status / get_job_result). Needs an installed, reviewed "
+            "DipTrace build and a policy that allows external execution; outputs land in "
+            "the job directory."
+        )
+    )
     def run_native_check(
         check: Annotated[
             Literal["pcb_acceptance", "schematic_acceptance", "schematic_erc", "xml_export"],
@@ -2425,9 +2449,7 @@ def create_server(
         diptrace_root: Annotated[str, Field(description="DipTrace installation directory.")],
         timeout_seconds: int | None = None,
     ) -> dict[str, Any]:
-        """Start a native DipTrace check on a copy of a saved document as a background job
-        (poll get_job_status / get_job_result). Needs an installed, reviewed DipTrace build
-        and a policy that allows external execution; outputs land in the job directory."""
+        """See the tool description."""
         return service.run_native_check(
             check, path, diptrace_root, timeout_seconds=timeout_seconds
         )
@@ -2942,7 +2964,14 @@ def create_server(
             "Then legalize placement and rerun connectivity and DRC."
         )
 
-    @mcp.tool()
+    @mcp.tool(
+        description=(
+            "Check a project's PCB_BUILD.md handoff: gate-table order, recorded SHAs "
+            "against the files, and the stage's offline check (board: headless QC with "
+            "copper connectivity; schematic: full review with nothing skipped). status "
+            "BLOCKED lists why. Native DRC/ERC and manual gates stay outside this tool."
+        )
+    )
     def run_quality_gate(
         project_dir: Annotated[
             str, Field(description="Project directory holding PCB_BUILD.md.")
@@ -2953,10 +2982,7 @@ def create_server(
         centerline_x: list[str] | None = None,
         centerline_y: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Check a project's PCB_BUILD.md handoff: gate-table order, recorded SHAs against
-        the files, and the stage's offline check (board: headless QC with copper
-        connectivity; schematic: full review with nothing skipped). status BLOCKED lists
-        why. Native DRC/ERC and manual gates stay outside this tool."""
+        """See the tool description."""
         from diptrace_mcp.quality_gate import gate_report
 
         resolve = service.settings.resolve_allowed_path

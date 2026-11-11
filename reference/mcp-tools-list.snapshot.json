@@ -1,6 +1,6 @@
 {
-  "canonical_descriptor_bytes": 115155,
-  "canonical_descriptor_sha256": "916e18b6f9ca3d005ab59fcc90c15fd2cf414fd9618dba4512dfbc9ce689ecf6",
+  "canonical_descriptor_bytes": 115056,
+  "canonical_descriptor_sha256": "bfcf0fc6dfc92e534d2b28b650d1a8c3ecc6951349a4c946ddd114bec8a3b897",
   "format_version": 1,
   "tool_count": 159,
   "tools": [
@@ -79,7 +79,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Create or replace full-board four-spoke pours of one net, with optional\n        stitching vias placed clear of parts, pads, traces, vias, keepouts and silkscreen.\n        Re-running replaces this net's earlier stitching vias. Copper needs a native refill. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
+      "description": "Create or replace full-board four-spoke pours of one net, with optional stitching vias placed clear of parts, pads, traces, vias, keepouts and silkscreen. Re-running replaces this net's earlier stitching vias. Copper needs a native refill. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
           "board_clearance_mm": {
@@ -1821,7 +1821,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Delete the visual labels of one schematic net, on one sheet or all. Connectivity\n        is unaffected: labels are annotations. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
+      "description": "Delete the visual labels of one schematic net, on one sheet or all. Connectivity is unaffected: labels are annotations. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
           "dry_run": {
@@ -1861,7 +1861,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Delete schematic parts and their net membership. Delete wires attached to their\n        pins in the same transaction; a wire left on a deleted pin is refused. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
+      "description": "Delete schematic parts and their net membership. Delete wires attached to their pins in the same transaction; a wire left on a deleted pin is refused. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
           "dry_run": {
@@ -5363,7 +5363,7 @@
         "openWorldHint": true,
         "readOnlyHint": false
       },
-      "description": "Start a native DipTrace check on a copy of a saved document as a background job\n        (poll get_job_status / get_job_result). Needs an installed, reviewed DipTrace build\n        and a policy that allows external execution; outputs land in the job directory.",
+      "description": "Start a native DipTrace check on a copy of a saved document as a background job (poll get_job_status / get_job_result). Needs an installed, reviewed DipTrace build and a policy that allows external execution; outputs land in the job directory.",
       "inputSchema": {
         "properties": {
           "check": {
@@ -5509,7 +5509,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Check a project's PCB_BUILD.md handoff: gate-table order, recorded SHAs against\n        the files, and the stage's offline check (board: headless QC with copper\n        connectivity; schematic: full review with nothing skipped). status BLOCKED lists\n        why. Native DRC/ERC and manual gates stay outside this tool.",
+      "description": "Check a project's PCB_BUILD.md handoff: gate-table order, recorded SHAs against the files, and the stage's offline check (board: headless QC with copper connectivity; schematic: full review with nothing skipped). status BLOCKED lists why. Native DRC/ERC and manual gates stay outside this tool.",
       "inputSchema": {
         "properties": {
           "board": {
@@ -5766,7 +5766,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Replace the board outline polygon. Refused when the outline is locked or when a\n        component, pad, via, trace or pour boundary inside the current outline would fall\n        outside the new one. Mounting holes, cutouts and arcs are not authored here. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
+      "description": "Replace the board outline polygon. Refused when the outline is locked or when a component, pad, via, trace or pour boundary inside the current outline would fall outside the new one. Mounting holes, cutouts and arcs are not authored here. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
           "dry_run": {
