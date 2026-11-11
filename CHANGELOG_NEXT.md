@@ -58,6 +58,11 @@ Changes in this section are later development and are not silently part of those
 - missing pad/pattern geometry is reported as a partial skip; unrouted nets have no
   length and cannot pass length matching; BOM grouping keeps different supplier codes
   apart; large boards keep stitching coverage; traces outside the outline fail;
+- a write call with `txid` and `dry_run=false` commits only the previewed operations;
+  `move_via` re-validates the dragged trace; `place_part` requires the style and pin
+  count of the embedded library; a net name wins over an XML id; abandoned dry-run
+  transactions expire by age; servers sharing a state directory no longer fail each
+  other's jobs;
 - evergreen documents state the current 152-tool surface and the drift checker
   rejects any other count ([review](docs/MCP_REVIEW_2026-11-10.md)).
 

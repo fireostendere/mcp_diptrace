@@ -52,6 +52,21 @@ Nothing here is native DipTrace evidence. Open items are tracked in
   returning nothing; a trace outside the outline fails the edge check. Silkscreen box
   rotation/mirroring stays open (no fixture to verify against).
 
+- **B7**: a call with `txid` and `dry_run=false` commits only the previewed
+  operations; different operations raise a conflict. Re-sending the identical list
+  with `dry_run=true` still re-previews instead of staging it twice.
+- **B9** (partly): a net name wins over an XML id regardless of document order. A
+  reference that matches no name still falls back to an id.
+- **B10**: `move_via` re-validates the whole dragged trace (outline, keepouts,
+  clearance). `add_via` stays on an already valid trace and keeps its pad check.
+- **B11**: in a document that embeds a component library, `place_part` requires the
+  style to be defined and the pin count to match. Library-less synthetic documents
+  keep the free-form behaviour.
+- **B12**: a transaction that never began a write (no backup) expires after the
+  retention age without counting toward the record limit.
+- **B15**: each job records its owning server process; another live server's jobs
+  are not failed at startup, and `cancel_job` no longer relabels a finished job.
+
 ## Open findings
 
 ### Engineering correctness (false PASS first)

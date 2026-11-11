@@ -6,6 +6,7 @@ import threading
 import uuid
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
+from datetime import timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
@@ -79,6 +80,11 @@ class TransactionStore(RecordStore):
 
     def _prune_retention(self) -> RetentionReport:
         candidates: list[RetentionCandidate] = []
+        abandoned: list[RetentionCandidate] = []
+        now = self.clock()
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        abandoned_before = now - timedelta(days=self.retention.max_age_days)
         paths = sorted(self.transactions_dir.glob("tx_*/transaction.json"))
         for path_txid, path in iter_valid_record_files(
             self.transactions_dir,
@@ -96,26 +102,40 @@ class TransactionStore(RecordStore):
             ):
                 continue
             timestamp = parse_retention_timestamp(record.updated_at)
-            if (
-                record.txid != path_txid
-                or record.status not in {"committed", "rolled_back", "failed"}
-                or timestamp is None
+            if record.txid != path_txid or timestamp is None:
+                continue
+            if record.status not in {"committed", "rolled_back", "failed"} and (
+                # Every dry run leaves a snapshot. A preview that never began a write
+                # (no backup) expires by age; it never counts toward the record limit.
+                timestamp > abandoned_before
+                or (path.parent / "backup.xml").exists()
             ):
                 continue
-            candidates.append(
+            terminal = record.status in {"committed", "rolled_back", "failed"}
+            (candidates if terminal else abandoned).append(
                 RetentionCandidate(
                     identifier=record.txid,
                     path=path.parent,
                     timestamp=timestamp,
                 )
             )
-        return prune_terminal_records(
+        report = prune_terminal_records(
             state_root=self.state_dir,
             store_root=self.transactions_dir,
             candidates=candidates,
             policy=self.retention,
             clock=self.clock,
         )
+        expired = prune_terminal_records(
+            state_root=self.state_dir,
+            store_root=self.transactions_dir,
+            candidates=abandoned,
+            policy=RetentionPolicy(
+                max_records=len(abandoned) + 1, max_age_days=self.retention.max_age_days
+            ),
+            clock=self.clock,
+        )
+        return RetentionReport(removed=(*report.removed, *expired.removed))
 
     def tx_dir(self, txid: str) -> Path:
         try:
