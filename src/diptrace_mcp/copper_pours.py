@@ -12,7 +12,7 @@ from .geometry import BBox, Point, from_mm, point_in_polygon, point_to_segment_d
 from .geometry_backend import offset_shape
 from .xml_document import DipTraceDocument, RawTreeSnapshot
 
-_STITCH_VIA_NAME = "MCP Ground Stitch Via"
+STITCH_VIA_NAME = "MCP Ground Stitch Via"
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +37,38 @@ def add_copper_pours(
 ) -> CopperPourResult:
     """Assign full-board copper pours and optional ground stitching vias."""
 
+    working = DipTraceDocument.from_bytes(document.path, document.raw_bytes)
+    raw_tree = RawTreeSnapshot.capture(working)
+    pour_count, via_count = apply_copper_pours(
+        working,
+        net=net, layers=layers, clearance_mm=clearance_mm, board_clearance_mm=board_clearance_mm,
+        spoke_width_mm=spoke_width_mm, stitch_pitch_mm=stitch_pitch_mm,
+        stitch_edge_mm=stitch_edge_mm, extra_vias=extra_vias, smd_spoke=smd_spoke,
+    )
+    raw_bytes = raw_tree.compile(working.root, working.path)
+    return CopperPourResult(
+        document=DipTraceDocument.from_bytes(working.path, raw_bytes),
+        pour_count=pour_count,
+        stitch_via_count=via_count,
+    )
+
+
+def apply_copper_pours(
+    working: DipTraceDocument,
+    *,
+    net: str,
+    layers: Iterable[str],
+    clearance_mm: float = 0.2,
+    board_clearance_mm: float = 0.2,
+    spoke_width_mm: float = 0.3,
+    stitch_pitch_mm: float | None = None,
+    stitch_edge_mm: float = 1.0,
+    extra_vias: Iterable[Point] = (),
+    smd_spoke: str = "4 spoke",
+) -> tuple[int, int]:
+    """In-place worker shared with the transactional ``add_copper_pours`` operation."""
+
+    document = working
     if document.kind != "pcb":
         raise EditError("Copper pours require a PCB document")
     if not net.strip():
@@ -51,12 +83,10 @@ def add_copper_pours(
     if stitch_pitch_mm is not None and stitch_pitch_mm <= 0:
         raise EditError("Stitch pitch must be positive")
 
-    working = DipTraceDocument.from_bytes(document.path, document.raw_bytes)
-    raw_tree = RawTreeSnapshot.capture(working)
     board = working.container
-    net_element = _unique_named(board.findall("./Nets/Net"), net, "net")
+    net_element = unique_named(board.findall("./Nets/Net"), net, "net")
     layer_elements = [
-        _unique_named(board.findall("./CopperLayers/Lay"), value, "layer") for value in layer_values
+        unique_named(board.findall("./CopperLayers/Lay"), value, "layer") for value in layer_values
     ]
     outline = board.find("./BoardOutline/Points")
     if outline is None or len(outline.findall("./Point")) < 3:
@@ -93,7 +123,7 @@ def add_copper_pours(
             raise EditError("PCB document is missing Nets")
         board.insert(list(board).index(nets) + 1, pours)
     for component in list(components):
-        if component.findtext("./Name") == _STITCH_VIA_NAME:
+        if component.findtext("./Name") == STITCH_VIA_NAME:
             components.remove(component)
 
     net_id = net_element.get("Id", "")
@@ -184,19 +214,14 @@ def add_copper_pours(
             )
             next_component_id += 1
             ET.SubElement(via, "RefDes").text = f"GNDV{index}"
-            ET.SubElement(via, "Name").text = _STITCH_VIA_NAME
+            ET.SubElement(via, "Name").text = STITCH_VIA_NAME
             pads = ET.SubElement(via, "Pads")
             ET.SubElement(pads, "Pad", {"Id": "1", "NetId": net_id})
 
-    raw_bytes = raw_tree.compile(working.root, working.path)
-    return CopperPourResult(
-        document=DipTraceDocument.from_bytes(working.path, raw_bytes),
-        pour_count=len(layer_elements),
-        stitch_via_count=len(stitch_points),
-    )
+    return len(layer_elements), len(stitch_points)
 
 
-def _unique_named(elements: list[ET.Element], value: str, kind: str) -> ET.Element:
+def unique_named(elements: list[ET.Element], value: str, kind: str) -> ET.Element:
     folded = value.casefold()
     matches = [
         item

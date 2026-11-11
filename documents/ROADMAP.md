@@ -14,7 +14,7 @@ operator, licensed software, physical hardware, legal authority, or independent
 approval.
 
 The published release is still `v0.4.0` (167 tools). Everything below describes
-post-release `main`, whose public surface is 152 tools.
+post-release `main`, whose public surface is 159 tools.
 
 ## Decision model
 
@@ -81,107 +81,70 @@ gates they named stay claim-triggered.
 | A7 bounded quantitative physics | implemented; M3/M8 for claims |
 | A8 evidence campaign aggregation | implemented; promotion stays M11 |
 
-Since then `main` also gained: the consolidated 152-tool surface, DipTrace 5.3.5.1
+Since then `main` also gained: the consolidated tool surface (167 to 152, now 159), DipTrace 5.3.5.1
 native profiles next to 5.3.0.3, Linux/macOS host installation, the schematic stage
 of the quality gate with per-stage done criteria, design-wide schematic readability
 review, and the reviewed fifteen-skill catalog.
 
-## P0 — stop false passes
+## Closed: the 2026-11-10 review items
 
-A check that reports PASS without having checked is worse than a missing check.
-These come first and need no public-schema change.
+| Item | Outcome |
+| --- | --- |
+| B1 copper connectivity | board gate computes it; pour-only joins disclosed for native refill |
+| B2 differential microstrip | corrected to the air-impedance/modal-permittivity structure; reference geometries pinned; not field-solver validated |
+| B3-B5 | missing geometry disclosed; unrouted nets have no length; BOM grouping keeps supplier codes apart |
+| B6 | stitching coverage on large boards and traces outside the outline fixed; silkscreen box rotation open |
+| B7, B10-B12, B15 | previewed-only commits, via-move validation, library-checked `place_part`, expiring abandoned previews, per-server job ownership |
+| B8, B13, B16 | one contract revision: schematic SHA for sync, annotations, strict arguments, uniform envelope |
+| G1 native checks | `run_native_check` job around the existing helpers (source installs only) |
+| G3, G4 pours and stitching | `add_copper_pours`, `delete_copper_pours` |
+| G5 outline | `set_board_outline` (straight edges; holes and cutouts open) |
+| G6 schematic deletes | `delete_parts`, `delete_net_labels` (sheet and PCB component deletes open) |
+| G9 quality gate | `run_quality_gate`; the gate ships in the package |
+| G10 schematic readers | covered by paged `query_objects` (parts, pins, wires, nets) |
+| G12 | `place_builtin_component` accepts `txid` |
 
-### B1. Real copper connectivity in headless QC and the board gate
+## P0 — evidence for what was just added
 
-Compute per-net connectivity from pads, trace endpoints and vias (union-find), and
-count every net with more than one group as unrouted. Disclose nets that rely on a
-pour instead of guessing: the i2c board's GND has no traces and is legitimately
-pour-connected, so pour-only nets are reported as `native_refill_required`, not as
-errors and not as connected. Run `run_checks` in the board stage of
-`pcb_quality_gate.py` and block on its errors and skipped checks.
+New write tools change native documents, and nothing here has been opened in DipTrace:
 
-Done when: a board with one trace removed fails QC and the gate; the three
-repository boards keep their current verdicts for the right reasons; the pour-only
-disclosure is visible in the QC report.
+- **M1** for `add_copper_pours` / `delete_copper_pours` / `set_board_outline`:
+  generate, open, refill, DRC, save, re-export, compare. The pour writer is the one the
+  operator-accepted I2C board used, but the tool path is new.
+- **M2** for `delete_parts` and `delete_net_labels` on a real schematic round-trip.
+- **`run_native_check`** has been exercised only up to "the helper starts and its exit
+  code is recorded"; run each of its four checks on a host with a reviewed DipTrace
+  build. Packaged (frozen) servers refuse it: decide whether to ship the helpers as
+  executables.
+- **M5** for the contract revision with the named clients: unknown arguments are now
+  refused, `selector` is required on write tools, sync commits need the schematic SHA.
+- **B2** against a field solver (the openEMS adapter) before any impedance claim.
 
-### B2. Validate and correct differential microstrip impedance
+## P1 — remaining review items
 
-Do not ship the reviewer's proposed formula on trust. First pin reference values
-from a cited published table or the openEMS adapter for at least the three
-reproduced geometries, then correct the odd/even-mode expressions, add the copper
-thickness to stripline plane separation, and keep the validity-range warnings.
+- **B14**: publish a tool → capability-key map and give the pipeline tools a key.
+- **B9**: accept an XML id for a net only in an explicit form.
+- **B6**: rotate and mirror silkscreen text boxes; needs a board with rotated and
+  bottom-side text as a fixture.
+- Run `run_checks` in the board gate once its overlap/edge findings on the accepted
+  ATtiny board are triaged.
+- Settle the Q1 Component Angle status (flag vs documents).
+- Triage `unresolved_endpoint_owner` on the ATtiny schematic (net items naming absent
+  part ids).
 
-Done when: the calculator is within a stated tolerance of the pinned references,
-and the references, their source and the tolerance are in the tests. M3 owns source
-applicability.
+## P1 — tool gaps that still need a native reference
 
-### B3-B6. Make skipped geometry visible
+No repository board contains these objects, so there is no native XML to model them
+on. Each needs one DipTrace-authored sample (M10) before a writer is added:
 
-- B3: use the pad bounding box as a fallback obstacle, or count the pad as skipped
-  and set `partial_skipped`; skip placeholder-box components in overlap/edge checks
-  with a reason.
-- B4: unrouted nets yield `net_unrouted` / unavailable in length and pair checks;
-  `within_tolerance` is `null` without a tolerance.
-- B5: add supplier part numbers to the BOM grouping key when the MPN is empty.
-- B6: coarsen the stitching sample pitch instead of returning nothing; rotate and
-  mirror silkscreen text boxes; reject traces outside the outline.
-
-Done when each has a regression test built from the reproduction in the review.
-
-## P1 — write-path and contract hardening
-
-### B7-B12. Write path
-
-- B7: with `txid` and `dry_run=false`, commit only what was previewed; appending
-  requires `dry_run=true`. Remove the silent identical-operation dedupe.
-- B10: validate `move_via` / `add_via` with the path validation `_replace_trace`
-  already uses.
-- B11: `place_part` requires a library definition and a matching pin count.
-- B9: resolve nets by name; accept an XML id only in an explicit form.
-- B12: decide an age limit for transactions that never reached commit (retention
-  keeps non-terminal records on purpose today), then prune them.
-- B8: `expected_schematic_sha256` on `sync_schematic_to_pcb` — public-schema change,
-  bundle with B13.
-
-### B13-B16. One intentional contract revision
-
-Batch every change that touches the frozen snapshot into a single revision so
-clients revalidate once (M5):
-
-- B13: `readOnlyHint` / `destructiveHint` / `openWorldHint` on all tools;
-- B8: the schematic SHA input;
-- B16: `selector` required where it is required, unknown arguments rejected, `ok`
-  on every success envelope, remaining domain error codes mapped;
-- B14: a tool → capability-key map and corrected net-class/testpoint capability
-  answers.
-
-B15 (per-instance job ownership in a shared state directory, compare-and-set on
-cancel) is internal and can land separately.
-
-Also settle the Q1 Component Angle status: either flip
-`Q1_COMPONENT_ANGLE_LIVE_VALIDATED` with the accepted evidence or correct the
-documents that already say PASS.
-
-## P1 — close the tool gaps the skills work around
-
-The review lists twelve gaps (G1-G12). Each adds public tools, so each needs the M12
-decision first. Recommended order, by how often the repository's own board builds
-needed the workaround:
-
-1. **G3 + G4 copper pours and free stitching vias** — the internal
-   `copper_pours` functions exist; house rules require both on every board.
-2. **G6 + G7 + G12 small authoring deletes** — delete part/sheet/net label, board
-   text add/delete, `place_builtin_component` inside a transaction. Small, and they
-   remove most remaining raw `apply_xml_edits` use.
-3. **G9 + G1 gate and native acceptance as jobs** — wrap `pcb_quality_gate` and the
-   native acceptance CLIs in the existing job store, so a packaged install without a
-   checkout can run the definition of done.
-4. **G5 + G8 outline, holes, net classes, pairs, via styles.**
-5. **G10 + G11 paginated schematic readers and a public wire planner.**
-6. **G2 native manufacturing export** — only after M12 selects it and M6 can follow.
-
-Keep the discovery budget: prefer one tool with a `kind`/`action` input over a tool
-per object type, the way `run_review(profile=...)` replaced fourteen tools.
+| Gap | Missing |
+| --- | --- |
+| G5 | mounting holes, cutouts, keepout authoring, outline arcs |
+| G7 | board text add/delete/set content |
+| G8 | create/delete net class, differential pair and via style; write DRC rules/stackup |
+| G6 | delete sheet (sheet renumbering), remove a PCB component with its traces |
+| G11 | public wire planner for `add_wire` (the internal planner exists) |
+| G2 | native Gerber/NC Drill/pick-and-place as a tool (`native_cad` API exists; needs M12 then M6) |
 
 ## P2 — triggered work, not speculative commitments
 
@@ -204,14 +167,12 @@ or a reproducible failing case.
 
 ## Recommended execution order
 
-1. B1, then B3-B6: the gate must not pass what it did not check.
-2. B2 with pinned references.
-3. B7, B10, B11, B9, B12, B15: internal write-path fixes.
-4. One contract revision for B8, B13, B14, B16; run M5 for the named clients.
-5. Tool gaps in the order above, each after its M12 decision; G3/G4 first.
-6. Cut the next release once 1-4 are in: `main` already differs from `v0.4.0` by a
-   breaking surface change, and the fixes in 1 affect release decisions.
-7. A P2 item only when its trigger exists.
+1. M1/M2 evidence for the new write tools and one real run of each native check.
+2. M5 for the contract revision, then cut the next release: `main` now differs from
+   `v0.4.0` by two breaking surface changes.
+3. B14, B9, the gate's `run_checks` triage.
+4. One native sample per remaining gap, then its writer.
+5. A P2 item only when its trigger exists.
 
 ## Definition of done for automated roadmap items
 

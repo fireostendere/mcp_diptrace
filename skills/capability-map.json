@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.4.0",
+  "schema_version": "2.5.0",
   "external_knowledge": {
     "provider": "User-configured Knowledge MCP / RAG, separate from DipTrace MCP",
     "workflow": "shared/rag.md",
@@ -144,6 +144,8 @@
       "apply_schematic_placement_repair_plan",
       "disconnect_pins",
       "delete_wire",
+      "delete_parts",
+      "delete_net_labels",
       "set_component_value"
     ],
     "board": [
@@ -172,6 +174,9 @@
       "update_net_class_rules",
       "assign_nets_to_class",
       "list_copper_pours",
+      "add_copper_pours",
+      "delete_copper_pours",
+      "set_board_outline",
       "analyze_plane_continuity",
       "analyze_return_path"
     ],
@@ -246,7 +251,8 @@
     ],
     "external_solvers": [
       "run_ngspice_simulation",
-      "run_openems_stripline_analysis"
+      "run_openems_stripline_analysis",
+      "run_native_check"
     ],
     "exports": [
       "export_fabrication_outputs",
@@ -266,7 +272,8 @@
       "run_review",
       "analyze_release_readiness",
       "get_findings",
-      "get_finding"
+      "get_finding",
+      "run_quality_gate"
     ],
     "transaction_and_jobs": [
       "begin_transaction",

@@ -350,6 +350,7 @@ src/diptrace_mcp/preview.py
 src/diptrace_mcp/previews.py
 src/diptrace_mcp/provenance.py
 src/diptrace_mcp/provenance_registry.py
+src/diptrace_mcp/quality_gate.py
 src/diptrace_mcp/record_ids.py
 src/diptrace_mcp/record_store.py
 src/diptrace_mcp/reference_rules.py
@@ -627,6 +628,7 @@ tests/test_specctra_edge_coverage.py
 tests/test_store_identifiers.py
 tests/test_sync_initial_placement.py
 tests/test_synthetic_fixture_pack.py
+tests/test_tool_gaps.py
 tests/test_transaction_recovery.py
 tests/test_transaction_service_edge_coverage.py
 tests/test_trust_model.py

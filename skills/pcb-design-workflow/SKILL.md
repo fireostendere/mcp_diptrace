@@ -105,8 +105,9 @@ ESD, thermal, measured current) belongs to bring-up and never blocks a design ga
 Non-zero is BLOCKED. Exit zero checks hash/order consistency and headless QC;
 pending manual gates still need evidence. The checker contains a thermal-via exception
 for a historical board, so independently enforce the current no-via-in-pad rule.
-If only the wheel is installed, record the missing checkout/checker and perform the
-available MCP checks; do not claim the repository handoff gate passed.
+If only the wheel is installed, call `run_quality_gate(project_dir=...)`: it runs the
+same packaged checker and returns the same report (`status` is `CONSISTENT` or
+`BLOCKED`).
 
 Inspect the chosen builder before executing it. The current
 `scripts/build_generic_board.py` invokes DUT Rev.A

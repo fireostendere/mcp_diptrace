@@ -8,6 +8,7 @@ from typing import Any, TypeAlias, TypeVar, cast
 
 from .adapter_common import _component_markings_rotate
 from .adapters import DocumentSnapshot, build_snapshot, stable_id
+from .copper_pours import STITCH_VIA_NAME, apply_copper_pours, unique_named
 from .domain import ObjectRecord, QuerySelector
 from .errors import (
     AmbiguousSelectorError,
@@ -27,7 +28,9 @@ from .geometry import (
     to_mm,
 )
 from .library_adapters import embedded_pattern_library
+from .numeric_inputs import xml_number_mm
 from .operations import (
+    AddCopperPoursOperation,
     AddNetLabelOperation,
     AddSheetOperation,
     AddTestpointOperation,
@@ -35,6 +38,9 @@ from .operations import (
     AssignNetsToClassOperation,
     ClearPanelizationOperation,
     ConnectPinsOperation,
+    DeleteCopperPoursOperation,
+    DeleteNetLabelsOperation,
+    DeletePartsOperation,
     DeleteWireOperation,
     DisconnectPinsOperation,
     GroupComponentsOperation,
@@ -47,6 +53,7 @@ from .operations import (
     RotateBoardTextsOperation,
     RotateComponentsOperation,
     SemanticOperation,
+    SetBoardOutlineOperation,
     SetComponentLockOperation,
     SetComponentPatternOperation,
     SetComponentPropertiesOperation,
@@ -164,7 +171,15 @@ def apply_semantic_operations(
             )
 
     if any(
-        isinstance(operation, (DeleteWireOperation, ConnectPinsOperation, DisconnectPinsOperation))
+        isinstance(
+            operation,
+            (
+                DeleteWireOperation,
+                ConnectPinsOperation,
+                DisconnectPinsOperation,
+                DeletePartsOperation,
+            ),
+        )
         for operation in operations
     ):
         dangling = _dangling_wire_ends(working.root) - _dangling_wire_ends(document.root)
@@ -3401,6 +3416,239 @@ def _apply_clear_panelization(
     ), 1
 
 
+def _apply_add_copper_pours(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: AddCopperPoursOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_pcb(document, "add_copper_pours")
+    pour_count, via_count = apply_copper_pours(
+        document,
+        net=operation.net,
+        layers=operation.layers,
+        clearance_mm=operation.clearance_mm,
+        board_clearance_mm=operation.board_clearance_mm,
+        spoke_width_mm=operation.spoke_width_mm,
+        stitch_pitch_mm=operation.stitch_pitch_mm,
+        stitch_edge_mm=operation.stitch_edge_mm,
+        extra_vias=[Point(item["x"], item["y"]) for item in operation.extra_vias],
+    )
+    stable = stable_id("copper-pours", document.source_type, operation.net)
+    changed_ids.append(stable)
+    target = ObjectRecord(stable_id=stable, kind="copper_pour", label=operation.net)
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        [],
+        [{"id": stable, "pour_count": pour_count, "stitch_via_count": via_count}],
+        document,
+    ), pour_count + via_count
+
+
+def _apply_delete_copper_pours(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: DeleteCopperPoursOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_pcb(document, "delete_copper_pours")
+    board = document.container
+    net = next(
+        (
+            item
+            for item in board.findall("./Nets/Net")
+            if (item.findtext("./Name") or "").casefold() == operation.net.casefold()
+        ),
+        None,
+    )
+    if net is None:
+        raise ObjectNotFoundError(f"Net was not found: {operation.net}")
+    net_id = net.get("Id", "")
+    layer_ids: set[str] | None = None
+    if operation.layers is not None:
+        layers = board.findall("./CopperLayers/Lay")
+        layer_ids = {
+            unique_named(layers, value, "layer").get("Id", "") for value in operation.layers
+        }
+    pours = board.find("./CopperPours")
+    removed = [
+        item
+        for item in (pours.findall("./CopperPour") if pours is not None else [])
+        if item.get("NetId") == net_id and (layer_ids is None or item.get("Lay") in layer_ids)
+    ]
+    if not removed:
+        raise ObjectNotFoundError(f"No copper pour of net {operation.net} matches the request")
+    for item in removed:
+        assert pours is not None
+        pours.remove(item)
+    via_count = 0
+    components = board.find("./Components")
+    if operation.remove_stitching_vias and components is not None:
+        for component in list(components):
+            if component.findtext("./Name") == STITCH_VIA_NAME and any(
+                pad.get("NetId") == net_id for pad in component.findall("./Pads/Pad")
+            ):
+                components.remove(component)
+                via_count += 1
+    stable = stable_id("copper-pours", document.source_type, operation.net)
+    changed_ids.append(stable)
+    target = ObjectRecord(stable_id=stable, kind="copper_pour", label=operation.net)
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        [{"id": stable, "pour_count": len(removed), "stitch_via_count": via_count}],
+        [{"id": stable, "deleted": True}],
+        document,
+    ), len(removed) + via_count
+
+
+def _apply_set_board_outline(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: SetBoardOutlineOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_pcb(document, "set_board_outline")
+    assert snapshot.board is not None
+    outline = document.container.find("./BoardOutline")
+    points = outline.find("./Points") if outline is not None else None
+    if outline is None or points is None:
+        raise ObjectNotFoundError("The document has no board outline to replace")
+    if outline.get("Locked", "N") == "Y":
+        raise EditError("The board outline is locked", code="locked_object")
+    polygon = [Point(item["x"], item["y"]) for item in operation.points]
+    previous = [
+        Point(xml_number_mm(document, item, "X"), xml_number_mm(document, item, "Y"))
+        for item in points.findall("./Point")
+    ]
+    board = snapshot.board
+
+    def contained(record: ObjectRecord, shape: list[Point]) -> bool:
+        assert record.bbox is not None
+        return all(
+            point_in_polygon(Point(x, y), shape)
+            for x in (record.bbox["min_x"], record.bbox["max_x"])
+            for y in (record.bbox["min_y"], record.bbox["max_y"])
+        )
+
+    # An edge connector may overhang on purpose; only what the old outline held must stay.
+    outside = [
+        record.stable_id
+        for record in (
+            board.components + board.pads + board.vias + board.holes
+            + board.testpoints + board.traces + board.copper_pours
+        )
+        if record.bbox is not None
+        and contained(record, previous)
+        and not contained(record, polygon)
+    ]  # fmt: skip
+    if outside:
+        raise GeometryError(
+            "The new outline cuts off objects the current outline contains; move them "
+            "or delete the pours first",
+            object_ids=outside[:50],
+        )
+    before = [dict(item.attrib) for item in points.findall("./Point")]
+    for item in list(points):
+        points.remove(item)
+    for point in polygon:
+        ET.SubElement(
+            points,
+            "Point",
+            {
+                "X": f"{from_mm(point.x, document.units):.9g}",
+                "Y": f"{from_mm(point.y, document.units):.9g}",
+            },
+        )
+    stable = stable_id("board-outline", document.source_type, "xml:outline")
+    changed_ids.append(stable)
+    target = ObjectRecord(stable_id=stable, kind="board_outline", label="Board outline")
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        [{"id": stable, "points": before}],
+        [{"id": stable, "points": [point.as_dict() for point in polygon]}],
+        document,
+    ), len(polygon)
+
+
+def _apply_delete_parts(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: DeletePartsOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_schematic(document, "delete_parts")
+    targets = _select_records(snapshot, operation.selector, {"part"})
+    components = document.container.find("./Components")
+    before: list[dict[str, Any]] = []
+    after: list[dict[str, Any]] = []
+    patch_count = 0
+    for record in targets:
+        part = _resolved_element(snapshot, record)
+        part_id = part.get("Id", "")
+        before.append({"id": record.stable_id, "refdes": record.refdes})
+        after.append({"id": record.stable_id, "deleted": True})
+        # Wires still attached to these pins are caught by the dangling-end check.
+        for pins in document.container.findall("./Nets/Net/Pins"):
+            for item in list(pins.findall("./Item")):
+                if item.get("Part") == part_id:
+                    pins.remove(item)
+                    patch_count += 1
+        assert components is not None
+        components.remove(part)
+        changed_ids.append(record.stable_id)
+        patch_count += 1
+    return _operation_preview(
+        index, operation.kind, targets, before, after, document
+    ), patch_count
+
+
+def _apply_delete_net_labels(
+    index: int,
+    document: DipTraceDocument,
+    snapshot: DocumentSnapshot,
+    operation: DeleteNetLabelsOperation,
+    changed_ids: list[str],
+) -> tuple[dict[str, Any], int]:
+    _require_schematic(document, "delete_net_labels")
+    net_element = _schematic_net_element(document, operation.net)
+    if net_element is None:
+        raise ObjectNotFoundError(f"Net was not found: {operation.net}")
+    shapes = document.container.find("./Shapes")
+    removed = [
+        shape
+        for shape in (shapes.findall("./Shape") if shapes is not None else [])
+        if shape.get("Type") == "Text"
+        and shape.get("NetId") == net_element.get("Id", "")
+        and (operation.sheet is None or shape.get("Sheet") == str(operation.sheet))
+    ]
+    if not removed:
+        raise ObjectNotFoundError(f"Net {operation.net} has no label matching the request")
+    for shape in removed:
+        assert shapes is not None
+        shapes.remove(shape)
+    stable = stable_id("net-labels", document.source_type, operation.net)
+    changed_ids.append(stable)
+    target = ObjectRecord(stable_id=stable, kind="net_label", label=operation.net)
+    return _operation_preview(
+        index,
+        operation.kind,
+        [target],
+        [{"id": stable, "label_count": len(removed)}],
+        [{"id": stable, "deleted": True}],
+        document,
+    ), len(removed)
+
+
 def _apply_routing_dispatch(
     index: int,
     document: DipTraceDocument,
@@ -3449,6 +3697,11 @@ SEMANTIC_OPERATION_HANDLERS: dict[type[SemanticOperation], SemanticOperationHand
     AddNetLabelOperation: _adapt_semantic_handler(_apply_add_net_label),
     SetPanelizationOperation: _adapt_semantic_handler(_apply_set_panelization),
     ClearPanelizationOperation: _adapt_semantic_handler(_apply_clear_panelization),
+    AddCopperPoursOperation: _adapt_semantic_handler(_apply_add_copper_pours),
+    DeleteCopperPoursOperation: _adapt_semantic_handler(_apply_delete_copper_pours),
+    DeletePartsOperation: _adapt_semantic_handler(_apply_delete_parts),
+    SetBoardOutlineOperation: _adapt_semantic_handler(_apply_set_board_outline),
+    DeleteNetLabelsOperation: _adapt_semantic_handler(_apply_delete_net_labels),
 }
 for _routing_operation_type in ROUTING_OPERATION_TYPES:
     SEMANTIC_OPERATION_HANDLERS[_routing_operation_type] = _apply_routing_dispatch

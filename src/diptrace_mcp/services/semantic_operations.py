@@ -13,6 +13,7 @@ from ..errors import (
 )
 from ..geometry import BBox, Point, distance, point_in_polygon
 from ..operations import (
+    AddCopperPoursOperation,
     AddNetLabelOperation,
     AddSheetOperation,
     AddTestpointOperation,
@@ -22,6 +23,9 @@ from ..operations import (
     AssignNetsToClassOperation,
     ClearPanelizationOperation,
     ConnectPinsOperation,
+    DeleteCopperPoursOperation,
+    DeleteNetLabelsOperation,
+    DeletePartsOperation,
     DeleteTraceOperation,
     DeleteViaOperation,
     DeleteWireOperation,
@@ -38,6 +42,7 @@ from ..operations import (
     RotateBoardTextsOperation,
     RotateComponentsOperation,
     SemanticOperation,
+    SetBoardOutlineOperation,
     SetComponentLockOperation,
     SetComponentPatternOperation,
     SetComponentPropertiesOperation,
@@ -714,6 +719,92 @@ class SemanticOperationsService:
         txid: str | None = None,
     ) -> dict[str, Any]:
         operation = ClearPanelizationOperation.model_validate({})
+        return self.semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def add_copper_pours(
+        self,
+        net: str,
+        *,
+        layers: list[str] | None = None,
+        clearance_mm: float = 0.2,
+        board_clearance_mm: float = 0.2,
+        spoke_width_mm: float = 0.3,
+        stitch_pitch_mm: float | None = None,
+        stitch_edge_mm: float = 1.0,
+        extra_vias: list[dict[str, float]] | None = None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = AddCopperPoursOperation.model_validate(
+            {
+                "net": net,
+                "layers": layers or ["Top", "Bottom"],
+                "clearance_mm": clearance_mm,
+                "board_clearance_mm": board_clearance_mm,
+                "spoke_width_mm": spoke_width_mm,
+                "stitch_pitch_mm": stitch_pitch_mm,
+                "stitch_edge_mm": stitch_edge_mm,
+                "extra_vias": extra_vias or [],
+            }
+        )
+        response = self.semantic_write(operation, path, dry_run, expected_sha256, txid)
+        response.setdefault("limitations", []).append(
+            "The pour is a boundary and its settings; copper appears only after a native "
+            "DipTrace refill, which also decides which pads it connects."
+        )
+        return response
+
+    def delete_copper_pours(
+        self,
+        net: str,
+        *,
+        layers: list[str] | None = None,
+        remove_stitching_vias: bool = True,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = DeleteCopperPoursOperation.model_validate(
+            {"net": net, "layers": layers, "remove_stitching_vias": remove_stitching_vias}
+        )
+        return self.semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def set_board_outline(
+        self,
+        points: list[dict[str, float]],
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = SetBoardOutlineOperation.model_validate({"points": points})
+        return self.semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def delete_parts(
+        self,
+        selector: dict[str, Any] | None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = DeletePartsOperation.model_validate({"selector": selector or {}})
+        return self.semantic_write(operation, path, dry_run, expected_sha256, txid)
+
+    def delete_net_labels(
+        self,
+        net: str,
+        *,
+        sheet: int | None = None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        operation = DeleteNetLabelsOperation.model_validate({"net": net, "sheet": sheet})
         return self.semantic_write(operation, path, dry_run, expected_sha256, txid)
 
     def update_net_class_rules(

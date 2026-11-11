@@ -221,9 +221,8 @@ class TestRenderBoardSvg:
             '</Board></Source>'
         )
         p.write_text(xml)
-        result = pipeline.render_board_svg(str(p), str(tmp_path / "out"))
-        assert result["ok"] is False
-        assert "No BoardOutline" in result["error"]
+        with pytest.raises(DocumentError, match="requires a board outline"):
+            pipeline.render_board_svg(str(p), str(tmp_path / "out"))
 
     def test_traces_with_via_and_layer_switch(self, tmp_path: Path) -> None:
         extra = (

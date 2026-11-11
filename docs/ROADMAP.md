@@ -45,8 +45,12 @@ Current cross-domain implementation detail is in [EDA_INTELLIGENCE.md](EDA_INTEL
 
 Not part of the immutable `v0.4.0` bytes:
 
-- the public surface is consolidated to 152 tools (`run_review(profile=...)` replaces
-  fourteen review tools; see [MCP_TOOLS.md](MCP_TOOLS.md) for the mapping);
+- the public surface is 159 tools: consolidated from 167 to 152
+  (`run_review(profile=...)` replaces fourteen review tools; see
+  [MCP_TOOLS.md](MCP_TOOLS.md) for the mapping), revised once (annotations, strict
+  arguments, `ok` on success, schematic SHA for sync) and extended with seven tools
+  for copper pours and stitching, the board outline, schematic deletes, the quality
+  gate and native checks;
 - native PCB round-trip, schematic acceptance, native XML export and recording accept
   DipTrace 5.3.5.1 next to 5.3.0.3, each with its own reviewed menu profile, and the
   native-windows CI job runs them as a standard user;
@@ -60,11 +64,12 @@ The server itself was reviewed on 2026-11-10:
 [MCP_REVIEW_2026-11-10.md](MCP_REVIEW_2026-11-10.md). That pass fixed the pipeline
 tools' missing path/policy guards, live-session commits with an external state
 directory, dangling schematic wire ends, review profiles passing on the wrong document
-kind, Net Ports in BOM/comparison and dropped gate rows. Its open findings (B1-B16)
-and tool gaps (G1-G12) are scheduled in
-[the project roadmap](../documents/ROADMAP.md). The most important open one: headless
-QC does not yet compute copper connectivity, so **a green board gate is not proof of
-complete routing** until B1 lands — native DRC remains the authority.
+kind, Net Ports in BOM/comparison and dropped gate rows. Follow-up changes closed
+B1-B8, B10-B13, B15 and B16 and the tool gaps G1, G3, G4, G9, G12 and parts of G5/G6;
+what remains is in [TECH_DEBT.md](TECH_DEBT.md) and
+[the project roadmap](../documents/ROADMAP.md). The board gate now computes copper
+connectivity from traces; pads joined only through a pour are disclosed, and **only a
+native refill and DRC prove pour continuity**.
 
 ## Completed manual gates on the accepted historical checkpoint
 
@@ -328,7 +333,7 @@ Historical dated release/acceptance/audit records remain excluded from current-s
 
 # Public contracts
 
-- 152 registered MCP tools (the frozen public contract recorded in
+- 159 registered MCP tools (the frozen public contract recorded in
   `reference/mcp-tools-list.snapshot.json`);
 - stable structured error envelope;
 - server-owned worker-thread boundary;
@@ -338,11 +343,13 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 
 # Next project sequence
 
-1. Close the false-pass findings B1-B6 from the 2026-11-10 review, then the write-path
-   and contract items B7-B16, in the order given in
-   [the project roadmap](../documents/ROADMAP.md).
-2. Decide (M12) which tool gaps G1-G12 to productize; copper pours and free stitching
-   vias first.
+1. Run M1/M2 native evidence for the new write tools (`add_copper_pours`,
+   `set_board_outline`, `delete_parts`) and M5 client validation for the contract
+   revision, then cut the next release.
+2. Finish the remaining review items in
+   [the project roadmap](../documents/ROADMAP.md): the tool → capability map (B14),
+   net references by id (B9), silkscreen box rotation (B6) and the tool gaps that
+   still lack a native XML reference (board text, mounting holes, net classes, pairs).
 3. Keep the completed schematic cases 01–18 and the 12-gate manual matrix closed unless
    an impact-based production change requires a focused rerun.
 4. Gather real-DipTrace native refill/DRC evidence for the new whole-board PCB
@@ -372,8 +379,8 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | cinematic | presentation + mandatory preflight + hidden MP4/GIF capture implemented; exact UI acceptance remains configuration-specific |
 | headless GUI | hidden Win32 desktop helper implemented with selectable `hidden`/`native` open -> Save -> close plus isolated cinematic capture; real DipTrace actions remain claim-specific evidence |
 | documentation drift | evergreen code/docs guard implemented and CI-tested; stale public tool counts are rejected |
-| offline review / QC | profiles bound to document kind; copper connectivity, skipped-geometry disclosure and differential impedance are open (B1-B6) |
-| public contract | 152 tools; annotations, strict arguments, envelope and capability map pending one revision (B13-B16) |
+| offline review / QC | profiles bound to document kind; copper connectivity in the board gate, disclosed missing geometry and corrected differential impedance; silkscreen box rotation open (B6) |
+| public contract | 159 tools with annotations, strict arguments and a uniform success envelope; tool → capability map pending (B14) |
 | native manufacturing export | `native_cad` Python API for verified builds on Windows; no MCP tool, CAM not inspected |
 
 # Permanent limitations / non-claims

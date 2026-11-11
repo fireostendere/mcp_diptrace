@@ -353,7 +353,9 @@ _READ_ONLY_PREFIXES = (
     "compare_", "detect_", "find_", "measure_", "recommend_", "review_", "summarize_",
     "suggest_", "score_", "rank_", "inspect_", "plan_", "generate_",
 )  # fmt: skip
-_READ_ONLY_TOOLS = frozenset({"diptrace_status", "group_bom", "run_review", "preview_transaction"})
+_READ_ONLY_TOOLS = frozenset(
+    {"diptrace_status", "group_bom", "run_review", "run_quality_gate", "preview_transaction"}
+)
 # Writes that can remove or replace existing design content. Other writes update in
 # place or add, behind the same expected-SHA, backup and transaction guards.
 _DESTRUCTIVE_PREFIXES = ("delete_", "remove_", "clear_", "rollback_", "apply_", "disconnect_")
@@ -370,6 +372,7 @@ _OPEN_WORLD_TOOLS = frozenset(
     {
         "pipeline_source_component",
         "run_external_autorouter",
+        "run_native_check",
         "run_ngspice_simulation",
         "run_openems_stripline_analysis",
     }

@@ -12,7 +12,7 @@ Unknown edge rate, current, impedance, stackup, material, temperature or datashe
 remain unknown until explicitly supplied and source-bound.
 
 The higher-level generations remain internal engines; the public MCP contract remains at
-152 tools.
+159 tools.
 
 ## Default authoring policy
 

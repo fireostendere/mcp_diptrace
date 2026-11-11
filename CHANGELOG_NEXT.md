@@ -5,6 +5,11 @@ Changes in this section are later development and are not silently part of those
 
 ## Added
 
+- seven tools (159 in total): `add_copper_pours` and `delete_copper_pours` (pour
+  boundaries with optional free stitching vias), `set_board_outline`, `delete_parts`,
+  `delete_net_labels`, `run_quality_gate` (the handoff gate, now shipped in the package
+  as `diptrace_mcp.quality_gate`) and `run_native_check` (the native acceptance, ERC
+  and XML-export helpers as background jobs); `place_builtin_component` accepts `txid`;
 - a schematic stage for `scripts/pcb_quality_gate.py`: the handoff's `Gate stage`,
   `Input schematic` and `Current board` lines (or `--stage/--schematic/--board`) name
   what is gated; the schematic stage needs no board and requires a clean, complete

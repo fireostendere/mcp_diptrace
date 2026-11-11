@@ -532,6 +532,149 @@ class ExternalJobManager:
             args=(record.jobid, command, output_path, request, timeout),
         )
 
+    def start_native_check(
+        self,
+        info: DocumentInfo,
+        target_path: Path,
+        *,
+        check: str,
+        diptrace_root: Path,
+        timeout_seconds: int | None,
+    ) -> JobRecord:
+        """Run one of the project's own native DipTrace CLIs on a copy, as a job."""
+        if getattr(sys, "frozen", False):
+            raise ExternalToolUnavailableError(
+                "Native checks need a Python environment; the packaged server cannot "
+                "start the native helper modules"
+            )
+        timeout = timeout_seconds or self.settings.external_timeout_seconds
+        if not 1 <= timeout <= self.settings.external_timeout_seconds:
+            raise ExternalToolFailedError(
+                f"timeout_seconds must be between 1 and {self.settings.external_timeout_seconds}"
+            )
+        record = self.store.create(
+            job_type=f"native_{check}",
+            document_id=info.document_id,
+            source_sha256=info.sha256,
+            target_path=target_path,
+        )
+        folder = self.store.job_dir(record.jobid)
+        common = ["--diptrace-root", str(diptrace_root), "--project", str(target_path)]
+        module, arguments = {
+            "pcb_acceptance": (
+                "diptrace_mcp.pcb_native_acceptance",
+                ["run", *common, "--output-xml", str(folder / "native-output.xml"),
+                 "--evidence-json", str(folder / "evidence.json"), "--timeout", str(timeout)],
+            ),
+            "schematic_acceptance": (
+                "diptrace_mcp.schematic_native_acceptance",
+                [*common, "--expected-sha256", info.sha256, "--output-dir",
+                 str(folder / "native-output"), "--timeout", str(timeout)],
+            ),
+            "schematic_erc": (
+                "diptrace_mcp.schematic_native_acceptance",
+                [*common, "--expected-sha256", info.sha256, "--output-dir",
+                 str(folder / "native-output"), "--timeout", str(timeout), "--erc"],
+            ),
+            "xml_export": (
+                "diptrace_mcp.native_xml_export",
+                [*common, "--output-xml", str(folder / "native-output.xml"),
+                 "--timeout", str(timeout)],
+            ),
+        }[check]  # fmt: skip
+        command = [sys.executable, "-m", module, *arguments]
+        record = self.store.update(record.jobid, command=command)
+        return self._launch_worker(
+            record,
+            target=self._run_native_check,
+            # The helper has its own timeout; the job allows it time to clean up.
+            args=(record.jobid, command, timeout + 60),
+        )
+
+    def _run_native_check(
+        self,
+        jobid: str,
+        command: list[str],
+        timeout: int,
+        cancel: threading.Event,
+        reservation: ExternalProcessReservation,
+    ) -> None:
+        started = time.monotonic()
+        try:
+            self.store.update(
+                jobid,
+                status="running",
+                phase="external_execution",
+                progress=0.05,
+                started_at=utc_now(),
+            )
+            process_result = self._runner.run(
+                reservation,
+                command,
+                cwd=self.store.job_dir(jobid),
+                # The editor needs the user's profile variables, unlike the solvers.
+                env=dict(os.environ),
+                log_path=self.store.artifact_path(jobid, "log.txt"),
+                timeout_seconds=timeout,
+                cancel=cancel,
+                jobid=jobid,
+                cancellation_message="native check was cancelled",
+                timeout_message=f"native check exceeded {timeout} seconds",
+                on_started=lambda process: self._track_process(jobid, process),
+                on_progress=lambda elapsed: self._update_external_progress(jobid, elapsed),
+            )
+            folder = self.store.job_dir(jobid)
+            self.store.update(
+                jobid,
+                status="completed",
+                phase="completed",
+                progress=1.0,
+                elapsed_seconds=process_result.elapsed_seconds,
+                completed_at=utc_now(),
+                artifacts={
+                    **self.store.read(jobid).artifacts,
+                    "log": f"diptrace://job/{jobid}/log",
+                },
+                result={
+                    # The helper's own verdict: 0 is its pass; any other code, including
+                    # the documented human-review code, is in the log and evidence files.
+                    "return_code": process_result.return_code,
+                    "helper_passed": process_result.return_code == 0,
+                    "output_files": sorted(
+                        str(item.relative_to(folder))
+                        for item in folder.rglob("*")
+                        if item.is_file() and item.name not in {"job.json", "owner.json"}
+                    ),
+                    "resources": job_resources(jobid),
+                },
+            )
+        except (JobCancelledError, JobTimeoutError, ExternalToolFailedError) as exc:
+            status = "cancelled" if isinstance(exc, JobCancelledError) else "failed"
+            self.store.update(
+                jobid,
+                status=status,
+                phase=status,
+                elapsed_seconds=time.monotonic() - started,
+                completed_at=utc_now(),
+                error=exc.payload.as_dict(),
+            )
+        except Exception as exc:
+            self.store.update(
+                jobid,
+                status="failed",
+                phase="failed",
+                elapsed_seconds=time.monotonic() - started,
+                completed_at=utc_now(),
+                error=ExternalToolFailedError(
+                    f"Could not execute the native check: {exc}", jobid=jobid
+                ).payload.as_dict(),
+            )
+        finally:
+            reservation.release()
+            with self._lock:
+                self._processes.pop(jobid, None)
+                self._cancel.pop(jobid, None)
+
     def _launch_worker(
         self,
         record: JobRecord,

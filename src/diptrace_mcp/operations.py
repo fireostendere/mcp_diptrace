@@ -754,6 +754,46 @@ class ClearPanelizationOperation(SemanticOperation):
     kind: Literal["clear_panelization"] = "clear_panelization"
 
 
+class AddCopperPoursOperation(SemanticOperation):
+    """Full-board pours of one net, optionally with a grid of free stitching vias."""
+
+    kind: Literal["add_copper_pours"] = "add_copper_pours"
+    net: str = Field(min_length=1, max_length=1_000)
+    layers: list[str] = Field(
+        default_factory=lambda: ["Top", "Bottom"], min_length=1, max_length=32
+    )
+    clearance_mm: float = Field(default=0.2, ge=0.0, le=10.0)
+    board_clearance_mm: float = Field(default=0.2, ge=0.0, le=10.0)
+    spoke_width_mm: float = Field(default=0.3, gt=0.0, le=10.0)
+    stitch_pitch_mm: float | None = Field(default=None, gt=0.0, le=100.0)
+    stitch_edge_mm: float = Field(default=1.0, ge=0.0, le=100.0)
+    extra_vias: list[dict[str, float]] = Field(default_factory=list, max_length=2_048)
+
+
+class DeleteCopperPoursOperation(SemanticOperation):
+    kind: Literal["delete_copper_pours"] = "delete_copper_pours"
+    net: str = Field(min_length=1, max_length=1_000)
+    layers: list[str] | None = Field(default=None, min_length=1, max_length=32)
+    remove_stitching_vias: bool = True
+
+
+class SetBoardOutlineOperation(SemanticOperation):
+    """Replace the board outline with a straight-edged polygon."""
+
+    kind: Literal["set_board_outline"] = "set_board_outline"
+    points: list[dict[str, float]] = Field(min_length=3, max_length=256)
+
+
+class DeletePartsOperation(SelectorOperation):
+    kind: Literal["delete_parts"] = "delete_parts"
+
+
+class DeleteNetLabelsOperation(SemanticOperation):
+    kind: Literal["delete_net_labels"] = "delete_net_labels"
+    net: str = Field(min_length=1, max_length=1_000)
+    sheet: int | None = Field(default=None, ge=0, le=255)
+
+
 _OPERATION_TYPES: dict[str, type[SemanticOperation]] = {
     "move_components": MoveComponentsOperation,
     "rotate_components": RotateComponentsOperation,
@@ -794,6 +834,11 @@ _OPERATION_TYPES: dict[str, type[SemanticOperation]] = {
     "add_net_label": AddNetLabelOperation,
     "set_panelization": SetPanelizationOperation,
     "clear_panelization": ClearPanelizationOperation,
+    "add_copper_pours": AddCopperPoursOperation,
+    "delete_copper_pours": DeleteCopperPoursOperation,
+    "delete_parts": DeletePartsOperation,
+    "delete_net_labels": DeleteNetLabelsOperation,
+    "set_board_outline": SetBoardOutlineOperation,
 }
 
 OperationKind = Literal[
@@ -836,6 +881,11 @@ OperationKind = Literal[
     "add_net_label",
     "set_panelization",
     "clear_panelization",
+    "add_copper_pours",
+    "delete_copper_pours",
+    "delete_parts",
+    "delete_net_labels",
+    "set_board_outline",
 ]
 
 

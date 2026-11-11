@@ -296,7 +296,7 @@ def test_every_tool_is_bounded_without_mutating_sdk_objects(tmp_path: Path) -> N
     # through public overrides (tool, prompt, list_tools, call_tool).
     tools = server._tool_manager._tools
 
-    assert len(tools) == 152
+    assert len(tools) == 159
     assert set(server.tool_bodies) == set(tools)
     for tool in tools.values():
         assert tool.fn is server.tool_bodies[tool.name], tool.name
