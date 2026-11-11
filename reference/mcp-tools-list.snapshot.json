@@ -1,10 +1,15 @@
 {
-  "canonical_descriptor_bytes": 95619,
-  "canonical_descriptor_sha256": "8d26378b6ec4729ea24ff85e3710e0033386428a26e90ab3dedbf826d1a4d375",
+  "canonical_descriptor_bytes": 108552,
+  "canonical_descriptor_sha256": "555d7500f7a33d9e5536ff9373983f8881edba9144788eb872737f62f2712d60",
   "format_version": 1,
   "tool_count": 152,
   "tools": [
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Abandon stale local session state without applying its working XML.",
       "inputSchema": {
         "properties": {
@@ -69,6 +74,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Add a net-bound text label shape to a schematic sheet. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -129,6 +139,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Add a new sheet to a schematic document. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -165,6 +180,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Add explicit standalone-pad testpoints and connect them to existing nets atomically. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "$defs": {
@@ -256,6 +276,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Add an explicit validated trace path between two normalized pad endpoints. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "$defs": {
@@ -349,6 +374,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Add a verified ViaStyle trace point on an existing segment. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -399,6 +429,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Add a wire to a schematic net (official Wire/Points XML structure). Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "$defs": {
@@ -516,6 +551,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Align PCB component body bboxes as one semantic transaction. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -557,8 +597,8 @@
           }
         },
         "required": [
-          "selector",
-          "alignment"
+          "alignment",
+          "selector"
         ],
         "type": "object"
       },
@@ -569,6 +609,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Measure pair lengths, skew, via balance, coupled length and edge gap.",
       "inputSchema": {
         "properties": {
@@ -591,6 +636,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Analyze all normalized project differential pairs.",
       "inputSchema": {
         "properties": {
@@ -607,6 +657,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Compare routed geometric lengths for an explicit group of nets. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "properties": {
@@ -635,6 +690,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Measure current component overlap, containment and placement score. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -664,6 +724,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Inspect exported pour boundaries without claiming final-refill continuity.",
       "inputSchema": {
         "properties": {
@@ -680,6 +745,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Report bounded DFM/DFA/DFT release-readiness findings from exported XML.",
       "inputSchema": {
         "properties": {
@@ -696,6 +766,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Run low-confidence geometry heuristics with a caller-supplied radius. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "properties": {
@@ -730,6 +805,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Rank route connections by deterministic corridor congestion without editing. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -765,6 +845,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Find only complete outer-layer microstrip geometries in the physical stackup.",
       "inputSchema": {
         "properties": {
@@ -781,6 +866,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Stage or commit a stored component-placement plan transactionally. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -810,6 +900,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Stage or commit a stored local route plan as one transaction. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -839,6 +934,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Stage or commit a stored schematic placement-repair plan transactionally. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -868,6 +968,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Stage or commit a stored silkscreen plan as one semantic transaction. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -897,6 +1002,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Store a bounded diff resource, or write with its SHA/match guards and a backup. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "$defs": {
@@ -968,6 +1078,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Load 1–50 hash-bound XML edits from an allowed UTF-8 JSON file. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -1000,6 +1115,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Assign selected PCB or schematic nets to an existing net class. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -1026,7 +1146,8 @@
           }
         },
         "required": [
-          "class_name"
+          "class_name",
+          "selector"
         ],
         "type": "object"
       },
@@ -1037,6 +1158,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Create a transaction snapshot for a document or live session.",
       "inputSchema": {
         "properties": {
@@ -1062,6 +1188,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Calculate a preliminary analytical impedance with explicit assumptions. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "properties": {
@@ -1114,6 +1245,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Request cancellation of a running external job.",
       "inputSchema": {
         "properties": {
@@ -1133,6 +1269,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Remove panelization settings from a PCB document. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -1159,6 +1300,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Commit a staged transaction after verifying the source SHA-256.",
       "inputSchema": {
         "properties": {
@@ -1181,6 +1327,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Compare typed external BOM rows with normalized design records by RefDes.",
       "inputSchema": {
         "$defs": {
@@ -1247,6 +1398,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Rank PCB A-D candidates with physics and optional sourced rules.",
       "inputSchema": {
         "$defs": {
@@ -1288,6 +1444,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Compare RefDes, values, net names and pin/pad endpoint sets.",
       "inputSchema": {
         "properties": {
@@ -1311,6 +1472,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Connect part pins to a net; the net is created when missing. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "$defs": {
@@ -1380,6 +1546,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Copy a valid DipTrace-shaped XML seed while preserving unknown XML.\n\nValidation is derived only from a verified provenance sidecar; without one, the copy is synthetic_parser_only. Prefer a real export seed when DipTrace compatibility matters. Replacing an existing target requires its current SHA.",
       "inputSchema": {
         "properties": {
@@ -1415,6 +1586,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Create a new DipTrace PCB XML document (outline, layers, stackup, rules).\n\nThis is synthetic MCP-generated content. It has the correct XML structure but has NOT been verified by DipTrace open/save. Use create_document_from_seed with a real DipTrace export when DipTrace compatibility is required. Replacing an existing target requires its current SHA. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -1464,6 +1640,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Create synthetic, not DipTrace-verified Schematic XML; overwrite needs current SHA.",
       "inputSchema": {
         "properties": {
@@ -1514,6 +1695,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Delete selected traces; connectivity regression requires explicit opt-in. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -1552,6 +1738,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Remove ViaStyle from selected trace points. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -1586,6 +1777,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Delete selected schematic wires without touching net connectivity. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -1608,6 +1804,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "selector"
+        ],
         "type": "object"
       },
       "name": "delete_wire",
@@ -1617,6 +1816,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List identical BOM identity groups containing multiple RefDes.",
       "inputSchema": {
         "properties": {
@@ -1633,6 +1837,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Show server paths and the active DipTrace bridge session, if any.",
       "inputSchema": {
         "properties": {},
@@ -1645,6 +1854,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Disconnect selected schematic pins from their nets. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -1667,6 +1881,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "selector"
+        ],
         "type": "object"
       },
       "name": "disconnect_pins",
@@ -1676,6 +1893,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Distribute at least three PCB components transactionally. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -1721,8 +1943,8 @@
           }
         },
         "required": [
-          "selector",
-          "axis"
+          "axis",
+          "selector"
         ],
         "type": "object"
       },
@@ -1733,6 +1955,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Export generic BOM/placement artifacts; vendor-native requests fail explicitly.",
       "inputSchema": {
         "properties": {
@@ -1757,6 +1984,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Export a bounded Specctra DSN artifact when exact footprint geometry is available.",
       "inputSchema": {
         "properties": {
@@ -1776,6 +2008,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Export a generic UTF-8 CSV BOM and provenance manifest as bounded resources.",
       "inputSchema": {
         "properties": {
@@ -1796,6 +2033,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Export a release-review manifest; native Gerber/drill requests fail explicitly.",
       "inputSchema": {
         "properties": {
@@ -1820,6 +2062,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Find components missing explicit required BOM fields.",
       "inputSchema": {
         "properties": {
@@ -1845,6 +2092,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Generate deterministic free-grid testpoint candidates for selected nets. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "properties": {
@@ -1894,6 +2146,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Request SHA-256-bound apply/cancel and report only local bridge finalization.",
       "inputSchema": {
         "properties": {
@@ -1985,6 +2242,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Generate bounded deterministic local placement candidates. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -2069,6 +2331,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return one strictly byte-bounded PCB page or a count-only summary.",
       "inputSchema": {
         "properties": {
@@ -2125,6 +2392,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return a normalized schematic or PCB BOM with multi-part RefDes deduplication.",
       "inputSchema": {
         "properties": {
@@ -2149,6 +2421,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return supported source types, adapters, limits and current feature availability.",
       "inputSchema": {
         "properties": {
@@ -2165,6 +2442,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Get one component, its parts/pads and all connected nets by reference designator.",
       "inputSchema": {
         "properties": {
@@ -2187,6 +2469,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return normalized logical endpoints and separate physical PCB ratlines.",
       "inputSchema": {
         "properties": {
@@ -2203,6 +2490,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Read PCB DRC/routing rules or schematic ERC settings from DipTrace XML.",
       "inputSchema": {
         "properties": {
@@ -2219,6 +2511,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Get one differential pair by stable id, XML id or exact name.",
       "inputSchema": {
         "properties": {
@@ -2241,6 +2538,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return document identity, type, version, size, sha256 and compatibility.",
       "inputSchema": {
         "properties": {
@@ -2257,6 +2559,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Read one structured finding by deterministic id.",
       "inputSchema": {
         "properties": {
@@ -2276,6 +2583,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Read all structured findings from a stored review report.",
       "inputSchema": {
         "properties": {
@@ -2295,6 +2607,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return completed, partial or failed external-job result data.",
       "inputSchema": {
         "properties": {
@@ -2314,6 +2631,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return persistent external-job state and progress.",
       "inputSchema": {
         "properties": {
@@ -2333,6 +2655,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Get one normalized component-library item by stable id or exact name.",
       "inputSchema": {
         "properties": {
@@ -2358,6 +2685,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Get one normalized pattern-library item by stable id or exact name.",
       "inputSchema": {
         "properties": {
@@ -2383,6 +2715,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return one normalized object by stable id.",
       "inputSchema": {
         "properties": {
@@ -2405,6 +2742,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return trace segments, per-layer geometric length and via counts.",
       "inputSchema": {
         "properties": {
@@ -2427,6 +2769,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return the normalized schematic model for a DipTrace schematic document.",
       "inputSchema": {
         "properties": {
@@ -2443,6 +2790,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Return the normalized physical layer stack without inventing missing Dk values.",
       "inputSchema": {
         "properties": {
@@ -2459,6 +2811,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Group BOM records by exact sourcing identity.",
       "inputSchema": {
         "properties": {
@@ -2479,6 +2836,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Create or reuse a documented DipTrace PCB group transactionally. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -2520,6 +2882,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Preview or commit a previously inspected SES route plan transactionally. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -2549,6 +2916,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Parse and validate a completed SES artifact and create an import preview plan.",
       "inputSchema": {
         "properties": {
@@ -2574,6 +2946,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List free board text and component silk/assembly markings. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -2595,6 +2972,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List and search PCB components or grouped schematic component parts.",
       "inputSchema": {
         "properties": {
@@ -2622,6 +3004,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List normalized copper-pour boundaries and refill-state metadata.",
       "inputSchema": {
         "properties": {
@@ -2646,6 +3033,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List normalized DipTrace project differential pairs and their rules.",
       "inputSchema": {
         "properties": {
@@ -2670,6 +3062,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List persistent export records without exposing state-directory paths.",
       "inputSchema": {
         "properties": {},
@@ -2682,6 +3079,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List persistent jobs, optionally filtered by exact status.",
       "inputSchema": {
         "properties": {
@@ -2698,6 +3100,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List PCB or schematic nets with component endpoints.",
       "inputSchema": {
         "properties": {
@@ -2729,6 +3136,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List explicit TP standalone-pad components in a PCB document. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -2750,6 +3162,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List persisted transaction ids, document hashes, states and operation counts.",
       "inputSchema": {
         "properties": {},
@@ -2762,6 +3179,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "List exported ratlines with normalized pad endpoints and lengths.",
       "inputSchema": {
         "properties": {
@@ -2784,6 +3206,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Lock (locked=true) or unlock (locked=false) selected components or parts. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -2810,6 +3237,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "selector"
+        ],
         "type": "object"
       },
       "name": "lock_components",
@@ -2819,6 +3249,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Measure geometric centerline lengths and optional preliminary delay.",
       "inputSchema": {
         "properties": {
@@ -2844,6 +3279,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Move free board text or component markings in board coordinates. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -2884,6 +3324,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "selector"
+        ],
         "type": "object"
       },
       "name": "move_board_texts",
@@ -2893,6 +3336,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Move one or more components transactionally. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -2936,6 +3384,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "selector"
+        ],
         "type": "object"
       },
       "name": "move_components",
@@ -2945,6 +3396,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Move explicit standalone-pad testpoints transactionally. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -2988,6 +3444,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "selector"
+        ],
         "type": "object"
       },
       "name": "move_testpoints",
@@ -2997,6 +3456,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Move selected trace-point vias transactionally. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -3045,6 +3509,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Transplant generated schematic/PCB content into a DipTrace-native template so the real editor parses it without hanging. Detects kind (schematic or PCB) automatically.",
       "inputSchema": {
         "properties": {
@@ -3072,6 +3541,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Render Top + Bottom SVG previews of a .dipxml board without opening DipTrace. Shows outline, copper traces, pours, vias and board edge.",
       "inputSchema": {
         "properties": {
@@ -3095,6 +3569,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
       "description": "Resolve an MPN to its LCSC part code and download component JSON + datasheet PDF from EasyEDA. Returns code, package, pin/pad counts and file paths for downstream schematic building.",
       "inputSchema": {
         "properties": {
@@ -3118,6 +3597,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Find an installed component by catalog id/name and place a private schematic copy. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -3173,6 +3657,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Place a new schematic part referencing a library ComponentStyle. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -3254,6 +3743,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Create a validated deterministic local component-placement plan. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -3338,6 +3832,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Plan a coupled route; omitted clearance comes from document DRC. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "properties": {
@@ -3404,6 +3903,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Plan bounded routes; omitted clearance comes from document DRC. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "properties": {
@@ -3461,6 +3965,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Plan placement repair and selective affected-net reroute; wired-safe, moves are fixed. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "$defs": {
@@ -3510,6 +4019,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Generate and persist a deterministic legal silkscreen placement plan. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -3555,6 +4069,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Store preview artifacts and return bounded metadata without changing the design.",
       "inputSchema": {
         "properties": {
@@ -3574,6 +4093,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Browse or search the installed DipTrace catalog without modifying native libraries.",
       "inputSchema": {
         "properties": {
@@ -3612,6 +4136,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Query normalized components or patterns in a standalone library.",
       "inputSchema": {
         "properties": {
@@ -3642,6 +4171,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Structured query over the normalized model. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -3675,6 +4209,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Rank schematic candidates with optional sourced rules and bounded config. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "$defs": {
@@ -3705,6 +4244,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Read bounded XML fragments using ElementTree-compatible XPath.",
       "inputSchema": {
         "properties": {
@@ -3733,6 +4277,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Rank compatible footprint patterns from a pattern library deterministically. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "$defs": {
@@ -3809,6 +4358,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Write a user-supplied evidence manifest and provenance sidecar, not design bytes.\n\nThis explicitly writes metadata, returns written=true only after both files verify, remains authority=user_supplied, and can never grant high trust.",
       "inputSchema": {
         "$defs": {
@@ -3879,6 +4433,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Remove explicit standalone-pad testpoints and their net/pattern references. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -3905,6 +4464,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "selector"
+        ],
         "type": "object"
       },
       "name": "remove_testpoints",
@@ -3914,6 +4476,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Rename selected PCB or schematic nets with duplicate-name protection. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -3940,7 +4507,8 @@
           }
         },
         "required": [
-          "new_name"
+          "new_name",
+          "selector"
         ],
         "type": "object"
       },
@@ -3951,6 +4519,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Replace trace geometry while preserving both connected endpoints. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "$defs": {
@@ -4036,6 +4609,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Review BOM identity, DNP and value/pattern/MPN consistency.",
       "inputSchema": {
         "properties": {
@@ -4052,6 +4630,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Measure explicit standalone-pad testpoint coverage for selected or all nets.",
       "inputSchema": {
         "properties": {
@@ -4074,6 +4657,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Restore a transaction snapshot or backup.",
       "inputSchema": {
         "properties": {
@@ -4096,6 +4684,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Rotate free board text or component markings. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4134,7 +4727,8 @@
           }
         },
         "required": [
-          "angle_deg"
+          "angle_deg",
+          "selector"
         ],
         "type": "object"
       },
@@ -4145,6 +4739,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Rotate selected PCB components or schematic parts transactionally. Component angle semantics have not yet been independently validated against a live DipTrace GUI edit and re-export. Inspect the transaction preview and verify the result through DipTrace before relying on rotation changes. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4189,7 +4788,8 @@
           }
         },
         "required": [
-          "angle_deg"
+          "angle_deg",
+          "selector"
         ],
         "type": "object"
       },
@@ -4200,6 +4800,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Route one pad-to-pad connection with bounded deterministic 45-degree A*.\n\nOmit clearance to use the applicable document DRC TraceToTrace rule. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4298,6 +4903,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Route multiple connections sequentially with bounded rip-up/retry. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4351,6 +4961,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Route a coupled pair; omitted clearance comes from document DRC. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4427,6 +5042,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Route exported ratlines; omitted clearance comes from document DRC. Clearance resolution applies the maximum of explicit requested clearance, board DRC TraceToTrace defaults, and all affected NetClass LayProperty Clearance rules. The structured result includes clearance_rule_status and the effective value; this is not a full DipTrace DRC sign-off. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4491,6 +5111,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
       "description": "Start an isolated bounded Freerouting CLI job; never invokes a shell.",
       "inputSchema": {
         "properties": {
@@ -4530,6 +5155,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
       "description": "Run a user-supplied ngspice netlist in batch mode (requires DIPTRACE_MCP_NGSPICE).",
       "inputSchema": {
         "properties": {
@@ -4555,6 +5185,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
       "description": "Run configured openEMS stripline analysis with a typed frequency sweep. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "properties": {
@@ -4623,6 +5258,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Run one deterministic offline review profile and store its report.",
       "inputSchema": {
         "properties": {
@@ -4672,6 +5312,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Find standalone DipTrace Component Library XML files inside allowed roots.",
       "inputSchema": {
         "properties": {
@@ -4692,6 +5337,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Find DipTrace XML/native-XML documents inside an allowed directory.",
       "inputSchema": {
         "properties": {
@@ -4712,6 +5362,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Find standalone DipTrace Pattern Library XML files inside allowed roots.",
       "inputSchema": {
         "properties": {
@@ -4732,6 +5387,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Score an explicit component placement proposal without editing XML. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "$defs": {
@@ -4805,6 +5465,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Swap to one embedded pattern only when pad mapping is preserved exactly. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4835,8 +5500,8 @@
           }
         },
         "required": [
-          "selector",
-          "pattern_style"
+          "pattern_style",
+          "selector"
         ],
         "type": "object"
       },
@@ -4847,6 +5512,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Set RefDes, name, value or custom fields on selected components. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4888,6 +5558,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "selector"
+        ],
         "type": "object"
       },
       "name": "set_component_properties",
@@ -4897,6 +5570,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Move selected PCB components to the top or bottom side. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4931,6 +5609,7 @@
           }
         },
         "required": [
+          "selector",
           "side"
         ],
         "type": "object"
@@ -4942,6 +5621,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Set the value of one or more components transactionally. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -4968,6 +5652,7 @@
           }
         },
         "required": [
+          "selector",
           "value"
         ],
         "type": "object"
@@ -4979,6 +5664,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Set official DipTrace panelization parameters on a PCB document. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -5013,6 +5703,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Set or clear intentional no-connect on selected schematic pins. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -5039,7 +5734,8 @@
           }
         },
         "required": [
-          "no_connect"
+          "no_connect",
+          "selector"
         ],
         "type": "object"
       },
@@ -5050,6 +5746,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Set verified style attributes on free PCB text shapes. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -5101,6 +5802,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "selector"
+        ],
         "type": "object"
       },
       "name": "set_text_style",
@@ -5110,6 +5814,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Set visibility for component silk/assembly markings. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -5145,6 +5854,7 @@
           }
         },
         "required": [
+          "selector",
           "visibility"
         ],
         "type": "object"
@@ -5156,6 +5866,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Set selected trace segment widths with exported DRC minimum checks. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -5200,6 +5915,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Set an existing verified project ViaStyle on selected vias. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -5238,6 +5958,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Attach registered semantic operations to an existing transaction. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "$defs": {
@@ -5320,6 +6045,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Synthesize a bounded microstrip width using the analytical model. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "properties": {
@@ -5363,6 +6093,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Summarize a PCB or schematic: components, nets, layers, sheets and connectivity.",
       "inputSchema": {
         "properties": {
@@ -5379,6 +6114,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Additively synchronize schematic components, nets and ratlines into a PCB. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -5405,6 +6145,10 @@
           "dry_run": {
             "default": true,
             "type": "boolean"
+          },
+          "expected_schematic_sha256": {
+            "description": "Schematic SHA from the dry run; required to commit.",
+            "type": "string"
           },
           "expected_sha256": {
             "type": "string"
@@ -5455,6 +6199,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Remove selected components from groups and prune only empty groups. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -5497,6 +6246,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
       "description": "Update verified width, clearance, differential-pair and length fields of a net class. Distances are mm, regardless of the document Units attribute. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
@@ -5565,6 +6319,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Evaluate available exported rules for one differential pair.",
       "inputSchema": {
         "properties": {
@@ -5587,6 +6346,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Validate explicit net/layer/target constraints against routed widths and stackup. Distances are mm, regardless of the document Units attribute.",
       "inputSchema": {
         "$defs": {
@@ -5649,6 +6413,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Validate component pins, attached pattern and pin-to-pad mapping.",
       "inputSchema": {
         "properties": {
@@ -5674,6 +6443,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Validate pattern pad numbering, styles, geometry, holes and annular rings.",
       "inputSchema": {
         "properties": {
@@ -5699,6 +6473,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Detect one MPN mapped to conflicting manufacturer/value/pattern metadata.",
       "inputSchema": {
         "properties": {
@@ -5715,6 +6494,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Validate component pin numbers against pads of its embedded attached pattern.",
       "inputSchema": {
         "properties": {
@@ -5740,6 +6524,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Validate distinct allowed-root evidence roles and exact SHA bindings without writing.\n\nThe bounded result is always authority=user_supplied and grants_high_trust=false.",
       "inputSchema": {
         "$defs": {
@@ -5810,6 +6599,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Validate staged operations and return the same bounded preview metadata.",
       "inputSchema": {
         "properties": {
@@ -5829,6 +6623,11 @@
       }
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Detect value/pattern inconsistency across multi-part units and shared MPNs.",
       "inputSchema": {
         "properties": {

@@ -22,6 +22,8 @@ alternatives, anticipate failure modes and review the finished geometry.
    skipped and never get a pattern, existing PCB components keep their position, and a pin
    without a verified embedded pin-to-pad binding needs an explicit `pin_map`. Inspect additions,
    reconnections, existing placements, DNP/documentary objects, and locks before commit.
+   The commit needs both the PCB `expected_sha256` and `expected_schematic_sha256`
+   (`result.schematic_source.sha256` of the dry run).
 4. Freeze mechanical outline, holes, enclosure/connector datums and keepouts. Derive a
    compact outline from occupied space and manufacturing margins; connectors may fix a
    board dimension. Prefer the simplest, smallest practical footprint for standard

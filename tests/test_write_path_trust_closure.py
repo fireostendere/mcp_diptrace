@@ -148,6 +148,7 @@ def test_schematic_to_pcb_sync_invalidates_trust_after_real_commit(tmp_path: Pat
         pattern_library_paths=[str(pattern_library)],
         dry_run=False,
         expected_sha256=source_sha,
+        expected_schematic_sha256=sha256_bytes(schematic.read_bytes()),
     )
 
     assert result["written"] is True

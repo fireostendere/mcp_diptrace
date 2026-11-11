@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import functools
+import inspect
 import logging
 from collections.abc import Callable, Sequence
 from contextlib import AbstractAsyncContextManager
@@ -22,7 +24,7 @@ from .error_boundary import (
     error_result_to_mcp_result,
     exception_to_error_result,
 )
-from .errors import DipTraceMcpError, InternalStateError
+from .errors import DipTraceMcpError, InternalStateError, InvalidArgumentError
 from .scaffolding import (
     FORMAT_VERSION_DESCRIPTION,
     MAX_FORMAT_VERSION_LENGTH,
@@ -344,6 +346,46 @@ def _compact_schema(schema: Any, *, collapse_nullable: bool) -> Any:
     return compact
 
 
+# Tools that never change a user document or an external system. Stored plans,
+# previews, reports and job records in the server's own state directory do not count.
+_READ_ONLY_PREFIXES = (
+    "get_", "list_", "query_", "scan_", "read_", "analyze_", "calculate_", "validate_",
+    "compare_", "detect_", "find_", "measure_", "recommend_", "review_", "summarize_",
+    "suggest_", "score_", "rank_", "inspect_", "plan_", "generate_",
+)  # fmt: skip
+_READ_ONLY_TOOLS = frozenset({"diptrace_status", "group_bom", "run_review", "preview_transaction"})
+# Writes that can remove or replace existing design content. Other writes update in
+# place or add, behind the same expected-SHA, backup and transaction guards.
+_DESTRUCTIVE_PREFIXES = ("delete_", "remove_", "clear_", "rollback_", "apply_", "disconnect_")
+_DESTRUCTIVE_TOOLS = frozenset(
+    {
+        "commit_transaction",
+        "sync_schematic_to_pcb",
+        "replace_trace",
+        "import_autorouter_ses",
+        "abandon_live_session",
+    }
+)
+_OPEN_WORLD_TOOLS = frozenset(
+    {
+        "pipeline_source_component",
+        "run_external_autorouter",
+        "run_ngspice_simulation",
+        "run_openems_stripline_analysis",
+    }
+)
+
+
+def tool_annotations(name: str) -> types.ToolAnnotations:
+    read_only = name.startswith(_READ_ONLY_PREFIXES) or name in _READ_ONLY_TOOLS
+    return types.ToolAnnotations(
+        readOnlyHint=read_only,
+        destructiveHint=not read_only
+        and (name.startswith(_DESTRUCTIVE_PREFIXES) or name in _DESTRUCTIVE_TOOLS),
+        openWorldHint=name in _OPEN_WORLD_TOOLS,
+    )
+
+
 def _finalize_listed_tool(tool: types.Tool) -> types.Tool:
     """Compact schemas and add shared disclosures to one tools/list entry."""
 
@@ -358,6 +400,10 @@ def _finalize_listed_tool(tool: types.Tool) -> types.Tool:
             name in _GEOMETRIC_FIELD_NAMES or name.endswith("_mm") for name in property_names
         )
     )
+    annotations = tool_annotations(tool.name)
+    if has_selector and not annotations.readOnlyHint:
+        # Write tools refuse an empty selector, so the schema says it is required.
+        input_schema["required"] = sorted({*input_schema.get("required", []), "selector"})
     description = (tool.description or "").strip()
     if tool.name == "rotate_components" and _COMPONENT_ANGLE_CAVEAT not in description:
         description = f"{description} {_COMPONENT_ANGLE_CAVEAT}".strip()
@@ -374,6 +420,7 @@ def _finalize_listed_tool(tool: types.Tool) -> types.Tool:
     return tool.model_copy(
         update={
             "description": description,
+            "annotations": annotations,
             "inputSchema": input_schema,
             "outputSchema": (
                 None
@@ -382,6 +429,29 @@ def _finalize_listed_tool(tool: types.Tool) -> types.Tool:
             ),
         }
     )
+
+
+def _with_ok(function: Callable[..., Any]) -> Callable[..., Any]:
+    """Every successful dict result carries ``ok``; failures already carry ``ok: false``."""
+
+    def mark(result: Any) -> Any:
+        if isinstance(result, dict):
+            result.setdefault("ok", True)
+        return result
+
+    if inspect.iscoroutinefunction(function):
+
+        @functools.wraps(function)
+        async def async_body(*args: Any, **kwargs: Any) -> Any:
+            return mark(await function(*args, **kwargs))
+
+        return async_body
+
+    @functools.wraps(function)
+    def body(*args: Any, **kwargs: Any) -> Any:
+        return mark(function(*args, **kwargs))
+
+    return body
 
 
 class DipTraceFastMCP(FastMCP):
@@ -400,6 +470,7 @@ class DipTraceFastMCP(FastMCP):
         self.prompt_names: list[str] = []
         # Registered (wrapped) tool bodies by name, for audits; FastMCP keeps its own private.
         self.tool_bodies: dict[str, Any] = {}
+        self._argument_names: dict[str, set[str]] | None = None
         # Optional replacement for the SDK stdio transport (see run_stdio_async).
         self.stdio_streams: Callable[[], AbstractAsyncContextManager[Any]] | None = None
         # The same public handlers FastMCP wires into its own private server.
@@ -424,7 +495,7 @@ class DipTraceFastMCP(FastMCP):
         explicit_name = kwargs.get("name") or (args[0] if args else None)
 
         def decorator(function: Any) -> Any:
-            body = capture_tool_failures(function)
+            body = capture_tool_failures(_with_ok(function))
             register(body)
             self.tool_bodies[explicit_name or function.__name__] = body
             return function
@@ -484,6 +555,24 @@ class DipTraceFastMCP(FastMCP):
         self, name: str, arguments: dict[str, Any]
     ) -> Sequence[types.ContentBlock] | dict[str, Any]:
         try:
+            if self._argument_names is None:
+                self._argument_names = {
+                    tool.name: set(tool.inputSchema.get("properties", {}))
+                    for tool in await super().list_tools()
+                }
+            unknown = sorted(set(arguments) - self._argument_names.get(name, set(arguments)))
+            if unknown:
+                # A misspelled option must not silently fall back to its default.
+                return cast(
+                    "Sequence[types.ContentBlock] | dict[str, Any]",
+                    error_result_to_mcp_result(
+                        exception_to_error_result(
+                            InvalidArgumentError(
+                                f"Unknown argument(s) for {name}: {', '.join(unknown)}"
+                            )
+                        )
+                    ),
+                )
             return await super().call_tool(name, arguments)
         except ToolError as exc:
             cause = exc.__cause__

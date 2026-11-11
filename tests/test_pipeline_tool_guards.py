@@ -111,3 +111,42 @@ def test_unrouted_net_has_no_length(tmp_path: Path) -> None:
     measurement = result["result"]["measurements"][0]
     assert measurement["routed_length_status"] == "unavailable"
     assert "net_unrouted" in measurement["routed_length_unavailable_reasons"]
+
+
+def test_every_tool_declares_its_side_effects(listed_tools: dict[str, Any]) -> None:
+    hints = {name: tool.annotations for name, tool in listed_tools.items()}
+    assert all(item is not None and item.readOnlyHint is not None for item in hints.values())
+    assert hints["list_nets"].readOnlyHint is True
+    assert hints["move_components"].readOnlyHint is False
+    assert hints["move_components"].destructiveHint is False
+    assert hints["delete_trace"].destructiveHint is True
+    assert hints["pipeline_source_component"].openWorldHint is True
+    assert "selector" in listed_tools["delete_wire"].inputSchema["required"]
+    assert "selector" not in listed_tools["query_objects"].inputSchema.get("required", [])
+
+
+def test_unknown_arguments_are_refused(tmp_path: Path) -> None:
+    result = _call(tmp_path, "get_document_info", {"path": "pcb.xml", "bogus": 1})
+    assert result["error"]["code"] == "INVALID_ARGUMENT"
+    assert "bogus" in result["error"]["message"]
+
+
+def test_read_tools_report_ok(tmp_path: Path) -> None:
+    assert _call(tmp_path, "summarize_design", {"path": "pcb.xml"})["ok"] is True
+    assert _call(tmp_path, "list_nets", {"path": "pcb.xml"})["ok"] is True
+
+
+def test_sync_commit_requires_the_previewed_schematic_sha(tmp_path: Path) -> None:
+    arguments = {"schematic_path": "schematic.xml", "pcb_path": "pcb.xml", "dry_run": False}
+    result = _call(tmp_path, "sync_schematic_to_pcb", {**arguments, "expected_sha256": "0" * 64})
+    assert result["error"]["code"] == "SAFETY_GATE"
+    result = _call(
+        tmp_path,
+        "sync_schematic_to_pcb",
+        {**arguments, "expected_sha256": "0" * 64, "expected_schematic_sha256": "1" * 64},
+    )
+    assert result["error"]["code"] == "CONFLICT"
+
+
+def test_testpoint_readers_refuse_a_schematic(tmp_path: Path) -> None:
+    assert _call(tmp_path, "list_testpoints", {"path": "schematic.xml"})["ok"] is False

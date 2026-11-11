@@ -367,6 +367,10 @@ def create_server(
         dry_run: bool = True,
         expected_sha256: str | None = None,
         txid: str | None = None,
+        expected_schematic_sha256: Annotated[
+            str | None,
+            Field(description="Schematic SHA from the dry run; required to commit."),
+        ] = None,
     ) -> dict[str, Any]:
         """Additively synchronize schematic components, nets and ratlines into a PCB."""
         return service.sync_schematic_to_pcb(
@@ -383,6 +387,7 @@ def create_server(
             dry_run=dry_run,
             expected_sha256=expected_sha256,
             txid=txid,
+            expected_schematic_sha256=expected_schematic_sha256,
         )
 
     @mcp.tool()

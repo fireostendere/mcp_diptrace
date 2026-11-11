@@ -84,6 +84,7 @@ _WRITE_CAPABILITIES: dict[str, CapabilityRule] = {
     "set_pin_no_connect": CapabilityRule("schematic"),
     "rename_net": CapabilityRule("design"),
     "net_class_rules": CapabilityRule("board"),
+    "net_class_assignment": CapabilityRule("design"),
     "testpoints": CapabilityRule("board"),
     "apply_silkscreen_plan": CapabilityRule("board"),
     "apply_component_placement_plan": CapabilityRule("board"),

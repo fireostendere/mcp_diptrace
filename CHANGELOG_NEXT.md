@@ -112,6 +112,12 @@ Changes in this section are later development and are not silently part of those
   pads, holes and vias;
 - the two public candidate-ranking tools accept optional validated engineering
   rule packs without adding another MCP tool;
+- **breaking:** one contract revision of the 152 tools: every tool carries
+  `readOnlyHint`/`destructiveHint`/`openWorldHint`; unknown arguments are refused
+  instead of ignored; every successful result has `ok: true`; write tools publish
+  `selector` as required; committing `sync_schematic_to_pcb` requires
+  `expected_schematic_sha256`; `list_testpoints` and `review_testpoint_coverage`
+  refuse a non-PCB document;
 - **breaking:** the public surface is 152 tools. Fourteen review-profile tools
   (`run_drc`, `run_erc`, `run_connectivity_check`, `run_board_review`,
   `run_schematic_review`, `run_manufacturing_review`,
