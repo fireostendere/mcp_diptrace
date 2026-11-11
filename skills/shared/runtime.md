@@ -14,7 +14,7 @@ keeps these interfaces separate.
 | Inspect/edit exported XML | MCP with an explicit `path` | Parses models, runs offline checks, previews and commits semantic changes; no GUI required |
 | Work on the active editor exchange | MCP live session | Omitting `path` uses a confirmed bridge session; `finish_live_session` applies/cancels its exchange |
 | Open a native file without desktop interference | Headless GUI `roundtrip` | Launches the selected real editor, opens, saves, closes, and returns process/file evidence |
-| Native PCB refill and DRC | PCB acceptance CLI | Refill, DRC, save/close/reopen, XML Save As, and evidence comparison |
+| Native PCB refill and DRC | PCB acceptance CLI, or `run_native_check(check="pcb_acceptance")` as a job | Refill, DRC, save/close/reopen, XML Save As, and evidence comparison. The MCP job starts the same helper from a source install and records its exit code and files; it does not decide acceptance |
 | Export a native `.dch`/`.dip` to XML for review | Native XML export CLI | Real editor Save As XML from a private copy on an owned hidden desktop; the source is never saved; no refill, ERC/DRC or library export |
 | Bounded native schematic evidence | Schematic acceptance CLI | Guarded `.dchxml` copy through Save As, reopen and re-export with optional ERC-result/dialog capture; execution evidence, not acceptance |
 | Native Gerber X2, NC Drill and pick-and-place from a PCB copy | `diptrace_mcp.native_cad` Python API (Windows) | Drives the real PCB editor's export dialogs on an isolated copy of a verified build; not an MCP tool or packaged CLI, and not inspected CAM |

@@ -2,7 +2,7 @@
 
 ## Current baseline
 
-The current source/package version is `0.4.0`. The public MCP contract currently registers 152 tools. `DipTraceService` is the stable public Facade; typed domain implementations live under `src/diptrace_mcp/services/`.
+The current source/package version is `0.4.0`. The public MCP contract currently registers 159 tools. `DipTraceService` is the stable public Facade; typed domain implementations live under `src/diptrace_mcp/services/`.
 
 `v0.4.0` is published as an unsigned GitHub development prerelease and as
 `diptrace-mcp==0.4.0` on PyPI. Development on `main` continues after that
@@ -121,7 +121,7 @@ python scripts/generate_mcp_tools_snapshot.py --check
 
 Current expected values:
 
-- 152 MCP tools.
+- 159 MCP tools.
 
 The MCP discovery budget and exact snapshot are CI-gated. Internal schematic/PCB/cinematic work should not expand the public surface without an explicit API decision.
 

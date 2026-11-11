@@ -545,6 +545,7 @@ class BuiltinLibraryService:
         diptrace_root: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
+        txid: str | None = None,
     ) -> dict[str, Any]:
         location = _catalog_location(diptrace_root)
         row = _component_row(location, component)
@@ -567,4 +568,4 @@ class BuiltinLibraryService:
                 "library_pad_style_xml": definitions["pad_style_xml"],
             }
         )
-        return self.semantic_write(operation, path, dry_run, expected_sha256, None)
+        return self.semantic_write(operation, path, dry_run, expected_sha256, txid)

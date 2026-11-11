@@ -2,7 +2,7 @@
 
 ## Public contract
 
-DipTrace MCP currently exposes **152 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
+DipTrace MCP currently exposes **159 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
 
 `reference/mcp-tools-list.snapshot.json`
 
@@ -32,7 +32,7 @@ The exact names and schemas are in the generated snapshot. Conceptually the publ
 - bounded external jobs/adapters;
 - release/readiness and other project-owned analysis helpers.
 
-Use MCP introspection rather than copying a manually maintained 152-item list into application code or documentation.
+Use MCP introspection rather than copying a manually maintained 159-item list into application code or documentation.
 
 ### Consolidated tools (post-`v0.4.0`)
 
@@ -111,6 +111,25 @@ Write-capable tools remain behind the guarded operation path:
 8. live-session identity checks when applicable.
 
 The public tool surface is not permission to bypass those boundaries.
+
+## Tools added after the 2026-11-10 review
+
+| Tool | What it does | Boundary |
+| --- | --- | --- |
+| `add_copper_pours` | Full-board four-spoke pour boundaries of one net on the named layers, optionally with a grid of free stitching vias and explicit extra vias | Copper appears only after a native refill; re-running replaces that net's stitching vias |
+| `delete_copper_pours` | Removes a net's pours (all layers or named ones) and its stitching vias | — |
+| `set_board_outline` | Replaces the outline with a straight-edged polygon | Refuses a locked outline or one that cuts off objects the current outline contains; no holes, cutouts or arcs |
+| `delete_parts` | Deletes schematic parts and their net membership | A wire left on a deleted pin is refused; delete it in the same transaction |
+| `delete_net_labels` | Deletes the visual labels of one net | Labels are annotations; connectivity is unchanged |
+| `run_quality_gate` | The `PCB_BUILD.md` handoff check: gate order, recorded SHAs, and the stage's offline check | Read-only; native DRC/ERC and manual gates stay outside it |
+| `run_native_check` | Starts a native DipTrace helper (`pcb_acceptance`, `schematic_acceptance`, `schematic_erc`, `xml_export`) on a copy as a background job | Source installs only; needs a reviewed DipTrace build and external-execution policy; the job records the helper's exit code and files and makes no acceptance decision |
+
+`place_builtin_component` accepts `txid`, so native Net Ports and power symbols can be
+staged in one transaction with the wiring. Paged schematic reads (parts, pins, wires,
+nets) go through `query_objects` with `selector.kinds`.
+
+The five write tools are new native-document writers that have not yet been opened in
+DipTrace through this path (roadmap M1/M2).
 
 ## Pipeline tools
 

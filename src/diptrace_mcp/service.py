@@ -591,6 +591,7 @@ class DipTraceService:
         diptrace_root: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
+        txid: str | None = None,
     ) -> dict[str, Any]:
         return self._builtin_library_service.place_component(
             component,
@@ -604,6 +605,7 @@ class DipTraceService:
             diptrace_root=diptrace_root,
             dry_run=dry_run,
             expected_sha256=expected_sha256,
+            txid=txid,
         )
 
     def preview_transaction(self, txid: str) -> dict[str, Any]:

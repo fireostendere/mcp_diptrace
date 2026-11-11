@@ -66,10 +66,12 @@ continuous return plane on ordinary boards; never infer split AGND/PGND planes m
 from pin names. Preserve all manufacturer pad geometry and exposed-pad connections.
 
 Read `list_copper_pours`, `analyze_plane_continuity`, and `analyze_return_path` for
-exported geometry. These are not native refill. There is no dedicated semantic
-copper-pour creation tool: use a supported guarded operation/native workflow or a validated existing
-builder for that stage, then run native refill. The source checkout has
-`diptrace_mcp.copper_pours`, but its Python helper is not a public MCP transaction.
+exported geometry. These are not native refill. `add_copper_pours` writes full-board
+four-spoke pour boundaries for one net and, with `stitch_pitch_mm`, free stitching vias
+placed clear of parts, pads, traces, vias, keepouts and silkscreen; `delete_copper_pours`
+removes them. Both are ordinary guarded transactions. Copper exists only after a native
+refill, which also decides which pads the pour reaches. `set_board_outline` replaces a
+straight-edged outline; mounting holes, cutouts and arcs still have no tool.
 
 Stitch free regions on both layers, starting around a 2 mm grid on small boards and
 checking coverage/clearance per region. Hand-soldered connector GND pads use four-spoke

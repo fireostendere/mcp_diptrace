@@ -16,10 +16,20 @@ defects below; B1-B8, B10-B13, B15 and B16 are closed. The
 | B9 | A net reference that matches no name still falls back to an XML id | `connect_pins(net="1")` attaches to net id 1 instead of creating net `1` |
 | B14 | `get_capabilities` is keyed by capability, with no published tool → capability-key map; the pipeline tools have no key | Clients cannot look a tool up in the report |
 
-Two status questions also remain open: documents record the Q1 Component Angle
-campaign as PASS while `evidence_status.Q1_COMPONENT_ANGLE_LIVE_VALIDATED` is still
-`False` (one side is stale), and the tool gaps G1–G12 in the review record need a
-product/API decision before any of them is built.
+Also open from that review:
+
+- the seven tools added afterwards (`add_copper_pours`, `delete_copper_pours`,
+  `set_board_outline`, `delete_parts`, `delete_net_labels`, `run_quality_gate`,
+  `run_native_check`) have repository tests only: no native open/refill/DRC evidence
+  for the writers, and no real DipTrace run of `run_native_check`, which a packaged
+  (frozen) server refuses;
+- tool gaps without a native XML reference in any repository board: board text,
+  mounting holes and cutouts, net class / differential pair / via style creation,
+  sheet and PCB-component deletes, a public wire planner, native manufacturing export;
+- the board gate does not run `run_checks`; its overlap/edge findings on the accepted
+  ATtiny board need triage first;
+- documents record the Q1 Component Angle campaign as PASS while
+  `evidence_status.Q1_COMPONENT_ANGLE_LIVE_VALIDATED` is still `False`.
 
 ## Highest-priority current debt
 
@@ -115,7 +125,7 @@ Remaining debt is a product/API decision, not implementation absence:
 - add transport/error/permission tests;
 - avoid broadening compatibility claims beyond verified operations.
 
-The 152-tool MCP surface includes the bounded intelligence engines and read-only built-in-library bridge; the package-level native-library mutation API remains intentionally unregistered.
+The 159-tool MCP surface includes the bounded intelligence engines and read-only built-in-library bridge; the package-level native-library mutation API remains intentionally unregistered.
 
 ### 11. Evidence review automation depth
 

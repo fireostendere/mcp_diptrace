@@ -315,7 +315,7 @@ def render_board_svg(pcb_path: str, output_dir: str) -> dict[str, Any]:
 
     outline_pts = board.find("./BoardOutline/Points")
     if outline_pts is None:
-        return {"ok": False, "error": "No BoardOutline/Points found", "files": []}
+        raise DocumentError("Board preview requires a board outline")
 
     outline = [
         (float(p_.get("X", "0")), float(p_.get("Y", "0")))

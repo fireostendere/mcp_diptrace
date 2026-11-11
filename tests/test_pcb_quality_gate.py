@@ -55,7 +55,7 @@ def _schematic_project(tmp_path: Path) -> Path:
 def _run_gate(monkeypatch, *argv: str) -> int:
     import sys
 
-    from scripts import pcb_quality_gate
+    from diptrace_mcp import quality_gate as pcb_quality_gate
 
     monkeypatch.setattr(sys, "argv", ["pcb_quality_gate.py", *argv])
     return pcb_quality_gate.main()
@@ -70,7 +70,7 @@ def test_schematic_stage_needs_no_board_and_blocks_incomplete_review(tmp_path, m
 
 
 def test_schematic_stage_passes_a_clean_review(tmp_path, monkeypatch, capsys):
-    from scripts import pcb_quality_gate
+    from diptrace_mcp import quality_gate as pcb_quality_gate
 
     project = _schematic_project(tmp_path)
     def clean_review(snapshot, categories):
@@ -86,7 +86,7 @@ def test_schematic_stage_passes_a_clean_review(tmp_path, monkeypatch, capsys):
 def test_handoff_declares_stage_and_files(tmp_path, monkeypatch, capsys):
     import shutil
 
-    from scripts import pcb_quality_gate
+    from diptrace_mcp import quality_gate as pcb_quality_gate
 
     project = _schematic_project(tmp_path)
     (project / "candidates").mkdir()

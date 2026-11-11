@@ -1117,6 +1117,7 @@ def create_server(
         diptrace_root: str | None = None,
         dry_run: bool = True,
         expected_sha256: str | None = None,
+        txid: str | None = None,
     ) -> dict[str, Any]:
         """Find an installed component by catalog id/name and place a private schematic copy."""
         return service.place_builtin_component(
@@ -1131,6 +1132,7 @@ def create_server(
             diptrace_root=diptrace_root,
             dry_run=dry_run,
             expected_sha256=expected_sha256,
+            txid=txid,
         )
 
     @mcp.tool()
@@ -1243,6 +1245,134 @@ def create_server(
     ) -> dict[str, Any]:
         """Remove panelization settings from a PCB document."""
         return service.clear_panelization(path, dry_run, expected_sha256, txid)
+
+    @mcp.tool(
+        description=(
+            "Create or replace full-board four-spoke pours of one net, with optional "
+            "stitching vias placed clear of parts, pads, traces, vias, keepouts and "
+            "silkscreen. Re-running replaces this net's earlier stitching vias. Copper "
+            "needs a native refill."
+        )
+    )
+    def add_copper_pours(
+        net: str,
+        layers: Annotated[
+            list[str] | None, Field(description="Copper layer names; default Top and Bottom.")
+        ] = None,
+        clearance_mm: float = 0.2,
+        board_clearance_mm: float = 0.2,
+        spoke_width_mm: float = 0.3,
+        stitch_pitch_mm: Annotated[
+            float | None,
+            Field(description="Grid pitch for free stitching vias of this net; omit for none."),
+        ] = None,
+        stitch_edge_mm: float = 1.0,
+        extra_vias: Annotated[
+            list[dict[str, float]] | None,
+            Field(description="Explicit free via positions as {x, y} in mm."),
+        ] = None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """See the tool description."""
+        return service.add_copper_pours(
+            net,
+            layers=layers,
+            clearance_mm=clearance_mm,
+            board_clearance_mm=board_clearance_mm,
+            spoke_width_mm=spoke_width_mm,
+            stitch_pitch_mm=stitch_pitch_mm,
+            stitch_edge_mm=stitch_edge_mm,
+            extra_vias=extra_vias,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+        )
+
+    @mcp.tool()
+    def delete_copper_pours(
+        net: str,
+        layers: list[str] | None = None,
+        remove_stitching_vias: bool = True,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """Remove copper pours of one net (all layers or the named ones) and its stitching vias."""
+        return service.delete_copper_pours(
+            net,
+            layers=layers,
+            remove_stitching_vias=remove_stitching_vias,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+        )
+
+    @mcp.tool(
+        description=(
+            "Replace the board outline polygon. Refused when the outline is locked or when "
+            "a component, pad, via, trace or pour boundary inside the current outline would "
+            "fall outside the new one. Mounting holes, cutouts and arcs are not authored "
+            "here."
+        )
+    )
+    def set_board_outline(
+        points: Annotated[
+            list[dict[str, float]],
+            Field(description="Outline corners in order as {x, y} in mm; straight edges only."),
+        ],
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """See the tool description."""
+        return service.set_board_outline(points, path, dry_run, expected_sha256, txid)
+
+    @mcp.tool(
+        description=(
+            "Delete schematic parts and their net membership. Delete wires attached to "
+            "their pins in the same transaction; a wire left on a deleted pin is refused."
+        )
+    )
+    def delete_parts(
+        selector: SelectorInput | None = None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """See the tool description."""
+        return service.delete_parts(selector, path, dry_run, expected_sha256, txid)
+
+    @mcp.tool(
+        description=(
+            "Delete the visual labels of one schematic net, on one sheet or all. "
+            "Connectivity is unaffected: labels are annotations."
+        )
+    )
+    def delete_net_labels(
+        net: str,
+        sheet: int | None = None,
+        path: str | None = None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
+    ) -> dict[str, Any]:
+        """See the tool description."""
+        return service.delete_net_labels(
+            net,
+            sheet=sheet,
+            path=path,
+            dry_run=dry_run,
+            expected_sha256=expected_sha256,
+            txid=txid,
+        )
 
     @mcp.tool()
     def update_net_class_rules(
@@ -2298,6 +2428,32 @@ def create_server(
             txid=txid,
         )
 
+    @mcp.tool(
+        description=(
+            "Start a native DipTrace check on a copy of a saved document as a background "
+            "job (poll get_job_status / get_job_result). Needs an installed, reviewed "
+            "DipTrace build and a policy that allows external execution; outputs land in "
+            "the job directory."
+        )
+    )
+    def run_native_check(
+        check: Annotated[
+            Literal["pcb_acceptance", "schematic_acceptance", "schematic_erc", "xml_export"],
+            Field(
+                description="pcb_acceptance: open, refill pours, DRC, save, re-export. "
+                "schematic_acceptance: open, save, re-export. schematic_erc: the same plus "
+                "native ERC capture. xml_export: native file to exchange XML."
+            ),
+        ],
+        path: str,
+        diptrace_root: Annotated[str, Field(description="DipTrace installation directory.")],
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """See the tool description."""
+        return service.run_native_check(
+            check, path, diptrace_root, timeout_seconds=timeout_seconds
+        )
+
     @mcp.tool()
     def run_ngspice_simulation(
         netlist: str | None = None,
@@ -2806,6 +2962,37 @@ def create_server(
             "Call sync_schematic_to_pcb with dry_run=true, inspect the XML/SVG preview and "
             "commit with the returned source SHA only after pin-to-pad mapping is complete. "
             "Then legalize placement and rerun connectivity and DRC."
+        )
+
+    @mcp.tool(
+        description=(
+            "Check a project's PCB_BUILD.md handoff: gate-table order, recorded SHAs "
+            "against the files, and the stage's offline check (board: headless QC with "
+            "copper connectivity; schematic: full review with nothing skipped). status "
+            "BLOCKED lists why. Native DRC/ERC and manual gates stay outside this tool."
+        )
+    )
+    def run_quality_gate(
+        project_dir: Annotated[
+            str, Field(description="Project directory holding PCB_BUILD.md.")
+        ],
+        stage: Literal["board", "schematic"] | None = None,
+        board: str | None = None,
+        schematic: str | None = None,
+        centerline_x: list[str] | None = None,
+        centerline_y: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """See the tool description."""
+        from diptrace_mcp.quality_gate import gate_report
+
+        resolve = service.settings.resolve_allowed_path
+        return gate_report(
+            resolve(project_dir),
+            stage=stage,
+            board=resolve(board) if board else None,
+            schematic=resolve(schematic) if schematic else None,
+            centerline_x=centerline_x,
+            centerline_y=centerline_y,
         )
 
     # --- pipeline tools (Rev.A DUT controller + generic board build) ------

@@ -262,6 +262,47 @@ class ExternalJobsService:
             txid=txid,
         )
 
+    def run_native_check(
+        self,
+        check: str,
+        path: str,
+        diptrace_root: str,
+        *,
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Start one of the project's native DipTrace helpers on a document, as a job."""
+
+        self.context.policy.require_external_execution(operation="run_native_check")
+        document, target = self.gateway.load(path)
+        if target.is_live:
+            raise DocumentError("Native checks run on a saved document, not a live session")
+        expected_kind = "pcb" if check == "pcb_acceptance" else "schematic"
+        if check != "xml_export" and document.kind != expected_kind:
+            raise DocumentError(f"Native check {check} requires a {expected_kind} document")
+        info = self.context.model_cache.get(document, live_session=False).info
+        record = self.external_job_manager.start_native_check(
+            info,
+            target.path,
+            check=check,
+            diptrace_root=Path(diptrace_root),
+            timeout_seconds=timeout_seconds,
+        )
+        return {
+            "ok": True,
+            "document": info.model_dump(),
+            "result": {"job": record.model_dump(mode="json")},
+            "warnings": [],
+            "limitations": [
+                "The helper drives the real editor on a copy and supports only its reviewed "
+                "DipTrace builds; an unsupported build fails closed.",
+                "A finished job is evidence to review, not an acceptance decision: read "
+                "result.return_code, the log and the evidence files.",
+            ],
+            "resources": job_resources(record.jobid),
+            "transaction": None,
+            "job": record.model_dump(mode="json"),
+        }
+
     def run_ngspice_simulation(
         self,
         *,

@@ -47,7 +47,7 @@ def test_stage_operation_kind_schema_matches_parser_registry(
     listed_tools: dict[str, Any],
 ) -> None:
     registry_kinds = set(semantic_operation_kinds())
-    assert len(registry_kinds) == 39
+    assert len(registry_kinds) == 44
     assert set(get_args(OperationKind)) == registry_kinds
 
     stage_tool = listed_tools["stage_operations"]
@@ -183,7 +183,7 @@ def test_schema_backed_object_inputs_are_typed_without_inlining_large_models(
         for name, tool in listed_tools.items()
         if "selector" in tool.inputSchema.get("properties", {})
     }
-    assert len(selector_tools) == 34
+    assert len(selector_tools) == 35
     for name in selector_tools:
         selector = listed_tools[name].inputSchema["properties"]["selector"]
         assert _schema_resource_references(selector) == {
@@ -299,7 +299,7 @@ def test_every_write_tool_description_discloses_dry_run_contract(
         if "dry_run" in tool.inputSchema.get("properties", {})
     }
 
-    assert len(write_tools) == 52
+    assert len(write_tools) == 57
     for name in write_tools:
         tool = listed_tools[name]
         assert _DRY_RUN_DESCRIPTION in (tool.description or ""), name

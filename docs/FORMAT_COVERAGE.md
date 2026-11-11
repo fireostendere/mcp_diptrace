@@ -157,6 +157,7 @@ does not make undocumented children safe.
 
 - `routing_compiler.py::_prune_satisfied_ratlines` may remove `<Ratline>` from `<Ratlines>`; known passthrough children: none.
 - `routing_compiler.py::_write_points` clears all children of `<Points>` (inventory children: `<Item>`, `<Point>`); known passthrough children: none.
+- `semantic_compiler.py::_apply_delete_copper_pours` clears all children of `<Components>` (inventory children: `<Component>`, `<Part>`); known passthrough children: none.
 - `semantic_compiler.py::_apply_remove_testpoints` may remove `<PadStyle>` from `<PadStyles>`; known passthrough children: none.
 - `semantic_compiler.py::_apply_remove_testpoints` may remove `<Item>` from `<Pads>`; known passthrough children: none.
 - `semantic_compiler.py::_apply_remove_testpoints` may remove `<Pattern>` from `<Patterns>`; known passthrough children: none.

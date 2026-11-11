@@ -35,7 +35,7 @@ def test_copper_stitch_helpers_cover_empty_and_bounded_cases() -> None:
     assert copper_pours._axis_points(2, 1, 1) == []
     assert copper_pours._axis_points(0, 1.5, 1) == [0, 1, 1.5]
     with pytest.raises(EditError, match="Unique"):
-        copper_pours._unique_named([], "Top", "layer")
+        copper_pours.unique_named([], "Top", "layer")
 
     pcb = DipTraceDocument.load(FIXTURES / "pcb.xml", 10_000_000)
     root = ET.fromstring(pcb.raw_bytes)

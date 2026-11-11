@@ -79,6 +79,16 @@ Nothing here is native DipTrace evidence. Open items are tracked in
   `pipeline_render_board_preview` raises on a non-PCB document; the remaining raised
   domain codes map to public codes (genuine internal failures stay `INTERNAL_ERROR`).
 
+- **Tool gaps**: `add_copper_pours` / `delete_copper_pours` (G3, G4),
+  `set_board_outline` (G5, outline only), `delete_parts` / `delete_net_labels` (G6,
+  partly), `run_quality_gate` with the gate moved into the package (G9),
+  `run_native_check` (G1), `txid` on `place_builtin_component` (G12). G10 is covered by
+  paged `query_objects`. The surface is 159 tools. None of the new writers has been
+  opened in DipTrace through this path, and `run_native_check` was exercised only up to
+  recording the helper's exit code. Still open: G2, G7, G8, G11, holes/cutouts (G5),
+  sheet and PCB-component deletes (G6) — no repository board contains those objects to
+  model the XML on.
+
 ## Open findings
 
 ### Engineering correctness (false PASS first)
