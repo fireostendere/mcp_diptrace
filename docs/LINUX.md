@@ -12,8 +12,12 @@ prefix. No Python environment is required for this path.
 Review the DipTrace license first, then explicitly allow the unattended DipTrace
 installer:
 
+The `v2.0.0` tag path below exists once `v2.0.0` is published. Until then `main`
+carries the same script, but its default MCP bundle is the unpublished `2.0.0`, so
+it stops at the bundle download.
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/main/scripts/install_linux.sh \
+curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/v2.0.0/scripts/install_linux.sh \
   | bash -s -- --accept-diptrace-license
 ```
 

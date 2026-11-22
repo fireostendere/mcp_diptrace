@@ -7,7 +7,7 @@ import pytest
 
 from diptrace_mcp.config import Settings
 from diptrace_mcp.domain import DocumentProvenance, FixtureValidationLevel
-from diptrace_mcp.errors import DocumentError
+from diptrace_mcp.errors import CapabilityUnavailableError
 from diptrace_mcp.scaffolding import build_pcb_document
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.sessions import SessionStore
@@ -86,7 +86,7 @@ def test_apply_plan_refuses_plan_types_with_their_own_apply_path(tmp_path: Path)
     plan = _make_value_plan(service, board, plan_type="pcb_whole_board")
     before = board.read_bytes()
 
-    with pytest.raises(DocumentError, match="cannot be applied with apply_plan"):
+    with pytest.raises(CapabilityUnavailableError, match="cannot be applied with apply_plan"):
         service.apply_plan(plan.plan_id, dry_run=False, expected_sha256=plan.source_sha256)
 
     assert board.read_bytes() == before

@@ -58,6 +58,7 @@ jobs:
         shell: bash
         run: |
           python -c "import json; s = json.load(open('release.json', encoding='utf-8'))['release_status']; print('published=' + str(s.startswith('published-')).lower())" >> "$GITHUB_OUTPUT"
+          grep -q 'published=true' "$GITHUB_OUTPUT" || echo "::notice::release.json is a release candidate; public release verification was skipped."
       - name: Download public GitHub assets and verify recorded digests
         if: ${{ steps.state.outputs.published == 'true' }}
         shell: bash
@@ -75,8 +76,6 @@ jobs:
 
           root = pathlib.Path('.')
           release = json.loads((root / 'release.json').read_text(encoding='utf-8'))
-          if not str(release.get('release_status', '')).startswith('published-'):
-              raise SystemExit('release.json is not in a published state')
           tag = release['tag']
           repository = os.environ['REPOSITORY']
           output = root / 'public-release'

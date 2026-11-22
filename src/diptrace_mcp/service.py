@@ -9,7 +9,13 @@ from . import __version__
 from .capabilities import capability_report as build_capability_report
 from .config import Settings
 from .domain import DocumentProvenance, PlanStatus, TransactionRecord
-from .errors import ConfirmationRequiredError, DocumentError, EditError, Sha256MismatchError
+from .errors import (
+    CapabilityUnavailableError,
+    ConfirmationRequiredError,
+    DocumentError,
+    EditError,
+    Sha256MismatchError,
+)
 from .operations import SemanticOperation, parse_semantic_operations
 from .preview import PREVIEW_COPPER_POINT_LIMIT, PREVIEW_COPPER_RECORD_LIMIT
 from .previews import RawPreviewStore
@@ -689,9 +695,9 @@ class DipTraceService:
         plan = self.plans.read(plan_id)
         if plan.plan_type not in APPLICABLE_PLAN_TYPES:
             # Package-level plans (whole-board) keep their own guarded apply path.
-            raise DocumentError(
+            # Not retryable: no public tool applies them.
+            raise CapabilityUnavailableError(
                 f"Plan type {plan.plan_type} cannot be applied with apply_plan: {plan_id}",
-                code="transaction_conflict",
                 details={
                     "applicable_plan_types": sorted(APPLICABLE_PLAN_TYPES),
                     "actual_plan_type": plan.plan_type,

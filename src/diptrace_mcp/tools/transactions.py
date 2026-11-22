@@ -51,15 +51,7 @@ def register(mcp: DipTraceFastMCP, service: DipTraceService) -> None:
         """Restore a transaction snapshot or backup."""
         return service.rollback_transaction(txid, expected_sha256)
 
-    @mcp.tool(
-        capability_keys=[
-            "write_capabilities.apply_component_placement_plan",
-            "write_capabilities.apply_schematic_placement_repair_plan",
-            "write_capabilities.apply_silkscreen_plan",
-            "write_capabilities.apply_route_plan",
-            "write_capabilities.autorouter_ses_import",
-        ]
-    )
+    @mcp.tool()
     def apply_plan(
         plan_id: str,
         dry_run: bool = True,

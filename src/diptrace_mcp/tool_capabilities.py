@@ -119,6 +119,14 @@ TOOL_CAPABILITIES["calculate_impedance"] = [
     "read_capabilities.analytical_differential_microstrip_impedance",
     "read_capabilities.analytical_symmetric_stripline_impedance",
 ]
+# One tool applies every stored plan type; the capability keys keep their names.
+TOOL_CAPABILITIES["apply_plan"] = [
+    "write_capabilities.apply_component_placement_plan",
+    "write_capabilities.apply_schematic_placement_repair_plan",
+    "write_capabilities.apply_silkscreen_plan",
+    "write_capabilities.apply_route_plan",
+    "write_capabilities.autorouter_ses_import",
+]
 for _name in [
     "move_components",
     "rotate_components",
