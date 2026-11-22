@@ -82,7 +82,7 @@ labels, and `set_pin_no_connect` only for intentional NCs. Keep fields and names
 `set_component_properties` and `rename_net`. Their schemas and current tool availability win.
 
 For an existing wired layout, inspect `plan_schematic_placement_repair` and its stored preview,
-then apply through `apply_schematic_placement_repair_plan` within the authorized scope. For
+then apply through `apply_plan` within the authorized scope. For
 native evidence use [evidence capture](../diptrace-evidence-capture/SKILL.md) on a copy: base
 roundtrip only opens and saves; the bounded schematic helper adds Save As/re-export and the
 native ERC result.

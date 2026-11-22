@@ -260,24 +260,6 @@ def error_result_to_mcp_result(result: dict[str, Any]) -> types.CallToolResult:
     )
 
 
-def invoke_with_error_boundary(
-    function: Callable[..., Any],
-    tool_name: str,
-    *args: Any,
-    mcp_result: bool = False,
-    **kwargs: Any,
-) -> Any:
-    """Call a synchronous service/tool function using the public error contract."""
-
-    try:
-        return function(*args, **kwargs)
-    except Exception as exc:
-        if not isinstance(exc, (DipTraceMcpError, ValidationError)):
-            logger.exception("Unexpected failure in MCP tool %s", tool_name)
-        result = exception_to_error_result(exc)
-        return error_result_to_mcp_result(result) if mcp_result else result
-
-
 class ToolBodyFailure(Exception):
     """A tool body's exception, carried past FastMCP's result conversion.
 

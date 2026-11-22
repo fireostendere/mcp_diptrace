@@ -8,7 +8,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Protocol, cast
 from xml.parsers import expat
@@ -311,7 +311,7 @@ def reject_forbidden_xml_declarations(
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def atomic_write_bytes(path: Path, data: bytes) -> None:

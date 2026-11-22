@@ -131,65 +131,6 @@ def _readability_feedback(
     )
 
 
-def _intentional_junctions(snapshot: Any, wire_ids: list[str]) -> list[Point]:
-    """Legacy single-junction detector retained for focused compatibility tests."""
-
-    if snapshot.schematic is None:
-        return []
-    selected_ids = set(wire_ids)
-    selected = {
-        item.stable_id: item
-        for item in snapshot.schematic.wires
-        if item.stable_id in selected_ids
-    }
-    degree: dict[tuple[float, float], int] = {}
-    for wire in selected.values():
-        points = [Point(**item) for item in wire.attributes.get("points", [])]
-        for first, second in zip(points, points[1:], strict=False):
-            for point in (first, second):
-                key = (round(point.x, 9), round(point.y, 9))
-                degree[key] = degree.get(key, 0) + 1
-    return [Point(*key) for key, value in sorted(degree.items()) if value >= 3]
-
-
-def _points_via_preserved_junction(
-    start: Point,
-    end: Point,
-    junctions: list[Point],
-    *,
-    maximum_detour_ratio: float,
-) -> tuple[list[WirePathPoint], Point | None]:
-    """Legacy bounded single-junction path helper."""
-
-    if not junctions:
-        return _initial_points(start, end), None
-    junction = min(
-        junctions,
-        key=lambda item: (distance(start, item) + distance(item, end), item.x, item.y),
-    )
-    direct = max(distance(start, end), _EPS)
-    detour = distance(start, junction) + distance(junction, end)
-    if detour > direct * maximum_detour_ratio:
-        return _initial_points(start, end), None
-    raw = [
-        start,
-        Point(junction.x, start.y),
-        junction,
-        Point(end.x, junction.y),
-        end,
-    ]
-    points: list[WirePathPoint] = []
-    for point in raw:
-        if (
-            points
-            and math.isclose(points[-1].x, point.x, abs_tol=_EPS)
-            and math.isclose(points[-1].y, point.y, abs_tol=_EPS)
-        ):
-            continue
-        points.append(WirePathPoint(x=point.x, y=point.y))
-    return points, junction
-
-
 def _points_via_proven_junctions(
     start: Point,
     end: Point,

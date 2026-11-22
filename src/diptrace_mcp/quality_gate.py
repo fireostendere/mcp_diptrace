@@ -22,7 +22,7 @@ import hashlib
 import io
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -178,7 +178,7 @@ def _report(
         }
     return {
         "schema": "diptrace-engineering-memory/v1",
-        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "captured_at": datetime.now(UTC).isoformat(),
         "project": str(project.resolve()),
         "handoff": str(handoff.resolve()),
         "stage": stage,
@@ -252,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.json:
             print(json.dumps({
                 "schema": "diptrace-engineering-memory/v1",
-                "captured_at": datetime.now(timezone.utc).isoformat(),
+                "captured_at": datetime.now(UTC).isoformat(),
                 "project": str(project),
                 "status": "BLOCKED",
                 "blocked": [f"no PCB_BUILD.md in {project}"],

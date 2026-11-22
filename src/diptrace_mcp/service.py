@@ -58,6 +58,16 @@ from .xml_document import (
 
 BOARD_MODEL_RESPONSE_BYTE_LIMIT = 256 * 1024
 BOARD_MODEL_ITEM_DETAIL_BYTE_LIMIT = 32 * 1024
+APPLICABLE_PLAN_TYPES = frozenset(
+    {
+        "component_placement",
+        "schematic_placement_repair",
+        "silkscreen",
+        "route_nets",
+        "diff_pair_route",
+        "autorouter_ses_import",
+    }
+)
 
 
 class DipTraceService:
@@ -137,7 +147,6 @@ class DipTraceService:
             self.jobs,
             self.external_jobs,
             self._preview_semantic_operations,
-            self._apply_stored_plan,
         )
         self._routing_service = RoutingService(
             self._service_context,
@@ -146,14 +155,12 @@ class DipTraceService:
             self._run_semantic_write,
             self._run_semantic_operations,
             self._preview_semantic_operations,
-            self._apply_stored_plan,
         )
         self._placement_service = PlacementService(
             self._service_context,
             self._document_gateway,
             self.plans,
             self._preview_semantic_operations,
-            self._apply_stored_plan,
         )
         self._xml_write_service = XmlWriteService(
             self._service_context,
@@ -671,22 +678,22 @@ class DipTraceService:
     ) -> dict[str, Any]:
         return self._semantic_engine_service._preview_semantic_operations(document, operations)
 
-    def _apply_stored_plan(
+    def apply_plan(
         self,
         plan_id: str,
         *,
-        expected_plan_type: str,
-        dry_run: bool,
-        expected_sha256: str | None,
-        txid: str | None,
+        dry_run: bool = True,
+        expected_sha256: str | None = None,
+        txid: str | None = None,
     ) -> dict[str, Any]:
         plan = self.plans.read(plan_id)
-        if plan.plan_type != expected_plan_type:
+        if plan.plan_type not in APPLICABLE_PLAN_TYPES:
+            # Package-level plans (whole-board) keep their own guarded apply path.
             raise DocumentError(
-                f"Unexpected plan type for {plan_id}: {plan.plan_type}",
+                f"Plan type {plan.plan_type} cannot be applied with apply_plan: {plan_id}",
                 code="transaction_conflict",
                 details={
-                    "expected_plan_type": expected_plan_type,
+                    "applicable_plan_types": sorted(APPLICABLE_PLAN_TYPES),
                     "actual_plan_type": plan.plan_type,
                 },
             )

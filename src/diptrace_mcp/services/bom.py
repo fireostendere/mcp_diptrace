@@ -84,29 +84,6 @@ class BomService:
     ) -> dict[str, Any]:
         return self._validate_library_item(path, "pattern", stable_id_value, name)
 
-    def validate_pin_pad_mapping(
-        self,
-        path: str,
-        stable_id_value: str | None = None,
-        name: str | None = None,
-    ) -> dict[str, Any]:
-        result = self._validate_library_item(path, "component", stable_id_value, name)
-        mapping_codes = {
-            "attached_pattern_not_found",
-            "duplicate_pin_number",
-            "missing_pin_number",
-            "pin_pad_mapping_missing",
-        }
-        findings = [
-            item for item in result["result"]["findings"] if item["code"] in mapping_codes
-        ]
-        result["result"]["findings"] = findings
-        result["result"]["finding_count"] = len(findings)
-        result["result"]["valid"] = not any(
-            item["severity"] == "error" for item in findings
-        )
-        return result
-
     def _get_library_item(
         self,
         path: str,
@@ -242,44 +219,3 @@ class BomService:
             snapshot.info,
             {"record_count": len(records), "missing_count": len(missing), "items": missing},
         )
-
-    def group_bom(
-        self,
-        path: str | None = None,
-        *,
-        include_dnp: bool = True,
-    ) -> dict[str, Any]:
-        return self.get_bom(path, grouped=True, include_dnp=include_dnp)
-
-    def detect_duplicate_bom_items(self, path: str | None = None) -> dict[str, Any]:
-        response = self.get_bom(path, grouped=True, include_dnp=True)
-        duplicates = [
-            item for item in response["result"]["items"] if int(item["quantity"]) > 1
-        ]
-        response["result"] = {
-            "duplicate_group_count": len(duplicates),
-            "items": duplicates,
-            "definition": "Same MPN/manufacturer/value/pattern/DNP/variant identity.",
-        }
-        return response
-
-    def validate_mpn_consistency(self, path: str | None = None) -> dict[str, Any]:
-        response = self.review_bom(path)
-        response["result"]["findings"] = [
-            item
-            for item in response["result"]["findings"]
-            if item["code"] == "bom.mpn_inconsistent"
-        ]
-        response["result"]["valid"] = not response["result"]["findings"]
-        return response
-
-    def validate_value_pattern_consistency(self, path: str | None = None) -> dict[str, Any]:
-        response = self.review_bom(path)
-        response["result"]["findings"] = [
-            item
-            for item in response["result"]["findings"]
-            if item["code"] in {"bom.mpn_inconsistent", "bom.multipart_inconsistent"}
-        ]
-        response["result"]["valid"] = not response["result"]["findings"]
-        return response
-

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any, Protocol
+from typing import Any
 
 from ..adapters import DocumentSnapshot, build_snapshot
 from ..clearance import resolve_clearance
@@ -39,18 +39,6 @@ SemanticOperations = Callable[
 PreviewSemanticOperations = Callable[[DipTraceDocument, list[SemanticOperation]], dict[str, Any]]
 
 
-class ApplyStoredPlan(Protocol):
-    def __call__(
-        self,
-        plan_id: str,
-        *,
-        expected_plan_type: str,
-        dry_run: bool,
-        expected_sha256: str | None,
-        txid: str | None,
-    ) -> dict[str, Any]: ...
-
-
 class RoutingService:
     """Implementation for routing analysis and bounded routing plans."""
 
@@ -62,7 +50,6 @@ class RoutingService:
         semantic_write: SemanticWrite,
         semantic_operations: SemanticOperations,
         preview_semantic_operations: PreviewSemanticOperations,
-        apply_stored_plan: ApplyStoredPlan,
     ) -> None:
         self.context = context
         self.gateway = gateway
@@ -70,7 +57,6 @@ class RoutingService:
         self.semantic_write = semantic_write
         self.semantic_operations = semantic_operations
         self.preview_semantic_operations = preview_semantic_operations
-        self.apply_stored_plan = apply_stored_plan
 
     @staticmethod
     def _unrouted_pairs(
@@ -664,28 +650,6 @@ class RoutingService:
             "netclass_rules_ignored"
         ]
         return response
-
-    def apply_route_plan(
-        self,
-        plan_id: str,
-        *,
-        dry_run: bool = True,
-        expected_sha256: str | None = None,
-        txid: str | None = None,
-    ) -> dict[str, Any]:
-        plan = self.plan_store.read(plan_id)
-        if plan.plan_type not in {"route_nets", "diff_pair_route"}:
-            raise DocumentError(
-                f"Unexpected route plan type for {plan_id}: {plan.plan_type}",
-                code="transaction_conflict",
-            )
-        return self.apply_stored_plan(
-            plan_id,
-            expected_plan_type=plan.plan_type,
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
-        )
 
     def route_connections(
         self,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Any
 
 from ..adapters import DocumentSnapshot, build_snapshot
 from ..capability_model import MAX_TRANSACTION_OPERATIONS
@@ -39,18 +39,6 @@ from .context import DocumentGateway, ServiceContext, read_success
 PreviewSemanticOperations = Callable[[DipTraceDocument, list[SemanticOperation]], dict[str, Any]]
 
 
-class ApplyStoredPlan(Protocol):
-    def __call__(
-        self,
-        plan_id: str,
-        *,
-        expected_plan_type: str,
-        dry_run: bool,
-        expected_sha256: str | None,
-        txid: str | None,
-    ) -> dict[str, Any]: ...
-
-
 class PlacementService:
     """Implementation for placement analysis and placement plans."""
 
@@ -60,13 +48,11 @@ class PlacementService:
         gateway: DocumentGateway,
         plan_store: PlanStore,
         preview_semantic_operations: PreviewSemanticOperations,
-        apply_stored_plan: ApplyStoredPlan,
     ) -> None:
         self.context = context
         self.gateway = gateway
         self.plan_store = plan_store
         self.preview_semantic_operations = preview_semantic_operations
-        self.apply_stored_plan = apply_stored_plan
 
     def plan_silkscreen(
         self,
@@ -301,22 +287,6 @@ class PlacementService:
             resources=resources,
         )
 
-    def apply_component_placement_plan(
-        self,
-        plan_id: str,
-        *,
-        dry_run: bool = True,
-        expected_sha256: str | None = None,
-        txid: str | None = None,
-    ) -> dict[str, Any]:
-        return self.apply_stored_plan(
-            plan_id,
-            expected_plan_type="component_placement",
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
-        )
-
     def plan_schematic_placement_repair(
         self,
         path: str | None = None,
@@ -442,22 +412,6 @@ class PlacementService:
             resources=resources,
         )
 
-    def apply_schematic_placement_repair_plan(
-        self,
-        plan_id: str,
-        *,
-        dry_run: bool = True,
-        expected_sha256: str | None = None,
-        txid: str | None = None,
-    ) -> dict[str, Any]:
-        return self.apply_stored_plan(
-            plan_id,
-            expected_plan_type="schematic_placement_repair",
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
-        )
-
     @staticmethod
     def _current_layout_candidate(snapshot: DocumentSnapshot) -> SchematicPlacementCandidate:
         """Build a repair baseline from the document's actual current placement.
@@ -548,22 +502,6 @@ class PlacementService:
             resolved[stable_id] = position
         return resolved
 
-
-    def apply_silkscreen_plan(
-        self,
-        plan_id: str,
-        *,
-        dry_run: bool = True,
-        expected_sha256: str | None = None,
-        txid: str | None = None,
-    ) -> dict[str, Any]:
-        return self.apply_stored_plan(
-            plan_id,
-            expected_plan_type="silkscreen",
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
-        )
 
     @staticmethod
     def _placement_config(selector: dict[str, Any], options: dict[str, Any]) -> PlacementConfig:

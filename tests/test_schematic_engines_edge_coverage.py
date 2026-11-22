@@ -45,11 +45,6 @@ def test_optimizer_graph_orders_and_geometry_helpers_cover_weighted_paths() -> N
 
 def test_atomic_junction_helpers_preserve_or_refuse_structure() -> None:
     start, end = Point(0, 0), Point(10, 0)
-    points, selected = atomic._points_via_preserved_junction(start, end, [Point(5, 3)], maximum_detour_ratio=2)
-    assert selected == Point(5, 3)
-    assert [(x.x, x.y) for x in points] == [(0, 0), (5, 0), (5, 3), (10, 3), (10, 0)]
-    fallback, selected = atomic._points_via_preserved_junction(start, end, [Point(5, 30)], maximum_detour_ratio=2)
-    assert selected is None and len(fallback) == 2
     points, junctions = atomic._points_via_proven_junctions(start, end, [Point(3, 2), Point(7, 2)], maximum_detour_ratio=2)
     assert junctions == [Point(3, 2), Point(7, 2)] and len(points) == 6
     with pytest.raises(CapabilityUnavailableError, match="detour"):

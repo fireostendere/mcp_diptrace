@@ -289,8 +289,8 @@ review the side effect without unsafe automatic retry.
 ## Bundled Windows build
 
 The current development constraints use MCP 1.30.0 and Pillow 13.0.0, replacing
-versions with known security advisories. The optional Windows `headless-gui` extra
-requires Python 3.11+ through Pillow; base XML/MCP operation still supports 3.10+.
+versions with known security advisories. Python 3.11 is the minimum for the whole
+package from `2.0.0`.
 These are development inputs, not a change to the immutable published v0.4.0 bytes.
 
 `scripts/build_windows_server.ps1` builds the helper with the standalone MCP
@@ -400,7 +400,7 @@ pad `1` and GND `J2` pad `1`; safe canonicalization is not established. These ar
 promoted to PASS. Component-level pad assignments still name GND, so the raw delta
 alone does not prove a physical disconnection. Native CAM produced actual Gerber/NC Drill/placement outputs
 and a complete manifest; no CAM inspection or fabrication approval is implied.
-The final clean frozen build completed MCP `tools/list` (161 tools), all four
+The final clean frozen build completed MCP `tools/list`, all four
 native check variants and CAM export with unchanged source SHAs. Schematic/ERC,
 binary XML export and CAM helpers returned zero. On the native-authored PCB
 baseline, DRC passed and structural records were unchanged, but full XML

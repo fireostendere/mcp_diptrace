@@ -23,12 +23,11 @@ _GROUPS = {
             "get_library_component get_library_pattern"
         ),
         "library_validation": (
-            "validate_library_component validate_library_pattern validate_pin_pad_mapping"
+            "validate_library_component validate_library_pattern"
         ),
         "builtin_library_catalog": "query_builtin_library_catalog",
         "bom": (
-            "get_bom review_bom compare_bom_to_design find_missing_component_fields group_bom "
-            "detect_duplicate_bom_items validate_mpn_consistency validate_value_pattern_consistency"
+            "get_bom review_bom compare_bom_to_design find_missing_component_fields"
         ),
         "query_objects": "query_objects list_components get_component list_nets get_design_rules",
         "get_object": "get_object",
@@ -78,7 +77,7 @@ _GROUPS = {
             "create_schematic_document create_pcb_document create_document_from_seed"
         ),
         "transactions": (
-            "begin_transaction stage_operations preview_transaction validate_transaction "
+            "begin_transaction stage_operations preview_transaction "
             "commit_transaction rollback_transaction list_transactions"
         ),
         "schematic_authoring": (
@@ -104,7 +103,6 @@ _GROUPS = {
         "fabrication_manifest_export": "export_fabrication_outputs",
         "assembly_manifest_export": "export_assembly_outputs",
         "autorouter_dsn_export": "export_autorouter_dsn",
-        "autorouter_ses_import": "import_autorouter_ses",
     },
 }
 
@@ -133,10 +131,6 @@ for _name in [
     "rename_net",
     "delete_parts",
     "delete_net_labels",
-    "apply_silkscreen_plan",
-    "apply_component_placement_plan",
-    "apply_schematic_placement_repair_plan",
-    "apply_route_plan",
     "route_diff_pair",
     "pipeline_source_component",
     "pipeline_nativeize_document",

@@ -745,7 +745,7 @@ def test_route_plan_commit_review_details_and_rollback(tmp_path: Path) -> None:
     )
     assert len(planned["resources"]) == 4
 
-    committed = service.apply_route_plan(
+    committed = service.apply_plan(
         plan["plan_id"],
         dry_run=False,
         expected_sha256=plan["source_sha256"],
@@ -790,7 +790,7 @@ def test_diff_pair_plan_commit_and_rollback(tmp_path: Path) -> None:
     assert plan["metrics"]["symmetric_via_count"] == 4
     assert len(planned["resources"]) == 4
 
-    committed = service.apply_route_plan(
+    committed = service.apply_plan(
         plan["plan_id"],
         dry_run=False,
         expected_sha256=plan["source_sha256"],

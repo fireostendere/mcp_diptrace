@@ -2,7 +2,7 @@
 
 ## Public contract
 
-DipTrace MCP currently exposes **161 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
+DipTrace MCP currently exposes **151 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
 
 `reference/mcp-tools-list.snapshot.json`
 
@@ -32,7 +32,7 @@ The exact names and schemas are in the generated snapshot. Conceptually the publ
 - bounded external jobs/adapters;
 - release/readiness and other project-owned analysis helpers.
 
-Use MCP introspection rather than copying a manually maintained 161-item list into application code or documentation.
+Use MCP introspection rather than copying a manually maintained 151-item list into application code or documentation.
 
 ### Consolidated tools (post-`v0.4.0`)
 
@@ -46,6 +46,23 @@ Clients written against the 167-tool `v0.4.0` contract map removed names as foll
 | `set_component_fields` | `set_component_properties` |
 | `set_diff_pair_rules`, `set_length_constraints` | `update_net_class_rules` |
 | `unlock_components` | `lock_components(locked=false)` |
+
+Version `2.0.0` removes eleven more names that were aliases or filtered views of
+another tool:
+
+| Removed tool | Use instead |
+| --- | --- |
+| `apply_component_placement_plan`, `apply_schematic_placement_repair_plan`, `apply_silkscreen_plan`, `apply_route_plan`, `import_autorouter_ses` | `apply_plan(plan_id=...)`; the stored plan carries its type |
+| `validate_transaction` | `preview_transaction` (it was the same call and sets the same `validated` status) |
+| `group_bom` | `get_bom(grouped=true)` |
+| `detect_duplicate_bom_items` | `get_bom(grouped=true)`; a duplicate group has `quantity` above 1 |
+| `validate_mpn_consistency` | `review_bom`; finding code `bom.mpn_inconsistent` |
+| `validate_value_pattern_consistency` | `review_bom`; finding codes `bom.mpn_inconsistent` and `bom.multipart_inconsistent` |
+| `validate_pin_pad_mapping` | `validate_library_component`; finding codes `attached_pattern_not_found`, `duplicate_pin_number`, `missing_pin_number`, `pin_pad_mapping_missing` |
+
+The `get_capabilities` keys named after the old plan tools
+(`write_capabilities.apply_route_plan` and so on) are unchanged; `apply_plan` maps to
+all of them.
 
 `run_review` profiles: `board_review`, `schematic_review`, `schematic_readability`,
 `drc_basic`, `erc_basic`, `connectivity`, `component_clearance`, `silkscreen`,
@@ -177,7 +194,7 @@ Schematic design intent / functional blocks / reference motifs, bounded multi-ca
 
 - `rank_schematic_placement_candidates` — deterministic ensemble ranking of placement candidates by route quality, readable motifs and congestion (unwired by default; the joint route scorer models hypothetical wires). Already-wired schematic scoring requires explicit `config.optimizer.placement.allow_existing_wires=true` and `config.route.allow_existing_wires=true`; it remains read-only hypothetical scoring, never a repair or commit. Optional `engineering_rules` supplies validated SHA-bound external motifs; optional strict `config` exposes bounded optimizer, route, congestion, candidate-count, and repair controls;
 - `plan_schematic_placement_repair` — bounded route-feedback placement repair combined with selective atomic affected-net reroute, stored as one dependency-safe plan. Works on already-wired schematics: the repair scorer models the same world the reroute applies (it removes exactly the affected wire geometry the reroute replaces and keeps unaffected nets as obstacles), affected explicit wires are deleted and selectively replanned, and a clean wired schematic produces an explicit no-op plan instead of spurious motion. `moves` are operator-fixed constraints resolved on the current placement: a part is selected by stable object ID or by unambiguous case-insensitive RefDes (a RefDes shared by several parts, e.g. a multi-part component, is refused fail-closed), duplicate moves for one part are refused, and repair search can never displace the requested positions;
-- `apply_schematic_placement_repair_plan` — stages or commits that stored plan through the ordinary expected-SHA transaction path (`dry_run` defaults to true). Plans exceeding the 100-operation transaction limit are rejected at planning time, not only at apply time. Applying a stored no-op plan (`status="noop"`) is an idempotent success: `ok=true`, `changed=false`, no transaction, document SHA unchanged.
+- `apply_plan` — stages or commits that stored plan through the ordinary expected-SHA transaction path (`dry_run` defaults to true). Plans exceeding the 100-operation transaction limit are rejected at planning time, not only at apply time. Applying a stored no-op plan (`status="noop"`) is an idempotent success: `ok=true`, `changed=false`, no transaction, document SHA unchanged.
 
 Selected results ultimately use ordinary semantic operations/transaction paths. See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
@@ -231,7 +248,7 @@ For current acceptance status use [ROADMAP.md](ROADMAP.md) and [MANUAL_ACCEPTANC
 When an intentional public tool change is approved:
 
 1. update the typed service/domain implementation;
-2. update thin server registration;
+2. update the registration module under `src/diptrace_mcp/tools/`;
 3. add transport/schema/error tests;
 4. regenerate the complete MCP snapshot;
 5. update capability discovery and affected skill contracts;

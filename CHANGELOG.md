@@ -1,6 +1,54 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 - release candidate
+
+Version `2.0.0` is selected and not yet published; the candidate record is
+[docs/releases/v2.0.0.md](docs/releases/v2.0.0.md) and the detailed list is
+[CHANGELOG_NEXT.md](CHANGELOG_NEXT.md).
+
+### Breaking
+
+- The public MCP surface is 151 tools (167 in `0.4.0`). Thirty-one names are removed
+  and fifteen added; [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) maps every removed name
+  to its replacement. `run_review(profile=...)` replaces fourteen review tools and
+  `apply_plan` replaces the five plan-apply tools.
+- Arguments are strict: unknown arguments are refused, write tools require
+  `selector`, committing `sync_schematic_to_pcb` requires
+  `expected_schematic_sha256`, and a numeric schematic net string is a name
+  (`xml-id:<Id>` addresses an XML id).
+- Python 3.11 is the minimum.
+
+### Added
+
+- Copper pours with stitching vias, board outline, schematic part and label deletes,
+  the read-only wire preview, the project quality gate, native DipTrace checks and
+  raw native CAM export as background jobs, and the three build-pipeline tools.
+- Tool annotations (`readOnlyHint`, `destructiveHint`, `openWorldHint`), `ok: true`
+  on every success, and a public tool to capability-key map in `get_capabilities`.
+- DipTrace 5.3.5.1 next to 5.3.0.3 for native round-trip, schematic acceptance, XML
+  export and recording.
+
+### Changed
+
+- `tools/list` is 91,751 bytes on the wire, about 23k tokens; the CI discovery
+  baseline before the post-`0.4.0` schema compaction was 147,757 bytes.
+- Tool, resource and prompt registration lives in `diptrace_mcp/tools/`, one module
+  per domain, instead of one 3000-line function.
+- The server answers `initialize` without waiting for state I/O.
+
+### Fixed
+
+- The Linux and macOS one-command installers work again: they pin DipTrace 5.3.5.1
+  after the vendor replaced the 5.3.0.3 download.
+- Pipeline tools obey allowed roots and policy; the board gate computes copper
+  connectivity and runs the offline checks; native PCB DRC no longer passes on the
+  dialog class alone. The full list is in [CHANGELOG_NEXT.md](CHANGELOG_NEXT.md).
+
+### Not claimed
+
+- Native acceptance of the pour and outline writers (strict comparison still
+  `FAIL`), named-client acceptance of the 151-tool contract, CAM sign-off. See the
+  candidate record.
 
 - Added design-wide schematic readability review through the existing `run_review`
   tool, with per-sheet coverage, full-polyline crossings/overlaps, documentary-line,

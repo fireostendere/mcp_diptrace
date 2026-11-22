@@ -5,7 +5,7 @@ import shutil
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -23,7 +23,7 @@ from diptrace_mcp.sessions import SessionAction, SessionStore
 from diptrace_mcp.xml_document import XmlEdit, sha256_bytes
 
 FIXTURES = Path(__file__).parent / "fixtures"
-NOW = datetime(2026, 7, 29, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 29, tzinfo=UTC)
 
 
 def _store(
@@ -537,7 +537,7 @@ def test_abandoned_session_is_terminal_for_retention(tmp_path: Path) -> None:
         10_000_000,
         allowed_roots=(tmp_path,),
         retention=RetentionPolicy(max_records=1, max_age_days=1),
-        clock=lambda: datetime(2030, 1, 1, tzinfo=timezone.utc),
+        clock=lambda: datetime(2030, 1, 1, tzinfo=UTC),
     )
 
     assert not reopened.session_dir(session_id).exists()

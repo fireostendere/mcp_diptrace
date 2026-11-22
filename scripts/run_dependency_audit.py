@@ -9,13 +9,9 @@ import os
 import shutil
 import subprocess
 import tempfile
+import tomllib
 from pathlib import Path
 from typing import Any
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
-    import tomli as tomllib  # type: ignore[no-redef]
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / ".local" / "open-source-readiness" / "deep-audit"

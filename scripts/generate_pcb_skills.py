@@ -21,7 +21,7 @@ SHARED_SCHEMA_PATH = SKILLS_ROOT / "shared" / "result.schema.json"
 MANIFEST_PATH = SKILLS_ROOT / "SOURCES.sha256"
 SERVER_PATHS = (
     ROOT / "src" / "diptrace_mcp" / "server.py",
-    ROOT / "src" / "diptrace_mcp" / "server_runtime.py",
+    *sorted((ROOT / "src" / "diptrace_mcp" / "tools").glob("*.py")),
 )
 PYPROJECT_PATH = ROOT / "pyproject.toml"
 

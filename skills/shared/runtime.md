@@ -174,6 +174,6 @@ Implementation references: installed `diptrace_mcp.headless_gui`,
 `diptrace_mcp.pcb_native_acceptance`, `diptrace_mcp.native_xml_export`,
 `diptrace_mcp.schematic_native_acceptance`, `diptrace_mcp.native_cad`,
 `diptrace_mcp.cinematic_recording`, and
-`diptrace_mcp.server_runtime`; source-checkout `scripts/headless_gui_entry.py`,
+`diptrace_mcp.tools`; source-checkout `scripts/headless_gui_entry.py`,
 `scripts/install_linux.sh`, and `scripts/install_macos.sh`. Prefer the installed
 version and actual command schemas over a remembered tool count or old source revision.

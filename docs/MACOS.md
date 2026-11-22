@@ -12,7 +12,8 @@ The release gate exercises fresh GitHub-hosted macOS 15 environments on both:
   through Rosetta);
 - Intel (`x86_64`).
 
-The tested DipTrace application is `5.3.0.3`. The installer verifies the pinned
+The tested DipTrace application is `5.3.5.1` (`5.3.0.3` for the published `v0.4.0`
+scripts, whose pinned download the vendor has since replaced). The installer verifies the pinned
 official DMG SHA-256 before copying `DipTrace.app` into a user-owned location.
 These gates establish the tested paths only; they are not a universal claim for
 every macOS/DipTrace version.

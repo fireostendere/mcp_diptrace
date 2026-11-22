@@ -9,7 +9,7 @@ import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path, PureWindowsPath
 from typing import Any, Literal
 
@@ -1153,8 +1153,8 @@ class SessionStore(RecordStore):
     def _clock_now(self) -> datetime:
         now = self.clock()
         if now.tzinfo is None or now.utcoffset() is None:
-            return now.replace(tzinfo=timezone.utc)
-        return now.astimezone(timezone.utc)
+            return now.replace(tzinfo=UTC)
+        return now.astimezone(UTC)
 
     def _clock_timestamp(self) -> str:
         return self._clock_now().isoformat()

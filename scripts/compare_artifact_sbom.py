@@ -6,13 +6,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import tomllib
 from pathlib import Path
 from typing import Any
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
-    import tomli as tomllib  # type: ignore[no-redef]
 
 
 def _name(requirement: str) -> str:

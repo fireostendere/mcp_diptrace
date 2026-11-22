@@ -1,8 +1,8 @@
 {
-  "canonical_descriptor_bytes": 117204,
-  "canonical_descriptor_sha256": "04ecb0307551e42eb3edd1e9205349c9d96ec7adefbeaac814d17c075c4cf612",
+  "canonical_descriptor_bytes": 112773,
+  "canonical_descriptor_sha256": "f24d367a17f292473f9db934e6dbd6d84b7bceb2a2a2aba6a37d0f0e8b6896d1",
   "format_version": 1,
-  "tool_count": 161,
+  "tool_count": 151,
   "tools": [
     {
       "annotations": {
@@ -945,7 +945,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Stage or commit a stored component-placement plan transactionally. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
+      "description": "Stage or commit a stored placement, repair, silkscreen, route or SES-import plan. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
       "inputSchema": {
         "properties": {
           "dry_run": {
@@ -967,109 +967,7 @@
         ],
         "type": "object"
       },
-      "name": "apply_component_placement_plan",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": false
-      },
-      "description": "Stage or commit a stored local route plan as one transaction. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
-      "inputSchema": {
-        "properties": {
-          "dry_run": {
-            "default": true,
-            "type": "boolean"
-          },
-          "expected_sha256": {
-            "type": "string"
-          },
-          "plan_id": {
-            "type": "string"
-          },
-          "txid": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "plan_id"
-        ],
-        "type": "object"
-      },
-      "name": "apply_route_plan",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": false
-      },
-      "description": "Stage or commit a stored schematic placement-repair plan transactionally. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
-      "inputSchema": {
-        "properties": {
-          "dry_run": {
-            "default": true,
-            "type": "boolean"
-          },
-          "expected_sha256": {
-            "type": "string"
-          },
-          "plan_id": {
-            "type": "string"
-          },
-          "txid": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "plan_id"
-        ],
-        "type": "object"
-      },
-      "name": "apply_schematic_placement_repair_plan",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": false
-      },
-      "description": "Stage or commit a stored silkscreen plan as one semantic transaction. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
-      "inputSchema": {
-        "properties": {
-          "dry_run": {
-            "default": true,
-            "type": "boolean"
-          },
-          "expected_sha256": {
-            "type": "string"
-          },
-          "plan_id": {
-            "type": "string"
-          },
-          "txid": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "plan_id"
-        ],
-        "type": "object"
-      },
-      "name": "apply_silkscreen_plan",
+      "name": "apply_plan",
       "outputSchema": {
         "additionalProperties": true,
         "type": "object"
@@ -2010,27 +1908,6 @@
         "type": "object"
       },
       "name": "delete_wire",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true
-      },
-      "description": "List identical BOM identity groups containing multiple RefDes.",
-      "inputSchema": {
-        "properties": {
-          "path": {
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "detect_duplicate_bom_items",
       "outputSchema": {
         "additionalProperties": true,
         "type": "object"
@@ -3014,31 +2891,6 @@
       "annotations": {
         "destructiveHint": false,
         "openWorldHint": false,
-        "readOnlyHint": true
-      },
-      "description": "Group BOM records by exact sourcing identity.",
-      "inputSchema": {
-        "properties": {
-          "include_dnp": {
-            "default": true,
-            "type": "boolean"
-          },
-          "path": {
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "group_bom",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
         "readOnlyHint": false
       },
       "description": "Create or reuse a documented DipTrace PCB group transactionally. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
@@ -3076,40 +2928,6 @@
         "type": "object"
       },
       "name": "group_components",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": false
-      },
-      "description": "Preview or commit a previously inspected SES route plan transactionally. dry_run=true only previews; write with dry_run=false after reviewing it, passing its expected_sha256.",
-      "inputSchema": {
-        "properties": {
-          "dry_run": {
-            "default": true,
-            "type": "boolean"
-          },
-          "expected_sha256": {
-            "type": "string"
-          },
-          "plan_id": {
-            "type": "string"
-          },
-          "txid": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "plan_id"
-        ],
-        "type": "object"
-      },
-      "name": "import_autorouter_ses",
       "outputSchema": {
         "additionalProperties": true,
         "type": "object"
@@ -6976,57 +6794,6 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Detect one MPN mapped to conflicting manufacturer/value/pattern metadata.",
-      "inputSchema": {
-        "properties": {
-          "path": {
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "validate_mpn_consistency",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true
-      },
-      "description": "Validate component pin numbers against pads of its embedded attached pattern.",
-      "inputSchema": {
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "path": {
-            "type": "string"
-          },
-          "stable_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ],
-        "type": "object"
-      },
-      "name": "validate_pin_pad_mapping",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true
-      },
       "description": "Validate distinct allowed-root evidence roles and exact SHA bindings without writing.\n\nThe bounded result is always authority=user_supplied and grants_high_trust=false.",
       "inputSchema": {
         "$defs": {
@@ -7091,51 +6858,6 @@
         "type": "object"
       },
       "name": "validate_roundtrip_evidence",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true
-      },
-      "description": "Validate staged operations and return the same bounded preview metadata.",
-      "inputSchema": {
-        "properties": {
-          "txid": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "txid"
-        ],
-        "type": "object"
-      },
-      "name": "validate_transaction",
-      "outputSchema": {
-        "additionalProperties": true,
-        "type": "object"
-      }
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true
-      },
-      "description": "Detect value/pattern inconsistency across multi-part units and shared MPNs.",
-      "inputSchema": {
-        "properties": {
-          "path": {
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "validate_value_pattern_consistency",
       "outputSchema": {
         "additionalProperties": true,
         "type": "object"

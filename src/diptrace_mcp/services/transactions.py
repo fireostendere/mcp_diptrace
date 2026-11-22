@@ -549,9 +549,6 @@ class TransactionService:
             **({"evidence_warnings": angle_evidence_warnings} if angle_evidence_warnings else {}),
         }
 
-    def validate_transaction(self, txid: str) -> dict[str, Any]:
-        return self.preview_transaction(txid)
-
     def commit_transaction(
         self,
         txid: str,

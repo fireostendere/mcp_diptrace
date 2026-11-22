@@ -23,7 +23,7 @@ Also open from that review:
   runs preserve structural records and report `HUMAN_REVIEW_REQUIRED`; the retained
   DRC images were viewed and read "No errors found", while automatic status remains
   `review_required` for the unpinned DPI image. Codex CLI 0.167.0 app-server passed
-  restarted discovery of 161 tools, both intelligence calls with/without rule packs,
+  restarted discovery of the then-current tool list, both intelligence calls with/without rule packs,
   and invalid/oversized-rule structured errors. This is not Claude Desktop evidence.
 
 - native acceptance of the new pour/outline/schematic-delete paths remains open.
@@ -168,7 +168,7 @@ Remaining debt is a product/API decision, not implementation absence:
 - add transport/error/permission tests;
 - avoid broadening compatibility claims beyond verified operations.
 
-The 161-tool MCP surface includes the bounded intelligence engines and read-only built-in-library bridge; the package-level native-library mutation API remains intentionally unregistered.
+The 151-tool MCP surface includes the bounded intelligence engines and read-only built-in-library bridge; the package-level native-library mutation API remains intentionally unregistered.
 
 ### 11. Evidence review automation depth
 
@@ -217,8 +217,7 @@ Historical records that said otherwise remain valid snapshots of their original 
 
 Dated release/audit/acceptance/compliance records preserve historical facts.
 Evergreen docs describe current implementation and explicitly link to historical
-evidence. `CHANGELOG_NEXT.md` tracks post-`v0.4.0` development until the next
-release is selected.
+evidence. `CHANGELOG_NEXT.md` holds the detailed post-`v0.4.0` changes that make up `2.0.0`.
 
 `scripts/check_documentation_state.py` guards key current-state relationships against code and the frozen public-tools snapshot, and rejects any other public tool count in an evergreen document. It intentionally does not rewrite or reinterpret immutable historical records.
 

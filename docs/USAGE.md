@@ -4,7 +4,7 @@
 
 ### PyPI
 
-Python 3.10 or newer:
+Python 3.11 or newer (`2.0.0`; the published `0.4.0` also runs on 3.10):
 
 ```bash
 python -m pip install diptrace-mcp==0.3.0
@@ -67,7 +67,7 @@ Do not expose the HTTP transport as a general remote network service unless the 
 
 ## Discover capabilities first
 
-The public MCP contract contains **161 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
+The public MCP contract contains **151 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
 
 `get_capabilities.tool_capabilities` maps tool names to real qualified feature keys
 (for example `write_capabilities.pipeline_nativeize_document`). Feature flags are
@@ -157,7 +157,7 @@ See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
 ## PCB Generations A-D
 
-The internal PCB design engine adds higher-level engineering judgement; bounded read-only candidate comparison is productized as `compare_pcb_placement_candidates` within the 161-tool MCP surface:
+The internal PCB design engine adds higher-level engineering judgement; bounded read-only candidate comparison is productized as `compare_pcb_placement_candidates` within the 151-tool MCP surface:
 
 - Generation A: intent/net intelligence and intent-aware placement;
 - Generation B: physical/stackup/PDN/return-path/noise/via context;

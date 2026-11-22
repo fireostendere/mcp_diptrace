@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "diptrace-mcp",
   "display_name": "DipTrace MCP",
-  "version": "0.4.0",
+  "version": "2.0.0",
   "description": "Local MCP server for analysing, reviewing and performing guarded edits on DipTrace projects.",
   "author": {
     "name": "DipTrace MCP contributors",
@@ -42,7 +42,7 @@
   "compatibility": {
     "platforms": ["win32"],
     "runtimes": {
-      "python": ">=3.10"
+      "python": ">=3.11"
     }
   },
   "user_config": {

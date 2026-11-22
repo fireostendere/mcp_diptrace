@@ -126,7 +126,7 @@ def test_silkscreen_plan_preview_commit_and_rollback(tmp_path: Path) -> None:
     assert preview_json["candidates"]
     assert preview_json["copper"]["after"]["trace_count"]["rendered"] == 1
 
-    committed = service.apply_silkscreen_plan(
+    committed = service.apply_plan(
         plan_id,
         dry_run=False,
         expected_sha256=plan["source_sha256"],
@@ -163,5 +163,5 @@ def test_silkscreen_plan_rejects_stale_document(tmp_path: Path) -> None:
     board.write_bytes(ET.tostring(root, encoding="utf-8", xml_declaration=True))
 
     with pytest.raises(Sha256MismatchError):
-        service.apply_silkscreen_plan(plan_id)
+        service.apply_plan(plan_id)
     assert service.plans.read(plan_id).status == "obsolete"

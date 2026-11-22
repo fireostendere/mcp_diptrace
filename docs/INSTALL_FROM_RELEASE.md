@@ -27,6 +27,11 @@ MCPB with the v0.4.0 bridge/runtime identity.
 
 ## Linux one-command installation
 
+The `v0.4.0` scripts pin DipTrace 5.3.0.3 by checksum. The vendor replaced that
+download in place in October 2026, so they now stop at the checksum. The `2.0.0`
+scripts pin the current build, 5.3.5.1, and replace these commands when `v2.0.0`
+is published.
+
 Validated release path: Ubuntu/Debian-style x86-64, with Ubuntu 24.04 used by the
 permanent clean-install gate.
 
@@ -55,7 +60,7 @@ On Apple Silicon without Rosetta, after reviewing Apple's terms, add
 
 ## PyPI
 
-Python 3.10 or newer:
+Python 3.10 or newer for the published `0.4.0`; `2.0.0` needs Python 3.11:
 
 ```bash
 python -m pip install --no-cache-dir diptrace-mcp==0.4.0

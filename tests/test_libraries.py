@@ -173,7 +173,7 @@ def test_library_service_scan_query_get_and_validate(tmp_path: Path) -> None:
     ] == 1
     component = service.get_library_component(str(component_path), name="RES_0603")
     assert component["result"]["pattern_style"] == "PatType0"
-    mapping = service.validate_pin_pad_mapping(str(component_path), name="RES_0603")
+    mapping = service.validate_library_component(str(component_path), name="RES_0603")
     assert mapping["result"]["valid"] is True
 
     pattern = service.get_library_pattern(str(pattern_path), name="HDR_1X02")

@@ -41,7 +41,7 @@ def test_package_version_falls_back_when_distribution_metadata_is_missing(
     with monkeypatch.context() as patch:
         patch.setattr(importlib.metadata, "version", missing_version)
         reloaded = importlib.reload(diptrace_mcp)
-        assert reloaded.__version__ == "0.4.0"
+        assert reloaded.__version__ == "2.0.0"
 
     importlib.reload(diptrace_mcp)
 

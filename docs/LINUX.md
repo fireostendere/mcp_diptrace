@@ -1,6 +1,7 @@
 # Linux: one-command install, visible GUI, and headless GUI
 
-Release candidate: `v0.4.0`. The permanent gate validates Ubuntu 24.04 x86-64.
+First published with `v0.4.0`. The permanent gate validates Ubuntu 24.04 x86-64; the
+`v2.0.0` candidate installs DipTrace 5.3.5.1, the build the vendor serves today.
 
 The validated Linux deployment keeps DipTrace, the Windows standalone MCP server,
 the bridge plug-in, and the GUI automation helper inside one user-owned Wine

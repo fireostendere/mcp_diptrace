@@ -8,16 +8,11 @@ import hashlib
 import json
 import shutil
 import stat
-import sys
 import tempfile
+import tomllib
 import zipfile
 from pathlib import Path, PurePosixPath
 from typing import cast
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - exercised by the Python 3.10 CI job
-    import tomli as tomllib
 
 REPO_ROOT = Path(__file__).absolute().parents[1]
 TEMPLATE = REPO_ROOT / "packaging" / "mcpb" / "manifest.template.json"

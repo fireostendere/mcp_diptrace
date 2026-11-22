@@ -1128,20 +1128,6 @@ def resolve_route_clearance(
     ).effective_clearance_mm
 
 
-def _resolve_clearance(
-    snapshot: DocumentSnapshot,
-    layer_ids: list[str],
-    requested: float | None,
-    nets: list[ObjectRecord] | None = None,
-) -> float:
-    return resolve_clearance(
-        snapshot,
-        layer_ids,
-        requested,
-        nets=nets,
-    ).effective_clearance_mm
-
-
 def _layer_type(snapshot: DocumentSnapshot, layer_id: str) -> str:
     """Return the layer type ('Signal', 'Plane', or 'Unknown') for a given layer id."""
     if snapshot.board is None:

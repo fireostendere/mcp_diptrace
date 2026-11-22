@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -37,8 +37,8 @@ from diptrace_mcp.xml_document import (
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
-NOW = datetime(2026, 1, 31, tzinfo=timezone.utc)
-FUTURE = datetime(2030, 1, 1, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 31, tzinfo=UTC)
+FUTURE = datetime(2030, 1, 1, tzinfo=UTC)
 OLD = "2020-01-01T00:00:00+00:00"
 COUNT_OLD = "2026-01-29T00:00:00+00:00"
 NEWEST = "2026-01-30T00:00:00+00:00"
@@ -841,7 +841,7 @@ def test_export_artifact_symlink_is_rejected_and_retention_skips_record(
 def test_backup_pruning_is_counted_per_target_without_sleeps(
     tmp_path: Path,
 ) -> None:
-    current = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    current = datetime(2026, 1, 1, tzinfo=UTC)
 
     def clock() -> datetime:
         return current
@@ -871,7 +871,7 @@ def test_backup_pruning_is_counted_per_target_without_sleeps(
     assert store.backups_for(second) == second_before
     assert second_backup.read_bytes() == b"second-0"
 
-    current = datetime(2026, 2, 1, tzinfo=timezone.utc)
+    current = datetime(2026, 2, 1, tzinfo=UTC)
     newest = store.write_with_backup(first, b"first-4")
     assert store.backups_for(first) == (newest,)
     # A write/prune for the first target never mutates the second history.
@@ -940,7 +940,7 @@ def test_backup_startup_scan_skips_validation_when_nothing_can_expire(
 
 
 def _backup_history(tmp_path: Path, count: int) -> tuple[BackupStore, Path, list[Path]]:
-    current = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    current = datetime(2026, 1, 1, tzinfo=UTC)
 
     def clock() -> datetime:
         return current

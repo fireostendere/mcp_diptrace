@@ -190,7 +190,7 @@ def test_clean_wired_schematic_repair_is_noop_without_spurious_motion(
     assert plan["status"] == "noop"
     assert plan["metrics"]["repair"]["improved"] is False
 
-    committed = service.apply_schematic_placement_repair_plan(
+    committed = service.apply_plan(
         plan["plan_id"], dry_run=False, expected_sha256=plan["source_sha256"]
     )
     assert committed["ok"] is True
@@ -198,7 +198,7 @@ def test_clean_wired_schematic_repair_is_noop_without_spurious_motion(
     assert committed["changed_ids"] == []
     assert service.document_info(path)["result"]["sha256"] == original_sha
 
-    repeated = service.apply_schematic_placement_repair_plan(
+    repeated = service.apply_plan(
         plan["plan_id"], dry_run=False, expected_sha256=plan["source_sha256"]
     )
     assert repeated["ok"] is True
@@ -290,10 +290,10 @@ def test_plan_and_apply_schematic_placement_repair_round_trip(tmp_path: Path) ->
     assert plan["operations"]
     assert plan_response["result"]["no_changes"] is False
 
-    dry_run = service.apply_schematic_placement_repair_plan(plan["plan_id"], dry_run=True)
+    dry_run = service.apply_plan(plan["plan_id"], dry_run=True)
     assert dry_run["ok"] is True
 
-    committed = service.apply_schematic_placement_repair_plan(
+    committed = service.apply_plan(
         plan["plan_id"], dry_run=False, expected_sha256=plan["source_sha256"]
     )
     assert committed["ok"] is True
@@ -441,7 +441,7 @@ def test_apply_schematic_placement_repair_rejects_expected_sha_mismatch(
     )["result"]["plan"]
 
     with pytest.raises(Sha256MismatchError):
-        service.apply_schematic_placement_repair_plan(
+        service.apply_plan(
             plan["plan_id"],
             dry_run=False,
             expected_sha256="0" * 64,
@@ -481,7 +481,7 @@ def test_stale_plan_is_marked_obsolete_after_document_mutation(
     )
 
     with pytest.raises(Sha256MismatchError):
-        service.apply_schematic_placement_repair_plan(
+        service.apply_plan(
             plan["plan_id"],
             dry_run=False,
             expected_sha256=plan["source_sha256"],

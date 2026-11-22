@@ -57,7 +57,7 @@ fact. Never create, modify, normalize, or promote material under
 
 ## Engineering workflow for requested changes
 
-Use Python 3.10 or newer. The geometry-enabled development environment used by
+Use Python 3.11 or newer. The geometry-enabled development environment used by
 the main coverage job is:
 
 ```bash

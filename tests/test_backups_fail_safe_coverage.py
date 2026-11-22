@@ -7,7 +7,7 @@ import json
 import os
 import pathlib
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -21,7 +21,7 @@ _BAD_STAMP = "backup.20261345T121530.000000Z.{}.{}.bak".format("a" * 64, "b" * 3
 
 
 def _clock() -> datetime:
-    return datetime(2026, 1, 31, tzinfo=timezone.utc)
+    return datetime(2026, 1, 31, tzinfo=UTC)
 
 
 def _store(state: Path, **kwargs: object) -> BackupStore:

@@ -28,7 +28,7 @@ feature availability.
 4. Stage `add_testpoints(..., dry_run=true)` in a transaction; each testpoint needs `net`, `x`,
    `y` and `pad_diameter` (`side`, `hole_diameter` and `refdes` are optional). Never commit
    from a request for a plan.
-5. Inspect `preview_transaction`, then `validate_transaction`. When placement is authorized,
+5. Inspect `preview_transaction`. When placement is authorized,
    commit with `expected_sha256`; retain authorization already given for the selected scope.
 6. A testpoint's net assignment is logical membership, not proof of copper connection. Inspect
    pads/traces/vias around candidates, route required short stubs with `route_connection`, or

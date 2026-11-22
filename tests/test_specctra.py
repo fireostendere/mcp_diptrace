@@ -358,9 +358,9 @@ def test_mocked_freerouting_job_inspect_commit_and_rollback(tmp_path: Path) -> N
     inspected = service.inspect_autorouter_result(jobid)
     plan = inspected["result"]["plan"]
     assert plan["metrics"]["importable_net_count"] == 1
-    preview = service.import_autorouter_ses(plan["plan_id"])
+    preview = service.apply_plan(plan["plan_id"])
     txid = preview["transaction"]["txid"]
-    committed = service.import_autorouter_ses(
+    committed = service.apply_plan(
         plan["plan_id"],
         dry_run=False,
         expected_sha256=preview["transaction"]["source_sha256"],

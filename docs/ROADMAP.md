@@ -10,7 +10,8 @@ Implementation never implies universal DipTrace compatibility. Historical eviden
 
 ## Current checkpoint — 2026-08-17
 
-The current source/package version is `0.4.0`. Version `v0.4.0` is the current published
+The current source/package version is `2.0.0`, a release candidate recorded in
+[releases/v2.0.0.md](releases/v2.0.0.md). Version `v0.4.0` is the current published
 unsigned development release. Its annotated tag targets
 `b4c0132283ff16a0bca81567df6704d1f6a73c7f`; the GitHub release and
 `diptrace-mcp==0.4.0` PyPI package are public immutable identities.
@@ -21,8 +22,8 @@ PyPI-validation, MCPB/registry-preparation and repository-CI gates before the
 release/tag sequence. Preparation-only MCPB evidence did not publish a v0.4.0
 MCPB asset.
 
-Current `main` may contain post-release documentation/release-pipeline hardening
-that is intentionally not part of the immutable `v0.4.0` bytes. Historical
+Current `main` is the `2.0.0` candidate and
+is intentionally not part of the immutable `v0.4.0` bytes. Historical
 release and acceptance evidence stays bound to the identity actually tested.
 
 The schematic-quality production fixes were merged by PR #90. The production merge identity is:
@@ -45,7 +46,7 @@ Current cross-domain implementation detail is in [EDA_INTELLIGENCE.md](EDA_INTEL
 
 Not part of the immutable `v0.4.0` bytes:
 
-- the public surface is 161 tools: consolidated after `v0.4.0`
+- the public surface is 151 tools: consolidated after `v0.4.0`
   (`run_review(profile=...)` replaces fourteen review tools; see
   [MCP_TOOLS.md](MCP_TOOLS.md) for the mapping), revised once (annotations, strict
   arguments, `ok` on success, schematic SHA for sync) and extended with nine tools
@@ -355,7 +356,7 @@ Historical dated release/acceptance/audit records remain excluded from current-s
 
 # Public contracts
 
-- 161 registered MCP tools (the frozen public contract recorded in
+- 151 registered MCP tools (the frozen public contract recorded in
   `reference/mcp-tools-list.snapshot.json`);
 - stable structured error envelope;
 - server-owned worker-thread boundary;
@@ -402,7 +403,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | headless GUI | hidden Win32 desktop helper implemented with selectable `hidden`/`native` open -> Save -> close plus isolated cinematic capture; real DipTrace actions remain claim-specific evidence |
 | documentation drift | evergreen code/docs guard implemented and CI-tested; stale public tool counts are rejected |
 | offline review / QC | profiles bound to document kind; copper connectivity in the board gate, disclosed missing geometry and corrected differential impedance; silkscreen box rotation open (B6) |
-| public contract | 161 tools with annotations, strict arguments, a uniform success envelope and qualified tool → capability mappings (B14 closed) |
+| public contract | 151 tools with annotations, strict arguments, a uniform success envelope and qualified tool → capability mappings (B14 closed) |
 | native manufacturing export | `run_native_export` wraps the Windows `native_cad` path as a SHA-bound private-copy job; implementation/tests, not native CAM acceptance |
 
 # Permanent limitations / non-claims

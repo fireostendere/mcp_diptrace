@@ -14,9 +14,10 @@ operator, licensed software, physical hardware, legal authority, or independent
 approval.
 
 The published release is still `v0.4.0` (167 tools). Everything below describes
-post-release `main`, whose public surface is 161 tools. No new release is authorized
-until the impacted native and client gates pass; version and published release
-metadata remain unchanged.
+post-release `main`, whose public surface is 151 tools. On 2026-11-22 the repository
+owner selected version `2.0.0` for this state; it is a release candidate
+([record](../docs/releases/v2.0.0.md)). The native and client gates below stay open
+and are listed there as not claimed; they are not passed by the version change.
 
 Release-readiness follow-up (2026-11-11): the class-only native DRC PASS is
 removed, duplicate-ID diagnostics use owner scope, and `plan_add_wire` discovery
@@ -93,7 +94,7 @@ gates they named stay claim-triggered.
 | A7 bounded quantitative physics | implemented; M3/M8 for claims |
 | A8 evidence campaign aggregation | implemented; promotion stays M11 |
 
-Since then `main` also gained: the consolidated public surface (now 161 tools), DipTrace 5.3.5.1
+Since then `main` also gained: the consolidated public surface (now 151 tools), DipTrace 5.3.5.1
 native profiles next to 5.3.0.3, Linux/macOS host installation, the schematic stage
 of the quality gate with per-stage done criteria, design-wide schematic readability
 review, and the reviewed fifteen-skill catalog.
@@ -156,7 +157,7 @@ execution separately from mutation acceptance:
   export returned zero; the ERC client image was viewed and reads "No errors found".
    The observed DRC progress/result race is fixed without weakening modal guards.
    PCB strict comparison failures still prevent a campaign-wide PASS.
-- **Frozen distribution:** a clean Windows build completed `tools/list` (161 tools)
+- **Frozen distribution:** a clean Windows build completed `tools/list`
   and all four native checks plus CAM export through MCP stdio, preserving source
   SHAs. Schematic/ERC/XML export and CAM helpers returned zero. PCB acceptance on
   a native-authored baseline returned `HUMAN_REVIEW_REQUIRED` (exit 2): DRC passed
@@ -218,8 +219,8 @@ or a reproducible failing case.
 ## Recommended execution order
 
 1. M1/M2 evidence for the new write tools and one real run of each native check.
-2. M5 for the current contract, then an explicit release authorization; published
-   `v0.4.0` and version metadata stay untouched until native and client gates close.
+2. M5 for the `2.0.0` contract. The version is selected; a stronger native or client
+   claim still needs its gate.
 3. Triage candidate findings from the now-enabled board `run_checks` gate.
 4. One native sample per remaining gap, then its writer.
 5. A P2 item only when its trigger exists.

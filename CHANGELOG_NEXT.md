@@ -1,11 +1,15 @@
-# Post-v0.4.0 development
+# 2.0.0 detailed changes (post-v0.4.0 development)
 
 The immutable `v0.4.0` GitHub release and PyPI package were published on 2026-08-16.
-Changes in this section are later development and are not silently part of those released bytes.
+Version `2.0.0` collects everything in this section; none of it is part of those released bytes.
 
 ## Added
 
-- nine tools (161 in total): `add_copper_pours` and `delete_copper_pours` (pour
+- `apply_plan`: one tool stages or commits any stored plan (component placement,
+  schematic placement repair, silkscreen, route or SES import). The plan record
+  carries its own type; package-level plan types keep their own guarded apply path
+  and are refused;
+- nine tools: `add_copper_pours` and `delete_copper_pours` (pour
   boundaries with optional free stitching vias), `set_board_outline`, `delete_parts`,
   `delete_net_labels`, `run_quality_gate` (the handoff gate, now shipped in the package
   as `diptrace_mcp.quality_gate`) and `run_native_check` (the native acceptance, ERC
@@ -43,14 +47,17 @@ Changes in this section are later development and are not silently part of those
 
 ## Fixed
 
+- the Linux and macOS one-command installers pin the DipTrace build the vendor serves
+  today (5.3.5.1). The 5.3.0.3 pin had failed since the vendor replaced the download
+  in place in October 2026. Linux now accepts the `DIPTRACE_VERSION`,
+  `DIPTRACE_INSTALLER_URL` and `DIPTRACE_INSTALLER_SHA256` overrides macOS already had;
 - native PCB DRC no longer passes merely because the dialog class is `TFMyMessage`;
   positive error counts take precedence, and unknown text requires a verified bitmap
   or explicit visual review with the retained PNG/hash;
 - XML duplicate-ID diagnostics are scoped to the owning collection, avoiding false
   collisions between pads on different components and points on different traces;
 - `plan_add_wire` discovery text is stable across Python 3.12/3.13;
-- Windows builds pin patched MCP 1.30.0 and Pillow 13.0.0; the base server remains
-  Python 3.10+, while the optional Windows native capture helper needs Python 3.11+;
+- Windows builds pin patched MCP 1.30.0 and Pillow 13.0.0;
   compliance inventories now include the declared headless-GUI dependencies.
 
 - the three `pipeline_*` tools obey the allowed roots and the active policy (they
@@ -85,7 +92,7 @@ Changes in this section are later development and are not silently part of those
   duplicate/invalid-reference refusal (B9); abandoned dry-run
   transactions expire by age; servers sharing a state directory no longer fail each
   other's jobs;
-- evergreen documents state the current 161-tool surface and the drift checker
+- evergreen documents state the current tool count and the drift checker
    rejects any other count ([review](docs/MCP_REVIEW_2026-11-10.md)).
 - MCP stdio writes UTF-8 bytes independently of Windows' ANSI text encoding;
   regressions cover CP1252 stdout with Unicode punctuation and Cyrillic text;
@@ -98,6 +105,29 @@ Changes in this section are later development and are not silently part of those
 
 ## Changed
 
+- **breaking (2.0):** Python 3.11 is the minimum. Python 3.10 reached end of life in
+  October 2026; the `tomli` fallback dependency and its import branches are gone;
+- **breaking (2.0):** the public surface is 151 tools. `apply_plan` replaces
+  `apply_component_placement_plan`, `apply_schematic_placement_repair_plan`,
+  `apply_silkscreen_plan`, `apply_route_plan` and `import_autorouter_ses`, which all
+  ran the same stored-plan path. Removed as pure aliases or filtered views:
+  `validate_transaction` (`preview_transaction`), `group_bom` and
+  `detect_duplicate_bom_items` (`get_bom(grouped=true)`), `validate_mpn_consistency`
+  and `validate_value_pattern_consistency` (`review_bom` finding codes) and
+  `validate_pin_pad_mapping` (`validate_library_component`). The mapping is in
+  [MCP_TOOLS.md](docs/MCP_TOOLS.md); `get_capabilities` keys are unchanged;
+- the packaged skill catalog (capability map 2.6.0) and the workflow prompts name
+  `apply_plan` and the surviving BOM and library tools;
+- tool, resource and prompt registration moved from one 3000-line function into
+  `diptrace_mcp/tools/`, one module per domain. Apart from the removed and added
+  tools the published descriptors are byte-identical;
+- unreferenced internals are removed: `apply_low_level_edits`, `SemComparisonResult`,
+  `Unit`, the `RoundtripEvidenceRecord` alias, `invoke_with_error_boundary`,
+  `sha_from_bytes`, an unused clearance resolver and the two legacy single-junction
+  reroute helpers. String enums are `StrEnum`, so `str()` returns the value on every
+  supported Python;
+- the CI discovery budget is measured against the 2.0 surface (91,751 bytes, about
+  23k tokens) instead of the `v0.4.0` one;
 - the board quality gate runs `run_checks` and blocks on review errors, rather
   than omitting overlap/edge review; skipped board checks remain explicit pending work;
 - `run_native_check` uses SHA-checked job-owned copies, supports native binary

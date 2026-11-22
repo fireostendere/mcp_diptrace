@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import re
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -22,7 +22,7 @@ SourceType = Literal[
 ]
 
 
-class FixtureValidationLevel(str, Enum):
+class FixtureValidationLevel(StrEnum):
     """Trust level for test fixtures and generated documents.
 
     Levels are ordered from least to most trusted.  A fixture must not claim a
@@ -37,7 +37,7 @@ class FixtureValidationLevel(str, Enum):
     external_tool_roundtrip_verified = "external_tool_roundtrip_verified"
 
 
-class ProvenanceAuthority(str, Enum):
+class ProvenanceAuthority(StrEnum):
     """Who created the provenance sidecar.
 
     - ``runtime``: the sidecar was written by MCP code; it can never claim
@@ -58,7 +58,7 @@ class ProvenanceAuthority(str, Enum):
     trusted_registry = "trusted_registry"
 
 
-class EvidenceAuthority(str, Enum):
+class EvidenceAuthority(StrEnum):
     """Who produced an evidence manifest (separate from who wrote the sidecar).
 
     - ``runtime``: the evidence was produced internally by the MCP server.
@@ -140,20 +140,6 @@ class UnsupportedCategory(StrictModel):
     category: str
     severity: Literal["critical", "non_critical", "informational"]
     reason: str
-
-
-class SemComparisonResult(StrictModel):
-    """Structured result of a semantic comparison between two documents."""
-
-    passed: bool
-    comparison_complete: bool = True
-    compared_categories: list[str] = Field(default_factory=list)
-    missing_required_categories: list[str] = Field(default_factory=list)
-    differences: list[str] = Field(default_factory=list)
-    ignored_normalizations: list[str] = Field(default_factory=list)
-    unsupported_categories: list[UnsupportedCategory] = Field(default_factory=list)
-    parse_warnings: list[str] = Field(default_factory=list)
-    comparison_version: Literal["1.2"] = "1.2"
 
 
 class EvidenceFileRecord(StrictModel):
@@ -335,11 +321,6 @@ class TrustedRoundtripEvidence(StrictModel):
         if errors:
             raise ValueError(f"TrustedRoundtripEvidence invariant violated: {'; '.join(errors)}")
         return self
-
-
-# Backward-compatible alias for code that references RoundtripEvidenceRecord.
-# New code should use UserSuppliedRoundtripEvidence or TrustedRoundtripEvidence.
-RoundtripEvidenceRecord = UserSuppliedRoundtripEvidence
 
 
 class ValidatedEvidence:
@@ -627,13 +608,6 @@ class FixtureManifest(StrictModel):
         """Return a list of error messages if metadata is inconsistent with the
         declared validation level."""
         return self._validate_for_level()
-
-
-class Unit(str, Enum):
-    MM = "mm"
-    INCH = "inch"
-    MIL = "mil"
-    UNKNOWN = "unknown"
 
 
 class DocumentTarget(StrictModel):

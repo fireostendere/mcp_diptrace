@@ -212,7 +212,7 @@ def test_transaction_responses_do_not_echo_operations_or_inline_artifacts(
     assert stored_transaction.operations[0]["value"] == "X" * 4_096
     assert stored_transaction.preview_metadata == preview["preview"]
 
-    validated = service.validate_transaction(txid)
+    validated = service.preview_transaction(txid)
     assert validated["written"] is False
     assert "operations" not in validated["transaction"]
 

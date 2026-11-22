@@ -72,7 +72,7 @@ DRC/connectivity -> commit. Stop when required via geometry/policy is unsupporte
 push-and-shove is needed, or applicable rules are unknown.
 
 `route_diff_pair_with_constraints`: stackup/pair/length/analytical impedance ->
-`plan_diff_pair_route` -> SVG/JSON plus skew/via metrics -> `apply_route_plan` -> pair
+`plan_diff_pair_route` -> SVG/JSON plus skew/via metrics -> `apply_plan` -> pair
 validation and DRC. Stop on an incomplete stackup, incompatible pad spacing or
 orientation, unresolved DRC, or SHA conflict. A coupled plan must not be replaced with
 two independent `route_net` calls. Analytical impedance remains preliminary-only.
