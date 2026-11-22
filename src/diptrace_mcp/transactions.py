@@ -6,7 +6,7 @@ import threading
 import uuid
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
-from datetime import timedelta, timezone
+from datetime import UTC, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
@@ -31,7 +31,7 @@ from .retention import (
     prune_terminal_records,
     system_clock,
 )
-from .xml_document import atomic_write_bytes, sha256_bytes, utc_now
+from .xml_document import atomic_write_bytes, utc_now
 
 _TRANSITIONS: dict[str, frozenset[str]] = {
     "planned": frozenset({"staged", "rolled_back", "failed"}),
@@ -83,7 +83,7 @@ class TransactionStore(RecordStore):
         abandoned: list[RetentionCandidate] = []
         now = self.clock()
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         abandoned_before = now - timedelta(days=self.retention.max_age_days)
         paths = sorted(self.transactions_dir.glob("tx_*/transaction.json"))
         for path_txid, path in iter_valid_record_files(
@@ -422,6 +422,3 @@ def tx_summary_resources(txid: str) -> list[str]:
         f"diptrace://transaction/{txid}/diff",
     ]
 
-
-def sha_from_bytes(raw_bytes: bytes) -> str:
-    return sha256_bytes(raw_bytes)

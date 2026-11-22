@@ -57,7 +57,7 @@ from .geometry_backend import shape_bbox, transform_shape
 from .numeric_inputs import (
     xml_number_mm,
 )
-from .xml_document import DipTraceDocument, XmlEdit
+from .xml_document import DipTraceDocument
 
 
 def _component_records(
@@ -2420,9 +2420,3 @@ def design_rules(
         }
     raise DocumentError("Design rules support PCB and Schematic XML only")
 
-
-def apply_low_level_edits(
-    document: DipTraceDocument,
-    edits: list[XmlEdit],
-) -> tuple[bytes, list[dict[str, object]]]:
-    return document.apply_edits(edits)

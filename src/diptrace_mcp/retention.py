@@ -6,7 +6,7 @@ import shutil
 import threading
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +43,7 @@ def prune_in_background(stores: Iterable[Any]) -> threading.Thread:
 
 
 def system_clock() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,7 +79,7 @@ def parse_retention_timestamp(value: object) -> datetime | None:
         return None
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         return None
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)
 
 
 def prune_terminal_records(
@@ -104,9 +104,9 @@ def prune_terminal_records(
         return RetentionReport()
     now = clock()
     if now.tzinfo is None or now.utcoffset() is None:
-        now = now.replace(tzinfo=timezone.utc)
+        now = now.replace(tzinfo=UTC)
     else:
-        now = now.astimezone(timezone.utc)
+        now = now.astimezone(UTC)
     cutoff = now - timedelta(days=policy.max_age_days)
     pending = list(candidates)
     if len(pending) <= policy.max_records:

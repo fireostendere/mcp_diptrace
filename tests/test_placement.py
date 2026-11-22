@@ -178,7 +178,7 @@ def test_placement_plan_commit_and_rollback(tmp_path: Path) -> None:
         "no_new_placement_errors": True,
     }
 
-    committed = service.apply_component_placement_plan(
+    committed = service.apply_plan(
         plan["plan_id"],
         dry_run=False,
         expected_sha256=plan["source_sha256"],

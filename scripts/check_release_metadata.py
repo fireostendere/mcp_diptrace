@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HEX40 = re.compile(r"^[0-9a-f]{40}$")

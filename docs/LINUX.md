@@ -1,6 +1,7 @@
 # Linux: one-command install, visible GUI, and headless GUI
 
-Release candidate: `v0.4.0`. The permanent gate validates Ubuntu 24.04 x86-64.
+First published with `v0.4.0`. The permanent gate validates Ubuntu 24.04 x86-64; the
+`v2.0.0` candidate installs DipTrace 5.3.5.1, the build the vendor serves today.
 
 The validated Linux deployment keeps DipTrace, the Windows standalone MCP server,
 the bridge plug-in, and the GUI automation helper inside one user-owned Wine
@@ -11,8 +12,12 @@ prefix. No Python environment is required for this path.
 Review the DipTrace license first, then explicitly allow the unattended DipTrace
 installer:
 
+The `v2.0.0` tag path below exists once `v2.0.0` is published. Until then `main`
+carries the same script, but its default MCP bundle is the unpublished `2.0.0`, so
+it stops at the bundle download.
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/main/scripts/install_linux.sh \
+curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/v2.0.0/scripts/install_linux.sh \
   | bash -s -- --accept-diptrace-license
 ```
 
@@ -117,6 +122,11 @@ diptrace-mcp-doctor
 
 The doctor verifies the DipTrace executables, MCP server, bridge plug-ins, bundled
 GUI helper, MCP/bridge startup, and the private-Xvfb Win32 worker probe.
+
+Under Wine the server uses the pure-Python geometry backend (`get_capabilities`
+reports `geometry_backend.engine` as `pure_python`): rotated ellipse, obround and polygon clearances fall
+back to conservative bounding boxes. NumPy, which exact Shapely geometry needs,
+aborts the process on Wine 9.0.
 
 ## Automated acceptance scope
 

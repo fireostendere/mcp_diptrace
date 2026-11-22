@@ -13,7 +13,7 @@ alternatives, anticipate failure modes and review the finished geometry.
 ## Establish the board
 
 1. Read the accepted schematic and exact symbol/pin/pad/land-pattern evidence. Use
-   `validate_pin_pad_mapping` and `compare_schematic_to_pcb` when both documents exist.
+   `validate_library_component` and `compare_schematic_to_pcb` when both documents exist.
 2. Prefer `create_document_from_seed` with a verified real export. Synthetic
    `create_pcb_document` can specify outline, layers, stackup, and rules, but parser
    success is not native acceptance. `pipeline_nativeize_document` prepares a separate
@@ -38,7 +38,7 @@ alternatives, anticipate failure modes and review the finished geometry.
   clocks, RF/antenna keepouts and thermal paths. Record every intentional deviation.
 - Use `analyze_placement`, `generate_placement_candidates`, `score_placement`,
   `plan_component_placement` and
-  `apply_component_placement_plan` as applicable. `compare_pcb_placement_candidates` ranks
+  `apply_plan` as applicable. `compare_pcb_placement_candidates` ranks
   bounded whole-board candidates after a candidate-specific physical review and refuses a
   board whose geometry already contains via-in-pad. Geometric ranking cannot decide
   which component implements a hot loop; identify that from the circuit first.
@@ -52,7 +52,7 @@ alternatives, anticipate failure modes and review the finished geometry.
   clearance, layer transitions, and actual zero-ratline connectivity.
 - For a configured external autorouter, use `export_autorouter_dsn`,
   `run_external_autorouter`, `get_job_status`, `get_job_result`,
-  `inspect_autorouter_result`, and guarded `import_autorouter_ses`. Keep DSN/SES
+  `inspect_autorouter_result`, and guarded `apply_plan`. Keep DSN/SES
   provenance and unsupported-geometry disclosures; do not accept a job merely because
   the external process exited successfully.
 - Disable via-in-pad by default. Escape beyond pad copper plus required clearance.
@@ -79,7 +79,7 @@ thermal relief. Keep vias outside pads unless the requested process permits them
 Use [testpoint-planner](../../testpoint-planner/SKILL.md) for accessible probes and
 route their physical copper connections.
 
-Run `run_review(profile="silkscreen")`, `plan_silkscreen`, `apply_silkscreen_plan`, and post-checks.
+Run `run_review(profile="silkscreen")`, `plan_silkscreen`, `apply_plan`, and post-checks.
 Keep labels readable and near their parts, clear of mounting space, pads, holes and
 vias. Covered traces do not by themselves forbid silkscreen.
 

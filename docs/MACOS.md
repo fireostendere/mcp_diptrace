@@ -12,7 +12,8 @@ The release gate exercises fresh GitHub-hosted macOS 15 environments on both:
   through Rosetta);
 - Intel (`x86_64`).
 
-The tested DipTrace application is `5.3.0.3`. The installer verifies the pinned
+The tested DipTrace application is `5.3.5.1` (`5.3.0.3` for the published `v0.4.0`
+scripts, whose pinned download the vendor has since replaced). The installer verifies the pinned
 official DMG SHA-256 before copying `DipTrace.app` into a user-owned location.
 These gates establish the tested paths only; they are not a universal claim for
 every macOS/DipTrace version.
@@ -21,8 +22,12 @@ every macOS/DipTrace version.
 
 Review the DipTrace license before running the installer:
 
+The `v2.0.0` tag path below exists once `v2.0.0` is published. Until then `main`
+carries the same script, but its default MCP bundle is the unpublished `2.0.0`, so
+it stops at the bundle download.
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/main/scripts/install_macos.sh \
+curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/v2.0.0/scripts/install_macos.sh \
   | bash -s -- --accept-diptrace-license
 ```
 
@@ -31,7 +36,7 @@ If Rosetta is absent, the installer fails closed instead of accepting Apple's
 license silently. After reviewing those terms, rerun with:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/main/scripts/install_macos.sh \
+curl -fsSL https://raw.githubusercontent.com/fireostendere/mcp_diptrace/v2.0.0/scripts/install_macos.sh \
   | bash -s -- --accept-diptrace-license --accept-rosetta-license
 ```
 
@@ -116,6 +121,9 @@ module plug-in directories inside the installed app's Wine prefix:
 - Schematic Capture;
 - Component Editor;
 - Pattern Editor.
+
+As on Linux, the server uses the pure-Python geometry backend under Wine; exact
+Shapely geometry is available on native Windows only.
 
 ## Doctor and repair
 

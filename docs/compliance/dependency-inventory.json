@@ -228,24 +228,6 @@
     {
       "copyleft_or_special_terms": false,
       "declared_groups": [
-        "development",
-        "runtime"
-      ],
-      "declared_requirements": [
-        "tomli>=2.0,<3",
-        "tomli>=2.0,<3; python_version < '3.11'"
-      ],
-      "human_review_required": true,
-      "license": "MIT",
-      "license_basis": "engineering mapping from project metadata; human verification required",
-      "name": "tomli",
-      "normalized_name": "tomli",
-      "purl": "pkg:pypi/tomli",
-      "version": null
-    },
-    {
-      "copyleft_or_special_terms": false,
-      "declared_groups": [
         "runtime"
       ],
       "declared_requirements": [
@@ -276,8 +258,7 @@
       "mypy",
       "pytest",
       "pytest-cov",
-      "ruff",
-      "tomli"
+      "ruff"
     ],
     "geometry": [
       "shapely"
@@ -289,7 +270,6 @@
     "runtime": [
       "mcp",
       "pydantic",
-      "tomli",
       "typing-extensions"
     ]
   },
@@ -306,12 +286,12 @@
     ],
     "unknown_license_metadata": []
   },
-  "inspected_commit": "f020a92ce8493988babc1ddc6ad0f4fb7b266a3b",
-  "inspected_date": "2026-11-11",
+  "inspected_commit": "56e607fd15af5eed3a9fbe97cb1d12661d04765b",
+  "inspected_date": "2026-11-22",
   "project": {
     "license": "Apache-2.0",
     "name": "diptrace-mcp",
-    "version": "0.4.0"
+    "version": "2.0.0"
   },
   "resolution": {
     "kind": "declarative-direct-dependency-inventory",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
 from ..adapter_common import stable_id
 from ..domain import (
@@ -34,18 +34,6 @@ from .context import DocumentGateway, ServiceContext, read_success
 PreviewSemanticOperations = Callable[[DipTraceDocument, list[SemanticOperation]], dict[str, Any]]
 
 
-class ApplyStoredPlan(Protocol):
-    def __call__(
-        self,
-        plan_id: str,
-        *,
-        expected_plan_type: str,
-        dry_run: bool,
-        expected_sha256: str | None,
-        txid: str | None,
-    ) -> dict[str, Any]: ...
-
-
 class ExternalJobsService:
     def __init__(
         self,
@@ -55,7 +43,6 @@ class ExternalJobsService:
         job_store: JobStore,
         external_job_manager: ExternalJobManager,
         preview_semantic_operations: PreviewSemanticOperations,
-        apply_stored_plan: ApplyStoredPlan,
     ) -> None:
         self.context = context
         self.gateway = gateway
@@ -63,7 +50,6 @@ class ExternalJobsService:
         self.job_store = job_store
         self.external_job_manager = external_job_manager
         self.preview_semantic_operations = preview_semantic_operations
-        self.apply_stored_plan = apply_stored_plan
 
     def export_autorouter_dsn(
         self,
@@ -247,22 +233,6 @@ class ExternalJobsService:
             limitations=[
                 "Inspection is geometric/topological and never trusts external DRC results."
             ],
-        )
-
-    def import_autorouter_ses(
-        self,
-        plan_id: str,
-        *,
-        dry_run: bool = True,
-        expected_sha256: str | None = None,
-        txid: str | None = None,
-    ) -> dict[str, Any]:
-        return self.apply_stored_plan(
-            plan_id,
-            expected_plan_type="autorouter_ses_import",
-            dry_run=dry_run,
-            expected_sha256=expected_sha256,
-            txid=txid,
         )
 
     def run_native_check(

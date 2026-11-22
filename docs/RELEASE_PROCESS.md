@@ -99,7 +99,7 @@ The exact `.github/workflows/*.yml` definitions at the candidate commit are auth
 
 Current contract expectations on `main` are:
 
-- 161 MCP tools;
+- 151 MCP tools;
 - 90% combined supported-environment coverage floor;
 - 85% geometry-enabled Linux-only coverage floor plus per-file floors.
 

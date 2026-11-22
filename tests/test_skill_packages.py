@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILLS_ROOT = ROOT / "skills"
 SERVER_PATHS = (
     ROOT / "src" / "diptrace_mcp" / "server.py",
-    ROOT / "src" / "diptrace_mcp" / "server_runtime.py",
+    *sorted((ROOT / "src" / "diptrace_mcp" / "tools").glob("*.py")),
 )
 REQUIRED_SKILLS = {
     "pcb-project-intake",

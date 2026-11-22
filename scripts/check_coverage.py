@@ -16,6 +16,15 @@ FILE_FLOORS = {
     "src/diptrace_mcp/semantic_compiler.py": 88.0,
     "src/diptrace_mcp/routing_compiler.py": 85.0,
     "src/diptrace_mcp/server_runtime.py": 65.0,
+    # The registrations that used to be measured as part of server_runtime.py.
+    **{
+        f"src/diptrace_mcp/tools/{name}.py": 85.0
+        for name in (
+            "board", "bom", "components", "documents", "external", "library", "placement",
+            "prompts", "resources", "review", "routing", "schematic", "signal_integrity",
+            "transactions",
+        )
+    },
     "src/diptrace_mcp/adapters.py": 70.0,
     "src/diptrace_mcp/sessions.py": 75.0,
     "src/diptrace_mcp/services/evidence.py": 75.0,

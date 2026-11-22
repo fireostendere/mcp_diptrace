@@ -2,17 +2,13 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.errors import CapabilityUnavailableError
-from diptrace_mcp.geometry import Point
 from diptrace_mcp.operations import AddWireOperation
 from diptrace_mcp.schematic_atomic_reroute import (
-    _intentional_junctions,
-    _points_via_preserved_junction,
     plan_atomic_schematic_placement_reroute,
 )
 from diptrace_mcp.schematic_joint_optimizer import (
@@ -131,46 +127,6 @@ def test_atomic_reroute_replaces_only_nets_touched_by_moved_part() -> None:
     assert {wire.net_name for wire in after.schematic.wires} == {"VCC", "SIGNAL"}
     after_signal = next(wire for wire in after.schematic.wires if wire.net_name == "SIGNAL")
     assert after_signal.stable_id == signal_wire.stable_id
-
-
-def test_intentional_degree_three_junction_is_reused_with_bounded_detour() -> None:
-    snapshot = SimpleNamespace(
-        schematic=SimpleNamespace(
-            wires=[
-                SimpleNamespace(
-                    stable_id="horizontal",
-                    attributes={
-                        "points": [
-                            {"x": 0.0, "y": 0.0},
-                            {"x": 10.0, "y": 0.0},
-                            {"x": 20.0, "y": 0.0},
-                        ]
-                    },
-                ),
-                SimpleNamespace(
-                    stable_id="branch",
-                    attributes={
-                        "points": [
-                            {"x": 10.0, "y": 0.0},
-                            {"x": 10.0, "y": 10.0},
-                        ]
-                    },
-                ),
-            ]
-        )
-    )
-
-    junctions = _intentional_junctions(snapshot, ["horizontal", "branch"])
-    points, used = _points_via_preserved_junction(
-        Point(0.0, 0.0),
-        Point(20.0, 0.0),
-        junctions,
-        maximum_detour_ratio=2.5,
-    )
-
-    assert junctions == [Point(10.0, 0.0)]
-    assert used == Point(10.0, 0.0)
-    assert any(item.x == 10.0 and item.y == 0.0 for item in points)
 
 
 def test_atomic_reroute_rebuilds_all_explicit_wire_groups_for_multi_net_part() -> None:

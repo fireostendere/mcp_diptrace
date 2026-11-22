@@ -64,7 +64,6 @@
       "find_testpoint_candidates",
       "add_testpoints",
       "preview_transaction",
-      "validate_transaction",
       "commit_transaction",
       "rollback_transaction",
       "run_review",
@@ -89,16 +88,14 @@
       "route_diff_pair",
       "plan_route_nets",
       "plan_diff_pair_route",
-      "apply_route_plan",
+      "apply_plan",
       "preview_transaction",
-      "validate_transaction",
       "commit_transaction",
       "rollback_transaction",
       "run_review",
       "export_autorouter_dsn",
       "run_external_autorouter",
       "inspect_autorouter_result",
-      "import_autorouter_ses",
       "get_job_status",
       "get_job_result",
       "analyze_differential_pair",
@@ -173,9 +170,8 @@
       "create_document_from_seed",
       "sync_schematic_to_pcb",
       "plan_component_placement",
-      "apply_component_placement_plan",
+      "apply_plan",
       "plan_route_nets",
-      "apply_route_plan",
       "run_review",
       "commit_transaction",
       "rollback_transaction"
@@ -200,9 +196,8 @@
       "add_wire",
       "set_pin_no_connect",
       "plan_schematic_placement_repair",
-      "apply_schematic_placement_repair_plan",
+      "apply_plan",
       "preview_transaction",
-      "validate_transaction",
       "commit_transaction",
       "rollback_transaction",
       "run_review"
@@ -220,7 +215,7 @@
       "get_document_info",
       "get_library_component",
       "get_library_pattern",
-      "validate_pin_pad_mapping"
+      "validate_library_component"
     ]
   },
   {
@@ -239,7 +234,6 @@
       "query_builtin_library_catalog",
       "pipeline_source_component",
       "compare_schematic_to_pcb",
-      "group_bom",
       "review_bom",
       "find_missing_component_fields",
       "compare_bom_to_design"

@@ -1,7 +1,6 @@
 # PyInstaller onedir specification for the standalone client configurator.
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 from PyInstaller.building.build_main import Analysis, COLLECT, EXE, PYZ
@@ -15,7 +14,7 @@ analysis = Analysis(
     pathex=[str(SRC)],
     binaries=[],
     datas=[],
-    hiddenimports=["tomli"] if importlib.util.find_spec("tomli") is not None else [],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

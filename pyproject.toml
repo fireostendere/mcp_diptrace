@@ -4,19 +4,18 @@ build-backend = "hatchling.build"
 
 [project]
 name = "diptrace-mcp"
-version = "0.4.0"
+version = "2.0.0"
 description = "Model Context Protocol server and live XML bridge for DipTrace"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "DipTrace MCP contributors" }]
 license = "Apache-2.0"
 keywords = ["diptrace", "eda", "mcp", "pcb", "schematic"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -27,7 +26,6 @@ dependencies = [
   # internals (Tool.run, fn_metadata, _tool_manager). Raise it after a green run.
   "mcp>=1.30.0,<1.31",
   "pydantic>=2.11,<3",
-  "tomli>=2.0,<3; python_version < '3.11'",
   "typing-extensions>=4.12,<5",
 ]
 
@@ -54,7 +52,6 @@ dev = [
   "pytest-cov>=6.2,<7",
   "PyYAML>=6.0,<7",
   "ruff>=0.12,<1",
-  "tomli>=2.0,<3",
 ]
 bridge = [
   "pyinstaller==6.14.2",
@@ -78,7 +75,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 extend-exclude = ["plugin/dist"]
 
 [tool.ruff.lint]
@@ -100,14 +97,14 @@ known-first-party = ["diptrace_mcp"]
 known-third-party = ["mcp", "pydantic", "pywinauto", "pytest"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 strict = true
 packages = ["diptrace_mcp"]
 exclude = ["^plugin/dist/"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = "diptrace_mcp.server_runtime"
+module = "diptrace_mcp.tools.*"
 warn_return_any = false
 
 [[tool.mypy.overrides]]

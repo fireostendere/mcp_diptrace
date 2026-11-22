@@ -2,15 +2,17 @@
 set -euo pipefail
 
 PRODUCT="DipTrace MCP"
-MCP_VERSION="${DIPTRACE_MCP_VERSION:-0.4.0}"
+MCP_VERSION="${DIPTRACE_MCP_VERSION:-2.0.0}"
 MCP_BUNDLE_NAME="DipTrace-MCP-Portable-${MCP_VERSION}.zip"
 MCP_RELEASE_BASE="https://github.com/fireostendere/mcp_diptrace/releases/download/v${MCP_VERSION}"
 MCP_BUNDLE_URL="${MCP_RELEASE_BASE}/${MCP_BUNDLE_NAME}"
 MCP_SUMS_URL="${MCP_RELEASE_BASE}/SHA256SUMS.txt"
 LOCAL_MCP_BUNDLE="${DIPTRACE_MCP_BUNDLE_PATH:-}"
-DIPTRACE_VERSION="5.3.0.3"
-DIPTRACE_INSTALLER_URL="https://diptrace.com/downloads/dipfree_en64.exe"
-DIPTRACE_INSTALLER_SHA256="87a9d4cb14e01b0561d6a88d540a5775d92d011359b465d12c7c5d0f0e527e74"
+# The vendor replaces this file in place with every DipTrace release; the
+# overrides let a user pin the build they reviewed until this default catches up.
+DIPTRACE_VERSION="${DIPTRACE_VERSION:-5.3.5.1}"
+DIPTRACE_INSTALLER_URL="${DIPTRACE_INSTALLER_URL:-https://diptrace.com/downloads/dipfree_en64.exe}"
+DIPTRACE_INSTALLER_SHA256="${DIPTRACE_INSTALLER_SHA256:-8845d6e6e72f9671ea270ac462bd25c0c7794f68a7f4015b88aece980bfb848c}"
 
 ACCEPT_DIPTRACE_LICENSE=0
 SKIP_DIPTRACE=0
@@ -42,6 +44,8 @@ Environment overrides:
   DIPTRACE_MCP_LINUX_BIN_DIR    Wrapper installation directory.
   DIPTRACE_MCP_BUNDLE_PATH      Local portable ZIP for CI/pre-release testing.
   DIPTRACE_MCP_HEADLESS_SCREEN  Private headless display, default 1920x1080x24.
+  DIPTRACE_VERSION, DIPTRACE_INSTALLER_URL, DIPTRACE_INSTALLER_SHA256
+                                Pin a different reviewed DipTrace installer.
 EOF
 }
 

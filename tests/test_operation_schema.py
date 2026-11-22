@@ -299,7 +299,7 @@ def test_every_write_tool_description_discloses_dry_run_contract(
         if "dry_run" in tool.inputSchema.get("properties", {})
     }
 
-    assert len(write_tools) == 57
+    assert len(write_tools) == 53
     for name in write_tools:
         tool = listed_tools[name]
         assert _DRY_RUN_DESCRIPTION in (tool.description or ""), name

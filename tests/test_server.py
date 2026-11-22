@@ -37,12 +37,11 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             assert "begin_transaction" in tool_names
             assert "move_components" in tool_names
             assert "plan_silkscreen" in tool_names
-            assert "apply_silkscreen_plan" in tool_names
+            assert "apply_plan" in tool_names
             assert "analyze_placement" in tool_names
             assert "generate_placement_candidates" in tool_names
             assert "plan_component_placement" in tool_names
             assert "score_placement" in tool_names
-            assert "apply_component_placement_plan" in tool_names
             assert "sync_schematic_to_pcb" in tool_names
             assert "analyze_routing_congestion" in tool_names
             assert "add_trace" in tool_names
@@ -65,7 +64,6 @@ def test_mcp_protocol_lists_and_calls_tools(tmp_path: Path) -> None:
             )
             assert "NetClass" in tool_descriptions["route_connection"]
             assert "plan_route_nets" in tool_names
-            assert "apply_route_plan" in tool_names
             assert "export_bom" in tool_names
             assert "export_fabrication_outputs" in tool_names
             assert "export_assembly_outputs" in tool_names

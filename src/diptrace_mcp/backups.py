@@ -6,7 +6,7 @@ import re
 import threading
 import uuid
 from contextlib import suppress
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -295,7 +295,7 @@ class BackupStore:
                     datetime.strptime(
                         match.group("stamp"),
                         "%Y%m%dT%H%M%S.%fZ",
-                    ).replace(tzinfo=timezone.utc)
+                    ).replace(tzinfo=UTC)
                 )
             except ValueError:
                 return True
@@ -381,7 +381,7 @@ class BackupStore:
                 timestamp = datetime.strptime(
                     match.group("stamp"),
                     "%Y%m%dT%H%M%S.%fZ",
-                ).replace(tzinfo=timezone.utc)
+                ).replace(tzinfo=UTC)
                 if verify_content and not self._content_matches_name(path, match):
                     continue
             except (OSError, ValueError):
@@ -457,5 +457,5 @@ class BackupStore:
 
 def _aware_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)

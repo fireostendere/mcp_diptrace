@@ -51,7 +51,16 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
+      # A release candidate has no public bytes yet; verification resumes once
+      # release.json records the published identity.
+      - name: Read release state
+        id: state
+        shell: bash
+        run: |
+          python -c "import json; s = json.load(open('release.json', encoding='utf-8'))['release_status']; print('published=' + str(s.startswith('published-')).lower())" >> "$GITHUB_OUTPUT"
+          grep -q 'published=true' "$GITHUB_OUTPUT" || echo "::notice::release.json is a release candidate; public release verification was skipped."
       - name: Download public GitHub assets and verify recorded digests
+        if: ${{ steps.state.outputs.published == 'true' }}
         shell: bash
         env:
           REPOSITORY: ${{ github.repository }}
@@ -67,8 +76,6 @@ jobs:
 
           root = pathlib.Path('.')
           release = json.loads((root / 'release.json').read_text(encoding='utf-8'))
-          if not str(release.get('release_status', '')).startswith('published-'):
-              raise SystemExit('release.json is not in a published state')
           tag = release['tag']
           repository = os.environ['REPOSITORY']
           output = root / 'public-release'
@@ -104,6 +111,7 @@ jobs:
                   )
           PY
       - name: Verify public PyPI JSON identity and digests
+        if: ${{ steps.state.outputs.published == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -132,6 +140,7 @@ jobs:
               print(f'OK {name} {actual}')
           PY
       - name: Clean-install the published PyPI package
+        if: ${{ steps.state.outputs.published == 'true' }}
         shell: bash
         run: |
           set -euo pipefail

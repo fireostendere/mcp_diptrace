@@ -64,6 +64,16 @@ def test_bbox_intersection_area_and_containment() -> None:
     assert inner.intersection(BBox(5, 7, 6, 8)) is None
 
 
+def test_wine_hosts_use_the_pure_python_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(geometry_backend, "under_wine", lambda: True)
+    geometry_backend.shapely_available.cache_clear()
+    try:
+        assert geometry_backend.shapely_available() is False
+        assert backend_report()["engine"] == "pure_python"
+    finally:
+        geometry_backend.shapely_available.cache_clear()
+
+
 def test_geometry_backend_reports_optional_engine_without_leaking_backend_types() -> None:
     report = backend_report()
 

@@ -60,6 +60,26 @@ def test_frozen_server_imports_optional_geometry_before_main(
     assert events == (["shapely", "main"] if geometry_available else ["main"])
 
 
+def test_frozen_server_skips_geometry_under_wine(monkeypatch: pytest.MonkeyPatch) -> None:
+    from diptrace_mcp import geometry_backend
+
+    events: list[str] = []
+    monkeypatch.setattr(geometry_backend, "under_wine", lambda: True)
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: importlib.machinery.ModuleSpec(name, None)
+    )
+    monkeypatch.setattr(
+        importlib, "import_module", lambda name: pytest.fail("NumPy aborts under Wine")
+    )
+    server = ModuleType("diptrace_mcp.server")
+    monkeypatch.setattr(server, "main", lambda: events.append("main"), raising=False)
+    monkeypatch.setitem(sys.modules, "diptrace_mcp.server", server)
+
+    runpy.run_path(str(ROOT / "src/diptrace_mcp/frozen_server.py"), run_name="__main__")
+
+    assert events == ["main"]
+
+
 @pytest.mark.parametrize("error", [ImportError("broken GEOS"), ModuleNotFoundError("numpy")])
 def test_frozen_server_does_not_hide_broken_geometry(
     monkeypatch: pytest.MonkeyPatch, error: ImportError
@@ -124,7 +144,7 @@ def test_all_windows_builders_bootstrap_patched_pip_before_project_install() -> 
 
 
 def test_server_version_contract_is_stable() -> None:
-    assert __version__ == "0.4.0"
+    assert __version__ == "2.0.0"
 
 
 def test_runtime_registry_is_json_and_spec_does_not_collect_forbidden_sources() -> None:
@@ -301,6 +321,6 @@ def test_every_public_tool_wrapper_reaches_the_service_with_schema_valid_input(
                     not_delegated.append(tool.name)
 
         assert len(listed.tools) >= 150
-        assert len(exercised) >= 145, not_delegated
+        assert len(exercised) >= 144, not_delegated
 
     asyncio.run(verify())

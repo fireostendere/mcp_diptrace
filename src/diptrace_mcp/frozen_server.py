@@ -8,11 +8,13 @@ path.
 from importlib import import_module
 from importlib.util import find_spec
 
+from diptrace_mcp.geometry_backend import under_wine
 from diptrace_mcp.server import main
 
 if __name__ == "__main__":
     # Initialize NumPy/GEOS on the main thread: first import in frozen Windows
-    # AnyIO workers can hang. Geometry-free bundles have no Shapely spec.
-    if find_spec("shapely") is not None:
+    # AnyIO workers can hang. Geometry-free bundles have no Shapely spec, and
+    # Wine cannot load NumPy at all (see geometry_backend.shapely_available).
+    if find_spec("shapely") is not None and not under_wine():
         import_module("shapely")
     main()

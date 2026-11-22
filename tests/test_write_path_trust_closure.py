@@ -3,8 +3,11 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+import pytest
+
 from diptrace_mcp.config import Settings
 from diptrace_mcp.domain import DocumentProvenance, FixtureValidationLevel
+from diptrace_mcp.errors import CapabilityUnavailableError
 from diptrace_mcp.scaffolding import build_pcb_document
 from diptrace_mcp.service import DipTraceService
 from diptrace_mcp.sessions import SessionStore
@@ -76,24 +79,17 @@ def _make_value_plan(
     )
 
 
-def test_generic_plan_apply_invalidates_trust_after_real_commit(tmp_path: Path) -> None:
+def test_apply_plan_refuses_plan_types_with_their_own_apply_path(tmp_path: Path) -> None:
     board = tmp_path / "board.dip"
     shutil.copy2(FIXTURES / "pcb.xml", board)
     service = _service(tmp_path)
-    _write_runtime_sidecar(service, board)
-    plan = _make_value_plan(service, board, plan_type="trust_regression")
+    plan = _make_value_plan(service, board, plan_type="pcb_whole_board")
+    before = board.read_bytes()
 
-    result = service._apply_stored_plan(
-        plan.plan_id,
-        expected_plan_type="trust_regression",
-        dry_run=False,
-        expected_sha256=plan.source_sha256,
-        txid=None,
-    )
+    with pytest.raises(CapabilityUnavailableError, match="cannot be applied with apply_plan"):
+        service.apply_plan(plan.plan_id, dry_run=False, expected_sha256=plan.source_sha256)
 
-    assert result["written"] is True
-    assert result["transaction"]["status"] == "committed"
-    _assert_transaction_invalidation(service, board)
+    assert board.read_bytes() == before
 
 
 def test_ses_import_entry_point_invalidates_trust_after_real_commit(tmp_path: Path) -> None:
@@ -103,7 +99,7 @@ def test_ses_import_entry_point_invalidates_trust_after_real_commit(tmp_path: Pa
     _write_runtime_sidecar(service, board)
     plan = _make_value_plan(service, board, plan_type="autorouter_ses_import")
 
-    result = service.import_autorouter_ses(
+    result = service.apply_plan(
         plan.plan_id,
         dry_run=False,
         expected_sha256=plan.source_sha256,

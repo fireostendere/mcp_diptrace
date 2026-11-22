@@ -27,7 +27,7 @@ feature availability.
    pair use `plan_diff_pair_route` or `route_diff_pair`; never route the two legs independently.
 4. Omit clearance only to resolve the document DRC TraceToTrace rule. An explicit caller value is
    millimetres and must be named in the report.
-5. Prefer `plan_route_nets` plus `apply_route_plan` for a reviewable plan. Inspect SVG/JSON, then
+5. Prefer `plan_route_nets` plus `apply_plan` for a reviewable plan. Inspect SVG/JSON, then
    validate and use an `expected_sha256` commit within the already authorized routing scope.
    A request for a plan alone never authorizes committing it.
 6. Run `run_review(profile="drc_basic")` and `run_review(profile="connectivity")`; rollback only this session's failed changes with

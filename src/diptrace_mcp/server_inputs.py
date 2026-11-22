@@ -354,7 +354,7 @@ _READ_ONLY_PREFIXES = (
     "suggest_", "score_", "rank_", "inspect_", "plan_", "generate_",
 )  # fmt: skip
 _READ_ONLY_TOOLS = frozenset(
-    {"diptrace_status", "group_bom", "run_review", "run_quality_gate", "preview_transaction"}
+    {"diptrace_status", "run_review", "run_quality_gate", "preview_transaction"}
 )
 # Writes that can remove or replace existing design content. Other writes update in
 # place or add, behind the same expected-SHA, backup and transaction guards.
@@ -364,7 +364,6 @@ _DESTRUCTIVE_TOOLS = frozenset(
         "commit_transaction",
         "sync_schematic_to_pcb",
         "replace_trace",
-        "import_autorouter_ses",
         "abandon_live_session",
     }
 )

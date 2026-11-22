@@ -7,16 +7,12 @@ import argparse
 import json
 import re
 import subprocess
+import tomllib
 import uuid
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
 from typing import Any
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10
-    import tomli as tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "docs" / "compliance"
@@ -39,7 +35,6 @@ KNOWN_LICENSES = {
     "pywinauto": "BSD-3-Clause",
     "ruff": "MIT",
     "shapely": "BSD-3-Clause",
-    "tomli": "MIT",
     "typing-extensions": "PSF-2.0",
 }
 COPyleft = {"hypothesis", "pyinstaller"}

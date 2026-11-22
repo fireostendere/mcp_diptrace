@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -30,7 +30,7 @@ STORE_TYPES = (
 
 
 def _clock() -> datetime:
-    return datetime(2026, 7, 29, tzinfo=timezone.utc)
+    return datetime(2026, 7, 29, tzinfo=UTC)
 
 
 def _create_plan(store: PlanStore) -> Any:

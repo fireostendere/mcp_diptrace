@@ -17,17 +17,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
-
-if sys.version_info >= (3, 11):
-    import tomllib as _tomllib
-else:  # pragma: no cover - exercised on Python 3.10
-    import tomli as _tomllib
-
-tomllib: Any = _tomllib
+from typing import Any
 
 
 class ConfiguratorError(RuntimeError):
@@ -306,13 +300,13 @@ def _load_toml(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     try:
-        return cast(dict[str, Any], tomllib.loads(path.read_text(encoding="utf-8")))
+        return tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
         raise ConfiguratorError(f"Codex config is invalid; it was not changed: {path}") from exc
 
 
 def _timestamp() -> str:
-    return dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def _backup_path(path: Path) -> Path:

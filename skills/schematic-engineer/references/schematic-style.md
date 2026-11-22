@@ -71,7 +71,7 @@ Use `add_sheet`, `place_builtin_component`/`place_part`, `connect_pins`, `add_wi
 `add_net_label`, `set_pin_no_connect`, `set_component_properties`, and `rename_net` as
 advertised. For placement/wiring repair, inspect
 `rank_schematic_placement_candidates` and `plan_schematic_placement_repair`, then
-apply the stored plan through `apply_schematic_placement_repair_plan` with normal
+apply the stored plan through `apply_plan` with normal
 preview/hash/post-checks. Already-wired ranking requires the advertised explicit
 allow-existing-wires options; it is not itself a mutation or automatic repair.
 

@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.13"]
+        python: ["3.11", "3.13"]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -154,7 +154,7 @@ jobs:
       - name: Enforce MCP discovery budget
         run: >-
           python scripts/measure_mcp_surface.py
-          --baseline-bytes 147757
+          --baseline-bytes 91751
           --max-growth-percent 15
       - name: Freeze the complete public tools/list contract
         run: python scripts/generate_mcp_tools_snapshot.py --check

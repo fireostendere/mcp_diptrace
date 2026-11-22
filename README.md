@@ -54,11 +54,18 @@ The PCB media was regenerated and visually rechecked after the 17-via update on
 
 ## Current status
 
+Version `2.0.0` is the release candidate on `main`: 151 tools, Python 3.11+, one
+`apply_plan` tool for every stored plan. It breaks the `0.4.0` contract; the removed
+tool names and their replacements are in [MCP_TOOLS.md](docs/MCP_TOOLS.md), the
+candidate record and its open evidence gates in
+[releases/v2.0.0.md](docs/releases/v2.0.0.md). Nothing below is `2.0.0` bytes until
+that record names a published tag.
+
 Version `0.4.0` is the current published unsigned development release. The
 immutable GitHub release is `v0.4.0`, and the matching Python package is
 `diptrace-mcp==0.4.0` on PyPI.
 
-The published release keeps the public MCP contract frozen at 167 tools (v0.4.0; current `main` registers 161) and
+The published release keeps the public MCP contract frozen at 167 tools (v0.4.0) and
 contains the A1-A8 roadmap closure plus tested cross-platform host paths:
 
 - Windows split per-user/admin installers and portable bundle;
@@ -84,8 +91,8 @@ package attestations establish tested behaviour, byte identity and publication
 provenance. They do not create a trusted Authenticode signature, universal
 compatibility, independent review or production readiness.
 
-`main` may contain post-release hardening that is not part of immutable
-`v0.4.0`; use the tag when reproducibility matters.
+`main` carries the `2.0.0` candidate, which is not part of immutable `v0.4.0`;
+use the tag when reproducibility matters.
 
 ## Public Release Status
 
@@ -109,7 +116,7 @@ is not yet published.
 
 ## What it provides
 
-The public MCP surface currently registers 161 tools. Runtime `get_capabilities`
+The public MCP surface currently registers 151 tools. Runtime `get_capabilities`
 publishes qualified `tool_capabilities` mappings and document-dependent feature
 flags; policy, installed native builds and evidence still determine whether a call
 can run. A true feature flag is not permission or native acceptance.
@@ -198,6 +205,11 @@ accuracy, PI/EMC sign-off, or globally optimal schematic/PCB layout.
 
 ## Installation
 
+The `v0.4.0` scripts pin DipTrace 5.3.0.3 by checksum. The vendor replaced that
+download in place in October 2026, so they now stop at the checksum. The `2.0.0`
+scripts pin the current build, 5.3.5.1, and replace these commands when `v2.0.0`
+is published.
+
 ### Linux: one command, visible GUI, and headless GUI
 
 After reviewing the DipTrace license, the validated x86-64 Debian/Ubuntu path is:
@@ -232,10 +244,8 @@ desktop worker without physical mouse/keyboard fallback. See
 
 ### PyPI
 
-Python 3.10 or newer is required.
-
-On development `main`, the optional Windows `headless-gui` extra needs Python
-3.11+ for patched Pillow; base XML/MCP operation still supports Python 3.10+.
+Python 3.11 or newer is required from `2.0.0`. The published `0.4.0` package also
+runs on Python 3.10.
 ```bash
 python -m pip install diptrace-mcp==0.4.0
 diptrace-mcp --help

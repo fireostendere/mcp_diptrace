@@ -59,7 +59,7 @@ arbitrary commands and does not return fake simulation results.
 | openEMS | GPL-3.0-or-later | platform packages | External runtime through the typed runner protocol; not bundled |
 
 The `geometry` extra contains Shapely 2.x. Its Windows wheels include GEOS and NumPy and
-support Python 3.10 and later. Query results are sorted by stable ID for deterministic
+support Python 3.11 and later. Query results are sorted by stable ID for deterministic
 behavior. The `preview`, `routing`, and `simulation` extras are currently empty and do
 not conceal runtime dependencies. The `bridge` extra contains PyInstaller; `dev`
 contains pytest, Ruff, Mypy, and Hypothesis.

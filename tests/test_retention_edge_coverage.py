@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -20,7 +20,7 @@ def test_retention_policy_and_timestamp_validation() -> None:
     assert retention.parse_retention_timestamp("not-a-date") is None
     assert retention.parse_retention_timestamp("2026-01-01T00:00:00") is None
     parsed = retention.parse_retention_timestamp("2026-01-01T01:00:00+01:00")
-    assert parsed == datetime(2026, 1, 1, tzinfo=timezone.utc)
+    assert parsed == datetime(2026, 1, 1, tzinfo=UTC)
     assert retention.system_clock().tzinfo is not None
 
 
@@ -42,22 +42,22 @@ def test_prune_handles_age_count_protection_files_and_directories(tmp_path: Path
         retention.RetentionCandidate(
             "old",
             old_file,
-            datetime(2020, 1, 1, tzinfo=timezone.utc),
+            datetime(2020, 1, 1, tzinfo=UTC),
         ),
         retention.RetentionCandidate(
             "count",
             count_file,
-            datetime(2026, 1, 2, tzinfo=timezone.utc),
+            datetime(2026, 1, 2, tzinfo=UTC),
         ),
         retention.RetentionCandidate(
             "protected",
             protected,
-            datetime(2020, 1, 2, tzinfo=timezone.utc),
+            datetime(2020, 1, 2, tzinfo=UTC),
         ),
         retention.RetentionCandidate(
             "dir",
             directory,
-            datetime(2020, 1, 3, tzinfo=timezone.utc),
+            datetime(2020, 1, 3, tzinfo=UTC),
         ),
     ]
     report = retention.prune_terminal_records(
@@ -92,11 +92,11 @@ def test_prune_refuses_unsafe_roots_and_candidates(tmp_path: Path) -> None:
             retention.RetentionCandidate(
                 "outside",
                 candidate,
-                datetime(2020, 1, 1, tzinfo=timezone.utc),
+                datetime(2020, 1, 1, tzinfo=UTC),
             )
         ],
         policy=retention.RetentionPolicy(max_records=1, max_age_days=1),
-        clock=lambda: datetime(2030, 1, 1, tzinfo=timezone.utc),
+        clock=lambda: datetime(2030, 1, 1, tzinfo=UTC),
     ).removed == ()
     assert candidate.exists()
 
@@ -157,11 +157,11 @@ def test_prune_ignores_delete_errors(tmp_path: Path, monkeypatch: pytest.MonkeyP
             retention.RetentionCandidate(
                 "old",
                 record,
-                datetime(2020, 1, 1, tzinfo=timezone.utc),
+                datetime(2020, 1, 1, tzinfo=UTC),
             )
         ],
         policy=retention.RetentionPolicy(max_records=1, max_age_days=1),
-        clock=lambda: datetime(2030, 1, 1, tzinfo=timezone.utc),
+        clock=lambda: datetime(2030, 1, 1, tzinfo=UTC),
     )
     assert report.removed == ()
     assert record.exists()
@@ -190,11 +190,11 @@ def test_prune_proves_only_doomed_candidates_under_count_limit(
         state_root=state,
         store_root=store,
         candidates=[
-            retention.RetentionCandidate("old", old, datetime(2020, 1, 1, tzinfo=timezone.utc)),
-            retention.RetentionCandidate("new", new, datetime(2029, 12, 31, tzinfo=timezone.utc)),
+            retention.RetentionCandidate("old", old, datetime(2020, 1, 1, tzinfo=UTC)),
+            retention.RetentionCandidate("new", new, datetime(2029, 12, 31, tzinfo=UTC)),
         ],
         policy=retention.RetentionPolicy(max_records=10, max_age_days=30),
-        clock=lambda: datetime(2030, 1, 1, tzinfo=timezone.utc),
+        clock=lambda: datetime(2030, 1, 1, tzinfo=UTC),
     )
 
     assert report.removed == (old,)

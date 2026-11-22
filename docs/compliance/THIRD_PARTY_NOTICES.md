@@ -5,7 +5,7 @@ This file is a reproducible engineering inventory of direct dependencies declare
 for redistribution. Verify each dependency's current license text, notices, transitive
 dependencies, and any bundled native library before publishing an artifact.
 
-Inventory binding: commit `f020a92ce8493988babc1ddc6ad0f4fb7b266a3b`, inspected date `2026-11-11`.
+Inventory binding: commit `56e607fd15af5eed3a9fbe97cb1d12661d04765b`, inspected date `2026-11-22`.
 
 The Python wheel declares dependencies but does not vendor them. The Windows bridge is a
 PyInstaller bundle and requires a separate per-build contents and notice review.
@@ -26,7 +26,6 @@ PyInstaller bundle and requires a separate per-build contents and notice review.
 | `PyYAML` | development | PyYAML>=6.0,<7 | `MIT` | human review required |
 | `ruff` | development | ruff>=0.12,<1 | `MIT` | human review required |
 | `shapely` | geometry | shapely>=2.0,<3 | `BSD-3-Clause` | human review required |
-| `tomli` | development, runtime | tomli>=2.0,<3; tomli>=2.0,<3; python_version < '3.11' | `MIT` | human review required |
 | `typing-extensions` | runtime | typing-extensions>=4.12,<5 | `PSF-2.0` | human review required |
 
 ## Open review items

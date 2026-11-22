@@ -126,12 +126,6 @@ def test_fixture_workflow_invokes_at_least_forty_public_mcp_tools(
             )
             assert pattern_validation["result"]["valid"] is True
 
-            mapping_validation = await invoke(
-                "validate_pin_pad_mapping",
-                {"path": "component_library.xml", "name": "RES_0603"},
-            )
-            assert mapping_validation["result"]["valid"] is True
-
             bom = await invoke(
                 "get_bom",
                 {"path": "pcb.xml", "grouped": False, "include_dnp": True},
@@ -163,26 +157,6 @@ def test_fixture_workflow_invokes_at_least_forty_public_mcp_tools(
                 {"path": "pcb.xml", "required_fields": ["mpn"]},
             )
             assert missing_fields["result"]["record_count"] == 2
-
-            grouped_bom = await invoke(
-                "group_bom", {"path": "pcb.xml", "include_dnp": True}
-            )
-            assert grouped_bom["result"]["grouped"] is True
-
-            duplicate_bom = await invoke(
-                "detect_duplicate_bom_items", {"path": "pcb.xml"}
-            )
-            assert "duplicate_group_count" in duplicate_bom["result"]
-
-            mpn_consistency = await invoke(
-                "validate_mpn_consistency", {"path": "pcb.xml"}
-            )
-            assert isinstance(mpn_consistency["result"]["valid"], bool)
-
-            value_pattern_consistency = await invoke(
-                "validate_value_pattern_consistency", {"path": "pcb.xml"}
-            )
-            assert isinstance(value_pattern_consistency["result"]["valid"], bool)
 
             design_comparison = await invoke(
                 "compare_schematic_to_pcb",
@@ -349,10 +323,6 @@ def test_fixture_workflow_invokes_at_least_forty_public_mcp_tools(
                 preview["preview"]["artifacts"]["diff"]["resource_uri"]
             )
             assert "<Value>47k</Value>" in transaction_diff.contents[0].text
-            assert board_path.read_bytes() == before_preview
-
-            validated = await invoke("validate_transaction", {"txid": txid})
-            assert validated["transaction"]["status"] == "validated"
             assert board_path.read_bytes() == before_preview
 
             transactions = await invoke("list_transactions", {})
