@@ -7,29 +7,70 @@ This document tracks remaining engineering limitations in the current implementa
 ## Review findings — 2026-11-10
 
 The server review in [MCP_REVIEW_2026-11-10.md](MCP_REVIEW_2026-11-10.md) reproduced the
-defects below; B1-B8, B10-B13, B15 and B16 are closed. The
+defects below; B1-B5 and B7-B16 are closed at implementation scope. The
 `B` numbers match that record and [the project roadmap](../documents/ROADMAP.md).
 
 | Id | Debt | Why it matters |
 | --- | --- | --- |
 | B6 | Silkscreen text boxes ignore rotation and bottom-side mirroring; no repository board has rotated or bottom-side text to verify a fix against | Silkscreen clearance may test the wrong box |
-| B9 | A net reference that matches no name still falls back to an XML id | `connect_pins(net="1")` attaches to net id 1 instead of creating net `1` |
-| B14 | `get_capabilities` is keyed by capability, with no published tool → capability-key map; the pipeline tools have no key | Clients cannot look a tool up in the report |
 
 Also open from that review:
 
-- the seven tools added afterwards (`add_copper_pours`, `delete_copper_pours`,
-  `set_board_outline`, `delete_parts`, `delete_net_labels`, `run_quality_gate`,
-  `run_native_check`) have repository tests only: no native open/refill/DRC evidence
-  for the writers, and no real DipTrace run of `run_native_check`, which a packaged
-  (frozen) server refuses;
+- release-readiness follow-up removed the unsafe class-only DRC PASS and the
+  document-global duplicate-ID diagnostic. Historical raw reports are unchanged;
+  their scoped-ID delta is not a remaining defect, but missing endpoint memberships
+  and full XML semantic differences are still unresolved. New source/frozen native
+  runs preserve structural records and report `HUMAN_REVIEW_REQUIRED`; the retained
+  DRC images were viewed and read "No errors found", while automatic status remains
+  `review_required` for the unpinned DPI image. Codex CLI 0.167.0 app-server passed
+  restarted discovery of 161 tools, both intelligence calls with/without rule packs,
+  and invalid/oversized-rule structured errors. This is not Claude Desktop evidence.
+
+- native acceptance of the new pour/outline/schematic-delete paths remains open.
+  `run_native_check` now uses SHA-checked private copies, source/frozen-helper
+  dispatch, binary XML export and optional exact reviewed startup-dialog hashes.
+  All four variants ran on actual 5.3.0.3. Schematic acceptance/ERC and binary XML
+  export returned zero; the ERC image was viewed and reads "No errors found".
+   Label deletion preserved the compared semantics. The R1-deletion smoke removed
+   all wires first: parts and physical pin-to-pad mappings survived, but native
+   re-export removed all 22 remaining net memberships. That is not connectivity
+    acceptance. A new local-only R1/PS5/two-wire deletion through a public frozen
+    transaction preserves 14 parts, 21 pin/net/NC records, 12 physical mappings,
+    12 wires and six nets after native re-export, with equal compared semantics.
+    Its inspected native ERC reports `Single pin in net: SDA_3V3, Q1:S`; this is
+    bounded preservation evidence, not a clean schematic or release PASS.
+    The base schematic preserved pin/net/NC and physical pin-to-pad
+   records, but library/wire geometry deltas still require visual review. PCB copies now
+   complete refill/DRC/save/re-export (DRC `pass`), but strict comparison remains
+   `FAIL` (22 to 20 raw endpoints and scoped-ID differences). The missing records
+   are GND `J1` pad `1` and GND `J2` pad `1`. Component-level pad assignments still
+   name GND: this is not proof of physical disconnection, but remains unclassified
+   and is not waived as canonicalization;
 - tool gaps without a native XML reference in any repository board: board text,
   mounting holes and cutouts, net class / differential pair / via style creation,
-  sheet and PCB-component deletes, a public wire planner, native manufacturing export;
-- the board gate does not run `run_checks`; its overlap/edge findings on the accepted
-  ATtiny board need triage first;
-- documents record the Q1 Component Angle campaign as PASS while
-  `evidence_status.Q1_COMPONENT_ANGLE_LIVE_VALIDATED` is still `False`.
+  sheet and PCB-component deletes (G5/G7/G8/G6: BLOCKED pending native-authored
+  references/profiles; B6 has the same evidence dependency);
+- the board gate now runs `run_checks`. ATtiny findings are triaged: four
+  courtyard-envelope overlaps (C1/L1, C1/U3, C2/L1, C2/U3), with disjoint body/pad
+  bounds, and J1 body overhang (minimum X=-1.2300204 mm against board X>=0).
+  These remain errors pending hardware disposition, not checker suppression;
+- G2 produced real Gerber/NC Drill/placement output with a complete manifest;
+  raw CAM still needs inspection and acceptance. G11 `plan_add_wire` is implemented.
+- the final clean frozen build completed all four native checks and CAM export
+  through MCP stdio with unchanged source SHAs. On its native-authored PCB
+  baseline, DRC passed and structural records stayed equal, but full XML semantics
+  differed (`HUMAN_REVIEW_REQUIRED`, exit 2). This is distinct from the three
+   mutation-copy `FAIL` results above. Read-only classification locates the baseline
+   delta in refill data, two rounded pattern dimensions, the working directory and
+   removal of a `ClassToClass` cell (`0/0`, `Clearance=-1`). Neither copper equivalence
+   nor the sentinel's native fallback semantics is established; the verdict stays
+   unchanged. Named-client M5 remains open.
+
+B9 is closed by name-only numeric references, explicit `xml-id:<Id>` and escaped
+`name:<literal>` syntax with safe duplicate/invalid-reference refusals. B14 is
+closed by qualified tool-capability mappings, including pipeline keys and startup
+coverage validation. Q1 is reconciled in code/output: manual checkpoint PASS is
+separate from `package_publicly_validated=false`, with no high-trust promotion.
 
 ## Highest-priority current debt
 
@@ -104,8 +145,10 @@ The accepted checkpoints have all 12 blocking manual gates PASS.
 
 `native_cad` drives the real PCB editor's Gerber X2, NC Drill and pick-and-place export
 dialogs on an isolated copy for the verified builds (5.3.0.3 and 5.3.5.1, Windows
-only). It is a Python API, not an MCP tool or packaged CLI, and its output is not
-inspected CAM: `export_fabrication_outputs(request_native_outputs=true)` still
+only). `run_native_export` now exposes a SHA-bound background job over a private
+PCB XML copy, with source/frozen-helper dispatch and raw evidence/manifest output.
+This is wrapper implementation with tests, not native CAM acceptance. Its output
+is not inspected CAM: `export_fabrication_outputs(request_native_outputs=true)` still
 refuses. ODB++, IPC-2581 and assembler sign-off have no path at all. Generic
 manifests/reviews are not manufacturing files.
 
@@ -125,7 +168,7 @@ Remaining debt is a product/API decision, not implementation absence:
 - add transport/error/permission tests;
 - avoid broadening compatibility claims beyond verified operations.
 
-The 159-tool MCP surface includes the bounded intelligence engines and read-only built-in-library bridge; the package-level native-library mutation API remains intentionally unregistered.
+The 161-tool MCP surface includes the bounded intelligence engines and read-only built-in-library bridge; the package-level native-library mutation API remains intentionally unregistered.
 
 ### 11. Evidence review automation depth
 
@@ -174,7 +217,7 @@ Historical records that said otherwise remain valid snapshots of their original 
 
 Dated release/audit/acceptance/compliance records preserve historical facts.
 Evergreen docs describe current implementation and explicitly link to historical
-evidence. `CHANGELOG_NEXT.md` tracks post-`v0.3.0` development until the next
+evidence. `CHANGELOG_NEXT.md` tracks post-`v0.4.0` development until the next
 release is selected.
 
 `scripts/check_documentation_state.py` guards key current-state relationships against code and the frozen public-tools snapshot, and rejects any other public tool count in an evergreen document. It intentionally does not rewrite or reinterpret immutable historical records.

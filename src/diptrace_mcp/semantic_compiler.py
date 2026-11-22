@@ -2573,12 +2573,34 @@ def _apply_sync_schematic_to_pcb(
 
 
 def _schematic_net_element(document: DipTraceDocument, name: str) -> ET.Element | None:
+    """Resolve names only, or an explicit ``xml-id:<Id>`` reference.
+
+    ``name:`` escapes literal names beginning with either reserved prefix.
+    Missing explicit ids must never cause connect_pins to create a net.
+    """
     nets = document.container.findall("./Nets/Net")
-    # A name always wins over an XML id, whatever the document order.
-    for net in nets:
-        if (net.findtext("./Name") or "").casefold() == name.casefold():
-            return net
-    return next((net for net in nets if net.get("Id") == name), None)
+    explicit_id = name.startswith("xml-id:")
+    reference = name.removeprefix("xml-id:") if explicit_id else name.removeprefix("name:")
+    if not reference or (
+        explicit_id and not (reference.isascii() and reference.isdecimal())
+    ):
+        raise EditError(f"Invalid net reference: {name}")
+    matches = [
+        net
+        for net in nets
+        if (
+            net.get("Id") == reference
+            if explicit_id
+            else (net.findtext("./Name") or "").casefold() == reference.casefold()
+        )
+    ]
+    if len(matches) > 1:
+        raise AmbiguousSelectorError(f"Ambiguous net reference: {name}")
+    if explicit_id and not matches:
+        raise ObjectNotFoundError(f"Net XML id was not found: {reference}")
+    if matches and sum(net.get("Id") == matches[0].get("Id") for net in nets) != 1:
+        raise AmbiguousSelectorError(f"Duplicate net XML id for reference: {name}")
+    return matches[0] if matches else None
 
 
 def _resolve_part(
@@ -2924,7 +2946,7 @@ def _apply_connect_pins(
             "Net",
             {"Id": net_id, "NetClass": "0", "Locked": "N", "Enabled": "Y"},
         )
-        ET.SubElement(net_element, "Name").text = operation.net
+        ET.SubElement(net_element, "Name").text = operation.net.removeprefix("name:")
         ET.SubElement(net_element, "Pins")
         ET.SubElement(net_element, "Wires")
         created_net = True
@@ -3175,10 +3197,10 @@ def _apply_add_wire(
     target = ObjectRecord(
         stable_id=stable,
         kind="wire",
-        label=f"{operation.net} wire {wire_id}",
+        label=f"{net_element.findtext('./Name') or ''} wire {wire_id}",
         xml_id=wire_id,
         net_id=net_element.get("Id") or None,
-        net_name=operation.net,
+        net_name=net_element.findtext("./Name") or "",
     )
     return _operation_preview(
         index,
@@ -3284,7 +3306,7 @@ def _apply_add_net_label(
         },
     )
     lines = ET.SubElement(shape, "TextLines")
-    label_text = operation.text or operation.net
+    label_text = operation.text or net_element.findtext("./Name") or ""
     ET.SubElement(lines, "TextLine").text = label_text
     stable = stable_id("net-label", document.source_type, f"xml:{shape_id}")
     changed_ids.append(stable)
@@ -3294,7 +3316,7 @@ def _apply_add_net_label(
         label=label_text,
         name=label_text,
         net_id=net_element.get("Id") or None,
-        net_name=operation.net,
+        net_name=net_element.findtext("./Name") or "",
         position=Point(operation.x, operation.y).as_dict(),
     )
     return _operation_preview(

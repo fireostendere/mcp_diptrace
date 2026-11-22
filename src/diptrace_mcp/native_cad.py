@@ -12,7 +12,6 @@ import hashlib
 import json
 import os
 import subprocess
-import sys
 import time
 import uuid
 from collections.abc import Callable
@@ -37,6 +36,7 @@ from .headless_gui import (
     input_desktop_name,
     thread_desktop_name,
 )
+from .native_helper import helper_command
 from .windows_configurator import detect_diptrace_installations, validate_diptrace_directory
 from .windows_job import KillOnCloseJob
 from .xml_document import DipTraceDocument, sha256_bytes
@@ -694,15 +694,12 @@ def run_native_cad(request: NativeCadRequest) -> dict[str, Any]:
     _dump(request_file, request.model_dump(mode="json"))
     start_signal = request.output_dir / "worker-start"
     with HiddenDesktop(name) as hidden:
-        argv = [
-            sys.executable,
-            "-m",
-            "diptrace_mcp.native_cad",
+        argv = helper_command("native-cad-worker",
             "--worker",
             str(request_file),
             "--desktop",
             name,
-        ]
+        )
         with hidden.launch(argv) as child:
             job = KillOnCloseJob.create()
             try:

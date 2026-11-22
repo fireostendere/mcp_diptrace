@@ -153,3 +153,36 @@ def test_board_qc_fails_when_one_trace_of_a_routed_net_is_removed(tmp_path) -> N
     assert "open_copper_nets" in {item.code for item in quality.findings}
     assert quality.hard_error_count >= 1
     assert quality.unrouted_connection_count >= 1
+
+
+def test_board_gate_runs_offline_review_and_blocks_errors(tmp_path, capsys) -> None:
+    import hashlib
+    import shutil
+
+    from diptrace_mcp.quality_gate import main
+
+    source = Path(__file__).parents[1] / "attiny85-arduino-clone/attiny85-arduino-clone-pcb.dipxml"
+    board = tmp_path / "board-pcb.dipxml"
+    shutil.copy(source, board)
+    schematic = tmp_path / "board.dchxml"
+    shutil.copy(Path(__file__).parent / "fixtures/schematic.xml", schematic)
+    (tmp_path / "PCB_BUILD.md").write_text(
+        f"Current board SHA-256: `{hashlib.sha256(board.read_bytes()).hexdigest()}`\n"
+        f"Input schematic SHA-256: `{hashlib.sha256(schematic.read_bytes()).hexdigest()}`\n"
+        "| 1. Electrical checks | PENDING | todo |\n"
+    )
+    assert main([str(tmp_path), "--json"]) == 1
+    import json
+
+    report = json.loads(capsys.readouterr().out)
+    review = report["board_review"]
+    assert review["check_count"] == 16
+    assert review["errors"] == {"pcb.component_overlap": 4, "pcb.component_edge": 1}
+    assert review["warnings"] == {"pcb.testpoint_coverage": 17}
+    assert {item["check_id"] for item in review["skipped"]} == {
+        "pcb.trace_board_edge", "pcb.thermal_metadata",
+    }
+    assert any(
+        "board review error [pcb.component_overlap] x4" in item for item in report["blocked"]
+    )
+    assert any("board review error [pcb.component_edge] x1" in item for item in report["blocked"])

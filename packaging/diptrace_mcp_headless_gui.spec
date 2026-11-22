@@ -3,9 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyInstaller.building.build_main import Analysis, COLLECT, EXE, PYZ
+from PyInstaller.building.build_main import COLLECT, EXE, PYZ, Analysis
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
-
 
 ROOT = Path.cwd().resolve()
 SRC = ROOT / "src"
@@ -25,6 +24,11 @@ hiddenimports = [
     "diptrace_mcp.domain",
     "diptrace_mcp.headless_gui",
     "diptrace_mcp.pcb_native_acceptance",
+    "diptrace_mcp.schematic_native_acceptance",
+    "diptrace_mcp.native_xml_export",
+    "diptrace_mcp.native_helper",
+    "diptrace_mcp.native_cam_export",
+    "diptrace_mcp.native_cad",
     "diptrace_mcp.windows_configurator",
 ]
 

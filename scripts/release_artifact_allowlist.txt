@@ -324,6 +324,8 @@ src/diptrace_mcp/manual_acceptance.py
 src/diptrace_mcp/model_cache.py
 src/diptrace_mcp/multirouter.py
 src/diptrace_mcp/native_cad.py
+src/diptrace_mcp/native_cam_export.py
+src/diptrace_mcp/native_helper.py
 src/diptrace_mcp/native_xml_export.py
 src/diptrace_mcp/numeric_inputs.py
 src/diptrace_mcp/operations.py
@@ -409,6 +411,7 @@ src/diptrace_mcp/specctra.py
 src/diptrace_mcp/specctra_analysis.py
 src/diptrace_mcp/synchronization.py
 src/diptrace_mcp/synthetic_fixture_pack.py
+src/diptrace_mcp/tool_capabilities.py
 src/diptrace_mcp/transactions.py
 src/diptrace_mcp/via_styles.py
 src/diptrace_mcp/windows_configurator.py
@@ -449,6 +452,7 @@ tests/test_advanced_review.py
 tests/test_advanced_review_edge_coverage.py
 tests/test_adversarial_xml_corpus.py
 tests/test_audit_reference_materials.py
+tests/test_b9_b14_q1_regressions.py
 tests/test_backups_fail_safe_coverage.py
 tests/test_badges.py
 tests/test_bounded_payloads.py
@@ -524,6 +528,9 @@ tests/test_models.py
 tests/test_multirouter.py
 tests/test_native_acceptance_edge_coverage.py
 tests/test_native_cad_menus.py
+tests/test_native_cam_export.py
+tests/test_native_check_jobs.py
+tests/test_native_export_jobs.py
 tests/test_native_export_process.py
 tests/test_native_net_port_types.py
 tests/test_native_platform_edge_coverage.py
@@ -555,6 +562,7 @@ tests/test_pin_mapping.py
 tests/test_pipeline.py
 tests/test_pipeline_tool_guards.py
 tests/test_placement.py
+tests/test_plan_add_wire.py
 tests/test_plugin_settings.py
 tests/test_policy.py
 tests/test_post_merge_audit.py

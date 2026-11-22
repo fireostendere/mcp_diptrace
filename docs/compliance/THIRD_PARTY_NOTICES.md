@@ -5,7 +5,7 @@ This file is a reproducible engineering inventory of direct dependencies declare
 for redistribution. Verify each dependency's current license text, notices, transitive
 dependencies, and any bundled native library before publishing an artifact.
 
-Inventory binding: commit `dc9bb244c17fdbe2578e255e0231c97cb3ea260d`, inspected date `2026-08-16`.
+Inventory binding: commit `f020a92ce8493988babc1ddc6ad0f4fb7b266a3b`, inspected date `2026-11-11`.
 
 The Python wheel declares dependencies but does not vendor them. The Windows bridge is a
 PyInstaller bundle and requires a separate per-build contents and notice review.
@@ -15,12 +15,14 @@ PyInstaller bundle and requires a separate per-build contents and notice review.
 | `hatchling` | build, development | hatchling>=1.27,<2 | `MIT` | human review required |
 | `hypothesis` | development | hypothesis>=6.135,<7 | `MPL-2.0` | human review required |
 | `jsonschema` | development | jsonschema>=4.24,<5 | `MIT` | human review required |
-| `mcp` | runtime | mcp>=1.28.1,<1.31 | `MIT` | human review required |
+| `mcp` | runtime | mcp>=1.30.0,<1.31 | `MIT` | human review required |
 | `mypy` | development | mypy>=1.16,<2 | `MIT` | human review required |
+| `Pillow` | headless-gui | Pillow>=13,<14; sys_platform == 'win32' | `MIT-CMU` | human review required |
 | `pydantic` | runtime | pydantic>=2.11,<3 | `MIT` | human review required |
 | `pyinstaller` | bridge | pyinstaller==6.14.2 | `GPL-2.0-or-later WITH Bootloader-exception` | human review required |
 | `pytest` | development | pytest>=9.0.3,<10 | `MIT` | human review required |
 | `pytest-cov` | development | pytest-cov>=6.2,<7 | `MIT` | human review required |
+| `pywinauto` | headless-gui | pywinauto==0.6.9; sys_platform == 'win32' | `BSD-3-Clause` | human review required |
 | `PyYAML` | development | PyYAML>=6.0,<7 | `MIT` | human review required |
 | `ruff` | development | ruff>=0.12,<1 | `MIT` | human review required |
 | `shapely` | geometry | shapely>=2.0,<3 | `BSD-3-Clause` | human review required |

@@ -23,6 +23,8 @@ if (-not (Test-Path -LiteralPath $VenvDir -PathType Container)) {
 $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 Push-Location $RepoRoot
 try {
+    & $VenvPython -m pip install --disable-pip-version-check --upgrade -c $Constraints pip
+    if ($LASTEXITCODE -ne 0) { throw "Unable to bootstrap patched packaging pip" }
     & $VenvPython -m pip install --disable-pip-version-check -c $Constraints ".[bridge]"
     if ($LASTEXITCODE -ne 0) { throw "Unable to install configurator packaging dependencies" }
     New-Item -ItemType Directory -Force -Path $ResolvedOutput, $BuildDir | Out-Null

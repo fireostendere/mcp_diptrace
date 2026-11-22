@@ -111,13 +111,25 @@ def test_drc_dialog_classification_is_fail_closed() -> None:
             ("No Errors Found",),
             "TFMyMessage",
         )
-        == "pass"
+        == "review_required"
     )
 
 
+@pytest.mark.parametrize("dialog_class", ["TFMyMessage", "TForm60", ""])
+def test_positive_drc_errors_override_incidental_success(dialog_class: str) -> None:
+    assert native.classify_drc_dialog(
+        ["No Errors Found previously", "Errors found: 3"],
+        ("No Errors Found",),
+        dialog_class,
+    ) == "fail"
+
+
+@pytest.mark.parametrize("recognition", ["text", "pass", "unknown", "capture_failure",
+                                        "signature_failure", "positive_errors"])
 @pytest.mark.parametrize(("suffix", "exports"), [(".dip", 1), (".dipxml", 2)])
 def test_native_worker_evidence_runs_dip_pipeline(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str, exports: int
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str, exports: int,
+    recognition: str,
 ) -> None:
     root = tmp_path / "DipTrace"
     root.mkdir()
@@ -168,11 +180,38 @@ def test_native_worker_evidence_runs_dip_pipeline(
         "_visible_dialog",
         lambda *_args, **_kwargs: SimpleNamespace(
             handle=202,
-            class_name=lambda: "Dialog",
+            class_name=lambda: "TFMyMessage",
             descendants=lambda: [],
-            window_text=lambda: "No Errors Found",
+            window_text=lambda: (
+                "No Errors Found" if recognition == "text"
+                else "No Errors Found previously; Errors: 3" if recognition == "positive_errors"
+                else "OK"
+            ),
         ),
     )
+    captures: list[Path] = []
+    signatures: list[str] = []
+    image = object()
+
+    def capture(_dialog, path):
+        captures.append(path)
+        if recognition == "capture_failure":
+            raise RuntimeError("capture unavailable")
+        path.write_bytes(b"retained PNG evidence")
+        return image
+
+    def signature(actual_image, dialog_class):
+        assert actual_image is image
+        signatures.append(dialog_class)
+        if recognition == "signature_failure":
+            raise RuntimeError("signature unavailable")
+        return "pass" if recognition == "pass" else "visual_review_required"
+
+    monkeypatch.setattr(native, "_capture_native_window", capture)
+    monkeypatch.setattr(native, "_drc_bitmap_status", signature, raising=False)
+    monkeypatch.setattr(
+        native, '_wait_for_drc_result',
+        lambda app, owner, timeout: native._visible_dialog(app, timeout, owner=owner))
     monkeypatch.setattr(native, "_dismiss_dialog", lambda *_args: calls.append("dismiss"))
     monkeypatch.setattr(native, "_save_window", lambda *_args: calls.append("save"))
     monkeypatch.setattr(
@@ -192,7 +231,25 @@ def test_native_worker_evidence_runs_dip_pipeline(
 
     evidence = native._native_worker_evidence(request, desktop_name="Hidden")
 
-    assert evidence.completed and evidence.drc_status == "pass"
+    expected = (
+        "pass" if recognition in {"text", "pass"}
+        else "fail" if recognition == "positive_errors" else "review_required"
+    )
+    assert evidence.completed and evidence.drc_status == expected
+    drc_step = next(step for step in evidence.native_steps if step["name"] == "run_drc")
+    if recognition in {"text", "positive_errors"}:
+        assert not captures and not signatures
+    else:
+        assert len(captures) == 1
+        assert captures[0].suffix == ".png" and captures[0].parent == output.parent
+        if recognition == "capture_failure":
+            assert not signatures and "capture unavailable" in drc_step["capture_error"]
+        else:
+            assert drc_step["image"] == str(captures[0])
+            assert drc_step["image_sha256"] == native._sha256(captures[0])
+            assert signatures == ["TFMyMessage"]
+            if recognition == "signature_failure":
+                assert "signature unavailable" in drc_step["capture_error"]
     assert evidence.diptrace_pids == [111, 222]
     assert evidence.native_steps[0] == {
         "name": "startup_dialog", "status": "acknowledged", "dialog_texts": ["Warning"]
@@ -241,12 +298,166 @@ def test_native_worker_evidence_reports_failed_pipeline(
     assert "window unavailable" in (evidence.error or "")
 
 
+def test_failure_diagnostics_are_bounded_and_only_capture_owned_visible_dialogs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def dialog(handle, *, pid=111, visible=True, menu=None):
+        return SimpleNamespace(
+            handle=handle, process_id=lambda: pid, is_visible=lambda: visible,
+            menu=lambda: menu, is_enabled=lambda: False,
+            class_name=lambda: 'TFProgress', window_text=lambda: 'x' * 1000,
+            parent=lambda: SimpleNamespace(handle=1),
+            descendants=lambda: [SimpleNamespace(window_text=lambda: 'y' * 1000)] * 100,
+        )
+
+    windows = [dialog(1, menu=object()), dialog(2, pid=999), dialog(3, visible=False)]
+    windows += [dialog(index) for index in range(4, 60)]
+    app = SimpleNamespace(process=111, windows=lambda **kw: windows)
+    captures = []
+
+    def capture(window, path):
+        captures.append(window.handle)
+        path.write_bytes(b'captured image')
+
+    monkeypatch.setattr(native, '_capture_native_window', capture)
+    result = native._capture_failure_diagnostics(app, tmp_path / 'evidence', None)
+    assert len(captures) == 8
+    assert set(captures).isdisjoint({1, 2, 3})
+    assert len(result['windows']) <= 32
+    assert result['truncated'] is True
+    first = result['windows'][0]
+    assert first['pid'] == 111 and first['class'] == 'TFProgress'
+    assert first['enabled'] is False
+    assert len(first['title']) == 512
+    assert len(first['control_texts']) == 32
+    assert len(first['control_texts'][0]) == 512
+    assert first['image_sha256'] == native._sha256(Path(first['image']))
+
+
+@pytest.mark.parametrize('inventories', [
+    [[], ['progress'], ['progress', 'result'], ['result']],
+    [['result']],
+])
+def test_drc_result_wait_observes_progress_without_actions(tmp_path, monkeypatch, inventories):
+    app = SimpleNamespace(process=111)
+    owner = SimpleNamespace(process_id=lambda: 111, handle=1)
+    progress = SimpleNamespace(
+        handle=2, process_id=lambda: 111, parent=lambda: owner,
+        class_name=lambda: 'TFProgress', window_text=lambda: 'Progress Bar',
+        descendants=lambda: [SimpleNamespace(window_text=lambda text=text: text)
+                             for text in ['Stop', 'Checking Design Rules']],
+    )
+    result = SimpleNamespace(handle=3, process_id=lambda: 111, parent=lambda: owner,
+                             class_name=lambda: 'TFMyMessage')
+    windows = {'progress': progress, 'result': result}
+    states = iter(inventories)
+    monkeypatch.setattr(native, '_owned_dialogs', lambda *args: [windows[x] for x in next(states)])
+    monkeypatch.setattr(native, '_dialog_owner_matches', lambda *args: True)
+    verified = []
+    monkeypatch.setattr(native, '_visible_dialog',
+                        lambda *args, **kw: verified.append(True) or result)
+    monkeypatch.setattr(native.time, 'sleep', lambda _: None)
+    assert native._wait_for_drc_result(app, owner, 10) is result
+    assert verified == [True]
+
+
+@pytest.mark.parametrize('case', [
+    'unknown', 'two_progress', 'two_results', 'wrong_title', 'wrong_text', 'unowned', 'timeout',
+])
+def test_drc_wait_refuses_unknown_competing_or_stuck_dialogs(monkeypatch, case):
+    owner = SimpleNamespace(process_id=lambda: 111, handle=1)
+
+    def window(cls, handle=2):
+        return SimpleNamespace(
+            handle=handle, process_id=lambda: 999 if case == 'unowned' else 111,
+            parent=lambda: owner, class_name=lambda: cls,
+            window_text=lambda: 'Unknown' if case == 'wrong_title' else 'Progress Bar',
+            descendants=lambda: [SimpleNamespace(window_text=lambda text=text: text) for text in (
+                ['Stop', 'Other task'] if case == 'wrong_text'
+                else ['Stop', 'Checking Design Rules'])],
+        )
+
+    progress, result = window('TFProgress'), window('TForm60', 3)
+    inventory = {
+        'unknown': [progress, window('UnknownModal', 4)],
+        'two_progress': [progress, window('TFProgress', 4)],
+        'two_results': [progress, result, window('TFMyMessage', 4)],
+    }.get(case, [progress])
+    monkeypatch.setattr(native, '_owned_dialogs', lambda *args: inventory)
+    monkeypatch.setattr(native, '_dialog_owner_matches', lambda *args: True)
+    monkeypatch.setattr(native, '_visible_dialog', lambda *args, **kw: pytest.fail('must refuse'))
+    ticks = iter(range(20))
+    monkeypatch.setattr(native.time, 'monotonic', lambda: next(ticks))
+    monkeypatch.setattr(native.time, 'sleep', lambda _: None)
+    with pytest.raises(native.HeadlessGuiError):
+        native._wait_for_drc_result(SimpleNamespace(process=111), owner, 2)
+
+
+@pytest.mark.parametrize('race', ['ambiguous', 'replacement'])
+def test_drc_wait_reverification_refuses_racing_modal(monkeypatch, race):
+    owner = SimpleNamespace(process_id=lambda: 111, handle=1)
+    result = SimpleNamespace(handle=2, process_id=lambda: 111, parent=lambda: owner,
+                             class_name=lambda: 'TForm60')
+    monkeypatch.setattr(native, '_owned_dialogs', lambda *args: [result])
+    monkeypatch.setattr(native, '_dialog_owner_matches', lambda *args: True)
+
+    def verifier(*args, **kwargs):
+        if race == 'ambiguous':
+            raise native.HeadlessGuiError('ambiguous native dialogs')
+        return SimpleNamespace(handle=3, class_name=lambda: 'TFMyMessage')
+
+    monkeypatch.setattr(native, '_visible_dialog', verifier)
+    with pytest.raises(native.HeadlessGuiError):
+        native._wait_for_drc_result(SimpleNamespace(process=111), owner, 2)
+
+
+@pytest.mark.parametrize('capture_fails', [False, True])
+def test_failure_diagnostic_errors_do_not_override_dialog_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capture_fails: bool,
+) -> None:
+    root = tmp_path / 'DipTrace'
+    root.mkdir()
+    (root / 'Pcb.exe').write_bytes(b'exe')
+    (tmp_path / 'board.dip').write_bytes(b'board')
+    calls = []
+    window = SimpleNamespace(handle=1)
+    app = SimpleNamespace(process=111, kill=lambda **kw: calls.append('kill'))
+    monkeypatch.setattr(native, '_pywinauto_application', lambda: lambda **kw: SimpleNamespace(
+        start=lambda *args, **kwargs: app))
+    monkeypatch.setattr(native, '_ready_main_window', lambda *args: window)
+    monkeypatch.setattr(native, '_post_menu_path', lambda *args, **kw: 'posted')
+
+    def refuse(*args, **kwargs):
+        raise native.HeadlessGuiError('ambiguous native dialogs; refusing selection')
+
+    def diagnose(*args):
+        calls.append('diagnostics')
+        if capture_fails:
+            raise RuntimeError('capture unavailable')
+        return {'windows': [{'class': 'TFProgress'}]}
+
+    monkeypatch.setattr(native, '_wait_for_drc_result', refuse)
+    monkeypatch.setattr(native, '_capture_failure_diagnostics', diagnose)
+    monkeypatch.setattr(native, '_window_titles', lambda app: [])
+    monkeypatch.setattr(native, 'process_window_station_name', lambda: 'WinSta0')
+    monkeypatch.setattr(native, 'process_session_id', lambda: 7)
+    evidence = native._native_worker_evidence(
+        _request(tmp_path, diptrace_root=root), desktop_name='Hidden')
+    assert evidence.completed is False and evidence.forced_termination is True
+    assert 'ambiguous native dialogs' in evidence.error
+    assert calls == ['diagnostics', 'kill']
+    expected = 'capture unavailable' if capture_fails else 'TFProgress'
+    assert any(expected in str(step) for step in evidence.native_steps)
+
+
 def test_pcb_summary_exposes_whole_board_native_invariants() -> None:
     summary = native.summarize_pcb_xml(_FIXTURE)
 
     assert summary["source_type"] == "DipTrace-PCB"
     assert summary["components"] == 4
     assert summary["nets"] == 3
+    assert summary["net_endpoints"] == 6
+    assert summary["duplicate_tag_id_pairs"] == []
     assert summary["traces"] == 2
     assert summary["vias"] == 2
     assert summary["copper_layers"] == 4

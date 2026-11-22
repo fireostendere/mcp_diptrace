@@ -41,16 +41,37 @@ The detailed schematic product-quality campaign is in [SCHEMATIC_AUTHORING_VALID
 
 Current cross-domain implementation detail is in [EDA_INTELLIGENCE.md](EDA_INTELLIGENCE.md).
 
-## Post-release state of `main` — 2026-11-10
+## Post-release state of `main` — 2026-11-11
 
 Not part of the immutable `v0.4.0` bytes:
 
-- the public surface is 159 tools: consolidated from 167 to 152
+- the public surface is 161 tools: consolidated after `v0.4.0`
   (`run_review(profile=...)` replaces fourteen review tools; see
   [MCP_TOOLS.md](MCP_TOOLS.md) for the mapping), revised once (annotations, strict
-  arguments, `ok` on success, schematic SHA for sync) and extended with seven tools
+  arguments, `ok` on success, schematic SHA for sync) and extended with nine tools
   for copper pours and stitching, the board outline, schematic deletes, the quality
-  gate and native checks;
+  gate, native checks, the public wire preview (`plan_add_wire`) and raw native CAM
+  evidence jobs (`run_native_export`);
+- explicit schematic net references (`xml-id:<Id>`, escaped `name:<literal>`) replace
+  implicit numeric-id fallback; tool-capability mappings include pipeline keys;
+  Q1 output separates manual checkpoint PASS from package-public trust;
+- the board gate now runs `run_checks`; errors block and skipped board checks are
+  disclosed as pending work;
+- native jobs use SHA-checked private copies, binary XML-export support and
+  source/frozen-helper dispatch. On 5.3.0.3, schematic acceptance/ERC, deletion
+   smoke copies and native binary XML export completed; the ERC image reads
+   "No errors found". Label deletion preserved compared semantics; R1 deletion
+   after removal of all wires lost the remaining 22 net memberships on re-export.
+   PCB mutation copies completed refill/DRC/save/re-export with
+   DRC `pass`, but strict endpoint/scoped-ID comparisons remain `FAIL` (GND `J1`
+   and `J2` pad `1` records disappeared). The native
+  export tool produced Gerber/NC Drill/placement files, not CAM sign-off. Native
+   comparison/client gates still precede a release; published metadata stays unchanged;
+- the final clean frozen build completed all native check variants and CAM export
+  over MCP stdio. PCB acceptance on a native-authored baseline is
+  `HUMAN_REVIEW_REQUIRED` (DRC pass, stable structural records, remaining XML
+  semantic delta), not PASS. UTF-8 stdout, explicit Pillow packaging and
+  main-thread Shapely/NumPy initialization fix the observed frozen runtime failures;
 - native PCB round-trip, schematic acceptance, native XML export and recording accept
   DipTrace 5.3.5.1 next to 5.3.0.3, each with its own reviewed menu profile, and the
   native-windows CI job runs them as a standard user;
@@ -65,7 +86,8 @@ The server itself was reviewed on 2026-11-10:
 tools' missing path/policy guards, live-session commits with an external state
 directory, dangling schematic wire ends, review profiles passing on the wrong document
 kind, Net Ports in BOM/comparison and dropped gate rows. Follow-up changes closed
-B1-B8, B10-B13, B15 and B16 and the tool gaps G1, G3, G4, G9, G12 and parts of G5/G6;
+B1-B5 and B7-B16 at implementation scope, plus G2/G11 wrappers and the tool gaps
+G1, G3, G4, G9, G12 and parts of G5/G6;
 what remains is in [TECH_DEBT.md](TECH_DEBT.md) and
 [the project roadmap](../documents/ROADMAP.md). The board gate now computes copper
 connectivity from traces; pads joined only through a pour are disclosed, and **only a
@@ -333,7 +355,7 @@ Historical dated release/acceptance/audit records remain excluded from current-s
 
 # Public contracts
 
-- 159 registered MCP tools (the frozen public contract recorded in
+- 161 registered MCP tools (the frozen public contract recorded in
   `reference/mcp-tools-list.snapshot.json`);
 - stable structured error envelope;
 - server-owned worker-thread boundary;
@@ -380,8 +402,8 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 | headless GUI | hidden Win32 desktop helper implemented with selectable `hidden`/`native` open -> Save -> close plus isolated cinematic capture; real DipTrace actions remain claim-specific evidence |
 | documentation drift | evergreen code/docs guard implemented and CI-tested; stale public tool counts are rejected |
 | offline review / QC | profiles bound to document kind; copper connectivity in the board gate, disclosed missing geometry and corrected differential impedance; silkscreen box rotation open (B6) |
-| public contract | 159 tools with annotations, strict arguments and a uniform success envelope; tool → capability map pending (B14) |
-| native manufacturing export | `native_cad` Python API for verified builds on Windows; no MCP tool, CAM not inspected |
+| public contract | 161 tools with annotations, strict arguments, a uniform success envelope and qualified tool → capability mappings (B14 closed) |
+| native manufacturing export | `run_native_export` wraps the Windows `native_cad` path as a SHA-bound private-copy job; implementation/tests, not native CAM acceptance |
 
 # Permanent limitations / non-claims
 
@@ -390,7 +412,7 @@ Higher-level EDA modules should continue to prefer typed package internals and a
 - Builtin motifs are labelled heuristics, not manufacturer/reference-design approval.
 - Local routing/placement search is bounded, not a globally optimal EDA solver.
 - PCB analytic layers are not field-solver, PI, thermal or EMC proof.
-- Native manufacturing export exists only as the Windows `native_cad` Python API for the verified builds; there is no MCP tool and the output is not inspected CAM.
+- Native manufacturing export is exposed through `run_native_export` over the Windows `native_cad` path; raw output is not inspected CAM or fabrication sign-off.
 - Cinematic replay is presentation automation, not engineering acceptance evidence.
 - Evidence reports do not grant trust/PASS.
 - The completed schematic campaign proves only its recorded scope and does not imply arbitrary hierarchy/topology/global-optimality support.

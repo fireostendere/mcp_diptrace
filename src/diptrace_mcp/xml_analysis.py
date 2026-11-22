@@ -83,7 +83,6 @@ def _local_record(element: Element) -> tuple[object, ...]:
 def analyze_xml_semantics(document: DipTraceDocument) -> XMLSemanticInventory:
     tags: Counter[str] = Counter()
     attributes: Counter[str] = Counter()
-    ids: Counter[tuple[str, str]] = Counter()
     element_count = 0
     attribute_count = 0
     text_nodes = 0
@@ -96,14 +95,21 @@ def analyze_xml_semantics(document: DipTraceDocument) -> XMLSemanticInventory:
         attributes.update(element.attrib.keys())
         if _text(element.text):
             text_nodes += 1
-        xml_id = element.get("Id")
-        if xml_id is not None:
-            ids[(element.tag, xml_id)] += 1
-    duplicates = sorted(
-        f"{tag}#{xml_id} x{count}"
-        for (tag, xml_id), count in ids.items()
-        if count > 1
-    )
+    duplicates: list[str] = []
+    owners = [(document.root, f"/{document.root.tag}")]
+    while owners:
+        owner, path = owners.pop()
+        ids = Counter(
+            (child.tag, child.get("Id")) for child in owner if child.get("Id") is not None
+        )
+        duplicates.extend(
+            f"{path}: {tag}#{xml_id} x{count}"
+            for (tag, xml_id), count in ids.items()
+            if count > 1
+        )
+        for index, child in enumerate(owner, start=1):
+            identity = f"#{child.get('Id')}" if child.get("Id") is not None else ""
+            owners.append((child, f"{path}/{child.tag}{identity}[{index}]"))
     return XMLSemanticInventory(
         source_type=document.source_type,
         root_tag=document.root.tag,
@@ -114,7 +120,7 @@ def analyze_xml_semantics(document: DipTraceDocument) -> XMLSemanticInventory:
         max_depth=max_depth,
         tag_counts=dict(sorted(tags.items())),
         attribute_name_counts=dict(sorted(attributes.items())),
-        duplicate_tag_id_pairs=duplicates,
+        duplicate_tag_id_pairs=sorted(duplicates),
     )
 
 

@@ -18,6 +18,7 @@ from .config import (
 from .domain import CapabilityReport
 from .evidence_status import component_angle_evidence_warnings
 from .geometry_backend import backend_report
+from .tool_capabilities import tool_capability_mapping
 from .xml_document import DipTraceDocument
 
 _SUPPORTED_SOURCE_TYPES = [
@@ -192,6 +193,7 @@ def capability_report(
         }
     return CapabilityReport(
         server_version=__version__,
+        tool_capabilities=tool_capability_mapping(),
         source_types=_source_type_payload(snapshot),
         read_capabilities=capability_tables["read_capabilities"],
         write_capabilities=capability_tables["write_capabilities"],

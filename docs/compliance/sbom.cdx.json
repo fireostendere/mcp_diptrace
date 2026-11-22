@@ -122,6 +122,30 @@
       "type": "library"
     },
     {
+      "bom-ref": "pkg:pypi/pillow",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT-CMU"
+          }
+        }
+      ],
+      "name": "Pillow",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "headless-gui"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/pillow",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
       "bom-ref": "pkg:pypi/pydantic",
       "licenses": [
         {
@@ -212,6 +236,30 @@
         }
       ],
       "purl": "pkg:pypi/pytest-cov",
+      "scope": "optional",
+      "type": "library"
+    },
+    {
+      "bom-ref": "pkg:pypi/pywinauto",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "pywinauto",
+      "properties": [
+        {
+          "name": "diptrace-mcp:declared-groups",
+          "value": "headless-gui"
+        },
+        {
+          "name": "diptrace-mcp:license-review",
+          "value": "human_review_required"
+        }
+      ],
+      "purl": "pkg:pypi/pywinauto",
       "scope": "optional",
       "type": "library"
     },
@@ -365,18 +413,18 @@
     "properties": [
       {
         "name": "diptrace-mcp:inspected-commit",
-        "value": "dc9bb244c17fdbe2578e255e0231c97cb3ea260d"
+        "value": "f020a92ce8493988babc1ddc6ad0f4fb7b266a3b"
       },
       {
         "name": "diptrace-mcp:inspection-date",
-        "value": "2026-08-16"
+        "value": "2026-11-11"
       },
       {
         "name": "diptrace-mcp:resolution",
         "value": "declarative-direct-dependency-inventory"
       }
     ],
-    "timestamp": "2026-08-16T00:00:00Z",
+    "timestamp": "2026-11-11T00:00:00Z",
     "tools": [
       {
         "name": "generate_compliance_inventory.py",
@@ -384,7 +432,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:1dd91350-baf3-51c4-a443-8cb66c1cacc8",
+  "serialNumber": "urn:uuid:a1817d68-1635-56cb-9c72-120c40900d55",
   "specVersion": "1.5",
   "version": 1
 }

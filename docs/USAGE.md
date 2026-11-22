@@ -67,7 +67,15 @@ Do not expose the HTTP transport as a general remote network service unless the 
 
 ## Discover capabilities first
 
-The public MCP contract contains **159 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
+The public MCP contract contains **161 registered tools**, but availability can depend on document kind, live/offline mode, configured adapters, policy, platform, optional dependencies and evidence/trust state.
+
+`get_capabilities.tool_capabilities` maps tool names to real qualified feature keys
+(for example `write_capabilities.pipeline_nativeize_document`). Feature flags are
+not policy permission or evidence of native acceptance; still handle refusals.
+Schematic net arguments resolve numeric strings as names, never implicit XML ids.
+Use `xml-id:<Id>` for an existing net id and `name:<literal>` to escape a literal
+name beginning with a reserved prefix. Missing ids and duplicate references fail
+closed; `connect_pins(net="1")` can create a net named `1`.
 
 Call `get_capabilities` before assuming that a particular write or adapter path is available.
 
@@ -149,7 +157,7 @@ See [SCHEMATIC_LAYOUT_ENGINE.md](SCHEMATIC_LAYOUT_ENGINE.md).
 
 ## PCB Generations A-D
 
-The internal PCB design engine adds higher-level engineering judgement; bounded read-only candidate comparison is productized as `compare_pcb_placement_candidates` within the 159-tool MCP surface:
+The internal PCB design engine adds higher-level engineering judgement; bounded read-only candidate comparison is productized as `compare_pcb_placement_candidates` within the 161-tool MCP surface:
 
 - Generation A: intent/net intelligence and intent-aware placement;
 - Generation B: physical/stackup/PDN/return-path/noise/via context;

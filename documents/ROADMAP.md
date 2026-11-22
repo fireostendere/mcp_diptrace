@@ -14,7 +14,19 @@ operator, licensed software, physical hardware, legal authority, or independent
 approval.
 
 The published release is still `v0.4.0` (167 tools). Everything below describes
-post-release `main`, whose public surface is 159 tools.
+post-release `main`, whose public surface is 161 tools. No new release is authorized
+until the impacted native and client gates pass; version and published release
+metadata remain unchanged.
+
+Release-readiness follow-up (2026-11-11): the class-only native DRC PASS is
+removed, duplicate-ID diagnostics use owner scope, and `plan_add_wire` discovery
+text is stable across Python 3.12/3.13. Historical native reports are retained, not
+rewritten: fresh source/frozen runs have equal structural records but remain
+`HUMAN_REVIEW_REQUIRED` for full XML differences. Their DRC PNGs were viewed and
+read "No errors found"; unpinned DPI images still require visual review. Codex CLI
+0.167.0 app-server passed focused restarted MCP discovery/calls/errors, but this
+does not close the separate Claude Desktop gate. Windows development dependencies
+now require patched MCP 1.30.0 and Pillow 13.0.0 (native capture: Python 3.11+).
 
 ## Decision model
 
@@ -81,7 +93,7 @@ gates they named stay claim-triggered.
 | A7 bounded quantitative physics | implemented; M3/M8 for claims |
 | A8 evidence campaign aggregation | implemented; promotion stays M11 |
 
-Since then `main` also gained: the consolidated tool surface (167 to 152, now 159), DipTrace 5.3.5.1
+Since then `main` also gained: the consolidated public surface (now 161 tools), DipTrace 5.3.5.1
 native profiles next to 5.3.0.3, Linux/macOS host installation, the schematic stage
 of the quality gate with per-stage done criteria, design-wide schematic readability
 review, and the reviewed fifteen-skill catalog.
@@ -96,39 +108,76 @@ review, and the reviewed fifteen-skill catalog.
 | B6 | stitching coverage on large boards and traces outside the outline fixed; silkscreen box rotation open |
 | B7, B10-B12, B15 | previewed-only commits, via-move validation, library-checked `place_part`, expiring abandoned previews, per-server job ownership |
 | B8, B13, B16 | one contract revision: schematic SHA for sync, annotations, strict arguments, uniform envelope |
-| G1 native checks | `run_native_check` job around the existing helpers (source installs only) |
+| B9 | numeric net arguments are names; explicit `xml-id:<Id>` and escaped `name:<literal>` references fail closed |
+| B14 | public tool → qualified capability-key mapping, pipeline keys and registration coverage check |
+| Q1 scope reconciliation | manual checkpoint PASS distinguished from reusable package-public evidence; no trust promotion |
+| Board gate review | `run_checks` enabled; errors block and skipped board checks remain explicit pending work |
+| G1 native checks | `run_native_check` jobs use private SHA-checked copies, binary XML export and source/frozen-helper dispatch; native campaign remains open |
 | G3, G4 pours and stitching | `add_copper_pours`, `delete_copper_pours` |
 | G5 outline | `set_board_outline` (straight edges; holes and cutouts open) |
 | G6 schematic deletes | `delete_parts`, `delete_net_labels` (sheet and PCB component deletes open) |
 | G9 quality gate | `run_quality_gate`; the gate ships in the package |
 | G10 schematic readers | covered by paged `query_objects` (parts, pins, wires, nets) |
 | G12 | `place_builtin_component` accepts `txid` |
+| G11 wire planner | read-only `plan_add_wire` preview with quality and placement feedback |
+| G2 native export wrapper | `run_native_export` implements SHA-bound private-copy raw CAM jobs; native CAM acceptance remains open |
 
 ## P0 — evidence for what was just added
 
-New write tools change native documents, and nothing here has been opened in DipTrace:
+New write tools change native documents. The current 5.3.0.3 campaign records
+execution separately from mutation acceptance:
 
 - **M1** for `add_copper_pours` / `delete_copper_pours` / `set_board_outline`:
   generate, open, refill, DRC, save, re-export, compare. The pour writer is the one the
-  operator-accepted I2C board used, but the tool path is new.
-- **M2** for `delete_parts` and `delete_net_labels` on a real schematic round-trip.
-- **`run_native_check`** has been exercised only up to "the helper starts and its exit
-  code is recorded"; run each of its four checks on a host with a reviewed DipTrace
-  build. Packaged (frozen) servers refuse it: decide whether to ship the helpers as
-  executables.
+  operator-accepted I2C board used. These tool copies now completed native refill,
+  DRC (`pass`), save and re-export. Strict comparison remains `FAIL` (22 to 20 raw
+   endpoint records and scoped-ID differences). The missing raw records are GND
+   `J1` pad `1` and GND `J2` pad `1`; no safe-canonicalization finding is established.
+   Their component-level pad assignments still name GND; the raw endpoint delta
+   alone is not proof of a physical disconnection, nor grounds to waive the verdict.
+- **M2**: `delete_parts` and `delete_net_labels` smoke copies completed real
+   schematic save/re-export. Label deletion preserved the full compared semantics.
+    The R1-deletion test explicitly removed all wires first on a disposable copy:
+    physical parts/pin-to-pad mappings survived, but all 22 remaining net memberships
+    disappeared on re-export. It is execution evidence, not connectivity acceptance.
+    A separate bounded case now deletes only R1, its two incident wires and exclusive
+    PS5 port through a public frozen-server transaction. Direct wired deletion was
+    refused without changing the source. Native save/re-export preserves the expected
+    14 parts, 21 pin/net/NC records, 12 physical pin-to-pad mappings, 12 wires and six
+    nets; all compared semantic categories, including wire geometry, are equal.
+    The native capture was inspected. ERC reports `Single pin in net: SDA_3V3, Q1:S`
+    on this intentionally altered circuit: bounded preservation passes, not clean
+    ERC or whole-schematic acceptance. Evidence: local `m2-local-delete/comparison.json`.
+    The base schematic preserved 24 pin/net/NC records and 14 physical pin-to-pad
+   mappings; library geometry and wire-geometry deltas still need visual review.
+- **`run_native_check`** now dispatches source or packaged helpers and accepts exact,
+  explicitly reviewed startup-image hashes where supported. The 5.3.0.3 host doctor
+  passed; all four variants ran. Schematic acceptance/ERC and native binary XML
+  export returned zero; the ERC client image was viewed and reads "No errors found".
+   The observed DRC progress/result race is fixed without weakening modal guards.
+   PCB strict comparison failures still prevent a campaign-wide PASS.
+- **Frozen distribution:** a clean Windows build completed `tools/list` (161 tools)
+  and all four native checks plus CAM export through MCP stdio, preserving source
+  SHAs. Schematic/ERC/XML export and CAM helpers returned zero. PCB acceptance on
+  a native-authored baseline returned `HUMAN_REVIEW_REQUIRED` (exit 2): DRC passed
+   and structural records stayed equal, but the full XML semantic delta remains.
+   A read-only classification locates it in 19 refill-data records, two embedded
+   pattern dimension records, working-directory metadata, and removal of a
+   class-to-class cell (`0/0`, `Clearance=-1`). Copper equivalence and the sentinel's
+   native fallback semantics are not established; the verdict is unchanged.
+  UTF-8 stdout, explicit Pillow packaging, and main-thread Shapely/NumPy startup
+  fix the observed clean-build runtime failures; this is not named-client M5.
+- **G2 / M6:** native export produced actual Gerber/NC Drill/pick-and-place files
+  and a complete bounded manifest. Raw CAM output is not inspection/sign-off.
 - **M5** for the contract revision with the named clients: unknown arguments are now
   refused, `selector` is required on write tools, sync commits need the schematic SHA.
 - **B2** against a field solver (the openEMS adapter) before any impedance claim.
 
 ## P1 — remaining review items
 
-- **B14**: publish a tool → capability-key map and give the pipeline tools a key.
-- **B9**: accept an XML id for a net only in an explicit form.
 - **B6**: rotate and mirror silkscreen text boxes; needs a board with rotated and
-  bottom-side text as a fixture.
-- Run `run_checks` in the board gate once its overlap/edge findings on the accepted
-  ATtiny board are triaged.
-- Settle the Q1 Component Angle status (flag vs documents).
+  bottom-side text as a native-authored fixture/profile; BLOCKED pending that evidence.
+- Triage/fix board `run_checks` findings on the candidate; the gate now runs them.
 - Triage `unresolved_endpoint_owner` on the ATtiny schematic (net items naming absent
   part ids).
 
@@ -139,12 +188,13 @@ on. Each needs one DipTrace-authored sample (M10) before a writer is added:
 
 | Gap | Missing |
 | --- | --- |
-| G5 | mounting holes, cutouts, keepout authoring, outline arcs |
-| G7 | board text add/delete/set content |
-| G8 | create/delete net class, differential pair and via style; write DRC rules/stackup |
-| G6 | delete sheet (sheet renumbering), remove a PCB component with its traces |
-| G11 | public wire planner for `add_wire` (the internal planner exists) |
-| G2 | native Gerber/NC Drill/pick-and-place as a tool (`native_cad` API exists; needs M12 then M6) |
+| G5 — BLOCKED | mounting holes, cutouts, keepout authoring, outline arcs |
+| G7 — BLOCKED | board text add/delete/set content |
+| G8 — BLOCKED | create/delete net class, differential pair and via style; write DRC rules/stackup |
+| G6 — BLOCKED | delete sheet (sheet renumbering), remove a PCB component with its traces |
+
+These remain blocked pending native-authored references and reviewed profiles;
+the G2 wrapper and G11 planner do not close these unrelated gaps.
 
 ## P2 — triggered work, not speculative commitments
 
@@ -156,7 +206,7 @@ These tasks start only after the named evidence demonstrates a real need:
 | Differential-pair cases fail because of escapes, neck-down, or skew | Bounded symmetric escapes, explicit-rule neck-down, and phase tuning through the existing clearance path | M1 for native DRC; M8 only for SI-performance claims |
 | Controlled DSN/SES samples expose a dialect gap | Add only the observed grammar/import rule and a byte-bound fixture | M9 |
 | A reusable UI profile needs layer changes or vias | Add the exact calibrated gesture and staged cue | M4 |
-| A supported native manufacturing workflow is selected | After decision M12, orchestrate the native/external exporter and validate its manifest; do not invent Gerber/NC Drill writers | M6 after implementation |
+| A stronger native manufacturing claim is requested | Review `run_native_export` output/manifest on the supported real host; do not invent CAM writers | M6; wrapper implementation alone is not acceptance |
 | Product owner approves public Component/Pattern mutation | Reuse the package API, add the narrow schema/policy/tests, and intentionally update the public snapshot | M12 |
 | A current-state document actually drifts from code | Extend the existing drift checker with the smallest stable semantic assertion | None |
 
@@ -168,9 +218,9 @@ or a reproducible failing case.
 ## Recommended execution order
 
 1. M1/M2 evidence for the new write tools and one real run of each native check.
-2. M5 for the contract revision, then cut the next release: `main` now differs from
-   `v0.4.0` by two breaking surface changes.
-3. B14, B9, the gate's `run_checks` triage.
+2. M5 for the current contract, then an explicit release authorization; published
+   `v0.4.0` and version metadata stay untouched until native and client gates close.
+3. Triage candidate findings from the now-enabled board `run_checks` gate.
 4. One native sample per remaining gap, then its writer.
 5. A P2 item only when its trigger exists.
 

@@ -5,7 +5,8 @@ Verifies what the prose handoff only claims:
   2. Recorded SHAs match the actual schematic/board files on disk.
   3. --stage board (default): the final board passes the offline headless QC
      (review_pcb_quality, hard_error_count == 0) — the same gate the build
-     scripts assert.
+     scripts assert), plus every registered offline board review check. Review
+     errors block; unavailable checks are disclosed as pending, not native proof.
      --stage schematic: no board is required; the schematic passes the full
      offline schematic review (every registered check, zero errors, nothing
      skipped). Warnings are reported, not fatal.
@@ -115,8 +116,8 @@ def run_board_qc(
     )
 
 
-def run_schematic_review(schematic: Path) -> dict[str, Any]:
-    snapshot = build_snapshot(DipTraceDocument.load(schematic, MAX_XML_BYTES))
+def _run_offline_review(path: Path) -> dict[str, Any]:
+    snapshot = build_snapshot(DipTraceDocument.load(path, MAX_XML_BYTES))
     findings, metrics, skipped, check_count = run_checks(snapshot, categories=None)
     counts: dict[str, dict[str, int]] = {"error": {}, "warning": {}}
     for item in findings:
@@ -128,7 +129,12 @@ def run_schematic_review(schematic: Path) -> dict[str, Any]:
         "warnings": counts["warning"],
         "skipped": skipped,
         "readability": metrics.get("schematic.readability"),
+        "findings": [item.model_dump(mode="json") for item in findings],
     }
+
+
+def run_schematic_review(schematic: Path) -> dict[str, Any]:
+    return _run_offline_review(schematic)
 
 
 def _report(
@@ -142,6 +148,7 @@ def _report(
     schematic: Path | None,
     quality: PCBQualityReview | None,
     schematic_review: dict[str, Any] | None,
+    board_review: dict[str, Any] | None,
     blocked: list[str],
     pending: list[str],
 ) -> dict[str, Any]:
@@ -184,6 +191,7 @@ def _report(
         "artifacts": artifacts,
         "quality": quality_payload,
         "schematic_review": schematic_review,
+        "board_review": board_review,
         "blocked": blocked,
         "pending": pending,
     }
@@ -312,9 +320,15 @@ def main(argv: list[str] | None = None) -> int:
         ]
 
     quality = None
+    board_review = None
     quality_warnings: list[str] = []
     quality_summary = ""
     if board is not None:
+        board_review = _run_offline_review(board)
+        blocked += [
+            f"board review error [{check}] x{count}"
+            for check, count in sorted(board_review["errors"].items())
+        ]
         quality = run_board_qc(
             board,
             [item for item in args.centerline_x.split(",") if item],
@@ -340,6 +354,11 @@ def main(argv: list[str] | None = None) -> int:
         for number, (name, status) in sorted(gates.items())
         if status in OPEN_STATUSES | {"FAIL"}
     ]
+    if board_review is not None:
+        pending += [
+            f"board review incomplete: {item['check_id']} skipped ({item['reason']})"
+            for item in board_review["skipped"]
+        ]
     report = _report(
         stage=stage,
         project=project,
@@ -350,6 +369,7 @@ def main(argv: list[str] | None = None) -> int:
         schematic=schematic,
         quality=quality,
         schematic_review=schematic_review,
+        board_review=board_review,
         blocked=blocked,
         pending=pending,
     )
@@ -360,6 +380,16 @@ def main(argv: list[str] | None = None) -> int:
         print(warning)
     if quality_summary:
         print(quality_summary)
+    if board_review is not None:
+        print(
+            f"Board review: {board_review['check_count']} checks, "
+            f"errors={sum(board_review['errors'].values())}, "
+            f"warnings={sum(board_review['warnings'].values())}"
+        )
+        for check, count in sorted(board_review["warnings"].items()):
+            print(f"warning [{check}] x{count}")
+        for item in board_review["skipped"]:
+            print(f"board review incomplete: {item['check_id']} skipped ({item['reason']})")
     if schematic_review is not None:
         listed = ", ".join(f"{k} x{v}" for k, v in sorted(schematic_review["warnings"].items()))
         print(

@@ -1411,6 +1411,7 @@ class ResolvedCopperLayer:
 
 class CapabilityReport(StrictModel):
     server_version: str
+    tool_capabilities: dict[str, list[str]] = Field(default_factory=dict)
     source_types: dict[str, Any] = Field(default_factory=dict)
     read_capabilities: dict[str, Any] = Field(default_factory=dict)
     write_capabilities: dict[str, Any] = Field(default_factory=dict)

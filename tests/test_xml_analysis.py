@@ -33,6 +33,44 @@ def test_xml_semantic_inventory_is_deterministic_on_real_fixture() -> None:
     assert len(first.semantic_sha256) == 64
 
 
+def test_duplicate_ids_are_scoped_to_their_owner() -> None:
+    records = b'''<OwnerProbe>
+      <Components>
+        <Component Id="1"><Pads><Pad Id="0" /></Pads></Component>
+        <Component Id="2"><Pads><Pad Id="0" /></Pads></Component>
+      </Components>
+      <Nets>
+        <Net Id="1"><Traces>
+          <Trace Id="0"><Points><Point Id="0" /></Points></Trace>
+          <Trace Id="1"><Points><Point Id="0" /></Points></Trace>
+        </Traces></Net>
+        <Net Id="2"><Traces>
+          <Trace Id="0"><Points><Point Id="0" /></Points></Trace>
+        </Traces></Net>
+      </Nets>
+    </OwnerProbe>'''
+    document = _document(BASE.replace(b"</Board>", records + b"</Board>"))
+    assert analyze_xml_semantics(document).duplicate_tag_id_pairs == []
+
+
+def test_same_owner_duplicate_ids_include_reviewable_owner_path() -> None:
+    records = b'''<OwnerProbe><Components>
+      <Component Id="1"><Pads><Pad Id="0" /><Pad Id="0" /></Pads></Component>
+      <Component Id="2"><Pads><Pad Id="0" /><Pad Id="0" /></Pads></Component>
+    </Components><Nets><Net Id="7"><Traces>
+      <Trace Id="0"><Points><Point Id="0" /><Point Id="0" /></Points></Trace>
+      <Trace Id="0" />
+    </Traces></Net></Nets></OwnerProbe>'''
+    document = _document(BASE.replace(b"</Board>", records + b"</Board>"))
+    duplicates = analyze_xml_semantics(document).duplicate_tag_id_pairs
+    assert len(duplicates) == 4
+    assert sum("Pad#0 x2" in entry and "/Pads" in entry for entry in duplicates) == 2
+    assert any("Component#1" in entry for entry in duplicates)
+    assert any("Component#2" in entry for entry in duplicates)
+    assert any("Net#7" in entry and "Trace#0 x2" in entry for entry in duplicates)
+    assert any("Trace#0[1]/Points[1]: Point#0 x2" in entry for entry in duplicates)
+
+
 @given(first=_SAFE_TEXT, second=_SAFE_TEXT)
 def test_semantic_fingerprint_ignores_attribute_order(first: str, second: str) -> None:
     marker = b"</Board>"

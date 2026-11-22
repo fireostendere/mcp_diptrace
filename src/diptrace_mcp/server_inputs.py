@@ -373,6 +373,7 @@ _OPEN_WORLD_TOOLS = frozenset(
         "pipeline_source_component",
         "run_external_autorouter",
         "run_native_check",
+        "run_native_export",
         "run_ngspice_simulation",
         "run_openems_stripline_analysis",
     }
@@ -494,10 +495,14 @@ class DipTraceFastMCP(FastMCP):
         self.protocol_server = protocol
 
     def tool(self, *args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+        from .tool_capabilities import register_tool_capabilities
+
+        capability_keys = kwargs.pop("capability_keys", None)
         register = super().tool(*args, **kwargs)
         explicit_name = kwargs.get("name") or (args[0] if args else None)
 
         def decorator(function: Any) -> Any:
+            register_tool_capabilities(explicit_name or function.__name__, capability_keys)
             body = capture_tool_failures(_with_ok(function))
             register(body)
             self.tool_bodies[explicit_name or function.__name__] = body

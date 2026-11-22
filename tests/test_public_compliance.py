@@ -15,8 +15,19 @@ from scripts.check_public_privacy import (
     inspect,
     matches_private_path,
 )
+from scripts.generate_compliance_inventory import _dependency_records
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_native_capture_dependencies_are_in_compliance_inventory() -> None:
+    records = _dependency_records({"project": {"optional-dependencies": {
+        "headless-gui": ["Pillow>=13,<14; sys_platform == 'win32'", "pywinauto>=0.6.9"],
+    }}, "build-system": {}})
+    by_name = {record["normalized_name"]: record for record in records}
+    assert by_name["pillow"]["declared_groups"] == ["headless-gui"]
+    assert by_name["pillow"]["license"] == "MIT-CMU"
+    assert by_name["pywinauto"]["license"] == "BSD-3-Clause"
 
 
 def test_dco_checker_accepts_and_rejects_signoff_lines() -> None:

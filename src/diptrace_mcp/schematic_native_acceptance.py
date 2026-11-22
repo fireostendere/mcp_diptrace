@@ -543,7 +543,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         with hg.HiddenDesktop(request["desktop_name"]) as desktop:
             job = KillOnCloseJob.create()
             try:
-                argv = [sys.executable, "-B", "-m", __spec__.name, "_worker", str(folder.resolve())]
+                from .native_helper import helper_command
+
+                argv = helper_command("schematic-acceptance", "_worker", str(folder.resolve()))
                 with desktop.launch(argv, job=job) as worker:
                     code = worker.wait(args.timeout)
                     if code is None:

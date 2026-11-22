@@ -1,8 +1,8 @@
 {
-  "canonical_descriptor_bytes": 115056,
-  "canonical_descriptor_sha256": "bfcf0fc6dfc92e534d2b28b650d1a8c3ecc6951349a4c946ddd114bec8a3b897",
+  "canonical_descriptor_bytes": 117204,
+  "canonical_descriptor_sha256": "04ecb0307551e42eb3edd1e9205349c9d96ec7adefbeaac814d17c075c4cf612",
   "format_version": 1,
-  "tool_count": 159,
+  "tool_count": 161,
   "tools": [
     {
       "annotations": {
@@ -3951,6 +3951,118 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
+      "description": "Preview add_wire without writing; inspect accept_route and feedback before applying. Distances are mm, regardless of the document Units attribute.",
+      "inputSchema": {
+        "$defs": {
+          "WireEndpoint": {
+            "additionalProperties": false,
+            "properties": {
+              "part_id": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "pin": {
+                "maximum": 100000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "point_index": {
+                "maximum": 100000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "refdes": {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "Pin",
+                  "Wire",
+                  "Free"
+                ],
+                "type": "string"
+              },
+              "wire_id": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "WirePathPoint": {
+            "additionalProperties": false,
+            "properties": {
+              "x": {
+                "description": "Distance in millimetres.",
+                "type": "number"
+              },
+              "y": {
+                "description": "Distance in millimetres.",
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "end": {
+            "$ref": "#/$defs/WireEndpoint"
+          },
+          "hidden_power": {
+            "default": false,
+            "type": "boolean"
+          },
+          "net": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/$defs/WirePathPoint"
+            },
+            "type": "array"
+          },
+          "sheet": {
+            "default": 0,
+            "type": "integer"
+          },
+          "start": {
+            "$ref": "#/$defs/WireEndpoint"
+          }
+        },
+        "required": [
+          "net",
+          "points",
+          "start",
+          "end"
+        ],
+        "type": "object"
+      },
+      "name": "plan_add_wire",
+      "outputSchema": {
+        "additionalProperties": true,
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Create a validated deterministic local component-placement plan. Distances are mm, regardless of the document Units attribute. Input schema: diptrace://schemas/tool-inputs.",
       "inputSchema": {
         "properties": {
@@ -5383,6 +5495,15 @@
           "path": {
             "type": "string"
           },
+          "startup_dialog_sha256": {
+            "description": "Exact client PNG SHA-256 values explicitly reviewed by the operator; no default approvals. Schematic checks: up to 8; XML export: up to 1; PCB acceptance: unsupported.",
+            "items": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "maxItems": 8,
+            "type": "array"
+          },
           "timeout_seconds": {
             "type": "integer"
           }
@@ -5395,6 +5516,38 @@
         "type": "object"
       },
       "name": "run_native_check",
+      "outputSchema": {
+        "additionalProperties": true,
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Export raw native PCB CAM evidence on a private copy; never fabrication signoff.",
+      "inputSchema": {
+        "properties": {
+          "expected_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "timeout_seconds": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "expected_sha256"
+        ],
+        "type": "object"
+      },
+      "name": "run_native_export",
       "outputSchema": {
         "additionalProperties": true,
         "type": "object"

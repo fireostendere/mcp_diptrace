@@ -2,11 +2,11 @@
 
 ## Public contract
 
-DipTrace MCP currently exposes **159 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
+DipTrace MCP currently exposes **161 registered MCP tools**. The complete public `tools/list` response is generated and frozen in:
 
 `reference/mcp-tools-list.snapshot.json`
 
-CI regenerates that snapshot through the public in-memory MCP transport and fails if the public contract changes unexpectedly. Runtime `get_capabilities` reports what the active installation, document, policy and adapters allow; it is keyed by capability, not by tool name, and has known disagreements with tool behaviour ([TECH_DEBT.md](TECH_DEBT.md), B14), so also handle the error envelope.
+CI regenerates that snapshot through the public in-memory MCP transport and fails if the public contract changes unexpectedly. Runtime `get_capabilities` publishes feature flags plus `tool_capabilities`: tool names mapped to real qualified capability keys, including all three pipeline tools. Registration supports explicit `capability_keys`, and startup checks public coverage. Keys describe implemented features, not a conjunction of permissions: policy, platform, installed adapters, document state and evidence may still refuse a call. Always handle the error envelope.
 
 `DipTraceService` is the Facade behind every tool. It resolves public methods on its
 typed domain services (`src/diptrace_mcp/services/`) by attribute delegation, so there is
@@ -32,7 +32,7 @@ The exact names and schemas are in the generated snapshot. Conceptually the publ
 - bounded external jobs/adapters;
 - release/readiness and other project-owned analysis helpers.
 
-Use MCP introspection rather than copying a manually maintained 159-item list into application code or documentation.
+Use MCP introspection rather than copying a manually maintained 161-item list into application code or documentation.
 
 ### Consolidated tools (post-`v0.4.0`)
 
@@ -122,14 +122,45 @@ The public tool surface is not permission to bypass those boundaries.
 | `delete_parts` | Deletes schematic parts and their net membership | A wire left on a deleted pin is refused; delete it in the same transaction |
 | `delete_net_labels` | Deletes the visual labels of one net | Labels are annotations; connectivity is unchanged |
 | `run_quality_gate` | The `PCB_BUILD.md` handoff check: gate order, recorded SHAs, and the stage's offline check | Read-only; native DRC/ERC and manual gates stay outside it |
-| `run_native_check` | Starts a native DipTrace helper (`pcb_acceptance`, `schematic_acceptance`, `schematic_erc`, `xml_export`) on a copy as a background job | Source installs only; needs a reviewed DipTrace build and external-execution policy; the job records the helper's exit code and files and makes no acceptance decision |
+| `run_native_check` | Starts a native DipTrace helper (`pcb_acceptance`, `schematic_acceptance`, `schematic_erc`, `xml_export`) on a SHA-checked private copy as a background job | Source or frozen-helper dispatch; needs a reviewed installed build and external-execution policy; job completion is not native acceptance |
+| `plan_add_wire` | Read-only bounded wire-candidate preview with quality and placement feedback | Existing net/endpoints and an initial path are required; inspect `accept_route` and feedback, then use `add_wire` for independently validated writes |
+| `run_native_export` | Starts native Gerber X2, NC Drill and pick-and-place evidence collection from saved PCB XML on a private copy | Requires exact `expected_sha256`, reviewed Windows build and external-execution policy; raw outputs/manifest are not CAM inspection or fabrication sign-off |
 
 `place_builtin_component` accepts `txid`, so native Net Ports and power symbols can be
 staged in one transaction with the wiring. Paged schematic reads (parts, pins, wires,
 nets) go through `query_objects` with `selector.kinds`.
 
-The five write tools are new native-document writers that have not yet been opened in
-DipTrace through this path (roadmap M1/M2).
+The five write tools were exercised on disposable copies through real 5.3.0.3
+save/re-export. PCB refill and DRC completed (`pass`), but strict endpoint/scoped-ID
+comparisons remain `FAIL`; native execution is not mutation acceptance (M1/M2).
+Schematic deletion smoke jobs returned zero. Original-schematic ERC returned
+"No errors found" in the viewed image. Native XML export and raw CAM export also
+completed; neither grants public fixture trust or fabrication approval.
+
+`run_native_check` accepts optional `startup_dialog_sha256`: exact lowercase client
+PNG SHA-256 values explicitly reviewed by the operator, with no default approval.
+Schematic checks accept at most eight, XML export at most one, and PCB acceptance
+does not support approvals. `xml_export` accepts native `.dch`/`.dip` binaries
+without feeding them to the XML parser. Checks operate on owned copies; inspect
+`get_job_status` / `get_job_result`, helper return code and evidence, not only the
+job status. Frozen dispatch requires the packaged GUI helper; it is implemented,
+not proof of a successful native campaign or a newly published release.
+
+### Schematic net references
+
+`connect_pins`, `add_wire`, `add_net_label`, `delete_net_labels` and the wire preview
+resolve plain strings as case-insensitive net names, including numeric names.
+Use `xml-id:1` to select existing XML net id `1`; use `name:xml-id:1` to select the
+literal name `xml-id:1`. Invalid or missing explicit ids and duplicate references
+are refused, never silently selected or created. Only `connect_pins` creates a
+missing name. This syntax does not change PCB tools' separate net contracts.
+
+### Angle evidence scopes
+
+`trust_model.component_angle_evidence` records manual Q1 campaign PASS for its
+accepted production checkpoint separately from `package_publicly_validated=false`.
+The warning concerns reusable package-public evidence; manual/private PASS does
+not promote provenance or grant high trust to current artifacts.
 
 ## Pipeline tools
 
