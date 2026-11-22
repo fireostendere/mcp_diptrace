@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import math
+import sys
 from functools import lru_cache
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
@@ -11,9 +12,24 @@ from .domain import GeometryShape
 from .geometry import BBox, Point, Transform, point_to_segment_distance, segment_distance
 
 
+def under_wine() -> bool:
+    """True for the Linux and macOS installs, which run the Windows build in Wine."""
+
+    if sys.platform == "win32":
+        import ctypes
+
+        return hasattr(ctypes.WinDLL("ntdll"), "wine_get_version")
+    else:
+        return False
+
+
 @lru_cache(maxsize=1)
 def shapely_available() -> bool:
-    return importlib.util.find_spec("shapely") is not None
+    # NumPy aborts the process on Wine 9.0 (ucrtbase.crealf is unimplemented), so a
+    # bundled Shapely cannot even be probed there.
+    # shortcut: every Wine version uses the pure-Python backend; check the Wine
+    # version instead once a release that runs NumPy is confirmed.
+    return importlib.util.find_spec("shapely") is not None and not under_wine()
 
 
 def backend_report() -> dict[str, object]:

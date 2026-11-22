@@ -118,6 +118,9 @@ module plug-in directories inside the installed app's Wine prefix:
 - Component Editor;
 - Pattern Editor.
 
+As on Linux, the server uses the pure-Python geometry backend under Wine; exact
+Shapely geometry is available on native Windows only.
+
 ## Doctor and repair
 
 Run:

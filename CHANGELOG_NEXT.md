@@ -51,6 +51,10 @@ Version `2.0.0` collects everything in this section; none of it is part of those
   today (5.3.5.1). The 5.3.0.3 pin had failed since the vendor replaced the download
   in place in October 2026. Linux now accepts the `DIPTRACE_VERSION`,
   `DIPTRACE_INSTALLER_URL` and `DIPTRACE_INSTALLER_SHA256` overrides macOS already had;
+- under Wine (the Linux and macOS installs) the server uses the pure-Python geometry
+  backend. The geometry-enabled frozen build imported NumPy at startup, and Wine 9.0
+  aborts the process on it (`ucrtbase.crealf` is unimplemented), so
+  `diptrace-mcp --version` crashed there;
 - native PCB DRC no longer passes merely because the dialog class is `TFMyMessage`;
   positive error counts take precedence, and unknown text requires a verified bitmap
   or explicit visual review with the retained PNG/hash;

@@ -119,6 +119,11 @@ diptrace-mcp-doctor
 The doctor verifies the DipTrace executables, MCP server, bridge plug-ins, bundled
 GUI helper, MCP/bridge startup, and the private-Xvfb Win32 worker probe.
 
+Under Wine the server uses the pure-Python geometry backend (`get_capabilities`
+reports `geometry_backend.engine` as `pure_python`): rotated ellipse, obround and polygon clearances fall
+back to conservative bounding boxes. NumPy, which exact Shapely geometry needs,
+aborts the process on Wine 9.0.
+
 ## Automated acceptance scope
 
 The permanent `Linux one-command install` GitHub Actions workflow starts from a
