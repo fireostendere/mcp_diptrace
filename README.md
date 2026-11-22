@@ -58,7 +58,7 @@ Version `0.4.0` is the current published unsigned development release. The
 immutable GitHub release is `v0.4.0`, and the matching Python package is
 `diptrace-mcp==0.4.0` on PyPI.
 
-The published release keeps the public MCP contract frozen at 167 tools (v0.4.0; current `main` registers 159) and
+The published release keeps the public MCP contract frozen at 167 tools (v0.4.0; current `main` registers 161) and
 contains the A1-A8 roadmap closure plus tested cross-platform host paths:
 
 - Windows split per-user/admin installers and portable bundle;
@@ -109,9 +109,10 @@ is not yet published.
 
 ## What it provides
 
-The public MCP surface currently registers 159 tools. Runtime
-`get_capabilities` remains authoritative for the active
-installation and document.
+The public MCP surface currently registers 161 tools. Runtime `get_capabilities`
+publishes qualified `tool_capabilities` mappings and document-dependent feature
+flags; policy, installed native builds and evidence still determine whether a call
+can run. A true feature flag is not permission or native acceptance.
 
 Main public capability groups:
 
@@ -232,6 +233,9 @@ desktop worker without physical mouse/keyboard fallback. See
 ### PyPI
 
 Python 3.10 or newer is required.
+
+On development `main`, the optional Windows `headless-gui` extra needs Python
+3.11+ for patched Pillow; base XML/MCP operation still supports Python 3.10+.
 ```bash
 python -m pip install diptrace-mcp==0.4.0
 diptrace-mcp --help

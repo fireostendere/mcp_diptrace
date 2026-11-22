@@ -8,6 +8,10 @@ from .domain import QuerySelector, StrictModel
 from .xml_document import reject_forbidden_xml_declarations
 
 _MM_FIELD_DESCRIPTION = "Distance in millimetres."
+_SCHEMATIC_NET_REFERENCE_DESCRIPTION = (
+    "Net name (numeric names included), xml-id:<Id> for an existing XML net id, "
+    "or name:<literal> to escape reserved prefixes."
+)
 
 
 class SemanticOperation(StrictModel):
@@ -578,7 +582,9 @@ class PinEndpoint(StrictModel):
 
 class ConnectPinsOperation(SemanticOperation):
     kind: Literal["connect_pins"] = "connect_pins"
-    net: str = Field(min_length=1, max_length=1_000)
+    net: str = Field(
+        min_length=1, max_length=1_000, description=_SCHEMATIC_NET_REFERENCE_DESCRIPTION
+    )
     pins: list[PinEndpoint] = Field(min_length=1, max_length=10_000)
     allow_reconnect: bool = False
 
@@ -614,7 +620,9 @@ class WirePathPoint(StrictModel):
 
 class AddWireOperation(SemanticOperation):
     kind: Literal["add_wire"] = "add_wire"
-    net: str = Field(min_length=1, max_length=1_000)
+    net: str = Field(
+        min_length=1, max_length=1_000, description=_SCHEMATIC_NET_REFERENCE_DESCRIPTION
+    )
     sheet: int = Field(default=0, ge=0)
     points: list[WirePathPoint] = Field(min_length=2, max_length=10_000)
     start: WireEndpoint
@@ -634,7 +642,9 @@ class AddNetLabelOperation(SemanticOperation):
     """Add a visual annotation; native Net Port parts carry cross-sheet connectivity."""
 
     kind: Literal["add_net_label"] = "add_net_label"
-    net: str = Field(min_length=1, max_length=1_000)
+    net: str = Field(
+        min_length=1, max_length=1_000, description=_SCHEMATIC_NET_REFERENCE_DESCRIPTION
+    )
     x: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     y: float = Field(allow_inf_nan=False, description=_MM_FIELD_DESCRIPTION)
     sheet: int = Field(default=0, ge=0)
@@ -790,7 +800,9 @@ class DeletePartsOperation(SelectorOperation):
 
 class DeleteNetLabelsOperation(SemanticOperation):
     kind: Literal["delete_net_labels"] = "delete_net_labels"
-    net: str = Field(min_length=1, max_length=1_000)
+    net: str = Field(
+        min_length=1, max_length=1_000, description=_SCHEMATIC_NET_REFERENCE_DESCRIPTION
+    )
     sheet: int | None = Field(default=None, ge=0, le=255)
 
 

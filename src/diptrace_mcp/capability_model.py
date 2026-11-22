@@ -22,6 +22,12 @@ class CapabilityRule:
 
 
 _READ_CAPABILITIES: dict[str, CapabilityRule] = {
+    "server_status": CapabilityRule(),
+    "capability_discovery": CapabilityRule(),
+    "document_catalog": CapabilityRule(),
+    "export_catalog": CapabilityRule(),
+    "roundtrip_evidence_validation": CapabilityRule(),
+    "quality_gate": CapabilityRule(),
     "document_info": CapabilityRule(),
     "board_model": CapabilityRule("board"),
     "schematic_model": CapabilityRule("schematic"),
@@ -64,6 +70,11 @@ _READ_CAPABILITIES: dict[str, CapabilityRule] = {
 }
 
 _WRITE_CAPABILITIES: dict[str, CapabilityRule] = {
+    "roundtrip_evidence_recording": CapabilityRule(),
+    "live_session_lifecycle": CapabilityRule(),
+    "pipeline_source_component": CapabilityRule(),
+    "pipeline_nativeize_document": CapabilityRule(),
+    "pipeline_render_board_preview": CapabilityRule(),
     "apply_xml_edits": CapabilityRule(),
     "transactions": CapabilityRule(),
     "document_creation": CapabilityRule(),
@@ -252,6 +263,9 @@ def get_trust_model(
     import copy
 
     model = copy.deepcopy(_BASE_TRUST_MODEL)
+    from .evidence_status import component_angle_evidence_status
+
+    model["component_angle_evidence"] = component_angle_evidence_status()
     model["document_kind"] = document_kind
     model["document_loaded"] = document_kind is not None
     model["document"] = copy.deepcopy(_DOCUMENT_TRUST_TEMPLATE)

@@ -662,6 +662,56 @@ class SemanticOperationsService:
         )
         return self.semantic_write(operation, path, dry_run, expected_sha256, txid)
 
+    def plan_add_wire(
+        self,
+        net: str,
+        points: list[dict[str, Any]],
+        start: dict[str, Any],
+        end: dict[str, Any],
+        sheet: int = 0,
+        hidden_power: bool = False,
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        from ..errors import EditError, ObjectNotFoundError
+        from ..schematic_wire_planner import plan_schematic_wire_candidate
+        from ..semantic_compiler import (
+            _require_schematic,
+            _require_sheet,
+            _resolve_part,
+            _schematic_net_element,
+            _wire_endpoint_attributes,
+        )
+
+        operation = AddWireOperation.model_validate({
+            "net": net, "points": points, "start": start, "end": end,
+            "sheet": sheet, "hidden_power": hidden_power,
+        })
+        document, target = self.gateway.load(path)
+        _require_schematic(document, "plan_add_wire")
+        _require_sheet(document, operation.sheet)
+        snapshot = self.context.model_cache.get(document, live_session=target.is_live)
+        net_element = _schematic_net_element(document, operation.net)
+        if net_element is None:
+            raise ObjectNotFoundError(f"Net was not found: {operation.net}")
+        for index, endpoint in enumerate((operation.start, operation.end), 1):
+            # Reuse add_wire's identity, pin-index and net-membership validation.
+            _wire_endpoint_attributes(index, endpoint, document, snapshot, net_element)
+            element = None
+            if endpoint.type == "Pin":
+                _, element = _resolve_part(
+                    snapshot, refdes=endpoint.refdes, part_id=endpoint.part_id,
+                )
+            elif endpoint.type == "Wire":
+                assert endpoint.wire_id is not None
+                element = snapshot.elements[endpoint.wire_id]
+            if element is not None and element.get("Sheet", "0") != str(operation.sheet):
+                raise EditError("Wire endpoints must belong to the requested sheet")
+        plan = plan_schematic_wire_candidate(document, snapshot, operation)
+        return read_success(
+            snapshot.info, plan.model_dump(mode="json"),
+            warnings=plan.warnings, limitations=plan.limitations,
+        )
+
     def delete_wire(
         self,
         selector: dict[str, Any] | None,

@@ -14,6 +14,11 @@ Do not close a host-format question from a synthetic fixture or from an MCP writ
 
 **What is documented:** `docs/MANUAL_ACCEPTANCE_CHECKPOINT_2026-08-09.md` and `docs/XML_COMPATIBILITY.md` record the later manual PASS. Immutable `v0.2.1` release evidence correctly remains `NOT_RUN` because it predates that campaign.
 
+The current `trust_model.component_angle_evidence` reports these scopes separately:
+`manual_campaign_status="PASS"`, `package_publicly_validated=false` and
+`grants_high_trust=false`. `Q1_COMPONENT_ANGLE_LIVE_VALIDATED` is the reusable
+package-public gate, not a denial of the historical manual campaign.
+
 **Experiment:** Repeat the controlled 90/180/270 degree and change-side probe with redistributable artifacts using the committed [Q1 capture recipe](evidence_capture/q1-component-angle.recipe.json), preserving distinct source/open-save/re-export roles and literal angle values.
 
 **Who can perform:** Human with licensed DipTrace PCB Layout 5.3.x and permission to provide sanitized evidence.

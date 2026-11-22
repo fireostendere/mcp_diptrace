@@ -13,7 +13,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "docs" / "compliance"
@@ -27,11 +30,13 @@ KNOWN_LICENSES = {
     "jsonschema": "MIT",
     "mcp": "MIT",
     "mypy": "MIT",
+    "pillow": "MIT-CMU",
     "pydantic": "MIT",
     "pyinstaller": "GPL-2.0-or-later WITH Bootloader-exception",
     "pytest": "MIT",
     "pytest-cov": "MIT",
     "pyyaml": "MIT",
+    "pywinauto": "BSD-3-Clause",
     "ruff": "MIT",
     "shapely": "BSD-3-Clause",
     "tomli": "MIT",
@@ -63,6 +68,7 @@ def _groups(metadata: dict[str, Any]) -> dict[str, list[str]]:
     return {
         "runtime": list(project.get("dependencies", [])),
         "geometry": list(optional.get("geometry", [])),
+        "headless-gui": list(optional.get("headless-gui", [])),
         "bridge": list(optional.get("bridge", [])),
         "development": list(optional.get("dev", [])),
         "build": list(metadata["build-system"].get("requires", [])),

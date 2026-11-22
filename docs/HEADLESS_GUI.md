@@ -91,7 +91,8 @@ manufacturing-output generation, or arbitrary DipTrace-dialog automation.
 - Windows 10 or Windows 11 in an interactive user session;
 - a normal DipTrace installation accessible to that user;
 - no elevation/UAC prompt required to start the selected DipTrace editor;
-- for source installs, the optional `headless-gui` dependency group.
+- for source installs, the optional `headless-gui` dependency group (pywinauto and
+  Pillow; Pillow is required by native screenshot/startup-dialog capture).
 
 The hidden desktop is not Session 0 and is not designed to run as a Windows
 service. Run the worker from the same normal user session that owns the DipTrace
@@ -287,6 +288,11 @@ review the side effect without unsafe automatic retry.
 
 ## Bundled Windows build
 
+The current development constraints use MCP 1.30.0 and Pillow 13.0.0, replacing
+versions with known security advisories. The optional Windows `headless-gui` extra
+requires Python 3.11+ through Pillow; base XML/MCP operation still supports 3.10+.
+These are development inputs, not a change to the immutable published v0.4.0 bytes.
+
 `scripts/build_windows_server.ps1` builds the helper with the standalone MCP
 server. The helper is placed under:
 
@@ -300,6 +306,13 @@ diptrace_mcp_server\
 The Windows build runs both the hidden-desktop test and the real native desktop
 security probe without requiring DipTrace. The packaged helper is included with
 the per-user server installer and portable artifact.
+The build constraints pin Pillow so a clean build does not depend on an incidental
+capture dependency. MCP stdio emits UTF-8 bytes even when Windows configures the
+process text stream with an ANSI encoding.
+Geometry-enabled frozen servers initialize Shapely/NumPy on the main thread
+before serving tools: first import inside an AnyIO worker was observed to hang
+in NumPy's Windows C-extension loader. This does not change geometry validation
+or introduce a fallback for a broken bundled dependency.
 
 Example after installation:
 
@@ -326,6 +339,15 @@ modify Codex/Claude configuration, workspace, state, or user profiles.
 
 ## Safety invariants
 
+PCB DRC does not pass from the `TFMyMessage` class alone. A positive error count
+overrides success text; otherwise PASS requires an explicit success token or the
+existing exact reviewed bitmap signature. Unknown image dimensions/font/DPI and
+capture failures stay `review_required`, with the captured PNG/hash retained when
+available. A separately viewed image reading "No errors found" is operator evidence,
+not permission to rewrite the native report or waive XML/connectivity differences.
+Historical DRC `pass` records below predate removal of the class-only fallback;
+they are not independently verified success signatures.
+
 The implementation must retain all of these properties:
 
 - never switch the user's input desktop;
@@ -342,6 +364,60 @@ The implementation must retain all of these properties:
 - do not expand the public MCP tool contract merely to expose Windows-worker details.
 
 ## CI and real-host evidence
+
+The public `run_native_check` job now supports source and frozen-helper dispatch
+for PCB acceptance, schematic acceptance/ERC and native binary XML export. Inputs
+are SHA-checked job-owned copies; originals are not passed to a saving helper.
+Optional `startup_dialog_sha256` approvals require exact explicitly reviewed
+client PNG hashes, with no default approval (schematic: at most eight; XML export:
+one; PCB acceptance: unsupported). `run_native_export` similarly collects raw CAM
+evidence from a private PCB XML copy; it is not inspected CAM or fabrication sign-off.
+
+On the current 5.3.0.3 host, all four public check variants were executed.
+Schematic acceptance/ERC and native binary XML export returned zero after exact
+startup images were inspected and explicitly supplied. The ERC client image was
+viewed and reads "No errors found". Label deletion preserved the compared semantics.
+R1 deletion after removal of all wires preserved parts and physical pin-to-pad
+mappings, but native re-export removed all 22 remaining net memberships: this is
+execution evidence, not connectivity acceptance. The base schematic preserved
+24 pin/net/NC records and 14 physical pin-to-pad mappings, but library and wire
+geometry changed and still require visual review.
+A separate bounded R1-deletion case now uses a public frozen-server transaction
+to remove only its two local wires, R1 and its exclusive PS5 port. Direct wired
+deletion was safely refused; native save/re-export preserves 14 parts, 21 pin/net/NC
+records, 12 physical pin-to-pad mappings, 12 wires and six nets with equal compared
+semantics, including wire geometry. The zoom-extents capture was inspected; it is
+not formal page-fit acceptance. ERC correctly remains `review_required`, with an
+inspected `Single pin in net: SDA_3V3, Q1:S` error on the deliberately altered copy.
+Helper completion and bounded preservation do not imply an ERC-clean design.
+A bounded wait now handles the observed owned DRC progress form
+without dismissing it or relaxing unknown-dialog/ownership checks.
+
+Top-pour add/delete and outline copies completed refill/DRC/save/re-export with
+DRC `pass`, but strict comparison returned `FAIL`: raw endpoints changed from
+22 to 20 and scoped ID inventories differed. The missing raw records are GND `J1`
+pad `1` and GND `J2` pad `1`; safe canonicalization is not established. These are not
+promoted to PASS. Component-level pad assignments still name GND, so the raw delta
+alone does not prove a physical disconnection. Native CAM produced actual Gerber/NC Drill/placement outputs
+and a complete manifest; no CAM inspection or fabrication approval is implied.
+The final clean frozen build completed MCP `tools/list` (161 tools), all four
+native check variants and CAM export with unchanged source SHAs. Schematic/ERC,
+binary XML export and CAM helpers returned zero. On the native-authored PCB
+baseline, DRC passed and structural records were unchanged, but full XML
+semantics differed: `HUMAN_REVIEW_REQUIRED` / exit 2, not PASS. The ERC result
+matched the viewed "No errors found" image. CAM's complete manifest covers 16
+archive members and still reports `fabrication_approved: false`.
+A read-only baseline comparison locates all changed XML records in copper-refill
+data (19), two embedded pattern dimensions, working-directory metadata and removal
+of a class-to-class cell (`NetClass1=0`, `NetClass2=0`, `Clearance=-1`). This does not
+establish copper equivalence or the sentinel's native fallback semantics; neither
+the native verdict nor the semantic fingerprint/gate was changed.
+
+Session evidence (including `frozen-final-summary.json`,
+`schematic-record-comparison.json`, `pcb-endpoint-comparison.json`,
+`pcb-baseline-delta-classification.json` and `m2-local-delete/comparison.json`) is retained
+under `.local/roadmap-closure-20261111/`, outside the public trust registry and
+release artifacts. A generic MCP ClientSession is not named-client M5 acceptance.
 
 Windows CI contains real Win32 hidden-desktop and native-desktop process probes.
 They verify desktop creation/targeting, `WinSta0` attachment and session identity

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from . import headless_gui as hg
+from .native_helper import helper_command
 from .windows_configurator import validate_diptrace_directory
 from .windows_job import KillOnCloseJob
 from .xml_document import DipTraceDocument
@@ -120,14 +121,11 @@ def _run_hidden(
     with hg.HiddenDesktop(desktop_name) as desktop, ExitStack() as cleanup:
         job = KillOnCloseJob.create()
         cleanup.callback(job.terminate_and_close)
-        argv = [
-            sys.executable,
-            "-m",
-            "diptrace_mcp.native_xml_export",
+        argv = helper_command("xml-export",
             "_worker",
             str(request_path),
             str(result_path),
-        ]
+        )
         with desktop.launch(argv, job=job) as worker:
             exit_code = worker.wait(timeout)
             if exit_code is None:

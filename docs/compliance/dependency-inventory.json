@@ -55,7 +55,7 @@
         "runtime"
       ],
       "declared_requirements": [
-        "mcp>=1.28.1,<1.31"
+        "mcp>=1.30.0,<1.31"
       ],
       "human_review_required": true,
       "license": "MIT",
@@ -79,6 +79,22 @@
       "name": "mypy",
       "normalized_name": "mypy",
       "purl": "pkg:pypi/mypy",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "headless-gui"
+      ],
+      "declared_requirements": [
+        "Pillow>=13,<14; sys_platform == 'win32'"
+      ],
+      "human_review_required": true,
+      "license": "MIT-CMU",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "Pillow",
+      "normalized_name": "pillow",
+      "purl": "pkg:pypi/pillow",
       "version": null
     },
     {
@@ -143,6 +159,22 @@
       "name": "pytest-cov",
       "normalized_name": "pytest-cov",
       "purl": "pkg:pypi/pytest-cov",
+      "version": null
+    },
+    {
+      "copyleft_or_special_terms": false,
+      "declared_groups": [
+        "headless-gui"
+      ],
+      "declared_requirements": [
+        "pywinauto==0.6.9; sys_platform == 'win32'"
+      ],
+      "human_review_required": true,
+      "license": "BSD-3-Clause",
+      "license_basis": "engineering mapping from project metadata; human verification required",
+      "name": "pywinauto",
+      "normalized_name": "pywinauto",
+      "purl": "pkg:pypi/pywinauto",
       "version": null
     },
     {
@@ -250,6 +282,10 @@
     "geometry": [
       "shapely"
     ],
+    "headless-gui": [
+      "Pillow",
+      "pywinauto"
+    ],
     "runtime": [
       "mcp",
       "pydantic",
@@ -270,8 +306,8 @@
     ],
     "unknown_license_metadata": []
   },
-  "inspected_commit": "dc9bb244c17fdbe2578e255e0231c97cb3ea260d",
-  "inspected_date": "2026-08-16",
+  "inspected_commit": "f020a92ce8493988babc1ddc6ad0f4fb7b266a3b",
+  "inspected_date": "2026-11-11",
   "project": {
     "license": "Apache-2.0",
     "name": "diptrace-mcp",

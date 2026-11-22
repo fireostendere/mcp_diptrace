@@ -13,7 +13,9 @@ import pytest
 
 from diptrace_mcp.adapters import build_snapshot
 from diptrace_mcp.config import Settings
+from diptrace_mcp.external_adapters import ExternalJobManager
 from diptrace_mcp.server import create_server
+from diptrace_mcp.services.context import DocumentGateway, DocumentTarget
 from diptrace_mcp.xml_document import DipTraceDocument
 
 ROOT = Path(__file__).parents[1]
@@ -113,13 +115,87 @@ def test_native_check_obeys_policy_and_document_kind(tmp_path: Path) -> None:
     assert wrong["ok"] is False
 
 
+@pytest.mark.parametrize('suffix', ['.dch', '.dip'])
+def test_native_binary_export_guarded_without_xml_parse(tmp_path, monkeypatch, suffix):
+    monkeypatch.setattr(ExternalJobManager, '_launch_worker', lambda self, record, **kwargs: record)
+    client = _Client(tmp_path)
+    (client.workspace / ('binary' + suffix)).write_bytes(b'\x00binary, not XML')
+    result = client.call('run_native_check', check='xml_export', path='binary' + suffix,
+                         diptrace_root=str(tmp_path))
+    assert result['ok'] is True
+    assert result['document']['source_type'].startswith('native-')
+    assert result['document']['version'] == 'unknown'
+    command = result['job']['command']
+    assert Path(command[command.index('--project') + 1]).read_bytes() == b'\x00binary, not XML'
+    outside = tmp_path / ('outside' + suffix)
+    outside.write_bytes(b'\x00binary')
+    denied = client.call('run_native_check', check='xml_export', path=str(outside),
+                         diptrace_root=str(tmp_path))
+    assert denied['ok'] is False
+    xml = client.call('run_native_check', check='xml_export', path='board.dipxml',
+                      diptrace_root=str(tmp_path))
+    assert xml['ok'] is False
+
+
+def test_native_check_rejects_live_target_before_parsing(tmp_path, monkeypatch):
+    client = _Client(tmp_path)
+    monkeypatch.setattr(DocumentGateway, 'resolve_target',
+                        lambda *args: DocumentTarget(client.workspace / 'missing.dip', 'live'))
+    result = client.call('run_native_check', check='xml_export', path='missing.dip',
+                         diptrace_root=str(tmp_path))
+    assert result['ok'] is False
+    assert 'live session' in result['error']['message']
+
+
+@pytest.mark.parametrize(('check', 'path', 'hashes'), [
+    ('schematic_acceptance', 'schematic.xml', ['a' * 64, 'b' * 64]),
+    ('schematic_erc', 'schematic.xml', ['a' * 64]),
+    ('xml_export', 'native.dch', ['a' * 64]),
+])
+def test_public_native_check_forwards_only_explicit_approvals(
+    tmp_path, monkeypatch, check, path, hashes,
+):
+    monkeypatch.setattr(ExternalJobManager, '_launch_worker', lambda self, record, **kw: record)
+    client = _Client(tmp_path)
+    (client.workspace / 'native.dch').write_bytes(b'not XML')
+    result = client.call('run_native_check', check=check, path=path,
+                         diptrace_root=str(tmp_path), startup_dialog_sha256=hashes)
+    assert result['ok'] is True
+    command = result['job']['command']
+    assert command[-len(hashes) * 2:] == [
+        arg for digest in hashes for arg in ('--startup-dialog-sha256', digest)]
+    omitted = client.call('run_native_check', check=check, path=path, diptrace_root=str(tmp_path))
+    assert '--startup-dialog-sha256' not in omitted['job']['command']
+
+
+@pytest.mark.parametrize(('check', 'path', 'hashes'), [
+    ('schematic_erc', 'schematic.xml', ['A' * 64]),
+    ('schematic_erc', 'schematic.xml', [123]),
+    ('schematic_erc', 'schematic.xml', ['a' * 64] * 9),
+    ('schematic_erc', 'schematic.xml', 'a' * 64),
+    ('pcb_acceptance', 'board.dipxml', ['a' * 64]),
+    ('xml_export', 'native.dch', ['a' * 64, 'b' * 64]),
+])
+def test_public_native_check_rejects_invalid_or_unsupported_approvals(
+    tmp_path, monkeypatch, check, path, hashes,
+):
+    monkeypatch.setattr(ExternalJobManager, '_launch_worker',
+                        lambda *args, **kw: pytest.fail('must not launch'))
+    client = _Client(tmp_path)
+    (client.workspace / 'native.dch').write_bytes(b'not XML')
+    result = client.call('run_native_check', check=check, path=path,
+                         diptrace_root=str(tmp_path), startup_dialog_sha256=hashes)
+    assert result['ok'] is False
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="would start the real helper on Windows")
 def test_native_check_job_records_the_helper_verdict(tmp_path: Path) -> None:
     client = _Client(tmp_path)
+    (client.workspace / "native.dip").write_bytes(b"not a real native board")
     started = client.call(
         "run_native_check",
         check="xml_export",
-        path="board.dipxml",
+        path="native.dip",
         diptrace_root=str(tmp_path / "no-diptrace-here"),
         timeout_seconds=30,
     )
@@ -131,6 +207,11 @@ def test_native_check_job_records_the_helper_verdict(tmp_path: Path) -> None:
         time.sleep(0.2)
     assert status["status"] == "completed"
     assert status["result"]["helper_passed"] is False  # there is no DipTrace to drive
+    assert status['result']['execution_status'] == 'finished'
+    assert status['result']['acceptance_decision'] == 'not_evaluated'
+    assert 'log.txt' in status['result']['output_files']
+    log = Path(status['result']['output_directory']) / 'log.txt'
+    assert 'native XML export requires Windows' in log.read_text()
 
 
 def test_board_outline_is_replaced_only_when_everything_stays_inside(tmp_path: Path) -> None:

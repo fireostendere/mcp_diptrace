@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
+import importlib.util
 import json
+import runpy
+import sys
+import threading
 from datetime import timedelta
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
+import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
 
 from diptrace_mcp import __version__, server_runtime
@@ -19,6 +26,58 @@ def test_frozen_server_delegates_to_production_main() -> None:
 
     assert "from diptrace_mcp.server import main" in source
     assert "server.run" not in source
+
+
+@pytest.mark.parametrize("geometry_available", [True, False])
+def test_frozen_server_imports_optional_geometry_before_main(
+    monkeypatch: pytest.MonkeyPatch, geometry_available: bool
+) -> None:
+    events: list[str] = []
+    original_import = importlib.import_module
+    original_find_spec = importlib.util.find_spec
+
+    def import_module(name: str, package: str | None = None) -> ModuleType:
+        if name != "shapely":
+            return original_import(name, package)
+        assert geometry_available
+        assert threading.current_thread() is threading.main_thread()
+        events.append("shapely")
+        return ModuleType("shapely")
+
+    def find_spec(name: str, package: str | None = None) -> Any:
+        if name == "shapely":
+            return importlib.machinery.ModuleSpec(name, None) if geometry_available else None
+        return original_find_spec(name, package)
+
+    server = ModuleType("diptrace_mcp.server")
+    monkeypatch.setattr(server, "main", lambda: events.append("main"), raising=False)
+    monkeypatch.setitem(sys.modules, "diptrace_mcp.server", server)
+    monkeypatch.setattr(importlib, "import_module", import_module)
+    monkeypatch.setattr(importlib.util, "find_spec", find_spec)
+
+    runpy.run_path(str(ROOT / "src/diptrace_mcp/frozen_server.py"), run_name="__main__")
+
+    assert events == (["shapely", "main"] if geometry_available else ["main"])
+
+
+@pytest.mark.parametrize("error", [ImportError("broken GEOS"), ModuleNotFoundError("numpy")])
+def test_frozen_server_does_not_hide_broken_geometry(
+    monkeypatch: pytest.MonkeyPatch, error: ImportError
+) -> None:
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: importlib.machinery.ModuleSpec(name, None)
+    )
+
+    def broken_import(name: str) -> ModuleType:
+        raise error
+
+    monkeypatch.setattr(importlib, "import_module", broken_import)
+    server = ModuleType("diptrace_mcp.server")
+    monkeypatch.setattr(server, "main", lambda: pytest.fail("server must not start"), raising=False)
+    monkeypatch.setitem(sys.modules, "diptrace_mcp.server", server)
+
+    with pytest.raises(type(error), match=str(error)):
+        runpy.run_path(str(ROOT / "src/diptrace_mcp/frozen_server.py"), run_name="__main__")
 
 
 def test_server_spec_is_explicit_and_uses_onedir_collect() -> None:
@@ -40,7 +99,28 @@ def test_packaging_constraints_pin_pyinstaller_and_geometry_inputs() -> None:
 
     assert "pyinstaller==6.14.2" in constraints
     assert "shapely==2.1.2" in constraints
-    assert "mcp==1.28.1" in constraints
+    assert "mcp==1.30.0" in constraints
+
+
+def test_windows_headless_gui_declares_and_pins_native_capture_dependency() -> None:
+    project = (ROOT / 'pyproject.toml').read_text(encoding='utf-8')
+    extras = project.split('headless-gui = [', 1)[1].split(']', 1)[0]
+    assert "Pillow>=13,<14; sys_platform == 'win32'" in extras
+    constraints = (ROOT / 'packaging/windows-constraints.txt').read_text(encoding='utf-8')
+    assert 'Pillow==13.0.0' in constraints.splitlines()
+
+
+def test_all_windows_builders_bootstrap_patched_pip_before_project_install() -> None:
+    constraints = (ROOT / "packaging/windows-constraints.txt").read_text(encoding="utf-8")
+    assert "pip==26.3" in constraints.splitlines()
+    bootstrap = "-m pip install --disable-pip-version-check --upgrade -c $Constraints pip"
+    for name in ("scripts/build_windows_server.ps1", "scripts/build_windows_configurator.ps1",
+                 "plugin/build_bridge.ps1"):
+        script = (ROOT / name).read_text(encoding="utf-8")
+        assert bootstrap in script, name
+        install = ("-c $Constraints $Extras"
+                   if name.endswith("server.ps1") else '-c $Constraints ".[')
+        assert script.index(bootstrap) < script.index(install)
 
 
 def test_server_version_contract_is_stable() -> None:

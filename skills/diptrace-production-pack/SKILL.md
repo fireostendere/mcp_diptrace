@@ -46,13 +46,15 @@ Currently:
 
 Use these exports as inputs, preserve their limitations, and fetch all artifact resources.
 Obtain real Gerber, NC Drill, required drawings, and native placement exports from the
-frozen revision through the Windows-only `diptrace_mcp.native_cad` round-trip or an
+frozen revision through `run_native_export`, the Windows-only `diptrace_mcp.native_cad` round-trip or an
 operator export. That round-trip (`diptrace_mcp.native_cad.run_native_cad` with
 `export_manufacturing=True`, the call shape used by `scripts/validate_native_platform.py`)
 opens an isolated copy in a verified 5.3.0.3/5.3.5.1 English build, refills and runs DRC,
 saves and re-exports XML, and writes `native-fabrication.zip` (Gerber X2 + NC Drill,
-metric, design origin, no mirror) plus `native-placement.csv`. It is a Python API with
-no MCP tool or packaged CLI, and its ZIP is not inspected CAM until the viewer check
+metric, design origin, no mirror) plus `native-placement.csv`. The MCP wrapper needs
+saved PCB XML and exact `expected_sha256`, runs on a private job copy, and returns
+raw evidence; source and packaged helper dispatch exist. Wrapper tests are not
+native CAM acceptance, and the ZIP is not inspected CAM until the viewer check
 below. The PCB acceptance helper itself does not implement CAM export. If a required
 exporter or artifact is unavailable, prepare the remaining package and mark release
 BLOCKED with an exact export checklist. Do not fabricate CAM from SVG, JSON manifests,

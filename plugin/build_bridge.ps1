@@ -34,6 +34,8 @@ $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 # produces an executable that fails with ModuleNotFoundError at runtime.
 Push-Location $RepoRoot
 try {
+    & $VenvPython -m pip install --disable-pip-version-check --upgrade -c $Constraints pip
+    if ($LASTEXITCODE -ne 0) { throw "Unable to bootstrap patched packaging pip" }
     & $VenvPython -m pip install --disable-pip-version-check -c $Constraints ".[bridge]"
 } finally {
     Pop-Location

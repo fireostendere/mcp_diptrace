@@ -4,9 +4,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+from ..adapter_common import stable_id
 from ..domain import (
     DocumentInfo,
     FieldSolverRequest,
+    JobRecord,
 )
 from ..errors import (
     DocumentError,
@@ -25,6 +27,7 @@ from ..specctra import (
 )
 from ..xml_document import (
     DipTraceDocument,
+    sha256_bytes,
 )
 from .context import DocumentGateway, ServiceContext, read_success
 
@@ -269,24 +272,49 @@ class ExternalJobsService:
         diptrace_root: str,
         *,
         timeout_seconds: int | None = None,
+        startup_dialog_sha256: list[str] | None = None,
     ) -> dict[str, Any]:
         """Start one of the project's native DipTrace helpers on a document, as a job."""
 
         self.context.policy.require_external_execution(operation="run_native_check")
-        document, target = self.gateway.load(path)
+        target = self.gateway.resolve_target(path)
         if target.is_live:
             raise DocumentError("Native checks run on a saved document, not a live session")
+        if check not in {"pcb_acceptance", "schematic_acceptance", "schematic_erc", "xml_export"}:
+            raise DocumentError("Unsupported native check")
+        suffix = target.path.suffix.lower()
+        if check == "xml_export" or suffix in {".dch", ".dip"}:
+            if suffix not in {".dch", ".dip"} or not target.path.is_file():
+                raise DocumentError("Native XML export requires a regular .dch or .dip file")
+            with target.path.open("rb") as stream:
+                data = stream.read(self.context.settings.max_document_bytes + 1)
+            if len(data) > self.context.settings.max_document_bytes:
+                raise DocumentError("Native input exceeds document size limit")
+            kind = "pcb" if suffix == ".dip" else "schematic"
+            info = DocumentInfo(
+                document_id=stable_id("doc", "native-" + kind, str(target.path)),
+                source_type="native-" + kind, kind=kind, version="unknown", units="unknown",
+                path=str(target.path), size_bytes=len(data), sha256=sha256_bytes(data),
+                compatibility={"limitations": ["Native binary metadata has not been parsed."]},
+            )
+        else:
+            document, target = self.gateway.load(path)
+            info = self.context.model_cache.get(document, live_session=False).info
         expected_kind = "pcb" if check == "pcb_acceptance" else "schematic"
-        if check != "xml_export" and document.kind != expected_kind:
+        if check != "xml_export" and info.kind != expected_kind:
             raise DocumentError(f"Native check {check} requires a {expected_kind} document")
-        info = self.context.model_cache.get(document, live_session=False).info
         record = self.external_job_manager.start_native_check(
             info,
             target.path,
             check=check,
             diptrace_root=Path(diptrace_root),
             timeout_seconds=timeout_seconds,
+            startup_dialog_sha256=startup_dialog_sha256,
         )
+        return self._native_job_response(info, record)
+
+    @staticmethod
+    def _native_job_response(info: DocumentInfo, record: JobRecord) -> dict[str, Any]:
         return {
             "ok": True,
             "document": info.model_dump(),
@@ -302,6 +330,30 @@ class ExternalJobsService:
             "transaction": None,
             "job": record.model_dump(mode="json"),
         }
+
+    def run_native_export(
+        self, path: str, expected_sha256: str, *, timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Collect raw native PCB CAM evidence in an owned background job."""
+        self.context.policy.require_external_execution(operation="run_native_export")
+        target = self.gateway.resolve_target(path)
+        if target.is_live:
+            raise DocumentError("Native exports require a saved PCB, not a live session")
+        document, target = self.gateway.load(path)
+        if (target.is_live or document.kind != "pcb"
+                or target.path.suffix.lower() not in {".dipxml", ".xml"}):
+            raise DocumentError("Native CAM export requires saved PCB XML")
+        if document.sha256 != expected_sha256:
+            raise Sha256MismatchError("Native CAM source does not match expected_sha256")
+        info = self.context.model_cache.get(document, live_session=False).info
+        record = self.external_job_manager.start_native_export(
+            info, target.path, timeout_seconds=timeout_seconds,
+        )
+        response = self._native_job_response(info, record)
+        response["limitations"].append(
+            "Outputs are raw CAM evidence, never fabrication signoff; review the CAM manifest."
+        )
+        return response
 
     def run_ngspice_simulation(
         self,

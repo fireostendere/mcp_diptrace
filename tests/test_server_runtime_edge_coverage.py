@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import io
+import json
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from typing import Any, cast
 
 import anyio
+import pytest
 from mcp import types
 from mcp.shared.message import SessionMessage
 
@@ -119,6 +121,33 @@ def test_robust_stdio_forwards_valid_invalid_input_and_output(monkeypatch: Any) 
     rendered = output.getvalue()
     assert '"jsonrpc":"2.0"' in rendered
     assert '"method":"ping"' in rendered
+
+
+@pytest.mark.parametrize('text', ['Unicode punctuation – “quote”', 'Кириллица → UTF-8'])
+def test_robust_stdio_emits_utf8_bytes_regardless_of_windows_text_encoding(
+    monkeypatch: Any, text: str,
+) -> None:
+    raw = io.BytesIO()
+    output = io.TextIOWrapper(raw, encoding='cp1252', errors='strict')
+    monkeypatch.setattr(runtime.sys, 'stdin', io.StringIO(''))
+    monkeypatch.setattr(runtime.sys, 'stdout', output)
+    message = SessionMessage(types.JSONRPCMessage.model_validate({
+        'jsonrpc': '2.0', 'id': 1, 'result': {'text': text},
+    }))
+
+    async def exercise() -> None:
+        async with runtime._robust_stdio_server() as (_, write_stream):
+            await write_stream.send(message)
+            await write_stream.aclose()
+
+    try:
+        anyio.run(exercise)
+        emitted = raw.getvalue()
+        assert emitted.endswith(b'\n')
+        assert text.encode('utf-8') in emitted
+        assert json.loads(emitted.decode('utf-8'))['result']['text'] == text
+    finally:
+        output.detach()
 
 
 def test_streamable_http_app_serves_the_project_version() -> None:

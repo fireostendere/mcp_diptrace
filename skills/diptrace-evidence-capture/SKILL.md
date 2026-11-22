@@ -21,8 +21,9 @@ use the legacy operator workflow in
 [`references/operator-workflow.md`](references/operator-workflow.md).
 
 Use public `tools/list` for exact callable names and `get_capabilities` for session, document,
-and feature availability. Native host orchestration is a local helper and does not expand the MCP
-tool contract.
+and feature availability. `run_native_check` wraps supported native helpers as
+private-copy background jobs; local module/helper interfaces remain available too.
+Neither dispatch nor job completion is an acceptance verdict.
 
 ## Open/save/close and capture
 
@@ -49,8 +50,10 @@ pipeline. Use that pipeline only when a formal evidence candidate is requested.
 The source module `diptrace_mcp.schematic_native_acceptance` supports `.dchxml` on
 non-elevated Windows, with an owned hidden desktop and executable-hash-pinned English
 Schematic profiles for 5.3.0.3 and 5.3.5.1 (same menu positions, different command
-IDs, each reviewed separately). It is a local CLI, not a public MCP tool; check module
-availability, `--help`, the selected executable and source version first.
+IDs, each reviewed separately). Use its local CLI, frozen-helper
+`schematic-acceptance` dispatch, or `run_native_check` schematic checks. Check
+availability, `--help`, selected executable and source version first. Startup
+dialog approvals must name exact operator-reviewed PNG hashes; never infer approval.
 
 ```powershell
 py -B -m diptrace_mcp.schematic_native_acceptance `

@@ -17,6 +17,7 @@ import time
 import uuid
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
+from itertools import islice
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -26,9 +27,11 @@ from .domain import StrictModel
 from .headless_gui import (
     HeadlessGuiError,
     HiddenDesktop,
+    _dialog_owner_matches,
     _interactive_context,
     _launch_on_current_desktop,
     _load_json,
+    _owned_dialogs,
     _post_menu_item,
     _post_window_message,
     _pywinauto_application,
@@ -46,7 +49,8 @@ from .headless_gui import (
     process_window_station_name,
     thread_desktop_name,
 )
-from .native_cad import _ready_main_window, _update_pours_item, _visible
+from .native_cad import _capture as _capture_native_window
+from .native_cad import _drc_bitmap_status, _ready_main_window, _update_pours_item, _visible
 from .windows_configurator import ConfiguratorError, validate_diptrace_directory
 from .xml_analysis import analyze_xml_semantics, compare_xml_semantics
 from .xml_document import DipTraceDocument
@@ -264,14 +268,12 @@ def classify_drc_dialog(
     dialog_class: str = "",
 ) -> DrcStatus:
     normalized = "\n".join(texts).casefold()
-    if any(token.casefold() in normalized for token in success_tokens):
-        return "pass"
-    if dialog_class.casefold() == "tfmymessage":
-        return "pass"
     if re.search(r"\b[1-9][0-9]*\s+errors?\b", normalized) or re.search(
         r"\berrors?(?:\s+found)?\s*[:=]\s*[1-9][0-9]*\b", normalized
     ):
         return "fail"
+    if any(token.casefold() in normalized for token in success_tokens):
+        return "pass"
     return "review_required"
 
 
@@ -326,6 +328,44 @@ def _dialog_texts(dialog: Any) -> list[str]:
     return values
 
 
+def _wait_for_drc_result(app: Any, owner: Any, timeout_seconds: float) -> Any:
+    """Wait through the observed DRC progress form; never act on it or unknown modals."""
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        progress, results = [], []
+        for dialog in _owned_dialogs(app, owner):
+            if (dialog.process_id() != app.process or owner.process_id() != app.process
+                    or not _dialog_owner_matches(app, dialog.parent(), owner)):
+                raise HeadlessGuiError("unowned native DRC dialog")
+            kind = dialog.class_name()
+            if kind == "TFProgress":
+                controls = list(islice(dialog.descendants(), 33))
+                texts = [str(control.window_text()).strip() for control in controls]
+                texts = [text for text in texts if text]
+                if (dialog.window_text() != "Progress Bar" or len(controls) > 32
+                        or sorted(texts) != ["Checking Design Rules", "Stop"]):
+                    raise HeadlessGuiError("unexpected native DRC progress form")
+                progress.append(dialog)
+            elif kind in {"TFMyMessage", "TForm60"}:
+                results.append(dialog)
+            else:
+                raise HeadlessGuiError("unexpected native DRC dialog")
+        if len(progress) > 1 or len(results) > 1:
+            raise HeadlessGuiError("ambiguous native DRC dialogs")
+        if not progress and results:
+            # Re-enumerate through the unchanged generic verifier to detect a racing modal.
+            result = _visible_dialog(app, 0, owner=owner)
+            if result.handle != results[0].handle or result.class_name() not in {
+                "TFMyMessage", "TForm60",
+            }:
+                raise HeadlessGuiError("native DRC result changed during verification")
+            return result
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise HeadlessGuiError("native DRC progress/result wait timed out")
+        time.sleep(min(0.1, remaining))
+
+
 def _dismiss_dialog(dialog: Any, timeout_seconds: float) -> None:
     for control in dialog.descendants()[:512]:
         with suppress(Exception):
@@ -355,6 +395,53 @@ def _wait_for_exit(app: Any, timeout_seconds: float, label: str) -> None:
         raise HeadlessGuiError(f"{label} did not exit normally") from exc
 
 
+def _capture_failure_diagnostics(app: Any, folder: Path, owner: Any | None) -> dict[str, Any]:
+    """Best-effort observation only: never select, dismiss or approve a window."""
+    folder.mkdir(parents=True, exist_ok=False)
+    candidates = list(islice(app.windows(visible_only=True, enabled_only=False), 33))
+    records: list[dict[str, Any]] = []
+    errors: list[str] = []
+    captures = 0
+    for candidate in candidates[:32]:
+        try:
+            if (candidate.process_id() != app.process or not candidate.is_visible()
+                    or (owner is not None and candidate.handle == owner.handle)
+                    or candidate.menu() is not None):
+                continue
+            record: dict[str, Any] = {
+                "handle": int(candidate.handle), "pid": int(app.process),
+                "class": str(candidate.class_name())[:128],
+                "title": str(candidate.window_text())[:512],
+                "enabled": bool(candidate.is_enabled()), "control_texts": [],
+            }
+            records.append(record)
+            with suppress(Exception):
+                parent = candidate.parent()
+                record["parent_handle"] = int(parent.handle) if parent is not None else None
+            try:
+                record["control_texts"] = [
+                    str(control.window_text())[:512]
+                    for control in islice(candidate.descendants(), 32)
+                ]
+            except Exception as exc:
+                record["controls_error"] = str(exc)[:1000]
+            if captures < 8:
+                image = folder / f"dialog-{captures}.png"
+                captures += 1
+                try:
+                    # Existing PrintWindow capture also bounds each image to 16 million pixels.
+                    _capture_native_window(candidate, image)
+                    record.update(image=str(image), image_sha256=_sha256(image))
+                except Exception as exc:
+                    record["capture_error"] = str(exc)[:1000]
+        except Exception as exc:
+            errors.append(str(exc)[:1000])
+    result = {"directory": str(folder), "windows": records, "errors": errors,
+              "truncated": len(candidates) > 32 or len(records) > captures}
+    _write_json(folder / "diagnostics.json", result)
+    return result
+
+
 def _native_worker_evidence(
     request: PcbNativeAcceptanceRequest, *, desktop_name: str
 ) -> NativePcbWorkerEvidence:
@@ -369,6 +456,7 @@ def _native_worker_evidence(
     forced = False
     error: str | None = None
     saved_project = request.project
+    window: Any = None
 
     def step(name: str, status: str, **evidence: Any) -> None:
         steps.append({"name": name, "status": status, **evidence})
@@ -403,10 +491,24 @@ def _native_worker_evidence(
         drc_menu = _post_menu_path(
             window, request.drc_menu, timeout_seconds=request.timeout_seconds
         )
-        dialog = _visible_dialog(app, request.timeout_seconds, owner=window)
+        dialog = _wait_for_drc_result(app, window, request.timeout_seconds)
         dialog_class = str(dialog.class_name())
         drc_texts = _dialog_texts(dialog)
         drc_status = classify_drc_dialog(drc_texts, request.drc_success_tokens, dialog_class)
+        drc_capture: dict[str, Any] = {}
+        if drc_status == "review_required":
+            image_path = request.output_xml.with_name(
+                f"{request.output_xml.stem}.drc-{uuid.uuid4().hex}.png"
+            )
+            try:
+                image = _capture_native_window(dialog, image_path)
+                drc_capture.update(image=str(image_path), image_sha256=_sha256(image_path))
+                bitmap_status = _drc_bitmap_status(image, dialog_class)
+                drc_capture["bitmap_status"] = bitmap_status
+                if bitmap_status == "pass":
+                    drc_status = "pass"
+            except Exception as exc:
+                drc_capture["capture_error"] = str(exc)[:1000]
         step(
             "run_drc",
             "completed",
@@ -414,6 +516,7 @@ def _native_worker_evidence(
             drc_status=drc_status,
             dialog_class=dialog_class,
             dialog_texts=drc_texts,
+            **drc_capture,
         )
         _dismiss_dialog(dialog, request.timeout_seconds)
 
@@ -443,10 +546,12 @@ def _native_worker_evidence(
         app = application_class(backend="win32").start(
             reopen_command, timeout=request.timeout_seconds
         )
+        window = None
         pids.append(int(app.process))
         reopened = _ready_main_window(
             app, saved_project, request.timeout_seconds, acknowledge_startup
         )
+        window = reopened
         step("reopen", "completed", pid=int(app.process))
 
         save_as_menu = _post_menu_path(
@@ -465,7 +570,19 @@ def _native_worker_evidence(
         _wait_for_exit(app, request.timeout_seconds, "DipTrace PCB re-export phase")
         step("close_reopened", "completed")
     except Exception as exc:
-        titles = _window_titles(app) if app is not None else []
+        titles = []
+        if app is not None:
+            try:
+                diagnostics = _capture_failure_diagnostics(
+                    app,
+                    request.output_xml.with_name(request.output_xml.stem + ".failure-evidence"),
+                    window,
+                )
+                step("failure_diagnostics", "captured", **diagnostics)
+            except Exception as diagnostic_error:
+                step("failure_diagnostics", "unavailable", error=str(diagnostic_error)[:1000])
+            with suppress(Exception):
+                titles = [str(title)[:512] for title in islice(_window_titles(app), 32)]
         suffix = f"; open windows: {titles!r}" if titles else ""
         error = f"{type(exc).__name__}: {exc}{suffix}"
         step("pipeline", "failed", error=error)

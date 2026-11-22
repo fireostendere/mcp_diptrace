@@ -25,7 +25,7 @@ classifiers = [
 dependencies = [
   # Upper bound = newest SDK the suite passed on: the runtime wraps FastMCP
   # internals (Tool.run, fn_metadata, _tool_manager). Raise it after a green run.
-  "mcp>=1.28.1,<1.31",
+  "mcp>=1.30.0,<1.31",
   "pydantic>=2.11,<3",
   "tomli>=2.0,<3; python_version < '3.11'",
   "typing-extensions>=4.12,<5",
@@ -43,6 +43,7 @@ geometry = [
 ]
 headless-gui = [
   "pywinauto==0.6.9; sys_platform == 'win32'",
+  "Pillow>=13,<14; sys_platform == 'win32'",
 ]
 dev = [
   "hatchling>=1.27,<2",

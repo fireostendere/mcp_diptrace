@@ -222,9 +222,9 @@ packaging, configuration, or lifecycle code changed.
 
 ### M6. Native manufacturing package and DFM review
 
-Why manual: this repository does not generate authoritative native Gerber/NC
-Drill/ODB++/IPC-2581 output, and only a fabricator/assembler can accept the
-chosen process rules.
+Why manual: `run_native_export` collects raw native Gerber/NC Drill/placement
+evidence, not inspected CAM or fabrication approval. ODB++/IPC-2581 remain
+unsupported, and only a fabricator/assembler can accept the chosen process rules.
 
 Procedure:
 

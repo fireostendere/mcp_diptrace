@@ -99,6 +99,15 @@ FEATURE_DOCS: dict[str, tuple[str, ...]] = {
 }
 
 SEMANTIC_DOC_MARKERS: dict[str, tuple[str, ...]] = {
+    "docs/MCP_TOOLS.md": (
+        "tool_capabilities",
+        "xml-id:1",
+        "name:xml-id:1",
+        "package_publicly_validated=false",
+        "plan_add_wire",
+        "run_native_export",
+        "startup_dialog_sha256",
+    ),
     "docs/ROADMAP.md": (
         "selective reroute of explicit affected",
         "one dependency-safe semantic batch",

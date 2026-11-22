@@ -1194,6 +1194,22 @@ def create_server(
             txid,
         )
 
+    @mcp.tool(capability_keys=["write_capabilities.schematic_authoring"])
+    def plan_add_wire(
+        net: str,
+        points: list[WirePathPoint],
+        start: WireEndpoint,
+        end: WireEndpoint,
+        sheet: int = 0,
+        hidden_power: bool = False,
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        """Preview add_wire without writing; inspect accept_route and feedback before applying."""
+        return service.plan_add_wire(
+            net, [point.model_dump() for point in points],
+            start.model_dump(), end.model_dump(), sheet, hidden_power, path,
+        )
+
     @mcp.tool()
     def delete_wire(
         selector: SelectorInput | None = None,
@@ -2448,10 +2464,30 @@ def create_server(
         path: str,
         diptrace_root: Annotated[str, Field(description="DipTrace installation directory.")],
         timeout_seconds: int | None = None,
+        startup_dialog_sha256: Annotated[
+            list[Annotated[str, Field(strict=True, pattern=r"^[0-9a-f]{64}$")]] | None,
+            Field(strict=True, max_length=8, description=(
+                "Exact client PNG SHA-256 values explicitly reviewed by the operator; "
+                "no default approvals. Schematic checks: up to 8; XML export: up to 1; "
+                "PCB acceptance: unsupported."
+            )),
+        ] = None,
     ) -> dict[str, Any]:
         """See the tool description."""
         return service.run_native_check(
-            check, path, diptrace_root, timeout_seconds=timeout_seconds
+            check, path, diptrace_root, timeout_seconds=timeout_seconds,
+            startup_dialog_sha256=startup_dialog_sha256,
+        )
+
+    @mcp.tool(capability_keys=["read_capabilities.external_jobs"])
+    def run_native_export(
+        path: str,
+        expected_sha256: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")],
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Export raw native PCB CAM evidence on a private copy; never fabrication signoff."""
+        return service.run_native_export(
+            path, expected_sha256, timeout_seconds=timeout_seconds,
         )
 
     @mcp.tool()
@@ -3061,6 +3097,9 @@ def create_server(
         )
 
 
+    from .tool_capabilities import tool_capability_mapping
+
+    tool_capability_mapping(mcp.tool_bodies)
     service.set_workflow_prompt_names(tuple(mcp.prompt_names))
     return mcp
 @asynccontextmanager
@@ -3119,8 +3158,13 @@ async def _robust_stdio_server() -> AsyncIterator[tuple[Any, Any]]:
         async with write_reader:
             async for message in write_reader:
                 payload = message.message.model_dump_json(by_alias=True, exclude_none=True)
-                sys.stdout.write(payload + "\n")
-                sys.stdout.flush()
+                binary_stdout = getattr(sys.stdout, "buffer", None)
+                if binary_stdout is not None:
+                    binary_stdout.write((payload + "\n").encode("utf-8"))
+                    binary_stdout.flush()
+                else:  # StringIO and other text-only test streams.
+                    sys.stdout.write(payload + "\n")
+                    sys.stdout.flush()
 
     threading.Thread(target=read_stdin, name="diptrace-mcp-stdin", daemon=True).start()
     async with anyio.create_task_group() as task_group:

@@ -31,6 +31,8 @@ if (-not (Test-Path -LiteralPath $VenvDir -PathType Container)) {
 $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 Push-Location $RepoRoot
 try {
+    & $VenvPython -m pip install --disable-pip-version-check --upgrade -c $Constraints pip
+    if ($LASTEXITCODE -ne 0) { throw "Unable to bootstrap patched packaging pip" }
     $Extras = if ($NoGeometry) {
         ".[bridge,headless-gui]"
     } else {
@@ -85,6 +87,13 @@ if ($LASTEXITCODE -ne 0) { throw "Headless GUI executable startup smoke failed" 
 # DipTrace or ffmpeg on the build runner.
 & $HeadlessExecutable cinematic --help | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Headless cinematic helper startup smoke failed" }
+
+foreach ($Dispatch in @(
+    "pcb-acceptance", "schematic-acceptance", "xml-export", "native-cam", "native-cad-worker"
+)) {
+    & $HeadlessExecutable $Dispatch --help | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Native helper dispatch startup smoke failed: $Dispatch" }
+}
 
 # Exercise the real CreateProcessW native-desktop targeting primitive on Windows
 # without DipTrace. The probe verifies desktop, WinSta0 window station and

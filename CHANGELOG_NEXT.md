@@ -5,11 +5,16 @@ Changes in this section are later development and are not silently part of those
 
 ## Added
 
-- seven tools (159 in total): `add_copper_pours` and `delete_copper_pours` (pour
+- nine tools (161 in total): `add_copper_pours` and `delete_copper_pours` (pour
   boundaries with optional free stitching vias), `set_board_outline`, `delete_parts`,
   `delete_net_labels`, `run_quality_gate` (the handoff gate, now shipped in the package
   as `diptrace_mcp.quality_gate`) and `run_native_check` (the native acceptance, ERC
-  and XML-export helpers as background jobs); `place_builtin_component` accepts `txid`;
+  and XML-export helpers as background jobs), `plan_add_wire` (read-only bounded
+  wire preview and placement feedback), and `run_native_export` (SHA-bound raw CAM
+  evidence jobs on private PCB XML copies); `place_builtin_component` accepts `txid`;
+- qualified public tool-to-capability mappings, real pipeline capability keys and
+  registration coverage validation (B14); capability flags are feature metadata,
+  not policy permissions or native acceptance;
 - a schematic stage for `scripts/pcb_quality_gate.py`: the handoff's `Gate stage`,
   `Input schematic` and `Current board` lines (or `--stage/--schematic/--board`) name
   what is gated; the schematic stage needs no board and requires a clean, complete
@@ -38,6 +43,16 @@ Changes in this section are later development and are not silently part of those
 
 ## Fixed
 
+- native PCB DRC no longer passes merely because the dialog class is `TFMyMessage`;
+  positive error counts take precedence, and unknown text requires a verified bitmap
+  or explicit visual review with the retained PNG/hash;
+- XML duplicate-ID diagnostics are scoped to the owning collection, avoiding false
+  collisions between pads on different components and points on different traces;
+- `plan_add_wire` discovery text is stable across Python 3.12/3.13;
+- Windows builds pin patched MCP 1.30.0 and Pillow 13.0.0; the base server remains
+  Python 3.10+, while the optional Windows native capture helper needs Python 3.11+;
+  compliance inventories now include the declared headless-GUI dependencies.
+
 - the three `pipeline_*` tools obey the allowed roots and the active policy (they
   previously wrote anywhere, including under `read_only`), and
   `pipeline_nativeize_document` no longer replaces an existing file;
@@ -65,14 +80,52 @@ Changes in this section are later development and are not silently part of those
   apart; large boards keep stitching coverage; traces outside the outline fail;
 - a write call with `txid` and `dry_run=false` commits only the previewed operations;
   `move_via` re-validates the dragged trace; `place_part` requires the style and pin
-  count of the embedded library; a net name wins over an XML id; abandoned dry-run
+  count of the embedded library; numeric schematic net strings resolve only as
+  names, with explicit `xml-id:<Id>` and escaped `name:<literal>` syntax and safe
+  duplicate/invalid-reference refusal (B9); abandoned dry-run
   transactions expire by age; servers sharing a state directory no longer fail each
   other's jobs;
-- evergreen documents state the current 152-tool surface and the drift checker
-  rejects any other count ([review](docs/MCP_REVIEW_2026-11-10.md)).
+- evergreen documents state the current 161-tool surface and the drift checker
+   rejects any other count ([review](docs/MCP_REVIEW_2026-11-10.md)).
+- MCP stdio writes UTF-8 bytes independently of Windows' ANSI text encoding;
+  regressions cover CP1252 stdout with Unicode punctuation and Cyrillic text;
+- clean Windows headless builds explicitly install and pin Pillow for native
+  screenshot capture instead of relying on an incidental environment dependency;
+- geometry-enabled frozen servers initialize Shapely/NumPy before tool workers,
+  avoiding the observed Windows first-import hang on PCB document reads;
+- malformed native CAM ZIP DEFLATE/EOF failures are bounded validation errors,
+  not uncaught exceptions.
 
 ## Changed
 
+- the board quality gate runs `run_checks` and blocks on review errors, rather
+  than omitting overlap/edge review; skipped board checks remain explicit pending work;
+- `run_native_check` uses SHA-checked job-owned copies, supports native binary
+  `.dch`/`.dip` XML export, and dispatches source or packaged GUI helpers. Optional
+  `startup_dialog_sha256` approvals bind exact operator-reviewed client PNG hashes
+  (schematic: up to eight; XML export: one; PCB acceptance: unsupported);
+- Q1 code/output distinguishes manual checkpoint PASS from reusable package-public
+  evidence, which remains false and grants no high trust;
+- native DipTrace 5.3.0.3 jobs now executed all four check variants. Schematic
+  acceptance/ERC and binary XML export returned zero; the ERC client image was
+   viewed and reads "No errors found". Label deletion preserved the compared
+   semantics; R1 deletion after removing all wires lost 22 net memberships on
+   native re-export, so its smoke is not connectivity acceptance. The base
+   schematic preserved physical pin-to-pad/net/NC records but still has library
+   and wire geometry deltas. Pour add/delete and outline copies completed
+  refill, DRC (`pass`), save/re-export, but their strict comparison verdict remains
+   `FAIL` (22 to 20 endpoint records: GND `J1`/`J2` pad `1` disappeared, plus
+   scoped-ID differences); this is not waived.
+  The observed asynchronous DRC-progress race is fixed with a narrow bounded wait.
+  G2 produced real Gerber/NC Drill/placement files with a complete bounded manifest,
+  not CAM acceptance. G11 is implemented;
+  B6 and G5/G7/G8/G6 remain BLOCKED pending native-authored references/profiles.
+   No version, published release or release authorization is changed;
+- a clean frozen Windows build completed all four native checks and CAM export
+  through MCP stdio with source SHAs unchanged. Schematic/ERC/XML export and CAM
+  helpers returned zero; native-authored PCB acceptance returned
+  `HUMAN_REVIEW_REQUIRED` (DRC pass, structural equality, remaining XML semantic
+  delta). This does not waive the mutation-copy failures or named-client gates;
 - the schematic readability review counts visible markings on automatic alignment per
   sheet (`automatic_markings`) for the native page-fit inspection instead of reporting
   them as missing geometry; the native editor and `place_part` use that alignment by

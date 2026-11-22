@@ -20,12 +20,14 @@ from .errors import (
     ExternalToolUnavailableError,
     JobCancelledError,
     JobTimeoutError,
+    Sha256MismatchError,
 )
 from .external_process import (
     ExternalProcessReservation,
     ExternalProcessRunner,
 )
 from .jobs import JobStore, job_resources
+from .native_helper import helper_command
 from .xml_document import sha256_bytes, utc_now
 
 _NET_CLASS = re.compile(r"^[A-Za-z0-9_.:+/ -]{1,128}$")
@@ -540,18 +542,54 @@ class ExternalJobManager:
         check: str,
         diptrace_root: Path,
         timeout_seconds: int | None,
+        startup_dialog_sha256: list[str] | None = None,
     ) -> JobRecord:
         """Run one of the project's own native DipTrace CLIs on a copy, as a job."""
-        if getattr(sys, "frozen", False):
-            raise ExternalToolUnavailableError(
-                "Native checks need a Python environment; the packaged server cannot "
-                "start the native helper modules"
-            )
-        timeout = timeout_seconds or self.settings.external_timeout_seconds
-        if not 1 <= timeout <= self.settings.external_timeout_seconds:
+        approvals = [] if startup_dialog_sha256 is None else startup_dialog_sha256
+        if not isinstance(approvals, list) or len(approvals) > 8 or any(
+            not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            for digest in approvals
+        ):
             raise ExternalToolFailedError(
-                f"timeout_seconds must be between 1 and {self.settings.external_timeout_seconds}"
+                "startup_dialog_sha256 must be a list of at most 8 exact lowercase SHA-256 values"
             )
+        if approvals and check == "pcb_acceptance":
+            raise ExternalToolFailedError(
+                "PCB acceptance does not support startup dialog approvals"
+            )
+        if len(approvals) > 1 and check == "xml_export":
+            raise ExternalToolFailedError("XML export supports at most one startup dialog approval")
+        suffixes = {
+            "pcb_acceptance": {".dip", ".dipxml", ".xml"},
+            "schematic_acceptance": {".dchxml", ".xml"},
+            "schematic_erc": {".dchxml", ".xml"},
+            "xml_export": {".dch", ".dip"},
+        }
+        suffix = target_path.suffix.lower()
+        if check not in suffixes or suffix not in suffixes[check]:
+            raise ExternalToolFailedError("Native check has an unsupported input suffix or kind")
+        expected_kind = info.kind if suffix == ".xml" else (
+            "pcb" if suffix.startswith(".dip") else "schematic"
+        )
+        if info.kind != expected_kind:
+            raise ExternalToolFailedError("Native check input suffix does not match document kind")
+        if check != "xml_export" and expected_kind != (
+            "pcb" if check == "pcb_acceptance" else "schematic"
+        ):
+            raise ExternalToolFailedError("Native check does not match document kind")
+        if suffix == ".xml":
+            suffix = ".dipxml" if expected_kind == "pcb" else ".dchxml"
+        maximum = min(300, self.settings.external_timeout_seconds)
+        minimum = 30 if check.startswith("schematic_") else 1
+        timeout = min(180, maximum) if timeout_seconds is None else timeout_seconds
+        if not minimum <= timeout <= maximum:
+            raise ExternalToolFailedError(
+                f"timeout_seconds must be between {minimum} and {maximum}"
+            )
+        dispatch = {"pcb_acceptance": "pcb-acceptance", "xml_export": "xml-export"}.get(
+            check, "schematic-acceptance"
+        )
+        prefix = helper_command(dispatch)
         record = self.store.create(
             job_type=f"native_{check}",
             document_id=info.document_id,
@@ -559,36 +597,93 @@ class ExternalJobManager:
             target_path=target_path,
         )
         folder = self.store.job_dir(record.jobid)
-        common = ["--diptrace-root", str(diptrace_root), "--project", str(target_path)]
-        module, arguments = {
-            "pcb_acceptance": (
-                "diptrace_mcp.pcb_native_acceptance",
-                ["run", *common, "--output-xml", str(folder / "native-output.xml"),
-                 "--evidence-json", str(folder / "evidence.json"), "--timeout", str(timeout)],
-            ),
-            "schematic_acceptance": (
-                "diptrace_mcp.schematic_native_acceptance",
-                [*common, "--expected-sha256", info.sha256, "--output-dir",
-                 str(folder / "native-output"), "--timeout", str(timeout)],
-            ),
-            "schematic_erc": (
-                "diptrace_mcp.schematic_native_acceptance",
-                [*common, "--expected-sha256", info.sha256, "--output-dir",
-                 str(folder / "native-output"), "--timeout", str(timeout), "--erc"],
-            ),
-            "xml_export": (
-                "diptrace_mcp.native_xml_export",
-                [*common, "--output-xml", str(folder / "native-output.xml"),
-                 "--timeout", str(timeout)],
-            ),
+        copied = self._copy_native_input(info, target_path, record, suffix)
+        common = ["--diptrace-root", str(diptrace_root), "--project", str(copied)]
+        arguments = {
+            "pcb_acceptance": [
+                "run", *common, "--output-xml", str(folder / "native-output.dipxml"),
+                "--evidence-json", str(folder / "evidence.json"), "--timeout", str(timeout)],
+            "schematic_acceptance": [
+                *common, "--expected-sha256", info.sha256, "--output-dir",
+                str(folder / "native-output"), "--timeout", str(timeout)],
+            "schematic_erc": [
+                *common, "--expected-sha256", info.sha256, "--output-dir",
+                str(folder / "native-output"), "--timeout", str(timeout), "--erc"],
+            "xml_export": [
+                *common, "--output-xml", str(folder / ("native-output" + (
+                    ".dipxml" if expected_kind == "pcb" else ".dchxml"))),
+                "--timeout", str(timeout)],
         }[check]  # fmt: skip
-        command = [sys.executable, "-m", module, *arguments]
+        command = [*prefix, *arguments,
+                   *(arg for digest in approvals for arg in ("--startup-dialog-sha256", digest))]
         record = self.store.update(record.jobid, command=command)
         return self._launch_worker(
             record,
             target=self._run_native_check,
             # The helper has its own timeout; the job allows it time to clean up.
-            args=(record.jobid, command, timeout + 60),
+            args=(record.jobid, command, timeout * 2 + 90),
+        )
+
+    def _copy_native_input(
+        self, info: DocumentInfo, target_path: Path, record: JobRecord, suffix: str,
+    ) -> Path:
+        try:
+            # PCB acceptance saves its input: only a job-owned, SHA-checked copy may reach it.
+            with target_path.open("rb") as source:
+                data = source.read(self.settings.max_document_bytes + 1)
+            if len(data) > self.settings.max_document_bytes:
+                raise ExternalToolFailedError("Native check input exceeds document size limit")
+            if sha256_bytes(data) != info.sha256:
+                raise Sha256MismatchError("Native check source changed since loading")
+            copied = self.store.store_artifact(record.jobid, "input" + suffix, data)
+            if sha256_bytes(copied.read_bytes()) != info.sha256:
+                raise Sha256MismatchError("Native check private copy SHA mismatch")
+            with target_path.open("rb") as source:
+                if sha256_bytes(source.read(self.settings.max_document_bytes + 1)) != info.sha256:
+                    raise Sha256MismatchError("Native check source changed while copying")
+        except Exception as exc:
+            self._record_setup_failure(record, exc)
+            raise
+        return copied
+
+    def start_native_export(
+        self, info: DocumentInfo, target_path: Path, *, timeout_seconds: int | None = None,
+    ) -> JobRecord:
+        """Collect raw CAM evidence via the owned native runner, never save the source."""
+        from . import native_cad
+
+        if info.kind != "pcb" or target_path.suffix.lower() not in {".dipxml", ".xml"}:
+            raise ExternalToolFailedError("Native CAM export requires PCB XML")
+        if info.size_bytes > 64 * 1024 * 1024:
+            raise ExternalToolFailedError("Native CAM input exceeds helper size limit")
+        maximum = min(300, self.settings.external_timeout_seconds)
+        timeout = min(120, maximum) if timeout_seconds is None else timeout_seconds
+        if not 1 <= timeout <= maximum:
+            raise ExternalToolFailedError(f"timeout_seconds must be between 1 and {maximum}")
+        prefix = helper_command("native-cam")
+        root = native_cad.installation_root()
+        record = self.store.create(
+            job_type="native_cam_export", document_id=info.document_id,
+            source_sha256=info.sha256, target_path=target_path,
+        )
+        copied = self._copy_native_input(info, target_path, record, ".dipxml")
+        folder = self.store.job_dir(record.jobid)
+        command = [*prefix, "--project", str(copied), "--output-dir", str(folder / "native-cam"),
+                   "--diptrace-root", str(root), "--expected-sha256", info.sha256,
+                   "--timeout", str(timeout)]
+        try:
+            self.store.store_artifact(record.jobid, "manifest.json", json.dumps({
+                "adapter": "native_cam", "source_sha256": info.sha256,
+                "document_id": info.document_id, "timeout_seconds": timeout,
+                "fabrication_approved": False, "output_directory": "native-cam",
+            }, indent=2).encode("utf-8"))
+            record = self.store.update(record.jobid, command=command)
+        except Exception as exc:
+            self._record_setup_failure(record, exc)
+            raise
+        return self._launch_worker(
+            record, target=self._run_native_check,
+            args=(record.jobid, command, timeout * 2 + 90),
         )
 
     def _run_native_check(
@@ -600,6 +695,20 @@ class ExternalJobManager:
         reservation: ExternalProcessReservation,
     ) -> None:
         started = time.monotonic()
+        folder = self.store.job_dir(jobid)
+
+        def outputs() -> dict[str, Any]:
+            return {
+                "output_directory": str(folder),
+                "output_files": sorted(
+                    str(item.relative_to(folder))
+                    for item in folder.rglob("*")
+                    if item.is_file() and not item.is_symlink()
+                    and item.resolve().is_relative_to(folder.resolve())
+                    and item.name not in {"job.json", "owner.json"}
+                ),
+            }
+
         try:
             self.store.update(
                 jobid,
@@ -623,7 +732,6 @@ class ExternalJobManager:
                 on_started=lambda process: self._track_process(jobid, process),
                 on_progress=lambda elapsed: self._update_external_progress(jobid, elapsed),
             )
-            folder = self.store.job_dir(jobid)
             self.store.update(
                 jobid,
                 status="completed",
@@ -636,15 +744,13 @@ class ExternalJobManager:
                     "log": f"diptrace://job/{jobid}/log",
                 },
                 result={
+                    "execution_status": "finished",
+                    "acceptance_decision": "not_evaluated",
                     # The helper's own verdict: 0 is its pass; any other code, including
                     # the documented human-review code, is in the log and evidence files.
                     "return_code": process_result.return_code,
                     "helper_passed": process_result.return_code == 0,
-                    "output_files": sorted(
-                        str(item.relative_to(folder))
-                        for item in folder.rglob("*")
-                        if item.is_file() and item.name not in {"job.json", "owner.json"}
-                    ),
+                    **outputs(),
                     "resources": job_resources(jobid),
                 },
             )
@@ -657,6 +763,8 @@ class ExternalJobManager:
                 elapsed_seconds=time.monotonic() - started,
                 completed_at=utc_now(),
                 error=exc.payload.as_dict(),
+                result={"execution_status": status, "acceptance_decision": "not_evaluated",
+                        **outputs()},
             )
         except Exception as exc:
             self.store.update(
@@ -668,6 +776,8 @@ class ExternalJobManager:
                 error=ExternalToolFailedError(
                     f"Could not execute the native check: {exc}", jobid=jobid
                 ).payload.as_dict(),
+                result={"execution_status": "failed", "acceptance_decision": "not_evaluated",
+                        **outputs()},
             )
         finally:
             reservation.release()
